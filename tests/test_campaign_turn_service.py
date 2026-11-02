@@ -2178,6 +2178,7 @@ def test_mixed_turn_operations_are_atomic_when_character_operation_fails(
             self,
             operation,
             *,
+            campaign_id,
             conn=None,
         ):
             return OperationResult(
@@ -2198,6 +2199,7 @@ def test_mixed_turn_operations_are_atomic_when_character_operation_fails(
     result = world_service.apply_turn_operations(
         (world_operation,),
         (character_operation,),
+        campaign_id=1,
         ordered_operations=operations,
     )
 

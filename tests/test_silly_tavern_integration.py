@@ -576,6 +576,7 @@ def test_integration_service_does_not_generate_narrative(
         lambda world_operations,
         character_operations,
         *,
+        campaign_id,
         conn=None,
         ordered_operations=None: (),
     )
@@ -636,6 +637,7 @@ def test_integration_service_passes_silly_tavern_narrative_to_extractor(
         lambda world_operations,
         character_operations,
         *,
+        campaign_id,
         conn=None,
         ordered_operations=None: (),
     )
@@ -694,6 +696,7 @@ def test_integration_service_applies_extracted_operations(
         world_operations,
         character_operations,
         *,
+        campaign_id,
         conn=None,
         ordered_operations=None,
     ):
@@ -830,6 +833,7 @@ def test_integration_service_preserves_operation_order(
         world_operations,
         character_operations,
         *,
+        campaign_id,
         conn=None,
         ordered_operations=None,
     ):
@@ -2179,6 +2183,7 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
                 amount=-4,
             )
         ],
+        campaign_id=1,
     )
 
     assert len(results) == 2

@@ -49,7 +49,7 @@ class FakeApplier:
         self.world = None
         self.operation = None
 
-    def apply(self, world, operation, campaign_id):
+    def apply(self, world, operation):
         self.called = True
         self.world = world
         self.operation = operation
@@ -765,7 +765,6 @@ def test_apply_turn_operations_rolls_back_when_world_operation_fails(
             self,
             world,
             operation,
-            campaign_id,
         ):
             return OperationResult(
                 status=OperationStatus.INVALID,

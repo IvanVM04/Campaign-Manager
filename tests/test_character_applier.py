@@ -88,7 +88,8 @@ def test_unsupported_character_operation_is_rejected():
 
     try:
         applier.apply(
-            UnsupportedOperation()
+            UnsupportedOperation(),
+            campaign_id=1,
         )
     except CharacterApplierError as exc:
         assert str(exc) == (
@@ -110,6 +111,8 @@ def test_character_service_error_returns_failed_operation_result():
             *,
             entity_id,
             amount,
+            campaign_id,
+            conn=None,
         ):
             raise CharacterServiceError(
                 "character failure"

@@ -41,6 +41,7 @@ def test_failed_regeneration_keeps_previous_active_turn_and_records_failed_attem
         world_operations,
         character_operations,
         *,
+        campaign_id,
         conn=None,
         ordered_operations=None,
     ):

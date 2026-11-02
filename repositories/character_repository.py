@@ -1,5 +1,6 @@
 
 import json
+import sqlite3
 
 from database import execute, one, rows
 from models.character_state import CharacterState
@@ -119,10 +120,20 @@ class CharacterRepository:
             campaign_id,
         )
 
-        if conn is None:
-            execute(query, params)
-        else:
-            conn.execute(query, params)
+        try:
+            if conn is None:
+                execute(query, params)
+            else:
+                conn.execute(query, params)
+
+        except sqlite3.IntegrityError as exc:
+            if "cross-campaign reference is not allowed" in str(exc):
+                raise RuntimeError(
+                    f"Character {character.entity_id} belongs to "
+                    f"a different campaign"
+                ) from exc
+
+            raise
 
         loaded = self.get_character(
             character.entity_id,
