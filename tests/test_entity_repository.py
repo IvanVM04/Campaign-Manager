@@ -1,3 +1,4 @@
+
 from models.entity import Entity
 from repositories.entity_repository import EntityRepository
 
@@ -15,10 +16,14 @@ def test_entity_repository_saves_and_gets_entity(
             description="Un aventurero.",
             notes="Conoce Vorder's Hold.",
             active=True,
-        )
+        ),
+        campaign_id=1,
     )
 
-    loaded = repository.get_entity(100)
+    loaded = repository.get_entity(
+        100,
+        campaign_id=1,
+    )
 
     assert loaded == entity
     assert loaded is not None
@@ -35,7 +40,10 @@ def test_entity_repository_returns_none_for_missing_entity(
 ):
     repository = EntityRepository()
 
-    assert repository.get_entity(999999) is None
+    assert repository.get_entity(
+        999999,
+        campaign_id=1,
+    ) is None
 
 
 def test_entity_repository_updates_existing_entity(
@@ -48,7 +56,8 @@ def test_entity_repository_updates_existing_entity(
             id=100,
             name="Aldric",
             entity_type="player_character",
-        )
+        ),
+        campaign_id=1,
     )
 
     updated = repository.save_entity(
@@ -59,10 +68,14 @@ def test_entity_repository_updates_existing_entity(
             description="Veterano de Vorder's Hold.",
             notes="Tiene una deuda pendiente.",
             active=True,
-        )
+        ),
+        campaign_id=1,
     )
 
-    loaded = repository.get_entity(100)
+    loaded = repository.get_entity(
+        100,
+        campaign_id=1,
+    )
 
     assert loaded == updated
     assert loaded.name == "Aldric el Gris"
@@ -80,7 +93,8 @@ def test_entity_repository_lists_entities(
             id=2,
             name="Vorder's Hold",
             entity_type="location",
-        )
+        ),
+        campaign_id=1,
     )
 
     repository.save_entity(
@@ -88,10 +102,13 @@ def test_entity_repository_lists_entities(
             id=1,
             name="Aldric",
             entity_type="player_character",
-        )
+        ),
+        campaign_id=1,
     )
 
-    entities = repository.list_entities()
+    entities = repository.list_entities(
+        campaign_id=1,
+    )
 
     assert [entity.id for entity in entities] == [1, 2]
     assert [entity.name for entity in entities] == [
@@ -110,9 +127,55 @@ def test_entity_repository_deletes_entity(
             id=100,
             name="Aldric",
             entity_type="player_character",
-        )
+        ),
+        campaign_id=1,
     )
 
-    repository.delete_entity(100)
+    repository.delete_entity(
+        100,
+        campaign_id=1,
+    )
 
-    assert repository.get_entity(100) is None
+    assert repository.get_entity(
+        100,
+        campaign_id=1,
+    ) is None
+
+
+def test_entity_repository_isolates_entities_by_campaign(
+    isolated_database,
+):
+    repository = EntityRepository()
+
+    entity = repository.save_entity(
+        Entity(
+            id=100,
+            name="Aldric",
+            entity_type="player_character",
+        ),
+        campaign_id=1,
+    )
+
+    assert repository.get_entity(
+        100,
+        campaign_id=1,
+    ) == entity
+
+    assert repository.get_entity(
+        100,
+        campaign_id=2,
+    ) is None
+
+    assert repository.list_entities(
+        campaign_id=2,
+    ) == []
+
+    repository.delete_entity(
+        100,
+        campaign_id=2,
+    )
+
+    assert repository.get_entity(
+        100,
+        campaign_id=1,
+    ) == entity

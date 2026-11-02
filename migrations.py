@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 10
+CURRENT_VERSION = 11
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -423,6 +423,154 @@ def migration_010(conn: sqlite3.Connection) -> None:
         """
     )
 
+def migration_011(conn: sqlite3.Connection) -> None:
+    """
+    Prepara el esquema para soportar varias campañas.
+
+    Todos los datos existentes se asignan a la campaña 1.
+    Esta migración no cambia todavía los repositorios: la aplicación
+    seguirá utilizando el runtime antiguo hasta completar esa fase.
+    """
+
+    # ------------------------------------------------------------
+    # CAMPAIGN: eliminar la restricción CHECK (id = 1)
+    # ------------------------------------------------------------
+
+    conn.execute(
+        """
+        CREATE TABLE campaign_new (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            system TEXT NOT NULL DEFAULT 'D&D 5e 2014',
+            tone TEXT,
+            current_location_id INTEGER,
+            current_session_id INTEGER,
+            summary TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            active_character_id INTEGER
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        INSERT INTO campaign_new (
+            id,
+            name,
+            system,
+            tone,
+            current_location_id,
+            current_session_id,
+            summary,
+            created_at,
+            updated_at,
+            active_character_id
+        )
+        SELECT
+            id,
+            name,
+            system,
+            tone,
+            current_location_id,
+            current_session_id,
+            summary,
+            created_at,
+            updated_at,
+            active_character_id
+        FROM campaign
+        """
+    )
+
+    conn.execute("DROP TABLE campaign")
+    conn.execute("ALTER TABLE campaign_new RENAME TO campaign")
+
+    # ------------------------------------------------------------
+    # AÑADIR campaign_id A LAS TABLAS DE DATOS
+    # ------------------------------------------------------------
+
+    campaign_tables = (
+        "entities",
+        "items",
+        "item_instances",
+        "resources",
+        "resource_balances",
+        "relations",
+        "world_events",
+        "character_states",
+        "sessions",
+        "turns",
+    )
+
+    for table in campaign_tables:
+        columns = {
+            row[1]
+            for row in conn.execute(
+                f'PRAGMA table_info("{table}")'
+            ).fetchall()
+        }
+
+        if "campaign_id" not in columns:
+            conn.execute(
+                f"""
+                ALTER TABLE "{table}"
+                ADD COLUMN campaign_id INTEGER NOT NULL DEFAULT 1
+                """
+            )
+
+    # ------------------------------------------------------------
+    # ÍNDICES DE CAMPAÑA
+    # ------------------------------------------------------------
+
+    for table in campaign_tables:
+        conn.execute(
+            f"""
+            CREATE INDEX IF NOT EXISTS
+                idx_{table}_campaign
+            ON "{table}" (campaign_id)
+            """
+        )
+
+    # ------------------------------------------------------------
+    # TURNOS: external_turn_id deja de ser globalmente único.
+    # La unicidad de la versión y del turno activo se limita
+    # a una campaña.
+    # ------------------------------------------------------------
+
+    conn.execute(
+        "DROP INDEX IF EXISTS idx_turns_active_external_turn"
+    )
+
+    conn.execute(
+        "DROP INDEX IF EXISTS idx_turns_external_turn_version"
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS
+            idx_turns_campaign_external_version
+        ON turns (
+            campaign_id,
+            external_turn_id,
+            version
+        )
+        WHERE external_turn_id IS NOT NULL
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_turns_campaign_active_external
+        ON turns (
+            campaign_id,
+            external_turn_id
+        )
+        WHERE external_turn_id IS NOT NULL
+          AND status = 'active'
+        """
+    )
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     version = conn.execute(
         "PRAGMA user_version"
@@ -477,6 +625,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         migration_010(conn)
         conn.execute("PRAGMA user_version = 10")
         version = 10
+
+    if version < 11:
+        migration_011(conn)
+        conn.execute("PRAGMA user_version = 11")
+        version = 11
 
     if version != CURRENT_VERSION:
         raise RuntimeError(
