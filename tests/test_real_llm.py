@@ -3,6 +3,7 @@ import pytest
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
 from models.world_state import WorldState
+from operations.character_operations import ChangeCharacterHpOperation
 from services.llm_world_extractor import LLMWorldExtractor
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
@@ -343,3 +344,139 @@ def test_real_ollama_regeneration_restores_previous_snapshot():
 
     assert turns[0]["version"] == 1
     assert turns[1]["version"] == 2
+
+def test_real_ollama_extractor_does_not_create_changes_without_persistent_facts():
+    provider = OllamaProvider()
+
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=OperationParser(),
+    )
+
+    context = make_context()
+
+    narrative = (
+        "El aventurero entra en una taberna de piedra. "
+        "Observa varias mesas ocupadas, escucha conversaciones "
+        "y ve una chimenea encendida al fondo. "
+        "Después se sienta y espera tranquilamente."
+    )
+
+    operations = extractor.extract(
+        narrative,
+        context,
+    )
+
+    print("\n=== TEST: SIN CAMBIOS PERSISTENTES ===")
+    for operation in operations:
+        print(operation)
+    print("=== FIN TEST ===\n")
+
+    assert operations == []
+
+
+def test_real_ollama_extractor_detects_named_npc_without_inventing_more_entities():
+    provider = OllamaProvider()
+
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=OperationParser(),
+    )
+
+    context = make_context()
+
+    narrative = (
+        "El tabernero deja el vaso sobre la barra y se presenta "
+        "como Aldric. Explica que lleva veinte años regentando "
+        "El Barril Agrietado."
+    )
+
+    operations = extractor.extract(
+        narrative,
+        context,
+    )
+
+    print("\n=== TEST: NPC ===")
+    for operation in operations:
+        print(operation)
+    print("=== FIN TEST ===\n")
+
+    entity_operations = [
+        operation
+        for operation in operations
+        if type(operation).__name__ == "CreateEntityOperation"
+    ]
+
+    assert len(entity_operations) == 1
+
+    aldric = entity_operations[0]
+
+    assert aldric.name == "Aldric"
+    assert aldric.entity_type == "npc"
+
+    # No debería inventar personajes, lugares u otras entidades.
+    assert len(operations) == 1
+
+
+def test_real_ollama_extractor_does_not_turn_failed_attempt_into_success():
+    provider = OllamaProvider()
+
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=OperationParser(),
+    )
+
+    context = make_context()
+
+    narrative = (
+        "El aventurero encuentra una antigua puerta de piedra "
+        "cerrada con llave. Intenta abrirla varias veces, "
+        "pero la cerradura no cede y la puerta permanece cerrada."
+    )
+
+    operations = extractor.extract(
+        narrative,
+        context,
+    )
+
+    print("\n=== TEST: ACCIÓN FALLIDA ===")
+    for operation in operations:
+        print(operation)
+    print("=== FIN TEST ===\n")
+
+    assert operations == []
+
+
+def test_real_ollama_extractor_detects_explicit_damage():
+    provider = OllamaProvider()
+
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=OperationParser(),
+    )
+
+    context = make_context()
+
+    narrative = (
+        "El guardia golpea al aventurero con su espada "
+        "y el impacto le causa 7 puntos de daño."
+    )
+
+    operations = extractor.extract(
+        narrative,
+        context,
+    )
+
+    print("\n=== TEST: DAÑO ===")
+    for operation in operations:
+        print(operation)
+    print("=== FIN TEST ===\n")
+
+    hp_operations = [
+        operation
+        for operation in operations
+        if isinstance(operation, ChangeCharacterHpOperation)
+    ]
+
+    assert len(hp_operations) == 1
+    assert hp_operations[0].amount == -7

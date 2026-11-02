@@ -750,7 +750,7 @@ def test_prompt_includes_known_items_and_item_instances():
     assert "Espada de hierro" in prompt
     assert "ID 10" in prompt
 
-    assert "INSTANCIAS DE ITEMS CONOCIDAS" in prompt
+    assert "INSTANCIAS DE OBJETOS CONOCIDAS" in prompt
     assert "ID 25" in prompt
     assert "owner_id=1" in prompt
     assert "location_id=2" in prompt
@@ -801,9 +801,16 @@ def test_prompt_explains_existing_item_instance_pickup():
     prompt = provider.calls[0]
 
     assert "INSTANCIAS DE OBJETOS CONOCIDAS" in prompt
-    assert "REGLA FUNDAMENTAL DE TRANSICIÓN DE ESTADO" in prompt
-    assert "REGLAS PARA RECOGER OBJETOS" in prompt
-    assert "owner_id=ID de Darian" in prompt
+
+    # Reglas de recogida
+    assert "RECOGER OBJETOS" in prompt
+    assert "si la instancia no tiene propietario" in prompt
+    assert "actualizar su propietario" in prompt
+
+    # Identidad de la entidad conocida
+    assert "- ID 1: Darian (character)" in prompt
+
+    # Estado de la instancia existente
     assert "- ID 25: Espada de hierro" in prompt
     assert "owner_id=None" in prompt
     assert "location_id=None" in prompt
@@ -847,8 +854,15 @@ def test_prompt_requires_existing_instance_to_be_updated_instead_of_created():
 
     prompt = provider.calls[0]
 
-    assert "No crees una nueva instancia" in prompt
-    assert "instancia física existente" in prompt
+    assert "NO crees otra instancia porque vuelva a aparecer" in prompt
+
+    assert (
+        "solo crea una instancia nueva si la narrativa confirma "
+        "una copia física nueva"
+    ) in prompt
+
+    assert "instancia física EXISTENTE" in prompt
+
     assert "update_item_instance" in prompt
 
 def test_prompt_documents_update_item_instance():
