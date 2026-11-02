@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 11
+CURRENT_VERSION = 12
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -571,6 +571,315 @@ def migration_011(conn: sqlite3.Connection) -> None:
         """
     )
 
+def migration_012(conn: sqlite3.Connection) -> None:
+    """
+    Refuerza el aislamiento entre campañas.
+
+    - Permite repetir nombres de items y resources en campañas distintas.
+    - Permite repetir números de sesión en campañas distintas.
+    - Conserva los IDs globales existentes.
+    - Impide referencias entre registros de campañas diferentes.
+    - Comprueba que cada registro pertenece a una campaña existente.
+    - Impide cambiar un registro de campaña una vez creado.
+    """
+
+    # ------------------------------------------------------------
+    # 1. RECONSTRUIR ITEMS, RESOURCES Y SESSIONS
+    # ------------------------------------------------------------
+    # Es necesario confirmar cualquier transacción previa antes de
+    # cambiar PRAGMA foreign_keys: SQLite ignora ese cambio dentro
+    # de una transacción activa.
+
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")
+
+    try:
+        # -------------------------
+        # ITEMS
+        # -------------------------
+
+        conn.execute("""
+            CREATE TABLE items_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                significance TEXT DEFAULT '',
+                unique_item INTEGER NOT NULL DEFAULT 0,
+                notes TEXT DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                campaign_id INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+
+        conn.execute("""
+            INSERT INTO items_new (
+                id, name, description, significance, unique_item,
+                notes, created_at, updated_at, campaign_id
+            )
+            SELECT
+                id, name, description, significance, unique_item,
+                notes, created_at, updated_at, campaign_id
+            FROM items
+        """)
+
+        conn.execute("DROP TABLE items")
+        conn.execute("ALTER TABLE items_new RENAME TO items")
+
+        conn.execute("""
+            CREATE INDEX idx_items_name ON items(name)
+        """)
+        conn.execute("""
+            CREATE INDEX idx_items_campaign ON items(campaign_id)
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX idx_items_campaign_name
+            ON items(campaign_id, name)
+        """)
+
+        # -------------------------
+        # RESOURCES
+        # -------------------------
+
+        conn.execute("""
+            CREATE TABLE resources_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                resource_type TEXT NOT NULL DEFAULT 'generic',
+                unit TEXT DEFAULT '',
+                notes TEXT DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                campaign_id INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+
+        conn.execute("""
+            INSERT INTO resources_new (
+                id, name, resource_type, unit, notes,
+                created_at, updated_at, campaign_id
+            )
+            SELECT
+                id, name, resource_type, unit, notes,
+                created_at, updated_at, campaign_id
+            FROM resources
+        """)
+
+        conn.execute("DROP TABLE resources")
+        conn.execute("ALTER TABLE resources_new RENAME TO resources")
+
+        conn.execute("""
+            CREATE INDEX idx_resources_name ON resources(name)
+        """)
+        conn.execute("""
+            CREATE INDEX idx_resources_campaign ON resources(campaign_id)
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX idx_resources_campaign_name
+            ON resources(campaign_id, name)
+        """)
+
+        # -------------------------
+        # SESSIONS
+        # -------------------------
+        # Antes number era UNIQUE globalmente.
+        # Ahora solo debe ser único dentro de cada campaña.
+
+        conn.execute("""
+            CREATE TABLE sessions_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                number INTEGER NOT NULL,
+                title TEXT DEFAULT '',
+                summary TEXT DEFAULT '',
+                start_location TEXT DEFAULT '',
+                end_location TEXT DEFAULT '',
+                notes TEXT DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                campaign_id INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+
+        conn.execute("""
+            INSERT INTO sessions_new (
+                id, number, title, summary,
+                start_location, end_location, notes,
+                created_at, updated_at, campaign_id
+            )
+            SELECT
+                id, number, title, summary,
+                start_location, end_location, notes,
+                created_at, updated_at, campaign_id
+            FROM sessions
+        """)
+
+        conn.execute("DROP TABLE sessions")
+        conn.execute("ALTER TABLE sessions_new RENAME TO sessions")
+
+        conn.execute("""
+            CREATE INDEX idx_sessions_number ON sessions(number)
+        """)
+        conn.execute("""
+            CREATE INDEX idx_sessions_campaign ON sessions(campaign_id)
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX idx_sessions_campaign_number
+            ON sessions(campaign_id, number)
+        """)
+
+        # Confirmamos la reconstrucción de las tres tablas.
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
+
+    # ------------------------------------------------------------
+    # 2. CREAR TRIGGERS DE VALIDACIÓN
+    # ------------------------------------------------------------
+
+    campaign_tables = (
+        "entities",
+        "items",
+        "item_instances",
+        "resources",
+        "resource_balances",
+        "relations",
+        "world_events",
+        "character_states",
+        "sessions",
+        "turns",
+    )
+
+    conn.execute("BEGIN")
+
+    try:
+        # -------------------------
+        # 2.1. LA CAMPAÑA DEBE EXISTIR
+        # -------------------------
+
+        for table in campaign_tables:
+            for operation in ("INSERT", "UPDATE"):
+                trigger_name = (
+                    f"trg_{table}_campaign_{operation.lower()}"
+                )
+
+                conn.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS {trigger_name}
+                    BEFORE {operation} ON {table}
+                    FOR EACH ROW
+                    WHEN NOT EXISTS (
+                        SELECT 1
+                        FROM campaign
+                        WHERE id = NEW.campaign_id
+                    )
+                    BEGIN
+                        SELECT RAISE(
+                            ABORT,
+                            'campaign_id does not exist'
+                        );
+                    END
+                """)
+
+        # -------------------------
+        # 2.2. CAMPAIGN_ID ES INMUTABLE
+        # -------------------------
+        # Evita mover un registro a otra campaña y dejar referencias
+        # que terminen conectando datos de campañas diferentes.
+
+        for table in campaign_tables:
+            trigger_name = f"trg_{table}_campaign_immutable"
+
+            conn.execute(f"""
+                CREATE TRIGGER IF NOT EXISTS {trigger_name}
+                BEFORE UPDATE OF campaign_id ON {table}
+                FOR EACH ROW
+                WHEN NEW.campaign_id != OLD.campaign_id
+                BEGIN
+                    SELECT RAISE(
+                        ABORT,
+                        'campaign_id is immutable'
+                    );
+                END
+            """)
+
+        # -------------------------
+        # 2.3. REFERENCIAS ENTRE CAMPAÑAS
+        # -------------------------
+
+        references = (
+            # item_instances
+            ("item_instances", "item_id", "items", "id"),
+            ("item_instances", "owner_id", "entities", "id"),
+            ("item_instances", "location_id", "entities", "id"),
+
+            # resource_balances
+            ("resource_balances", "resource_id", "resources", "id"),
+            ("resource_balances", "owner_id", "entities", "id"),
+
+            # relations
+            ("relations", "subject_id", "entities", "id"),
+            ("relations", "target_id", "entities", "id"),
+
+            # character_states
+            ("character_states", "entity_id", "entities", "id"),
+
+            # world_events y turns
+            ("world_events", "session_id", "sessions", "id"),
+            ("turns", "session_id", "sessions", "id"),
+        )
+
+        for child_table, child_column, parent_table, parent_column in references:
+            for operation in ("INSERT", "UPDATE"):
+                trigger_name = (
+                    f"trg_{child_table}_{child_column}_campaign_"
+                    f"{operation.lower()}"
+                )
+
+                conn.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS {trigger_name}
+                    BEFORE {operation} ON {child_table}
+                    FOR EACH ROW
+                    WHEN NEW.{child_column} IS NOT NULL
+                     AND NOT EXISTS (
+                        SELECT 1
+                        FROM {parent_table}
+                        WHERE {parent_table}.{parent_column}
+                            = NEW.{child_column}
+                          AND {parent_table}.campaign_id
+                            = NEW.campaign_id
+                    )
+                    BEGIN
+                        SELECT RAISE(
+                            ABORT,
+                            'cross-campaign reference is not allowed'
+                        );
+                    END
+                """)
+
+        # -------------------------
+        # 2.4. COMPROBAR FOREIGN KEYS
+        # -------------------------
+
+        violations = conn.execute(
+            "PRAGMA foreign_key_check"
+        ).fetchall()
+
+        if violations:
+            raise RuntimeError(
+                "Migration 012 produced foreign key violations: "
+                f"{violations}"
+            )
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     version = conn.execute(
         "PRAGMA user_version"
@@ -630,6 +939,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         migration_011(conn)
         conn.execute("PRAGMA user_version = 11")
         version = 11
+
+    if version < 12:
+        migration_012(conn)
+        conn.execute("PRAGMA user_version = 12")
+        version = 12
 
     if version != CURRENT_VERSION:
         raise RuntimeError(
