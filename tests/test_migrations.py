@@ -391,6 +391,7 @@ def test_migration_012_rejects_records_for_nonexistent_campaign():
 
 def test_migration_012_allows_same_session_number_in_different_campaigns():
     import sqlite3
+
     import pytest
 
     conn = create_version_11_database()
