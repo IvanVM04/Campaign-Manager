@@ -33,13 +33,14 @@ class FakeRepository:
         self.load_calls = 0
         self.save_calls = 0
 
-    def load_world(self):
+    def load_world(self, **kwargs):
         self.load_calls += 1
         return self.world
 
-    def save_world(self, world):
+    def save_world(self, world, **kwargs):
         self.save_calls += 1
         self.saved_world = world
+
 
 class FakeApplier:
 
@@ -48,7 +49,7 @@ class FakeApplier:
         self.world = None
         self.operation = None
 
-    def apply(self, world, operation):
+    def apply(self, world, operation, campaign_id):
         self.called = True
         self.world = world
         self.operation = operation
@@ -205,7 +206,7 @@ def test_load_replaces_current_world_completely(tmp_path):
             }
         )
 
-        repository.save_world(persisted_world)
+        repository.save_world(persisted_world, campaign_id=1)
 
         # --------------------------------------------------------
         # Servicio con estado diferente en memoria
@@ -420,9 +421,18 @@ def test_apply_operations_and_save_persists_successful_operations(
     original_save = service.repository.save_world
     save_calls = []
 
-    def spy_save_world(world):
+    def spy_save_world(
+        world,
+        *,
+        campaign_id,
+        conn=None,
+    ):
         save_calls.append(world)
-        return original_save(world)
+        return original_save(
+            world,
+            campaign_id=campaign_id,
+            conn=conn,
+        )
 
     monkeypatch.setattr(
         service.repository,
@@ -450,7 +460,12 @@ def test_apply_operations_and_save_restores_original_world_when_save_fails(
 
     original_world = service.get_world()
 
-    def failing_save_world(world):
+    def failing_save_world(
+        world,
+        *,
+        campaign_id,
+        conn=None,
+    ):
         raise RuntimeError("database failed")
 
     monkeypatch.setattr(
@@ -557,7 +572,12 @@ def test_apply_operations_and_save_marks_world_as_changed(
 
     save_calls = []
 
-    def spy_save_world(world):
+    def spy_save_world(
+        world,
+        *,
+        campaign_id,
+        conn=None,
+    ):
         save_calls.append(world)
 
     monkeypatch.setattr(
@@ -592,6 +612,7 @@ def test_apply_turn_operations_saves_world_operation_from_ordered_operations(
     def spy_save_world(
         world,
         *,
+        campaign_id,
         conn=None,
     ):
         save_calls.append(
@@ -613,6 +634,7 @@ def test_apply_turn_operations_saves_world_operation_from_ordered_operations(
         ordered_operations=(
             operation,
         ),
+        campaign_id=1,
     )
 
     assert len(result) == 1
@@ -673,6 +695,7 @@ def test_apply_turn_operations_rolls_back_when_character_operation_fails(
             self,
             operation,
             *,
+            campaign_id,
             conn=None,
         ):
             raise CharacterApplierError(
@@ -692,6 +715,7 @@ def test_apply_turn_operations_rolls_back_when_character_operation_fails(
         service.apply_turn_operations(
             world_operations=(),
             character_operations=(object(),),
+            campaign_id=1,
         )
 
     assert service.world is original_world
@@ -741,6 +765,7 @@ def test_apply_turn_operations_rolls_back_when_world_operation_fails(
             self,
             world,
             operation,
+            campaign_id,
         ):
             return OperationResult(
                 status=OperationStatus.INVALID,
@@ -753,6 +778,7 @@ def test_apply_turn_operations_rolls_back_when_world_operation_fails(
     result = service.apply_turn_operations(
         world_operations=(object(),),
         character_operations=(),
+        campaign_id=1,
     )
 
     assert len(result) == 1
@@ -784,6 +810,7 @@ def test_apply_turn_operations_rolls_back_when_character_operation_returns_failu
             self,
             operation,
             *,
+            campaign_id,
             conn=None,
         ):
             return OperationResult(
@@ -808,6 +835,7 @@ def test_apply_turn_operations_rolls_back_when_character_operation_returns_failu
         character_operations=[
             operation,
         ],
+        campaign_id=1,
     )
 
     assert len(results) == 1
@@ -894,6 +922,7 @@ def test_apply_turn_operations_resolves_generated_character_reference(
             self,
             operation,
             *,
+            campaign_id,
             conn=None,
         ):
             self.operations.append(operation)
@@ -936,6 +965,7 @@ def test_apply_turn_operations_resolves_generated_character_reference(
         character_operations=[
             hp_operation,
         ],
+        campaign_id=1,
     )
 
     assert len(result) == 2
@@ -1493,7 +1523,8 @@ def test_apply_turn_operations_rolls_back_character_database_changes_on_failure(
 
     original_character = (
         character_repository.get_character(
-            character_id
+            character_id,
+            campaign_id=1,
         )
     )
 
@@ -1517,11 +1548,13 @@ def test_apply_turn_operations_rolls_back_character_database_changes_on_failure(
         repository_self,
         character,
         *,
+        campaign_id,
         conn=None,
     ):
         original_save_character(
             repository_self,
             character,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
@@ -1559,6 +1592,7 @@ def test_apply_turn_operations_rolls_back_character_database_changes_on_failure(
         character_operations=[
             operation,
         ],
+        campaign_id=1,
     )
 
     assert len(results) == 1
@@ -1584,7 +1618,8 @@ def test_apply_turn_operations_rolls_back_character_database_changes_on_failure(
 
     restored_character = (
         character_repository.get_character(
-            character_id
+            character_id,
+            campaign_id=1,
         )
     )
 
@@ -1634,6 +1669,7 @@ def test_apply_turn_operations_does_not_save_world_for_no_change(
             operation,
         ),
         character_operations=(),
+        campaign_id=1,
     )
 
     assert len(result) == 1

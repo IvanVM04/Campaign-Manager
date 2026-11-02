@@ -1,3 +1,4 @@
+
 from database import get_conn
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -44,6 +45,7 @@ class CharacterCreationService:
 
             entity = self.entity_repository.save_entity(
                 entity,
+                campaign_id=campaign_id,
                 conn=conn,
             )
 
@@ -70,8 +72,9 @@ class CharacterCreationService:
                 metadata=data.metadata,
             )
 
-            self.character_repository.save_character(
+            character = self.character_repository.save_character(
                 character,
+                campaign_id=campaign_id,
                 conn=conn,
             )
 

@@ -315,6 +315,7 @@ class TurnResolutionService:
                 self.world_service.apply_turn_operations(
                     world_operations,
                     character_operations,
+                    campaign_id=context.campaign.campaign_id,
                     conn=conn,
                     ordered_operations=normalized_operations,
                 )

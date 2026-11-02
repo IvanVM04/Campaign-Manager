@@ -2154,7 +2154,8 @@ def test_mixed_turn_operations_are_atomic_when_character_operation_fails(
             charisma=10,
             proficiency_bonus=2,
             metadata={},
-        )
+        ),
+        campaign_id=1,
     )
 
     world_service = RecordingWorldService()
@@ -2305,6 +2306,7 @@ def test_failed_turn_rolls_back_created_entity_but_persists_turn(
 
             EntityRepository().save_entity(
                 entity,
+                campaign_id=turn_context.campaign.campaign_id,
                 conn=conn,
             )
 

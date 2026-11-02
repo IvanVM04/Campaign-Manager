@@ -933,7 +933,8 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
         Entity(
             name="Aventurero de prueba",
             entity_type="character",
-        )
+        ),
+        campaign_id=1,
     )
 
     with get_conn() as conn:
@@ -1851,6 +1852,7 @@ def test_e2e_silly_tavern_turn_persists_world_change(
 
     persisted_entity = entity_repository.get_entity(
         entity.id,
+        campaign_id=1,
     )
 
     assert persisted_entity is not None
@@ -2009,7 +2011,8 @@ def test_e2e_silly_tavern_turn_persists_character_hp_change(
             description="Aldren, aventurero.",
             notes="",
             active=True,
-        )
+        ),
+        campaign_id=1,
     )
 
     character = character_repository.save_character(
@@ -2028,7 +2031,8 @@ def test_e2e_silly_tavern_turn_persists_character_hp_change(
             charisma=10,
             proficiency_bonus=2,
             metadata={},
-        )
+        ),
+        campaign_id=1,
     )
 
     campaign_repository.update_active_character(
@@ -2093,7 +2097,8 @@ def test_e2e_silly_tavern_turn_persists_character_hp_change(
     assert result.world_changed is True
 
     character_after = character_repository.get_character(
-        entity.id
+        entity.id,
+        campaign_id=1,
     )
 
     assert character_after is not None
@@ -2138,7 +2143,8 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
             description="Aldren, aventurero.",
             notes="",
             active=True,
-        )
+        ),
+        campaign_id=1,
     )
 
     from models.character_state import CharacterState
@@ -2148,7 +2154,8 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
             entity_id=character_entity.id,
             current_hp=10,
             max_hp=10,
-        )
+        ),
+        campaign_id=1,
     )
 
     world_service = WorldService()
@@ -2199,7 +2206,8 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
 
     character_after = (
         character_repository.get_character(
-            character_entity.id
+            character_entity.id,
+            campaign_id=1,
         )
     )
 
@@ -3007,7 +3015,8 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
             description=(
                 "Character used for integration rollback testing."
             ),
-        )
+        ),
+        campaign_id=1,
     )
 
     character = character_repository.save_character(
@@ -3018,7 +3027,8 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
             current_hp=20,
             max_hp=20,
             armor_class=16,
-        )
+        ),
+        campaign_id=1,
     )
 
     campaign_repository.update_active_character(
@@ -3035,7 +3045,8 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
     assert active_character_id == character.entity_id
 
     character = character_repository.get_character(
-        active_character_id
+        active_character_id,
+        campaign_id=1,
     )
 
     assert character is not None
@@ -3115,7 +3126,8 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
     # Al fallar el turno completo, NINGUNA de las mutaciones
     # debe quedar persistida en SQLite.
     character_after = character_repository.get_character(
-        character.entity_id
+        character.entity_id,
+        campaign_id=1,
     )
 
     assert character_after is not None

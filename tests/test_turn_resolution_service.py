@@ -1246,6 +1246,7 @@ def test_resolve_turn_preserves_global_operation_order(
         world_operations,
         character_operations,
         *,
+        campaign_id,
         conn=None,
         ordered_operations=None,
     ):
@@ -1269,6 +1270,8 @@ def test_resolve_turn_preserves_global_operation_order(
         assert received_operations == tuple(
             operations
         )
+
+        assert campaign_id == 1
 
         return ()
 

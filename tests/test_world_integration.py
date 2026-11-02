@@ -36,13 +36,14 @@ class InMemoryRepository:
         self.load_calls = 0
         self.save_calls = 0
 
-    def load_world(self):
+    def load_world(self, **kwargs):
         self.load_calls += 1
         return self.world
 
-    def save_world(self, world):
+    def save_world(self, world, **kwargs):
         self.save_calls += 1
         self.saved_world = world
+
 
 
 def build_world():

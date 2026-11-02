@@ -1,3 +1,4 @@
+
 import json
 
 from database import execute, one, rows
@@ -6,59 +7,46 @@ from models.character_state import CharacterState
 
 class CharacterRepository:
 
+    _SELECT_FIELDS = """
+        entity_id,
+        level,
+        class_name,
+        current_hp,
+        max_hp,
+        armor_class,
+        strength,
+        dexterity,
+        constitution,
+        intelligence,
+        wisdom,
+        charisma,
+        proficiency_bonus,
+        metadata
+    """
+
     def get_character(
         self,
         entity_id: int,
         *,
+        campaign_id: int,
         conn=None,
     ) -> CharacterState | None:
 
-        if conn is None:
-            row = one(
-                """
-                SELECT
-                    entity_id,
-                    level,
-                    class_name,
-                    current_hp,
-                    max_hp,
-                    armor_class,
-                    strength,
-                    dexterity,
-                    constitution,
-                    intelligence,
-                    wisdom,
-                    charisma,
-                    proficiency_bonus,
-                    metadata
-                FROM character_states
-                WHERE entity_id=?
-                """,
-                (entity_id,),
-            )
+        query = f"""
+            SELECT {self._SELECT_FIELDS}
+            FROM character_states
+            WHERE entity_id = ?
+              AND campaign_id = ?
+        """
 
+        params = (entity_id, campaign_id)
+
+        if conn is None:
+            row = one(query, params)
         else:
             row = conn.execute(
-                """
-                SELECT
-                    entity_id,
-                    level,
-                    class_name,
-                    current_hp,
-                    max_hp,
-                    armor_class,
-                    strength,
-                    dexterity,
-                    constitution,
-                    intelligence,
-                    wisdom,
-                    charisma,
-                    proficiency_bonus,
-                    metadata
-                FROM character_states
-                WHERE entity_id=?
-                """,
-                (entity_id,),
+                query,
+                params,
             ).fetchone()
 
             row = dict(row) if row else None
@@ -72,6 +60,7 @@ class CharacterRepository:
         self,
         character: CharacterState,
         *,
+        campaign_id: int,
         conn=None,
     ) -> CharacterState:
 
@@ -90,24 +79,26 @@ class CharacterRepository:
                 wisdom,
                 charisma,
                 proficiency_bonus,
-                metadata
+                metadata,
+                campaign_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(entity_id)
             DO UPDATE SET
-                level=excluded.level,
-                class_name=excluded.class_name,
-                current_hp=excluded.current_hp,
-                max_hp=excluded.max_hp,
-                armor_class=excluded.armor_class,
-                strength=excluded.strength,
-                dexterity=excluded.dexterity,
-                constitution=excluded.constitution,
-                intelligence=excluded.intelligence,
-                wisdom=excluded.wisdom,
-                charisma=excluded.charisma,
-                proficiency_bonus=excluded.proficiency_bonus,
-                metadata=excluded.metadata
+                level = excluded.level,
+                class_name = excluded.class_name,
+                current_hp = excluded.current_hp,
+                max_hp = excluded.max_hp,
+                armor_class = excluded.armor_class,
+                strength = excluded.strength,
+                dexterity = excluded.dexterity,
+                constitution = excluded.constitution,
+                intelligence = excluded.intelligence,
+                wisdom = excluded.wisdom,
+                charisma = excluded.charisma,
+                proficiency_bonus = excluded.proficiency_bonus,
+                metadata = excluded.metadata
+            WHERE character_states.campaign_id = excluded.campaign_id
         """
 
         params = (
@@ -125,28 +116,24 @@ class CharacterRepository:
             character.charisma,
             character.proficiency_bonus,
             json.dumps(character.metadata),
+            campaign_id,
         )
 
         if conn is None:
-            execute(
-                query,
-                params,
-            )
+            execute(query, params)
         else:
-            conn.execute(
-                query,
-                params,
-            )
+            conn.execute(query, params)
 
         loaded = self.get_character(
             character.entity_id,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
         if loaded is None:
             raise RuntimeError(
-                f"Character {character.entity_id} "
-                "could not be loaded after save"
+                f"Character {character.entity_id} could not be saved "
+                f"for campaign {campaign_id}"
             )
 
         return loaded
@@ -154,38 +141,33 @@ class CharacterRepository:
     def delete_character(
         self,
         entity_id: int,
+        *,
+        campaign_id: int,
     ) -> None:
 
         execute(
             """
             DELETE FROM character_states
-            WHERE entity_id=?
+            WHERE entity_id = ?
+              AND campaign_id = ?
             """,
-            (entity_id,),
+            (entity_id, campaign_id),
         )
 
-    def list_characters(self) -> list[CharacterState]:
+    def list_characters(
+        self,
+        *,
+        campaign_id: int,
+    ) -> list[CharacterState]:
 
         rows_data = rows(
-            """
-            SELECT
-                entity_id,
-                level,
-                class_name,
-                current_hp,
-                max_hp,
-                armor_class,
-                strength,
-                dexterity,
-                constitution,
-                intelligence,
-                wisdom,
-                charisma,
-                proficiency_bonus,
-                metadata
+            f"""
+            SELECT {self._SELECT_FIELDS}
             FROM character_states
+            WHERE campaign_id = ?
             ORDER BY entity_id
-            """
+            """,
+            (campaign_id,),
         )
 
         return [

@@ -157,10 +157,9 @@ class CampaignStateService:
 
         if character_id is not None:
 
-            character = (
-                self.character_repository.get_character(
-                    character_id
-                )
+            character = self.character_repository.get_character(
+                character_id,
+                campaign_id=campaign_id,
             )
 
             if character is None:
@@ -367,11 +366,10 @@ class CampaignStateService:
         active_character_entity = None
 
         if active_character_id is not None:
-            active_character = (
-                self.character_repository.get_character(
-                    active_character_id,
-                    conn=conn,
-                )
+            active_character = self.character_repository.get_character(
+                active_character_id,
+                campaign_id=campaign_id,
+                conn=conn,
             )
 
             if active_character is None:
@@ -387,11 +385,10 @@ class CampaignStateService:
                     "CharacterRepository returned an invalid CharacterState"
                 )
 
-            active_character_entity = (
-                self.entity_repository.get_entity(
-                    active_character.entity_id,
-                    conn=conn,
-                )
+            active_character_entity = self.entity_repository.get_entity(
+                active_character.entity_id,
+                campaign_id=campaign_id,
+                conn=conn,
             )
 
             if active_character_entity is None:

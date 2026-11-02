@@ -886,6 +886,7 @@ class SillyTavernIntegrationService:
                     self.world_service.apply_turn_operations(
                         world_operations,
                         character_operations,
+                        campaign_id=1,
                         conn=conn,
                         ordered_operations=normalized_operations,
                     )

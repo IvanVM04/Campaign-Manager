@@ -1,3 +1,4 @@
+
 import copy
 import json
 
@@ -11,6 +12,12 @@ from models.world_state import WorldState
 
 
 class WorldRepository:
+    """
+    Persiste un WorldState aislado por campaña.
+
+    Los IDs siguen siendo globales, pero ninguna operación puede
+    leer, modificar o borrar registros de otra campaña.
+    """
 
     # ============================================================
     # LOAD
@@ -19,82 +26,45 @@ class WorldRepository:
     def load_world(
         self,
         *,
+        campaign_id: int,
         conn=None,
     ) -> WorldState:
+        if campaign_id is None:
+            raise ValueError("campaign_id is required")
 
         world = WorldState()
 
-        self._load_entities(
-            world,
-            conn=conn,
-        )
-
-        self._load_items(
-            world,
-            conn=conn,
-        )
-
+        self._load_entities(world, campaign_id=campaign_id, conn=conn)
+        self._load_items(world, campaign_id=campaign_id, conn=conn)
         self._load_item_instances(
-            world,
-            conn=conn,
+            world, campaign_id=campaign_id, conn=conn
         )
-
-        self._load_resources(
-            world,
-            conn=conn,
-        )
-
+        self._load_resources(world, campaign_id=campaign_id, conn=conn)
         self._load_resource_balances(
-            world,
-            conn=conn,
+            world, campaign_id=campaign_id, conn=conn
         )
-
-        self._load_relations(
-            world,
-            conn=conn,
-        )
-
-        self._load_events(
-            world,
-            conn=conn,
-        )
+        self._load_relations(world, campaign_id=campaign_id, conn=conn)
+        self._load_events(world, campaign_id=campaign_id, conn=conn)
 
         return world
 
-    def _rows(
-        self,
-        query: str,
-        *,
-        conn=None,
-    ):
+    def _rows(self, query: str, params=(), *, conn=None):
         if conn is None:
-            return rows(query)
+            return rows(query, params)
 
         return [
             dict(row)
-            for row in conn.execute(query).fetchall()
+            for row in conn.execute(query, params).fetchall()
         ]
 
-    def _load_entities(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
-    ):
-
-        rows_data = self._rows("""
-            SELECT
-                id,
-                name,
-                entity_type,
-                description,
-                notes,
-                active
+    def _load_entities(self, world, *, campaign_id, conn=None):
+        data = self._rows("""
+            SELECT id, name, entity_type, description, notes, active
             FROM entities
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             entity = Entity(
                 id=row["id"],
                 name=row["name"],
@@ -103,29 +73,16 @@ class WorldRepository:
                 notes=row["notes"],
                 active=bool(row["active"]),
             )
-
             world.entities[entity.id] = entity
 
-    def _load_items(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
-    ):
-
-        rows_data = self._rows("""
-            SELECT
-                id,
-                name,
-                description,
-                significance,
-                unique_item,
-                notes
+    def _load_items(self, world, *, campaign_id, conn=None):
+        data = self._rows("""
+            SELECT id, name, description, significance, unique_item, notes
             FROM items
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             item = Item(
                 id=row["id"],
                 name=row["name"],
@@ -134,31 +91,18 @@ class WorldRepository:
                 unique=bool(row["unique_item"]),
                 notes=row["notes"],
             )
-
             world.items[item.id] = item
 
-    def _load_item_instances(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
-    ):
-
-        rows_data = self._rows("""
+    def _load_item_instances(self, world, *, campaign_id, conn=None):
+        data = self._rows("""
             SELECT
-                id,
-                item_id,
-                instance_number,
-                owner_id,
-                location_id,
-                condition,
-                notes,
-                active
+                id, item_id, instance_number, owner_id, location_id,
+                condition, notes, active
             FROM item_instances
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             instance = ItemInstance(
                 id=row["id"],
                 item_id=row["item_id"],
@@ -169,28 +113,16 @@ class WorldRepository:
                 notes=row["notes"],
                 active=bool(row["active"]),
             )
-
             world.item_instances[instance.id] = instance
 
-    def _load_resources(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
-    ):
-
-        rows_data = self._rows("""
-            SELECT
-                id,
-                name,
-                resource_type,
-                unit,
-                notes
+    def _load_resources(self, world, *, campaign_id, conn=None):
+        data = self._rows("""
+            SELECT id, name, resource_type, unit, notes
             FROM resources
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             resource = Resource(
                 id=row["id"],
                 name=row["name"],
@@ -198,28 +130,18 @@ class WorldRepository:
                 unit=row["unit"],
                 notes=row["notes"],
             )
-
             world.resources[resource.id] = resource
 
     def _load_resource_balances(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
+        self, world, *, campaign_id, conn=None
     ):
-
-        rows_data = self._rows("""
-            SELECT
-                id,
-                resource_id,
-                owner_id,
-                amount,
-                notes
+        data = self._rows("""
+            SELECT id, resource_id, owner_id, amount, notes
             FROM resource_balances
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             balance = ResourceBalance(
                 id=row["id"],
                 resource_id=row["resource_id"],
@@ -227,64 +149,41 @@ class WorldRepository:
                 amount=row["amount"],
                 notes=row["notes"],
             )
-
             world.resource_balances[balance.id] = balance
 
-    def _load_relations(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
-    ):
-
-        rows_data = self._rows("""
+    def _load_relations(self, world, *, campaign_id, conn=None):
+        data = self._rows("""
             SELECT
-                id,
-                subject_id,
-                relation_type,
-                target_id,
-                metadata,
-                active
+                id, subject_id, relation_type, target_id, metadata, active
             FROM relations
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             relation = Relation(
                 id=row["id"],
                 subject_id=row["subject_id"],
                 relation_type=row["relation_type"],
                 target_id=row["target_id"],
-                metadata=json.loads(row["metadata"])
+                metadata=(
+                    json.loads(row["metadata"])
                     if row["metadata"] is not None
-                    else None,
+                    else None
+                ),
                 active=bool(row["active"]),
             )
-
             world.relations[relation.id] = relation
 
-    def _load_events(
-        self,
-        world: WorldState,
-        *,
-        conn=None,
-    ):
-
-        rows_data = self._rows("""
+    def _load_events(self, world, *, campaign_id, conn=None):
+        data = self._rows("""
             SELECT
-                id,
-                event_type,
-                title,
-                description,
-                consequences,
-                session_id,
-                secret,
-                metadata
+                id, event_type, title, description, consequences,
+                session_id, secret, metadata
             FROM world_events
-        """, conn=conn)
+            WHERE campaign_id = ?
+        """, (campaign_id,), conn=conn)
 
-        for row in rows_data:
-
+        for row in data:
             event = Event(
                 id=row["id"],
                 event_type=row["event_type"],
@@ -293,11 +192,12 @@ class WorldRepository:
                 consequences=row["consequences"],
                 session_id=row["session_id"],
                 secret=bool(row["secret"]),
-                metadata=json.loads(row["metadata"])
+                metadata=(
+                    json.loads(row["metadata"])
                     if row["metadata"] is not None
-                    else {},
+                    else {}
+                ),
             )
-
             world.events[event.id] = event
 
     # ============================================================
@@ -308,8 +208,12 @@ class WorldRepository:
         self,
         world: WorldState,
         *,
+        campaign_id: int,
         conn=None,
-    ):
+    ) -> None:
+        if campaign_id is None:
+            raise ValueError("campaign_id is required")
+
         world_to_save = copy.deepcopy(world)
 
         if conn is None:
@@ -317,432 +221,374 @@ class WorldRepository:
                 self._save_world(
                     connection,
                     world_to_save,
+                    campaign_id=campaign_id,
                 )
             return
 
         self._save_world(
             conn,
             world_to_save,
+            campaign_id=campaign_id,
         )
 
-    def _save_world(
-        self,
-        conn,
-        world: WorldState,
-    ):
+    def _save_world(self, conn, world, *, campaign_id):
         self._normalize_world_dependencies(world)
 
         self._delete_missing_records(
             conn,
             world,
+            campaign_id=campaign_id,
         )
 
-        self._save_entities(
-            conn,
-            world,
-        )
-
-        self._save_items(
-            conn,
-            world,
-        )
-
+        self._save_entities(conn, world, campaign_id=campaign_id)
+        self._save_items(conn, world, campaign_id=campaign_id)
         self._save_item_instances(
-            conn,
-            world,
+            conn, world, campaign_id=campaign_id
         )
-
-        self._save_resources(
-            conn,
-            world,
-        )
-
+        self._save_resources(conn, world, campaign_id=campaign_id)
         self._save_resource_balances(
-            conn,
-            world,
+            conn, world, campaign_id=campaign_id
         )
+        self._save_relations(conn, world, campaign_id=campaign_id)
+        self._save_events(conn, world, campaign_id=campaign_id)
 
-        self._save_relations(
-            conn,
-            world,
-        )
+    @staticmethod
+    def _execute_campaign_upsert(
+        conn,
+        *,
+        table: str,
+        query: str,
+        params: tuple,
+        record_id,
+    ) -> None:
+        cursor = conn.execute(query, params)
 
-        self._save_events(
-            conn,
-            world,
-        )
+        if cursor.rowcount != 1:
+            raise RuntimeError(
+                f"Cannot save {table} record {record_id}: "
+                "the ID may belong to another campaign."
+            )
 
     # ============================================================
     # SAVE ENTITIES
     # ============================================================
 
-    def _save_entities(self, conn, world: WorldState):
-
+    def _save_entities(self, conn, world, *, campaign_id):
         for entity in world.entities.values():
-
-            conn.execute("""
-                INSERT INTO entities (
-                    id,
-                    name,
-                    entity_type,
-                    description,
-                    notes,
-                    active
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    name = excluded.name,
-                    entity_type = excluded.entity_type,
-                    description = excluded.description,
-                    notes = excluded.notes,
-                    active = excluded.active,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                entity.id,
-                entity.name,
-                entity.entity_type,
-                entity.description,
-                entity.notes,
-                int(entity.active),
-            ))
+            self._execute_campaign_upsert(
+                conn,
+                table="entities",
+                record_id=entity.id,
+                query="""
+                    INSERT INTO entities (
+                        id, name, entity_type, description, notes,
+                        active, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name = excluded.name,
+                        entity_type = excluded.entity_type,
+                        description = excluded.description,
+                        notes = excluded.notes,
+                        active = excluded.active,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE entities.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    entity.id,
+                    entity.name,
+                    entity.entity_type,
+                    entity.description,
+                    entity.notes,
+                    int(entity.active),
+                    campaign_id,
+                ),
+            )
 
     # ============================================================
     # SAVE ITEMS
     # ============================================================
 
-    def _save_items(self, conn, world: WorldState):
-
+    def _save_items(self, conn, world, *, campaign_id):
         for item in world.items.values():
-
-            conn.execute("""
-                INSERT INTO items (
-                    id,
-                    name,
-                    description,
-                    significance,
-                    unique_item,
-                    notes
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    name = excluded.name,
-                    description = excluded.description,
-                    significance = excluded.significance,
-                    unique_item = excluded.unique_item,
-                    notes = excluded.notes,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                item.id,
-                item.name,
-                item.description,
-                item.significance,
-                int(item.unique),
-                item.notes,
-            ))
+            self._execute_campaign_upsert(
+                conn,
+                table="items",
+                record_id=item.id,
+                query="""
+                    INSERT INTO items (
+                        id, name, description, significance,
+                        unique_item, notes, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name = excluded.name,
+                        description = excluded.description,
+                        significance = excluded.significance,
+                        unique_item = excluded.unique_item,
+                        notes = excluded.notes,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE items.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    item.id,
+                    item.name,
+                    item.description,
+                    item.significance,
+                    int(item.unique),
+                    item.notes,
+                    campaign_id,
+                ),
+            )
 
     # ============================================================
     # SAVE ITEM INSTANCES
     # ============================================================
 
-    def _save_item_instances(self, conn, world: WorldState):
-
+    def _save_item_instances(self, conn, world, *, campaign_id):
         for instance in world.item_instances.values():
-
-            conn.execute("""
-                INSERT INTO item_instances (
-                    id,
-                    item_id,
-                    instance_number,
-                    owner_id,
-                    location_id,
-                    condition,
-                    notes,
-                    active
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    item_id = excluded.item_id,
-                    instance_number = excluded.instance_number,
-                    owner_id = excluded.owner_id,
-                    location_id = excluded.location_id,
-                    condition = excluded.condition,
-                    notes = excluded.notes,
-                    active = excluded.active,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                instance.id,
-                instance.item_id,
-                instance.instance_number,
-                instance.owner_id,
-                instance.location_id,
-                instance.condition,
-                instance.notes,
-                int(instance.active),
-            ))
+            self._execute_campaign_upsert(
+                conn,
+                table="item_instances",
+                record_id=instance.id,
+                query="""
+                    INSERT INTO item_instances (
+                        id, item_id, instance_number, owner_id,
+                        location_id, condition, notes, active, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        item_id = excluded.item_id,
+                        instance_number = excluded.instance_number,
+                        owner_id = excluded.owner_id,
+                        location_id = excluded.location_id,
+                        condition = excluded.condition,
+                        notes = excluded.notes,
+                        active = excluded.active,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE item_instances.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    instance.id,
+                    instance.item_id,
+                    instance.instance_number,
+                    instance.owner_id,
+                    instance.location_id,
+                    instance.condition,
+                    instance.notes,
+                    int(instance.active),
+                    campaign_id,
+                ),
+            )
 
     # ============================================================
     # SAVE RESOURCES
     # ============================================================
 
-    def _save_resources(self, conn, world: WorldState):
-
+    def _save_resources(self, conn, world, *, campaign_id):
         for resource in world.resources.values():
-
-            conn.execute("""
-                INSERT INTO resources (
-                    id,
-                    name,
-                    resource_type,
-                    unit,
-                    notes
-                )
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    name = excluded.name,
-                    resource_type = excluded.resource_type,
-                    unit = excluded.unit,
-                    notes = excluded.notes,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                resource.id,
-                resource.name,
-                resource.resource_type,
-                resource.unit,
-                resource.notes,
-            ))
+            self._execute_campaign_upsert(
+                conn,
+                table="resources",
+                record_id=resource.id,
+                query="""
+                    INSERT INTO resources (
+                        id, name, resource_type, unit, notes, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name = excluded.name,
+                        resource_type = excluded.resource_type,
+                        unit = excluded.unit,
+                        notes = excluded.notes,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE resources.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    resource.id,
+                    resource.name,
+                    resource.resource_type,
+                    resource.unit,
+                    resource.notes,
+                    campaign_id,
+                ),
+            )
 
     # ============================================================
     # SAVE RESOURCE BALANCES
     # ============================================================
 
-    def _save_resource_balances(self, conn, world: WorldState):
-
+    def _save_resource_balances(self, conn, world, *, campaign_id):
         for balance in world.resource_balances.values():
-
-            conn.execute("""
-                INSERT INTO resource_balances (
-                    id,
-                    resource_id,
-                    owner_id,
-                    amount,
-                    notes
-                )
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    resource_id = excluded.resource_id,
-                    owner_id = excluded.owner_id,
-                    amount = excluded.amount,
-                    notes = excluded.notes,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                balance.id,
-                balance.resource_id,
-                balance.owner_id,
-                balance.amount,
-                balance.notes,
-            ))
+            self._execute_campaign_upsert(
+                conn,
+                table="resource_balances",
+                record_id=balance.id,
+                query="""
+                    INSERT INTO resource_balances (
+                        id, resource_id, owner_id, amount, notes, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        resource_id = excluded.resource_id,
+                        owner_id = excluded.owner_id,
+                        amount = excluded.amount,
+                        notes = excluded.notes,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE resource_balances.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    balance.id,
+                    balance.resource_id,
+                    balance.owner_id,
+                    balance.amount,
+                    balance.notes,
+                    campaign_id,
+                ),
+            )
 
     # ============================================================
     # SAVE RELATIONS
     # ============================================================
 
-    def _save_relations(self, conn, world: WorldState):
-
+    def _save_relations(self, conn, world, *, campaign_id):
         for relation in world.relations.values():
+            metadata = (
+                json.dumps(relation.metadata)
+                if relation.metadata is not None
+                else None
+            )
 
-            metadata = json.dumps(
-                relation.metadata
-            ) if relation.metadata is not None else None
-
-            conn.execute("""
-                INSERT INTO relations (
-                    id,
-                    subject_id,
-                    relation_type,
-                    target_id,
+            self._execute_campaign_upsert(
+                conn,
+                table="relations",
+                record_id=relation.id,
+                query="""
+                    INSERT INTO relations (
+                        id, subject_id, relation_type, target_id,
+                        metadata, active, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        subject_id = excluded.subject_id,
+                        relation_type = excluded.relation_type,
+                        target_id = excluded.target_id,
+                        metadata = excluded.metadata,
+                        active = excluded.active,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE relations.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    relation.id,
+                    relation.subject_id,
+                    relation.relation_type,
+                    relation.target_id,
                     metadata,
-                    active
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    subject_id = excluded.subject_id,
-                    relation_type = excluded.relation_type,
-                    target_id = excluded.target_id,
-                    metadata = excluded.metadata,
-                    active = excluded.active,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                relation.id,
-                relation.subject_id,
-                relation.relation_type,
-                relation.target_id,
-                metadata,
-                int(relation.active),
-            ))
+                    int(relation.active),
+                    campaign_id,
+                ),
+            )
 
     # ============================================================
     # SAVE EVENTS
     # ============================================================
 
-    def _save_events(self, conn, world: WorldState):
-
+    def _save_events(self, conn, world, *, campaign_id):
         for event in world.events.values():
+            metadata = (
+                json.dumps(event.metadata)
+                if event.metadata is not None
+                else None
+            )
 
-            metadata = json.dumps(
-                event.metadata
-            ) if event.metadata is not None else None
+            self._execute_campaign_upsert(
+                conn,
+                table="world_events",
+                record_id=event.id,
+                query="""
+                    INSERT INTO world_events (
+                        id, event_type, title, description, consequences,
+                        session_id, secret, metadata, campaign_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        event_type = excluded.event_type,
+                        title = excluded.title,
+                        description = excluded.description,
+                        consequences = excluded.consequences,
+                        session_id = excluded.session_id,
+                        secret = excluded.secret,
+                        metadata = excluded.metadata,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE world_events.campaign_id = excluded.campaign_id
+                """,
+                params=(
+                    event.id,
+                    event.event_type,
+                    event.title,
+                    event.description,
+                    event.consequences,
+                    event.session_id,
+                    int(event.secret),
+                    metadata,
+                    campaign_id,
+                ),
+            )
 
-            conn.execute("""
-                INSERT INTO world_events (
-                    id,
-                    event_type,
-                    title,
-                    description,
-                    consequences,
-                    session_id,
-                    secret,
-                    metadata
+    # ============================================================
+    # DELETE RECORDS MISSING FROM SNAPSHOT
+    # ============================================================
+
+    def _delete_missing_records(
+        self,
+        conn,
+        world,
+        *,
+        campaign_id,
+    ):
+        records = (
+            ("relations", list(world.relations.keys())),
+            ("item_instances", list(world.item_instances.keys())),
+            ("resource_balances", list(world.resource_balances.keys())),
+            ("world_events", list(world.events.keys())),
+            ("items", list(world.items.keys())),
+            ("resources", list(world.resources.keys())),
+            ("entities", list(world.entities.keys())),
+        )
+
+        for table, record_ids in records:
+            if record_ids:
+                placeholders = ",".join("?" for _ in record_ids)
+                conn.execute(
+                    f"""
+                    DELETE FROM {table}
+                    WHERE campaign_id = ?
+                      AND id NOT IN ({placeholders})
+                    """,
+                    (campaign_id, *record_ids),
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    event_type = excluded.event_type,
-                    title = excluded.title,
-                    description = excluded.description,
-                    consequences = excluded.consequences,
-                    session_id = excluded.session_id,
-                    secret = excluded.secret,
-                    metadata = excluded.metadata,
-                    updated_at = CURRENT_TIMESTAMP
-            """, (
-                event.id,
-                event.event_type,
-                event.title,
-                event.description,
-                event.consequences,
-                event.session_id,
-                int(event.secret),
-                metadata,
-            ))
+            else:
+                conn.execute(
+                    f"DELETE FROM {table} WHERE campaign_id = ?",
+                    (campaign_id,),
+                )
 
-    def _delete_missing_records(self, conn, world: WorldState):
+    # ============================================================
+    # NORMALIZE DEPENDENCIES
+    # ============================================================
 
-        entity_ids = list(world.entities.keys())
-        item_ids = list(world.items.keys())
-        item_instance_ids = list(world.item_instances.keys())
-        resource_ids = list(world.resources.keys())
-        balance_ids = list(world.resource_balances.keys())
-        relation_ids = list(world.relations.keys())
-        event_ids = list(world.events.keys())
-
-        if relation_ids:
-            placeholders = ",".join("?" for _ in relation_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM relations
-                WHERE id NOT IN ({placeholders})
-                """,
-                relation_ids,
-            )
-        else:
-            conn.execute("DELETE FROM relations")
-
-        if item_instance_ids:
-            placeholders = ",".join("?" for _ in item_instance_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM item_instances
-                WHERE id NOT IN ({placeholders})
-                """,
-                item_instance_ids,
-            )
-        else:
-            conn.execute("DELETE FROM item_instances")
-
-        if balance_ids:
-            placeholders = ",".join("?" for _ in balance_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM resource_balances
-                WHERE id NOT IN ({placeholders})
-                """,
-                balance_ids,
-            )
-        else:
-            conn.execute("DELETE FROM resource_balances")
-
-        if event_ids:
-            placeholders = ",".join("?" for _ in event_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM world_events
-                WHERE id NOT IN ({placeholders})
-                """,
-                event_ids,
-            )
-        else:
-            conn.execute("DELETE FROM world_events")
-
-        if item_ids:
-            placeholders = ",".join("?" for _ in item_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM items
-                WHERE id NOT IN ({placeholders})
-                """,
-                item_ids,
-            )
-        else:
-            conn.execute("DELETE FROM items")
-
-        if resource_ids:
-            placeholders = ",".join("?" for _ in resource_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM resources
-                WHERE id NOT IN ({placeholders})
-                """,
-                resource_ids,
-            )
-        else:
-            conn.execute("DELETE FROM resources")
-
-        if entity_ids:
-            placeholders = ",".join("?" for _ in entity_ids)
-
-            conn.execute(
-                f"""
-                DELETE FROM entities
-                WHERE id NOT IN ({placeholders})
-                """,
-                entity_ids,
-            )
-        else:
-            conn.execute("DELETE FROM entities")
-
-    def _normalize_world_dependencies(self, world: WorldState):
+    def _normalize_world_dependencies(self, world):
         """
         El WorldState es el snapshot autoritativo.
 
-        Si desaparece una entidad, sus relaciones, posesiones y
-        balances asociados también deben desaparecer.
-
-        Si desaparece un item o recurso, sus instancias/balances
-        asociados también deben desaparecer.
+        Elimina del snapshot de trabajo las referencias que quedarían
+        huérfanas al persistirlo. El WorldState original no se modifica,
+        porque save_world trabaja sobre una copia.
         """
 
         entity_ids = set(world.entities.keys())
         item_ids = set(world.items.keys())
         resource_ids = set(world.resources.keys())
-
-        # ------------------------------------------------------------
-        # RELATIONS
-        # ------------------------------------------------------------
 
         world.relations = {
             relation_id: relation
@@ -752,10 +598,6 @@ class WorldRepository:
                 and relation.target_id in entity_ids
             )
         }
-
-        # ------------------------------------------------------------
-        # ITEM INSTANCES
-        # ------------------------------------------------------------
 
         world.item_instances = {
             instance_id: instance
@@ -772,10 +614,6 @@ class WorldRepository:
                 )
             )
         }
-
-        # ------------------------------------------------------------
-        # RESOURCE BALANCES
-        # ------------------------------------------------------------
 
         world.resource_balances = {
             balance_id: balance

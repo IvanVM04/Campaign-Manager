@@ -23,11 +23,14 @@ class RecordingCharacterService:
         *,
         entity_id,
         amount,
+        campaign_id,
+        conn=None,
     ):
         self.calls.append(
             (
                 entity_id,
                 amount,
+                campaign_id,
             )
         )
 
@@ -49,10 +52,13 @@ def test_change_hp_operation_is_applied():
         amount=-4,
     )
 
-    result = applier.apply(operation)
+    result = applier.apply(
+        operation,
+        campaign_id=1,
+    )
 
     assert service.calls == [
-        (1, -4),
+        (1, -4, 1),
     ]
 
     assert isinstance(
@@ -118,7 +124,10 @@ def test_character_service_error_returns_failed_operation_result():
         amount=-4,
     )
 
-    result = applier.apply(operation)
+    result = applier.apply(
+        operation,
+        campaign_id=1,
+    )
 
     assert result.success is False
     assert result.status == OperationStatus.INVALID
@@ -144,12 +153,14 @@ def test_apply_change_character_hp_passes_connection():
             entity_id,
             amount,
             *,
+            campaign_id,
             conn=None,
         ):
             self.calls.append(
                 (
                     entity_id,
                     amount,
+                    campaign_id,
                     conn,
                 )
             )
@@ -178,12 +189,14 @@ def test_apply_change_character_hp_passes_connection():
     result = applier.apply(
         operation,
         conn=connection,
+        campaign_id=1,
     )
 
     assert character_service.calls == [
         (
             7,
             -5,
+            1,
             connection,
         )
     ]
@@ -230,8 +243,11 @@ def test_apply_returns_failure_when_character_service_fails():
         entity_id=999,
         amount=-5,
     )
-
-    result = applier.apply(operation)
+    
+    result = applier.apply(
+        operation,
+        campaign_id=1,
+    )
 
     assert result.success is False
     assert result.operation == operation
@@ -270,6 +286,7 @@ def test_apply_returns_failure_when_character_service_fails_with_connection():
     result = applier.apply(
         operation,
         conn="fake-connection",
+        campaign_id=1,
     )
 
     assert result.success is False

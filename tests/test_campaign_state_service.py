@@ -258,7 +258,8 @@ def test_get_turn_context_works_from_persisted_campaign_state():
             description="Aldric, aventurero humano.",
             notes="",
             active=True,
-        )
+        ),
+        campaign_id=1,
     )
 
     character = character_repository.save_character(
@@ -277,7 +278,8 @@ def test_get_turn_context_works_from_persisted_campaign_state():
             charisma=10,
             proficiency_bonus=2,
             metadata={},
-        )
+        ),
+        campaign_id=1,
     )
 
     campaign_repository = CampaignRepository()

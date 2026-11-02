@@ -1,3 +1,4 @@
+
 from models.character_state import CharacterState
 from models.operation_result import OperationStatus
 from repositories.character_repository import (
@@ -23,23 +24,21 @@ class CharacterService:
         self,
         character_repository: CharacterRepository,
     ):
-        self.character_repository = (
-            character_repository
-        )
+        self.character_repository = character_repository
 
     def change_hp(
         self,
         entity_id: int,
         amount: int,
         *,
+        campaign_id: int,
         conn=None,
     ) -> CharacterState:
 
-        character = (
-            self.character_repository.get_character(
-                entity_id,
-                conn=conn,
-            )
+        character = self.character_repository.get_character(
+            entity_id,
+            campaign_id=campaign_id,
+            conn=conn,
         )
 
         if character is None:
@@ -48,12 +47,10 @@ class CharacterService:
                 status=OperationStatus.NOT_FOUND,
             )
 
-        new_hp = character.current_hp + amount
-
         new_hp = max(
             0,
             min(
-                new_hp,
+                character.current_hp + amount,
                 character.max_hp,
             ),
         )
@@ -76,11 +73,10 @@ class CharacterService:
         )
 
         try:
-            return (
-                self.character_repository.save_character(
-                    updated,
-                    conn=conn,
-                )
+            return self.character_repository.save_character(
+                updated,
+                campaign_id=campaign_id,
+                conn=conn,
             )
 
         except Exception as exc:

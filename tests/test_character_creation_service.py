@@ -87,11 +87,13 @@ def test_create_character_creates_entity_and_character(
     character_repository = CharacterRepository()
 
     entity = entity_repository.get_entity(
-        character.entity_id
+        character.entity_id,
+        campaign_id=1,
     )
 
     persisted_character = character_repository.get_character(
-        character.entity_id
+        character.entity_id,
+        campaign_id=1,
     )
 
     assert entity is not None
@@ -169,6 +171,7 @@ def test_create_character_rolls_back_all_changes_on_activation_failure(
     def capture_character_and_continue(
         character,
         *,
+        campaign_id,
         conn=None,
     ):
         nonlocal created_entity_id
@@ -177,6 +180,7 @@ def test_create_character_rolls_back_all_changes_on_activation_failure(
 
         return original_save_character(
             character,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
@@ -220,14 +224,16 @@ def test_create_character_rolls_back_all_changes_on_activation_failure(
 
     assert (
         entity_repository.get_entity(
-            created_entity_id
+            created_entity_id,
+            campaign_id=1,
         )
         is None
     )
 
     assert (
         character_repository.get_character(
-            created_entity_id
+            created_entity_id,
+            campaign_id=1,
         )
         is None
     )

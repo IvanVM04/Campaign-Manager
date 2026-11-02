@@ -53,7 +53,13 @@ class WorldService:
         repository: WorldRepository | None = None,
         applier: WorldApplier | None = None,
         character_applier: CharacterApplier | None = None,
+        campaign_id: int = 1,
     ):
+        if campaign_id is None:
+            raise ValueError("campaign_id is required")
+
+        self.campaign_id = campaign_id
+
         self.repository = (
             repository or WorldRepository()
         )
@@ -73,32 +79,29 @@ class WorldService:
 
         self.world = WorldState()
 
+
     def load(self, *, conn=None) -> WorldState:
         """
-        Carga el mundo desde SQLite y lo establece como estado actual.
-
-        Si se proporciona una conexión, la lectura se realiza mediante
-        esa misma conexión. Esto es importante cuando load() se ejecuta
-        dentro de una transacción que todavía contiene cambios no
-        confirmados.
-
-        Cuando no se proporciona conexión, mantiene la compatibilidad
-        con repositorios simples utilizados en tests.
+        Carga el mundo de la campaña asociada a este servicio.
         """
 
-        if conn is None:
-            self.world = self.repository.load_world()
-        else:
-            self.world = self.repository.load_world(conn=conn)
+        self.world = self.repository.load_world(
+            campaign_id=self.campaign_id,
+            conn=conn,
+        )
 
         return self.world
 
     def save(self) -> None:
         """
-        Persiste el estado actual del mundo.
+        Persiste el mundo de la campaña asociada a este servicio.
         """
 
-        self.repository.save_world(self.world)
+        self.repository.save_world(
+            self.world,
+            campaign_id=self.campaign_id,
+        )
+
 
     def apply(
         self,
@@ -267,6 +270,7 @@ class WorldService:
         world_operations,
         character_operations,
         *,
+        campaign_id: int,
         conn=None,
         ordered_operations=None,
     ) -> tuple:
@@ -404,6 +408,7 @@ class WorldService:
 
             result = self.character_applier.apply(
                 operation,
+                campaign_id=campaign_id,
                 conn=connection,
             )
 
@@ -476,10 +481,13 @@ class WorldService:
                     )
 
             if world_operation_applied:
+
                 self.repository.save_world(
                     self.world,
+                    campaign_id=self.campaign_id,
                     conn=connection,
                 )
+
 
                 # Si no recibimos conexión, esta función es propietaria
         # de la transacción. Dejamos que get_conn() gestione el

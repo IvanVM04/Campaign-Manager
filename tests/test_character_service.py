@@ -18,6 +18,7 @@ class RecordingCharacterRepository:
         self,
         entity_id,
         *,
+        campaign_id,
         conn=None,
     ):
         if (
@@ -28,10 +29,12 @@ class RecordingCharacterRepository:
 
         return None
 
+
     def save_character(
         self,
         character,
         *,
+        campaign_id,
         conn=None,
     ):
         self.saved.append(character)
@@ -64,6 +67,7 @@ def test_change_hp_applies_damage():
     result = service.change_hp(
         entity_id=1,
         amount=-4,
+        campaign_id=1,
     )
 
     assert result.current_hp == 6
@@ -84,6 +88,7 @@ def test_change_hp_applies_healing():
     result = service.change_hp(
         entity_id=1,
         amount=3,
+        campaign_id=1,
     )
 
     assert result.current_hp == 9
@@ -103,6 +108,7 @@ def test_change_hp_cannot_go_below_zero():
     result = service.change_hp(
         entity_id=1,
         amount=-50,
+        campaign_id=1,
     )
 
     assert result.current_hp == 0
@@ -122,6 +128,7 @@ def test_change_hp_cannot_exceed_max_hp():
     result = service.change_hp(
         entity_id=1,
         amount=50,
+        campaign_id=1,
     )
 
     assert result.current_hp == 10
@@ -137,6 +144,7 @@ def test_change_hp_rejects_missing_character():
         service.change_hp(
             entity_id=999,
             amount=-5,
+            campaign_id=1,
         )
     except CharacterServiceError as exc:
         assert str(exc) == (
@@ -178,6 +186,7 @@ def test_change_hp_preserves_character_state():
     result = service.change_hp(
         entity_id=1,
         amount=-5,
+        campaign_id=1,
     )
 
     assert result.current_hp == 7
@@ -204,9 +213,11 @@ def test_change_hp_passes_connection_to_repository():
             self,
             entity_id,
             *,
+            campaign_id,
             conn=None,
         ):
             self.get_conn = conn
+            self.get_campaign_id = campaign_id
 
             return CharacterState(
                 entity_id=entity_id,
@@ -214,13 +225,16 @@ def test_change_hp_passes_connection_to_repository():
                 max_hp=10,
             )
 
+
         def save_character(
             self,
             character,
             *,
+            campaign_id,
             conn=None,
         ):
             self.save_conn = conn
+            self.save_campaign_id = campaign_id
             return character
 
     repository = RecordingRepository()
@@ -232,12 +246,15 @@ def test_change_hp_passes_connection_to_repository():
     result = service.change_hp(
         entity_id=1,
         amount=-4,
+        campaign_id=1,
         conn=connection,
     )
 
     assert result.current_hp == 6
     assert repository.get_conn is connection
     assert repository.save_conn is connection
+    assert repository.get_campaign_id == 1
+    assert repository.save_campaign_id == 1
 
 def test_change_hp_works_without_explicit_connection():
 
@@ -253,6 +270,7 @@ def test_change_hp_works_without_explicit_connection():
     result = service.change_hp(
         entity_id=1,
         amount=-3,
+        campaign_id=1,
     )
 
     assert result.current_hp == 7

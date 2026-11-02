@@ -1,3 +1,4 @@
+
 from models.operation_result import (
     OperationResult,
     OperationStatus,
@@ -21,14 +22,13 @@ class CharacterApplier:
         self,
         character_service: CharacterService,
     ):
-        self.character_service = (
-            character_service
-        )
+        self.character_service = character_service
 
     def apply(
         self,
         operation,
         *,
+        campaign_id: int,
         conn=None,
     ) -> OperationResult:
 
@@ -37,33 +37,17 @@ class CharacterApplier:
             ChangeCharacterHpOperation,
         ):
             try:
-                if conn is None:
-                    character = (
-                        self.character_service.change_hp(
-                            entity_id=operation.entity_id,
-                            amount=operation.amount,
-                        )
-                    )
-                else:
-                    character = (
-                        self.character_service.change_hp(
-                            entity_id=operation.entity_id,
-                            amount=operation.amount,
-                            conn=conn,
-                        )
-                    )
+                character = self.character_service.change_hp(
+                    entity_id=operation.entity_id,
+                    amount=operation.amount,
+                    campaign_id=campaign_id,
+                    conn=conn,
+                )
 
             except CharacterServiceError as exc:
-                message = str(exc)
-
-                if "not found" in message.lower():
-                    status = OperationStatus.NOT_FOUND
-                else:
-                    status = OperationStatus.INVALID
-
                 return OperationResult(
-                    status=status,
-                    message=message,
+                    status=exc.status,
+                    message=str(exc),
                     operation=operation,
                     data={
                         "entity_id": operation.entity_id,
