@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 18
+CURRENT_VERSION = 19
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1144,6 +1144,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 18")
         version = 18
 
+    if version < 19:
+        migration_019(conn)
+        conn.execute("PRAGMA user_version = 19")
+        version = 19
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1441,6 +1446,32 @@ def migration_018(conn: sqlite3.Connection) -> None:
             BEGIN
                 SELECT RAISE(ABORT, 'effect source must belong to same campaign');
             END
+        """)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def migration_019(conn: sqlite3.Connection) -> None:
+    """Add an authoritative, campaign-scoped fictional-time clock."""
+    conn.execute("BEGIN")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS campaign_clocks (
+                campaign_id INTEGER PRIMARY KEY,
+                elapsed_minutes INTEGER NOT NULL DEFAULT 0
+                    CHECK (elapsed_minutes >= 0),
+                version INTEGER NOT NULL DEFAULT 1
+                    CHECK (version >= 1),
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (campaign_id)
+                    REFERENCES campaign(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            INSERT OR IGNORE INTO campaign_clocks (campaign_id)
+            SELECT id FROM campaign
         """)
         conn.commit()
     except Exception:

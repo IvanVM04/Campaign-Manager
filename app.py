@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from database import init_db
+from models.campaign_clock_api_schemas import CampaignClockAdvanceIn
 from models.combat_api_schemas import (
     EncounterAttackIn,
     EncounterCreateIn,
@@ -1270,3 +1271,50 @@ def remove_persistent_effect(effect_id: str):
         return _persistent_effect_payload(effect)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+# ============================================================
+# CAMPAIGN CLOCK
+# ============================================================
+
+def _campaign_clock_payload(clock):
+    return {
+        "campaign_id": clock.campaign_id,
+        "elapsed_minutes": clock.elapsed_minutes,
+        "version": clock.version,
+        "updated_at": clock.updated_at,
+    }
+
+
+@app.get("/campaign/clock")
+def get_campaign_clock():
+    from services.campaign_clock_service import CampaignClockService
+
+    try:
+        clock = CampaignClockService(
+            campaign_id=_current_runtime.get().campaign_id
+        ).get()
+        return _campaign_clock_payload(clock)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/campaign/clock/advance")
+def advance_campaign_clock(data: CampaignClockAdvanceIn):
+    from services.campaign_clock_service import CampaignClockService
+
+    try:
+        with turn_execution_lock.acquire():
+            clock = CampaignClockService(
+                campaign_id=_current_runtime.get().campaign_id
+            ).advance(
+                minutes=data.minutes,
+                expected_elapsed_minutes=data.expected_elapsed_minutes,
+            )
+        return _campaign_clock_payload(clock)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
