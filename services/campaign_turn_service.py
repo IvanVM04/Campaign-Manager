@@ -302,7 +302,63 @@ class CampaignTurnService:
                 initial_context,
                 normalized_input,
                 recent_turns=recent_turns,
+                manual_mode=manual_mode,
+                manual_rolls=manual_rolls,
+                decision_override=decision_override,
             )
+
+            if plan.awaiting_manual_roll:
+                token = secrets.token_urlsafe(24)
+                decision = plan.mechanics_decision
+                character = initial_context.active_character
+                if decision is None or character is None:
+                    raise CampaignTurnServiceError(
+                        "manual roll is missing its decision or character"
+                    )
+                from rules_engine.dnd5e_2014.character_checks import ABILITY_FIELDS
+                from rules_engine.dnd5e_2014.core.abilities import ability_modifier
+                from rules_engine.dnd5e_2014.core.proficiency import proficiency_bonus_for_level
+                from rules_engine.dnd5e_2014.core.skills import ability_for_skill
+
+                ability = decision.ability or (
+                    ability_for_skill(decision.skill)
+                    if decision.skill is not None
+                    else None
+                )
+                if ability is None:
+                    raise CampaignTurnServiceError("manual roll has no governing ability")
+                modifier = ability_modifier(getattr(character, ABILITY_FIELDS[ability]))
+                if decision.decision.value == "skill_check" and decision.skill in character.skill_proficiencies:
+                    proficiency = proficiency_bonus_for_level(character.level)
+                    modifier += proficiency * (
+                        2 if decision.skill in character.skill_expertise else 1
+                    )
+                elif decision.decision.value == "saving_throw" and ability in character.saving_throw_proficiencies:
+                    modifier += proficiency_bonus_for_level(character.level)
+                modifier += decision.situational_modifier
+                request = {
+                    "dice": "d20",
+                    "count": 1 if decision.advantage == decision.disadvantage else 2,
+                    "modifier": modifier,
+                    "dc": decision.dc,
+                    "kind": decision.decision.value,
+                    "skill": decision.skill.value if decision.skill else None,
+                    "ability": ability.value,
+                    "advantage": decision.advantage,
+                    "disadvantage": decision.disadvantage,
+                }
+                self._pending_manual_rolls[token] = {
+                    "player_input": normalized_input,
+                    "decision": decision,
+                    "context": initial_context,
+                    "recent_turns": recent_turns,
+                }
+                return TurnResolutionResult(
+                    player_input=normalized_input,
+                    narrative="",
+                    pending_roll_id=token,
+                    pending_roll=request,
+                )
 
             # No DB connection is held during model generation/extraction.
             # BEGIN IMMEDIATE ensures no other writer can change campaign
