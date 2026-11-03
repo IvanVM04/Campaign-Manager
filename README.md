@@ -647,12 +647,14 @@ The goal is not only to test individual functions, but also to verify that persi
 
 GitHub Actions runs the automated checks on pushes and pull requests targeting `main`.
 
-The CI pipeline currently performs:
+The CI pipeline currently performs three jobs:
 
 ```text
 pytest (excluding real_llm tests)
         +
 Ruff linting
+        +
+JavaScript tests (Node 20)
 ```
 
 The real LLM tests are intentionally excluded from CI because they require a locally running Ollama service and model.
