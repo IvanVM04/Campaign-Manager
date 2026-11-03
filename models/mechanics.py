@@ -9,6 +9,7 @@ from rules_engine.dnd5e_2014.core.skills import Skill
 class MechanicsDecisionType(str, Enum):
     NONE = "none"
     CLARIFICATION = "clarification"
+    ABILITY_CHECK = "ability_check"
     SKILL_CHECK = "skill_check"
     SAVING_THROW = "saving_throw"
 
