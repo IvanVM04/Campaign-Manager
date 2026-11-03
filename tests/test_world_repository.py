@@ -1393,7 +1393,10 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
             WorldSnapshotRepository,
         )
 
+        from models.campaign_scope import CampaignScope
+
         snapshot_repository = WorldSnapshotRepository()
+        scope = CampaignScope(1)
 
         # --------------------------------------------------------
         # ESTADO A
@@ -1419,7 +1422,7 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
         # --------------------------------------------------------
 
         with database.get_conn() as conn:
-            snapshot = snapshot_repository.create_snapshot(conn)
+            snapshot = snapshot_repository.create_snapshot(conn, scope=scope)
 
         # --------------------------------------------------------
         # ESTADO B
@@ -1462,6 +1465,7 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
             snapshot_repository.restore_snapshot(
                 conn,
                 snapshot,
+                scope=scope,
             )
 
             # IMPORTANTE:
