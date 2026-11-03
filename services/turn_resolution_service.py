@@ -19,11 +19,11 @@ from rules_engine.dnd5e_2014.character_checks import (
 )
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from services.dm_service import DMService
+from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
 )
-from services.llm_world_extractor import LLMWorldExtractor
 from services.world_service import WorldService
 
 
