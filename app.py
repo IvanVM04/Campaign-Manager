@@ -1,5 +1,6 @@
-from contextvars import ContextVar
 import sqlite3
+
+from contextvars import ContextVar
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
