@@ -389,6 +389,8 @@ def test_play_turn_accepts_player_input_at_maximum_length(
 
     def fake_play_turn(
         player_input,
+        *,
+        dice_mode="automatic",
     ):
         calls.append(player_input)
 
