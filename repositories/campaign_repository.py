@@ -291,7 +291,7 @@ class CampaignRepository:
 
     def get_active_character_id(
         self,
-        campaign_id: int
+        campaign_id: int,
         *,
         conn=None,
     ) -> int | None:
