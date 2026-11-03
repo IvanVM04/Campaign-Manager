@@ -3509,6 +3509,7 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     monkeypatch,
 ):
     import copy
+
     import app
 
     from operations.world_operations import CreateEntityOperation
