@@ -90,6 +90,8 @@ class PersistentEffect:
         if self.duration_type is EffectDurationType.CONDITIONAL:
             if not isinstance(self.duration_condition, str) or not self.duration_condition.strip():
                 raise ValueError("conditional effects require a duration condition")
+            if self.duration_minutes is not None or self.expires_at_minute is not None:
+                raise ValueError("conditional effects cannot define a timed duration")
         elif self.duration_type is EffectDurationType.CAMPAIGN_TIME:
             if self.duration_condition is not None:
                 raise ValueError("campaign-time effects cannot define a duration condition")

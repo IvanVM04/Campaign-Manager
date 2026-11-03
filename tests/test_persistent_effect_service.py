@@ -303,3 +303,35 @@ def test_campaign_time_effect_requires_positive_duration(isolated_database):
             duration_type="campaign_time",
             duration_minutes=0,
         )
+
+
+
+def test_campaign_time_api_schema_requires_strict_positive_minutes():
+    from pydantic import ValidationError
+
+    from models.persistent_effect_api_schemas import PersistentEffectCreateIn
+
+    valid = PersistentEffectCreateIn(
+        effect_type="condition",
+        effect_key="poisoned",
+        name="Poison",
+        duration_type="campaign_time",
+        duration_minutes=30,
+    )
+    assert valid.duration_minutes == 30
+
+    with pytest.raises(ValidationError):
+        PersistentEffectCreateIn(
+            effect_type="condition",
+            effect_key="poisoned",
+            name="Poison",
+            duration_type="campaign_time",
+        )
+    with pytest.raises(ValidationError):
+        PersistentEffectCreateIn(
+            effect_type="condition",
+            effect_key="poisoned",
+            name="Poison",
+            duration_type="campaign_time",
+            duration_minutes=True,
+        )
