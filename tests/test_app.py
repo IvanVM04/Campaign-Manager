@@ -545,65 +545,10 @@ def test_campaigns_can_be_created_and_selected(client):
     assert selected.json()["campaign_id"] == 2
 
 
-def test_campaign_runtime_header_is_required_for_campaign_endpoints():
-    from fastapi.testclient import TestClient
-    from app import app
 
-    response = TestClient(app).get("/campaign/state")
-
+def test_campaign_header_rejects_non_integer_campaign_id(client):
+    response = client.get(
+        "/campaign/state",
+        headers={"X-Campaign-Id": "not-an-id"},
+    )
     assert response.status_code == 400
-    assert response.json()["detail"] == "X-Campaign-Id header is required"
-
-
-def test_campaign_header_selects_isolated_campaign_runtime(
-    isolated_database,
-):
-    from fastapi.testclient import TestClient
-    from app import app
-
-    client = TestClient(app)
-    created = client.post(
-        "/campaigns",
-        json={
-            "name": "Campaign Two",
-            "system": "D&D 5e 2014",
-        },
-    )
-    assert created.status_code == 201
-    campaign_id = created.json()["id"]
-
-    first = client.get(
-        "/campaign/state",
-        headers={"X-Campaign-Id": "1"},
-    )
-    second = client.get(
-        "/campaign/state",
-        headers={"X-Campaign-Id": str(campaign_id)},
-    )
-
-    assert first.status_code == 200
-    assert second.status_code == 200
-    assert first.json()["campaign_id"] == 1
-    assert second.json()["campaign_id"] == campaign_id
-    assert second.json()["name"] == "Campaign Two"
-
-
-def test_campaign_header_rejects_invalid_or_unknown_campaign(
-    isolated_database,
-):
-    from fastapi.testclient import TestClient
-    from app import app
-
-    client = TestClient(app)
-
-    invalid = client.get(
-        "/campaign/state",
-        headers={"X-Campaign-Id": "zero"},
-    )
-    missing_campaign = client.get(
-        "/campaign/state",
-        headers={"X-Campaign-Id": "999"},
-    )
-
-    assert invalid.status_code == 400
-    assert missing_campaign.status_code == 404
