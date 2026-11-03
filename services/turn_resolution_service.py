@@ -35,29 +35,19 @@ class TurnResolutionServiceError(RuntimeError):
 
 class TurnResolutionService:
     """
-    Orquesta la resolución completa de un turno.
+    Prepara y aplica un turno en dos fases.
 
-    Flujo:
+    prepare_turn():
+        jugador -> DMService -> narrativa -> LLMWorldExtractor
+        -> TurnResolutionPlan inmutable (sin mutar estado)
 
-        jugador
-           |
-           v
-        DMService
-           |
-           v
-        narrativa
-           |
-           v
-        LLMWorldExtractor
-           |
-           v
-        WorldOperation[]
-           |
-           v
-        WorldService.apply_operations_and_save()
-           |
-           v
-        resultado atómico
+    apply_plan():
+        TurnResolutionPlan + contexto fresco -> WorldService
+        -> resultados de operaciones
+
+    resolve_turn() conserva una API de compatibilidad que ejecuta
+    ambas fases en secuencia. CampaignTurnService usa las fases
+    por separado para no mantener SQLite abierta durante inferencia.
 
     Responsabilidades:
 
