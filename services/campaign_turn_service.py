@@ -565,7 +565,7 @@ class CampaignTurnService:
 
             try:
                 turn_context = (
-                    self.campaign_state_service.get_turn_context()
+                    self.campaign_state_service.get_turn_context(campaign_id=self.campaign_scope.campaign_id)
                 )
 
             except CampaignStateServiceError as exc:
