@@ -60,7 +60,6 @@ def test_skill_check_is_rolled_by_engine_before_dm_narration():
         '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
         '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Evitar al guardia"}',
         12,
-        character=character,
     )
 
     plan = resolver.prepare_turn(
@@ -84,7 +83,7 @@ def test_clarification_stops_before_narration_and_extraction():
         10,
     )
 
-    plan = resolver.prepare_turn(make_turn_context(), "Abro la cerradura.")
+    plan = resolver.prepare_turn(make_turn_context_with_character(None), "Abro la cerradura.")
     assert plan.clarification_question == "¿Qué herramienta utilizas?"
     assert narrative_provider.call_count == 0
     assert extractor.received == []
