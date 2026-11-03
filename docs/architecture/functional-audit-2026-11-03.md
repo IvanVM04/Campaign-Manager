@@ -246,3 +246,16 @@ The README now describes all three jobs. The workflow file was inspected; a draf
 **Change in this branch:** added migration 013 with INSERT/UPDATE triggers on `campaign`. A campaign's current location must belong to its `entities`, current session to its `sessions`, and active character to its `character_states`, all with the same campaign ID. The migration also scans existing pointers and fails rather than silently clearing or reassigning invalid data. Added tests for all three cross-campaign rejections and a same-campaign success case.
 
 **Verification status:** migration and tests are committed, but have not yet been executed in CI or locally. The migration must be tested against a copy of a real version-12 database before release.
+
+
+### F-18 — Narrative extraction could mutate character HP without rules verification
+
+**Severity:** Critical for D&D correctness; blocked in the audit branch.
+
+**Evidence:** `LLMWorldExtractor` explicitly instructed the model to emit `change_character_hp` whenever the narrative stated a concrete damage/healing amount. `OperationParser` converted that into `ChangeCharacterHpOperation`, and `CharacterApplier` persisted the HP delta. This trusted the narration's number, not a verified D&D rules resolution. The earlier DMService prompt guard did not cover externally generated SillyTavern narratives.
+
+**Change in this branch:** the extractor prompt now explicitly prohibits character-mechanical mutations and removes HP-change examples from its supported operation list. More importantly, `LLMWorldExtractor._parse_operations()` rejects every `CharacterOperation` returned by the parser, so prompt compliance is not the only protection. Added regression tests for the rejection and prompt contract. The low-level character operation/service remain available to trusted application code, but they are not reachable through the default LLM extraction path.
+
+**Behavioural consequence:** SillyTavern narratives that include damage/healing will no longer automatically update character HP. That is intentional until the deterministic rules engine can produce verified mechanical commands. World-state extraction (entities, items, resources, relations and events) remains available.
+
+**Verification status:** source and tests are committed; execution remains pending CI. This is a safety boundary, not a D&D rules implementation.
