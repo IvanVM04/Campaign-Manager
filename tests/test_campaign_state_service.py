@@ -80,7 +80,6 @@ def test_campaign_state_service_sets_and_gets_current_session(
     session = campaign_repository.create_session(
         number=1,
         campaign_id=1,
-        campaign_id=1,
         title="Session 1",
         summary="First session",
         start_location="Vorder's Hold",
@@ -127,6 +126,7 @@ def test_campaign_state_service_can_clear_current_session(
 
     session = campaign_repository.create_session(
         number=1,
+        campaign_id=1,
         title="Session 1",
         summary="First session",
         start_location="Vorder's Hold",
