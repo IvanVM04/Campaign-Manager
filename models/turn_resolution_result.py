@@ -40,6 +40,9 @@ class TurnResolutionResult:
 
     mechanics_result: MechanicsResult | None = None
 
+    pending_roll_id: str | None = None
+    pending_roll: dict | None = None
+
     already_processed: bool = False
 
     persisted_operation_count: int | None = None
