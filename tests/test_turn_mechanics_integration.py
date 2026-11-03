@@ -1,4 +1,5 @@
 from models.character_state import CharacterState
+from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context_builder import ContextBuilder
@@ -98,6 +99,33 @@ def test_unskilled_ability_check_uses_only_ability_modifier():
     assert plan.mechanics_result is not None
     assert plan.mechanics_result.check.kind == "ability_check"
     assert plan.mechanics_result.check.roll.modifier == 3
+    assert plan.mechanics_result.check.total == 15
+    assert plan.mechanics_result.check.success is True
+    assert "Total: 15" in narrative_provider.last_prompt
+
+
+
+def test_saving_throw_uses_character_save_proficiency():
+    character = CharacterState(
+        entity_id=20,
+        level=1,
+        wisdom=16,
+        saving_throw_proficiencies=frozenset({Ability.WISDOM}),
+    )
+    resolver, narrative_provider, _extractor = make_service(
+        '{"decision":"saving_throw","ability":"wisdom","dc":14,'
+        '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Resistir el miedo"}',
+        10,
+    )
+
+    plan = resolver.prepare_turn(
+        make_turn_context_with_character(character),
+        "Resisto el miedo.",
+    )
+
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_result.check.kind == "saving_throw"
+    assert plan.mechanics_result.check.roll.modifier == 5
     assert plan.mechanics_result.check.total == 15
     assert plan.mechanics_result.check.success is True
     assert "Total: 15" in narrative_provider.last_prompt
