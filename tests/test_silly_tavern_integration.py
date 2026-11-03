@@ -1604,7 +1604,7 @@ def test_concurrent_exact_retries_persist_only_one_turn(
         return []
 
     extractor = (
-        app.silly_tavern_integration_service.extractor
+        app.runtime_factory.get_runtime(1).silly_tavern_integration_service.extractor
     )
 
     monkeypatch.setattr(
@@ -2880,7 +2880,7 @@ def test_silly_tavern_context_turn_context_e2e(
         CreateEntityOperation,
     )
 
-    service = app.silly_tavern_integration_service
+    service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     created_entity_operation = CreateEntityOperation(
         name="NPC del contexto",
