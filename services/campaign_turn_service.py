@@ -309,6 +309,7 @@ class CampaignTurnService:
 
                 if not result.all_operations_succeeded:
                     self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
                     write_conn.rollback()
 
                 if self.turn_repository is not None:
@@ -340,14 +341,17 @@ class CampaignTurnService:
 
         except CampaignTurnServiceError:
             self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
             raise
         except TurnResolutionServiceError as exc:
             self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
             raise CampaignTurnServiceError(
                 "turn resolution failed"
             ) from exc
         except Exception as exc:
             self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
             raise CampaignTurnServiceError(
                 "unexpected error while resolving turn"
             ) from exc
