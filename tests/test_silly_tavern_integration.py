@@ -1355,7 +1355,7 @@ def test_exact_retry_returns_persisted_turn_without_running_extractor(
 
     service = __import__(
         "app"
-    ).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "retry-test-turn"
 
@@ -1604,9 +1604,8 @@ def test_concurrent_exact_retries_persist_only_one_turn(
 
         return []
 
-    extractor = (
-        app.runtime_factory.get_runtime(1).silly_tavern_integration_service.extractor
-    )
+    service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
+    extractor = service.extractor
 
     monkeypatch.setattr(
         extractor,
@@ -1623,7 +1622,7 @@ def test_concurrent_exact_retries_persist_only_one_turn(
 
     def send_request():
         return (
-            app.silly_tavern_integration_service.process_turn(
+            service.process_turn(
                 player_input=payload["player_input"],
                 narrative=payload["narrative"],
                 external_turn_id=payload["external_turn_id"],
