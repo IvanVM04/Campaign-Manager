@@ -45,6 +45,7 @@ class MechanicsResult:
         rolls = ", ".join(str(value) for value in roll.rolls)
         return (
             f"Tipo: {self.check.kind}\n"
+            f"Habilidad: {self.decision.skill.value if self.decision.skill is not None else 'ninguna'}\n"
             f"Característica: {self.check.ability.value}\n"
             f"Dado(s): [{rolls}], seleccionado: {roll.selected}\n"
             f"Modificador total: {roll.modifier:+d}\n"
