@@ -956,6 +956,7 @@ def test_play_turn_loads_recent_turns_before_resolving():
             *,
             session_id=None,
             limit=10,
+            scope=None,
             conn=None,
         ):
             self.calls.append(
