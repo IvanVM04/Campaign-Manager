@@ -476,3 +476,47 @@ def test_world_endpoint_waits_for_turn_execution_lock(client):
 
     assert not thread.is_alive()
     assert result["response"].status_code == 200
+
+
+def test_campaign_header_is_required_for_campaign_endpoints():
+    from fastapi.testclient import TestClient
+    from app import app
+
+    response = TestClient(app).get("/campaign/state")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "X-Campaign-Id header is required"
+
+
+def test_campaign_header_rejects_unknown_campaign(client):
+    response = client.get(
+        "/campaign/state",
+        headers={"X-Campaign-Id": "999999"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_runtime_factory_builds_isolated_services_for_each_campaign(
+    isolated_database,
+):
+    from database import execute
+    from services.campaign_runtime import CampaignRuntimeFactory
+
+    execute(
+        "INSERT INTO campaign (id, name, system) VALUES (?, ?, ?)",
+        (2, "Second campaign", "D&D 5e 2014"),
+    )
+
+    factory = CampaignRuntimeFactory()
+    first = factory.get_runtime(1)
+    second = factory.get_runtime(2)
+
+    assert first is not second
+    assert first.scope.campaign_id == 1
+    assert second.scope.campaign_id == 2
+    assert first.world_service is not second.world_service
+    assert first.world_service.world is not second.world_service.world
+    assert first.turn_execution_lock is not second.turn_execution_lock
+    assert first.campaign_state_service.campaign_id == 1
+    assert second.campaign_state_service.campaign_id == 2
