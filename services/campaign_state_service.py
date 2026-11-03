@@ -192,7 +192,7 @@ class CampaignStateService:
     def set_current_session(
         self,
         session_id: int | None,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
     ) -> CampaignState:
         """
         Establece o elimina la sesión actual.
@@ -287,7 +287,7 @@ class CampaignStateService:
 
     def get_turn_context(
         self,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
         *,
         conn=None,
     ) -> TurnContext:
