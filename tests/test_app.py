@@ -476,8 +476,9 @@ def test_world_endpoint_waits_for_turn_execution_lock(client):
 
 
 def test_campaign_header_is_required_for_campaign_endpoints():
-    from app import app
     from fastapi.testclient import TestClient
+
+    from app import app
 
     response = TestClient(app).get("/campaign/state")
 
