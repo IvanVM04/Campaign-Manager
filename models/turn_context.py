@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.session_state import SessionState
 from models.world_state import WorldState
+from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class TurnContext:
     active_character: CharacterState | None
     world: WorldState
     active_character_entity: Entity | None = None
+    active_character_conditions: ConditionSet = field(default_factory=ConditionSet)
     
     def __post_init__(self) -> None:
         if not isinstance(
@@ -67,6 +69,9 @@ class TurnContext:
             raise TypeError(
                 "world must be a WorldState"
             )
+
+        if not isinstance(self.active_character_conditions, ConditionSet):
+            raise TypeError("active_character_conditions must be a ConditionSet")
 
         if (
             self.active_character_entity is not None

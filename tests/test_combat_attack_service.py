@@ -210,3 +210,25 @@ def test_attack_rejects_manual_npc_as_attacker(client):
         },
     )
     assert response.status_code == 409
+
+
+def test_persistent_poisoned_attacker_has_disadvantage_on_attack(client):
+    attacker_id, _target_id, _attacker_combatant_id, target_combatant_id = _prepare_encounter(client)
+    effect = client.post(
+        f"/entities/{attacker_id}/effects",
+        json={"effect_type": "condition", "effect_key": "poisoned", "name": "Veneno persistente"},
+    )
+    assert effect.status_code == 201, effect.text
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_combatant_id,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [18, 4],
+            "manual_damage_rolls": [],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["disadvantage"] is True

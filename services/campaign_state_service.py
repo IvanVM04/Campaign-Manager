@@ -10,6 +10,9 @@ from models.world_state import WorldState
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
+from repositories.persistent_effect_repository import PersistentEffectRepository
+from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
+from services.effective_condition_service import EffectiveConditionService
 from services.world_service import WorldService
 
 
@@ -64,6 +67,7 @@ class CampaignStateService:
         entity_repository: EntityRepository,
         world_service: WorldService,
         campaign_id: int | None = None,
+        persistent_effect_repository: PersistentEffectRepository | None = None,
     ) -> None:
 
         if not isinstance(
@@ -102,6 +106,7 @@ class CampaignStateService:
         self.character_repository = character_repository
         self.world_service = world_service
         self.entity_repository = entity_repository
+        self.effective_condition_service = EffectiveConditionService(persistent_effect_repository or PersistentEffectRepository())
         self.campaign_id = (
             world_service.campaign_id
             if campaign_id is None
@@ -428,10 +433,15 @@ class CampaignStateService:
                 "WorldService returned an invalid WorldState"
             )
 
+        active_character_conditions = (
+            self.effective_condition_service.for_entity(active_character.entity_id, campaign_id=campaign_id, conn=conn)
+            if active_character is not None else ConditionSet()
+        )
         return TurnContext(
             campaign=campaign_state,
             current_session=session_state,
             active_character=active_character,
             active_character_entity=active_character_entity,
+            active_character_conditions=active_character_conditions,
             world=world,
         )

@@ -19,6 +19,7 @@ from services.combat_attack_service import CombatAttackService
 from services.combat_encounter_service import CombatEncounterService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
+from services.effective_condition_service import EffectiveConditionService
 from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
@@ -102,12 +103,16 @@ class CampaignRuntimeFactory:
         world_service = WorldService(campaign_id=scope.campaign_id)
         world_service.load()
 
+        persistent_effect_repository = PersistentEffectRepository()
+        effective_condition_service = EffectiveConditionService(persistent_effect_repository)
+
         campaign_state_service = CampaignStateService(
             campaign_repository=campaign_repository,
             character_repository=character_repository,
             entity_repository=entity_repository,
             world_service=world_service,
             campaign_id=scope.campaign_id,
+            persistent_effect_repository=persistent_effect_repository,
         )
 
         memory_search_service = MemorySearchService()
@@ -166,9 +171,10 @@ class CampaignRuntimeFactory:
             encounter_repository=encounter_repository,
             character_repository=character_repository,
             weapon_repository=WeaponEquipmentRepository(),
+            effective_condition_service=effective_condition_service,
         )
         persistent_effect_service = PersistentEffectService(
-            repository=PersistentEffectRepository(),
+            repository=persistent_effect_repository,
             entity_repository=entity_repository,
             campaign_id=scope.campaign_id,
         )

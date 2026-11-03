@@ -28,11 +28,13 @@ class CombatAttackService:
         character_repository: CharacterRepository,
         weapon_repository: WeaponEquipmentRepository,
         dice_roller: DiceRoller | None = None,
+        effective_condition_service=None,
     ) -> None:
         self.encounter_repository = encounter_repository
         self.character_repository = character_repository
         self.weapon_repository = weapon_repository
         self.dice_roller = dice_roller or DiceRoller()
+        self.effective_condition_service = effective_condition_service
 
     def attack(
         self,
@@ -130,9 +132,18 @@ class CombatAttackService:
                 except ValueError as exc:
                     raise ValueError("weapon damage expression is not supported") from exc
 
+            attacker_conditions = attacker.conditions
+            target_conditions = target.conditions
+            if self.effective_condition_service is not None:
+                if attacker.entity_id is not None:
+                    attacker_conditions = self.effective_condition_service.for_entity(attacker.entity_id, campaign_id=campaign_id, base=attacker_conditions, conn=conn)
+                if target.entity_id is not None:
+                    target_conditions = self.effective_condition_service.for_entity(target.entity_id, campaign_id=campaign_id, base=target_conditions, conn=conn)
+            if attacker_conditions.is_incapacitated:
+                raise ValueError("persistent conditions prevent this combatant from attacking")
             advantage, disadvantage = attack_roll_advantage_state(
-                attacker=attacker.conditions,
-                target=target.conditions,
+                attacker=attacker_conditions,
+                target=target_conditions,
                 target_within_5_feet=target_within_5_feet,
             )
             result = resolve_attack(

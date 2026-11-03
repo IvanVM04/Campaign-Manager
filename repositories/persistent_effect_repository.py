@@ -57,16 +57,21 @@ class PersistentEffectRepository:
         *,
         campaign_id: int,
         include_removed: bool = False,
+        active_only: bool = False,
+        conn: sqlite3.Connection | None = None,
     ) -> list[PersistentEffect]:
         query = """
             SELECT * FROM persistent_effects
             WHERE campaign_id = ? AND entity_id = ?
         """
         params: tuple = (campaign_id, entity_id)
-        if not include_removed:
+        if active_only:
+            query += " AND status = 'active'"
+        elif not include_removed:
             query += " AND status != 'removed'"
         query += " ORDER BY created_at, id"
-        return [self._row_to_model(row) for row in rows(query, params)]
+        found = conn.execute(query, params).fetchall() if conn is not None else rows(query, params)
+        return [self._row_to_model(dict(row)) for row in found]
 
     def update_status(
         self,
