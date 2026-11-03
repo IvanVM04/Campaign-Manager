@@ -973,3 +973,30 @@ def test_generate_passes_recent_turns_to_context_builder():
         context_builder.received_recent_turns
         == recent_turns
     )
+
+
+def test_default_prompt_respects_campaign_tone_and_defers_mechanics():
+    provider = FakeLLMProvider(
+        response="Respuesta narrativa."
+    )
+    service = DMService(provider)
+
+    service.generate(
+        make_turn_context(),
+        "Ataco al guardia.",
+    )
+
+    prompt = provider.last_prompt
+    assert prompt is not None
+
+    # The configured campaign tone is included as context, but the
+    # default system prompt must not replace it with a fixed style.
+    assert "tone=serio" in prompt
+    assert "no impongas un tono predeterminado" in prompt
+    assert "oscuro y épico" not in prompt
+
+    # Until deterministic rule resolution exists, the narrator must
+    # not invent mechanical outcomes and present them as facts.
+    assert "No inventes ni resuelvas tiradas" in prompt
+    assert "motor de reglas" in prompt
+    assert "No conviertas una consecuencia mecánica pendiente" in prompt
