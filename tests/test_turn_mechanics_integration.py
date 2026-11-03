@@ -83,7 +83,7 @@ def test_clarification_stops_before_narration_and_extraction():
         10,
     )
 
-    plan = resolver.prepare_turn(make_turn_context_with_character(None), "Abro la cerradura.")
+    plan = resolver.prepare_turn(make_turn_context_with_character(CharacterState(entity_id=20)), "Abro la cerradura.")
     assert plan.clarification_question == "¿Qué herramienta utilizas?"
     assert narrative_provider.call_count == 0
     assert extractor.received == []
