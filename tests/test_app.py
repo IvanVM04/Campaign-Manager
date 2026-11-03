@@ -554,3 +554,38 @@ def test_campaign_header_rejects_non_integer_campaign_id(client):
         headers={"X-Campaign-Id": "not-an-id"},
     )
     assert response.status_code == 400
+
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"name": ""},
+        {"name": "   "},
+        {"system": ""},
+        {"system": "   "},
+    ],
+)
+def test_update_campaign_rejects_blank_required_fields(
+    client,
+    payload,
+):
+    response = client.patch("/campaign", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_update_campaign_trims_optional_text_fields(
+    client,
+):
+    response = client.patch(
+        "/campaign",
+        json={
+            "tone": "  heroic fantasy  ",
+            "summary": "  A short campaign summary.  ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["tone"] == "heroic fantasy"
+    assert response.json()["summary"] == "A short campaign summary."
