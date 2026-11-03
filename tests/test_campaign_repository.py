@@ -69,7 +69,7 @@ def test_mutating_methods_use_supplied_connection(
 
     repository = CampaignRepository()
 
-    campaign = repository.get_campaign()
+    campaign = repository.get_campaign(1)
     assert campaign is not None
 
     with get_conn() as conn:
