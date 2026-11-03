@@ -2423,7 +2423,6 @@ def _build_planned_turn_service(campaign_id, dm_service):
     from repositories.character_repository import CharacterRepository
     from repositories.entity_repository import EntityRepository
     from services.campaign_state_service import CampaignStateService
-    from services.context_builder import ContextBuilder
     from services.llm_world_extractor import LLMWorldExtractor
     from services.operation_parser import OperationParser
 
