@@ -63,7 +63,7 @@ def test_list_and_delete_are_campaign_scoped():
     repository.save(make_encounter(), campaign_id=1)
 
     assert [item.encounter_id for item in repository.list_for_campaign(1)] == ["encounter-1"]
-    assert repository.delete("encounter-1", campaign_id=2) is True
+    assert repository.delete("encounter-1", campaign_id=2) is False
     assert repository.get("encounter-1", campaign_id=1) is not None
     assert repository.delete("encounter-1", campaign_id=1) is True
     assert repository.get("encounter-1", campaign_id=1) is None
