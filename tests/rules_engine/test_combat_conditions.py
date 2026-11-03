@@ -1,6 +1,7 @@
 import pytest
 
 from rules_engine.dnd5e_2014.combat.condition_effects import (
+    condition_imposes_disadvantage_on_check,
     derive_condition_effects,
     saving_throw_auto_fails,
 )
@@ -102,3 +103,37 @@ def test_invisible_attacker_has_advantage_but_visibility_can_add_disadvantage():
         attacker_can_see_target=True,
         target_can_see_attacker=False,
     ) == (True, True)
+
+
+
+def test_paralyzed_target_only_grants_advantage_to_attacks_within_five_feet():
+    attacker = ConditionSet()
+    target = ConditionSet(frozenset({Condition.PARALYZED}))
+
+    close = attack_roll_advantage_state(
+        attacker=attacker, target=target, target_within_5_feet=True
+    )
+    far = attack_roll_advantage_state(
+        attacker=attacker, target=target, target_within_5_feet=False
+    )
+
+    assert close == (True, False)
+    assert far == (False, False)
+
+
+def test_blinded_target_grants_advantage_to_attacks_against_it():
+    advantage, disadvantage = attack_roll_advantage_state(
+        attacker=ConditionSet(),
+        target=ConditionSet(frozenset({Condition.BLINDED})),
+        target_within_5_feet=False,
+    )
+    assert advantage is True
+    assert disadvantage is False
+
+
+def test_frightened_disadvantage_depends_on_source_visibility():
+    conditions = ConditionSet(frozenset({Condition.FRIGHTENED}))
+    assert not condition_imposes_disadvantage_on_check(conditions)
+    assert condition_imposes_disadvantage_on_check(
+        conditions, frightened_source_visible=True
+    )
