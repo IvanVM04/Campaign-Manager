@@ -1375,13 +1375,12 @@ def test_supersede_turn_cannot_change_another_campaign(
         scope=campaign_two,
     )
 
-    with get_conn() as conn:
-        with pytest.raises(LookupError):
-            repository.supersede_turn(
-                turn_two.id,
-                scope=campaign_one,
-                conn=conn,
-            )
+    with get_conn() as conn, pytest.raises(LookupError):
+        repository.supersede_turn(
+            turn_two.id,
+            scope=campaign_one,
+            conn=conn,
+        )
 
     unchanged = repository.get_active_by_external_turn_id(
         "campaign-two-turn",
