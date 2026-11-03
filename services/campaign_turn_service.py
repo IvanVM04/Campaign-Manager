@@ -298,6 +298,15 @@ class CampaignTurnService:
             world = initial_context.world
             world_snapshot = copy.deepcopy(world)
 
+            if expected_context is not None and initial_context != expected_context:
+                raise CampaignTurnServiceError(
+                    "campaign state changed while waiting for the manual roll"
+                )
+            if expected_context is not None and recent_turns != expected_recent_turns:
+                raise CampaignTurnServiceError(
+                    "turn history changed while waiting for the manual roll"
+                )
+
             plan = self.turn_resolution_service.prepare_turn(
                 initial_context,
                 normalized_input,
