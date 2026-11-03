@@ -108,6 +108,7 @@ class RecordingCampaignStateService(
 
     def get_turn_context(
         self,
+        campaign_id=None,
         *,
         conn=None,
     ):
