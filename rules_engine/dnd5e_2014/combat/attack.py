@@ -35,7 +35,7 @@ def resolve_attack(
     damage_type: DamageType,
     advantage: bool = False,
     disadvantage: bool = False,
-    damage_adjustment: DamageAdjustment = DamageAdjustment(),
+    damage_adjustment: DamageAdjustment | None = None,
     manual_attack_rolls: tuple[int, ...] | None = None,
     manual_damage_rolls: tuple[int, ...] | None = None,
 ) -> AttackResult:
@@ -61,6 +61,10 @@ def resolve_attack(
         raise ValueError("damage_die_sides must be at least 2")
     if not isinstance(damage_type, DamageType):
         raise TypeError("damage_type must be a DamageType")
+    if damage_adjustment is None:
+        damage_adjustment = DamageAdjustment()
+    elif not isinstance(damage_adjustment, DamageAdjustment):
+        raise TypeError("damage_adjustment must be a DamageAdjustment or None")
     if not isinstance(advantage, bool) or not isinstance(disadvantage, bool):
         raise TypeError("advantage and disadvantage must be booleans")
 
