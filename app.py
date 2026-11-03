@@ -27,8 +27,8 @@ from services.campaign_turn_service import (
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
-from services.memory_search_service import MemorySearchService
 from services.mechanics_adjudicator import MechanicsAdjudicator
+from services.memory_search_service import MemorySearchService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import (
     OperationParser,
