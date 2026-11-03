@@ -14,14 +14,32 @@ def clean_world():
     Al terminar cada test restaura el mundo original.
     """
 
-    original_world = app.world_service.world
+    runtime = app.runtime_factory.get_runtime(1)
+    original_world = runtime.world_service.world
 
     # WorldState vacío.
-    app.world_service.world = type(original_world)()
+    runtime.world_service.world = type(original_world)()
 
-    yield app.world_service.world
+    yield runtime.world_service.world
 
-    app.world_service.world = original_world
+    runtime.world_service.world = original_world
+
+
+
+def _search_memory(query):
+    runtime = app.runtime_factory.get_runtime(1)
+    return runtime.memory_search_service.search(
+        runtime.world_service.get_world(),
+        query,
+    )
+
+
+def _memory_context(query):
+    runtime = app.runtime_factory.get_runtime(1)
+    return runtime.context_builder.build(
+        runtime.world_service.get_world(),
+        query,
+    )
 
 
 def test_memory_search_finds_entity(clean_world):
@@ -40,7 +58,7 @@ def test_memory_search_finds_entity(clean_world):
 
     clean_world.entities[fungoso.id] = fungoso
 
-    result = app.search_memory("Fungoso")
+    result = _search_memory("Fungoso")
 
     assert "entities" in result
 
@@ -211,7 +229,7 @@ def test_memory_context_uses_world_state(clean_world):
 
     clean_world.entities[fungoso.id] = fungoso
 
-    result = app.memory_context("Fungoso")
+    result = _memory_context("Fungoso")
 
     assert result["query"] == "Fungoso"
 
