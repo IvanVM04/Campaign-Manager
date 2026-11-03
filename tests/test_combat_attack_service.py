@@ -231,4 +231,4 @@ def test_persistent_poisoned_attacker_has_disadvantage_on_attack(client):
         },
     )
     assert response.status_code == 200, response.text
-    assert response.json()["attack"]["disadvantage"] is True
+    assert response.json()["disadvantage"] is True
