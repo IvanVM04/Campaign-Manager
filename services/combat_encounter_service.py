@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from uuid import uuid4
 
+from database import get_conn
 from models.combat_encounter_state import CombatEncounterState, EncounterStatus
 from models.combatant_state import CombatantState
 from repositories.combat_encounter_repository import CombatEncounterRepository
@@ -96,48 +97,50 @@ class CombatEncounterService:
         manual_rolls: dict[str, int] | None = None,
         initiative_order: tuple[str, ...] | None = None,
     ):
-        encounter = self._require_encounter(campaign_id, encounter_id)
-        if encounter.status is not EncounterStatus.PREPARING:
-            raise ValueError("only a preparing encounter can be started")
-        manual_rolls = manual_rolls or {}
-        expected_ids = set(encounter.combatants)
-        if dice_mode == "manual":
-            if set(manual_rolls) != expected_ids:
-                raise ValueError("manual mode requires exactly one d20 result for every combatant")
-        elif dice_mode == "automatic":
-            if manual_rolls:
-                raise ValueError("manual_rolls can only be supplied in manual mode")
-        else:
-            raise ValueError("dice_mode must be automatic or manual")
+        with get_conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
+            if encounter.status is not EncounterStatus.PREPARING:
+                raise ValueError("only a preparing encounter can be started")
+            manual_rolls = manual_rolls or {}
+            expected_ids = set(encounter.combatants)
+            if dice_mode == "manual":
+                if set(manual_rolls) != expected_ids:
+                    raise ValueError("manual mode requires exactly one d20 result for every combatant")
+            elif dice_mode == "automatic":
+                if manual_rolls:
+                    raise ValueError("manual_rolls can only be supplied in manual mode")
+            else:
+                raise ValueError("dice_mode must be automatic or manual")
 
-        updated = {}
-        for combatant_id, combatant in encounter.combatants.items():
-            result = roll_initiative(
-                combatant_id=combatant_id,
-                dexterity_score=combatant.dexterity,
-                roller=self.dice_roller,
-                manual_rolls=(
-                    (manual_rolls[combatant_id],) if dice_mode == "manual" else None
-                ),
-            )
-            updated[combatant_id] = replace(combatant, initiative=result.total)
-        encounter.combatants = updated
+            updated = {}
+            for combatant_id, combatant in encounter.combatants.items():
+                result = roll_initiative(
+                    combatant_id=combatant_id,
+                    dexterity_score=combatant.dexterity,
+                    roller=self.dice_roller,
+                    manual_rolls=(
+                        (manual_rolls[combatant_id],) if dice_mode == "manual" else None
+                    ),
+                )
+                updated[combatant_id] = replace(combatant, initiative=result.total)
+            encounter.combatants = updated
 
-        if initiative_order is None:
-            tied = encounter.tied_initiative_groups
-            if tied:
-                raise ValueError(
-                    "initiative tie requires initiative_order to break ties: "
-                    + "; ".join(", ".join(group) for group in tied)
+            if initiative_order is None:
+                tied = encounter.tied_initiative_groups
+                if tied:
+                    raise ValueError(
+                        "initiative tie requires initiative_order to break ties: "
+                        + "; ".join(", ".join(group) for group in tied)
+                    )
+                initiative_order = tuple(
+                    sorted(
+                        encounter.combatants,
+                        key=lambda item: (-encounter.combatants[item].initiative, item),
+                    )
                 )
-            initiative_order = tuple(
-                sorted(
-                    encounter.combatants,
-                    key=lambda item: (-encounter.combatants[item].initiative, item),
-                )
-            )
-        encounter.start(tuple(initiative_order))
-        return self.repository.save(encounter, campaign_id=campaign_id)
+            encounter.start(tuple(initiative_order))
+            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
 
     def advance_turn(
         self,
@@ -147,12 +150,14 @@ class CombatEncounterService:
         expected_round: int | None = None,
         expected_turn_index: int | None = None,
     ):
-        encounter = self._require_encounter(campaign_id, encounter_id)
-        self._check_position(encounter, expected_round, expected_turn_index)
-        if encounter.status is not EncounterStatus.ACTIVE:
-            raise ValueError("cannot advance a non-active encounter")
-        encounter.advance_turn()
-        return self.repository.save(encounter, campaign_id=campaign_id)
+        with get_conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
+            self._check_position(encounter, expected_round, expected_turn_index)
+            if encounter.status is not EncounterStatus.ACTIVE:
+                raise ValueError("cannot advance a non-active encounter")
+            encounter.advance_turn()
+            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
 
     def complete(
         self,
@@ -162,13 +167,15 @@ class CombatEncounterService:
         expected_round: int | None = None,
         expected_turn_index: int | None = None,
     ):
-        encounter = self._require_encounter(campaign_id, encounter_id)
-        self._check_position(encounter, expected_round, expected_turn_index)
-        encounter.complete()
-        return self.repository.save(encounter, campaign_id=campaign_id)
+        with get_conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
+            self._check_position(encounter, expected_round, expected_turn_index)
+            encounter.complete()
+            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
 
-    def _require_encounter(self, campaign_id: int, encounter_id: str):
-        encounter = self.repository.get(encounter_id, campaign_id=campaign_id)
+    def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
+        encounter = self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn)
         if encounter is None:
             raise LookupError("encounter does not exist in this campaign")
         return encounter

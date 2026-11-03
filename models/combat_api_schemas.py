@@ -59,3 +59,30 @@ class EncounterStartIn(BaseModel):
 class EncounterTurnIn(BaseModel):
     expected_round: int | None = Field(default=None, ge=1)
     expected_turn_index: int | None = Field(default=None, ge=0)
+
+
+class EncounterAttackIn(BaseModel):
+    target_combatant_id: str = Field(..., min_length=1, max_length=120)
+    expected_round: int = Field(..., ge=1)
+    expected_turn_index: int = Field(..., ge=0)
+    dice_mode: Literal["automatic", "manual"] = "automatic"
+    manual_attack_rolls: list[StrictInt] | None = Field(default=None, min_length=1, max_length=2)
+    manual_damage_rolls: list[StrictInt] | None = None
+    target_within_5_feet: bool = False
+    versatile_two_handed: bool = False
+    finesse_ability: Literal["strength", "dexterity"] | None = None
+
+    @model_validator(mode="after")
+    def validate_dice_mode(self):
+        if self.dice_mode == "automatic":
+            if self.manual_attack_rolls is not None or self.manual_damage_rolls is not None:
+                raise ValueError("manual dice cannot be supplied in automatic mode")
+        elif self.manual_attack_rolls is None or self.manual_damage_rolls is None:
+            raise ValueError("manual mode requires attack rolls and damage rolls (use [] on a miss)")
+        if not isinstance(self.target_within_5_feet, bool) or not isinstance(self.versatile_two_handed, bool):
+            raise TypeError("attack options must be booleans")
+        if self.manual_attack_rolls is not None and any(not 1 <= value <= 20 for value in self.manual_attack_rolls):
+            raise ValueError("manual attack rolls must be from 1 to 20")
+        if self.manual_damage_rolls is not None and any(value < 1 for value in self.manual_damage_rolls):
+            raise ValueError("manual damage rolls must be positive")
+        return self

@@ -38,6 +38,7 @@ def resolve_attack(
     damage_adjustment: DamageAdjustment | None = None,
     manual_attack_rolls: tuple[int, ...] | None = None,
     manual_damage_rolls: tuple[int, ...] | None = None,
+    fixed_damage: int = 0,
 ) -> AttackResult:
     """Resolve one attack, including natural 1/20 and critical damage dice.
 
@@ -55,10 +56,17 @@ def resolve_attack(
     ):
         if isinstance(value, bool) or not isinstance(value, int):
             raise TypeError(f"{name} must be an integer")
-    if isinstance(damage_dice_count, bool) or not isinstance(damage_dice_count, int) or damage_dice_count < 1:
-        raise ValueError("damage_dice_count must be a positive integer")
-    if isinstance(damage_die_sides, bool) or not isinstance(damage_die_sides, int) or damage_die_sides < 2:
+    if isinstance(damage_dice_count, bool) or not isinstance(damage_dice_count, int) or damage_dice_count < 0:
+        raise ValueError("damage_dice_count must be a non-negative integer")
+    if isinstance(damage_die_sides, bool) or not isinstance(damage_die_sides, int):
+        raise TypeError("damage_die_sides must be an integer")
+    if damage_dice_count == 0:
+        if damage_die_sides != 0 or fixed_damage < 1:
+            raise ValueError("zero dice require a positive fixed_damage and zero die sides")
+    elif damage_die_sides < 2:
         raise ValueError("damage_die_sides must be at least 2")
+    if isinstance(fixed_damage, bool) or not isinstance(fixed_damage, int) or fixed_damage < 0:
+        raise ValueError("fixed_damage must be a non-negative integer")
     if not isinstance(damage_type, DamageType):
         raise TypeError("damage_type must be a DamageType")
     if damage_adjustment is None:
@@ -79,7 +87,7 @@ def resolve_attack(
     hit = critical or (natural != 1 and attack_roll.total >= target_ac)
 
     if not hit:
-        if manual_damage_rolls is not None:
+        if manual_damage_rolls not in (None, ()):
             raise ValueError("damage rolls must not be supplied for a missed attack")
         return AttackResult(
             attack_roll=attack_roll,
@@ -92,14 +100,24 @@ def resolve_attack(
             damage_after_defenses=0,
         )
 
+    if damage_dice_count == 0 and manual_damage_rolls not in (None, ()):
+        raise ValueError("fixed-damage attacks must not include damage dice")
+
     dice_count = damage_dice_count * (2 if critical else 1)
-    damage_roll = roller.roll(
-        dice_count,
-        damage_die_sides,
-        modifier=damage_bonus,
-        manual_rolls=manual_damage_rolls,
+    damage_roll = (
+        roller.roll(
+            dice_count,
+            damage_die_sides,
+            modifier=damage_bonus + fixed_damage,
+            manual_rolls=manual_damage_rolls,
+        )
+        if dice_count
+        else None
     )
-    raw_damage = max(0, damage_roll.total)
+    raw_damage = max(
+        0,
+        damage_roll.total if damage_roll is not None else damage_bonus + fixed_damage,
+    )
     adjusted_damage = apply_damage_modifiers(raw_damage, damage_adjustment)
     return AttackResult(
         attack_roll=attack_roll,

@@ -10,9 +10,11 @@ from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.entity_repository import EntityRepository
 from repositories.turn_repository import TurnRepository
+from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from services.campaign_state_service import CampaignStateService
 from services.campaign_turn_service import CampaignTurnService
 from services.character_creation_service import CharacterCreationService
+from services.combat_attack_service import CombatAttackService
 from services.combat_encounter_service import CombatEncounterService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
@@ -45,6 +47,7 @@ class CampaignRuntime:
     turn_execution_lock: TurnExecutionLock
     character_creation_service: CharacterCreationService
     combat_encounter_service: CombatEncounterService
+    combat_attack_service: CombatAttackService
     campaign_turn_service: CampaignTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
@@ -150,10 +153,16 @@ class CampaignRuntimeFactory:
             entity_repository=entity_repository,
             character_repository=character_repository,
         )
+        encounter_repository = CombatEncounterRepository()
         combat_encounter_service = CombatEncounterService(
-            repository=CombatEncounterRepository(),
+            repository=encounter_repository,
             character_repository=character_repository,
             entity_repository=entity_repository,
+        )
+        combat_attack_service = CombatAttackService(
+            encounter_repository=encounter_repository,
+            character_repository=character_repository,
+            weapon_repository=WeaponEquipmentRepository(),
         )
 
         return CampaignRuntime(
@@ -169,6 +178,7 @@ class CampaignRuntimeFactory:
             turn_execution_lock=turn_execution_lock,
             character_creation_service=character_creation_service,
             combat_encounter_service=combat_encounter_service,
+            combat_attack_service=combat_attack_service,
             campaign_turn_service=campaign_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from database import init_db
 from models.combat_api_schemas import (
+    EncounterAttackIn,
     EncounterCreateIn,
     EncounterStartIn,
     EncounterTurnIn,
@@ -1002,6 +1003,7 @@ def _encounter_payload(encounter):
                 "max_hp": combatant.max_hp,
                 "armor_class": combatant.armor_class,
                 "dexterity": combatant.dexterity,
+                "action_used": combatant.action_used,
                 "entity_id": combatant.entity_id,
                 "is_player_character": combatant.is_player_character,
                 "conscious": combatant.conscious,
@@ -1109,3 +1111,61 @@ def complete_combat_encounter(encounter_id: str, data: EncounterTurnIn):
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+
+
+
+@app.post("/encounters/{encounter_id}/attack")
+def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
+    try:
+        with turn_execution_lock.acquire():
+            result = _current_runtime.get().combat_attack_service.attack(
+                campaign_id=_current_runtime.get().campaign_id,
+                encounter_id=encounter_id,
+                target_combatant_id=data.target_combatant_id,
+                expected_round=data.expected_round,
+                expected_turn_index=data.expected_turn_index,
+                dice_mode=data.dice_mode,
+                manual_attack_rolls=(
+                    tuple(data.manual_attack_rolls)
+                    if data.manual_attack_rolls is not None else None
+                ),
+                manual_damage_rolls=(
+                    tuple(data.manual_damage_rolls)
+                    if data.manual_damage_rolls is not None else None
+                ),
+                target_within_5_feet=data.target_within_5_feet,
+                versatile_two_handed=data.versatile_two_handed,
+                finesse_ability=data.finesse_ability,
+            )
+        attack = result["result"]
+        damage_roll = attack.damage_roll
+        return {
+            "encounter": _encounter_payload(result["encounter"]),
+            "attacker_combatant_id": result["attacker_combatant_id"],
+            "target_combatant_id": result["target_combatant_id"],
+            "weapon_key": result["weapon_key"],
+            "attack_ability": result["attack_ability"],
+            "attack_bonus": result["attack_bonus"],
+            "proficient": result["proficient"],
+            "advantage": result["advantage"],
+            "disadvantage": result["disadvantage"],
+            "attack": {
+                "rolls": list(attack.attack_roll.rolls),
+                "selected": attack.attack_roll.selected,
+                "total": attack.attack_roll.total,
+                "target_ac": attack.target_ac,
+                "hit": attack.hit,
+                "critical": attack.critical,
+            },
+            "damage": {
+                "type": attack.damage_type.value,
+                "rolls": list(damage_roll.rolls) if damage_roll else [],
+                "raw": attack.raw_damage,
+                "after_defenses": attack.damage_after_defenses,
+                "target_current_hp": result["target_current_hp"],
+            },
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

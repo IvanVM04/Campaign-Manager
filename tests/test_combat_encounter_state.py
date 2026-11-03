@@ -68,3 +68,16 @@ def test_encounter_rejects_order_missing_combatants():
     encounter = CombatEncounterState.prepare("enc-1", make_combatants())
     with pytest.raises(ValueError, match="every combatant"):
         encounter.start(("hero", "goblin-a"))
+
+
+def test_action_is_reset_when_combatant_turn_begins():
+    from dataclasses import replace
+
+    encounter = CombatEncounterState.prepare("enc-action", make_combatants())
+    encounter.start(("hero", "goblin-a", "goblin-b"))
+    encounter.combatants["hero"] = replace(encounter.combatants["hero"], action_used=True)
+    encounter.advance_turn()
+    encounter.advance_turn()
+    active = encounter.advance_turn()
+    assert active.combatant_id == "hero"
+    assert active.action_used is False

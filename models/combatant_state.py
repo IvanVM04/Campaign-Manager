@@ -20,6 +20,7 @@ class CombatantState:
     conscious: bool = True
     conditions: ConditionSet = field(default_factory=ConditionSet)
     dexterity: int = 10
+    action_used: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.combatant_id, str) or not self.combatant_id.strip():
@@ -51,6 +52,8 @@ class CombatantState:
             raise TypeError("is_player_character must be a boolean")
         if not isinstance(self.conscious, bool):
             raise TypeError("conscious must be a boolean")
+        if not isinstance(self.action_used, bool):
+            raise TypeError("action_used must be a boolean")
         if not isinstance(self.conditions, ConditionSet):
             raise TypeError("conditions must be a ConditionSet")
 
