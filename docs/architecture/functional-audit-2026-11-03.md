@@ -168,3 +168,54 @@ The provider abstraction is a good seam, but configuration is not yet visibly ce
 - The per-campaign `TurnExecutionLock` is a process-local `threading.RLock`. It serializes calls sharing that lock instance in one Python process; it does not coordinate multiple worker processes or separate application instances. The documented single-process deployment restriction is therefore important.
 - `CampaignTurnService` currently differs from the SillyTavern path: it opens `get_conn()` before calling `TurnResolutionService.resolve_turn()`, which includes LLM generation and extraction. This keeps a SQLite connection/transaction open during inference. It should be redesigned separately using a plan-then-validate-and-commit workflow, with campaign version checks to reject stale plans.
 - Existing integration tests already cover successful regeneration, extraction against the pre-regeneration snapshot, failed regeneration rollback, operation failure rollback, idempotent retries and turn version sequencing. This is stronger coverage than a first-pass inventory alone suggested; future work should extend it with commit-failure and cross-process contention tests rather than duplicate existing tests.
+
+
+### F-11 — Campaign-scoped endpoints are not authenticated or authorized
+
+**Severity:** Critical before any hosted or multi-user deployment; acceptable only under an explicitly trusted local-user boundary.
+
+**Evidence:** `app.py::bind_campaign_runtime` accepts `X-Campaign-Id` and resolves a runtime. It does not authenticate a principal or check campaign membership/ownership. Campaign listing and creation are explicitly exempt from campaign selection and likewise have no user identity. Repository scoping by `campaign_id` is a valuable data-isolation layer, but it is not authorization.
+
+**Decision:** no improvised API key or shared password was added. A correct implementation requires a user identity model, campaign ownership/membership, role policy, authenticated SillyTavern integration and a migration strategy. Until then, deployment must remain trusted-local only; do not expose this API to an untrusted network.
+
+### F-12 — Campaign update schema accepted blank required values
+
+**Severity:** Low/medium data quality issue; corrected in the audit branch.
+
+**Evidence:** `CampaignCreate` trims and rejects blank `name` and `system`, but `CampaignUpdate` previously allowed empty or whitespace-only values and passed them to the repository.
+
+**Change in this branch:** `CampaignUpdate` now applies the same nonblank/trim validation to optional `name` and `system`, and normalizes optional `tone` and `summary`. Regression tests cover blank values and whitespace normalization.
+
+**Verification status:** code and tests committed; execution is pending.
+
+### F-13 — Campaign isolation has meaningful database safeguards
+
+**Severity:** Positive finding / retain these safeguards.
+
+**Evidence:** `CampaignScope` rejects invalid IDs; repositories generally include `campaign_id` in lookups and mutations; migration 012 adds campaign ownership and cross-campaign reference constraints; foreign keys are enabled for connections; tests cover runtime isolation and snapshot isolation.
+
+This does not replace API authorization, but it is a solid data-layer boundary. Continue adding tests for every new repository method to ensure campaign scope cannot be omitted.
+
+### F-14 — API validation and error mapping are inconsistent
+
+**Severity:** Medium.
+
+**Evidence:** several routes convert broad exceptions into HTTP 400 or return raw exception text, while other routes correctly distinguish validation (422), conflict (409) and internal errors (500). This can leak implementation details and mislead API clients.
+
+**Required direction:** define application exceptions (not found, conflict, invalid command, provider unavailable, persistence failure), map them centrally to stable API error responses, and log diagnostic details server-side. Avoid returning raw internal exception messages to clients.
+
+### F-15 — Health endpoint is liveness-only
+
+**Severity:** Low for local mode; operational gap for hosted mode.
+
+**Evidence:** `/health` returns `{"ok": true}` without checking database readiness. This is adequate as a process liveness probe but should not be used as a readiness signal.
+
+**Required direction:** retain liveness and add a separate readiness endpoint that verifies required local dependencies such as SQLite. Do not require Ollama to be available for the API to serve campaign reads or health checks.
+
+### F-16 — Development dependency declarations are incomplete/inconsistent
+
+**Severity:** Medium reproducibility issue.
+
+**Evidence:** `pyproject.toml` declares pytest and `httpx2>=2.5`, while the README lists Ruff and httpx; `requirements.txt` contains only FastAPI and Uvicorn. No lockfile was established in this pass.
+
+**Required direction:** reconcile dependency groups and the documented test/lint commands, then generate a reproducible lock or constraints file. Do not guess package versions without checking CI and the actual development environment.
