@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from models.character_state import CharacterState
 from rules_engine.dnd5e_2014.checks import (
-    CheckResult,
     ability_check,
+    CheckResult,
     saving_throw,
 )
 from rules_engine.dnd5e_2014.core.abilities import Ability
