@@ -29,12 +29,14 @@ class EffectSourceType(str, Enum):
 class EffectDurationType(str, Enum):
     PERMANENT = "permanent"
     CONDITIONAL = "conditional"
+    CAMPAIGN_TIME = "campaign_time"
 
 
 class EffectStatus(str, Enum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
     REMOVED = "removed"
+    EXPIRED = "expired"
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +58,9 @@ class PersistentEffect:
     created_at: str | None = None
     updated_at: str | None = None
     removed_at: str | None = None
+    duration_minutes: int | None = None
+    expires_at_minute: int | None = None
+    expired_at_minute: int | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.campaign_id, bool) or not isinstance(self.campaign_id, int) or self.campaign_id < 1:
@@ -85,8 +90,19 @@ class PersistentEffect:
         if self.duration_type is EffectDurationType.CONDITIONAL:
             if not isinstance(self.duration_condition, str) or not self.duration_condition.strip():
                 raise ValueError("conditional effects require a duration condition")
+            if self.duration_minutes is not None or self.expires_at_minute is not None:
+                raise ValueError("conditional effects cannot define a timed duration")
+        elif self.duration_type is EffectDurationType.CAMPAIGN_TIME:
+            if self.duration_condition is not None:
+                raise ValueError("campaign-time effects cannot define a duration condition")
+            if isinstance(self.duration_minutes, bool) or not isinstance(self.duration_minutes, int) or self.duration_minutes < 1:
+                raise ValueError("campaign-time effects require positive duration_minutes")
+            if isinstance(self.expires_at_minute, bool) or not isinstance(self.expires_at_minute, int) or self.expires_at_minute < 1:
+                raise ValueError("campaign-time effects require expires_at_minute")
         elif self.duration_condition is not None:
             raise ValueError("permanent effects cannot define a duration condition")
+        elif self.duration_minutes is not None or self.expires_at_minute is not None:
+            raise ValueError("only campaign-time effects can define a timed duration")
         if self.effect_type is EffectType.CONDITION:
             try:
                 Condition(self.effect_key)
@@ -108,5 +124,7 @@ class PersistentEffect:
             object.__setattr__(self, "id", uuid4().hex)
         if not re.fullmatch(r"[0-9a-f]{32}", self.id):
             raise ValueError("id must be a 32-character hexadecimal identifier")
-        if self.status is EffectStatus.REMOVED and self.removed_at is None and self.created_at is not None:
-            raise ValueError("persisted removed effects require removed_at")
+        if self.status in (EffectStatus.REMOVED, EffectStatus.EXPIRED) and self.removed_at is None and self.created_at is not None:
+            raise ValueError("persisted inactive effects require removed_at")
+        if self.status is EffectStatus.EXPIRED and self.expired_at_minute is None:
+            raise ValueError("expired effects require expired_at_minute")

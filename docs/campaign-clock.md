@@ -13,4 +13,4 @@ The maximum single advance is 525,600 minutes (one fictional year of 365 days). 
 
 ## Boundaries
 
-This increment establishes the persistent clock and its concurrency contract. It does not yet expire effects, advance combat rounds/turns, or infer elapsed time from server timestamps. Timed-effect expiry will be connected in a follow-up so that the new clock and effect lifecycle are updated atomically.
+Advancing the clock and expiring due campaign-time effects happen in the same SQLite transaction. If expiration fails, the clock advance rolls back as well. Expired effects retain their history and are returned with status `expired` when `include_removed=true` is requested on the entity-effects endpoint. The clock does not advance combat rounds/turns or infer elapsed time from server timestamps.

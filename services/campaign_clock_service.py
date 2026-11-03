@@ -4,15 +4,17 @@ from database import get_conn
 from models.campaign_clock import CampaignClock
 from repositories.campaign_clock_repository import CampaignClockRepository
 from repositories.campaign_repository import CampaignRepository
+from repositories.persistent_effect_repository import PersistentEffectRepository
 
 
 class CampaignClockService:
-    def __init__(self, *, campaign_id: int, repository=None, campaign_repository=None):
+    def __init__(self, *, campaign_id: int, repository=None, campaign_repository=None, effect_repository=None):
         if isinstance(campaign_id, bool) or not isinstance(campaign_id, int) or campaign_id < 1:
             raise ValueError("campaign_id must be a positive integer")
         self.campaign_id = campaign_id
         self.repository = repository or CampaignClockRepository()
         self.campaign_repository = campaign_repository or CampaignRepository()
+        self.effect_repository = effect_repository or PersistentEffectRepository()
 
     def get(self) -> CampaignClock:
         with get_conn() as conn:
@@ -35,9 +37,13 @@ class CampaignClockService:
             if self.campaign_repository.get_campaign(self.campaign_id, conn=conn) is None:
                 raise LookupError("campaign does not exist")
             self.repository.ensure(self.campaign_id, conn=conn)
-            return self.repository.advance(
+            clock = self.repository.advance(
                 self.campaign_id,
                 minutes=minutes,
                 expected_elapsed_minutes=expected_elapsed_minutes,
                 conn=conn,
             )
+            self.effect_repository.expire_due(
+                self.campaign_id, clock.elapsed_minutes, conn=conn
+            )
+            return clock

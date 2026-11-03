@@ -1196,6 +1196,9 @@ def _persistent_effect_payload(effect):
         "source_reference": effect.source_reference,
         "duration_type": effect.duration_type.value,
         "duration_condition": effect.duration_condition,
+        "duration_minutes": effect.duration_minutes,
+        "expires_at_minute": effect.expires_at_minute,
+        "expired_at_minute": effect.expired_at_minute,
         "level": effect.level,
         "status": effect.status.value,
         "created_at": effect.created_at,
@@ -1234,6 +1237,7 @@ def create_entity_effect(entity_id: int, data: PersistentEffectCreateIn):
                 source_reference=data.source_reference,
                 duration_type=data.duration_type,
                 duration_condition=data.duration_condition,
+                duration_minutes=data.duration_minutes,
                 level=data.level,
             )
         return _persistent_effect_payload(effect)
