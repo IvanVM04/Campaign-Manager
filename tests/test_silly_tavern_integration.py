@@ -198,7 +198,7 @@ def test_integration_context_endpoint_returns_context(
         }
 
     monkeypatch.setattr(
-        "app.runtime_factory.get_runtime(1).silly_tavern_integration_service.get_context",
+        "app.silly_tavern_integration_service.get_context",
         fake_get_context,
     )
 
