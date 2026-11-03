@@ -204,13 +204,13 @@ This does not replace API authorization, but it is a solid data-layer boundary. 
 
 **Required direction:** define application exceptions (not found, conflict, invalid command, provider unavailable, persistence failure), map them centrally to stable API error responses, and log diagnostic details server-side. Avoid returning raw internal exception messages to clients.
 
-### F-15 — Health endpoint is liveness-only
+### F-15 — Health endpoint was liveness-only
 
-**Severity:** Low for local mode; operational gap for hosted mode.
+**Severity:** Low; corrected in the audit branch.
 
-**Evidence:** `/health` returns `{"ok": true}` without checking database readiness. This is adequate as a process liveness probe but should not be used as a readiness signal.
+**Evidence:** `/health` returned `{"ok": true}` without checking database readiness. That is suitable for liveness, but not readiness.
 
-**Required direction:** retain liveness and add a separate readiness endpoint that verifies required local dependencies such as SQLite. Do not require Ollama to be available for the API to serve campaign reads or health checks.
+**Change in this branch:** retained `/health` as a lightweight process liveness endpoint and added `/ready`, which performs `SELECT 1` against SQLite. It returns a generic 503 response if the database is unavailable and does not require Ollama. Added success/failure API tests.
 
 ### F-16 — Development tooling is split between project metadata and CI
 
@@ -234,4 +234,4 @@ The repository's `.github/workflows/tests.yml` defines three jobs:
 - Ruff linting via `ruff check .`.
 - JavaScript tests via `npm run test:js` on Node 20.
 
-The README's CI description should mention all three jobs, not only pytest and Ruff. The workflow file was inspected, but no run for the current audit branch was available through the inspected GitHub Actions interface; the suite is not claimed as executed.
+The README now describes all three jobs. The workflow file was inspected; a draft PR was opened to trigger CI, but no workflow run was visible through the available interface at the time of this audit. The suite is not claimed as executed.
