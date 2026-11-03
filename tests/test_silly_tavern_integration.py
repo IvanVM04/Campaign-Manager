@@ -3563,3 +3563,14 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     assert original_world.resource_balances == original_snapshot.resource_balances
     assert original_world.relations == original_snapshot.relations
     assert original_world.events == original_snapshot.events
+
+    from database import one
+
+    assert one(
+        "SELECT id FROM entities WHERE campaign_id = ? AND name = ?",
+        (1, "Must not remain in memory"),
+    ) is None
+    assert one(
+        "SELECT id FROM turns WHERE campaign_id = ? AND external_turn_id = ?",
+        (1, "memory-rollback-after-save-failure"),
+    ) is None
