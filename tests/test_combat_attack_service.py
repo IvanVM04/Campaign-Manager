@@ -227,7 +227,7 @@ def test_persistent_poisoned_attacker_has_disadvantage_on_attack(client):
             "expected_turn_index": 0,
             "dice_mode": "manual",
             "manual_attack_rolls": [18, 4],
-            "manual_damage_rolls": [6],
+            "manual_damage_rolls": [],
         },
     )
     assert response.status_code == 200, response.text
