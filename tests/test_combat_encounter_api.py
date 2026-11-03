@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_encounter_api_lifecycle_with_character_manual_initiative_and_restart_state(client):
     character_response = client.post(
         "/characters",
@@ -128,8 +125,8 @@ def test_encounter_api_scopes_encounters_to_campaign(client):
     from app import CampaignRepository
     campaign = CampaignRepository().create_campaign(name="Other campaign")
 
-    from fastapi.testclient import TestClient
     from app import app
+    from fastapi.testclient import TestClient
 
     other_client = TestClient(
         app,
