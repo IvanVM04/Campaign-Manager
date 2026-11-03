@@ -21,9 +21,10 @@ def test_save_turn_and_get_turn(
             failed_operation_count=0,
             all_operations_succeeded=True,
             world_changed=True,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert turn.id is not None
     assert turn.player_input == (
@@ -54,20 +55,23 @@ def test_list_turns_returns_saved_turns(
         TurnRecord(
             player_input="Primera acción",
             narrative="Primera respuesta",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
             player_input="Segunda acción",
             narrative="Segunda respuesta",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     turns = repository.list_turns(
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(turns) == 2
     assert turns[0].player_input == (
@@ -111,23 +115,26 @@ def test_list_turns_filters_by_session(
             session_id=session_one["id"],
             player_input="Sesión uno",
             narrative="Respuesta uno",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
             session_id=session_two["id"],
             player_input="Sesión dos",
             narrative="Respuesta dos",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     turns = repository.list_turns(
         session_id=session_one["id"],
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(turns) == 1
     assert turns[0].session_id == session_one["id"]
@@ -145,14 +152,16 @@ def test_list_recent_turns_returns_latest_turns_in_chronological_order(
             TurnRecord(
                 player_input=f"Acción {index}",
                 narrative=f"Narrativa {index}",
-            )
+            ),
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
     turns = repository.list_recent_turns(
         limit=3,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(turns) == 3
 
@@ -199,33 +208,37 @@ def test_list_recent_turns_filters_by_session(
             session_id=session_one["id"],
             player_input="Uno",
             narrative="Narrativa uno",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
             session_id=session_two["id"],
             player_input="Dos",
             narrative="Narrativa dos",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
             session_id=session_one["id"],
             player_input="Tres",
             narrative="Narrativa tres",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     turns = repository.list_recent_turns(
         session_id=session_one["id"],
         limit=10,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert [
         turn.player_input
@@ -245,7 +258,8 @@ def test_list_recent_turns_rejects_invalid_limit(
         repository.list_recent_turns(
             limit=0,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     except ValueError:
         pass
     else:
@@ -263,7 +277,8 @@ def test_list_recent_turns_rejects_limit_above_maximum(
         repository.list_recent_turns(
             limit=101,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     except ValueError:
         pass
     else:
@@ -281,7 +296,8 @@ def test_list_recent_turns_rejects_non_integer_limit(
         repository.list_recent_turns(
             limit="10",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     except TypeError:
         pass
     else:
@@ -331,15 +347,17 @@ def test_list_turns_with_session_id_returns_failed_operation_count(
         world_changed=False,
     )
 
-    saved = repository.save_turn(turn
-        scope=CampaignScope(1),)
+    saved = repository.save_turn(turn,
+        scope=CampaignScope(1),
+    )
 
     assert saved.id is not None
 
     turns = repository.list_turns(
         session_id=session["id"],
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(turns) == 1
     assert turns[0].failed_operation_count == 1
@@ -367,7 +385,8 @@ def test_save_turn_can_use_existing_connection():
             turn,
             conn=conn,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
         assert saved.id is not None
         assert saved.player_input == "attack"
@@ -400,7 +419,8 @@ def test_save_turn_with_existing_connection_does_not_commit_independently():
             turn,
             conn=conn,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
         row = conn.execute(
             """
@@ -461,14 +481,16 @@ def test_list_turns_by_session_returns_complete_turn_record(
             failed_operation_count=0,
             all_operations_succeeded=True,
             world_changed=True,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     result = repository.list_turns(
         session_id=session_id,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(result) == 1
 
@@ -518,23 +540,26 @@ def test_list_turns_by_session_does_not_return_other_sessions(
             session_id=session_one["id"],
             player_input="Turno sesión uno.",
             narrative="Narrativa uno.",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
             session_id=session_two["id"],
             player_input="Turno sesión dos.",
             narrative="Narrativa dos.",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     result = repository.list_turns(
         session_id=session_one["id"],
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(result) == 1
 
@@ -572,9 +597,10 @@ def test_list_recent_turns_by_session_preserves_complete_metadata(
             failed_operation_count=0,
             all_operations_succeeded=True,
             world_changed=True,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
@@ -586,15 +612,17 @@ def test_list_recent_turns_by_session_preserves_complete_metadata(
             failed_operation_count=1,
             all_operations_succeeded=False,
             world_changed=False,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     result = repository.list_recent_turns(
         session_id=session_id,
         limit=2,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(result) == 2
 
@@ -639,23 +667,26 @@ def test_list_turns_returns_turns_in_ascending_order(
             session_id=session_id,
             player_input="Primero.",
             narrative="Primero.",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     second = repository.save_turn(
         TurnRecord(
             session_id=session_id,
             player_input="Segundo.",
             narrative="Segundo.",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     result = repository.list_turns(
         session_id=session_id,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert [turn.id for turn in result] == [
         first.id,
@@ -668,8 +699,9 @@ def test_get_turn_rejects_invalid_turn_id_type(
     repository = TurnRepository()
 
     with pytest.raises(TypeError):
-        repository.get_turn("1"
-            scope=CampaignScope(1),)
+        repository.get_turn("1",
+            scope=CampaignScope(1),
+        )
 
 
 def test_get_turn_rejects_non_positive_turn_id(
@@ -678,8 +710,9 @@ def test_get_turn_rejects_non_positive_turn_id(
     repository = TurnRepository()
 
     with pytest.raises(ValueError):
-        repository.get_turn(0
-            scope=CampaignScope(1),)
+        repository.get_turn(0,
+            scope=CampaignScope(1),
+        )
 
 
 def test_get_turn_rejects_boolean_turn_id(
@@ -688,8 +721,9 @@ def test_get_turn_rejects_boolean_turn_id(
     repository = TurnRepository()
 
     with pytest.raises(TypeError):
-        repository.get_turn(True
-            scope=CampaignScope(1),)
+        repository.get_turn(True,
+            scope=CampaignScope(1),
+        )
 
 
 def test_list_turns_rejects_invalid_session_id_type(
@@ -701,7 +735,8 @@ def test_list_turns_rejects_invalid_session_id_type(
         repository.list_turns(
             session_id="1",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
 
 def test_list_turns_rejects_non_positive_session_id(
@@ -713,7 +748,8 @@ def test_list_turns_rejects_non_positive_session_id(
         repository.list_turns(
             session_id=0,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
 
 def test_list_turns_rejects_boolean_session_id(
@@ -725,7 +761,8 @@ def test_list_turns_rejects_boolean_session_id(
         repository.list_turns(
             session_id=True,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
 
 def test_list_recent_turns_rejects_invalid_session_id_type(
@@ -737,7 +774,8 @@ def test_list_recent_turns_rejects_invalid_session_id_type(
         repository.list_recent_turns(
             session_id="1",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
 
 def test_list_recent_turns_rejects_non_positive_session_id(
@@ -749,7 +787,8 @@ def test_list_recent_turns_rejects_non_positive_session_id(
         repository.list_recent_turns(
             session_id=0,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
 
 def test_list_recent_turns_rejects_boolean_session_id(
@@ -761,7 +800,8 @@ def test_list_recent_turns_rejects_boolean_session_id(
         repository.list_recent_turns(
             session_id=True,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
 def test_save_turn_with_connection_does_not_commit_transaction(
     isolated_database,
@@ -788,7 +828,8 @@ def test_save_turn_with_connection_does_not_commit_transaction(
             turn,
             conn=conn,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
         assert saved.id is not None
 
@@ -837,13 +878,15 @@ def test_save_turn_without_connection_persists_turn(
         world_changed=False,
     )
 
-    saved = repository.save_turn(turn
-        scope=CampaignScope(1),)
+    saved = repository.save_turn(turn,
+        scope=CampaignScope(1),
+    )
 
     assert saved.id is not None
 
-    loaded = repository.get_turn(saved.id
-        scope=CampaignScope(1),)
+    loaded = repository.get_turn(saved.id,
+        scope=CampaignScope(1),
+    )
 
     assert loaded is not None
     assert loaded.id == saved.id
@@ -868,15 +911,17 @@ def test_get_active_by_external_turn_id_returns_turn_record(
             version=1,
             status="active",
             snapshot='{"entities": [], "items": []}',
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     active_turn = (
         repository.get_active_by_external_turn_id(
-            "external-123"
+            "external-123",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     )
 
     assert active_turn is not None
@@ -907,9 +952,10 @@ def test_get_versions_by_external_turn_id_returns_all_versions(
             version=1,
             status="superseded",
             snapshot='{"version": 1}',
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
@@ -924,15 +970,17 @@ def test_get_versions_by_external_turn_id_returns_all_versions(
             version=2,
             status="active",
             snapshot='{"version": 2}',
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     versions = (
         repository.get_versions_by_external_turn_id(
-            "external-123"
+            "external-123",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     )
 
     assert len(versions) == 2
@@ -972,9 +1020,10 @@ def test_get_versions_by_external_turn_id_preserves_snapshot(
             version=1,
             status="superseded",
             snapshot=snapshot_v1,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
@@ -989,15 +1038,17 @@ def test_get_versions_by_external_turn_id_preserves_snapshot(
             version=2,
             status="active",
             snapshot=snapshot_v2,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     versions = (
         repository.get_versions_by_external_turn_id(
-            "external-123"
+            "external-123",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     )
 
     assert versions[0].snapshot == snapshot_v1
@@ -1023,15 +1074,17 @@ def test_turn_repository_preserves_version_status_and_snapshot(
         snapshot='{"npc": "Aldric"}',
     )
 
-    saved = repository.save_turn(original
-        scope=CampaignScope(1),)
+    saved = repository.save_turn(original,
+        scope=CampaignScope(1),
+    )
 
     assert saved.version == 2
     assert saved.status == "active"
     assert saved.snapshot == '{"npc": "Aldric"}'
 
-    loaded = repository.get_turn(saved.id
-        scope=CampaignScope(1),)
+    loaded = repository.get_turn(saved.id,
+        scope=CampaignScope(1),
+    )
 
     assert loaded is not None
     assert loaded.version == 2
@@ -1056,12 +1109,14 @@ def test_list_turns_preserves_version_status_and_snapshot(
             version=2,
             status="superseded",
             snapshot='{"state": "old"}',
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     turns = repository.list_turns(
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(turns) == 1
     assert turns[0].version == 2
@@ -1079,9 +1134,10 @@ def test_list_recent_active_turns_excludes_superseded_turns(
             narrative="Narrativa activa",
             version=2,
             status="active",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     superseded_turn = repository.save_turn(
         TurnRecord(
@@ -1089,14 +1145,16 @@ def test_list_recent_active_turns_excludes_superseded_turns(
             narrative="Narrativa antigua",
             version=1,
             status="superseded",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     turns = repository.list_recent_active_turns(
         limit=10,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert len(turns) == 1
 
@@ -1141,9 +1199,10 @@ def test_list_recent_active_turns_filters_by_session(
             player_input="Activo uno",
             narrative="Narrativa uno",
             status="active",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
@@ -1151,9 +1210,10 @@ def test_list_recent_active_turns_filters_by_session(
             player_input="Superado uno",
             narrative="Narrativa superada",
             status="superseded",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     repository.save_turn(
         TurnRecord(
@@ -1161,15 +1221,17 @@ def test_list_recent_active_turns_filters_by_session(
             player_input="Activo dos",
             narrative="Narrativa dos",
             status="active",
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     turns = repository.list_recent_active_turns(
         session_id=session_one["id"],
         limit=10,
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     assert [
         turn.player_input
@@ -1201,13 +1263,15 @@ def test_list_recent_turns_uses_supplied_connection(
             turn,
             conn=conn,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
         recent_turns = repository.list_recent_turns(
             limit=10,
             conn=conn,
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
 
         assert any(
             item.player_input == "transactional recent turn"
