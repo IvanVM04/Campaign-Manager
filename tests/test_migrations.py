@@ -572,3 +572,85 @@ def test_migration_013_allows_campaign_to_select_its_own_state():
 
     assert tuple(row) == (entity_id, session_id, entity_id)
     conn.close()
+
+
+
+def create_version_13_database():
+    conn = create_version_12_database()
+    migration_013(conn)
+    conn.execute("PRAGMA user_version = 13")
+    return conn
+
+
+def test_migration_014_clears_campaign_pointers_when_targets_are_deleted():
+    conn = create_version_13_database()
+    migration_014(conn)
+
+    character_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Character 1', 'character', 1)
+        """
+    ).lastrowid
+    conn.execute(
+        """
+        INSERT INTO character_states (entity_id, campaign_id)
+        VALUES (?, 1)
+        """,
+        (character_id,),
+    )
+    location_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Location 1', 'location', 1)
+        """
+    ).lastrowid
+    session_id = conn.execute(
+        """
+        INSERT INTO sessions (number, title, campaign_id)
+        VALUES (1, 'Session 1', 1)
+        """
+    ).lastrowid
+
+    conn.execute(
+        """
+        UPDATE campaign
+        SET active_character_id = ?,
+            current_location_id = ?,
+            current_session_id = ?
+        WHERE id = 1
+        """,
+        (character_id, location_id, session_id),
+    )
+
+    # Character deletion through CharacterRepository removes only
+    # character_states, not the identity entity.
+    conn.execute(
+        "DELETE FROM character_states WHERE entity_id = ? AND campaign_id = 1",
+        (character_id,),
+    )
+    row = conn.execute(
+        "SELECT active_character_id FROM campaign WHERE id = 1"
+    ).fetchone()
+    assert row[0] is None
+
+    conn.execute(
+        "DELETE FROM sessions WHERE id = ? AND campaign_id = 1",
+        (session_id,),
+    )
+    row = conn.execute(
+        "SELECT current_session_id FROM campaign WHERE id = 1"
+    ).fetchone()
+    assert row[0] is None
+
+    # Deleting an entity used as the current location clears that pointer.
+    conn.execute(
+        "DELETE FROM entities WHERE id = ? AND campaign_id = 1",
+        (location_id,),
+    )
+    row = conn.execute(
+        "SELECT current_location_id FROM campaign WHERE id = 1"
+    ).fetchone()
+    assert row[0] is None
+
+    conn.close()
