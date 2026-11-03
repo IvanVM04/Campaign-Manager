@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from models.campaign_scope import CampaignScope
-
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.schemas import (
