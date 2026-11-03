@@ -1285,3 +1285,56 @@ def test_resolve_turn_preserves_global_operation_order(
         context,
         "Ataco a Aldren.",
     )
+
+# ============================================================
+# PLAN / APPLY SEPARATION
+# ============================================================
+
+
+def test_prepare_turn_generates_plan_without_mutating_world():
+    operation = CreateEntityOperation(
+        name="Aldric",
+        entity_type="npc",
+        description="Mercader.",
+        notes="",
+        active=True,
+    )
+    extractor = RecordingExtractor(operations=[operation])
+    service, dm, _, applier = make_service(extractor=extractor)
+    context = make_turn_context()
+    original_world = context.world
+
+    plan = service.prepare_turn(context, "Conozco a Aldric.")
+
+    assert plan.player_input == "Conozco a Aldric."
+    assert plan.narrative == "La puerta se abre lentamente."
+    assert plan.world_operations == (operation,)
+    assert context.world is original_world
+    assert context.world.entities == {}
+    assert applier.calls == []
+    assert len(dm.calls) == 1
+
+
+def test_apply_plan_applies_only_after_plan_is_prepared():
+    operation = CreateEntityOperation(
+        name="Aldric",
+        entity_type="npc",
+        description="Mercader.",
+        notes="",
+        active=True,
+    )
+    extractor = RecordingExtractor(operations=[operation])
+    service, _, _, applier = make_service(extractor=extractor)
+    context = make_turn_context()
+
+    plan = service.prepare_turn(context, "Conozco a Aldric.")
+    assert context.world.entities == {}
+    assert applier.calls == []
+
+    result = service.apply_plan(context, plan)
+
+    assert result.player_input == "Conozco a Aldric."
+    assert result.operation_count == 1
+    assert result.all_operations_succeeded is True
+    assert len(applier.calls) == 1
+    assert service.world_service.world.entities[1].name == "Aldric"
