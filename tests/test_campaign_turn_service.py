@@ -1048,6 +1048,7 @@ def test_play_turn_passes_same_connection_to_turn_repository():
             self,
             turn,
             *,
+            scope=None,
             conn=None,
         ):
             self.connections.append(
