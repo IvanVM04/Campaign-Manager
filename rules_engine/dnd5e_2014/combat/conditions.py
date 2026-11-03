@@ -63,7 +63,7 @@ class ConditionSet:
             self.conditions
             & {
                 Condition.GRAPPLED,
-                Condition.PARALYZED,
+                Condition.BLINDED,
                 Condition.PETRIFIED,
                 Condition.RESTRAINED,
                 Condition.STUNNED,
@@ -98,7 +98,7 @@ class ConditionSet:
 
     @property
     def attacks_against_have_advantage_within_5_feet(self) -> bool:
-        return self.has(Condition.PRONE)
+        return self.has(Condition.PRONE) or self.has(Condition.PARALYZED)
 
     @property
     def attacks_have_disadvantage(self) -> bool:
@@ -106,7 +106,6 @@ class ConditionSet:
             self.conditions
             & {
                 Condition.BLINDED,
-                Condition.FRIGHTENED,
                 Condition.POISONED,
                 Condition.RESTRAINED,
                 Condition.PRONE,
@@ -141,6 +140,7 @@ def attack_roll_advantage_state(
     target_within_5_feet: bool,
     attacker_can_see_target: bool = True,
     target_can_see_attacker: bool = True,
+    frightened_source_visible: bool = False,
 ) -> tuple[bool, bool]:
     """Return (advantage, disadvantage), preserving 5e cancellation rules."""
     if not isinstance(attacker, ConditionSet) or not isinstance(target, ConditionSet):
@@ -149,6 +149,8 @@ def attack_roll_advantage_state(
         raise TypeError("target_within_5_feet must be a boolean")
     if not isinstance(attacker_can_see_target, bool) or not isinstance(target_can_see_attacker, bool):
         raise TypeError("visibility flags must be booleans")
+    if not isinstance(frightened_source_visible, bool):
+        raise TypeError("frightened_source_visible must be a boolean")
 
     advantage = target.attacks_against_have_advantage
     if target_within_5_feet and target.attacks_against_have_advantage_within_5_feet:
@@ -159,9 +161,9 @@ def attack_roll_advantage_state(
         advantage = True
 
     disadvantage = attacker.attacks_have_disadvantage
-    if attacker.has(Condition.INVISIBLE):
-        disadvantage = disadvantage
     if attacker.has(Condition.BLINDED) or not attacker_can_see_target:
+        disadvantage = True
+    if attacker.has(Condition.FRIGHTENED) and frightened_source_visible:
         disadvantage = True
     if target.has(Condition.INVISIBLE) or not attacker_can_see_target:
         disadvantage = True
