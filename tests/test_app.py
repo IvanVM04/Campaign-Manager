@@ -155,6 +155,7 @@ def test_get_turns_uses_default_limit(
         *,
         session_id=None,
         limit=None,
+        scope=None,
     ):
         calls.append(
             {
