@@ -41,14 +41,14 @@ def derive_attack_profile(
         raise ValueError("weapon does not resolve through the ordinary damage-roll profile")
 
     finesse = WeaponProperty.FINESSE in weapon.properties
-    if weapon.is_ranged:
-        if finesse_ability not in (None, "dexterity"):
-            raise ValueError("ranged weapon attacks use Dexterity")
-        ability = "dexterity"
-    elif finesse:
+    if finesse:
         ability = finesse_ability or "strength"
         if ability not in ("strength", "dexterity"):
             raise ValueError("finesse weapons allow Strength or Dexterity")
+    elif weapon.is_ranged:
+        if finesse_ability not in (None, "dexterity"):
+            raise ValueError("ranged weapon attacks use Dexterity")
+        ability = "dexterity"
     else:
         if finesse_ability not in (None, "strength"):
             raise ValueError("this weapon attack uses Strength")
