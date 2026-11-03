@@ -265,6 +265,8 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
 
     def fake_play_turn(
         player_input,
+        *,
+        dice_mode="automatic",
     ):
         raise CampaignTurnServiceError(
             "Turn resolution failed."
