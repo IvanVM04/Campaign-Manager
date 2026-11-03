@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Character-aware ability checks for D&D 5e (2014)."""
 
 from models.character_state import CharacterState
