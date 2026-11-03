@@ -149,3 +149,22 @@ The provider abstraction is a good seam, but configuration is not yet visibly ce
 3. Inspect API error mapping, authentication/authorization and runtime lifecycle.
 4. Inventory all tests and CI commands; execute the deterministic suite in a local checkout.
 5. Produce the target domain map for a minimal playable D&D 5e 2014 slice before implementing any rules.
+
+
+### F-10 — SillyTavern rollback restored a reference, not the shared in-memory state
+
+**Severity:** High — corrected in the audit branch, regression test added
+
+**Evidence:** `SillyTavernIntegrationService.process_turn()` originally saved `previous_world = self.world_service.get_world()`. `WorldService.apply_turn_operations()` works on a deep-copied working state, but after successful application it publishes the new collections onto the original `WorldState` instance to preserve shared object identity. If saving the `TurnRecord` or the enclosing SQLite commit then failed, assigning `self.world_service.world = previous_world` restored the same already-mutated object, not its previous contents.
+
+**Change in this branch:** take a deep snapshot of the in-memory world before applying the turn and restore all world collections in-place on transaction failure. The helper preserves the original `WorldState` identity so existing `TurnContext` references remain valid. A regression test forces `TurnRepository.save_turn()` to fail after world application and checks that the shared world is restored.
+
+**Verification status:** source change and test are committed to the audit branch. The test has not been executed here, so runtime verification remains pending.
+
+### Additional transaction and concurrency observations
+
+- The SillyTavern integration deliberately completes LLM extraction before opening its authoritative `BEGIN IMMEDIATE` write transaction. This avoids holding SQLite's write lock during model inference.
+- It then rechecks the external turn version inside the write transaction, restores the previous snapshot for regeneration, applies operations, and saves the turn. This is a sound foundation for idempotent retries.
+- The per-campaign `TurnExecutionLock` is a process-local `threading.RLock`. It serializes calls sharing that lock instance in one Python process; it does not coordinate multiple worker processes or separate application instances. The documented single-process deployment restriction is therefore important.
+- `CampaignTurnService` currently differs from the SillyTavern path: it opens `get_conn()` before calling `TurnResolutionService.resolve_turn()`, which includes LLM generation and extraction. This keeps a SQLite connection/transaction open during inference. It should be redesigned separately using a plan-then-validate-and-commit workflow, with campaign version checks to reject stale plans.
+- Existing integration tests already cover successful regeneration, extraction against the pre-regeneration snapshot, failed regeneration rollback, operation failure rollback, idempotent retries and turn version sequencing. This is stronger coverage than a first-pass inventory alone suggested; future work should extend it with commit-failure and cross-process contention tests rather than duplicate existing tests.
