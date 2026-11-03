@@ -9,6 +9,7 @@ from database import (
     rows,
     rows_in_conn,
 )
+from models.campaign_scope import CampaignScope
 from models.turn_record import TurnRecord
 
 
@@ -18,6 +19,11 @@ class TurnRepository:
 
     Este repository no conoce el LLM ni el WorldState.
     """
+
+    @staticmethod
+    def _validate_scope(scope: CampaignScope) -> None:
+        if not isinstance(scope, CampaignScope):
+            raise TypeError('scope must be a CampaignScope')
 
     @staticmethod
     def _validate_positive_int(
@@ -245,8 +251,9 @@ class TurnRepository:
                 snapshot
             FROM turns
             WHERE id=?
+            AND campaign_id=?
             """,
-            (turn_id,),
+            (turn_id, scope.campaign_id),
         )
 
         if row is None:
@@ -258,9 +265,11 @@ class TurnRepository:
         self,
         external_turn_id: str,
         *,
+        scope: CampaignScope,
         conn=None,
     ) -> TurnRecord | None:
 
+        self._validate_scope(scope)
         normalized_id = (
             self._validate_external_turn_id(
                 external_turn_id
@@ -285,18 +294,19 @@ class TurnRepository:
                 snapshot
             FROM turns
             WHERE external_turn_id=?
+            AND campaign_id=?
         """
 
         if conn is None:
             row = one(
                 query,
-                (normalized_id,),
+                (normalized_id, scope.campaign_id),
             )
         else:
             row = one_in_conn(
                 conn,
                 query,
-                (normalized_id,),
+                (normalized_id, scope.campaign_id),
             )
 
         if row is None:
@@ -667,13 +677,16 @@ class TurnRepository:
         self,
         external_turn_id: str,
         *,
+        scope: CampaignScope,
         conn=None,
     ) -> TurnRecord | None:
 
+        self._validate_scope(scope)
         if conn is None:
             with get_conn() as connection:
                 return self.get_active_by_external_turn_id(
                     external_turn_id,
+                    scope=scope,
                     conn=connection,
                 )
 
@@ -696,11 +709,12 @@ class TurnRepository:
                 snapshot
             FROM turns
             WHERE external_turn_id=?
+            AND campaign_id=?
             AND status='active'
             ORDER BY version DESC
             LIMIT 1
             """,
-            (external_turn_id,),
+            (external_turn_id, scope.campaign_id),
         ).fetchone()
 
         if row is None:
@@ -712,13 +726,16 @@ class TurnRepository:
         self,
         external_turn_id: str,
         *,
+        scope: CampaignScope,
         conn=None,
     ) -> list[TurnRecord]:
 
+        self._validate_scope(scope)
         if conn is None:
             with get_conn() as connection:
                 return self.get_versions_by_external_turn_id(
                     external_turn_id,
+                    scope=scope,
                     conn=connection,
                 )
 
@@ -741,9 +758,10 @@ class TurnRepository:
                 snapshot
             FROM turns
             WHERE external_turn_id=?
+            AND campaign_id=?
             ORDER BY version ASC
             """,
-            (external_turn_id,),
+            (external_turn_id, scope.campaign_id),
         ).fetchall()
 
         return [
@@ -755,9 +773,11 @@ class TurnRepository:
         self,
         turn_id: int,
         *,
+        scope: CampaignScope,
         conn,
     ) -> None:
 
+        self._validate_scope(scope)
         conn.execute(
             """
             UPDATE turns
