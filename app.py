@@ -258,7 +258,7 @@ silly_tavern_integration_service = _RuntimeProxy(
 
 @app.middleware("http")
 async def bind_campaign_runtime(request: Request, call_next):
-    if request.url.path in {"/", "/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
+    if request.method == "OPTIONS" or request.url.path in {"/", "/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
         return await call_next(request)
 
     raw_campaign_id = request.headers.get("X-Campaign-Id")
