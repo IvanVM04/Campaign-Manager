@@ -5,6 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from database import init_db
+from models.combat_api_schemas import (
+    EncounterCreateIn,
+    EncounterStartIn,
+    EncounterTurnIn,
+)
 from models.schemas import (
     ActiveCharacterUpdate,
     CampaignCreate,
@@ -256,6 +261,7 @@ memory_search_service = _RuntimeProxy("memory_search_service")
 context_builder = _RuntimeProxy("context_builder")
 turn_execution_lock = _RuntimeProxy("turn_execution_lock")
 character_creation_service = _RuntimeProxy("character_creation_service")
+combat_encounter_service = _RuntimeProxy("combat_encounter_service")
 campaign_turn_service = _RuntimeProxy("campaign_turn_service")
 silly_tavern_integration_service = _RuntimeProxy(
     "silly_tavern_integration_service"
@@ -969,3 +975,137 @@ def bootstrap_campaign(
             status_code=400,
             detail=str(exc),
         )
+
+# ============================================================
+# D&D COMBAT ENCOUNTERS
+# ============================================================
+
+
+def _encounter_payload(encounter):
+    active = encounter.active_combatant
+    return {
+        "encounter_id": encounter.encounter_id,
+        "status": encounter.status.value,
+        "round_number": encounter.round_number,
+        "turn_index": encounter.turn_index,
+        "initiative_order": list(encounter.initiative_order),
+        "active_combatant_id": active.combatant_id if active else None,
+        "tied_initiative_groups": [
+            list(group) for group in encounter.tied_initiative_groups
+        ],
+        "combatants": {
+            combatant_id: {
+                "combatant_id": combatant.combatant_id,
+                "name": combatant.name,
+                "initiative": combatant.initiative,
+                "current_hp": combatant.current_hp,
+                "max_hp": combatant.max_hp,
+                "armor_class": combatant.armor_class,
+                "dexterity": combatant.dexterity,
+                "entity_id": combatant.entity_id,
+                "is_player_character": combatant.is_player_character,
+                "conscious": combatant.conscious,
+                "defeated": combatant.defeated,
+                "conditions": sorted(
+                    condition.value for condition in combatant.conditions.conditions
+                ),
+                "exhaustion_level": combatant.conditions.exhaustion_level,
+            }
+            for combatant_id, combatant in encounter.combatants.items()
+        },
+    }
+
+
+@app.get("/encounters")
+def list_combat_encounters():
+    return [
+        _encounter_payload(encounter)
+        for encounter in combat_encounter_service.list(
+            _current_runtime.get().campaign_id
+        )
+    ]
+
+
+@app.post("/encounters", status_code=201)
+def create_combat_encounter(data: EncounterCreateIn):
+    try:
+        with turn_execution_lock.acquire():
+            encounter = combat_encounter_service.create(
+                _current_runtime.get().campaign_id,
+                data.participants,
+                data.encounter_id,
+            )
+        return _encounter_payload(encounter)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/encounters/{encounter_id}")
+def get_combat_encounter(encounter_id: str):
+    try:
+        encounter = combat_encounter_service.get(
+            _current_runtime.get().campaign_id,
+            encounter_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if encounter is None:
+        raise HTTPException(status_code=404, detail="encounter not found")
+    return _encounter_payload(encounter)
+
+
+@app.post("/encounters/{encounter_id}/start")
+def start_combat_encounter(encounter_id: str, data: EncounterStartIn):
+    try:
+        with turn_execution_lock.acquire():
+            encounter = combat_encounter_service.start(
+                _current_runtime.get().campaign_id,
+                encounter_id,
+                dice_mode=data.dice_mode,
+                manual_rolls=data.manual_rolls,
+                initiative_order=(
+                    tuple(data.initiative_order)
+                    if data.initiative_order is not None
+                    else None
+                ),
+            )
+        return _encounter_payload(encounter)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/encounters/{encounter_id}/advance")
+def advance_combat_encounter(encounter_id: str, data: EncounterTurnIn):
+    try:
+        with turn_execution_lock.acquire():
+            encounter = combat_encounter_service.advance_turn(
+                _current_runtime.get().campaign_id,
+                encounter_id,
+                expected_round=data.expected_round,
+                expected_turn_index=data.expected_turn_index,
+            )
+        return _encounter_payload(encounter)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/encounters/{encounter_id}/complete")
+def complete_combat_encounter(encounter_id: str, data: EncounterTurnIn):
+    try:
+        with turn_execution_lock.acquire():
+            encounter = combat_encounter_service.complete(
+                _current_runtime.get().campaign_id,
+                encounter_id,
+                expected_round=data.expected_round,
+                expected_turn_index=data.expected_turn_index,
+            )
+        return _encounter_payload(encounter)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
