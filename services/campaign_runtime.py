@@ -9,6 +9,7 @@ from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.entity_repository import EntityRepository
+from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from services.campaign_state_service import CampaignStateService
@@ -21,10 +22,9 @@ from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
-from repositories.persistent_effect_repository import PersistentEffectRepository
-from services.persistent_effect_service import PersistentEffectService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
+from services.persistent_effect_service import PersistentEffectService
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
 )

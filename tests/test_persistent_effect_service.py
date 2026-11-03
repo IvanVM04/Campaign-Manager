@@ -2,8 +2,8 @@ import pytest
 
 from models.entity import Entity
 from models.persistent_effect import EffectStatus, EffectType
-from repositories.entity_repository import EntityRepository
 from repositories.campaign_repository import CampaignRepository
+from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from services.persistent_effect_service import PersistentEffectService
 
@@ -160,9 +160,8 @@ def test_database_rejects_cross_campaign_target_and_source_even_when_bypassing_s
     target = entities.save_entity(Entity(name="Target"), campaign_id=1)
     foreign = entities.save_entity(Entity(name="Foreign source"), campaign_id=2)
 
-    with get_conn() as conn:
-        with pytest.raises(sqlite3.IntegrityError, match="effect source"):
-            conn.execute(
+    with get_conn() as conn, pytest.raises(sqlite3.IntegrityError, match="effect source"):
+        conn.execute(
                 """
                 INSERT INTO persistent_effects (
                     id, campaign_id, entity_id, effect_type, effect_key,
@@ -184,9 +183,8 @@ def test_database_rejects_exhaustion_without_level(isolated_database):
     _service, entities = build_service()
     target = entities.save_entity(Entity(name="Target"), campaign_id=1)
 
-    with get_conn() as conn:
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute(
+    with get_conn() as conn, pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
                 """
                 INSERT INTO persistent_effects (
                     id, campaign_id, entity_id, effect_type, effect_key,

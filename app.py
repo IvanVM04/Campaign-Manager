@@ -5,15 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from database import init_db
-from models.persistent_effect_api_schemas import (
-    PersistentEffectCreateIn,
-    PersistentEffectStatusIn,
-)
 from models.combat_api_schemas import (
     EncounterAttackIn,
     EncounterCreateIn,
     EncounterStartIn,
     EncounterTurnIn,
+)
+from models.persistent_effect_api_schemas import (
+    PersistentEffectCreateIn,
+    PersistentEffectStatusIn,
 )
 from models.schemas import (
     ActiveCharacterUpdate,
