@@ -108,3 +108,32 @@ persistent pending-roll recovery is a future improvement. Manual results are
 player-entered values and are not cryptographic proof that physical dice were
 rolled; the feature provides honest input and rules validation, not anti-cheat
 verification.
+
+
+## Combat rules and encounter state (2014)
+
+The combat package is deterministic domain logic, independent from SQLite,
+FastAPI, campaign orchestration and the LLM.
+
+- Initiative uses Dexterity checks. Ties remain explicit until the caller
+  supplies a turn order; the engine never invents a tie-break.
+- Attack rolls compare d20 + supplied attack bonus against AC. A natural 1
+  misses and a natural 20 hits critically.
+- Critical hits double all damage dice, not flat modifiers.
+- The SRD 5.1 damage types support immunity, resistance and vulnerability.
+  Resistance and vulnerability to the same damage instance cancel.
+- Combat encounter state tracks preparing/active/completed status, round,
+  initiative order and current combatant. Tied initiative order must be
+  explicitly supplied.
+- Conditions and 2014 exhaustion levels are represented as typed state.
+  Derived helpers cover speed restrictions, incapacitation, automatic
+  Strength/Dexterity save failures, attack advantage/disadvantage and
+  cumulative exhaustion effects.
+
+This is still the domain foundation, not the complete combat loop. Conditions
+do not yet have source/duration tracking, encounter state is not persisted,
+and weapon proficiency, equipment-derived attack bonuses, action economy,
+movement/range/cover, death saves, concentration and spell effects remain
+subsequent integration work.
+
+Rules baseline: [System Reference Document 5.1 (Creative Commons)](https://media.wizards.com/2016/downloads/DND/SRD-OGL_V5.1.pdf).
