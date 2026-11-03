@@ -137,3 +137,15 @@ def test_frightened_disadvantage_depends_on_source_visibility():
     assert condition_imposes_disadvantage_on_check(
         conditions, frightened_source_visible=True
     )
+
+
+
+def test_blinded_does_not_reduce_speed_but_paralyzed_does():
+    assert not ConditionSet(frozenset({Condition.BLINDED})).speed_is_zero
+    assert ConditionSet(frozenset({Condition.PARALYZED})).speed_is_zero
+
+
+def test_exhaustion_level_five_reduces_speed_to_zero():
+    effects = derive_condition_effects(ConditionSet(exhaustion_level=5))
+    assert effects.speed_is_zero
+    assert not effects.speed_halved
