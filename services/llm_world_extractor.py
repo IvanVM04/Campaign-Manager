@@ -30,8 +30,8 @@ class LLMWorldExtractor:
     El extractor NO:
         - modifica el mundo
         - persiste datos
-        - aplica operaciones
-        - implementa reglas de dominio
+        - aplica operaciones de personaje
+        - resuelve ni certifica mecánicas de D&D
     """
 
     def __init__(
@@ -1435,95 +1435,30 @@ Registra únicamente otros cambios representables.
 
 
 ============================================================
-33. HP DEL PERSONAJE
+33. ESTADO MECÁNICO DEL PERSONAJE
 ============================================================
 
-Usa:
+El bloque del personaje activo es información de contexto, no autorización
+para modificar sus valores mecánicos.
 
-change_character_hp
+NO generes operaciones para modificar:
+- HP o puntos de golpe;
+- nivel;
+- características;
+- clase, competencias o salvaciones;
+- CA;
+- condiciones;
+- recursos de clase o espacios de conjuro.
 
-cuando la narrativa confirme una cantidad concreta de daño o curación.
+La narrativa puede mencionar daño, curación o cualquier otro resultado
+mecánico, pero el extractor no puede verificar si ese resultado es correcto.
 
-Daño:
+La operación change_character_hp NO está habilitada para este extractor.
+No la incluyas aunque la narrativa indique una cantidad exacta.
 
-amount negativo.
+Hasta que exista un motor de reglas determinista, estos cambios deben quedar
+sin aplicar. No conviertas una afirmación narrativa en una resolución mecánica.
 
-Curación:
-
-amount positivo.
-
-Ejemplo:
-
-"Aldren recibe 4 puntos de daño."
-
-{
-  "type": "change_character_hp",
-  "entity_id": ID_REAL_DE_ALDREN,
-  "amount": -4
-}
-
-Ejemplo:
-
-"Aldren pierde 4 HP."
-
--> amount = -4
-
-Ejemplo:
-
-"Aldren recupera 6 HP."
-
--> amount = 6
-
-
-============================================================
-34. NO INVENTAR DAÑO
-============================================================
-
-Si la narrativa dice:
-
-"La trampa hiere a Aldren."
-
-pero no especifica cuánto daño recibe:
-
--> NO generar change_character_hp.
-
-NO inventes una cantidad.
-
-NO calcules el daño.
-
-NO uses las reglas de D&D para calcularlo.
-
-NO deduzcas el daño por el tipo de ataque.
-
-Solo registra HP si existe una cantidad explícita o un resultado mecánico
-explícito que determine la cantidad.
-
-
-============================================================
-35. NO CALCULAR HP FINAL
-============================================================
-
-Nunca establezcas directamente el HP final.
-
-Nunca conviertas:
-
-"Fungoso tenía 12 HP y recibe 5 de daño."
-
-en:
-
-"current_hp": 7
-
-La operación disponible es:
-
-{
-  "type": "change_character_hp",
-  "entity_id": ID_REAL_DE_FUNGOSO,
-  "amount": -5
-}
-
-El backend calcula y aplica el cambio.
-
-NO calcules HP final tú.
 
 
 ============================================================
@@ -1670,7 +1605,10 @@ EVENTOS:
 
 PERSONAJES:
 
-- change_character_hp
+No hay operaciones de personaje habilitadas para el extractor.
+
+change_character_hp no está habilitada: los cambios de HP requieren
+resolución mecánica verificada por el motor de reglas.
 
 NO inventes otros tipos.
 
@@ -1921,7 +1859,8 @@ Ejemplo:
 
 "El guardia golpea al aventurero y le causa 7 puntos de daño."
 
--> generar change_character_hp con amount=-7 si el objetivo es inequívoco.
+-> NO generar ninguna operación de HP. La cantidad narrada no constituye
+una resolución mecánica verificada.
 
 Ejemplo:
 
@@ -1929,7 +1868,7 @@ Ejemplo:
 
 -> NO generar daño.
 
-NO calcules resultados de combate.
+NO calcules resultados de combate ni apliques cambios mecánicos.
 
 
 ============================================================
@@ -2253,10 +2192,8 @@ NO crear una nueva instancia.
 
 
 ============================================================
-60. EJEMPLO: DAÑO EXPLÍCITO
+60. EJEMPLO: DAÑO NARRADO, SIN RESOLUCIÓN MECÁNICA
 ============================================================
-
-Si Fungoso es el personaje activo y tiene entity_id=1:
 
 Narrativa:
 
@@ -2266,31 +2203,11 @@ Narrativa:
 Salida:
 
 {
-  "operations": [
-    {
-      "type": "change_character_hp",
-      "entity_id": 1,
-      "amount": -7
-    }
-  ]
-}
-
-
-============================================================
-61. EJEMPLO: DAÑO SIN CANTIDAD
-============================================================
-
-Narrativa:
-
-"El guardia golpea al aventurero con su espada y lo hiere."
-
-Salida:
-
-{
   "operations": []
 }
 
-NO inventar daño.
+El extractor no aplica HP. El motor de reglas deberá resolver el daño y
+emitir un cambio mecánico validado cuando esa funcionalidad exista.
 
 
 ============================================================
@@ -2666,10 +2583,14 @@ Devuelve EXCLUSIVAMENTE el JSON final.
         for index, operation in enumerate(
             operations
         ):
-            if not isinstance(
-                operation,
-                (WorldOperation, CharacterOperation),
-            ):
+            if isinstance(operation, CharacterOperation):
+                raise LLMExtractionError(
+                    "Character-state operations require verified "
+                    "rules-engine resolution and cannot be extracted "
+                    f"from narrative (operation index {index})"
+                )
+
+            if not isinstance(operation, WorldOperation):
                 raise LLMExtractionError(
                     "Operation parser returned "
                     f"invalid operation at index {index}"
