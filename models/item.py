@@ -24,6 +24,8 @@ class Item:
 
     notes: str = ""
 
+    weapon_key: str | None = None
+
 
 @dataclass
 class ItemInstance:

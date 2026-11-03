@@ -25,11 +25,15 @@ class CharacterState:
     skill_proficiencies: frozenset[Skill] = field(default_factory=frozenset)
     skill_expertise: frozenset[Skill] = field(default_factory=frozenset)
     saving_throw_proficiencies: frozenset[Ability] = field(default_factory=frozenset)
+    weapon_proficiencies: frozenset[str] = field(default_factory=frozenset)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.skill_proficiencies = frozenset(Skill(value) for value in self.skill_proficiencies)
         self.skill_expertise = frozenset(Skill(value) for value in self.skill_expertise)
         self.saving_throw_proficiencies = frozenset(Ability(value) for value in self.saving_throw_proficiencies)
+        self.weapon_proficiencies = frozenset(str(value) for value in self.weapon_proficiencies)
+        if any(not value.strip() for value in self.weapon_proficiencies):
+            raise ValueError('weapon proficiencies must be non-empty identifiers')
         if not self.skill_expertise.issubset(self.skill_proficiencies):
             raise ValueError("skill expertise requires skill proficiency")
