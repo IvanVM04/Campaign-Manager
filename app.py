@@ -525,7 +525,7 @@ def play_turn(data: TurnIn):
     return {
         "narrative": result.narrative,
         "player_input": result.player_input,
-        "mechanics": _serialize_mechanics_result(result.mechanics_result),
+        "mechanics": _serialize_mechanics_result(getattr(result, "mechanics_result", None)),
         "operation_count": result.operation_count,
         "successful_operation_count": (
             result.successful_operation_count
