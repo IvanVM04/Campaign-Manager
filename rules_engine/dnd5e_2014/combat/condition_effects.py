@@ -15,7 +15,7 @@ class ConditionEffects:
     cannot_take_reactions: bool
     auto_fail_strength_saves: bool
     auto_fail_dexterity_saves: bool
-    melee_attacks_against_have_advantage: bool
+    attacks_against_have_advantage: bool
     attacks_against_have_advantage_within_5_feet: bool
     attacks_have_disadvantage: bool
     ability_checks_have_disadvantage: bool
@@ -34,7 +34,7 @@ def derive_condition_effects(conditions: ConditionSet) -> ConditionEffects:
         cannot_take_reactions=conditions.is_incapacitated,
         auto_fail_strength_saves=conditions.automatically_fails_strength_and_dexterity_saves,
         auto_fail_dexterity_saves=conditions.automatically_fails_strength_and_dexterity_saves,
-        melee_attacks_against_have_advantage=conditions.attacks_against_have_advantage,
+        attacks_against_have_advantage=conditions.attacks_against_have_advantage,
         attacks_against_have_advantage_within_5_feet=conditions.attacks_against_have_advantage_within_5_feet,
         attacks_have_disadvantage=conditions.attacks_have_disadvantage,
         ability_checks_have_disadvantage=conditions.ability_checks_have_disadvantage,
@@ -56,10 +56,22 @@ def saving_throw_auto_fails(conditions: ConditionSet, ability: Ability) -> bool:
     )
 
 
-def condition_imposes_disadvantage_on_check(conditions: ConditionSet) -> bool:
+def condition_imposes_disadvantage_on_check(
+    conditions: ConditionSet,
+    *,
+    frightened_source_visible: bool = False,
+) -> bool:
     if not isinstance(conditions, ConditionSet):
         raise TypeError("conditions must be a ConditionSet")
-    return conditions.ability_checks_have_disadvantage
+    if not isinstance(frightened_source_visible, bool):
+        raise TypeError("frightened_source_visible must be a boolean")
+    return (
+        conditions.ability_checks_have_disadvantage
+        or (
+            conditions.has(Condition.FRIGHTENED)
+            and frightened_source_visible
+        )
+    )
 
 
 def is_charmed_by_target(conditions: ConditionSet) -> bool:
