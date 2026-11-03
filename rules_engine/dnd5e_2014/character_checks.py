@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from models.character_state import CharacterState
-from rules_engine.dnd5e_2014.checks import CheckResult, ability_check, saving_throw
+from rules_engine.dnd5e_2014.checks import (
+    CheckResult,
+    ability_check,
+    saving_throw,
+)
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill, ability_for_skill
