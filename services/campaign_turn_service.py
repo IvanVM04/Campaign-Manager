@@ -309,7 +309,7 @@ class CampaignTurnService:
 
                 if not result.all_operations_succeeded:
                     self._restore_world_state(world, world_snapshot)
-            self.world_service.world = world
+                    self.world_service.world = world
                     write_conn.rollback()
 
                 if self.turn_repository is not None:
