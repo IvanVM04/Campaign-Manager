@@ -25,16 +25,17 @@ def clean_world():
 
     import app as app_module
 
-    original_world = app_module.world_service.world
+    runtime = app_module.runtime_factory.get_runtime(1)
+    original_world = runtime.world_service.world
 
     world = WorldState()
 
-    app_module.world_service.world = world
+    runtime.world_service.world = world
 
     try:
         yield world
     finally:
-        app_module.world_service.world = original_world
+        runtime.world_service.world = original_world
 
 
 # ============================================================
