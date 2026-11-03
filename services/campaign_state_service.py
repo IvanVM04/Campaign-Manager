@@ -102,7 +102,11 @@ class CampaignStateService:
         self.character_repository = character_repository
         self.world_service = world_service
         self.entity_repository = entity_repository
-        self.campaign_id = world_service.campaign_id if campaign_id is None else campaign_id
+        self.campaign_id = (
+            world_service.campaign_id
+            if campaign_id is None
+            else campaign_id
+        )
         CampaignScope(self.campaign_id)
 
     # ============================================================
@@ -112,6 +116,10 @@ class CampaignStateService:
     def _resolve_campaign_id(self, campaign_id: int | None) -> int:
         resolved = self.campaign_id if campaign_id is None else campaign_id
         CampaignScope(resolved)
+        if resolved != self.campaign_id:
+            raise ValueError(
+                "campaign_id does not match this CampaignStateService scope"
+            )
         return resolved
 
     def get_state(
