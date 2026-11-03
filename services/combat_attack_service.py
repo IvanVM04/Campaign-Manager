@@ -15,7 +15,6 @@ from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import WeaponProperty, get_weapon
 
-
 _DAMAGE_DICE = re.compile(r"^(\d+)d(\d+)$")
 
 
