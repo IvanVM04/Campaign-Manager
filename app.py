@@ -196,7 +196,7 @@ def create_campaign_turn_service(
         dm_service=dm_service,
         world_service=world_service,
         extractor=extractor,
-        mechanics_adjudicator=MechanicsAdjudicator(provider),
+        mechanics_adjudicator=MechanicsAdjudicator(provider, context_builder),
     )
 
     return CampaignTurnService(
