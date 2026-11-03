@@ -31,6 +31,7 @@ def ability_check_for_character(
     advantage: bool = False,
     disadvantage: bool = False,
     situational_modifier: int = 0,
+    manual_rolls: tuple[int, ...] | None = None,
     ability_override: Ability | None = None,
 ) -> CheckResult:
     """Resolve a skill check from a character's actual ability/proficiency data.
@@ -61,6 +62,7 @@ def ability_check_for_character(
         advantage=advantage,
         disadvantage=disadvantage,
         situational_modifier=situational_modifier,
+        manual_rolls=manual_rolls,
     )
 
 
@@ -73,6 +75,7 @@ def saving_throw_for_character(
     advantage: bool = False,
     disadvantage: bool = False,
     situational_modifier: int = 0,
+    manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     """Resolve a saving throw from a character's saving-throw proficiencies."""
     if not isinstance(character, CharacterState):
@@ -90,6 +93,7 @@ def saving_throw_for_character(
         advantage=advantage,
         disadvantage=disadvantage,
         situational_modifier=situational_modifier,
+        manual_rolls=manual_rolls,
     )
 
 
@@ -102,6 +106,7 @@ def raw_ability_check_for_character(
     advantage: bool = False,
     disadvantage: bool = False,
     situational_modifier: int = 0,
+    manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     """Resolve an unskilled ability check using the character's ability score."""
     if not isinstance(character, CharacterState):
@@ -119,4 +124,5 @@ def raw_ability_check_for_character(
         advantage=advantage,
         disadvantage=disadvantage,
         situational_modifier=situational_modifier,
+        manual_rolls=manual_rolls,
     )
