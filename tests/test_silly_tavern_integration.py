@@ -981,7 +981,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
 
     service = __import__(
         "app"
-    ).runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_process_turn = service.process_turn
 
@@ -1355,7 +1355,7 @@ def test_exact_retry_returns_persisted_turn_without_running_extractor(
 
     service = __import__(
         "app"
-    ).runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "retry-test-turn"
 
@@ -1604,7 +1604,7 @@ def test_concurrent_exact_retries_persist_only_one_turn(
 
         return []
 
-    service = app.runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
     extractor = service.extractor
 
     monkeypatch.setattr(
@@ -2703,7 +2703,7 @@ def test_turn_persists_after_world_service_restart(
         CreateEntityOperation,
     )
 
-    service = __import__("app").runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "restart-persistence-test"
 
@@ -2879,7 +2879,7 @@ def test_silly_tavern_context_turn_context_e2e(
         CreateEntityOperation,
     )
 
-    service = app.runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     created_entity_operation = CreateEntityOperation(
         name="NPC del contexto",
@@ -3409,7 +3409,7 @@ def test_regeneration_extracts_against_state_before_previous_version(
     client,
     monkeypatch,
 ):
-    service = __import__("app").runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     seen_entities = []
 
