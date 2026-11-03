@@ -971,6 +971,7 @@ def test_play_turn_loads_recent_turns_before_resolving():
             self,
             turn,
             *,
+            scope=None,
             conn=None,
         ):
             self.saved_turns.append(
