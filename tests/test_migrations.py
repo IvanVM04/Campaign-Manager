@@ -669,6 +669,7 @@ def test_migration_015_adds_empty_proficiencies_without_losing_characters():
         "INSERT INTO character_states (entity_id, campaign_id) VALUES (?, 1)",
         (entity_id,),
     )
+    conn.commit()
     migration_015(conn)
     row = conn.execute(
         "SELECT skill_proficiencies, skill_expertise, saving_throw_proficiencies FROM character_states WHERE entity_id = ?",
