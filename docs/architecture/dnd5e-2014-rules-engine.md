@@ -108,3 +108,29 @@ persistent pending-roll recovery is a future improvement. Manual results are
 player-entered values and are not cryptographic proof that physical dice were
 rolled; the feature provides honest input and rules validation, not anti-cheat
 verification.
+
+
+## Combat rules foundation (2014)
+
+The combat package is pure rules code and does not access campaigns, SQLite,
+the LLM or HTTP:
+
+- Initiative is a Dexterity check. Equal totals are grouped for an explicit
+  table/DM tie-break rather than silently ordering combatants.
+- Attack rolls use d20 + supplied attack bonus vs target AC. A natural 1
+  always misses; a natural 20 always hits and is critical.
+- Critical hits double every damage die, including additional attack damage
+  dice supplied by callers, but add flat modifiers once.
+- Damage is never negative. Immunity reduces it to zero; resistance halves
+  it (rounding down); vulnerability doubles it. Resistance and vulnerability
+  to the same damage instance cancel.
+- Hit point subtraction cannot reduce current HP below zero.
+- Both attack and damage dice accept validated player-entered results, so the
+  manual dice option can cover combat rather than only d20 checks.
+
+Weapon-specific proficiency, ability selection, reach/range, cover, conditions,
+multiattack, opportunity attacks, death saves, and campaign combat state are
+not yet wired into this foundation. The caller must supply the appropriate
+attack bonus, damage expression and defenses until those domain models exist.
+
+Rules baseline: [System Reference Document 5.1 (Creative Commons)](https://media.wizards.com/2016/downloads/DND/SRD-OGL_V5.1.pdf).
