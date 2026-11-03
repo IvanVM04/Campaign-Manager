@@ -308,7 +308,7 @@ This keeps the project local and lightweight while still providing explicit sche
 
 ## API
 
-The application exposes a REST API through FastAPI. Every campaign-scoped endpoint requires the `X-Campaign-Id` request header. The `/` and `/health` endpoints are exempt.
+The application exposes a REST API through FastAPI. Every campaign-scoped endpoint requires the `X-Campaign-Id` request header. The `/`, `/health`, API documentation, CORS preflight and campaign listing/creation endpoints are exempt.
 
 Example:
 
@@ -328,6 +328,8 @@ GET /health
 ### Campaign
 
 ```text
+GET   /campaigns
+POST  /campaigns
 PATCH /campaign
 PATCH /campaign/session
 GET   /campaign/state
