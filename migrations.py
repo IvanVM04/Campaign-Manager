@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 15
+CURRENT_VERSION = 16
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1129,8 +1129,45 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 15")
         version = 15
 
+    if version < 16:
+        migration_016(conn)
+        conn.execute("PRAGMA user_version = 16")
+        version = 16
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
             f"Expected {CURRENT_VERSION}."
         )
+
+
+
+def migration_016(conn: sqlite3.Connection) -> None:
+    """Persist typed combat encounter snapshots per campaign."""
+    conn.execute("BEGIN")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS combat_encounters (
+                encounter_id TEXT NOT NULL,
+                campaign_id INTEGER NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('preparing', 'active', 'completed')),
+                round_number INTEGER NOT NULL CHECK (round_number >= 0),
+                turn_index INTEGER NOT NULL CHECK (turn_index >= 0),
+                initiative_order TEXT NOT NULL,
+                combatants TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (encounter_id, campaign_id),
+                FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_combat_encounters_campaign
+            ON combat_encounters(campaign_id, created_at)
+        """)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
