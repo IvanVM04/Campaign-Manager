@@ -42,6 +42,7 @@ def _resolve_d20_test(
     advantage: bool,
     disadvantage: bool,
     situational_modifier: int,
+    manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     if not isinstance(roller, DiceRoller):
         raise TypeError("roller must be a DiceRoller")
@@ -73,6 +74,7 @@ def _resolve_d20_test(
         modifier=total_modifier,
         advantage=advantage,
         disadvantage=disadvantage,
+        manual_rolls=manual_rolls,
     )
 
     return CheckResult(
@@ -101,6 +103,7 @@ def ability_check(
     advantage: bool = False,
     disadvantage: bool = False,
     situational_modifier: int = 0,
+    manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     """Resolve an ability check, optionally applying skill/tool proficiency."""
     return _resolve_d20_test(
@@ -115,6 +118,7 @@ def ability_check(
         advantage=advantage,
         disadvantage=disadvantage,
         situational_modifier=situational_modifier,
+        manual_rolls=manual_rolls,
     )
 
 
@@ -129,6 +133,7 @@ def saving_throw(
     advantage: bool = False,
     disadvantage: bool = False,
     situational_modifier: int = 0,
+    manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     """Resolve a saving throw; expertise is not applied to saving throws."""
     return _resolve_d20_test(
@@ -143,4 +148,5 @@ def saving_throw(
         advantage=advantage,
         disadvantage=disadvantage,
         situational_modifier=situational_modifier,
+        manual_rolls=manual_rolls,
     )
