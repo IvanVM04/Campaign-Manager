@@ -1,7 +1,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
 
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
@@ -121,7 +121,7 @@ class TurnIn(BaseModel):
 
 class ManualRollIn(BaseModel):
     pending_roll_id: str = Field(..., min_length=20, max_length=200)
-    rolls: list[int] = Field(..., min_length=1, max_length=2)
+    rolls: list[StrictInt] = Field(..., min_length=1, max_length=2)
 
     @field_validator("rolls")
     @classmethod
