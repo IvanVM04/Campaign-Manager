@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.mechanics import MechanicsResult
 from operations.character_operations import (
     CharacterOperation,
 )
@@ -36,6 +37,8 @@ class TurnResolutionResult:
     ] = ()
 
     operation_results: tuple = ()
+
+    mechanics_result: MechanicsResult | None = None
 
     already_processed: bool = False
 
