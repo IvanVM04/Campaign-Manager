@@ -1,7 +1,7 @@
 """Atomic weapon attack use case for active campaign encounters."""
 
-from dataclasses import replace
 import re
+from dataclasses import replace
 
 from database import get_conn
 from models.combat_encounter_state import EncounterStatus

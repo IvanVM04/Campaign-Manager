@@ -59,7 +59,7 @@ def resolve_attack(
     if isinstance(damage_dice_count, bool) or not isinstance(damage_dice_count, int) or damage_dice_count < 0:
         raise ValueError("damage_dice_count must be a non-negative integer")
     if isinstance(damage_die_sides, bool) or not isinstance(damage_die_sides, int):
-        raise ValueError("damage_die_sides must be an integer")
+        raise TypeError("damage_die_sides must be an integer")
     if damage_dice_count == 0:
         if damage_die_sides != 0 or fixed_damage < 1:
             raise ValueError("zero dice require a positive fixed_damage and zero die sides")

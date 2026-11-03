@@ -80,7 +80,7 @@ class EncounterAttackIn(BaseModel):
         elif self.manual_attack_rolls is None or self.manual_damage_rolls is None:
             raise ValueError("manual mode requires attack rolls and damage rolls (use [] on a miss)")
         if not isinstance(self.target_within_5_feet, bool) or not isinstance(self.versatile_two_handed, bool):
-            raise ValueError("attack options must be booleans")
+            raise TypeError("attack options must be booleans")
         if self.manual_attack_rolls is not None and any(not 1 <= value <= 20 for value in self.manual_attack_rolls):
             raise ValueError("manual attack rolls must be from 1 to 20")
         if self.manual_damage_rolls is not None and any(value < 1 for value in self.manual_damage_rolls):
