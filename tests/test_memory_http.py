@@ -10,7 +10,10 @@ from models.item import Item
 from models.relation import Relation
 from models.world_state import WorldState
 
-client = TestClient(app)
+client = TestClient(
+    app,
+    headers={"X-Campaign-Id": "1"},
+)
 
 
 @pytest.fixture
