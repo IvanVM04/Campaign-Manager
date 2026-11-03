@@ -36,7 +36,7 @@ class CampaignRepository:
 
     def get_campaign(
         self,
-        campaign_id: int = 1,
+        campaign_id: int,
         *,
         conn=None,
     ):
@@ -191,6 +191,7 @@ class CampaignRepository:
 
         return self.get_session(
             session_id,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
@@ -198,7 +199,7 @@ class CampaignRepository:
         self,
         session_id: int,
         *,
-        campaign_id: int | None = None,
+        campaign_id: int,
         conn=None,
     ):
         query = """
@@ -206,10 +207,8 @@ class CampaignRepository:
             FROM sessions
             WHERE id=?
         """
-        params = (session_id,)
-        if campaign_id is not None:
-            query += " AND campaign_id=?"
-            params = (session_id, campaign_id)
+        query += " AND campaign_id=?"
+        params = (session_id, campaign_id)
 
         if conn is None:
             return one(
