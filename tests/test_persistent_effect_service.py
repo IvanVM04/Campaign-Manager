@@ -3,6 +3,7 @@ import pytest
 from models.entity import Entity
 from models.persistent_effect import EffectStatus, EffectType
 from repositories.entity_repository import EntityRepository
+from repositories.campaign_repository import CampaignRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from services.persistent_effect_service import PersistentEffectService
 
@@ -63,7 +64,7 @@ def test_effect_supports_exhaustion_levels_and_narrative_states(isolated_databas
 
 
 def test_effect_rejects_entity_from_another_campaign(isolated_database):
-    service_one, entities = build_service(1)
+    _service_one, entities = build_service(1)
     service_two, _ = build_service(2)
     entity = entities.save_entity(Entity(name="Private NPC"), campaign_id=1)
 
@@ -154,7 +155,8 @@ def test_database_rejects_cross_campaign_target_and_source_even_when_bypassing_s
 
     from database import get_conn
 
-    service, entities = build_service(1)
+    _service, entities = build_service(1)
+    CampaignRepository().create_campaign(name="Second campaign", system="D&D 5e 2014")
     target = entities.save_entity(Entity(name="Target"), campaign_id=1)
     foreign = entities.save_entity(Entity(name="Foreign source"), campaign_id=2)
 
@@ -179,7 +181,7 @@ def test_database_rejects_exhaustion_without_level(isolated_database):
 
     from database import get_conn
 
-    service, entities = build_service()
+    _service, entities = build_service()
     target = entities.save_entity(Entity(name="Target"), campaign_id=1)
 
     with get_conn() as conn:

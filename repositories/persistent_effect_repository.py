@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from database import execute, one, one_in_conn, rows
+from database import one, one_in_conn, rows
 from models.persistent_effect import (
     EffectDurationType,
     EffectSourceType,
