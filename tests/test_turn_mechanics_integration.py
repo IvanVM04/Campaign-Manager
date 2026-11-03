@@ -77,6 +77,32 @@ def test_skill_check_is_rolled_by_engine_before_dm_narration():
     assert len(extractor.received) == 1
 
 
+
+def test_unskilled_ability_check_uses_only_ability_modifier():
+    character = CharacterState(
+        entity_id=20,
+        level=1,
+        strength=16,
+    )
+    resolver, narrative_provider, _extractor = make_service(
+        '{"decision":"ability_check","ability":"strength","dc":15,'
+        '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Empujar la roca"}',
+        12,
+    )
+
+    plan = resolver.prepare_turn(
+        make_turn_context_with_character(character),
+        "Empujo la roca.",
+    )
+
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_result.check.kind == "ability_check"
+    assert plan.mechanics_result.check.roll.modifier == 3
+    assert plan.mechanics_result.check.total == 15
+    assert plan.mechanics_result.check.success is True
+    assert "Total: 15" in narrative_provider.last_prompt
+
+
 def test_clarification_stops_before_narration_and_extraction():
     resolver, narrative_provider, extractor = make_service(
         '{"decision":"clarification","question":"¿Qué herramienta utilizas?"}',
