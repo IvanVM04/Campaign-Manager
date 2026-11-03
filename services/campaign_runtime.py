@@ -21,6 +21,8 @@ from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
+from repositories.persistent_effect_repository import PersistentEffectRepository
+from services.persistent_effect_service import PersistentEffectService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
 from services.silly_tavern_integration_service import (
@@ -48,6 +50,7 @@ class CampaignRuntime:
     character_creation_service: CharacterCreationService
     combat_encounter_service: CombatEncounterService
     combat_attack_service: CombatAttackService
+    persistent_effect_service: PersistentEffectService
     campaign_turn_service: CampaignTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
@@ -164,6 +167,11 @@ class CampaignRuntimeFactory:
             character_repository=character_repository,
             weapon_repository=WeaponEquipmentRepository(),
         )
+        persistent_effect_service = PersistentEffectService(
+            repository=PersistentEffectRepository(),
+            entity_repository=entity_repository,
+            campaign_id=scope.campaign_id,
+        )
 
         return CampaignRuntime(
             scope=scope,
@@ -179,6 +187,7 @@ class CampaignRuntimeFactory:
             character_creation_service=character_creation_service,
             combat_encounter_service=combat_encounter_service,
             combat_attack_service=combat_attack_service,
+            persistent_effect_service=persistent_effect_service,
             campaign_turn_service=campaign_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )
