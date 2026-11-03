@@ -5,10 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from database import init_db
-from models.campaign_scope import CampaignScope
 from models.schemas import (
     ActiveCharacterUpdate,
-    CampaignCreate,
     CampaignCreate,
     CampaignSessionUpdate,
     CampaignUpdate,
@@ -19,8 +17,6 @@ from models.schemas import (
     TurnIn,
 )
 from repositories.campaign_repository import CampaignRepository
-from repositories.character_repository import CharacterRepository
-from repositories.entity_repository import EntityRepository
 from repositories.turn_repository import TurnRepository
 from services.campaign_runtime import CampaignRuntime, CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
@@ -28,7 +24,6 @@ from services.campaign_turn_service import (
     CampaignTurnService,
     CampaignTurnServiceError,
 )
-from services.character_creation_service import CharacterCreationService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
@@ -38,7 +33,6 @@ from services.operation_parser import (
     OperationParser,
 )
 from services.silly_tavern_integration_service import (
-    SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
 )
