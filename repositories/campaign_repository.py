@@ -224,7 +224,7 @@ class CampaignRepository:
 
     def get_current_session(
         self,
-        campaign_id: int = 1,
+        campaign_id: int,
         *,
         conn=None,
     ):
