@@ -1,5 +1,4 @@
 from models.character_state import CharacterState
-from models.mechanics import MechanicsDecisionType
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context_builder import ContextBuilder
@@ -10,7 +9,6 @@ from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.turn_resolution_service import TurnResolutionService
 from services.world_applier import WorldApplier
 from services.world_service import WorldService
-from tests.test_turn_resolution_service import make_turn_context
 
 
 class FixedRandom:
@@ -32,16 +30,7 @@ class EmptyExtractor(LLMWorldExtractor):
         return []
 
 
-def make_service(adjudication_json, roll, *, character=None):
-    context = make_turn_context()
-    if character is not None:
-        context = type(context)(
-            campaign=context.campaign,
-            current_session=context.current_session,
-            active_character=character,
-            world=context.world,
-            active_character_entity=context.active_character_entity,
-        )
+def make_service(adjudication_json, roll):
     adjudicator = MechanicsAdjudicator(
         FakeLLMProvider(response=adjudication_json)
     )
@@ -102,11 +91,14 @@ def test_clarification_stops_before_narration_and_extraction():
 
 
 def make_turn_context_with_character(character):
-    context = make_turn_context()
-    return type(context)(
-        campaign=context.campaign,
-        current_session=context.current_session,
+    from models.campaign_state import CampaignState
+    from models.session_state import SessionState
+    from models.turn_context import TurnContext
+    from models.world_state import WorldState
+
+    return TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=SessionState(session_id=1, number=1, title="Test"),
         active_character=character,
-        world=context.world,
-        active_character_entity=context.active_character_entity,
+        world=WorldState(),
     )
