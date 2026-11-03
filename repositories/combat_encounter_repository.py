@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from database import one, rows
+from database import get_conn, one, rows
 from models.combat_encounter_state import CombatEncounterState, EncounterStatus
 from models.combatant_state import CombatantState
 from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
@@ -151,8 +151,8 @@ class CombatEncounterRepository:
         query = "DELETE FROM combat_encounters WHERE encounter_id = ? AND campaign_id = ?"
         params = (encounter_id, campaign_id)
         if conn is None:
-            from database import execute
-            execute(query, params)
-            return True
+            with get_conn() as connection:
+                cursor = connection.execute(query, params)
+                return cursor.rowcount > 0
         cursor = conn.execute(query, params)
         return cursor.rowcount > 0
