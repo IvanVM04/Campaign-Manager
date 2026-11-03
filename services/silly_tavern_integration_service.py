@@ -223,6 +223,7 @@ class SillyTavernIntegrationService:
                 self.turn_repository.list_recent_active_turns(
                     session_id=session_id,
                     limit=10,
+                    scope=self.campaign_scope,
                 )
             )
 
@@ -305,6 +306,7 @@ class SillyTavernIntegrationService:
                     self.turn_repository
                     .get_active_by_external_turn_id(
                         normalized_external_turn_id,
+                        scope=self.campaign_scope,
                         conn=conn,
                     )
                 )
@@ -867,6 +869,7 @@ class SillyTavernIntegrationService:
 
                         self.turn_repository.supersede_turn(
                             current_turn.id,
+                            scope=self.campaign_scope,
                             conn=conn,
                         )
 
@@ -960,6 +963,7 @@ class SillyTavernIntegrationService:
 
                     self.turn_repository.save_turn(
                         failed_turn,
+                        scope=self.campaign_scope,
                     )
 
                     return result
@@ -989,6 +993,7 @@ class SillyTavernIntegrationService:
                         status="active",
                         snapshot=snapshot,
                     ),
+                    scope=self.campaign_scope,
                     conn=conn,
                 )
 
