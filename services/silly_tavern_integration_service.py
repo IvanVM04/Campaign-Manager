@@ -188,7 +188,7 @@ class SillyTavernIntegrationService:
         try:
             turn_context = (
                 self.campaign_state_service
-                .get_turn_context()
+                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
             )
 
         except CampaignStateServiceError as exc:
@@ -454,6 +454,7 @@ class SillyTavernIntegrationService:
                         self.turn_repository
                         .get_active_by_external_turn_id(
                             normalized_external_turn_id,
+                            scope=self.campaign_scope,
                             conn=conn,
                         )
                     )
