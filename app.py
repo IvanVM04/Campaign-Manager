@@ -1,5 +1,3 @@
-import sqlite3
-
 from contextvars import ContextVar
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -324,7 +322,7 @@ def readiness():
     try:
         with get_conn() as conn:
             conn.execute("SELECT 1").fetchone()
-    except sqlite3.Error:
+    except Exception:  # noqa: BLE001 - readiness must map any DB failure to 503
         raise HTTPException(
             status_code=503,
             detail="database unavailable",
