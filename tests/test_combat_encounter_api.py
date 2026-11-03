@@ -125,8 +125,8 @@ def test_encounter_api_scopes_encounters_to_campaign(client):
     from app import CampaignRepository
     campaign = CampaignRepository().create_campaign(name="Other campaign")
 
-    from app import app
     from fastapi.testclient import TestClient
+    from app import app
 
     other_client = TestClient(
         app,
