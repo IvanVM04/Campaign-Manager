@@ -1,7 +1,6 @@
 import json
 
 from models.campaign_scope import CampaignScope
-
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.event import Event
@@ -168,7 +167,7 @@ class WorldSnapshotRepository:
                 # Los snapshots históricos anteriores a multi-campaña
                 # no contienen campaign_id y pertenecen a la campaña 1.
                 row = dict(row)
-                row_campaign_id = row.setdefault("campaign_id", scope.campaign_id)
+                row_campaign_id = row.setdefault("campaign_id", 1)
                 if row_campaign_id != scope.campaign_id:
                     raise ValueError(
                         f"Snapshot row in '{table}' belongs to a different campaign"
