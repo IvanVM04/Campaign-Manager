@@ -89,7 +89,7 @@ def test_memory_search_finds_entity_by_description(clean_world):
 
     clean_world.entities[goblin.id] = goblin
 
-    result = app.search_memory("mina")
+    result = _search_memory("mina")
 
     assert len(result["entities"]) == 1
 
@@ -115,7 +115,7 @@ def test_memory_search_ignores_inactive_entities(clean_world):
 
     clean_world.entities[dead_character.id] = dead_character
 
-    result = app.search_memory("Personaje muerto")
+    result = _search_memory("Personaje muerto")
 
     assert result["entities"] == []
 
@@ -154,11 +154,11 @@ def test_memory_search_does_not_expose_secret_events(clean_world):
     clean_world.events[secret_event.id] = secret_event
     clean_world.events[public_event.id] = public_event
 
-    result = app.search_memory("rey")
+    result = _search_memory("rey")
 
     assert result["events"] == []
 
-    result = app.search_memory("espada")
+    result = _search_memory("espada")
 
     assert len(result["events"]) == 1
     assert result["events"][0]["id"] == "event-001"
@@ -184,7 +184,7 @@ def test_memory_search_finds_public_event(clean_world):
 
     clean_world.events[event.id] = event
 
-    result = app.search_memory("mina")
+    result = _search_memory("mina")
 
     assert len(result["events"]) == 1
 
@@ -199,7 +199,7 @@ def test_memory_search_empty_query_content_returns_empty_result(clean_world):
     Si la consulta solo contiene stopwords, no debe consultar ni devolver nada.
     """
 
-    result = app.search_memory("el la de un")
+    result = _search_memory("el la de un")
 
     assert result == {
         "entities": [],
@@ -263,7 +263,7 @@ def test_memory_search_finds_public_event_by_title(clean_world):
 
     clean_world.events[event.id] = event
 
-    result = app.search_memory("templo de la luna")
+    result = _search_memory("templo de la luna")
 
     assert len(result["events"]) == 1
     assert result["events"][0]["id"] == "event-title-001"
@@ -290,7 +290,7 @@ def test_memory_search_finds_resource_balance_by_owner_and_notes(
 
     clean_world.resource_balances[balance.id] = balance
 
-    result = app.search_memory("gremio")
+    result = _search_memory("gremio")
 
     assert len(result["resource_balances"]) == 1
 
