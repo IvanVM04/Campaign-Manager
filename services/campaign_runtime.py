@@ -16,6 +16,7 @@ from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
 from services.memory_search_service import MemorySearchService
+from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
 from services.silly_tavern_integration_service import (
@@ -116,10 +117,12 @@ class CampaignRuntimeFactory:
             provider=provider,
             operation_parser=operation_parser,
         )
+        mechanics_adjudicator = MechanicsAdjudicator(provider)
         turn_resolution_service = TurnResolutionService(
             dm_service=dm_service,
             world_service=world_service,
             extractor=extractor,
+            mechanics_adjudicator=mechanics_adjudicator,
         )
 
         campaign_turn_service = CampaignTurnService(
