@@ -2467,6 +2467,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
     import services.campaign_turn_service as campaign_turn_module
     from repositories.campaign_repository import CampaignRepository
     from services.context_builder import ContextBuilder
+    from services.fake_llm_provider import FakeLLMProvider
 
     campaign = CampaignRepository().create_campaign(
         name="Turn transaction test"
@@ -2476,7 +2477,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
     class ConnectionCheckingDM(DMService):
         def __init__(self):
             super().__init__(
-                provider=lambda _prompt: "unused",
+                provider=FakeLLMProvider(response="unused"),
                 context_builder=ContextBuilder(),
             )
 
@@ -2526,6 +2527,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
 def test_planned_turn_rejects_state_changed_during_dm_generation():
     from repositories.campaign_repository import CampaignRepository
     from services.context_builder import ContextBuilder
+    from services.fake_llm_provider import FakeLLMProvider
 
     campaign = CampaignRepository().create_campaign(
         name="Stale plan test"
@@ -2535,7 +2537,7 @@ def test_planned_turn_rejects_state_changed_during_dm_generation():
     class MutatingDM(DMService):
         def __init__(self):
             super().__init__(
-                provider=lambda _prompt: "unused",
+                provider=FakeLLMProvider(response="unused"),
                 context_builder=ContextBuilder(),
             )
 
