@@ -51,7 +51,7 @@ Not every action requires a roll. The DM should use the rules and the fictional 
 
 **Not in the initial scope:** a virtual tabletop, tactical map editor, token movement, fog of war or real-time tabletop collaboration. These may be considered as a distant future extension after the core game experience is reliable.
 
-Multiplayer and hosted deployment are also future considerations, not assumptions of the current implementation.
+The application is **single-player by design**: one person plays and manages their own campaigns, potentially maintaining several separate campaigns in the same installation. Multiplayer, shared tables, accounts and campaign membership are not part of the product scope. Remote access or hosted deployment is not part of the initial release and would require a separate security review.
 
 ### Architectural direction
 
@@ -379,7 +379,7 @@ X-Campaign-Id: 2
 
 The selected campaign is resolved to a dedicated `CampaignRuntime`, which owns its in-memory world, services and turn-execution lock. Requests without the header are rejected; the API never silently falls back to campaign 1. The SillyTavern extension exposes a **Campaign ID** setting and sends the header with every backend request.
 
-**Security limitation — local trusted use only:** `X-Campaign-Id` is a campaign selector, not an authentication credential. The current API does not authenticate users or authorize campaign ownership/membership. Campaign-scoped database queries provide data isolation, but they do not prevent an unauthenticated caller who can reach the API from selecting another campaign ID. Campaign listing and creation are also unauthenticated. Do not expose this API to the public Internet or an untrusted network. Hosted or multi-user deployment requires authentication, campaign ownership/membership and role-based authorization first.
+**Local security boundary:** `X-Campaign-Id` selects one of the local user's campaigns; it is not an authentication credential. This is intentional for the single-player, local-first application. The server is configured to bind to `127.0.0.1`, so it is not exposed to other machines by the documented default commands. Do not change the bind address to `0.0.0.0` or expose the API through a reverse proxy/tunnel without adding an explicit authentication mechanism and reviewing campaign access. Remote access is a separate future scope.
 
 ### Basic
 
