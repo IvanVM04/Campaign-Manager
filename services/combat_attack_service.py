@@ -10,7 +10,7 @@ from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from rules_engine.dnd5e_2014.combat.attack import resolve_attack
 from rules_engine.dnd5e_2014.combat.conditions import attack_roll_advantage_state
-from rules_engine.dnd5e_2014.combat.damage import DamageType
+from rules_engine.dnd5e_2014.combat.damage import DamageType, apply_hit_point_damage
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import WeaponProperty, get_weapon
@@ -152,7 +152,7 @@ class CombatAttackService:
                 ),
             )
 
-            new_target_hp = max(0, target.current_hp - result.damage_after_defenses)
+            new_target_hp = apply_hit_point_damage(target.current_hp, result.damage_after_defenses)
             updated_combatants = dict(encounter.combatants)
             updated_combatants[attacker.combatant_id] = replace(attacker, action_used=True)
             updated_combatants[target.combatant_id] = replace(
