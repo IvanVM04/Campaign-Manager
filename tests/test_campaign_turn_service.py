@@ -2412,3 +2412,164 @@ def test_play_turn_passes_transaction_connection_to_campaign_state_service():
     )
 
     assert state_service.last_conn is not None
+
+# ============================================================
+# PLANNED TURN TRANSACTION BOUNDARY
+# ============================================================
+
+
+def _build_planned_turn_service(campaign_id, dm_service):
+    from repositories.campaign_repository import CampaignRepository
+    from repositories.character_repository import CharacterRepository
+    from repositories.entity_repository import EntityRepository
+    from services.campaign_state_service import CampaignStateService
+    from services.llm_world_extractor import LLMWorldExtractor
+    from services.operation_parser import OperationParser
+
+    campaign_repository = CampaignRepository()
+    character_repository = CharacterRepository()
+    entity_repository = EntityRepository()
+    world_service = WorldService(campaign_id=campaign_id)
+    world_service.load()
+    campaign_state_service = CampaignStateService(
+        campaign_repository=campaign_repository,
+        character_repository=character_repository,
+        entity_repository=entity_repository,
+        world_service=world_service,
+        campaign_id=campaign_id,
+    )
+    extractor = LLMWorldExtractor(
+        provider=lambda _prompt: "",
+        operation_parser=OperationParser(),
+    )
+    extractor.extract = lambda _text, _context: []
+    resolver = TurnResolutionService(
+        dm_service=dm_service,
+        extractor=extractor,
+        world_service=world_service,
+    )
+    service = CampaignTurnService(
+        turn_resolution_service=resolver,
+        world_service=world_service,
+        campaign_state_service=campaign_state_service,
+        turn_repository=TurnRepository(),
+        turn_execution_lock=TurnExecutionLock(),
+    )
+    return service, campaign_repository
+
+
+def test_planned_turn_releases_read_connection_before_dm_generation(
+    monkeypatch,
+):
+    from contextlib import contextmanager
+
+    import database
+    import services.campaign_turn_service as campaign_turn_module
+    from repositories.campaign_repository import CampaignRepository
+    from services.context_builder import ContextBuilder
+    from services.fake_llm_provider import FakeLLMProvider
+
+    campaign = CampaignRepository().create_campaign(
+        name="Turn transaction test"
+    )
+    active_connections = {"count": 0}
+
+    class ConnectionCheckingDM(DMService):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response="unused"),
+                context_builder=ContextBuilder(),
+            )
+
+        def generate(
+            self,
+            turn_context,
+            player_input,
+            *,
+            recent_turns=None,
+        ):
+            assert active_connections["count"] == 0
+            return "La escena continúa."
+
+    original_get_conn = database.get_conn
+
+    @contextmanager
+    def tracked_get_conn():
+        with original_get_conn() as conn:
+            active_connections["count"] += 1
+            try:
+                yield conn
+            finally:
+                active_connections["count"] -= 1
+
+    monkeypatch.setattr(
+        campaign_turn_module,
+        "get_conn",
+        tracked_get_conn,
+    )
+
+    service, _ = _build_planned_turn_service(
+        campaign["id"],
+        ConnectionCheckingDM(),
+    )
+
+    result = service.play_turn("Miro alrededor.")
+
+    assert result.narrative == "La escena continúa."
+    assert active_connections["count"] == 0
+    assert len(
+        service.turn_repository.list_turns(
+            scope=CampaignScope(campaign["id"]),
+        )
+    ) == 1
+
+
+def test_planned_turn_rejects_state_changed_during_dm_generation():
+    from repositories.campaign_repository import CampaignRepository
+    from services.context_builder import ContextBuilder
+    from services.fake_llm_provider import FakeLLMProvider
+
+    campaign = CampaignRepository().create_campaign(
+        name="Stale plan test"
+    )
+    campaign_id = campaign["id"]
+
+    class MutatingDM(DMService):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response="unused"),
+                context_builder=ContextBuilder(),
+            )
+
+        def generate(
+            self,
+            turn_context,
+            player_input,
+            *,
+            recent_turns=None,
+        ):
+            CampaignRepository().update_campaign(
+                campaign_id=campaign_id,
+                name="Changed while planning",
+                system=turn_context.campaign.system,
+                tone=turn_context.campaign.tone,
+                summary=turn_context.campaign.summary,
+            )
+            return "La escena continúa."
+
+    service, campaign_repository = _build_planned_turn_service(
+        campaign_id,
+        MutatingDM(),
+    )
+
+    with pytest.raises(
+        CampaignTurnServiceError,
+        match="campaign state changed while the turn was being prepared",
+    ):
+        service.play_turn("Miro alrededor.")
+
+    updated = campaign_repository.get_campaign(campaign_id)
+    assert updated["name"] == "Changed while planning"
+    assert service.turn_repository.list_turns(
+        scope=CampaignScope(campaign_id),
+    ) == []

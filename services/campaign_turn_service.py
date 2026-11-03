@@ -167,6 +167,199 @@ class CampaignTurnService:
         self,
         player_input: str,
     ) -> TurnResolutionResult:
+        # Keep compatibility with test doubles and downstream custom
+        # resolvers that override the original all-in-one API.
+        if (
+            type(self.turn_resolution_service).resolve_turn
+            is not TurnResolutionService.resolve_turn
+        ):
+            return self._play_turn_legacy_locked(player_input)
+
+        return self._play_turn_planned_locked(player_input)
+
+    def _load_fresh_turn_context(self, conn) -> TurnContext:
+        if self.campaign_state_service is None:
+            world = self.world_service.repository.load_world(
+                campaign_id=self.campaign_scope.campaign_id,
+                conn=conn,
+            )
+            self.world_service.world = world
+            return TurnContext(
+                campaign=CampaignState(
+                    campaign_id=self.campaign_scope.campaign_id
+                ),
+                current_session=None,
+                active_character=None,
+                world=world,
+            )
+
+        context = self.campaign_state_service.get_turn_context(
+            campaign_id=self.campaign_scope.campaign_id,
+            conn=conn,
+        )
+        if not isinstance(context, TurnContext):
+            raise CampaignTurnServiceError(
+                "CampaignStateService returned an invalid TurnContext"
+            )
+
+        # get_turn_context assembles campaign/character data but currently
+        # reads the world's in-memory object. Reload it using this connection
+        # so the plan is based on the same database snapshot as the metadata.
+        world = self.world_service.repository.load_world(
+            campaign_id=self.campaign_scope.campaign_id,
+            conn=conn,
+        )
+        self.world_service.world = world
+        return TurnContext(
+            campaign=context.campaign,
+            current_session=context.current_session,
+            active_character=context.active_character,
+            world=world,
+            active_character_entity=context.active_character_entity,
+        )
+
+    def _play_turn_planned_locked(
+        self,
+        player_input: str,
+    ) -> TurnResolutionResult:
+        """
+        Execute LLM planning outside SQLite transactions, then re-read and
+        validate the complete context inside a short BEGIN IMMEDIATE write
+        transaction before applying the plan and recording the turn.
+        """
+        if not isinstance(player_input, str):
+            raise TypeError("player_input must be a string")
+        normalized_input = player_input.strip()
+        if not normalized_input:
+            raise CampaignTurnServiceError(
+                "player_input must not be empty"
+            )
+
+        world = self.world_service.get_world()
+        world_snapshot = copy.deepcopy(world)
+
+        try:
+            # Read a consistent prompt context and history, then release the
+            # connection before any provider/LLM work begins.
+            with get_conn() as read_conn:
+                initial_context = self._load_fresh_turn_context(read_conn)
+                recent_turns = None
+                if self.turn_repository is not None:
+                    session_id = (
+                        initial_context.current_session.session_id
+                        if initial_context.current_session is not None
+                        else None
+                    )
+                    recent_turns = self.turn_repository.list_recent_turns(
+                        session_id=session_id,
+                        limit=10,
+                        scope=self.campaign_scope,
+                        conn=read_conn,
+                    )
+
+            world = initial_context.world
+            world_snapshot = copy.deepcopy(world)
+
+            plan = self.turn_resolution_service.prepare_turn(
+                initial_context,
+                normalized_input,
+                recent_turns=recent_turns,
+            )
+
+            # No DB connection is held during model generation/extraction.
+            # BEGIN IMMEDIATE ensures no other writer can change campaign
+            # state between our fresh read, validation and persistence.
+            with get_conn() as write_conn:
+                write_conn.execute("BEGIN IMMEDIATE")
+                current_context = self._load_fresh_turn_context(write_conn)
+
+                current_recent_turns = None
+                if self.turn_repository is not None:
+                    session_id = (
+                        current_context.current_session.session_id
+                        if current_context.current_session is not None
+                        else None
+                    )
+                    current_recent_turns = self.turn_repository.list_recent_turns(
+                        session_id=session_id,
+                        limit=10,
+                        scope=self.campaign_scope,
+                        conn=write_conn,
+                    )
+
+                if current_context != initial_context:
+                    raise CampaignTurnServiceError(
+                        "campaign state changed while the turn was being prepared; retry"
+                    )
+                if current_recent_turns != recent_turns:
+                    raise CampaignTurnServiceError(
+                        "turn history changed while the turn was being prepared; retry"
+                    )
+
+                result = self.turn_resolution_service.apply_plan(
+                    current_context,
+                    plan,
+                    conn=write_conn,
+                )
+
+                if not isinstance(result, TurnResolutionResult):
+                    raise CampaignTurnServiceError(
+                        "TurnResolutionService returned an invalid TurnResolutionResult"
+                    )
+
+                if not result.all_operations_succeeded:
+                    self._restore_world_state(world, world_snapshot)
+                    self.world_service.world = world
+                    write_conn.rollback()
+
+                if self.turn_repository is not None:
+                    session_id = (
+                        current_context.current_session.session_id
+                        if current_context.current_session is not None
+                        else None
+                    )
+                    self.turn_repository.save_turn(
+                        TurnRecord(
+                            session_id=session_id,
+                            player_input=result.player_input,
+                            narrative=result.narrative,
+                            operation_count=result.operation_count,
+                            successful_operation_count=(
+                                result.successful_operation_count
+                            ),
+                            failed_operation_count=result.failed_operation_count,
+                            all_operations_succeeded=(
+                                result.all_operations_succeeded
+                            ),
+                            world_changed=result.world_changed,
+                        ),
+                        scope=self.campaign_scope,
+                        conn=write_conn,
+                    )
+
+                return result
+
+        except CampaignTurnServiceError:
+            self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
+            raise
+        except TurnResolutionServiceError as exc:
+            self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
+            raise CampaignTurnServiceError(
+                "turn resolution failed"
+            ) from exc
+        except Exception as exc:
+            self._restore_world_state(world, world_snapshot)
+            self.world_service.world = world
+            raise CampaignTurnServiceError(
+                "unexpected error while resolving turn"
+            ) from exc
+
+    def _play_turn_legacy_locked(
+        self,
+        player_input: str,
+    ) -> TurnResolutionResult:
         """
         Ejecuta un turno completo.
 

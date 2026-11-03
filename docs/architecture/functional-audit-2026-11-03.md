@@ -281,3 +281,16 @@ The README now describes all three jobs. The workflow file was inspected; a draf
 **Change in this branch:** `restore_snapshot()` now captures the campaign's current location, session and active-character pointers before replacing snapshot tables. After restoration, it revalidates each pointer against the restored campaign records and reapplies only valid same-campaign references. Added a regression test that exercises the migration-014 delete triggers and verifies that all valid selections survive snapshot restoration.
 
 **Verification status:** source and test are committed; execution is pending CI. This test is especially important because it crosses persistence, migrations and regeneration.
+
+
+### F-21 — Campaign turn processing held SQLite connections during model inference
+
+**Severity:** High operational/concurrency risk; corrected in PR #4.
+
+**Evidence:** the original `CampaignTurnService._play_turn_locked()` held a `get_conn()` connection while `TurnResolutionService.resolve_turn()` called the DM provider and operation extractor. Model inference can take seconds or longer, extending the lifetime of a SQLite read/write transaction and increasing contention with other campaign writes.
+
+**Change:** split `TurnResolutionService` into `prepare_turn()` and `apply_plan()`. Preparation generates narrative and extracts typed operations without applying them or accessing SQLite. `CampaignTurnService` now reads a consistent prompt context/history, closes the read connection, prepares the plan, then opens a short `BEGIN IMMEDIATE` transaction. It reloads the campaign/world/history and rejects the plan if any of that context changed while inference was running. Only then does it apply operations and save the turn in the same transaction. Existing `resolve_turn()` remains as a compatibility wrapper; custom resolvers overriding that API continue through the legacy orchestration path.
+
+**Verification:** GitHub Actions on PR #4 passed: 791 Python tests passed, 7 deselected; Ruff passed; JavaScript tests passed. Regression tests verify the DM runs with no turn-service SQLite connection held and that a stale plan is rejected without recording a turn.
+
+**Remaining boundary:** the per-campaign in-process lock remains process-local. The database write transaction and stale-context recheck protect persistence across processes, but this does not introduce a distributed lock or multi-worker runtime support.
