@@ -157,7 +157,7 @@ class CampaignStateService:
     def set_active_character(
         self,
         character_id: int | None,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
     ) -> CampaignState:
         """
         Establece o elimina el personaje activo.
@@ -205,7 +205,8 @@ class CampaignStateService:
 
             session = (
                 self.campaign_repository.get_session(
-                    session_id
+                    session_id,
+                    campaign_id=campaign_id,
                 )
             )
 
