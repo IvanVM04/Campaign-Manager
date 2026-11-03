@@ -101,11 +101,17 @@ class CombatEncounterState:
             raise ValueError("only a preparing encounter can be started")
         if not isinstance(initiative_order, tuple):
             raise TypeError("initiative_order must be a tuple")
+        if len(initiative_order) != len(self.combatants):
+            raise ValueError("initiative order must contain every combatant exactly once")
+        if set(initiative_order) != set(self.combatants):
+            raise ValueError("initiative order contains unknown or missing combatants")
+        totals = [self.combatants[item].initiative for item in initiative_order]
+        if totals != sorted(totals, reverse=True):
+            raise ValueError("initiative order must be descending by initiative total")
         self.initiative_order = initiative_order
         self.round_number = 1
         self.turn_index = 0
         self.status = EncounterStatus.ACTIVE
-        self._validate_order()
 
     @property
     def active_combatant(self) -> CombatantState | None:
