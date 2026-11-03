@@ -7,8 +7,9 @@ from rules_engine.dnd5e_2014.checks import (
     ability_check,
     saving_throw,
 )
-from rules_engine.dnd5e_2014.core.abilities import Ability
+from rules_engine.dnd5e_2014.core.abilities import Ability, ability_modifier
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
+from rules_engine.dnd5e_2014.core.proficiency import proficiency_bonus_for_level
 from rules_engine.dnd5e_2014.core.skills import Skill, ability_for_skill
 
 
@@ -20,6 +21,35 @@ ABILITY_FIELDS: dict[Ability, str] = {
     Ability.WISDOM: "wisdom",
     Ability.CHARISMA: "charisma",
 }
+
+
+def ability_check_modifier_for_character(
+    *,
+    character: CharacterState,
+    ability: Ability,
+    proficient: bool = False,
+    expertise: bool = False,
+    situational_modifier: int = 0,
+) -> int:
+    """Return the complete modifier for a character ability check/save."""
+    if not isinstance(character, CharacterState):
+        raise TypeError("character must be a CharacterState")
+    if not isinstance(ability, Ability):
+        raise TypeError("ability must be an Ability")
+    if not isinstance(proficient, bool) or not isinstance(expertise, bool):
+        raise TypeError("proficiency flags must be booleans")
+    if expertise and not proficient:
+        raise ValueError("expertise requires proficiency")
+    if isinstance(situational_modifier, bool) or not isinstance(
+        situational_modifier, int
+    ):
+        raise TypeError("situational_modifier must be an integer")
+
+    modifier = ability_modifier(getattr(character, ABILITY_FIELDS[ability]))
+    if proficient:
+        proficiency = proficiency_bonus_for_level(character.level)
+        modifier += proficiency * (2 if expertise else 1)
+    return modifier + situational_modifier
 
 
 def ability_check_for_character(
