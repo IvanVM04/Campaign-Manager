@@ -429,7 +429,7 @@ pip install -r requirements.txt
 Install the development/test tools:
 
 ```bash
-pip install pytest httpx ruff
+pip install pytest "httpx2>=2.5" ruff
 ```
 
 The database will be initialized automatically when the application starts.
