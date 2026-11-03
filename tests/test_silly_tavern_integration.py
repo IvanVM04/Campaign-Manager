@@ -3511,7 +3511,6 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     import copy
 
     import app
-
     from operations.world_operations import CreateEntityOperation
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationServiceError,
