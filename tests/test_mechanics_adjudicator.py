@@ -1,7 +1,7 @@
 import pytest
 
-from models.mechanics import MechanicsDecisionType
 from models.campaign_state import CampaignState
+from models.mechanics import MechanicsDecisionType
 from models.character_state import CharacterState
 from models.session_state import SessionState
 from models.turn_context import TurnContext
