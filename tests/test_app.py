@@ -414,20 +414,16 @@ def test_play_turn_accepts_player_input_at_maximum_length(
     assert calls == ["A" * 10000]
 
 def test_application_services_share_same_turn_execution_lock():
-    from app import (
-        campaign_turn_service,
-        silly_tavern_integration_service,
-        turn_execution_lock,
-    )
+    from app import runtime_factory
 
+    runtime = runtime_factory.get_runtime(1)
     assert (
-        campaign_turn_service.turn_execution_lock
-        is turn_execution_lock
+        runtime.campaign_turn_service.turn_execution_lock
+        is runtime.turn_execution_lock
     )
-
     assert (
-        silly_tavern_integration_service.turn_execution_lock
-        is turn_execution_lock
+        runtime.silly_tavern_integration_service.turn_execution_lock
+        is runtime.turn_execution_lock
     )
 
 def test_update_campaign_session_rejects_nonexistent_session(client):
@@ -450,8 +446,9 @@ def test_update_campaign_session_rejects_nonexistent_session(client):
     assert campaign_after["current_session_id"] == current_session_before
 
 def test_world_endpoint_waits_for_turn_execution_lock(client):
-    from app import turn_execution_lock
+    from app import runtime_factory
 
+    turn_execution_lock = runtime_factory.get_runtime(1).turn_execution_lock
     turn_execution_lock._lock.acquire()
 
     try:
