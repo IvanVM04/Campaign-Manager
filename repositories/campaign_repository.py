@@ -3,10 +3,36 @@ from database import (
     execute_in_conn,
     one,
     one_in_conn,
+    rows,
 )
 
 
 class CampaignRepository:
+
+    def list_campaigns(self):
+        return rows(
+            """
+            SELECT id, name, system, tone, summary
+            FROM campaign
+            ORDER BY id ASC
+            """
+        )
+
+    def create_campaign(
+        self,
+        name: str,
+        system: str = "D&D 5e 2014",
+        tone: str = "",
+        summary: str = "",
+    ):
+        campaign_id = execute(
+            """
+            INSERT INTO campaign (name, system, tone, summary)
+            VALUES (?, ?, ?, ?)
+            """,
+            (name, system, tone, summary),
+        )
+        return self.get_campaign(campaign_id)
 
     def get_campaign(
         self,
