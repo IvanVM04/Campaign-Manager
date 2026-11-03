@@ -1,8 +1,8 @@
 import pytest
 
 from models.campaign_state import CampaignState
-from models.mechanics import MechanicsDecisionType
 from models.character_state import CharacterState
+from models.mechanics import MechanicsDecisionType
 from models.session_state import SessionState
 from models.turn_context import TurnContext
 from models.world_state import WorldState
@@ -20,18 +20,24 @@ from services.mechanics_adjudicator import (
     [
         ('{"decision":"none"}', MechanicsDecisionType.NONE),
         (
-            '{"decision":"ability_check","ability":"strength","dc":15,'
-            '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Empujar una roca"}',
+            (
+                '{"decision":"ability_check","ability":"strength","dc":15,'
+                '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Empujar una roca"}'
+            ),
             MechanicsDecisionType.ABILITY_CHECK,
         ),
         (
-            '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
-            '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Cruzar sin ser visto"}',
+            (
+                '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
+                '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Cruzar sin ser visto"}'
+            ),
             MechanicsDecisionType.SKILL_CHECK,
         ),
         (
-            '{"decision":"saving_throw","ability":"wisdom","dc":14,'
-            '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Resistir el miedo"}',
+            (
+                '{"decision":"saving_throw","ability":"wisdom","dc":14,'
+                '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Resistir el miedo"}'
+            ),
             MechanicsDecisionType.SAVING_THROW,
         ),
         (
@@ -64,13 +70,19 @@ def test_skill_check_is_typed():
     "payload",
     [
         "not json",
-        '{"decision":"skill_check","skill":"acrobatics","dc":99,"advantage":false,'
-        '"disadvantage":false,"modifier":0,"reason":"invalid"}',
-        '{"decision":"skill_check","skill":"made_up","ability":null,"dc":10,'
-        '"advantage":false,"disadvantage":false,"modifier":0,"reason":"invalid"}',
+        (
+            '{"decision":"skill_check","skill":"acrobatics","dc":99,"advantage":false,'
+            '"disadvantage":false,"modifier":0,"reason":"invalid"}'
+        ),
+        (
+            '{"decision":"skill_check","skill":"made_up","ability":null,"dc":10,'
+            '"advantage":false,"disadvantage":false,"modifier":0,"reason":"invalid"}'
+        ),
         '{"decision":"none","dc":10}',
-        '{"decision":"saving_throw","ability":"wisdom","dc":14,'
-        '"advantage":true,"disadvantage":false,"modifier":0,"reason":"x","extra":1}',
+        (
+            '{"decision":"saving_throw","ability":"wisdom","dc":14,'
+            '"advantage":true,"disadvantage":false,"modifier":0,"reason":"x","extra":1}'
+        ),
     ],
 )
 def test_adjudicator_rejects_invalid_or_unexpected_output(payload):
