@@ -250,6 +250,7 @@ class TurnResolutionService:
                     advantage=decision.advantage,
                     disadvantage=decision.disadvantage,
                     situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
                     ability_override=decision.ability,
                 )
                 mechanics_result = MechanicsResult(decision, check)
@@ -266,6 +267,7 @@ class TurnResolutionService:
                     advantage=decision.advantage,
                     disadvantage=decision.disadvantage,
                     situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
                 )
                 mechanics_result = MechanicsResult(decision, check)
 
