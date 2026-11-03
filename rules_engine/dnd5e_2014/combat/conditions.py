@@ -59,11 +59,11 @@ class ConditionSet:
 
     @property
     def speed_is_zero(self) -> bool:
-        return bool(
+        return self.exhaustion_level >= 5 or bool(
             self.conditions
             & {
                 Condition.GRAPPLED,
-                Condition.BLINDED,
+                Condition.PARALYZED,
                 Condition.PETRIFIED,
                 Condition.RESTRAINED,
                 Condition.STUNNED,
@@ -122,7 +122,7 @@ class ConditionSet:
 
     @property
     def speed_halved(self) -> bool:
-        return self.exhaustion_level >= 2
+        return 2 <= self.exhaustion_level < 5
 
     @property
     def hit_point_maximum_halved(self) -> bool:
@@ -157,7 +157,7 @@ def attack_roll_advantage_state(
         advantage = True
     if attacker.has(Condition.INVISIBLE):
         advantage = True
-    if not target_can_see_attacker:
+    if not target_can_see_attacker or target.has(Condition.BLINDED):
         advantage = True
 
     disadvantage = attacker.attacks_have_disadvantage
