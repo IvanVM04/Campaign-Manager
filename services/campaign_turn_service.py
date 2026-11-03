@@ -12,7 +12,6 @@ from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.mechanics import MechanicsDecision
 from rules_engine.dnd5e_2014.character_checks import (
-    ABILITY_FIELDS,
     ability_check_modifier_for_character,
 )
 from rules_engine.dnd5e_2014.core.skills import ability_for_skill
