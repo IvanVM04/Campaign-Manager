@@ -563,13 +563,13 @@ def test_integration_service_does_not_generate_narrative(
     monkeypatch.setattr(
         turn_repository,
         "list_recent_turns",
-        lambda session_id=None, limit=10: [],
+        lambda session_id=None, limit=10, scope=None: [],
     )
 
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: turn,
+        lambda turn, *, scope=None, conn=None: turn,
     )
 
     monkeypatch.setattr(
@@ -727,7 +727,7 @@ def test_integration_service_applies_extracted_operations(
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: (
+        lambda turn, *, scope=None, conn=None: (
             captured.__setitem__(
                 "save_conn",
                 conn,
@@ -3491,7 +3491,7 @@ def test_first_external_turn_must_use_version_one(
     monkeypatch.setattr(
         turn_repository,
         "get_active_by_external_turn_id",
-        lambda external_turn_id, *, conn=None: None,
+        lambda external_turn_id, *, scope=None, conn=None: None,
     )
 
     with pytest.raises(
