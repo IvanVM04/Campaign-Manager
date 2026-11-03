@@ -7,7 +7,7 @@ def test_failed_regeneration_keeps_previous_active_turn_and_records_failed_attem
     client,
     monkeypatch,
 ):
-    service = __import__("app").silly_tavern_integration_service
+    service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "failed-regeneration-history"
 
