@@ -235,3 +235,14 @@ The repository's `.github/workflows/tests.yml` defines three jobs:
 - JavaScript tests via `npm run test:js` on Node 20.
 
 The README now describes all three jobs. The workflow file was inspected; a draft PR was opened to trigger CI, but no workflow run was visible through the available interface at the time of this audit. The suite is not claimed as executed.
+
+
+### F-17 — Campaign-level pointers could cross campaign boundaries
+
+**Severity:** High data-integrity issue for installations with multiple campaigns; corrected by migration 013 in the audit branch.
+
+**Evidence:** migration 012 adds triggers to ensure child records belong to a valid campaign and that references such as item owners, relations, character states and turn/session links do not cross campaigns. However, it does not validate the three campaign-level pointers stored directly on `campaign`: `current_location_id`, `current_session_id` and `active_character_id`. The application service validates selected sessions and active characters using campaign-scoped repository lookups, but the database did not enforce the same invariant for direct SQL, future code paths or corrupted imports.
+
+**Change in this branch:** added migration 013 with INSERT/UPDATE triggers on `campaign`. A campaign's current location must belong to its `entities`, current session to its `sessions`, and active character to its `character_states`, all with the same campaign ID. The migration also scans existing pointers and fails rather than silently clearing or reassigning invalid data. Added tests for all three cross-campaign rejections and a same-campaign success case.
+
+**Verification status:** migration and tests are committed, but have not yet been executed in CI or locally. The migration must be tested against a copy of a real version-12 database before release.
