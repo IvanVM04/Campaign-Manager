@@ -22,6 +22,9 @@ class CharacterRepository:
         wisdom,
         charisma,
         proficiency_bonus,
+        skill_proficiencies,
+        skill_expertise,
+        saving_throw_proficiencies,
         metadata
     """
 
@@ -80,10 +83,13 @@ class CharacterRepository:
                 wisdom,
                 charisma,
                 proficiency_bonus,
+                skill_proficiencies,
+                skill_expertise,
+                saving_throw_proficiencies,
                 metadata,
                 campaign_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(entity_id)
             DO UPDATE SET
                 level = excluded.level,
@@ -98,6 +104,9 @@ class CharacterRepository:
                 wisdom = excluded.wisdom,
                 charisma = excluded.charisma,
                 proficiency_bonus = excluded.proficiency_bonus,
+                skill_proficiencies = excluded.skill_proficiencies,
+                skill_expertise = excluded.skill_expertise,
+                saving_throw_proficiencies = excluded.saving_throw_proficiencies,
                 metadata = excluded.metadata
             WHERE character_states.campaign_id = excluded.campaign_id
         """
@@ -116,6 +125,9 @@ class CharacterRepository:
             character.wisdom,
             character.charisma,
             character.proficiency_bonus,
+            json.dumps(sorted(skill.value for skill in character.skill_proficiencies)),
+            json.dumps(sorted(skill.value for skill in character.skill_expertise)),
+            json.dumps(sorted(ability.value for ability in character.saving_throw_proficiencies)),
             json.dumps(character.metadata),
             campaign_id,
         )
@@ -208,5 +220,8 @@ class CharacterRepository:
             wisdom=row["wisdom"],
             charisma=row["charisma"],
             proficiency_bonus=row["proficiency_bonus"],
+            skill_proficiencies=json.loads(row["skill_proficiencies"]),
+            skill_expertise=json.loads(row["skill_expertise"]),
+            saving_throw_proficiencies=json.loads(row["saving_throw_proficiencies"]),
             metadata=metadata,
         )
