@@ -270,3 +270,14 @@ The README now describes all three jobs. The workflow file was inspected; a draf
 **Change in this branch:** migration 014 adds AFTER DELETE triggers that clear the matching pointer for the same campaign: deleting an entity clears `current_location_id`; deleting a character state clears `active_character_id`; deleting a session clears `current_session_id`. Added a migration test covering all three paths.
 
 **Verification status:** migration and test are committed but not executed. Test against a version-13 database copy before release.
+
+
+### F-20 — Snapshot restoration must preserve valid campaign selections
+
+**Severity:** High regression risk introduced by pointer-cleanup triggers; corrected in the audit branch.
+
+**Evidence:** migration 014's AFTER DELETE triggers clear campaign pointers when their target records are deleted. `WorldSnapshotRepository.restore_snapshot()` deletes and reinserts campaign entities and character states as part of regeneration. Without additional handling, a valid `current_location_id` or `active_character_id` would be cleared during this temporary delete/reinsert sequence even when the same target exists in the restored snapshot.
+
+**Change in this branch:** `restore_snapshot()` now captures the campaign's current location, session and active-character pointers before replacing snapshot tables. After restoration, it revalidates each pointer against the restored campaign records and reapplies only valid same-campaign references. Added a regression test that exercises the migration-014 delete triggers and verifies that all valid selections survive snapshot restoration.
+
+**Verification status:** source and test are committed; execution is pending CI. This test is especially important because it crosses persistence, migrations and regeneration.
