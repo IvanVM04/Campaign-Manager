@@ -530,8 +530,8 @@ def play_turn(data: TurnIn):
         "narrative": result.narrative,
         "player_input": result.player_input,
         "mechanics": _serialize_mechanics_result(getattr(result, "mechanics_result", None)),
-        "pending_roll_id": result.pending_roll_id,
-        "pending_roll": result.pending_roll,
+        "pending_roll_id": getattr(result, "pending_roll_id", None),
+        "pending_roll": getattr(result, "pending_roll", None),
         "operation_count": result.operation_count,
         "successful_operation_count": (
             result.successful_operation_count
