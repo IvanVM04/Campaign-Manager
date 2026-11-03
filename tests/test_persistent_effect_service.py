@@ -81,6 +81,7 @@ def test_effect_rejects_cross_campaign_source_entity(isolated_database):
     service, entities = build_service(1)
     source = entities.save_entity(Entity(name="Poisonous spider"), campaign_id=1)
     target = entities.save_entity(Entity(name="Mira"), campaign_id=1)
+    CampaignRepository().create_campaign(name="Second campaign", system="D&D 5e 2014")
     other = entities.save_entity(Entity(name="Other campaign source"), campaign_id=2)
 
     with pytest.raises(LookupError, match="source entity"):
