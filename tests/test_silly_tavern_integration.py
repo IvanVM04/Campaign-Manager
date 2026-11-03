@@ -3502,3 +3502,64 @@ def test_first_external_turn_must_use_version_one(
             external_turn_id="first-turn-v2",
             turn_version=2,
         )
+
+
+def test_turn_persistence_failure_restores_shared_in_memory_world(
+    client,
+    monkeypatch,
+):
+    import copy
+    import app
+
+    from operations.world_operations import CreateEntityOperation
+    from services.silly_tavern_integration_service import (
+        SillyTavernIntegrationServiceError,
+    )
+
+    service = (
+        app.runtime_factory.get_runtime(1)
+        .silly_tavern_integration_service
+    )
+
+    world_service = service.world_service
+    world_service.load()
+
+    original_world = world_service.get_world()
+    original_snapshot = copy.deepcopy(original_world)
+    operation = CreateEntityOperation(
+        name="Must not remain in memory",
+        entity_type="npc",
+        description="Used to verify rollback after turn persistence fails.",
+    )
+
+    monkeypatch.setattr(
+        service.extractor,
+        "extract",
+        lambda narrative, context: [operation],
+    )
+
+    def fail_save_turn(*args, **kwargs):
+        raise RuntimeError("forced turn persistence failure")
+
+    monkeypatch.setattr(
+        service.turn_repository,
+        "save_turn",
+        fail_save_turn,
+    )
+
+    with pytest.raises(SillyTavernIntegrationServiceError):
+        service.process_turn(
+            player_input="Creo un NPC.",
+            narrative="Aparece un NPC.",
+            external_turn_id="memory-rollback-after-save-failure",
+            turn_version=1,
+        )
+
+    assert world_service.world is original_world
+    assert original_world.entities == original_snapshot.entities
+    assert original_world.items == original_snapshot.items
+    assert original_world.item_instances == original_snapshot.item_instances
+    assert original_world.resources == original_snapshot.resources
+    assert original_world.resource_balances == original_snapshot.resource_balances
+    assert original_world.relations == original_snapshot.relations
+    assert original_world.events == original_snapshot.events
