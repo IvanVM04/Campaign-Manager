@@ -14,6 +14,7 @@ from services.llm_world_extractor import (
     LLMExtractionError,
     LLMWorldExtractor,
 )
+from services.operation_parser import OperationParser
 
 
 class FakeOperation(WorldOperation):
@@ -930,13 +931,22 @@ def test_prompt_documents_all_supported_operations():
 
 
 def test_extractor_rejects_character_hp_operations_from_narrative():
-    operation = ChangeCharacterHpOperation(
-        entity_id=1,
-        amount=-7,
+    provider = FakeProvider(
+        json.dumps(
+            {
+                "operations": [
+                    {
+                        "type": "change_character_hp",
+                        "entity_id": 1,
+                        "amount": -7,
+                    }
+                ]
+            }
+        )
     )
     extractor = LLMWorldExtractor(
-        provider=FakeProvider('{"operations": []}'),
-        operation_parser=FakeParser(operations=[operation]),
+        provider=provider,
+        operation_parser=OperationParser(),
     )
 
     with pytest.raises(
