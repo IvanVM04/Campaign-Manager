@@ -4,6 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+from models.campaign_scope import CampaignScope
+
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.schemas import (
@@ -1874,7 +1876,8 @@ def test_e2e_silly_tavern_turn_persists_world_change(
     persisted_turn = (
         turn_repository.get_active_by_external_turn_id(
             "e2e-test-turn-001",
-        )
+        
+            scope=CampaignScope(1),)
     )
 
     assert persisted_turn is not None
@@ -3277,7 +3280,8 @@ def test_integration_service_returns_active_external_turn_state(
             status="active",
             snapshot=None,
         )
-    )
+    
+        scope=CampaignScope(1),)
 
     result = (
         service.get_external_turn_state(
@@ -3336,7 +3340,8 @@ def test_integration_service_rejects_non_sequential_turn_version(
     active_turn = (
         turn_repository.get_active_by_external_turn_id(
             "sequential-version-test"
-        )
+        
+            scope=CampaignScope(1),)
     )
 
     assert active_turn is not None
@@ -3395,7 +3400,8 @@ def test_integration_service_allows_next_sequential_version(
     active_turn = (
         turn_repository.get_active_by_external_turn_id(
             "sequential-version-test-2"
-        )
+        
+            scope=CampaignScope(1),)
     )
 
     assert active_turn is not None
