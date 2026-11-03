@@ -198,7 +198,7 @@ def test_integration_context_endpoint_returns_context(
         }
 
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.get_context",
+        "app.runtime_factory.get_runtime(1).silly_tavern_integration_service.get_context",
         fake_get_context,
     )
 
@@ -629,7 +629,7 @@ def test_integration_service_passes_silly_tavern_narrative_to_extractor(
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: turn,
+        lambda turn, *, scope=None, conn=None: turn,
     )
 
     monkeypatch.setattr(
@@ -980,7 +980,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
 
     service = __import__(
         "app"
-    ).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_process_turn = service.process_turn
 
@@ -2705,7 +2705,7 @@ def test_turn_persists_after_world_service_restart(
     )
     from services.world_service import WorldService
 
-    service = __import__("app").silly_tavern_integration_service
+    service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "restart-persistence-test"
 
@@ -2803,15 +2803,10 @@ def test_turn_persists_after_world_service_restart(
     # 3. SIMULAR REINICIO DE LA APLICACIÓN
     # =========================================================
 
-    restarted_world_service = WorldService()
-    restarted_world_service.load()
-
-    # Sustituimos el singleton utilizado por la aplicación
-    # por una instancia completamente nueva.
-    monkeypatch.setattr(
-        __import__("app"),
-        "world_service",
-        restarted_world_service,
+    app_module = __import__("app")
+    app_module.runtime_factory.invalidate(1)
+    restarted_world_service = (
+        app_module.runtime_factory.get_runtime(1).world_service
     )
 
     # =========================================================
@@ -3088,7 +3083,9 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
             ),
         ]
 
-    from app import silly_tavern_integration_service
+    from app import runtime_factory
+
+    silly_tavern_integration_service = runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_extract = (
         silly_tavern_integration_service.extractor.extract
