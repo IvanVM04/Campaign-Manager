@@ -22,7 +22,7 @@ At the audited baseline, the repository tree contains 187 tracked files, includi
 - 88 files under `models/`, `operations/`, `repositories/`, `rules_engine/` and `services/` combined only when counting those application packages (this is a file-count inventory, not a measure of code size).
 - 75 Python test files under `tests/`.
 - 2 JavaScript test files in the SillyTavern integration.
-- 5 existing domain/architecture documents plus this new audit set.
+- 6 existing domain/architecture documents plus this new audit set.
 
 The principal packages are:
 
