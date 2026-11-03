@@ -172,6 +172,9 @@ def test_change_hp_preserves_character_state():
         wisdom=11,
         charisma=8,
         proficiency_bonus=2,
+        skill_proficiencies=frozenset({"stealth"}),
+        skill_expertise=frozenset({"stealth"}),
+        saving_throw_proficiencies=frozenset({"dexterity"}),
         metadata={
             "race": "Human",
         },
