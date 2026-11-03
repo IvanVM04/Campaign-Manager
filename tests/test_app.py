@@ -589,3 +589,33 @@ def test_update_campaign_trims_optional_text_fields(
     assert response.status_code == 200
     assert response.json()["tone"] == "heroic fantasy"
     assert response.json()["summary"] == "A short campaign summary."
+
+
+
+def test_readiness_reports_database_ready(client):
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "database": "ready",
+    }
+
+
+def test_readiness_returns_503_when_database_is_unavailable(
+    client,
+    monkeypatch,
+):
+    import database
+
+    def fail_get_conn():
+        raise OSError("private database path detail")
+
+    monkeypatch.setattr(database, "get_conn", fail_get_conn)
+
+    response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "database unavailable",
+    }
