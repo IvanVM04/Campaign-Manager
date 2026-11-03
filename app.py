@@ -27,6 +27,7 @@ from services.campaign_turn_service import (
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
+from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import (
@@ -195,6 +196,7 @@ def create_campaign_turn_service(
         dm_service=dm_service,
         world_service=world_service,
         extractor=extractor,
+        mechanics_adjudicator=MechanicsAdjudicator(provider, context_builder),
     )
 
     return CampaignTurnService(
@@ -486,6 +488,28 @@ def update_active_character(
 # ============================================================
 
 
+def _serialize_mechanics_result(mechanics_result):
+    if mechanics_result is None:
+        return None
+
+    decision = mechanics_result.decision
+    check = mechanics_result.check
+    roll = check.roll
+    return {
+        "decision": decision.decision.value,
+        "skill": decision.skill.value if decision.skill is not None else None,
+        "ability": check.ability.value,
+        "dc": check.dc,
+        "rolls": list(roll.rolls),
+        "selected": roll.selected,
+        "roll_mode": roll.mode.value,
+        "modifier": roll.modifier,
+        "total": check.total,
+        "success": check.success,
+        "reason": decision.reason,
+    }
+
+
 @app.post("/turn")
 def play_turn(data: TurnIn):
 
@@ -503,6 +527,7 @@ def play_turn(data: TurnIn):
     return {
         "narrative": result.narrative,
         "player_input": result.player_input,
+        "mechanics": _serialize_mechanics_result(getattr(result, "mechanics_result", None)),
         "operation_count": result.operation_count,
         "successful_operation_count": (
             result.successful_operation_count

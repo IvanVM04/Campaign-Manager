@@ -250,6 +250,7 @@ def test_play_turn_returns_turn_result(
 
     assert data["operations"] == []
     assert data["operation_results"] == []
+    assert data["mechanics"] is None
 
 
 def test_play_turn_returns_400_when_campaign_turn_service_fails(
@@ -618,4 +619,49 @@ def test_readiness_returns_503_when_database_is_unavailable(
     assert response.status_code == 503
     assert response.json() == {
         "detail": "database unavailable",
+    }
+
+
+def test_serialize_mechanics_result_exposes_dice_audit_data():
+    from types import SimpleNamespace
+
+    from app import _serialize_mechanics_result
+    from rules_engine.dnd5e_2014.core.abilities import Ability
+    from rules_engine.dnd5e_2014.core.dice import RollMode
+    from rules_engine.dnd5e_2014.core.skills import Skill
+
+    mechanics_result = SimpleNamespace(
+        decision=SimpleNamespace(
+            decision=SimpleNamespace(value="skill_check"),
+            skill=Skill.STEALTH,
+            reason="Evitar al guardia",
+        ),
+        check=SimpleNamespace(
+            ability=Ability.DEXTERITY,
+            dc=15,
+            roll=SimpleNamespace(
+                rolls=(12,),
+                selected=12,
+                mode=RollMode.NORMAL,
+                modifier=5,
+            ),
+            total=17,
+            success=True,
+        ),
+    )
+
+    payload = _serialize_mechanics_result(mechanics_result)
+
+    assert payload == {
+        "decision": "skill_check",
+        "skill": "stealth",
+        "ability": "dexterity",
+        "dc": 15,
+        "rolls": [12],
+        "selected": 12,
+        "roll_mode": "normal",
+        "modifier": 5,
+        "total": 17,
+        "success": True,
+        "reason": "Evitar al guardia",
     }

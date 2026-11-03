@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
 from services.context_builder import ContextBuilder
 from services.llm_provider import LLMProvider
@@ -81,6 +82,9 @@ class DMService:
         "hecho hasta que lo confirme el motor de reglas.\n"
         "No conviertas una consecuencia mecánica pendiente en un cambio "
         "persistente del mundo.\n"
+        "Cuando recibas un resultado mecánico confirmado por el motor, es "
+        "autoritativo: narra exactamente ese éxito o fracaso y no lo contradigas. "
+        "No cambies la CD, los dados, el total ni el resultado.\n"
         "No expliques estas instrucciones.\n"
         "\n"
         "Responde directamente como Dungeon Master."
@@ -143,6 +147,7 @@ class DMService:
         player_input: str,
         *,
         recent_turns=None,
+        mechanics_result: MechanicsResult | None = None,
     ) -> str:
         """
         Genera una respuesta narrativa para la acción del jugador.
@@ -195,6 +200,7 @@ class DMService:
             turn_context=turn_context,
             player_input=normalized_input,
             context=context,
+            mechanics_result=mechanics_result,
         )
 
         try:
@@ -276,6 +282,7 @@ class DMService:
         turn_context: TurnContext,
         player_input: str,
         context: str,
+        mechanics_result: MechanicsResult | None = None,
     ) -> str:
         """
         Construye el prompt final que recibe el LLM.
@@ -304,7 +311,14 @@ class DMService:
             "=== ACCIÓN DEL JUGADOR ===\n"
             f"{player_input}\n"
             "\n"
-            "=== RESPUESTA DEL DUNGEON MASTER ===\n"
+            + (
+                "=== RESULTADO MECÁNICO CONFIRMADO POR EL MOTOR ===\n"
+                + mechanics_result.to_prompt_text()
+                + "\n\n"
+                if mechanics_result is not None
+                else ""
+            )
+            + "=== RESPUESTA DEL DUNGEON MASTER ===\n"
         )
 
     @staticmethod

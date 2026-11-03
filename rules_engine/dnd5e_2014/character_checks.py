@@ -91,3 +91,32 @@ def saving_throw_for_character(
         disadvantage=disadvantage,
         situational_modifier=situational_modifier,
     )
+
+
+def raw_ability_check_for_character(
+    *,
+    character: CharacterState,
+    roller: DiceRoller,
+    ability: Ability,
+    dc: int,
+    advantage: bool = False,
+    disadvantage: bool = False,
+    situational_modifier: int = 0,
+) -> CheckResult:
+    """Resolve an unskilled ability check using the character's ability score."""
+    if not isinstance(character, CharacterState):
+        raise TypeError("character must be a CharacterState")
+    if not isinstance(ability, Ability):
+        raise TypeError("ability must be an Ability")
+
+    return ability_check(
+        roller=roller,
+        ability=ability,
+        ability_score=getattr(character, ABILITY_FIELDS[ability]),
+        dc=dc,
+        level=character.level,
+        proficient=False,
+        advantage=advantage,
+        disadvantage=disadvantage,
+        situational_modifier=situational_modifier,
+    )

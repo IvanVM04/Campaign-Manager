@@ -12,7 +12,7 @@ The first supported mechanics are:
 - Advantage and disadvantage.
 - Ability score modifiers.
 - Character proficiency bonus by level.
-- Ability checks, including proficiency and expertise.
+- Generic ability checks and skill checks, including proficiency and expertise.
 - Saving throws, including saving-throw proficiency.
 
 This is not yet a complete character sheet, combat engine, attack resolver,
@@ -52,14 +52,34 @@ ability modifier, proficiency applied, situational modifier, total, DC and
 success state. Narrative code should describe these results; it must not
 recalculate or override them.
 
+## Turn adjudication integration
+
+The campaign runtime now wires a structured `MechanicsAdjudicator` before
+narration. It may request no check, ask the player for clarification, or
+propose an ability check, skill check or saving throw. Its JSON response is
+strictly validated; unknown fields, unsupported skills/abilities and
+out-of-range DCs/modifiers are rejected.
+
+The adjudicator does not roll dice. The application resolves accepted checks
+through `DiceRoller` and the character-aware rules functions, then passes the
+immutable result (faces, selected die, modifier, total, DC and outcome) to
+`DMService` as authoritative context. A clarification stops the turn before
+narration, extraction or world mutation. The turn API also returns a structured
+`mechanics` object for clients.
+
+The LLM still proposes the DC and identifies the relevant test. This is a
+deliberate first integration boundary, not a claim that adjudication is fully
+deterministic. Future work should add rule-backed DC guidance, tool checks,
+contested checks and richer action adjudication. Until then, invalid or
+ambiguous model output fails closed instead of silently continuing.
+
 ## Boundaries
 
 - The ruleset is explicitly dnd5e_2014.
 - No 2024 rule text or mechanics are included.
-- The rules engine does not decide whether a check is warranted or choose a DC.
-  Those are adjudication decisions made by the DM/application layer.
+- The deterministic rules engine does not decide whether a check is warranted or choose a DC. The application adjudicator proposes these; the rules engine only resolves the accepted test.
 - The rules engine does not invent proficiency. Callers must supply whether a
   character is proficient for the specific check or save.
-- This foundation does not yet read or write CharacterState.
+- Character-aware ability checks, skill checks and saving throws now read CharacterState; broader character mechanics remain future work.
 - No rule content beyond the SRD-compatible mechanics above is copied into
   this project.
