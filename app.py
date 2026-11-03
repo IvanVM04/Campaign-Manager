@@ -226,7 +226,9 @@ _current_runtime: ContextVar[CampaignRuntime | None] = ContextVar(
 def _get_active_runtime() -> CampaignRuntime:
     runtime = _current_runtime.get()
     if runtime is None:
-        return runtime_factory.get_runtime(1)
+        raise RuntimeError(
+            "campaign runtime is only available inside an HTTP request"
+        )
     return runtime
 
 
@@ -237,8 +239,14 @@ class _RuntimeProxy:
         self._attribute = attribute
 
     def __getattr__(self, name: str):
-        runtime = _get_active_runtime()
-        return getattr(getattr(runtime, self._attribute), name)
+        # Resolve at invocation time to keep each call request-scoped and
+        # preserve monkeypatch compatibility in the test suite.
+        def dispatch(*args, **kwargs):
+            runtime = _get_active_runtime()
+            target = getattr(getattr(runtime, self._attribute), name)
+            return target(*args, **kwargs)
+
+        return dispatch
 
 
 campaign_repository = _RuntimeProxy("campaign_repository")
