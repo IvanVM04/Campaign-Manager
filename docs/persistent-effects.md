@@ -12,9 +12,11 @@ Effects can be `active`, `suspended`, or `removed`. Removed records are retained
 
 ## Duration and time
 
-This increment supports `permanent` (until explicitly removed) and `conditional` (until a described event is adjudicated and explicitly removed). The condition text is descriptive; it is not automatically evaluated.
+This increment supports `permanent`, `conditional`, and `campaign_time`. Permanent effects remain until explicitly removed. Conditional effects remain until a described event is adjudicated; their condition text is descriptive, not automatically evaluated. Campaign-time effects require a positive `duration_minutes` value and expire automatically when the campaign clock reaches their deadline.
 
-Campaign-time, round-based, and turn-based expiration are deliberately not accepted yet. The application does not have an authoritative campaign clock or a complete effect/turn integration. Those duration types must not be represented as if they expire automatically.
+Timed effects expose `duration_minutes`, `expires_at_minute`, and (after expiration) `expired_at_minute`. Expiration changes the domain status to `expired` while retaining the record for history. A separate timer table preserves compatibility with the original effect table and its campaign-scope constraints.
+
+Round-based and turn-based expiration are not accepted yet; they will be coordinated with encounter lifecycle separately.
 
 ## Sources and scope
 

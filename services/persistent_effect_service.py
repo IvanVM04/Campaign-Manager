@@ -5,16 +5,18 @@ from __future__ import annotations
 import sqlite3
 
 from database import get_conn
-from models.persistent_effect import EffectStatus, PersistentEffect
+from models.persistent_effect import EffectDurationType, EffectStatus, PersistentEffect
+from repositories.campaign_clock_repository import CampaignClockRepository
 
 
 class PersistentEffectService:
-    def __init__(self, *, repository, entity_repository, campaign_id: int) -> None:
+    def __init__(self, *, repository, entity_repository, campaign_id: int, clock_repository=None) -> None:
         if isinstance(campaign_id, bool) or not isinstance(campaign_id, int) or campaign_id < 1:
             raise ValueError("campaign_id must be a positive integer")
         self.repository = repository
         self.entity_repository = entity_repository
         self.campaign_id = campaign_id
+        self.clock_repository = clock_repository or CampaignClockRepository()
 
     def create(
         self,
@@ -29,6 +31,7 @@ class PersistentEffectService:
         source_reference: str | None = None,
         duration_type="permanent",
         duration_condition: str | None = None,
+        duration_minutes: int | None = None,
         level: int | None = None,
     ) -> PersistentEffect:
         effect = PersistentEffect(
@@ -43,6 +46,8 @@ class PersistentEffectService:
             source_reference=source_reference,
             duration_type=duration_type,
             duration_condition=duration_condition,
+            duration_minutes=duration_minutes,
+            expires_at_minute=(1 if EffectDurationType(duration_type) is EffectDurationType.CAMPAIGN_TIME else None),
             level=level,
         )
         with get_conn() as conn:
@@ -56,6 +61,25 @@ class PersistentEffectService:
             ) is None:
                 raise LookupError("source entity does not exist in this campaign")
             try:
+                if effect.duration_type is EffectDurationType.CAMPAIGN_TIME:
+                    clock = self.clock_repository.ensure(self.campaign_id, conn=conn)
+                    effect = PersistentEffect(
+                        campaign_id=effect.campaign_id,
+                        entity_id=effect.entity_id,
+                        effect_type=effect.effect_type,
+                        effect_key=effect.effect_key,
+                        name=effect.name,
+                        description=effect.description,
+                        source_type=effect.source_type,
+                        source_entity_id=effect.source_entity_id,
+                        source_reference=effect.source_reference,
+                        duration_type=effect.duration_type,
+                        duration_minutes=effect.duration_minutes,
+                        expires_at_minute=clock.elapsed_minutes + effect.duration_minutes,
+                        level=effect.level,
+                        id=effect.id,
+                        status=effect.status,
+                    )
                 return self.repository.create(effect, conn=conn)
             except sqlite3.IntegrityError as exc:
                 raise ValueError(str(exc)) from exc
@@ -85,8 +109,10 @@ class PersistentEffectService:
             )
             if current is None:
                 raise LookupError("effect does not exist in this campaign")
-            if current.status is EffectStatus.REMOVED and target_status is not EffectStatus.REMOVED:
-                raise ValueError("removed effects are terminal and cannot be reactivated")
+            if current.status in (EffectStatus.REMOVED, EffectStatus.EXPIRED) and target_status is not EffectStatus.REMOVED:
+                raise ValueError("inactive effects are terminal and cannot be reactivated")
+            if current.status is EffectStatus.EXPIRED:
+                return current
             if current.status is target_status:
                 return current
             self.repository.update_status(

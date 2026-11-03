@@ -30,10 +30,15 @@ class PersistentEffectRepository:
                 effect.effect_type.value, effect.effect_key, effect.name,
                 effect.description, effect.source_type.value,
                 effect.source_entity_id, effect.source_reference,
-                effect.duration_type.value, effect.duration_condition,
+                (\"permanent\" if effect.duration_type is EffectDurationType.CAMPAIGN_TIME else effect.duration_type.value), effect.duration_condition,
                 effect.level, effect.status.value,
             ),
         )
+        if effect.duration_type is EffectDurationType.CAMPAIGN_TIME:
+            conn.execute(
+                "INSERT INTO persistent_effect_timers (effect_id, campaign_id, duration_minutes, expires_at_minute) VALUES (?, ?, ?, ?)",
+                (effect.id, effect.campaign_id, effect.duration_minutes, effect.expires_at_minute),
+            )
         return self.get(effect.id, campaign_id=effect.campaign_id, conn=conn)
 
     def get(
@@ -43,7 +48,7 @@ class PersistentEffectRepository:
         campaign_id: int,
         conn: sqlite3.Connection | None = None,
     ) -> PersistentEffect | None:
-        query = "SELECT * FROM persistent_effects WHERE id = ? AND campaign_id = ?"
+        query = "SELECT pe.*, timer.duration_minutes AS timer_duration_minutes, timer.expires_at_minute, timer.expired_at_minute FROM persistent_effects pe LEFT JOIN persistent_effect_timers timer ON timer.effect_id = pe.id WHERE pe.id = ? AND pe.campaign_id = ?"
         params = (effect_id, campaign_id)
         if conn is None:
             row = one(query, params)
@@ -61,15 +66,18 @@ class PersistentEffectRepository:
         conn: sqlite3.Connection | None = None,
     ) -> list[PersistentEffect]:
         query = """
-            SELECT * FROM persistent_effects
-            WHERE campaign_id = ? AND entity_id = ?
+            SELECT pe.*, timer.duration_minutes AS timer_duration_minutes,
+                   timer.expires_at_minute, timer.expired_at_minute
+            FROM persistent_effects pe
+            LEFT JOIN persistent_effect_timers timer ON timer.effect_id = pe.id
+            WHERE pe.campaign_id = ? AND pe.entity_id = ?
         """
         params: tuple = (campaign_id, entity_id)
         if active_only:
-            query += " AND status = 'active'"
+            query += " AND pe.status = 'active'"
         elif not include_removed:
-            query += " AND status != 'removed'"
-        query += " ORDER BY created_at, id"
+            query += " AND pe.status != 'removed'"
+        query += " ORDER BY pe.created_at, pe.id"
         found = conn.execute(query, params).fetchall() if conn is not None else rows(query, params)
         return [self._row_to_model(dict(row)) for row in found]
 
@@ -96,8 +104,44 @@ class PersistentEffectRepository:
         )
         return cursor.rowcount == 1
 
+    def expire_due(self, campaign_id: int, elapsed_minutes: int, *, conn: sqlite3.Connection) -> int:
+        due = conn.execute(
+            """
+            SELECT timer.effect_id
+            FROM persistent_effect_timers timer
+            JOIN persistent_effects effect
+              ON effect.id = timer.effect_id AND effect.campaign_id = timer.campaign_id
+            WHERE timer.campaign_id = ? AND timer.expired_at_minute IS NULL
+              AND timer.expires_at_minute <= ? AND effect.status IN ('active', 'suspended')
+            """,
+            (campaign_id, elapsed_minutes),
+        ).fetchall()
+        if not due:
+            return 0
+        ids = [row["effect_id"] for row in due]
+        placeholders = ",".join("?" for _ in ids)
+        conn.execute(
+            f"UPDATE persistent_effects SET status = 'removed', removed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE campaign_id = ? AND id IN ({placeholders})",
+            (campaign_id, *ids),
+        )
+        conn.execute(
+            f"UPDATE persistent_effect_timers SET expired_at_minute = expires_at_minute WHERE campaign_id = ? AND effect_id IN ({placeholders}) AND expired_at_minute IS NULL",
+            (campaign_id, *ids),
+        )
+        return len(ids)
+
     @staticmethod
     def _row_to_model(row) -> PersistentEffect:
+        expired_at_minute = row["expired_at_minute"]
+        duration_minutes = row["timer_duration_minutes"]
+        duration_type = (
+            EffectDurationType.CAMPAIGN_TIME if duration_minutes is not None
+            else EffectDurationType(row["duration_type"])
+        )
+        status = (
+            EffectStatus.EXPIRED if expired_at_minute is not None
+            else EffectStatus(row["status"])
+        )
         return PersistentEffect(
             campaign_id=row["campaign_id"],
             entity_id=row["entity_id"],
@@ -108,11 +152,14 @@ class PersistentEffectRepository:
             source_type=EffectSourceType(row["source_type"]),
             source_entity_id=row["source_entity_id"],
             source_reference=row["source_reference"],
-            duration_type=EffectDurationType(row["duration_type"]),
+            duration_type=duration_type,
             duration_condition=row["duration_condition"],
+            duration_minutes=duration_minutes,
+            expires_at_minute=row["expires_at_minute"],
+            expired_at_minute=expired_at_minute,
             level=row["level"],
             id=row["id"],
-            status=EffectStatus(row["status"]),
+            status=status,
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             removed_at=row["removed_at"],

@@ -197,3 +197,109 @@ def test_database_rejects_exhaustion_without_level(isolated_database):
                     "Exhaustion", "unknown", "permanent", None,
                 ),
             )
+
+
+
+def test_campaign_time_effect_expires_at_exact_deadline_and_is_retained(isolated_database):
+    from services.campaign_clock_service import CampaignClockService
+
+    service, entities = build_service()
+    entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
+    effect = service.create(
+        entity_id=entity.id,
+        effect_type="condition",
+        effect_key="poisoned",
+        name="Veneno temporal",
+        duration_type="campaign_time",
+        duration_minutes=60,
+    )
+
+    assert effect.duration_type.value == "campaign_time"
+    assert effect.duration_minutes == 60
+    assert effect.expires_at_minute == 60
+    assert effect.status is EffectStatus.ACTIVE
+
+    clock = CampaignClockService(campaign_id=1)
+    clock.advance(minutes=59, expected_elapsed_minutes=0)
+    still_active = service.list_for_entity(entity.id)
+    assert len(still_active) == 1
+    assert still_active[0].status is EffectStatus.ACTIVE
+
+    clock.advance(minutes=1, expected_elapsed_minutes=59)
+    assert service.list_for_entity(entity.id) == []
+    history = service.list_for_entity(entity.id, include_removed=True)
+    assert len(history) == 1
+    assert history[0].status.value == "expired"
+    assert history[0].expired_at_minute == 60
+    assert history[0].removed_at is not None
+
+
+def test_suspended_campaign_time_effect_still_expires(isolated_database):
+    from services.campaign_clock_service import CampaignClockService
+
+    service, entities = build_service()
+    entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
+    effect = service.create(
+        entity_id=entity.id,
+        effect_type="narrative",
+        effect_key="temporary-mark",
+        name="Marca temporal",
+        duration_type="campaign_time",
+        duration_minutes=10,
+    )
+    service.set_status(effect.id, "suspended")
+
+    CampaignClockService(campaign_id=1).advance(
+        minutes=10, expected_elapsed_minutes=0
+    )
+    history = service.list_for_entity(entity.id, include_removed=True)
+    assert history[0].status.value == "expired"
+    assert history[0].expired_at_minute == 10
+
+
+def test_campaign_time_effect_expiration_rolls_back_with_clock_on_failure(isolated_database, monkeypatch):
+    from database import get_conn
+    from repositories.persistent_effect_repository import PersistentEffectRepository
+    from services.campaign_clock_service import CampaignClockService
+
+    service, entities = build_service()
+    entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
+    effect = service.create(
+        entity_id=entity.id,
+        effect_type="condition",
+        effect_key="frightened",
+        name="Miedo temporal",
+        duration_type="campaign_time",
+        duration_minutes=5,
+    )
+
+    def fail_expiration(self, campaign_id, elapsed_minutes, *, conn):
+        raise RuntimeError("simulated expiration failure")
+
+    monkeypatch.setattr(PersistentEffectRepository, "expire_due", fail_expiration)
+    with pytest.raises(RuntimeError, match="simulated expiration failure"):
+        CampaignClockService(campaign_id=1).advance(
+            minutes=5, expected_elapsed_minutes=0
+        )
+
+    with get_conn() as conn:
+        clock = conn.execute(
+            "SELECT elapsed_minutes FROM campaign_clocks WHERE campaign_id = 1"
+        ).fetchone()
+    assert clock["elapsed_minutes"] == 0
+    assert service.list_for_entity(entity.id)[0].id == effect.id
+    assert service.list_for_entity(entity.id)[0].status is EffectStatus.ACTIVE
+
+
+def test_campaign_time_effect_requires_positive_duration(isolated_database):
+    service, entities = build_service()
+    entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
+    with pytest.raises(ValueError, match="duration_minutes"):
+        service.create(
+            entity_id=entity.id,
+            effect_type="condition",
+            effect_key="blinded",
+            name="Ceguera temporal",
+            duration_type="campaign_time",
+            duration_minutes=0,
+        )

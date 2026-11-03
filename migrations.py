@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 19
+CURRENT_VERSION = 20
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1149,6 +1149,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 19")
         version = 19
 
+    if version < 20:
+        migration_020(conn)
+        conn.execute("PRAGMA user_version = 20")
+        version = 20
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1473,6 +1478,20 @@ def migration_019(conn: sqlite3.Connection) -> None:
             INSERT OR IGNORE INTO campaign_clocks (campaign_id)
             SELECT id FROM campaign
         """)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+
+def migration_020(conn: sqlite3.Connection) -> None:
+    """Store campaign-time deadlines separately, preserving existing effect rows."""
+    conn.execute("BEGIN")
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS persistent_effect_timers (effect_id TEXT PRIMARY KEY, campaign_id INTEGER NOT NULL, duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0), expires_at_minute INTEGER NOT NULL CHECK (expires_at_minute > 0), expired_at_minute INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, CHECK (expired_at_minute IS NULL OR expired_at_minute >= expires_at_minute), FOREIGN KEY (effect_id) REFERENCES persistent_effects(id) ON DELETE CASCADE, FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_persistent_effect_timers_due ON persistent_effect_timers(campaign_id, expires_at_minute) WHERE expired_at_minute IS NULL")
+        conn.execute("CREATE TRIGGER IF NOT EXISTS trg_persistent_effect_timer_campaign BEFORE INSERT ON persistent_effect_timers FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM persistent_effects WHERE id = NEW.effect_id AND campaign_id = NEW.campaign_id) BEGIN SELECT RAISE(ABORT, 'timer campaign must match effect campaign'); END")
         conn.commit()
     except Exception:
         conn.rollback()

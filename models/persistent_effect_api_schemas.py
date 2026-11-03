@@ -24,6 +24,7 @@ class EffectSourceInput(str, Enum):
 class EffectDurationInput(str, Enum):
     PERMANENT = "permanent"
     CONDITIONAL = "conditional"
+    CAMPAIGN_TIME = "campaign_time"
 
 
 class EffectStatusInput(str, Enum):
@@ -41,14 +42,22 @@ class PersistentEffectCreateIn(BaseModel):
     source_reference: str | None = Field(default=None, min_length=1, max_length=240)
     duration_type: EffectDurationInput = "permanent"
     duration_condition: str | None = Field(default=None, min_length=1, max_length=500)
+    duration_minutes: StrictInt | None = Field(default=None, ge=1, le=525600)
     level: StrictInt | None = Field(default=None, ge=1, le=6)
 
     @model_validator(mode="after")
     def validate_effect_shape(self):
         if self.duration_type == "conditional" and not self.duration_condition:
             raise ValueError("conditional effects require duration_condition")
-        if self.duration_type == "permanent" and self.duration_condition is not None:
-            raise ValueError("permanent effects cannot define duration_condition")
+        if self.duration_type == "permanent" and (self.duration_condition is not None or self.duration_minutes is not None):
+            raise ValueError("permanent effects cannot define a duration")
+        if self.duration_type == "conditional" and self.duration_minutes is not None:
+            raise ValueError("conditional effects cannot define duration_minutes")
+        if self.duration_type == "campaign_time":
+            if self.duration_condition is not None or self.duration_minutes is None:
+                raise ValueError("campaign_time effects require duration_minutes only")
+        elif self.duration_minutes is not None:
+            raise ValueError("duration_minutes is only valid for campaign_time effects")
         if self.effect_type == "condition":
             from rules_engine.dnd5e_2014.combat.conditions import Condition
             try:
