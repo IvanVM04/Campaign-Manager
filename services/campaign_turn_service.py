@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import secrets
+import time
 
 from database import get_conn
 from models.campaign_scope import CampaignScope
@@ -184,6 +185,9 @@ class CampaignTurnService:
             pending = self._pending_manual_rolls.get(pending_roll_id)
             if pending is None:
                 raise CampaignTurnServiceError("manual roll request not found or expired")
+            if time.monotonic() - pending["created_at"] > 900:
+                self._pending_manual_rolls.pop(pending_roll_id, None)
+                raise CampaignTurnServiceError("manual roll request expired; retry the action")
             result = self._play_turn_planned_locked(
                 pending["player_input"],
                 decision_override=pending["decision"],
@@ -356,7 +360,16 @@ class CampaignTurnService:
                     "advantage": decision.advantage,
                     "disadvantage": decision.disadvantage,
                 }
+                now = time.monotonic()
+                self._pending_manual_rolls = {
+                    key: value
+                    for key, value in self._pending_manual_rolls.items()
+                    if now - value["created_at"] <= 900
+                }
+                if len(self._pending_manual_rolls) >= 100:
+                    raise CampaignTurnServiceError("too many pending manual rolls")
                 self._pending_manual_rolls[token] = {
+                    "created_at": now,
                     "player_input": normalized_input,
                     "decision": decision,
                     "context": initial_context,
