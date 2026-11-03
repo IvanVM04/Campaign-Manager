@@ -11,6 +11,12 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.mechanics import MechanicsDecision
+from rules_engine.dnd5e_2014.character_checks import ABILITY_FIELDS
+from rules_engine.dnd5e_2014.core.abilities import ability_modifier
+from rules_engine.dnd5e_2014.core.proficiency import (
+    proficiency_bonus_for_level,
+)
+from rules_engine.dnd5e_2014.core.skills import ability_for_skill
 from models.world_state import WorldState
 from repositories.turn_repository import TurnRepository
 from services.campaign_state_service import (
@@ -328,11 +334,6 @@ class CampaignTurnService:
                     raise CampaignTurnServiceError(
                         "manual roll is missing its decision or character"
                     )
-                from rules_engine.dnd5e_2014.character_checks import ABILITY_FIELDS
-                from rules_engine.dnd5e_2014.core.abilities import ability_modifier
-                from rules_engine.dnd5e_2014.core.proficiency import proficiency_bonus_for_level
-                from rules_engine.dnd5e_2014.core.skills import ability_for_skill
-
                 ability = decision.ability or (
                     ability_for_skill(decision.skill)
                     if decision.skill is not None
