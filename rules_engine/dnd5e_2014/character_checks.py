@@ -1,7 +1,5 @@
 """Character-aware ability checks for D&D 5e (2014)."""
 
-from __future__ import annotations
-
 from models.character_state import CharacterState
 from rules_engine.dnd5e_2014.checks import (
     CheckResult,
