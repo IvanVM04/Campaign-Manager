@@ -303,6 +303,12 @@ class CharacterCreate(BaseModel):
         le=6,
     )
 
+    skill_proficiencies: list[str] = Field(default_factory=list)
+
+    skill_expertise: list[str] = Field(default_factory=list)
+
+    saving_throw_proficiencies: list[str] = Field(default_factory=list)
+
     metadata: dict = Field(
         default_factory=dict,
     )
