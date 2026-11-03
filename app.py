@@ -486,6 +486,28 @@ def update_active_character(
 # ============================================================
 
 
+def _serialize_mechanics_result(mechanics_result):
+    if mechanics_result is None:
+        return None
+
+    decision = mechanics_result.decision
+    check = mechanics_result.check
+    roll = check.roll
+    return {
+        "decision": decision.decision.value,
+        "skill": decision.skill.value if decision.skill is not None else None,
+        "ability": check.ability.value,
+        "dc": check.dc,
+        "rolls": list(roll.rolls),
+        "selected": roll.selected,
+        "roll_mode": roll.mode.value,
+        "modifier": roll.modifier,
+        "total": check.total,
+        "success": check.success,
+        "reason": decision.reason,
+    }
+
+
 @app.post("/turn")
 def play_turn(data: TurnIn):
 
@@ -503,6 +525,7 @@ def play_turn(data: TurnIn):
     return {
         "narrative": result.narrative,
         "player_input": result.player_input,
+        "mechanics": _serialize_mechanics_result(result.mechanics_result),
         "operation_count": result.operation_count,
         "successful_operation_count": (
             result.successful_operation_count
