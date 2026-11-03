@@ -150,7 +150,7 @@ class CampaignRepository:
         end_location: str,
         notes: str,
         *,
-        campaign_id: int = 1,
+        campaign_id: int,
         conn=None,
     ):
         query = """
