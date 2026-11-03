@@ -124,6 +124,7 @@ class CampaignRepository:
         end_location: str,
         notes: str,
         *,
+        campaign_id: int = 1,
         conn=None,
     ):
         query = """
@@ -134,9 +135,10 @@ class CampaignRepository:
                     summary,
                     start_location,
                     end_location,
-                    notes
+                    notes,
+                    campaign_id
                 )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """
 
         params = (
@@ -146,6 +148,7 @@ class CampaignRepository:
             start_location,
             end_location,
             notes,
+            campaign_id,
         )
 
         if conn is None:
@@ -169,6 +172,7 @@ class CampaignRepository:
         self,
         session_id: int,
         *,
+        campaign_id: int | None = None,
         conn=None,
     ):
         query = """
@@ -176,17 +180,21 @@ class CampaignRepository:
             FROM sessions
             WHERE id=?
         """
+        params = (session_id,)
+        if campaign_id is not None:
+            query += " AND campaign_id=?"
+            params = (session_id, campaign_id)
 
         if conn is None:
             return one(
                 query,
-                (session_id,),
+                params,
             )
 
         return one_in_conn(
             conn,
             query,
-            (session_id,),
+            params,
         )
 
     def get_current_session(
@@ -212,6 +220,7 @@ class CampaignRepository:
 
         return self.get_session(
             session_id,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
