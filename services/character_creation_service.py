@@ -69,6 +69,9 @@ class CharacterCreationService:
                 wisdom=data.wisdom,
                 charisma=data.charisma,
                 proficiency_bonus=data.proficiency_bonus,
+                skill_proficiencies=data.skill_proficiencies,
+                skill_expertise=data.skill_expertise,
+                saving_throw_proficiencies=data.saving_throw_proficiencies,
                 metadata=data.metadata,
             )
 

@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 14
+CURRENT_VERSION = 15
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1024,6 +1024,31 @@ def migration_014(conn: sqlite3.Connection) -> None:
         raise
 
 
+
+def migration_015(conn: sqlite3.Connection) -> None:
+    """Persist D&D 5e skill, expertise and saving-throw proficiencies."""
+    conn.execute("BEGIN")
+    try:
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(character_states)")
+        }
+        additions = {
+            "skill_proficiencies": "TEXT NOT NULL DEFAULT '[]'",
+            "skill_expertise": "TEXT NOT NULL DEFAULT '[]'",
+            "saving_throw_proficiencies": "TEXT NOT NULL DEFAULT '[]'",
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                conn.execute(
+                    f"ALTER TABLE character_states ADD COLUMN {name} {definition}"
+                )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     version = conn.execute(
         "PRAGMA user_version"
@@ -1098,6 +1123,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         migration_014(conn)
         conn.execute("PRAGMA user_version = 14")
         version = 14
+
+    if version < 15:
+        migration_015(conn)
+        conn.execute("PRAGMA user_version = 15")
+        version = 15
 
     if version != CURRENT_VERSION:
         raise RuntimeError(

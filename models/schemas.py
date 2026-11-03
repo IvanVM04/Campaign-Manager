@@ -1,5 +1,8 @@
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from rules_engine.dnd5e_2014.core.abilities import Ability
+from rules_engine.dnd5e_2014.core.skills import Skill
 
 
 class CampaignCreate(BaseModel):
@@ -303,9 +306,27 @@ class CharacterCreate(BaseModel):
         le=6,
     )
 
+    skill_proficiencies: list[Skill] = Field(default_factory=list)
+
+    skill_expertise: list[Skill] = Field(default_factory=list)
+
+    saving_throw_proficiencies: list[Ability] = Field(default_factory=list)
+
     metadata: dict = Field(
         default_factory=dict,
     )
+
+    @model_validator(mode="after")
+    def validate_proficiencies(self):
+        if len(set(self.skill_proficiencies)) != len(self.skill_proficiencies):
+            raise ValueError("skill_proficiencies cannot contain duplicates")
+        if len(set(self.skill_expertise)) != len(self.skill_expertise):
+            raise ValueError("skill_expertise cannot contain duplicates")
+        if len(set(self.saving_throw_proficiencies)) != len(self.saving_throw_proficiencies):
+            raise ValueError("saving_throw_proficiencies cannot contain duplicates")
+        if not set(self.skill_expertise).issubset(self.skill_proficiencies):
+            raise ValueError("skill expertise requires skill proficiency")
+        return self
 
     @field_validator("name")
     @classmethod
