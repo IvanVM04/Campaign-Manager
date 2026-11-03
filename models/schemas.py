@@ -2,6 +2,21 @@
 from pydantic import BaseModel, Field, field_validator
 
 
+class CampaignCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    system: str = Field(default="D&D 5e 2014", min_length=1, max_length=100)
+    tone: str = Field(default="", max_length=100)
+    summary: str = Field(default="", max_length=5000)
+
+    @field_validator("name", "system")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("value must not be empty")
+        return value
+
+
 class CampaignUpdate(BaseModel):
     name: str | None = Field(
         default=None,

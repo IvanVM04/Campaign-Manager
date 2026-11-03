@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.schemas import (
@@ -19,6 +20,7 @@ from services.silly_tavern_integration_service import (
     SillyTavernIntegrationServiceConflictError,
 )
 from services.turn_execution_lock import TurnExecutionLock
+from services.world_service import WorldService
 
 # ============================================================
 # SCHEMAS
@@ -561,13 +563,13 @@ def test_integration_service_does_not_generate_narrative(
     monkeypatch.setattr(
         turn_repository,
         "list_recent_turns",
-        lambda session_id=None, limit=10: [],
+        lambda session_id=None, limit=10, scope=None: [],
     )
 
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: turn,
+        lambda turn, *, scope=None, conn=None: turn,
     )
 
     monkeypatch.setattr(
@@ -628,7 +630,7 @@ def test_integration_service_passes_silly_tavern_narrative_to_extractor(
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: turn,
+        lambda turn, *, scope=None, conn=None: turn,
     )
 
     monkeypatch.setattr(
@@ -725,7 +727,7 @@ def test_integration_service_applies_extracted_operations(
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: (
+        lambda turn, *, scope=None, conn=None: (
             captured.__setitem__(
                 "save_conn",
                 conn,
@@ -870,7 +872,7 @@ def test_integration_service_preserves_operation_order(
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: turn,
+        lambda turn, *, scope=None, conn=None: turn,
     )
 
     service.process_turn(
@@ -979,7 +981,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
 
     service = __import__(
         "app"
-    ).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_process_turn = service.process_turn
 
@@ -1353,7 +1355,7 @@ def test_exact_retry_returns_persisted_turn_without_running_extractor(
 
     service = __import__(
         "app"
-    ).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "retry-test-turn"
 
@@ -1467,7 +1469,7 @@ def test_same_turn_version_with_different_content_returns_conflict(
 
     service = __import__(
         "app"
-    ).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "conflict-test-turn"
 
@@ -1602,9 +1604,8 @@ def test_concurrent_exact_retries_persist_only_one_turn(
 
         return []
 
-    extractor = (
-        app.silly_tavern_integration_service.extractor
-    )
+    service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
+    extractor = service.extractor
 
     monkeypatch.setattr(
         extractor,
@@ -1621,7 +1622,7 @@ def test_concurrent_exact_retries_persist_only_one_turn(
 
     def send_request():
         return (
-            app.silly_tavern_integration_service.process_turn(
+            service.process_turn(
                 player_input=payload["player_input"],
                 narrative=payload["narrative"],
                 external_turn_id=payload["external_turn_id"],
@@ -1874,6 +1875,8 @@ def test_e2e_silly_tavern_turn_persists_world_change(
     persisted_turn = (
         turn_repository.get_active_by_external_turn_id(
             "e2e-test-turn-001",
+        
+            scope=CampaignScope(1),
         )
     )
 
@@ -2135,7 +2138,6 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
     from repositories.entity_repository import (
         EntityRepository,
     )
-    from services.world_service import WorldService
 
     entity_repository = EntityRepository()
     character_repository = CharacterRepository()
@@ -2424,7 +2426,7 @@ def test_failed_regeneration_rolls_back_snapshot_restore(
 
     service = __import__(
         "app"
-    ).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = (
         "failed-regeneration-test"
@@ -2700,9 +2702,8 @@ def test_turn_persists_after_world_service_restart(
     from operations.world_operations import (
         CreateEntityOperation,
     )
-    from services.world_service import WorldService
 
-    service = __import__("app").silly_tavern_integration_service
+    service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     external_turn_id = "restart-persistence-test"
 
@@ -2800,15 +2801,10 @@ def test_turn_persists_after_world_service_restart(
     # 3. SIMULAR REINICIO DE LA APLICACIÓN
     # =========================================================
 
-    restarted_world_service = WorldService()
-    restarted_world_service.load()
-
-    # Sustituimos el singleton utilizado por la aplicación
-    # por una instancia completamente nueva.
-    monkeypatch.setattr(
-        __import__("app"),
-        "world_service",
-        restarted_world_service,
+    app_module = __import__("app")
+    app_module.runtime_factory.invalidate(1)
+    restarted_world_service = (
+        app_module.runtime_factory.get_runtime(1).world_service
     )
 
     # =========================================================
@@ -2883,7 +2879,7 @@ def test_silly_tavern_context_turn_context_e2e(
         CreateEntityOperation,
     )
 
-    service = app.silly_tavern_integration_service
+    service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     created_entity_operation = CreateEntityOperation(
         name="NPC del contexto",
@@ -3010,7 +3006,7 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
     # Arrange
     # ========================================================
 
-    campaign = campaign_repository.get_campaign()
+    campaign = campaign_repository.get_campaign(1)
     assert campaign is not None
 
     entity = entity_repository.save_entity(
@@ -3085,7 +3081,9 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
             ),
         ]
 
-    from app import silly_tavern_integration_service
+    from app import runtime_factory
+
+    silly_tavern_integration_service = runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_extract = (
         silly_tavern_integration_service.extractor.extract
@@ -3276,7 +3274,9 @@ def test_integration_service_returns_active_external_turn_state(
             version=4,
             status="active",
             snapshot=None,
-        )
+        ),
+    
+        scope=CampaignScope(1),
     )
 
     result = (
@@ -3335,7 +3335,9 @@ def test_integration_service_rejects_non_sequential_turn_version(
 
     active_turn = (
         turn_repository.get_active_by_external_turn_id(
-            "sequential-version-test"
+            "sequential-version-test",
+        
+            scope=CampaignScope(1),
         )
     )
 
@@ -3394,7 +3396,9 @@ def test_integration_service_allows_next_sequential_version(
 
     active_turn = (
         turn_repository.get_active_by_external_turn_id(
-            "sequential-version-test-2"
+            "sequential-version-test-2",
+        
+            scope=CampaignScope(1),
         )
     )
 
@@ -3405,7 +3409,7 @@ def test_regeneration_extracts_against_state_before_previous_version(
     client,
     monkeypatch,
 ):
-    service = __import__("app").silly_tavern_integration_service
+    service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     seen_entities = []
 
@@ -3485,7 +3489,7 @@ def test_first_external_turn_must_use_version_one(
     monkeypatch.setattr(
         turn_repository,
         "get_active_by_external_turn_id",
-        lambda external_turn_id, *, conn=None: None,
+        lambda external_turn_id, *, scope=None, conn=None: None,
     )
 
     with pytest.raises(

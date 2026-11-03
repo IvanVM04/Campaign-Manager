@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from database import get_conn
+from models.campaign_scope import CampaignScope
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.session_state import SessionState
@@ -62,6 +63,7 @@ class CampaignStateService:
         character_repository: CharacterRepository,
         entity_repository: EntityRepository,
         world_service: WorldService,
+        campaign_id: int | None = None,
     ) -> None:
 
         if not isinstance(
@@ -100,20 +102,36 @@ class CampaignStateService:
         self.character_repository = character_repository
         self.world_service = world_service
         self.entity_repository = entity_repository
+        self.campaign_id = (
+            world_service.campaign_id
+            if campaign_id is None
+            else campaign_id
+        )
+        CampaignScope(self.campaign_id)
 
     # ============================================================
     # PUBLIC API
     # ============================================================
 
+    def _resolve_campaign_id(self, campaign_id: int | None) -> int:
+        resolved = self.campaign_id if campaign_id is None else campaign_id
+        CampaignScope(resolved)
+        if resolved != self.campaign_id:
+            raise ValueError(
+                "campaign_id does not match this CampaignStateService scope"
+            )
+        return resolved
+
     def get_state(
         self,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
     ) -> CampaignState:
         """
         Devuelve el estado persistido de alto nivel
         de la campaña.
         """
 
+        campaign_id = self._resolve_campaign_id(campaign_id)
         campaign = self.campaign_repository.get_campaign(
             campaign_id
         )
@@ -147,7 +165,7 @@ class CampaignStateService:
     def set_active_character(
         self,
         character_id: int | None,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
     ) -> CampaignState:
         """
         Establece o elimina el personaje activo.
@@ -155,6 +173,7 @@ class CampaignStateService:
         Si se proporciona un ID, el personaje debe existir.
         """
 
+        campaign_id = self._resolve_campaign_id(campaign_id)
         if character_id is not None:
 
             character = self.character_repository.get_character(
@@ -181,7 +200,7 @@ class CampaignStateService:
     def set_current_session(
         self,
         session_id: int | None,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
     ) -> CampaignState:
         """
         Establece o elimina la sesión actual.
@@ -189,11 +208,13 @@ class CampaignStateService:
         Si se proporciona un ID, la sesión debe existir.
         """
 
+        campaign_id = self._resolve_campaign_id(campaign_id)
         if session_id is not None:
 
             session = (
                 self.campaign_repository.get_session(
-                    session_id
+                    session_id,
+                    campaign_id=campaign_id,
                 )
             )
 
@@ -274,11 +295,12 @@ class CampaignStateService:
 
     def get_turn_context(
         self,
-        campaign_id: int = 1,
+        campaign_id: int | None = None,
         *,
         conn=None,
     ) -> TurnContext:
 
+        campaign_id = self._resolve_campaign_id(campaign_id)
         if conn is None:
             with get_conn() as owned_conn:
                 return self._get_turn_context(

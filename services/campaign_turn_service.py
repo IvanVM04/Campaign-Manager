@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 
 from database import get_conn
+from models.campaign_scope import CampaignScope
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -97,6 +98,7 @@ class CampaignTurnService:
         )
 
         self.world_service = world_service
+        self.campaign_scope = CampaignScope(world_service.campaign_id)
 
         self.campaign_state_service = (
             campaign_state_service
@@ -209,6 +211,7 @@ class CampaignTurnService:
                         turn_context = (
                             self.campaign_state_service
                             .get_turn_context(
+                                campaign_id=self.campaign_scope.campaign_id,
                                 conn=conn,
                             )
                         )
@@ -294,6 +297,7 @@ class CampaignTurnService:
                             self.turn_repository.list_recent_turns(
                                 session_id=session_id,
                                 limit=10,
+                                scope=self.campaign_scope,
                                 conn=conn,
                             )
                         )
@@ -435,6 +439,7 @@ class CampaignTurnService:
                                 result.world_changed
                             ),
                         ),
+                        scope=self.campaign_scope,
                         conn=conn,
                     )
 
@@ -560,7 +565,7 @@ class CampaignTurnService:
 
             try:
                 turn_context = (
-                    self.campaign_state_service.get_turn_context()
+                    self.campaign_state_service.get_turn_context(campaign_id=self.campaign_scope.campaign_id)
                 )
 
             except CampaignStateServiceError as exc:

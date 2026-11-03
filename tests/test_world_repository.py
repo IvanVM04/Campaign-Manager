@@ -1389,11 +1389,13 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
 
         repository = WorldRepository()
 
+        from models.campaign_scope import CampaignScope
         from repositories.world_snapshot_repository import (
             WorldSnapshotRepository,
         )
 
         snapshot_repository = WorldSnapshotRepository()
+        scope = CampaignScope(1)
 
         # --------------------------------------------------------
         # ESTADO A
@@ -1419,7 +1421,7 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
         # --------------------------------------------------------
 
         with database.get_conn() as conn:
-            snapshot = snapshot_repository.create_snapshot(conn)
+            snapshot = snapshot_repository.create_snapshot(conn, scope=scope)
 
         # --------------------------------------------------------
         # ESTADO B
@@ -1462,6 +1464,7 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
             snapshot_repository.restore_snapshot(
                 conn,
                 snapshot,
+                scope=scope,
             )
 
             # IMPORTANTE:
@@ -1619,5 +1622,96 @@ def test_world_repository_rejects_cross_campaign_id_collision(
         campaign_two_loaded = repository.load_world(campaign_id=2)
         assert campaign_two_loaded.entities == {}
 
+    finally:
+        database.DB_PATH = original_db_path
+
+
+
+def test_restore_snapshot_does_not_modify_other_campaign(tmp_path):
+    from models.campaign_scope import CampaignScope
+    from repositories.world_snapshot_repository import (
+        WorldSnapshotRepository,
+    )
+
+    original_db_path = database.DB_PATH
+    database.DB_PATH = tmp_path / "test_snapshot_isolation.db"
+
+    try:
+        init_db()
+
+        with database.get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO campaign (id, name, system)
+                VALUES (2, 'Second campaign', 'D&D 5e 2014')
+                """
+            )
+
+        world_repository = WorldRepository()
+        snapshot_repository = WorldSnapshotRepository()
+        scope_one = CampaignScope(1)
+
+        world_one = WorldState(
+            entities={
+                1: Entity(
+                    id=1,
+                    name="Campaign One",
+                    entity_type="npc",
+                    description="Original state",
+                    notes="",
+                    active=True,
+                )
+            }
+        )
+        world_two = WorldState(
+            entities={
+                2: Entity(
+                    id=2,
+                    name="Campaign Two",
+                    entity_type="npc",
+                    description="Must remain untouched",
+                    notes="",
+                    active=True,
+                )
+            }
+        )
+
+        world_repository.save_world(world_one, campaign_id=1)
+        world_repository.save_world(world_two, campaign_id=2)
+
+        with database.get_conn() as conn:
+            snapshot = snapshot_repository.create_snapshot(
+                conn,
+                scope=scope_one,
+            )
+
+        changed_world_one = WorldState(
+            entities={
+                1: Entity(
+                    id=1,
+                    name="Campaign One",
+                    entity_type="npc",
+                    description="Changed state",
+                    notes="",
+                    active=True,
+                )
+            }
+        )
+        world_repository.save_world(changed_world_one, campaign_id=1)
+
+        with database.get_conn() as conn:
+            snapshot_repository.restore_snapshot(
+                conn,
+                snapshot,
+                scope=scope_one,
+            )
+
+        restored_one = world_repository.load_world(campaign_id=1)
+        untouched_two = world_repository.load_world(campaign_id=2)
+
+        assert restored_one.entities[1].description == "Original state"
+        assert untouched_two.entities[2].description == (
+            "Must remain untouched"
+        )
     finally:
         database.DB_PATH = original_db_path

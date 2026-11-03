@@ -114,6 +114,7 @@ def test_get_turns_filters_by_session_and_limit(
         *,
         session_id=None,
         limit=None,
+        scope=None,
     ):
         calls.append(
             {
@@ -154,6 +155,7 @@ def test_get_turns_uses_default_limit(
         *,
         session_id=None,
         limit=None,
+        scope=None,
     ):
         calls.append(
             {
@@ -413,25 +415,21 @@ def test_play_turn_accepts_player_input_at_maximum_length(
     assert calls == ["A" * 10000]
 
 def test_application_services_share_same_turn_execution_lock():
-    from app import (
-        campaign_turn_service,
-        silly_tavern_integration_service,
-        turn_execution_lock,
-    )
+    from app import runtime_factory
 
+    runtime = runtime_factory.get_runtime(1)
     assert (
-        campaign_turn_service.turn_execution_lock
-        is turn_execution_lock
+        runtime.campaign_turn_service.turn_execution_lock
+        is runtime.turn_execution_lock
     )
-
     assert (
-        silly_tavern_integration_service.turn_execution_lock
-        is turn_execution_lock
+        runtime.silly_tavern_integration_service.turn_execution_lock
+        is runtime.turn_execution_lock
     )
 
 def test_update_campaign_session_rejects_nonexistent_session(client):
     campaign_repository = CampaignRepository()
-    campaign_before = campaign_repository.get_campaign()
+    campaign_before = campaign_repository.get_campaign(1)
     assert campaign_before["current_session_id"] is None
     current_session_before = campaign_before["current_session_id"]
 
@@ -444,13 +442,14 @@ def test_update_campaign_session_rejects_nonexistent_session(client):
 
     assert response.status_code == 400
 
-    campaign_after = campaign_repository.get_campaign()
+    campaign_after = campaign_repository.get_campaign(1)
 
     assert campaign_after["current_session_id"] == current_session_before
 
 def test_world_endpoint_waits_for_turn_execution_lock(client):
-    from app import turn_execution_lock
+    from app import runtime_factory
 
+    turn_execution_lock = runtime_factory.get_runtime(1).turn_execution_lock
     turn_execution_lock._lock.acquire()
 
     try:
@@ -475,3 +474,83 @@ def test_world_endpoint_waits_for_turn_execution_lock(client):
 
     assert not thread.is_alive()
     assert result["response"].status_code == 200
+
+
+def test_campaign_header_is_required_for_campaign_endpoints():
+    from fastapi.testclient import TestClient
+
+    from app import app
+
+    response = TestClient(app).get("/campaign/state")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "X-Campaign-Id header is required"
+
+
+def test_campaign_header_rejects_unknown_campaign(client):
+    response = client.get(
+        "/campaign/state",
+        headers={"X-Campaign-Id": "999999"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_runtime_factory_builds_isolated_services_for_each_campaign(
+    isolated_database,
+):
+    from database import execute
+    from services.campaign_runtime import CampaignRuntimeFactory
+
+    execute(
+        "INSERT INTO campaign (id, name, system) VALUES (?, ?, ?)",
+        (2, "Second campaign", "D&D 5e 2014"),
+    )
+
+    factory = CampaignRuntimeFactory()
+    first = factory.get_runtime(1)
+    second = factory.get_runtime(2)
+
+    assert first is not second
+    assert first.scope.campaign_id == 1
+    assert second.scope.campaign_id == 2
+    assert first.world_service is not second.world_service
+    assert first.world_service.world is not second.world_service.world
+    assert first.turn_execution_lock is not second.turn_execution_lock
+    assert first.campaign_state_service.campaign_id == 1
+    assert second.campaign_state_service.campaign_id == 2
+
+
+def test_campaigns_can_be_created_and_selected(client):
+    created = client.post(
+        "/campaigns",
+        json={
+            "name": "Second campaign",
+            "system": "D&D 5e 2014",
+        },
+    )
+
+    assert created.status_code == 201
+    campaign = created.json()
+    assert campaign["id"] == 2
+    assert campaign["name"] == "Second campaign"
+
+    listed = client.get("/campaigns")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [1, 2]
+
+    selected = client.get(
+        "/campaign/state",
+        headers={"X-Campaign-Id": "2"},
+    )
+    assert selected.status_code == 200
+    assert selected.json()["campaign_id"] == 2
+
+
+
+def test_campaign_header_rejects_non_integer_campaign_id(client):
+    response = client.get(
+        "/campaign/state",
+        headers={"X-Campaign-Id": "not-an-id"},
+    )
+    assert response.status_code == 400

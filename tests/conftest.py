@@ -35,39 +35,12 @@ def isolated_database(tmp_path, monkeypatch):
     database.init_db()
 
     import app
-    from services.world_service import WorldService
-
-    test_world_service = WorldService()
-    test_world_service.load()
+    from services.campaign_runtime import CampaignRuntimeFactory
 
     monkeypatch.setattr(
         app,
-        "world_service",
-        test_world_service,
-    )
-
-    monkeypatch.setattr(
-        app.silly_tavern_integration_service,
-        "world_service",
-        test_world_service,
-    )
-
-    monkeypatch.setattr(
-        app.campaign_state_service,
-        "world_service",
-        test_world_service,
-    )
-
-    monkeypatch.setattr(
-        app.campaign_turn_service,
-        "world_service",
-        test_world_service,
-    )
-
-    monkeypatch.setattr(
-        app.campaign_turn_service.turn_resolution_service,
-        "world_service",
-        test_world_service,
+        "runtime_factory",
+        CampaignRuntimeFactory(),
     )
 
     yield
@@ -76,4 +49,7 @@ def isolated_database(tmp_path, monkeypatch):
 def client():
     import app
 
-    return TestClient(app.app)
+    return TestClient(
+        app.app,
+        headers={"X-Campaign-Id": "1"},
+    )

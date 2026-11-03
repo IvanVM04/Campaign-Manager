@@ -1,5 +1,6 @@
 import json
 
+from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.event import Event
@@ -57,7 +58,7 @@ class WorldSnapshotRepository:
         "character_states",
     )
 
-    def create_snapshot(self, conn) -> str:
+    def create_snapshot(self, conn, *, scope: CampaignScope) -> str:
         """
         Crea un snapshot JSON del estado actual.
 
@@ -65,11 +66,13 @@ class WorldSnapshotRepository:
         posteriormente aplicará el turno.
         """
 
+        self._validate_scope(scope)
         snapshot = {}
 
         for table in self.SNAPSHOT_TABLES:
             rows = conn.execute(
-                f"SELECT * FROM {table}"
+                f"SELECT * FROM {table} WHERE campaign_id = ?",
+                (scope.campaign_id,),
             ).fetchall()
 
             snapshot[table] = [
@@ -87,6 +90,8 @@ class WorldSnapshotRepository:
         self,
         conn,
         snapshot: str,
+        *,
+        scope: CampaignScope,
     ) -> None:
         """
         Restaura exactamente el estado contenido en el snapshot.
@@ -94,6 +99,8 @@ class WorldSnapshotRepository:
         Se utiliza para revertir una versión anterior de un turno
         antes de aplicar una nueva versión.
         """
+
+        self._validate_scope(scope)
 
         if not isinstance(snapshot, str):
             raise TypeError(
@@ -130,7 +137,8 @@ class WorldSnapshotRepository:
 
         for table in self.RESTORE_DELETE_ORDER:
             conn.execute(
-                f"DELETE FROM {table}"
+                f"DELETE FROM {table} WHERE campaign_id = ?",
+                (scope.campaign_id,),
             )
 
         # ------------------------------------------------------------
@@ -155,6 +163,15 @@ class WorldSnapshotRepository:
 
                 if not row:
                     continue
+
+                # Los snapshots históricos anteriores a multi-campaña
+                # no contienen campaign_id y pertenecen a la campaña 1.
+                row = dict(row)
+                row_campaign_id = row.setdefault("campaign_id", 1)
+                if row_campaign_id != scope.campaign_id:
+                    raise ValueError(
+                        f"Snapshot row in '{table}' belongs to a different campaign"
+                    )
 
                 columns = list(row.keys())
 
@@ -181,6 +198,11 @@ class WorldSnapshotRepository:
                         for column in columns
                     ],
                 )
+
+    @staticmethod
+    def _validate_scope(scope: CampaignScope) -> None:
+        if not isinstance(scope, CampaignScope):
+            raise TypeError("scope must be a CampaignScope")
 
     def load_snapshot_state(
         self,

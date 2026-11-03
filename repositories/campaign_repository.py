@@ -3,14 +3,40 @@ from database import (
     execute_in_conn,
     one,
     one_in_conn,
+    rows,
 )
 
 
 class CampaignRepository:
 
+    def list_campaigns(self):
+        return rows(
+            """
+            SELECT id, name, system, tone, summary
+            FROM campaign
+            ORDER BY id ASC
+            """
+        )
+
+    def create_campaign(
+        self,
+        name: str,
+        system: str = "D&D 5e 2014",
+        tone: str = "",
+        summary: str = "",
+    ):
+        campaign_id = execute(
+            """
+            INSERT INTO campaign (name, system, tone, summary)
+            VALUES (?, ?, ?, ?)
+            """,
+            (name, system, tone, summary),
+        )
+        return self.get_campaign(campaign_id)
+
     def get_campaign(
         self,
-        campaign_id: int = 1,
+        campaign_id: int,
         *,
         conn=None,
     ):
@@ -124,6 +150,7 @@ class CampaignRepository:
         end_location: str,
         notes: str,
         *,
+        campaign_id: int,
         conn=None,
     ):
         query = """
@@ -134,9 +161,10 @@ class CampaignRepository:
                     summary,
                     start_location,
                     end_location,
-                    notes
+                    notes,
+                    campaign_id
                 )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """
 
         params = (
@@ -146,6 +174,7 @@ class CampaignRepository:
             start_location,
             end_location,
             notes,
+            campaign_id,
         )
 
         if conn is None:
@@ -162,6 +191,7 @@ class CampaignRepository:
 
         return self.get_session(
             session_id,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
@@ -169,6 +199,7 @@ class CampaignRepository:
         self,
         session_id: int,
         *,
+        campaign_id: int,
         conn=None,
     ):
         query = """
@@ -176,22 +207,24 @@ class CampaignRepository:
             FROM sessions
             WHERE id=?
         """
+        query += " AND campaign_id=?"
+        params = (session_id, campaign_id)
 
         if conn is None:
             return one(
                 query,
-                (session_id,),
+                params,
             )
 
         return one_in_conn(
             conn,
             query,
-            (session_id,),
+            params,
         )
 
     def get_current_session(
         self,
-        campaign_id: int = 1,
+        campaign_id: int,
         *,
         conn=None,
     ):
@@ -212,6 +245,7 @@ class CampaignRepository:
 
         return self.get_session(
             session_id,
+            campaign_id=campaign_id,
             conn=conn,
         )
 
@@ -257,7 +291,7 @@ class CampaignRepository:
 
     def get_active_character_id(
         self,
-        campaign_id: int = 1,
+        campaign_id: int,
         *,
         conn=None,
     ) -> int | None:

@@ -22,6 +22,7 @@ const extensionName = 'campaign-manager';
 const defaultSettings = {
     enabled: true,
     backendUrl: 'http://127.0.0.1:8765',
+    campaignId: 1,
     contextQuery: 'Quiero conocer el estado actual de la campaña.',
 };
 
@@ -102,13 +103,7 @@ async function getCampaignManagerGenerationContext(
             {
                 method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    "Accept":
-                        "application/json",
-                },
+                headers: getCampaignHeaders(true),
 
                 body: JSON.stringify({
                     query: retrievalQuery,
@@ -409,6 +404,20 @@ function warn(...args) {
     );
 }
 
+function getCampaignHeaders(includeJson = false) {
+    const campaignId = Number(getSettings().campaignId);
+
+    if (!Number.isInteger(campaignId) || campaignId <= 0) {
+        throw new Error('Campaign ID must be a positive integer.');
+    }
+
+    return {
+        ...(includeJson ? { 'Content-Type': 'application/json' } : {}),
+        'Accept': 'application/json',
+        'X-Campaign-Id': String(campaignId),
+    };
+}
+
 function getSettings() {
     if (!extension_settings[extensionName]) {
         extension_settings[extensionName] = {
@@ -432,6 +441,12 @@ function getSettings() {
     ) {
         stored.backendUrl =
             defaultSettings.backendUrl;
+    }
+
+    if (!Number.isInteger(Number(stored.campaignId)) || Number(stored.campaignId) <= 0) {
+        stored.campaignId = defaultSettings.campaignId;
+    } else {
+        stored.campaignId = Number(stored.campaignId);
     }
 
     if (
@@ -507,6 +522,21 @@ function createSettingsUi() {
                 </div>
 
                 <div class="campaign-manager-setting">
+                    <label for="campaign-manager-campaign-id">
+                        Campaign ID
+                    </label>
+
+                    <input
+                        id="campaign-manager-campaign-id"
+                        type="number"
+                        min="1"
+                        step="1"
+                        class="text_pole"
+                        placeholder="1"
+                    >
+                </div>
+
+                <div class="campaign-manager-setting">
                     <label for="campaign-manager-query">
                         Context query
                     </label>
@@ -578,6 +608,10 @@ function bindSettingsUi() {
             'campaign-manager-query',
         );
 
+    const campaignIdElement = document.getElementById(
+        'campaign-manager-campaign-id',
+    );
+
     const testElement =
         document.getElementById(
             'campaign-manager-test',
@@ -587,6 +621,7 @@ function bindSettingsUi() {
         !enabledElement ||
         !urlElement ||
         !queryElement ||
+        !campaignIdElement ||
         !testElement
     ) {
         warn(
@@ -607,6 +642,8 @@ function bindSettingsUi() {
     queryElement.value =
         currentSettings.contextQuery;
 
+    campaignIdElement.value = String(currentSettings.campaignId);
+
     enabledElement.addEventListener(
         'change',
         () => {
@@ -626,6 +663,16 @@ function bindSettingsUi() {
             saveSettings();
         },
     );
+
+    campaignIdElement.addEventListener('change', () => {
+        const campaignId = Number(campaignIdElement.value);
+        if (!Number.isInteger(campaignId) || campaignId <= 0) {
+            campaignIdElement.value = String(currentSettings.campaignId);
+            return;
+        }
+        currentSettings.campaignId = campaignId;
+        saveSettings();
+    });
 
     queryElement.addEventListener(
         'change',
@@ -696,13 +743,7 @@ async function testConnection() {
                 {
                     method: 'POST',
 
-                    headers: {
-                        'Content-Type':
-                            'application/json',
-
-                        'Accept':
-                            'application/json',
-                    },
+                    headers: getCampaignHeaders(true),
 
                     body: JSON.stringify({
                         query: query,
@@ -945,10 +986,7 @@ async function getPersistedTurnState(
             {
                 method: 'GET',
 
-                headers: {
-                    'Accept':
-                        'application/json',
-                },
+                headers: getCampaignHeaders(),
             },
         );
 
@@ -1108,13 +1146,7 @@ async function sendTurnToBackend(
             {
                 method: 'POST',
 
-                headers: {
-                    'Content-Type':
-                        'application/json',
-
-                    'Accept':
-                        'application/json',
-                },
+                headers: getCampaignHeaders(true),
 
                 body: JSON.stringify(
                     payload,

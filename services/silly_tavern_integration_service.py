@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from database import get_conn
+from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
@@ -160,6 +161,7 @@ class SillyTavernIntegrationService:
         self.turn_repository = turn_repository
 
         self.world_snapshot_repository = WorldSnapshotRepository()
+        self.campaign_scope = CampaignScope(world_service.campaign_id)
 
 
     # ============================================================
@@ -186,7 +188,7 @@ class SillyTavernIntegrationService:
         try:
             turn_context = (
                 self.campaign_state_service
-                .get_turn_context()
+                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
             )
 
         except CampaignStateServiceError as exc:
@@ -221,6 +223,7 @@ class SillyTavernIntegrationService:
                 self.turn_repository.list_recent_active_turns(
                     session_id=session_id,
                     limit=10,
+                    scope=self.campaign_scope,
                 )
             )
 
@@ -303,6 +306,7 @@ class SillyTavernIntegrationService:
                     self.turn_repository
                     .get_active_by_external_turn_id(
                         normalized_external_turn_id,
+                        scope=self.campaign_scope,
                         conn=conn,
                     )
                 )
@@ -450,6 +454,7 @@ class SillyTavernIntegrationService:
                         self.turn_repository
                         .get_active_by_external_turn_id(
                             normalized_external_turn_id,
+                            scope=self.campaign_scope,
                             conn=conn,
                         )
                     )
@@ -514,7 +519,7 @@ class SillyTavernIntegrationService:
         try:
             turn_context = (
                 self.campaign_state_service
-                .get_turn_context()
+                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
             )
 
         except CampaignStateServiceError as exc:
@@ -772,6 +777,7 @@ class SillyTavernIntegrationService:
                         self.turn_repository
                         .get_active_by_external_turn_id(
                             normalized_external_turn_id,
+                            scope=self.campaign_scope,
                             conn=conn,
                         )
                     )
@@ -856,6 +862,7 @@ class SillyTavernIntegrationService:
                         self.world_snapshot_repository.restore_snapshot(
                             conn,
                             current_turn.snapshot,
+                            scope=self.campaign_scope,
                         )
 
                         self.world_service.load(
@@ -864,6 +871,7 @@ class SillyTavernIntegrationService:
 
                         self.turn_repository.supersede_turn(
                             current_turn.id,
+                            scope=self.campaign_scope,
                             conn=conn,
                         )
 
@@ -874,7 +882,8 @@ class SillyTavernIntegrationService:
 
                 snapshot = (
                     self.world_snapshot_repository.create_snapshot(
-                        conn
+                        conn,
+                        scope=self.campaign_scope,
                     )
                 )
 
@@ -886,7 +895,7 @@ class SillyTavernIntegrationService:
                     self.world_service.apply_turn_operations(
                         world_operations,
                         character_operations,
-                        campaign_id=1,
+                        campaign_id=self.campaign_scope.campaign_id,
                         conn=conn,
                         ordered_operations=normalized_operations,
                     )
@@ -956,6 +965,7 @@ class SillyTavernIntegrationService:
 
                     self.turn_repository.save_turn(
                         failed_turn,
+                        scope=self.campaign_scope,
                     )
 
                     return result
@@ -985,6 +995,7 @@ class SillyTavernIntegrationService:
                         status="active",
                         snapshot=snapshot,
                     ),
+                    scope=self.campaign_scope,
                     conn=conn,
                 )
 

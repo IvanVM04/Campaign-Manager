@@ -308,7 +308,15 @@ This keeps the project local and lightweight while still providing explicit sche
 
 ## API
 
-The application exposes a REST API through FastAPI.
+The application exposes a REST API through FastAPI. Every campaign-scoped endpoint requires the `X-Campaign-Id` request header. The `/`, `/health`, API documentation, CORS preflight and campaign listing/creation endpoints are exempt.
+
+Example:
+
+```http
+X-Campaign-Id: 2
+```
+
+The selected campaign is resolved to a dedicated `CampaignRuntime`, which owns its in-memory world, services and turn-execution lock. Requests without the header are rejected; the API never silently falls back to campaign 1. The SillyTavern extension exposes a **Campaign ID** setting and sends the header with every backend request.
 
 ### Basic
 
@@ -320,6 +328,8 @@ GET /health
 ### Campaign
 
 ```text
+GET   /campaigns
+POST  /campaigns
 PATCH /campaign
 PATCH /campaign/session
 GET   /campaign/state
@@ -419,7 +429,7 @@ pip install -r requirements.txt
 Install the development/test tools:
 
 ```bash
-pip install pytest httpx ruff
+pip install pytest "httpx2>=2.5" ruff
 ```
 
 The database will be initialized automatically when the application starts.
@@ -662,8 +672,9 @@ provides the necessary information to distinguish:
 
 Campaign Manager currently assumes a single Python process.
 
-The application keeps a shared `WorldState` in memory and uses a
-process-local `TurnExecutionLock` to serialize turn execution.
+Each campaign runtime keeps its own `WorldState` in memory and uses a
+campaign-local `TurnExecutionLock` to serialize turn execution. Runtime
+instances are cached by campaign ID within the single Python process.
 
 For this reason, the application must currently be run with a single
 Uvicorn worker.

@@ -1,9 +1,13 @@
-from fastapi import FastAPI, HTTPException, Query
+from contextvars import ContextVar
+
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from database import init_db
 from models.schemas import (
     ActiveCharacterUpdate,
+    CampaignCreate,
     CampaignSessionUpdate,
     CampaignUpdate,
     CharacterCreate,
@@ -13,15 +17,13 @@ from models.schemas import (
     TurnIn,
 )
 from repositories.campaign_repository import CampaignRepository
-from repositories.character_repository import CharacterRepository
-from repositories.entity_repository import EntityRepository
 from repositories.turn_repository import TurnRepository
+from services.campaign_runtime import CampaignRuntime, CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
 from services.campaign_turn_service import (
     CampaignTurnService,
     CampaignTurnServiceError,
 )
-from services.character_creation_service import CharacterCreationService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
@@ -31,7 +33,6 @@ from services.operation_parser import (
     OperationParser,
 )
 from services.silly_tavern_integration_service import (
-    SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
 )
@@ -206,62 +207,90 @@ def create_campaign_turn_service(
 
 
 # ============================================================
-# SINGLETON APPLICATION STATE
+# CAMPAIGN RUNTIME / REQUEST SCOPE
 # ============================================================
 
-world_service = create_world_service()
-
-campaign_repository = CampaignRepository()
-
-character_repository = CharacterRepository()
-
-entity_repository = EntityRepository()
-
-turn_repository = TurnRepository()
-
-campaign_state_service = CampaignStateService(
-    campaign_repository=campaign_repository,
-    character_repository=character_repository,
-    entity_repository=entity_repository,
-    world_service=world_service,
+runtime_factory = CampaignRuntimeFactory()
+_current_runtime: ContextVar[CampaignRuntime | None] = ContextVar(
+    "campaign_runtime",
+    default=None,
 )
 
-memory_search_service = MemorySearchService()
 
-context_builder = create_context_builder(
-    memory_search_service=memory_search_service,
+def _get_active_runtime() -> CampaignRuntime:
+    runtime = _current_runtime.get()
+    if runtime is None:
+        raise RuntimeError(
+            "campaign runtime is only available inside an HTTP request"
+        )
+    return runtime
+
+
+class _RuntimeProxy:
+    """Compatibilidad temporal: delega cada acceso al runtime de la petición."""
+
+    def __init__(self, attribute: str) -> None:
+        self._attribute = attribute
+
+    def __getattr__(self, name: str):
+        # Resolve at invocation time to keep each call request-scoped and
+        # preserve monkeypatch compatibility in the test suite.
+        def dispatch(*args, **kwargs):
+            runtime = _get_active_runtime()
+            target = getattr(getattr(runtime, self._attribute), name)
+            return target(*args, **kwargs)
+
+        return dispatch
+
+
+campaign_repository = _RuntimeProxy("campaign_repository")
+character_repository = _RuntimeProxy("character_repository")
+entity_repository = _RuntimeProxy("entity_repository")
+turn_repository = _RuntimeProxy("turn_repository")
+world_service = _RuntimeProxy("world_service")
+campaign_state_service = _RuntimeProxy("campaign_state_service")
+memory_search_service = _RuntimeProxy("memory_search_service")
+context_builder = _RuntimeProxy("context_builder")
+turn_execution_lock = _RuntimeProxy("turn_execution_lock")
+character_creation_service = _RuntimeProxy("character_creation_service")
+campaign_turn_service = _RuntimeProxy("campaign_turn_service")
+silly_tavern_integration_service = _RuntimeProxy(
+    "silly_tavern_integration_service"
 )
 
-turn_execution_lock = TurnExecutionLock()
 
-character_creation_service = CharacterCreationService(
-    campaign_repository=campaign_repository,
-    entity_repository=entity_repository,
-    character_repository=character_repository,
-)
+@app.middleware("http")
+async def bind_campaign_runtime(request: Request, call_next):
+    if request.method == "OPTIONS" or request.url.path in {"/", "/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
+        return await call_next(request)
 
-campaign_turn_service = create_campaign_turn_service(
-    world_service=world_service,
-    context_builder=context_builder,
-    campaign_state_service=campaign_state_service,
-    turn_repository=turn_repository,
-    turn_execution_lock=turn_execution_lock,
-)
+    raw_campaign_id = request.headers.get("X-Campaign-Id")
+    if raw_campaign_id is None:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "X-Campaign-Id header is required"},
+        )
 
-silly_tavern_integration_service = (
-    SillyTavernIntegrationService(
-        campaign_state_service=campaign_state_service,
-        context_builder=context_builder,
-        extractor=(
-            campaign_turn_service
-            .turn_resolution_service
-            .extractor
-        ),
-        world_service=world_service,
-        turn_repository=turn_repository,
-        turn_execution_lock=turn_execution_lock,
-    )
-)
+    try:
+        campaign_id = int(raw_campaign_id)
+        runtime = runtime_factory.get_runtime(campaign_id)
+    except (TypeError, ValueError):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "X-Campaign-Id must be a positive integer"},
+        )
+    except LookupError:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "campaign does not exist"},
+        )
+
+    token = _current_runtime.set(runtime)
+    try:
+        return await call_next(request)
+    finally:
+        _current_runtime.reset(token)
+
 
 # ============================================================
 # BASIC
@@ -288,13 +317,34 @@ def health():
 # CAMPAIGN
 # ============================================================
 
+@app.get("/campaigns")
+def list_campaigns():
+    return CampaignRepository().list_campaigns()
+
+
+@app.post("/campaigns", status_code=201)
+def create_campaign(data: CampaignCreate):
+    try:
+        return CampaignRepository().create_campaign(
+            name=data.name,
+            system=data.system,
+            tone=data.tone,
+            summary=data.summary,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="failed to create campaign",
+        ) from exc
+
+
 
 @app.patch("/campaign")
 def update_campaign(data: CampaignUpdate):
 
     with turn_execution_lock.acquire():
 
-        current = campaign_repository.get_campaign()
+        current = campaign_repository.get_campaign(_current_runtime.get().campaign_id)
 
         values = {
             "name": (
@@ -320,7 +370,7 @@ def update_campaign(data: CampaignUpdate):
         }
 
         return campaign_repository.update_campaign(
-            campaign_id=1,
+            campaign_id=_current_runtime.get().campaign_id,
             **values,
         )
 
@@ -357,7 +407,8 @@ def create_session(data: SessionIn):
 
     with turn_execution_lock.acquire():
         return campaign_repository.create_session(
-            **data.model_dump()
+            **data.model_dump(),
+            campaign_id=_current_runtime.get().campaign_id,
         )
 
 @app.get("/campaign/state")
@@ -470,6 +521,7 @@ def get_turns(
     turns = turn_repository.list_turns(
         session_id=session_id,
         limit=limit,
+        scope=_current_runtime.get().scope,
     )
 
     return [
@@ -793,13 +845,12 @@ def _serialize_operation_result(
 
 @app.post("/characters")
 def create_character(
-    campaign_id: str,
     data: CharacterCreate,
     activate: bool = True,
 ):
     try:
         character = character_creation_service.create_character(
-            campaign_id=campaign_id,
+            campaign_id=_current_runtime.get().campaign_id,
             data=data,
             activate=activate,
         )
@@ -816,18 +867,17 @@ def create_character(
 
 @app.post("/campaign/bootstrap")
 def bootstrap_campaign(
-    campaign_id: str,
     data: CharacterCreate,
 ):
     try:
         character = character_creation_service.create_character(
-            campaign_id=campaign_id,
+            campaign_id=_current_runtime.get().campaign_id,
             data=data,
             activate=True,
         )
 
         return {
-            "campaign_id": campaign_id,
+            "campaign_id": _current_runtime.get().campaign_id,
             "character": character,
             "active_character_id": character.entity_id,
         }
