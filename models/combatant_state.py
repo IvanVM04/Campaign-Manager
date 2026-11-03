@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
 
 
 @dataclass(frozen=True)
@@ -16,6 +18,7 @@ class CombatantState:
     entity_id: int | None = None
     is_player_character: bool = False
     conscious: bool = True
+    conditions: ConditionSet = field(default_factory=ConditionSet)
 
     def __post_init__(self) -> None:
         if not isinstance(self.combatant_id, str) or not self.combatant_id.strip():
@@ -44,6 +47,8 @@ class CombatantState:
             raise TypeError("is_player_character must be a boolean")
         if not isinstance(self.conscious, bool):
             raise TypeError("conscious must be a boolean")
+        if not isinstance(self.conditions, ConditionSet):
+            raise TypeError("conditions must be a ConditionSet")
 
     @property
     def defeated(self) -> bool:
