@@ -102,6 +102,8 @@ class PersistentEffectService:
 
     def set_status(self, effect_id: str, status: EffectStatus | str) -> PersistentEffect:
         target_status = EffectStatus(status)
+        if target_status is EffectStatus.EXPIRED:
+            raise ValueError("effect expiration is managed by the campaign clock")
         with get_conn() as conn:
             conn.execute("BEGIN IMMEDIATE")
             current = self.repository.get(
