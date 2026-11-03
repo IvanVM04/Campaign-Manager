@@ -131,6 +131,30 @@ class WorldSnapshotRepository:
                 + ", ".join(missing_tables)
             )
 
+        # Campaign pointers are not part of the world snapshot. Preserve
+        # their current values while restoring their target records, then
+        # revalidate them against the restored campaign state below.
+        campaign = conn.execute(
+            """
+            SELECT current_location_id, current_session_id,
+                   active_character_id
+            FROM campaign
+            WHERE id = ?
+            """,
+            (scope.campaign_id,),
+        ).fetchone()
+
+        if campaign is None:
+            raise LookupError(
+                f"campaign {scope.campaign_id} does not exist"
+            )
+
+        campaign_pointers = {
+            "current_location_id": campaign["current_location_id"],
+            "current_session_id": campaign["current_session_id"],
+            "active_character_id": campaign["active_character_id"],
+        }
+
         # ------------------------------------------------------------
         # DELETE CURRENT STATE
         # ------------------------------------------------------------
@@ -198,6 +222,52 @@ class WorldSnapshotRepository:
                         for column in columns
                     ],
                 )
+
+        # DELETE triggers (migration 014) may have cleared these pointers
+        # while their target rows were temporarily removed. Restore only
+        # pointers whose targets exist in the restored state.
+        restored_pointers = {}
+        pointer_targets = {
+            "current_location_id": ("entities", "id"),
+            "current_session_id": ("sessions", "id"),
+            "active_character_id": ("character_states", "entity_id"),
+        }
+
+        for pointer, (table, target_column) in pointer_targets.items():
+            target_id = campaign_pointers[pointer]
+            if target_id is None:
+                restored_pointers[pointer] = None
+                continue
+
+            exists = conn.execute(
+                f"""
+                SELECT 1
+                FROM {table}
+                WHERE {target_column} = ?
+                  AND campaign_id = ?
+                """,
+                (target_id, scope.campaign_id),
+            ).fetchone()
+
+            restored_pointers[pointer] = (
+                target_id if exists is not None else None
+            )
+
+        conn.execute(
+            """
+            UPDATE campaign
+            SET current_location_id = ?,
+                current_session_id = ?,
+                active_character_id = ?
+            WHERE id = ?
+            """,
+            (
+                restored_pointers["current_location_id"],
+                restored_pointers["current_session_id"],
+                restored_pointers["active_character_id"],
+                scope.campaign_id,
+            ),
+        )
 
     @staticmethod
     def _validate_scope(scope: CampaignScope) -> None:
