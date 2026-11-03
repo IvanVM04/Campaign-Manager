@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 13
+CURRENT_VERSION = 14
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -967,6 +967,63 @@ def migration_013(conn: sqlite3.Connection) -> None:
         raise
 
 
+
+def migration_014(conn: sqlite3.Connection) -> None:
+    """
+    Limpia los punteros de campaña cuando se elimina su registro objetivo.
+
+    Evita que current_location_id, current_session_id o
+    active_character_id queden apuntando a registros inexistentes.
+    """
+    conn.execute("BEGIN")
+
+    try:
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_campaign_clear_location_after_entity_delete
+            AFTER DELETE ON entities
+            FOR EACH ROW
+            BEGIN
+                UPDATE campaign
+                SET current_location_id = NULL
+                WHERE id = OLD.campaign_id
+                  AND current_location_id = OLD.id;
+            END
+        """)
+
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_campaign_clear_active_character_after_state_delete
+            AFTER DELETE ON character_states
+            FOR EACH ROW
+            BEGIN
+                UPDATE campaign
+                SET active_character_id = NULL
+                WHERE id = OLD.campaign_id
+                  AND active_character_id = OLD.entity_id;
+            END
+        """)
+
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_campaign_clear_session_after_session_delete
+            AFTER DELETE ON sessions
+            FOR EACH ROW
+            BEGIN
+                UPDATE campaign
+                SET current_session_id = NULL
+                WHERE id = OLD.campaign_id
+                  AND current_session_id = OLD.id;
+            END
+        """)
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     version = conn.execute(
         "PRAGMA user_version"
@@ -1036,6 +1093,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         migration_013(conn)
         conn.execute("PRAGMA user_version = 13")
         version = 13
+
+    if version < 14:
+        migration_014(conn)
+        conn.execute("PRAGMA user_version = 14")
+        version = 14
 
     if version != CURRENT_VERSION:
         raise RuntimeError(
