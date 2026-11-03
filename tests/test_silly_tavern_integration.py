@@ -3508,8 +3508,8 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     client,
     monkeypatch,
 ):
-    import copy
     import app
+    import copy
 
     from operations.world_operations import CreateEntityOperation
     from services.silly_tavern_integration_service import (
