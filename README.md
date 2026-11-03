@@ -1,10 +1,71 @@
 # D&D Campaign Manager
 
-Local backend for managing persistent **D&D 5e (2014)** campaign state and integrating an LLM-powered narrative workflow with **SillyTavern**.
+Campaign Manager is evolving from a persistent campaign-state backend into an **AI Dungeon Master application for D&D 5e**.
 
-The project separates narrative generation from world-state management: SillyTavern is responsible for generating the story, while Campaign Manager extracts structured changes from that narrative, validates them, applies them to the campaign state and persists the result in SQLite.
+The current implementation provides campaign state management, a REST API, structured world operations, memory/context retrieval, turn persistence and a SillyTavern integration. It is **not yet a complete D&D rules engine or a standalone AI Dungeon Master**. The product direction below describes the intended evolution; it must not be read as a claim that those future capabilities already exist.
 
-The goal is to maintain a consistent, persistent world across long-running campaigns while supporting operations such as character changes, items, resources, relationships and world events.
+## Product vision
+
+The goal is to let a player describe what their character wants to do in natural language and have an AI Dungeon Master interpret the intent, consult the campaign, adjudicate the situation, apply the relevant game rules, update the world and narrate the outcome.
+
+The application should own the campaign state and the turn-resolution workflow. The AI is responsible for interpretation, adjudication within the agreed rules, world direction and narration; deterministic application code is responsible for rule calculations, validation, permissions and persistence.
+
+### Table authority
+
+* **Player authority:** the player decides their player character's intentions, actions, dialogue and choices.
+* **Dungeon Master authority:** the AI DM controls the world, environment, events, and NPCs that have not explicitly been delegated to a player.
+* **Rules authority:** the rules engine resolves mechanical outcomes. The DM may adjudicate circumstances and call for appropriate checks, but generated narration must not override a mechanical result.
+* **Application authority:** the application validates and persists state changes. An LLM must never write directly to the database or bypass domain validation.
+
+A player may be allowed to portray or control selected NPCs, but this does not grant authority over the rest of the world or over facts those NPCs could not know.
+
+### Ruleset scope and accuracy
+
+The initial rules target is **D&D 5e, 2014–2015 rules baseline**. The 2014 rules are the first implementation target. The 2024 revision is explicitly out of initial scope and may be considered as a separate ruleset in a much later phase.
+
+Rules must not be invented by the model. Mechanical behaviour must be implemented from verified rules references and represented in deterministic code wherever practical. Each implemented rule should have tests and a clear indication of its supported scope. If a rule is not implemented or its source is uncertain, the application must expose that limitation rather than silently improvising.
+
+Ruleset-specific behaviour must be isolated so that a future 2024 implementation cannot accidentally mix with the 2014 rules.
+
+### Intended turn-processing workflow
+
+A player turn is intended to follow an explicit, inspectable pipeline:
+
+1. Receive and record the player's natural-language input.
+2. Build the relevant context: character, scene, world state, NPC knowledge, recent events and applicable rules.
+3. Interpret the player's intent into structured candidate actions.
+4. Check permissions and resolve ambiguities; ask the player for clarification when needed.
+5. Have the AI DM adjudicate the circumstances and determine whether a check or game action is required.
+6. Resolve mechanical outcomes through the deterministic rules engine.
+7. Produce proposed world consequences and validate them against domain rules and campaign authority.
+8. Persist the resolved turn and state changes atomically.
+9. Generate the narrative response from the committed result.
+
+A turn that needs clarification must not mutate the campaign. Narrative generation must not invent dice results or claim that an uncommitted state change occurred. Resolution and narration must be independently recoverable so that retries cannot apply damage, consume resources or create items twice.
+
+Not every action requires a roll. The DM should use the rules and the fictional circumstances to distinguish routine actions from uncertain actions with meaningful consequences.
+
+### Product scope
+
+**Near-term product:** a complete campaign-management and AI-DM application, including campaign/session management, character sheets, world state, NPCs, rules adjudication, exploration, social interaction, combat and persistent campaign history.
+
+**Not in the initial scope:** a virtual tabletop, tactical map editor, token movement, fog of war or real-time tabletop collaboration. These may be considered as a distant future extension after the core game experience is reliable.
+
+Multiplayer and hosted deployment are also future considerations, not assumptions of the current implementation.
+
+### Architectural direction
+
+The intended architecture is a **modular monolith** with clear domain boundaries and ports/adapters:
+
+* a ruleset-independent application workflow;
+* a versioned D&D 5e 2014 rules module;
+* separate campaign, character, world, NPC, inventory, spellcasting, encounter and session domains;
+* an AI DM orchestration layer with distinct interpretation, context, adjudication, consequence-planning and narration responsibilities;
+* infrastructure adapters for persistence, LLM providers and external integrations.
+
+The rules engine must be usable independently of an LLM, database, API or user interface. The AI may propose structured actions and consequences, but deterministic code validates and applies them.
+
+This is the target architecture, not a description of completed modules. Existing components will be audited and migrated incrementally; the project should not be rewritten wholesale without a demonstrated need.
 
 ---
 
@@ -723,8 +784,6 @@ Campaign-Manager/
 │   └── World management
 ├── integrations/
 │   └── External integration code
-├── migrations/
-│   └── Database evolution
 ├── tests/
 │   └── Automated test suite
 └── data/
@@ -754,7 +813,7 @@ Validated areas include:
 * end-to-end `context → turn → context` behaviour;
 * automated CI testing and Ruff linting.
 
-The project is currently focused on **reliable state management and integration correctness** rather than building a complete virtual tabletop or combat engine.
+The current implementation is focused on **reliable campaign state management and integration correctness**. The AI Dungeon Master workflow, comprehensive D&D 5e 2014 rules engine, full character progression and combat system described in the product vision are future development work, not completed features.
 
 This checkpoint is intended as a stable baseline for the next development pass. If subsequent changes introduce regressions, the state-management, persistence and integration layers can be re-audited from this baseline.
 
@@ -762,20 +821,18 @@ This checkpoint is intended as a stable baseline for the next development pass. 
 
 ## Roadmap
 
-Potential future improvements include:
+The roadmap follows the product vision and prioritizes correctness before breadth:
 
-* richer character state management;
-* improved context ranking;
-* more advanced memory retrieval;
-* expanded D&D mechanics;
-* combat support;
-* additional LLM providers;
-* improved SillyTavern tooling;
-* observability and structured logging;
-* optional web UI;
-* multi-user / hosted deployment.
+1. **Architecture and reliability:** audit the existing code, fix transaction/state consistency, define domain boundaries, introduce explicit transaction management and test critical failure paths.
+2. **AI DM turn pipeline:** define typed turn states and contracts for intent interpretation, context planning, adjudication, consequence validation, persistence and narration. Preserve the existing SillyTavern integration during migration.
+3. **D&D 5e 2014 rules foundation:** implement and test dice, ability modifiers, proficiency, skills, saving throws and advantage/disadvantage against verified rules references.
+4. **Playable character model:** build character creation, class/background/species data, equipment, features and level progression in controlled increments.
+5. **Exploration and social play:** scenes, NPCs, knowledge boundaries, checks, dialogue and persistent consequences.
+6. **Combat and spellcasting:** encounters, initiative, actions, attacks, damage, conditions, rests and spellcasting.
+7. **Standalone application experience:** web interface for campaigns, sessions, character sheets, world management and the AI DM.
+8. **Distant future:** virtual tabletop capabilities and, separately, a D&D 5e 2024 ruleset.
 
-These features are intentionally outside the current core scope so that persistence and state consistency remain the primary engineering focus.
+The roadmap is a target, not a claim that these capabilities are already implemented. Each rules feature must have an explicit supported-scope statement and deterministic tests.
 
 ---
 
