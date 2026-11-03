@@ -1389,11 +1389,10 @@ def test_load_world_sees_restored_snapshot_before_commit(tmp_path):
 
         repository = WorldRepository()
 
+        from models.campaign_scope import CampaignScope
         from repositories.world_snapshot_repository import (
             WorldSnapshotRepository,
         )
-
-        from models.campaign_scope import CampaignScope
 
         snapshot_repository = WorldSnapshotRepository()
         scope = CampaignScope(1)
@@ -1651,7 +1650,7 @@ def test_restore_snapshot_does_not_modify_other_campaign(tmp_path):
         world_repository = WorldRepository()
         snapshot_repository = WorldSnapshotRepository()
         scope_one = CampaignScope(1)
-        scope_two = CampaignScope(2)
+        CampaignScope(2)
 
         world_one = WorldState(
             entities={
