@@ -1,5 +1,6 @@
 import pytest
 
+from models.campaign_scope import CampaignScope
 from models.turn_record import TurnRecord
 from repositories.campaign_repository import CampaignRepository
 from repositories.turn_repository import TurnRepository
@@ -1136,3 +1137,100 @@ def test_list_recent_turns_uses_supplied_connection(
             item.player_input == "transactional recent turn"
             for item in recent_turns
         )
+
+
+def test_turns_with_same_external_id_are_isolated_by_campaign(
+    isolated_database,
+):
+    from database import get_conn
+
+    repository = TurnRepository()
+    campaign_one = CampaignScope(1)
+    campaign_two = CampaignScope(2)
+
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO campaign (id, name, system) VALUES (2, ?, ?)",
+            ("Campaign Two", "D&D 5e 2014"),
+        )
+
+    for scope, narrative in (
+        (campaign_one, "Narrative one"),
+        (campaign_two, "Narrative two"),
+    ):
+        repository.save_turn(
+            TurnRecord(
+                player_input="Same player input",
+                narrative=narrative,
+                external_turn_id="shared-external-id",
+                version=1,
+            ),
+            scope=scope,
+        )
+
+    active_one = repository.get_active_by_external_turn_id(
+        "shared-external-id",
+        scope=campaign_one,
+    )
+    active_two = repository.get_active_by_external_turn_id(
+        "shared-external-id",
+        scope=campaign_two,
+    )
+
+    assert active_one is not None
+    assert active_two is not None
+    assert active_one.narrative == "Narrative one"
+    assert active_two.narrative == "Narrative two"
+    assert len(
+        repository.get_versions_by_external_turn_id(
+            "shared-external-id",
+            scope=campaign_one,
+        )
+    ) == 1
+    assert len(
+        repository.get_versions_by_external_turn_id(
+            "shared-external-id",
+            scope=campaign_two,
+        )
+    ) == 1
+
+
+def test_supersede_turn_cannot_change_another_campaign(
+    isolated_database,
+):
+    from database import get_conn
+
+    repository = TurnRepository()
+    campaign_one = CampaignScope(1)
+    campaign_two = CampaignScope(2)
+
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO campaign (id, name, system) VALUES (2, ?, ?)",
+            ("Campaign Two", "D&D 5e 2014"),
+        )
+
+    turn_two = repository.save_turn(
+        TurnRecord(
+            player_input="Second campaign turn",
+            narrative="Must remain active",
+            external_turn_id="campaign-two-turn",
+            version=1,
+        ),
+        scope=campaign_two,
+    )
+
+    with get_conn() as conn:
+        with pytest.raises(LookupError):
+            repository.supersede_turn(
+                turn_two.id,
+                scope=campaign_one,
+                conn=conn,
+            )
+
+    unchanged = repository.get_active_by_external_turn_id(
+        "campaign-two-turn",
+        scope=campaign_two,
+    )
+    assert unchanged is not None
+    assert unchanged.status == "active"
