@@ -170,13 +170,13 @@ The provider abstraction is a good seam, but configuration is not yet visibly ce
 - Existing integration tests already cover successful regeneration, extraction against the pre-regeneration snapshot, failed regeneration rollback, operation failure rollback, idempotent retries and turn version sequencing. This is stronger coverage than a first-pass inventory alone suggested; future work should extend it with commit-failure and cross-process contention tests rather than duplicate existing tests.
 
 
-### F-11 — Campaign-scoped endpoints are not authenticated or authorized
+### F-11 — Campaign-scoped endpoints have no user authentication (intentional for local single-player)
 
-**Severity:** Critical before any hosted or multi-user deployment; acceptable only under an explicitly trusted local-user boundary.
+**Severity:** Not a defect for the current product scope; becomes high priority only if remote access is introduced.
 
 **Evidence:** `app.py::bind_campaign_runtime` accepts `X-Campaign-Id` and resolves a runtime. It does not authenticate a principal or check campaign membership/ownership. Campaign listing and creation are explicitly exempt from campaign selection and likewise have no user identity. Repository scoping by `campaign_id` is a valuable data-isolation layer, but it is not authorization.
 
-**Decision:** no improvised API key or shared password was added. A correct implementation requires a user identity model, campaign ownership/membership, role policy, authenticated SillyTavern integration and a migration strategy. Until then, deployment must remain trusted-local only; do not expose this API to an untrusted network.
+**Decision:** the product is single-player and local-first. There is one local user, not a roster of accounts or campaign members. The documented server commands bind to loopback (`127.0.0.1`), so a user/account system is unnecessary for the MVP. Keep the loopback bind. If remote access is later requested, add authentication before changing the bind address or exposing the API through a tunnel/reverse proxy. Do not implement multi-user ownership/roles unless the product scope changes.
 
 ### F-12 — Campaign update schema accepted blank required values
 
@@ -212,10 +212,26 @@ This does not replace API authorization, but it is a solid data-layer boundary. 
 
 **Required direction:** retain liveness and add a separate readiness endpoint that verifies required local dependencies such as SQLite. Do not require Ollama to be available for the API to serve campaign reads or health checks.
 
-### F-16 — Development dependency declarations are incomplete/inconsistent
+### F-16 — Development tooling is split between project metadata and CI
 
-**Severity:** Medium reproducibility issue.
+**Severity:** Low.
 
-**Evidence:** `pyproject.toml` declares pytest and `httpx2>=2.5`, while the README lists Ruff and httpx; `requirements.txt` contains only FastAPI and Uvicorn. No lockfile was established in this pass.
+**Evidence:** `pyproject.toml` declares the development test dependencies (`pytest`, `httpx2>=2.5`); `requirements.txt` intentionally contains runtime dependencies only; `.github/workflows/tests.yml` installs Ruff separately for its lint job and runs JavaScript tests with `npm run test:js`. The README's development-tools bullet incorrectly says `httpx` although the install command and CI use `httpx2`.
 
-**Required direction:** reconcile dependency groups and the documented test/lint commands, then generate a reproducible lock or constraints file. Do not guess package versions without checking CI and the actual development environment.
+**Change in this branch:** corrected the README label to `httpx2`. There is no evidence that the runtime requirements file should include test/lint tools. A lockfile may improve reproducibility later, but it is not a blocker for the local single-player MVP.
+
+
+### Product-scope clarification — single-player, local-first
+
+The intended application is single-player: one person manages and plays their own campaigns. Multiple campaigns in one local installation remain supported and must stay isolated, but multiplayer accounts, campaign membership and role-based access are not MVP requirements.
+
+The documented launch commands bind Uvicorn to `127.0.0.1`. Therefore lack of user authentication is not classified as a current product defect. Keep the loopback bind and treat remote exposure as a separate future security project. The campaign ID remains a selector and must never be mistaken for authentication if that deployment boundary changes.
+
+### CI inventory
+
+The repository's `.github/workflows/tests.yml` defines three jobs:
+- Python tests on Python 3.12, installing `requirements.txt` plus `pytest` and `httpx2>=2.5`, then running `python -m pytest -m "not real_llm"`.
+- Ruff linting via `ruff check .`.
+- JavaScript tests via `npm run test:js` on Node 20.
+
+The README's CI description should mention all three jobs, not only pytest and Ruff. The workflow file was inspected, but no run for the current audit branch was available through the inspected GitHub Actions interface; the suite is not claimed as executed.
