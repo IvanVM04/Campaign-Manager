@@ -61,6 +61,9 @@ def test_create_character_creates_entity_and_character(
         wisdom=13,
         charisma=11,
         proficiency_bonus=2,
+        skill_proficiencies=["stealth", "perception"],
+        skill_expertise=["stealth"],
+        saving_throw_proficiencies=["dexterity", "wisdom"],
     )
 
     character = character_creation_service.create_character(
@@ -82,6 +85,9 @@ def test_create_character_creates_entity_and_character(
     assert character.wisdom == 13
     assert character.charisma == 11
     assert character.proficiency_bonus == 2
+    assert {skill.value for skill in character.skill_proficiencies} == {"stealth", "perception"}
+    assert {skill.value for skill in character.skill_expertise} == {"stealth"}
+    assert {ability.value for ability in character.saving_throw_proficiencies} == {"dexterity", "wisdom"}
 
     entity_repository = EntityRepository()
     character_repository = CharacterRepository()
@@ -244,3 +250,7 @@ def test_create_character_rolls_back_all_changes_on_activation_failure(
         )
         is None
     )
+
+def test_character_create_rejects_expertise_without_proficiency():
+    with pytest.raises(ValueError, match="expertise requires skill proficiency"):
+        CharacterCreate(name="Invalid", max_hp=8, skill_expertise=["stealth"])
