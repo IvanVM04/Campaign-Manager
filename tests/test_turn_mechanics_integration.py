@@ -45,7 +45,7 @@ def make_service(adjudication_json, roll):
         extractor=extractor,
         world_service=WorldService(applier=WorldApplier()),
         mechanics_adjudicator=adjudicator,
-        dice_roller=DiceRoller(FixedRandom(roll)),
+        dice_roller=DiceRoller(FixedRandom(roll, roll)),
     )
     return resolver, narrative_provider, extractor
 
@@ -217,3 +217,43 @@ def make_turn_context_with_character(character):
         active_character=character,
         world=WorldState(),
     )
+
+
+def test_persistent_poisoned_condition_imposes_disadvantage_on_skill_check():
+    from dataclasses import replace
+    from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
+
+    character = CharacterState(entity_id=20, level=1, dexterity=16)
+    resolver, _narrative_provider, _extractor = make_service(
+        '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
+        '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Evitar al guardia"}',
+        5,
+    )
+    context = replace(
+        make_turn_context_with_character(character),
+        active_character_conditions=ConditionSet(frozenset({Condition.POISONED})),
+    )
+    plan = resolver.prepare_turn(context, "Me muevo sigilosamente.")
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_decision.disadvantage is True
+    assert plan.mechanics_result.check.roll.rolls == (5, 5)
+
+
+def test_persistent_exhaustion_imposes_disadvantage_on_saving_throw():
+    from dataclasses import replace
+    from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
+
+    character = CharacterState(entity_id=20, level=1, wisdom=16)
+    resolver, _narrative_provider, _extractor = make_service(
+        '{"decision":"saving_throw","ability":"wisdom","dc":14,'
+        '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Resistir el miedo"}',
+        15,
+    )
+    context = replace(
+        make_turn_context_with_character(character),
+        active_character_conditions=ConditionSet(exhaustion_level=3),
+    )
+    pending = resolver.prepare_turn(context, "Resisto el miedo.", manual_mode=True)
+    assert pending.awaiting_manual_roll is True
+    assert pending.mechanics_decision.disadvantage is True
+    assert pending.mechanics_decision is not None

@@ -256,6 +256,7 @@ class CampaignTurnService:
             active_character=context.active_character,
             world=world,
             active_character_entity=context.active_character_entity,
+            active_character_conditions=context.active_character_conditions,
         )
 
     def _play_turn_planned_locked(

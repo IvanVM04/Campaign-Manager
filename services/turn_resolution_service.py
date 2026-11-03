@@ -205,6 +205,26 @@ class TurnResolutionService:
                     clarification_question=decision.question,
                 )
 
+            character = context.active_character
+            conditions = context.active_character_conditions
+            if character is not None and decision.decision in {
+                MechanicsDecisionType.ABILITY_CHECK,
+                MechanicsDecisionType.SKILL_CHECK,
+            }:
+                decision = replace(
+                    decision,
+                    disadvantage=(
+                        decision.disadvantage or conditions.ability_checks_have_disadvantage
+                    ),
+                )
+            elif character is not None and decision.decision is MechanicsDecisionType.SAVING_THROW:
+                decision = replace(
+                    decision,
+                    disadvantage=(
+                        decision.disadvantage or conditions.saving_throws_have_disadvantage
+                    ),
+                )
+
             if manual_mode and manual_rolls is None and decision.decision in {
                 MechanicsDecisionType.ABILITY_CHECK,
                 MechanicsDecisionType.SKILL_CHECK,
@@ -219,13 +239,6 @@ class TurnResolutionService:
                     mechanics_decision=decision,
                     awaiting_manual_roll=True,
                 )
-
-            character = context.active_character
-            conditions = context.active_character_conditions
-            if character is not None and decision.decision in {MechanicsDecisionType.ABILITY_CHECK, MechanicsDecisionType.SKILL_CHECK}:
-                decision = replace(decision, disadvantage=(decision.disadvantage or conditions.ability_checks_have_disadvantage))
-            elif character is not None and decision.decision is MechanicsDecisionType.SAVING_THROW:
-                decision = replace(decision, disadvantage=(decision.disadvantage or conditions.saving_throws_have_disadvantage))
             if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
                 if character is None or decision.ability is None or decision.dc is None:
                     raise TurnResolutionServiceError(
