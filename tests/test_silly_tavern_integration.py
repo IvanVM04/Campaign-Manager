@@ -20,6 +20,7 @@ from services.silly_tavern_integration_service import (
     SillyTavernIntegrationServiceConflictError,
 )
 from services.turn_execution_lock import TurnExecutionLock
+from services.world_service import WorldService
 
 # ============================================================
 # SCHEMAS
@@ -980,7 +981,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
 
     service = __import__(
         "app"
-    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_process_turn = service.process_turn
 
@@ -2163,8 +2164,6 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
         ),
         campaign_id=1,
     )
-
-    from services.world_service import WorldService
 
     world_service = WorldService()
 
