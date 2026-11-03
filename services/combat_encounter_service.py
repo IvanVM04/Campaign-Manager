@@ -6,7 +6,6 @@ from dataclasses import replace
 from uuid import uuid4
 
 from database import get_conn
-
 from models.combat_encounter_state import CombatEncounterState, EncounterStatus
 from models.combatant_state import CombatantState
 from repositories.combat_encounter_repository import CombatEncounterRepository
