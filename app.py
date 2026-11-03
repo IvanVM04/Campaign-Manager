@@ -1,6 +1,6 @@
 from contextvars import ContextVar
 
-from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -8,6 +8,7 @@ from database import init_db
 from models.campaign_scope import CampaignScope
 from models.schemas import (
     ActiveCharacterUpdate,
+    CampaignCreate,
     CampaignCreate,
     CampaignSessionUpdate,
     CampaignUpdate,
@@ -316,13 +317,13 @@ def health():
 
 @app.get("/campaigns")
 def list_campaigns():
-    return campaign_repository.list_campaigns()
+    return CampaignRepository().list_campaigns()
 
 
 @app.post("/campaigns", status_code=201)
 def create_campaign(data: CampaignCreate):
     try:
-        return campaign_repository.create_campaign(
+        return CampaignRepository().create_campaign(
             name=data.name,
             system=data.system,
             tone=data.tone,
