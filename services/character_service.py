@@ -69,6 +69,9 @@ class CharacterService:
             wisdom=character.wisdom,
             charisma=character.charisma,
             proficiency_bonus=character.proficiency_bonus,
+            skill_proficiencies=character.skill_proficiencies,
+            skill_expertise=character.skill_expertise,
+            saving_throw_proficiencies=character.saving_throw_proficiencies,
             metadata=dict(character.metadata),
         )
 
