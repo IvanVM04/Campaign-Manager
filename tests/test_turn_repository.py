@@ -87,6 +87,7 @@ def test_list_turns_filters_by_session(
     campaign_repository = CampaignRepository()
 
     session_one = campaign_repository.create_session(
+        campaign_id=1,
         number=1,
         title="Session One",
         summary="",
@@ -96,6 +97,7 @@ def test_list_turns_filters_by_session(
     )
 
     session_two = campaign_repository.create_session(
+        campaign_id=1,
         number=2,
         title="Session Two",
         summary="",
@@ -173,6 +175,7 @@ def test_list_recent_turns_filters_by_session(
     campaign_repository = CampaignRepository()
 
     session_one = campaign_repository.create_session(
+        campaign_id=1,
         number=1,
         title="Session One",
         summary="",
@@ -182,6 +185,7 @@ def test_list_recent_turns_filters_by_session(
     )
 
     session_two = campaign_repository.create_session(
+        campaign_id=1,
         number=2,
         title="Session Two",
         summary="",
@@ -436,6 +440,7 @@ def test_list_turns_by_session_returns_complete_turn_record(
     campaign_repository = CampaignRepository()
 
     session = campaign_repository.create_session(
+        campaign_id=1,
         number=9001,
         title="Test Session",
         summary="",
@@ -489,6 +494,7 @@ def test_list_turns_by_session_does_not_return_other_sessions(
     campaign_repository = CampaignRepository()
 
     session_one = campaign_repository.create_session(
+        campaign_id=1,
         number=9002,
         title="Session One",
         summary="",
@@ -498,6 +504,7 @@ def test_list_turns_by_session_does_not_return_other_sessions(
     )
 
     session_two = campaign_repository.create_session(
+        campaign_id=1,
         number=9003,
         title="Session Two",
         summary="",
@@ -544,6 +551,7 @@ def test_list_recent_turns_by_session_preserves_complete_metadata(
     campaign_repository = CampaignRepository()
 
     session = campaign_repository.create_session(
+        campaign_id=1,
         number=9004,
         title="Test Session",
         summary="",
@@ -615,6 +623,7 @@ def test_list_turns_returns_turns_in_ascending_order(
     campaign_repository = CampaignRepository()
 
     session = campaign_repository.create_session(
+        campaign_id=1,
         number=9005,
         title="Test Session",
         summary="",
@@ -1107,6 +1116,7 @@ def test_list_recent_active_turns_filters_by_session(
     campaign_repository = CampaignRepository()
 
     session_one = campaign_repository.create_session(
+        campaign_id=1,
         number=1,
         title="Session One",
         summary="",
@@ -1116,6 +1126,7 @@ def test_list_recent_active_turns_filters_by_session(
     )
 
     session_two = campaign_repository.create_session(
+        campaign_id=1,
         number=2,
         title="Session Two",
         summary="",
