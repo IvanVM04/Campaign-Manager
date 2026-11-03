@@ -59,6 +59,7 @@ class DiceRoller:
         sides: int,
         *,
         modifier: int = 0,
+        manual_rolls: tuple[int, ...] | None = None,
     ) -> DiceRoll:
         """Roll count dice with the given number of sides."""
         if isinstance(count, bool) or not isinstance(count, int) or count < 1:
@@ -68,7 +69,23 @@ class DiceRoller:
         if isinstance(modifier, bool) or not isinstance(modifier, int):
             raise TypeError("modifier must be an integer")
 
-        rolls = tuple(self._rng.randint(1, sides) for _ in range(count))
+        if manual_rolls is None:
+            rolls = tuple(self._rng.randint(1, sides) for _ in range(count))
+        else:
+            if not isinstance(manual_rolls, tuple):
+                raise TypeError("manual_rolls must be a tuple of integers")
+            if len(manual_rolls) != count:
+                raise ValueError(f"this roll requires exactly {count} manual result(s)")
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 1
+                or value > sides
+                for value in manual_rolls
+            ):
+                raise ValueError(f"manual results must be integers from 1 to {sides}")
+            rolls = manual_rolls
+
         return DiceRoll(
             count=count,
             sides=sides,
