@@ -8,6 +8,7 @@ from database import init_db
 from models.campaign_scope import CampaignScope
 from models.schemas import (
     ActiveCharacterUpdate,
+    CampaignCreate,
     CampaignSessionUpdate,
     CampaignUpdate,
     CharacterCreate,
@@ -257,7 +258,7 @@ silly_tavern_integration_service = _RuntimeProxy(
 
 @app.middleware("http")
 async def bind_campaign_runtime(request: Request, call_next):
-    if request.url.path in {"/", "/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}:
+    if request.url.path in {"/", "/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
         return await call_next(request)
 
     raw_campaign_id = request.headers.get("X-Campaign-Id")
@@ -312,6 +313,27 @@ def health():
 # ============================================================
 # CAMPAIGN
 # ============================================================
+
+@app.get("/campaigns")
+def list_campaigns():
+    return campaign_repository.list_campaigns()
+
+
+@app.post("/campaigns", status_code=201)
+def create_campaign(data: CampaignCreate):
+    try:
+        return campaign_repository.create_campaign(
+            name=data.name,
+            system=data.system,
+            tone=data.tone,
+            summary=data.summary,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="failed to create campaign",
+        ) from exc
+
 
 
 @app.patch("/campaign")
