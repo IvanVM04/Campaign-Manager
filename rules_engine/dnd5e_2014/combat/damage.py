@@ -40,7 +40,7 @@ class DamageAdjustment:
 
 def apply_damage_modifiers(
     damage: int,
-    adjustment: DamageAdjustment = DamageAdjustment(),
+    adjustment: DamageAdjustment | None = None,
 ) -> int:
     """Apply immunity, then resistance/vulnerability after other modifiers.
 
@@ -51,8 +51,10 @@ def apply_damage_modifiers(
         raise TypeError("damage must be an integer")
     if damage < 0:
         raise ValueError("damage cannot be negative")
-    if not isinstance(adjustment, DamageAdjustment):
-        raise TypeError("adjustment must be a DamageAdjustment")
+    if adjustment is None:
+        adjustment = DamageAdjustment()
+    elif not isinstance(adjustment, DamageAdjustment):
+        raise TypeError("adjustment must be a DamageAdjustment or None")
     if adjustment.immune:
         return 0
     if adjustment.resistant and adjustment.vulnerable:
