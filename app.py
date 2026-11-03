@@ -11,6 +11,7 @@ from models.schemas import (
     CampaignSessionUpdate,
     CampaignUpdate,
     CharacterCreate,
+    ManualRollIn,
     SessionIn,
     SillyTavernContextIn,
     SillyTavernTurnIn,
@@ -515,7 +516,8 @@ def play_turn(data: TurnIn):
 
     try:
         result = campaign_turn_service.play_turn(
-            data.player_input
+            data.player_input,
+            dice_mode=data.dice_mode,
         )
 
     except CampaignTurnServiceError as exc:
@@ -528,6 +530,8 @@ def play_turn(data: TurnIn):
         "narrative": result.narrative,
         "player_input": result.player_input,
         "mechanics": _serialize_mechanics_result(getattr(result, "mechanics_result", None)),
+        "pending_roll_id": result.pending_roll_id,
+        "pending_roll": result.pending_roll,
         "operation_count": result.operation_count,
         "successful_operation_count": (
             result.successful_operation_count
@@ -551,6 +555,38 @@ def play_turn(data: TurnIn):
             in result.operation_results
         ],
     }
+
+@app.post("/turn/roll")
+def submit_manual_roll(data: ManualRollIn):
+    try:
+        result = campaign_turn_service.submit_manual_roll(
+            data.pending_roll_id,
+            tuple(data.rolls),
+        )
+    except (CampaignTurnServiceError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return {
+        "narrative": result.narrative,
+        "player_input": result.player_input,
+        "mechanics": _serialize_mechanics_result(result.mechanics_result),
+        "pending_roll_id": result.pending_roll_id,
+        "pending_roll": result.pending_roll,
+        "operation_count": result.operation_count,
+        "successful_operation_count": result.successful_operation_count,
+        "failed_operation_count": result.failed_operation_count,
+        "all_operations_succeeded": result.all_operations_succeeded,
+        "world_changed": result.world_changed,
+        "operations": [
+            type(operation).__name__
+            for operation in result.operations
+        ],
+        "operation_results": [
+            _serialize_operation_result(item)
+            for item in result.operation_results
+        ],
+    }
+
 
 @app.get("/turns")
 def get_turns(
