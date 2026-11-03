@@ -49,11 +49,10 @@ def test_save_uses_supplied_connection_and_rolls_back_atomically():
     repository = CombatEncounterRepository()
     encounter = make_encounter()
 
-    with pytest.raises(RuntimeError, match="rollback"):
-        with get_conn() as conn:
-            repository.save(encounter, campaign_id=1, conn=conn)
-            assert repository.get("encounter-1", campaign_id=1, conn=conn) is not None
-            raise RuntimeError("rollback")
+    with pytest.raises(RuntimeError, match="rollback"), get_conn() as conn:
+        repository.save(encounter, campaign_id=1, conn=conn)
+        assert repository.get("encounter-1", campaign_id=1, conn=conn) is not None
+        raise RuntimeError("rollback")
 
     assert repository.get("encounter-1", campaign_id=1) is None
 
