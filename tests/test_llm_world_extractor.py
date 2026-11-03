@@ -13,6 +13,7 @@ from services.llm_world_extractor import (
     LLMExtractionError,
     LLMWorldExtractor,
 )
+from services.operation_parser import OperationParser
 
 
 class FakeOperation(WorldOperation):
@@ -922,8 +923,54 @@ def test_prompt_documents_all_supported_operations():
         "update_relation",
         "remove_relation",
         "create_event",
-        "change_character_hp",
     ]
 
     for operation_type in expected_operations:
         assert operation_type in prompt
+
+
+def test_extractor_rejects_character_hp_operations_from_narrative():
+    provider = FakeProvider(
+        json.dumps(
+            {
+                "operations": [
+                    {
+                        "type": "change_character_hp",
+                        "entity_id": 1,
+                        "amount": -7,
+                    }
+                ]
+            }
+        )
+    )
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=OperationParser(),
+    )
+
+    with pytest.raises(
+        LLMExtractionError,
+        match="require verified rules-engine resolution",
+    ):
+        extractor.extract(
+            "El guardia causa 7 puntos de daño.",
+            make_context(),
+        )
+
+
+def test_extractor_prompt_disallows_mechanical_character_updates():
+    provider = FakeProvider('{"operations": []}')
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=FakeParser(),
+    )
+
+    extractor.extract(
+        "El guardia causa 7 puntos de daño.",
+        make_context(),
+    )
+
+    prompt = provider.calls[0]
+    assert "La operación change_character_hp NO está habilitada" in prompt
+    assert "NO generes operaciones para modificar" in prompt
+    assert "No hay operaciones de personaje habilitadas" in prompt

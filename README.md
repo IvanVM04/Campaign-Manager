@@ -51,7 +51,7 @@ Not every action requires a roll. The DM should use the rules and the fictional 
 
 **Not in the initial scope:** a virtual tabletop, tactical map editor, token movement, fog of war or real-time tabletop collaboration. These may be considered as a distant future extension after the core game experience is reliable.
 
-Multiplayer and hosted deployment are also future considerations, not assumptions of the current implementation.
+The application is **single-player by design**: one person plays and manages their own campaigns, potentially maintaining several separate campaigns in the same installation. Multiplayer, shared tables, accounts and campaign membership are not part of the product scope. Remote access or hosted deployment is not part of the initial release and would require a separate security review.
 
 ### Architectural direction
 
@@ -379,11 +379,14 @@ X-Campaign-Id: 2
 
 The selected campaign is resolved to a dedicated `CampaignRuntime`, which owns its in-memory world, services and turn-execution lock. Requests without the header are rejected; the API never silently falls back to campaign 1. The SillyTavern extension exposes a **Campaign ID** setting and sends the header with every backend request.
 
+**Local security boundary:** `X-Campaign-Id` selects one of the local user's campaigns; it is not an authentication credential. This is intentional for the single-player, local-first application. The server is configured to bind to `127.0.0.1`, so it is not exposed to other machines by the documented default commands. Do not change the bind address to `0.0.0.0` or expose the API through a reverse proxy/tunnel without adding an explicit authentication mechanism and reviewing campaign access. Remote access is a separate future scope.
+
 ### Basic
 
 ```text
 GET /
 GET /health
+GET /ready
 ```
 
 ### Campaign
@@ -519,17 +522,24 @@ The API will be available at:
 http://127.0.0.1:8765
 ```
 
-Health check:
+Liveness check (HTTP process):
 
 ```text
 http://127.0.0.1:8765/health
 ```
 
-Expected response:
+Readiness check (SQLite reachable):
+
+```text
+http://127.0.0.1:8765/ready
+```
+
+Expected readiness response:
 
 ```json
 {
-  "ok": true
+  "ok": true,
+  "database": "ready"
 }
 ```
 
@@ -637,12 +647,14 @@ The goal is not only to test individual functions, but also to verify that persi
 
 GitHub Actions runs the automated checks on pushes and pull requests targeting `main`.
 
-The CI pipeline currently performs:
+The CI pipeline currently performs three jobs:
 
 ```text
 pytest (excluding real_llm tests)
         +
 Ruff linting
+        +
+JavaScript tests (Node 20)
 ```
 
 The real LLM tests are intentionally excluded from CI because they require a locally running Ollama service and model.

@@ -1715,3 +1715,102 @@ def test_restore_snapshot_does_not_modify_other_campaign(tmp_path):
         )
     finally:
         database.DB_PATH = original_db_path
+
+
+
+def test_restore_snapshot_preserves_valid_campaign_pointers(tmp_path):
+    from models.campaign_scope import CampaignScope
+    from repositories.world_snapshot_repository import (
+        WorldSnapshotRepository,
+    )
+
+    original_db_path = database.DB_PATH
+    database.DB_PATH = tmp_path / "test_snapshot_campaign_pointers.db"
+
+    try:
+        init_db()
+        scope = CampaignScope(1)
+        snapshot_repository = WorldSnapshotRepository()
+
+        character = Entity(
+            id=1,
+            name="Player Character",
+            entity_type="character",
+        )
+        location = Entity(
+            id=2,
+            name="Starting Location",
+            entity_type="location",
+        )
+        world_repository = WorldRepository()
+        world_repository.save_world(
+            WorldState(entities={1: character, 2: location}),
+            campaign_id=1,
+        )
+
+        from models.character_state import CharacterState
+        from repositories.character_repository import CharacterRepository
+
+        CharacterRepository().save_character(
+            CharacterState(
+                entity_id=1,
+                current_hp=10,
+                max_hp=10,
+            ),
+            campaign_id=1,
+        )
+
+        session = database.execute(
+            """
+            INSERT INTO sessions (number, title, campaign_id)
+            VALUES (1, 'Session 1', 1)
+            """,
+        )
+
+        with database.get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE campaign
+                SET current_location_id = ?,
+                    current_session_id = ?,
+                    active_character_id = ?
+                WHERE id = 1
+                """,
+                (2, session, 1),
+            )
+            snapshot = snapshot_repository.create_snapshot(
+                conn,
+                scope=scope,
+            )
+
+        # These deletes fire migration-014 cleanup triggers.
+        with database.get_conn() as conn:
+            conn.execute(
+                "DELETE FROM character_states WHERE entity_id = 1 AND campaign_id = 1"
+            )
+            conn.execute(
+                "DELETE FROM entities WHERE id = 2 AND campaign_id = 1"
+            )
+
+        with database.get_conn() as conn:
+            snapshot_repository.restore_snapshot(
+                conn,
+                snapshot,
+                scope=scope,
+            )
+
+        campaign = database.one(
+            """
+            SELECT current_location_id, current_session_id,
+                   active_character_id
+            FROM campaign
+            WHERE id = 1
+            """
+        )
+
+        assert campaign["current_location_id"] == 2
+        assert campaign["current_session_id"] == session
+        assert campaign["active_character_id"] == 1
+
+    finally:
+        database.DB_PATH = original_db_path

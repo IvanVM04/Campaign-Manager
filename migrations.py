@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 12
+CURRENT_VERSION = 14
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -880,6 +880,150 @@ def migration_012(conn: sqlite3.Connection) -> None:
         conn.rollback()
         raise
 
+
+def migration_013(conn: sqlite3.Connection) -> None:
+    """
+    Impide que una campaña apunte a ubicaciones, sesiones o personajes
+    pertenecientes a otra campaña.
+
+    campaign.current_location_id y current_session_id son referencias
+    de estado; active_character_id apunta a character_states.entity_id.
+    """
+    references = (
+        (
+            "current_location_id",
+            "entities",
+            "id",
+        ),
+        (
+            "current_session_id",
+            "sessions",
+            "id",
+        ),
+        (
+            "active_character_id",
+            "character_states",
+            "entity_id",
+        ),
+    )
+
+    conn.execute("BEGIN")
+
+    try:
+        for column, table, target_column in references:
+            for operation in ("INSERT", "UPDATE"):
+                trigger_name = (
+                    f"trg_campaign_{column}_scope_"
+                    f"{operation.lower()}"
+                )
+
+                conn.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS {trigger_name}
+                    BEFORE {operation} ON campaign
+                    FOR EACH ROW
+                    WHEN NEW.{column} IS NOT NULL
+                     AND NOT EXISTS (
+                        SELECT 1
+                        FROM {table}
+                        WHERE {table}.{target_column} = NEW.{column}
+                          AND {table}.campaign_id = NEW.id
+                    )
+                    BEGIN
+                        SELECT RAISE(
+                            ABORT,
+                            'campaign reference must belong to same campaign'
+                        );
+                    END
+                """)
+
+        violations = []
+        for column, table, target_column in references:
+            violations.extend(
+                conn.execute(
+                    f"""
+                    SELECT campaign.id, campaign.{column}
+                    FROM campaign
+                    WHERE campaign.{column} IS NOT NULL
+                      AND NOT EXISTS (
+                        SELECT 1
+                        FROM {table}
+                        WHERE {table}.{target_column} = campaign.{column}
+                          AND {table}.campaign_id = campaign.id
+                      )
+                    """
+                ).fetchall()
+            )
+
+        if violations:
+            raise RuntimeError(
+                "Migration 013 found cross-campaign campaign references: "
+                f"{violations}"
+            )
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+
+
+def migration_014(conn: sqlite3.Connection) -> None:
+    """
+    Limpia los punteros de campaña cuando se elimina su registro objetivo.
+
+    Evita que current_location_id, current_session_id o
+    active_character_id queden apuntando a registros inexistentes.
+    """
+    conn.execute("BEGIN")
+
+    try:
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_campaign_clear_location_after_entity_delete
+            AFTER DELETE ON entities
+            FOR EACH ROW
+            BEGIN
+                UPDATE campaign
+                SET current_location_id = NULL
+                WHERE id = OLD.campaign_id
+                  AND current_location_id = OLD.id;
+            END
+        """)
+
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_campaign_clear_active_character_after_state_delete
+            AFTER DELETE ON character_states
+            FOR EACH ROW
+            BEGIN
+                UPDATE campaign
+                SET active_character_id = NULL
+                WHERE id = OLD.campaign_id
+                  AND active_character_id = OLD.entity_id;
+            END
+        """)
+
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_campaign_clear_session_after_session_delete
+            AFTER DELETE ON sessions
+            FOR EACH ROW
+            BEGIN
+                UPDATE campaign
+                SET current_session_id = NULL
+                WHERE id = OLD.campaign_id
+                  AND current_session_id = OLD.id;
+            END
+        """)
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     version = conn.execute(
         "PRAGMA user_version"
@@ -944,6 +1088,16 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         migration_012(conn)
         conn.execute("PRAGMA user_version = 12")
         version = 12
+
+    if version < 13:
+        migration_013(conn)
+        conn.execute("PRAGMA user_version = 13")
+        version = 13
+
+    if version < 14:
+        migration_014(conn)
+        conn.execute("PRAGMA user_version = 14")
+        version = 14
 
     if version != CURRENT_VERSION:
         raise RuntimeError(

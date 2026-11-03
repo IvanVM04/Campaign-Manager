@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import replace
 
 from database import get_conn
@@ -543,6 +544,7 @@ class SillyTavernIntegrationService:
             )
 
         previous_world = self.world_service.get_world()
+        previous_world_snapshot = copy.deepcopy(previous_world)
 
         # --------------------------------------------------------
         # CONTEXTO DE REGENERACIÓN
@@ -940,6 +942,10 @@ class SillyTavernIntegrationService:
 
                     conn.rollback()
 
+                    self._restore_world_state(
+                        previous_world,
+                        previous_world_snapshot,
+                    )
                     self.world_service.world = previous_world
 
                     failed_turn = TurnRecord(
@@ -1008,6 +1014,10 @@ class SillyTavernIntegrationService:
             # Si hemos llegado aquí desde dentro de get_conn(),
             # la excepción provoca automáticamente rollback de
             # toda la transacción.
+            self._restore_world_state(
+                previous_world,
+                previous_world_snapshot,
+            )
             self.world_service.world = previous_world
 
             raise SillyTavernIntegrationServiceError(
@@ -1015,6 +1025,25 @@ class SillyTavernIntegrationService:
             ) from exc
 
         return result
+
+    @staticmethod
+    def _restore_world_state(target, snapshot) -> None:
+        """
+        Restaura el contenido de un WorldState sin cambiar su identidad.
+
+        WorldService publica las operaciones sobre la instancia original
+        antes de que get_conn() confirme la transacción exterior. Si el
+        guardado del turno o el COMMIT fallan, reasignar únicamente la
+        referencia no revierte esa mutación: hay que restaurar también
+        las colecciones compartidas.
+        """
+        target.entities = copy.deepcopy(snapshot.entities)
+        target.items = copy.deepcopy(snapshot.items)
+        target.item_instances = copy.deepcopy(snapshot.item_instances)
+        target.resources = copy.deepcopy(snapshot.resources)
+        target.resource_balances = copy.deepcopy(snapshot.resource_balances)
+        target.relations = copy.deepcopy(snapshot.relations)
+        target.events = copy.deepcopy(snapshot.events)
 
     # ============================================================
     # SERIALIZATION

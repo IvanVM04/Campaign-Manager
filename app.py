@@ -261,7 +261,7 @@ silly_tavern_integration_service = _RuntimeProxy(
 
 @app.middleware("http")
 async def bind_campaign_runtime(request: Request, call_next):
-    if request.method == "OPTIONS" or request.url.path in {"/", "/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
+    if request.method == "OPTIONS" or request.url.path in {"/", "/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
         return await call_next(request)
 
     raw_campaign_id = request.headers.get("X-Campaign-Id")
@@ -308,8 +308,29 @@ def root():
 
 @app.get("/health")
 def health():
+    """Liveness: confirma que el proceso HTTP está respondiendo."""
     return {
         "ok": True,
+    }
+
+
+@app.get("/ready")
+def readiness():
+    """Readiness: comprueba que SQLite acepta una consulta sencilla."""
+    from database import get_conn
+
+    try:
+        with get_conn() as conn:
+            conn.execute("SELECT 1").fetchone()
+    except Exception:  # noqa: BLE001 - readiness must map any DB failure to 503
+        raise HTTPException(
+            status_code=503,
+            detail="database unavailable",
+        ) from None
+
+    return {
+        "ok": True,
+        "database": "ready",
     }
 
 
