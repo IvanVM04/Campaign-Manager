@@ -1877,7 +1877,8 @@ def test_e2e_silly_tavern_turn_persists_world_change(
         turn_repository.get_active_by_external_turn_id(
             "e2e-test-turn-001",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     )
 
     assert persisted_turn is not None
@@ -3279,9 +3280,10 @@ def test_integration_service_returns_active_external_turn_state(
             version=4,
             status="active",
             snapshot=None,
-        )
+        ),
     
-        scope=CampaignScope(1),)
+        scope=CampaignScope(1),
+    )
 
     result = (
         service.get_external_turn_state(
@@ -3339,9 +3341,10 @@ def test_integration_service_rejects_non_sequential_turn_version(
 
     active_turn = (
         turn_repository.get_active_by_external_turn_id(
-            "sequential-version-test"
+            "sequential-version-test",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     )
 
     assert active_turn is not None
@@ -3399,9 +3402,10 @@ def test_integration_service_allows_next_sequential_version(
 
     active_turn = (
         turn_repository.get_active_by_external_turn_id(
-            "sequential-version-test-2"
+            "sequential-version-test-2",
         
-            scope=CampaignScope(1),)
+            scope=CampaignScope(1),
+        )
     )
 
     assert active_turn is not None
