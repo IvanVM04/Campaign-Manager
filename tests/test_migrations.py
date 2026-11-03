@@ -427,3 +427,147 @@ def test_migration_012_allows_same_session_number_in_different_campaigns():
         """)
 
     conn.close()
+
+
+def create_version_12_database():
+    conn = create_version_11_database()
+    migration_012(conn)
+    conn.execute("PRAGMA user_version = 12")
+    return conn
+
+
+def test_migration_013_rejects_cross_campaign_current_location():
+    import pytest
+
+    conn = create_version_12_database()
+    migration_013(conn)
+
+    conn.execute(
+        "INSERT INTO campaign (id, name) VALUES (2, 'Campaign 2')"
+    )
+    location_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Location 1', 'location', 1)
+        """
+    ).lastrowid
+
+    with pytest.raises(
+        sqlite3.IntegrityError,
+        match="same campaign",
+    ):
+        conn.execute(
+            "UPDATE campaign SET current_location_id = ? WHERE id = 2",
+            (location_id,),
+        )
+
+    conn.close()
+
+
+def test_migration_013_rejects_cross_campaign_current_session():
+    import pytest
+
+    conn = create_version_12_database()
+    migration_013(conn)
+
+    conn.execute(
+        "INSERT INTO campaign (id, name) VALUES (2, 'Campaign 2')"
+    )
+    session_id = conn.execute(
+        """
+        INSERT INTO sessions (number, title, campaign_id)
+        VALUES (1, 'Session 1', 1)
+        """
+    ).lastrowid
+
+    with pytest.raises(
+        sqlite3.IntegrityError,
+        match="same campaign",
+    ):
+        conn.execute(
+            "UPDATE campaign SET current_session_id = ? WHERE id = 2",
+            (session_id,),
+        )
+
+    conn.close()
+
+
+def test_migration_013_rejects_cross_campaign_active_character():
+    import pytest
+
+    conn = create_version_12_database()
+    migration_013(conn)
+
+    conn.execute(
+        "INSERT INTO campaign (id, name) VALUES (2, 'Campaign 2')"
+    )
+    entity_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Character 1', 'character', 1)
+        """
+    ).lastrowid
+    conn.execute(
+        """
+        INSERT INTO character_states (entity_id, campaign_id)
+        VALUES (?, 1)
+        """,
+        (entity_id,),
+    )
+
+    with pytest.raises(
+        sqlite3.IntegrityError,
+        match="same campaign",
+    ):
+        conn.execute(
+            "UPDATE campaign SET active_character_id = ? WHERE id = 2",
+            (entity_id,),
+        )
+
+    conn.close()
+
+
+def test_migration_013_allows_campaign_to_select_its_own_state():
+    conn = create_version_12_database()
+    migration_013(conn)
+
+    entity_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Character 1', 'character', 1)
+        """
+    ).lastrowid
+    conn.execute(
+        """
+        INSERT INTO character_states (entity_id, campaign_id)
+        VALUES (?, 1)
+        """,
+        (entity_id,),
+    )
+    session_id = conn.execute(
+        """
+        INSERT INTO sessions (number, title, campaign_id)
+        VALUES (1, 'Session 1', 1)
+        """
+    ).lastrowid
+
+    conn.execute(
+        """
+        UPDATE campaign
+        SET active_character_id = ?,
+            current_session_id = ?,
+            current_location_id = ?
+        WHERE id = 1
+        """,
+        (entity_id, session_id, entity_id),
+    )
+
+    row = conn.execute(
+        """
+        SELECT active_character_id, current_session_id, current_location_id
+        FROM campaign WHERE id = 1
+        """
+    ).fetchone()
+
+    assert tuple(row) == (entity_id, session_id, entity_id)
+    conn.close()
