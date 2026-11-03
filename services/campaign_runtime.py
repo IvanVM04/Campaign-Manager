@@ -9,6 +9,7 @@ from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.entity_repository import EntityRepository
+from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from services.campaign_state_service import CampaignStateService
@@ -23,6 +24,7 @@ from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
+from services.persistent_effect_service import PersistentEffectService
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
 )
@@ -48,6 +50,7 @@ class CampaignRuntime:
     character_creation_service: CharacterCreationService
     combat_encounter_service: CombatEncounterService
     combat_attack_service: CombatAttackService
+    persistent_effect_service: PersistentEffectService
     campaign_turn_service: CampaignTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
@@ -164,6 +167,11 @@ class CampaignRuntimeFactory:
             character_repository=character_repository,
             weapon_repository=WeaponEquipmentRepository(),
         )
+        persistent_effect_service = PersistentEffectService(
+            repository=PersistentEffectRepository(),
+            entity_repository=entity_repository,
+            campaign_id=scope.campaign_id,
+        )
 
         return CampaignRuntime(
             scope=scope,
@@ -179,6 +187,7 @@ class CampaignRuntimeFactory:
             character_creation_service=character_creation_service,
             combat_encounter_service=combat_encounter_service,
             combat_attack_service=combat_attack_service,
+            persistent_effect_service=persistent_effect_service,
             campaign_turn_service=campaign_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )

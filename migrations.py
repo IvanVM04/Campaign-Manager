@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 17
+CURRENT_VERSION = 18
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1139,6 +1139,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 17")
         version = 17
 
+    if version < 18:
+        migration_018(conn)
+        conn.execute("PRAGMA user_version = 18")
+        version = 18
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1284,6 +1289,159 @@ def migration_017(conn: sqlite3.Connection) -> None:
             BEGIN SELECT RAISE(ABORT, 'campaign_id is immutable'); END
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_equipped_weapons_item ON equipped_weapons(campaign_id, item_instance_id)")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+
+def migration_018(conn: sqlite3.Connection) -> None:
+    """Persist campaign-entity effects independently from combat snapshots."""
+    conn.execute("BEGIN")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS persistent_effects (
+                id TEXT PRIMARY KEY,
+                campaign_id INTEGER NOT NULL,
+                entity_id INTEGER NOT NULL,
+                effect_type TEXT NOT NULL
+                    CHECK (effect_type IN ('condition', 'exhaustion', 'narrative')),
+                effect_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                source_type TEXT NOT NULL
+                    CHECK (source_type IN (
+                        'creature', 'item', 'spell', 'environment',
+                        'narrative', 'system', 'unknown'
+                    )),
+                source_entity_id INTEGER,
+                source_reference TEXT,
+                duration_type TEXT NOT NULL
+                    CHECK (duration_type IN ('permanent', 'conditional')),
+                duration_condition TEXT,
+                level INTEGER,
+                status TEXT NOT NULL DEFAULT 'active'
+                    CHECK (status IN ('active', 'suspended', 'removed')),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                removed_at TEXT,
+                CHECK (
+                    (duration_type = 'permanent' AND duration_condition IS NULL)
+                    OR
+                    (duration_type = 'conditional'
+                        AND duration_condition IS NOT NULL
+                        AND length(trim(duration_condition)) > 0)
+                ),
+                CHECK (
+                    (effect_type = 'condition'
+                        AND effect_key IN (
+                            'blinded', 'charmed', 'deafened', 'frightened',
+                            'grappled', 'incapacitated', 'invisible',
+                            'paralyzed', 'petrified', 'poisoned', 'prone',
+                            'restrained', 'stunned', 'unconscious'
+                        )
+                        AND level IS NULL)
+                    OR
+                    (effect_type = 'exhaustion'
+                        AND effect_key = 'exhaustion'
+                        AND level IS NOT NULL
+                        AND level BETWEEN 1 AND 6)
+                    OR
+                    (effect_type = 'narrative'
+                        AND length(trim(effect_key)) BETWEEN 1 AND 80
+                        AND level IS NULL)
+                ),
+                FOREIGN KEY (campaign_id)
+                    REFERENCES campaign(id) ON DELETE CASCADE,
+                FOREIGN KEY (entity_id)
+                    REFERENCES entities(id) ON DELETE CASCADE,
+                FOREIGN KEY (source_entity_id)
+                    REFERENCES entities(id) ON DELETE SET NULL
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_persistent_effects_entity_status
+            ON persistent_effects(campaign_id, entity_id, status, created_at)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_persistent_effects_campaign_status
+            ON persistent_effects(campaign_id, status, created_at)
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_persistent_effects_campaign_insert
+            BEFORE INSERT ON persistent_effects
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM campaign WHERE id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'campaign_id does not exist');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_persistent_effects_campaign_immutable
+            BEFORE UPDATE OF campaign_id ON persistent_effects
+            FOR EACH ROW
+            WHEN NEW.campaign_id != OLD.campaign_id
+            BEGIN
+                SELECT RAISE(ABORT, 'campaign_id is immutable');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_persistent_effects_entity_scope_insert
+            BEFORE INSERT ON persistent_effects
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.entity_id
+                  AND campaign_id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'effect entity must belong to same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_persistent_effects_entity_scope_update
+            BEFORE UPDATE OF entity_id, campaign_id ON persistent_effects
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.entity_id
+                  AND campaign_id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'effect entity must belong to same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_persistent_effects_source_scope_insert
+            BEFORE INSERT ON persistent_effects
+            FOR EACH ROW
+            WHEN NEW.source_entity_id IS NOT NULL
+             AND NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.source_entity_id
+                  AND campaign_id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'effect source must belong to same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_persistent_effects_source_scope_update
+            BEFORE UPDATE OF source_entity_id, campaign_id ON persistent_effects
+            FOR EACH ROW
+            WHEN NEW.source_entity_id IS NOT NULL
+             AND NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.source_entity_id
+                  AND campaign_id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'effect source must belong to same campaign');
+            END
+        """)
         conn.commit()
     except Exception:
         conn.rollback()
