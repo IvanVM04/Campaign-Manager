@@ -184,11 +184,12 @@ class TurnResolutionService:
 
         mechanics_result = None
         decision = decision_override
-        if decision is None and self.mechanics_adjudicator is not None:
+        if decision is not None or self.mechanics_adjudicator is not None:
             try:
-                decision = self.mechanics_adjudicator.adjudicate(
-                    context, normalized_input
-                )
+                if decision is None:
+                    decision = self.mechanics_adjudicator.adjudicate(
+                        context, normalized_input
+                    )
             except MechanicsAdjudicatorError as exc:
                 raise TurnResolutionServiceError(
                     "mechanics adjudication failed"
