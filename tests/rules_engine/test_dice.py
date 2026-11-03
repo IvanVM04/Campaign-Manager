@@ -70,3 +70,46 @@ def test_advantage_and_disadvantage_cancel_to_one_die():
 def test_invalid_dice_parameters_are_rejected(count, sides):
     with pytest.raises((TypeError, ValueError)):
         DiceRoller(SequenceRandom([])).roll(count, sides)
+
+
+
+def test_manual_d20_result_is_used_without_calling_random_source():
+    result = DiceRoller(SequenceRandom([])).roll_d20(
+        modifier=4,
+        manual_rolls=(13,),
+    )
+
+    assert result.rolls == (13,)
+    assert result.selected == 13
+    assert result.total == 17
+
+
+def test_manual_advantage_requires_two_valid_d20_results():
+    result = DiceRoller(SequenceRandom([])).roll_d20(
+        advantage=True,
+        manual_rolls=(3, 19),
+    )
+
+    assert result.rolls == (3, 19)
+    assert result.selected == 19
+    assert result.total == 19
+
+
+@pytest.mark.parametrize(
+    "manual_rolls",
+    [(), (1, 2), (0,), (21,), (True,), ("12",)],
+)
+def test_invalid_manual_d20_results_are_rejected(manual_rolls):
+    with pytest.raises((TypeError, ValueError)):
+        DiceRoller(SequenceRandom([])).roll_d20(
+            manual_rolls=manual_rolls,
+        )
+
+
+def test_manual_d20_result_count_respects_advantage_and_disadvantage_cancellation():
+    with pytest.raises(ValueError):
+        DiceRoller(SequenceRandom([])).roll_d20(
+            advantage=True,
+            disadvantage=True,
+            manual_rolls=(12, 18),
+        )
