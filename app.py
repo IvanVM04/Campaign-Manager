@@ -221,6 +221,13 @@ _current_runtime: ContextVar[CampaignRuntime | None] = ContextVar(
 )
 
 
+def _get_active_runtime() -> CampaignRuntime:
+    runtime = _current_runtime.get()
+    if runtime is None:
+        return runtime_factory.get_runtime(1)
+    return runtime
+
+
 class _RuntimeProxy:
     """Compatibilidad temporal: delega cada acceso al runtime de la petición."""
 
@@ -228,11 +235,7 @@ class _RuntimeProxy:
         self._attribute = attribute
 
     def __getattr__(self, name: str):
-        runtime = _current_runtime.get()
-        if runtime is None:
-            raise RuntimeError(
-                "campaign runtime is only available inside an HTTP request"
-            )
+        runtime = _get_active_runtime()
         return getattr(getattr(runtime, self._attribute), name)
 
 
