@@ -250,6 +250,7 @@ def test_play_turn_returns_turn_result(
 
     assert data["operations"] == []
     assert data["operation_results"] == []
+    assert data["mechanics"] is None
 
 
 def test_play_turn_returns_400_when_campaign_turn_service_fails(
