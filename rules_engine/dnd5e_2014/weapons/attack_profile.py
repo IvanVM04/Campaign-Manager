@@ -42,7 +42,7 @@ def derive_attack_profile(
 
     finesse = WeaponProperty.FINESSE in weapon.properties
     if finesse:
-        ability = finesse_ability or "strength"
+        ability = finesse_ability or ("dexterity" if character.dexterity > character.strength else "strength")
         if ability not in ("strength", "dexterity"):
             raise ValueError("finesse weapons allow Strength or Dexterity")
     elif weapon.is_ranged:

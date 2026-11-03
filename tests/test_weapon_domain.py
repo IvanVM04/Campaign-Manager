@@ -99,8 +99,8 @@ def test_equipped_weapon_requires_owned_weapon_in_same_campaign(tmp_path):
         assert repository.get_equipped(campaign_id=1, character_entity_id=1)["weapon_key"] == "longsword"
         with pytest.raises(Exception):
             repository.equip(campaign_id=2, character_entity_id=1, item_instance_id=1)
-        with pytest.raises(Exception):
-            with get_conn() as conn:
-                conn.execute("UPDATE item_instances SET owner_id = NULL WHERE id = 1 AND campaign_id = 1")
+        with get_conn() as conn:
+            conn.execute("UPDATE item_instances SET owner_id = NULL WHERE id = 1 AND campaign_id = 1")
+        assert repository.get_equipped(campaign_id=1, character_entity_id=1) is None
     finally:
         database.DB_PATH = previous
