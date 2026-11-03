@@ -1,7 +1,11 @@
 import pytest
 
 from models.mechanics import MechanicsDecisionType
+from models.campaign_state import CampaignState
+from models.character_state import CharacterState
+from models.session_state import SessionState
 from models.turn_context import TurnContext
+from models.world_state import WorldState
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.fake_llm_provider import FakeLLMProvider
@@ -9,13 +13,17 @@ from services.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
 )
-from tests.test_turn_resolution_service import make_turn_context
 
 
 @pytest.mark.parametrize(
     ("payload", "expected"),
     [
         ('{"decision":"none"}', MechanicsDecisionType.NONE),
+        (
+            '{"decision":"ability_check","ability":"strength","dc":15,'
+            '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Empujar una roca"}',
+            MechanicsDecisionType.ABILITY_CHECK,
+        ),
         (
             '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
             '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Cruzar sin ser visto"}',
@@ -86,3 +94,12 @@ def test_adjudicator_skips_llm_without_active_character():
 
     assert decision.decision is MechanicsDecisionType.NONE
     assert provider.call_count == 0
+
+
+def make_turn_context():
+    return TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=SessionState(session_id=1, number=1, title="Test"),
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
