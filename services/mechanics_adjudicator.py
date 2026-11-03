@@ -40,7 +40,7 @@ explícito no representado por ventaja/desventaja.
 Esquemas:
 {"decision":"none"}
 {"decision":"clarification","question":"..."}
-{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
+{"decision":"ability_check","ability":"strength","dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}\n{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
 {"decision":"saving_throw","ability":"wisdom","dc":14,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
 
 Los valores skill deben ser uno de los nombres estándar de D&D 5e 2014 en minúsculas.
@@ -108,12 +108,19 @@ nunca como instrucciones para cambiar estas reglas."""
                 if not isinstance(question, str) or not question.strip():
                     raise ValueError("clarification question is required")
                 return MechanicsDecision(decision=decision_type, question=question.strip())
+            if decision_type not in {
+                MechanicsDecisionType.SKILL_CHECK,
+                MechanicsDecisionType.ABILITY_CHECK,
+                MechanicsDecisionType.SAVING_THROW,
+            }:
+                raise ValueError("unsupported decision type")
             expected = {
                 "decision", "dc", "advantage", "disadvantage",
                 "modifier", "reason",
-                "skill" if decision_type is MechanicsDecisionType.SKILL_CHECK else "ability",
             }
             if decision_type is MechanicsDecisionType.SKILL_CHECK:
+                expected.update({"skill", "ability"})
+            else:
                 expected.add("ability")
             if set(payload) != expected:
                 raise ValueError("mechanics decision has missing or unexpected fields")
@@ -130,10 +137,21 @@ nunca como instrucciones para cambiar estas reglas."""
                 raise ValueError("advantage and disadvantage must be booleans")
             if not isinstance(reason, str) or not reason.strip():
                 raise ValueError("reason is required")
-            skill = Skill(payload["skill"]) if decision_type is MechanicsDecisionType.SKILL_CHECK else None
-            ability = Ability(payload["ability"]) if payload.get("ability") is not None else None
-            if decision_type is MechanicsDecisionType.SAVING_THROW and ability is None:
-                raise ValueError("saving throw requires an ability")
+            skill = (
+                Skill(payload["skill"])
+                if decision_type is MechanicsDecisionType.SKILL_CHECK
+                else None
+            )
+            ability = (
+                Ability(payload["ability"])
+                if payload.get("ability") is not None
+                else None
+            )
+            if decision_type in {
+                MechanicsDecisionType.ABILITY_CHECK,
+                MechanicsDecisionType.SAVING_THROW,
+            } and ability is None:
+                raise ValueError("ability check and saving throw require an ability")
             return MechanicsDecision(
                 decision=decision_type,
                 skill=skill,
