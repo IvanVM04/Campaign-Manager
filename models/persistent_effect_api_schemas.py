@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StrictInt, model_validator
 
 
 EffectTypeInput = Literal["condition", "exhaustion", "narrative"]
@@ -19,11 +19,11 @@ class PersistentEffectCreateIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     description: str = Field(default="", max_length=2000)
     source_type: EffectSourceInput = "unknown"
-    source_entity_id: int | None = Field(default=None, ge=1)
+    source_entity_id: StrictInt | None = Field(default=None, ge=1)
     source_reference: str | None = Field(default=None, min_length=1, max_length=240)
     duration_type: EffectDurationInput = "permanent"
     duration_condition: str | None = Field(default=None, min_length=1, max_length=500)
-    level: int | None = Field(default=None, ge=1, le=6)
+    level: StrictInt | None = Field(default=None, ge=1, le=6)
 
     @model_validator(mode="after")
     def validate_effect_shape(self):

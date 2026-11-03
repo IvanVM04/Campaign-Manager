@@ -1345,6 +1345,7 @@ def migration_018(conn: sqlite3.Connection) -> None:
                     OR
                     (effect_type = 'exhaustion'
                         AND effect_key = 'exhaustion'
+                        AND level IS NOT NULL
                         AND level BETWEEN 1 AND 6)
                     OR
                     (effect_type = 'narrative'

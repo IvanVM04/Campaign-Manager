@@ -147,3 +147,52 @@ def test_effect_model_rejects_unregistered_mechanical_payloads(isolated_database
             effect_key="arbitrary_bonus",
             name="Bonus arbitrario",
         )
+
+
+def test_database_rejects_cross_campaign_target_and_source_even_when_bypassing_service(isolated_database):
+    import sqlite3
+
+    from database import get_conn
+
+    service, entities = build_service(1)
+    target = entities.save_entity(Entity(name="Target"), campaign_id=1)
+    foreign = entities.save_entity(Entity(name="Foreign source"), campaign_id=2)
+
+    with get_conn() as conn:
+        with pytest.raises(sqlite3.IntegrityError, match="effect source"):
+            conn.execute(
+                """
+                INSERT INTO persistent_effects (
+                    id, campaign_id, entity_id, effect_type, effect_key,
+                    name, source_type, source_entity_id, duration_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "a" * 32, 1, target.id, "condition", "poisoned",
+                    "Venom", "creature", foreign.id, "permanent",
+                ),
+            )
+
+
+def test_database_rejects_exhaustion_without_level(isolated_database):
+    import sqlite3
+
+    from database import get_conn
+
+    service, entities = build_service()
+    target = entities.save_entity(Entity(name="Target"), campaign_id=1)
+
+    with get_conn() as conn:
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                """
+                INSERT INTO persistent_effects (
+                    id, campaign_id, entity_id, effect_type, effect_key,
+                    name, source_type, duration_type, level
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "b" * 32, 1, target.id, "exhaustion", "exhaustion",
+                    "Exhaustion", "unknown", "permanent", None,
+                ),
+            )
