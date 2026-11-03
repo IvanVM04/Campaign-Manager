@@ -42,8 +42,9 @@ def test_get_missing_turn_returns_none(
 ):
     repository = TurnRepository()
 
-    assert repository.get_turn(999999
-        scope=CampaignScope(1),) is None
+    assert repository.get_turn(999999,
+        scope=CampaignScope(1),
+    ) is None
 
 
 def test_list_turns_returns_saved_turns(
