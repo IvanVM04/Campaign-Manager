@@ -83,6 +83,7 @@ class DiceRoller:
         modifier: int = 0,
         advantage: bool = False,
         disadvantage: bool = False,
+        manual_rolls: tuple[int, ...] | None = None,
     ) -> D20Roll:
         """Roll a d20, applying the 2014 advantage/disadvantage rule.
 
@@ -105,7 +106,26 @@ class DiceRoller:
             mode = RollMode.NORMAL
 
         dice_count = 2 if mode is not RollMode.NORMAL else 1
-        rolls = tuple(self._rng.randint(1, 20) for _ in range(dice_count))
+        if manual_rolls is None:
+            rolls = tuple(
+                self._rng.randint(1, 20) for _ in range(dice_count)
+            )
+        else:
+            if not isinstance(manual_rolls, tuple):
+                raise TypeError("manual_rolls must be a tuple of integers")
+            if len(manual_rolls) != dice_count:
+                raise ValueError(
+                    f"this roll requires exactly {dice_count} manual d20 result(s)"
+                )
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 1
+                or value > 20
+                for value in manual_rolls
+            ):
+                raise ValueError("manual d20 results must be integers from 1 to 20")
+            rolls = manual_rolls
 
         if mode is RollMode.ADVANTAGE:
             selected = max(rolls)
