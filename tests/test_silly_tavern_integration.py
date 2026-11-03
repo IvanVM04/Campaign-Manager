@@ -2164,6 +2164,8 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
         campaign_id=1,
     )
 
+    from services.world_service import WorldService
+
     world_service = WorldService()
 
     world_service.load()
@@ -2702,7 +2704,6 @@ def test_turn_persists_after_world_service_restart(
     from operations.world_operations import (
         CreateEntityOperation,
     )
-    from services.world_service import WorldService
 
     service = __import__("app").runtime_factory.get_runtime(1).silly_tavern_integration_service
 
