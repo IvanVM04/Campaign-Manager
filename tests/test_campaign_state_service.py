@@ -79,6 +79,7 @@ def test_campaign_state_service_sets_and_gets_current_session(
 
     session = campaign_repository.create_session(
         number=1,
+        campaign_id=1,
         title="Session 1",
         summary="First session",
         start_location="Vorder's Hold",
@@ -309,6 +310,7 @@ def test_get_turn_context_includes_current_session():
     campaign_repository = CampaignRepository()
 
     session = campaign_repository.create_session(
+        campaign_id=1,
         title="Primera sesión",
         number=1,
         summary="Comienza la aventura.",
