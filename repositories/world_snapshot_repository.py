@@ -69,6 +69,27 @@ class WorldSnapshotRepository:
         self._validate_scope(scope)
         snapshot = {}
 
+        campaign = conn.execute(
+            """
+            SELECT current_location_id, current_session_id,
+                   active_character_id
+            FROM campaign
+            WHERE id = ?
+            """,
+            (scope.campaign_id,),
+        ).fetchone()
+
+        if campaign is None:
+            raise LookupError(
+                f"campaign {scope.campaign_id} does not exist"
+            )
+
+        snapshot["_campaign_pointers"] = {
+            "current_location_id": campaign["current_location_id"],
+            "current_session_id": campaign["current_session_id"],
+            "active_character_id": campaign["active_character_id"],
+        }
+
         for table in self.SNAPSHOT_TABLES:
             rows = conn.execute(
                 f"SELECT * FROM {table} WHERE campaign_id = ?",
@@ -131,9 +152,9 @@ class WorldSnapshotRepository:
                 + ", ".join(missing_tables)
             )
 
-        # Campaign pointers are not part of the world snapshot. Preserve
-        # their current values while restoring their target records, then
-        # revalidate them against the restored campaign state below.
+        # Prefer pointers captured with the snapshot. Older snapshots do
+        # not contain them, so retain the current database values as a
+        # backwards-compatible fallback.
         campaign = conn.execute(
             """
             SELECT current_location_id, current_session_id,
@@ -149,11 +170,29 @@ class WorldSnapshotRepository:
                 f"campaign {scope.campaign_id} does not exist"
             )
 
-        campaign_pointers = {
-            "current_location_id": campaign["current_location_id"],
-            "current_session_id": campaign["current_session_id"],
-            "active_character_id": campaign["active_character_id"],
-        }
+        snapshot_pointers = data.get("_campaign_pointers")
+        if snapshot_pointers is not None:
+            if not isinstance(snapshot_pointers, dict):
+                raise TypeError(
+                    "Snapshot campaign pointers must contain an object"
+                )
+            campaign_pointers = {
+                "current_location_id": snapshot_pointers.get(
+                    "current_location_id"
+                ),
+                "current_session_id": snapshot_pointers.get(
+                    "current_session_id"
+                ),
+                "active_character_id": snapshot_pointers.get(
+                    "active_character_id"
+                ),
+            }
+        else:
+            campaign_pointers = {
+                "current_location_id": campaign["current_location_id"],
+                "current_session_id": campaign["current_session_id"],
+                "active_character_id": campaign["active_character_id"],
+            }
 
         # ------------------------------------------------------------
         # DELETE CURRENT STATE
