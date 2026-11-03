@@ -1,4 +1,7 @@
+from dataclasses import replace
+
 from models.character_state import CharacterState
+from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
@@ -220,9 +223,6 @@ def make_turn_context_with_character(character):
 
 
 def test_persistent_poisoned_condition_imposes_disadvantage_on_skill_check():
-    from dataclasses import replace
-    from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
-
     character = CharacterState(entity_id=20, level=1, dexterity=16)
     resolver, _narrative_provider, _extractor = make_service(
         '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
@@ -240,9 +240,6 @@ def test_persistent_poisoned_condition_imposes_disadvantage_on_skill_check():
 
 
 def test_persistent_exhaustion_imposes_disadvantage_on_saving_throw():
-    from dataclasses import replace
-    from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
-
     character = CharacterState(entity_id=20, level=1, wisdom=16)
     resolver, _narrative_provider, _extractor = make_service(
         '{"decision":"saving_throw","ability":"wisdom","dc":14,'

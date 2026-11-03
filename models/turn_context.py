@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
@@ -29,7 +29,7 @@ class TurnContext:
     active_character: CharacterState | None
     world: WorldState
     active_character_entity: Entity | None = None
-    active_character_conditions: ConditionSet = ConditionSet()
+    active_character_conditions: ConditionSet = field(default_factory=ConditionSet)
     
     def __post_init__(self) -> None:
         if not isinstance(
