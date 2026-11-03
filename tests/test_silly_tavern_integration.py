@@ -2138,7 +2138,6 @@ def test_world_service_rolls_back_all_operations_when_one_fails():
     from repositories.entity_repository import (
         EntityRepository,
     )
-    from services.world_service import WorldService
 
     entity_repository = EntityRepository()
     character_repository = CharacterRepository()
