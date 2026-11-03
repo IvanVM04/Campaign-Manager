@@ -1246,6 +1246,20 @@ def test_turns_with_same_external_id_are_isolated_by_campaign(
     assert active_two is not None
     assert active_one.narrative == "Narrative one"
     assert active_two.narrative == "Narrative two"
+    assert [
+        turn.narrative
+        for turn in repository.list_turns(scope=campaign_one)
+    ] == ["Narrative one"]
+    assert [
+        turn.narrative
+        for turn in repository.list_turns(scope=campaign_two)
+    ] == ["Narrative two"]
+    assert [
+        turn.narrative
+        for turn in repository.list_recent_active_turns(
+            scope=campaign_one
+        )
+    ] == ["Narrative one"]
     assert len(
         repository.get_versions_by_external_turn_id(
             "shared-external-id",
