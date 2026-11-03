@@ -432,7 +432,7 @@ def test_application_services_share_same_turn_execution_lock():
 
 def test_update_campaign_session_rejects_nonexistent_session(client):
     campaign_repository = CampaignRepository()
-    campaign_before = campaign_repository.get_campaign()
+    campaign_before = campaign_repository.get_campaign(1)
     assert campaign_before["current_session_id"] is None
     current_session_before = campaign_before["current_session_id"]
 
@@ -445,7 +445,7 @@ def test_update_campaign_session_rejects_nonexistent_session(client):
 
     assert response.status_code == 400
 
-    campaign_after = campaign_repository.get_campaign()
+    campaign_after = campaign_repository.get_campaign(1)
 
     assert campaign_after["current_session_id"] == current_session_before
 
