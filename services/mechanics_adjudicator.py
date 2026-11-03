@@ -22,7 +22,7 @@ Devuelve exclusivamente un objeto JSON válido, sin Markdown.
 Determina si la acción declarada necesita una prueba mecánica:
 - none: acción rutinaria, imposible sin tirada por reglas, o sin incertidumbre significativa.
 - clarification: falta una elección o detalle esencial del jugador; incluye una pregunta breve.
-- skill_check: existe incertidumbre significativa y una habilidad resulta adecuada.
+- ability_check: existe incertidumbre significativa que requiere una prueba de característica sin competencia en habilidad.\n- skill_check: existe incertidumbre significativa y una habilidad resulta adecuada.
 - saving_throw: el personaje está resistiendo un efecto que exige una salvación.
 
 No resuelvas la acción, no narres y no tires dados.
