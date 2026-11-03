@@ -777,6 +777,7 @@ class SillyTavernIntegrationService:
                         self.turn_repository
                         .get_active_by_external_turn_id(
                             normalized_external_turn_id,
+                            scope=self.campaign_scope,
                             conn=conn,
                         )
                     )
