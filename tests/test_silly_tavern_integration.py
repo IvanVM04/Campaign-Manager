@@ -3013,7 +3013,7 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
     # Arrange
     # ========================================================
 
-    campaign = campaign_repository.get_campaign()
+    campaign = campaign_repository.get_campaign(1)
     assert campaign is not None
 
     entity = entity_repository.save_entity(
