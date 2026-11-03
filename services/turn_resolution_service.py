@@ -15,6 +15,7 @@ from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import WorldOperation
 from rules_engine.dnd5e_2014.character_checks import (
     ability_check_for_character,
+    raw_ability_check_for_character,
     saving_throw_for_character,
 )
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
@@ -190,7 +191,22 @@ class TurnResolutionService:
                 )
 
             character = context.active_character
-            if decision.decision is MechanicsDecisionType.SKILL_CHECK:
+            if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
+                if character is None or decision.ability is None or decision.dc is None:
+                    raise TurnResolutionServiceError(
+                        "ability check requires an active character, ability and DC"
+                    )
+                check = raw_ability_check_for_character(
+                    character=character,
+                    roller=self.dice_roller,
+                    ability=decision.ability,
+                    dc=decision.dc,
+                    advantage=decision.advantage,
+                    disadvantage=decision.disadvantage,
+                    situational_modifier=decision.situational_modifier,
+                )
+                mechanics_result = MechanicsResult(decision, check)
+            elif decision.decision is MechanicsDecisionType.SKILL_CHECK:
                 if character is None or decision.skill is None or decision.dc is None:
                     raise TurnResolutionServiceError(
                         "skill check requires an active character, skill and DC"
