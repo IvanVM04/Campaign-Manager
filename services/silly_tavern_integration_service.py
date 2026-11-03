@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from database import get_conn
+from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
@@ -160,6 +161,7 @@ class SillyTavernIntegrationService:
         self.turn_repository = turn_repository
 
         self.world_snapshot_repository = WorldSnapshotRepository()
+        self.campaign_scope = CampaignScope(world_service.campaign_id)
 
 
     # ============================================================
@@ -856,6 +858,7 @@ class SillyTavernIntegrationService:
                         self.world_snapshot_repository.restore_snapshot(
                             conn,
                             current_turn.snapshot,
+                            scope=self.campaign_scope,
                         )
 
                         self.world_service.load(
@@ -874,7 +877,8 @@ class SillyTavernIntegrationService:
 
                 snapshot = (
                     self.world_snapshot_repository.create_snapshot(
-                        conn
+                        conn,
+                        scope=self.campaign_scope,
                     )
                 )
 
@@ -886,7 +890,7 @@ class SillyTavernIntegrationService:
                     self.world_service.apply_turn_operations(
                         world_operations,
                         character_operations,
-                        campaign_id=1,
+                        campaign_id=self.campaign_scope.campaign_id,
                         conn=conn,
                         ordered_operations=normalized_operations,
                     )
