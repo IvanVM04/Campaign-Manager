@@ -3083,7 +3083,7 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
 
     from app import runtime_factory
 
-    silly_tavern_integration_service = runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    silly_tavern_integration_service = runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_extract = (
         silly_tavern_integration_service.extractor.extract
