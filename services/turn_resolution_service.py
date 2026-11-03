@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from models.mechanics import MechanicsDecisionType, MechanicsResult
-
 from models.campaign_state import CampaignState
+from models.mechanics import MechanicsDecisionType, MechanicsResult
 from models.turn_context import TurnContext
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
