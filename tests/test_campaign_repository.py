@@ -110,3 +110,26 @@ def test_mutating_methods_use_supplied_connection(
         assert updated_campaign["current_session_id"] == (
             session["id"]
         )
+
+def test_session_lookup_is_scoped_to_campaign(isolated_database):
+    repository = CampaignRepository()
+    campaign_two = repository.create_campaign(name="Campaign Two")
+
+    session = repository.create_session(
+        number=1,
+        title="Private session",
+        summary="Only visible in campaign two.",
+        start_location="Keep",
+        end_location="",
+        notes="",
+        campaign_id=campaign_two["id"],
+    )
+
+    assert repository.get_session(
+        session["id"],
+        campaign_id=campaign_two["id"],
+    ) is not None
+    assert repository.get_session(
+        session["id"],
+        campaign_id=1,
+    ) is None
