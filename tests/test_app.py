@@ -520,3 +520,29 @@ def test_runtime_factory_builds_isolated_services_for_each_campaign(
     assert first.turn_execution_lock is not second.turn_execution_lock
     assert first.campaign_state_service.campaign_id == 1
     assert second.campaign_state_service.campaign_id == 2
+
+
+def test_campaigns_can_be_created_and_selected(client):
+    created = client.post(
+        "/campaigns",
+        json={
+            "name": "Second campaign",
+            "system": "D&D 5e 2014",
+        },
+    )
+
+    assert created.status_code == 201
+    campaign = created.json()
+    assert campaign["id"] == 2
+    assert campaign["name"] == "Second campaign"
+
+    listed = client.get("/campaigns")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [1, 2]
+
+    selected = client.get(
+        "/campaign/state",
+        headers={"X-Campaign-Id": "2"},
+    )
+    assert selected.status_code == 200
+    assert selected.json()["campaign_id"] == 2
