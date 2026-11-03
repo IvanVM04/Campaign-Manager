@@ -15,8 +15,8 @@ from services.character_creation_service import CharacterCreationService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
-from services.memory_search_service import MemorySearchService
 from services.mechanics_adjudicator import MechanicsAdjudicator
+from services.memory_search_service import MemorySearchService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
 from services.silly_tavern_integration_service import (
