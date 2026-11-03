@@ -386,6 +386,7 @@ The selected campaign is resolved to a dedicated `CampaignRuntime`, which owns i
 ```text
 GET /
 GET /health
+GET /ready
 ```
 
 ### Campaign
@@ -521,17 +522,24 @@ The API will be available at:
 http://127.0.0.1:8765
 ```
 
-Health check:
+Liveness check (HTTP process):
 
 ```text
 http://127.0.0.1:8765/health
 ```
 
-Expected response:
+Readiness check (SQLite reachable):
+
+```text
+http://127.0.0.1:8765/ready
+```
+
+Expected readiness response:
 
 ```json
 {
-  "ok": true
+  "ok": true,
+  "database": "ready"
 }
 ```
 
