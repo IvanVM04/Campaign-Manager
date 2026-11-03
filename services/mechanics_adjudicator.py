@@ -22,7 +22,8 @@ Devuelve exclusivamente un objeto JSON válido, sin Markdown.
 Determina si la acción declarada necesita una prueba mecánica:
 - none: acción rutinaria, imposible sin tirada por reglas, o sin incertidumbre significativa.
 - clarification: falta una elección o detalle esencial del jugador; incluye una pregunta breve.
-- ability_check: existe incertidumbre significativa que requiere una prueba de característica sin competencia en habilidad.\n- skill_check: existe incertidumbre significativa y una habilidad resulta adecuada.
+- ability_check: existe incertidumbre significativa que requiere una prueba de característica sin competencia en habilidad.
+- skill_check: existe incertidumbre significativa y una habilidad resulta adecuada.
 - saving_throw: el personaje está resistiendo un efecto que exige una salvación.
 
 No resuelvas la acción, no narres y no tires dados.
@@ -40,7 +41,8 @@ explícito no representado por ventaja/desventaja.
 Esquemas:
 {"decision":"none"}
 {"decision":"clarification","question":"..."}
-{"decision":"ability_check","ability":"strength","dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}\n{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
+{"decision":"ability_check","ability":"strength","dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
+{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
 {"decision":"saving_throw","ability":"wisdom","dc":14,"advantage":false,"disadvantage":false,"modifier":0,"reason":"..."}
 
 Los valores skill deben ser uno de los nombres estándar de D&D 5e 2014 en minúsculas.
