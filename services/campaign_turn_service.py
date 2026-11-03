@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 import copy
+import secrets
+import time
 
 from database import get_conn
 from models.campaign_scope import CampaignScope
 from models.campaign_state import CampaignState
+from models.mechanics import MechanicsDecision
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
 from repositories.turn_repository import TurnRepository
+from rules_engine.dnd5e_2014.character_checks import (
+    ability_check_modifier_for_character,
+)
+from rules_engine.dnd5e_2014.core.skills import ability_for_skill
 from services.campaign_state_service import (
     CampaignStateService,
     CampaignStateServiceError,
@@ -123,6 +130,7 @@ class CampaignTurnService:
             )
 
         self.turn_execution_lock = turn_execution_lock
+        self._pending_manual_rolls: dict[str, dict] = {}
 
     @staticmethod
     def _restore_world_state(
@@ -156,11 +164,43 @@ class CampaignTurnService:
     def play_turn(
         self,
         player_input: str,
+        *,
+        dice_mode: str = "automatic",
     ) -> TurnResolutionResult:
+        if dice_mode not in {"automatic", "manual"}:
+            raise ValueError("dice_mode must be 'automatic' or 'manual'")
         with self.turn_execution_lock.acquire():
-            return self._play_turn_locked(
-                player_input
+            if dice_mode == "manual":
+                return self._play_turn_planned_locked(
+                    player_input, manual_mode=True
+                )
+            return self._play_turn_locked(player_input)
+
+    def submit_manual_roll(
+        self,
+        pending_roll_id: str,
+        rolls: tuple[int, ...],
+    ) -> TurnResolutionResult:
+        if not isinstance(pending_roll_id, str) or not pending_roll_id:
+            raise ValueError("pending_roll_id is required")
+        if not isinstance(rolls, tuple):
+            raise TypeError("rolls must be a tuple")
+        with self.turn_execution_lock.acquire():
+            pending = self._pending_manual_rolls.get(pending_roll_id)
+            if pending is None:
+                raise CampaignTurnServiceError("manual roll request not found or expired")
+            if time.monotonic() - pending["created_at"] > 900:
+                self._pending_manual_rolls.pop(pending_roll_id, None)
+                raise CampaignTurnServiceError("manual roll request expired; retry the action")
+            result = self._play_turn_planned_locked(
+                pending["player_input"],
+                decision_override=pending["decision"],
+                manual_rolls=rolls,
+                expected_context=pending["context"],
+                expected_recent_turns=pending["recent_turns"],
             )
+            self._pending_manual_rolls.pop(pending_roll_id, None)
+            return result
 
 
     def _play_turn_locked(
@@ -221,6 +261,12 @@ class CampaignTurnService:
     def _play_turn_planned_locked(
         self,
         player_input: str,
+        *,
+        manual_mode: bool = False,
+        decision_override: MechanicsDecision | None = None,
+        manual_rolls: tuple[int, ...] | None = None,
+        expected_context: TurnContext | None = None,
+        expected_recent_turns=None,
     ) -> TurnResolutionResult:
         """
         Execute LLM planning outside SQLite transactions, then re-read and
@@ -260,11 +306,89 @@ class CampaignTurnService:
             world = initial_context.world
             world_snapshot = copy.deepcopy(world)
 
+            if expected_context is not None and initial_context != expected_context:
+                raise CampaignTurnServiceError(
+                    "campaign state changed while waiting for the manual roll"
+                )
+            if expected_context is not None and recent_turns != expected_recent_turns:
+                raise CampaignTurnServiceError(
+                    "turn history changed while waiting for the manual roll"
+                )
+
             plan = self.turn_resolution_service.prepare_turn(
                 initial_context,
                 normalized_input,
                 recent_turns=recent_turns,
+                manual_mode=manual_mode,
+                manual_rolls=manual_rolls,
+                decision_override=decision_override,
             )
+
+            if plan.awaiting_manual_roll:
+                token = secrets.token_urlsafe(24)
+                decision = plan.mechanics_decision
+                character = initial_context.active_character
+                if decision is None or character is None:
+                    raise CampaignTurnServiceError(
+                        "manual roll is missing its decision or character"
+                    )
+                ability = decision.ability or (
+                    ability_for_skill(decision.skill)
+                    if decision.skill is not None
+                    else None
+                )
+                if ability is None:
+                    raise CampaignTurnServiceError("manual roll has no governing ability")
+                proficient = (
+                    decision.decision.value == "skill_check"
+                    and decision.skill in character.skill_proficiencies
+                ) or (
+                    decision.decision.value == "saving_throw"
+                    and ability in character.saving_throw_proficiencies
+                )
+                expertise = (
+                    decision.decision.value == "skill_check"
+                    and decision.skill in character.skill_expertise
+                )
+                modifier = ability_check_modifier_for_character(
+                    character=character,
+                    ability=ability,
+                    proficient=proficient,
+                    expertise=expertise,
+                    situational_modifier=decision.situational_modifier,
+                )
+                request = {
+                    "dice": "d20",
+                    "count": 1 if decision.advantage == decision.disadvantage else 2,
+                    "modifier": modifier,
+                    "dc": decision.dc,
+                    "kind": decision.decision.value,
+                    "skill": decision.skill.value if decision.skill else None,
+                    "ability": ability.value,
+                    "advantage": decision.advantage,
+                    "disadvantage": decision.disadvantage,
+                }
+                now = time.monotonic()
+                self._pending_manual_rolls = {
+                    key: value
+                    for key, value in self._pending_manual_rolls.items()
+                    if now - value["created_at"] <= 900
+                }
+                if len(self._pending_manual_rolls) >= 100:
+                    raise CampaignTurnServiceError("too many pending manual rolls")
+                self._pending_manual_rolls[token] = {
+                    "created_at": now,
+                    "player_input": normalized_input,
+                    "decision": decision,
+                    "context": initial_context,
+                    "recent_turns": recent_turns,
+                }
+                return TurnResolutionResult(
+                    player_input=normalized_input,
+                    narrative="",
+                    pending_roll_id=token,
+                    pending_roll=request,
+                )
 
             # No DB connection is held during model generation/extraction.
             # BEGIN IMMEDIATE ensures no other writer can change campaign

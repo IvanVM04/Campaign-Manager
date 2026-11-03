@@ -131,6 +131,65 @@ def test_saving_throw_uses_character_save_proficiency():
     assert "Total: 15" in narrative_provider.last_prompt
 
 
+
+def test_manual_roll_pauses_then_resolves_without_second_adjudication():
+    character = CharacterState(
+        entity_id=20,
+        level=1,
+        dexterity=16,
+        skill_proficiencies=frozenset({Skill.STEALTH}),
+    )
+    resolver, narrative_provider, _extractor = make_service(
+        '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
+        '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Evitar al guardia"}',
+        2,
+    )
+    context = make_turn_context_with_character(character)
+
+    pending = resolver.prepare_turn(
+        context,
+        "Me muevo sigilosamente.",
+        manual_mode=True,
+    )
+
+    assert pending.awaiting_manual_roll is True
+    assert pending.mechanics_decision is not None
+    assert narrative_provider.call_count == 0
+    adjudicator_calls = resolver.mechanics_adjudicator.provider.call_count
+
+    completed = resolver.prepare_turn(
+        context,
+        "Me muevo sigilosamente.",
+        decision_override=pending.mechanics_decision,
+        manual_rolls=(12,),
+    )
+
+    assert resolver.mechanics_adjudicator.provider.call_count == adjudicator_calls
+    assert completed.mechanics_result is not None
+    assert completed.mechanics_result.check.roll.rolls == (12,)
+    assert completed.mechanics_result.check.total == 17
+    assert completed.mechanics_result.check.success is True
+    assert "Total: 17" in narrative_provider.last_prompt
+
+
+def test_manual_advantage_request_asks_for_two_d20_results():
+    character = CharacterState(entity_id=20, level=1, dexterity=16)
+    resolver, _narrative_provider, _extractor = make_service(
+        '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
+        '"advantage":true,"disadvantage":false,"modifier":0,"reason":"Ocultarse"}',
+        2,
+    )
+
+    pending = resolver.prepare_turn(
+        make_turn_context_with_character(character),
+        "Me escondo.",
+        manual_mode=True,
+    )
+
+    assert pending.awaiting_manual_roll is True
+    assert pending.mechanics_decision.advantage is True
+
+
 def test_clarification_stops_before_narration_and_extraction():
     resolver, narrative_provider, extractor = make_service(
         '{"decision":"clarification","question":"¿Qué herramienta utilizas?"}',

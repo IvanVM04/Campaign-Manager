@@ -83,3 +83,28 @@ ambiguous model output fails closed instead of silently continuing.
 - Character-aware ability checks, skill checks and saving throws now read CharacterState; broader character mechanics remain future work.
 - No rule content beyond the SRD-compatible mechanics above is copied into
   this project.
+
+
+## Player-controlled dice mode
+
+The `/turn` request accepts `dice_mode="automatic"` (default) or
+`dice_mode="manual"`. Automatic mode uses the server's cryptographically
+strong random source. Manual mode pauses a turn when the adjudicator requests
+an ability check, skill check or saving throw. The response includes a
+short-lived opaque `pending_roll_id` and the requested d20 count, modifier,
+ability/skill and DC.
+
+The player submits the physical die result(s) to `POST /turn/roll`. The
+server validates that each value is an integer from 1 to 20 and that the
+number of results matches the original roll mode. The original adjudication
+is retained and reused: submitting the result does not call the adjudicator
+again or permit changing the DC, modifier, advantage or disadvantage. The
+rules engine chooses the higher die with advantage, the lower with
+disadvantage, and applies the same modifier calculation as automatic mode.
+
+Pending manual rolls are currently held in the campaign runtime's memory and
+expire after 15 minutes. Restarting the server loses outstanding requests;
+persistent pending-roll recovery is a future improvement. Manual results are
+player-entered values and are not cryptographic proof that physical dice were
+rolled; the feature provides honest input and rules validation, not anti-cheat
+verification.

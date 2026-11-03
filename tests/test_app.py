@@ -214,6 +214,8 @@ def test_play_turn_returns_turn_result(
 
     def fake_play_turn(
         player_input,
+        *,
+        dice_mode="automatic",
     ):
         assert player_input == "Pregunto por Aldric."
         return FakeResult()
@@ -263,6 +265,8 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
 
     def fake_play_turn(
         player_input,
+        *,
+        dice_mode="automatic",
     ):
         raise CampaignTurnServiceError(
             "Turn resolution failed."
@@ -385,6 +389,8 @@ def test_play_turn_accepts_player_input_at_maximum_length(
 
     def fake_play_turn(
         player_input,
+        *,
+        dice_mode="automatic",
     ):
         calls.append(player_input)
 

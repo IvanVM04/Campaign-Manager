@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from models.campaign_state import CampaignState
-from models.mechanics import MechanicsDecisionType, MechanicsResult
+from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
 from models.turn_context import TurnContext
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
@@ -38,6 +38,8 @@ class TurnResolutionPlan:
     ordered_operations: tuple
     mechanics_result: MechanicsResult | None = None
     clarification_question: str | None = None
+    mechanics_decision: MechanicsDecision | None = None
+    awaiting_manual_roll: bool = False
 
 
 class TurnResolutionServiceError(RuntimeError):
@@ -141,6 +143,9 @@ class TurnResolutionService:
         player_input: str,
         *,
         recent_turns=None,
+        manual_mode: bool = False,
+        manual_rolls: tuple[int, ...] | None = None,
+        decision_override: MechanicsDecision | None = None,
     ) -> TurnResolutionPlan:
         """
         Generate narrative and extract a validated operation plan.
@@ -168,12 +173,23 @@ class TurnResolutionService:
                 "player_input must not be empty"
             )
 
+        if not isinstance(manual_mode, bool):
+            raise TypeError("manual_mode must be a boolean")
+        if decision_override is not None and not isinstance(
+            decision_override, MechanicsDecision
+        ):
+            raise TypeError("decision_override must be a MechanicsDecision or None")
+        if manual_rolls is not None and not isinstance(manual_rolls, tuple):
+            raise TypeError("manual_rolls must be a tuple or None")
+
         mechanics_result = None
-        if self.mechanics_adjudicator is not None:
+        decision = decision_override
+        if decision is not None or self.mechanics_adjudicator is not None:
             try:
-                decision = self.mechanics_adjudicator.adjudicate(
-                    context, normalized_input
-                )
+                if decision is None:
+                    decision = self.mechanics_adjudicator.adjudicate(
+                        context, normalized_input
+                    )
             except MechanicsAdjudicatorError as exc:
                 raise TurnResolutionServiceError(
                     "mechanics adjudication failed"
@@ -187,6 +203,21 @@ class TurnResolutionService:
                     character_operations=(),
                     ordered_operations=(),
                     clarification_question=decision.question,
+                )
+
+            if manual_mode and manual_rolls is None and decision.decision in {
+                MechanicsDecisionType.ABILITY_CHECK,
+                MechanicsDecisionType.SKILL_CHECK,
+                MechanicsDecisionType.SAVING_THROW,
+            }:
+                return TurnResolutionPlan(
+                    player_input=normalized_input,
+                    narrative="",
+                    world_operations=(),
+                    character_operations=(),
+                    ordered_operations=(),
+                    mechanics_decision=decision,
+                    awaiting_manual_roll=True,
                 )
 
             character = context.active_character
@@ -203,6 +234,7 @@ class TurnResolutionService:
                     advantage=decision.advantage,
                     disadvantage=decision.disadvantage,
                     situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
                 )
                 mechanics_result = MechanicsResult(decision, check)
             elif decision.decision is MechanicsDecisionType.SKILL_CHECK:
@@ -218,6 +250,7 @@ class TurnResolutionService:
                     advantage=decision.advantage,
                     disadvantage=decision.disadvantage,
                     situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
                     ability_override=decision.ability,
                 )
                 mechanics_result = MechanicsResult(decision, check)
@@ -234,6 +267,7 @@ class TurnResolutionService:
                     advantage=decision.advantage,
                     disadvantage=decision.disadvantage,
                     situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
                 )
                 mechanics_result = MechanicsResult(decision, check)
 
@@ -325,6 +359,7 @@ class TurnResolutionService:
             character_operations=character_operations,
             ordered_operations=ordered_operations,
             mechanics_result=mechanics_result,
+            mechanics_decision=decision,
         )
 
     def apply_plan(
@@ -350,6 +385,11 @@ class TurnResolutionService:
             )
         if not isinstance(plan, TurnResolutionPlan):
             raise TypeError("plan must be a TurnResolutionPlan")
+
+        if plan.awaiting_manual_roll:
+            raise TurnResolutionServiceError(
+                "manual roll must be submitted before applying the turn"
+            )
 
         if plan.clarification_question is not None:
             return TurnResolutionResult(

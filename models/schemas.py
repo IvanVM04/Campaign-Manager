@@ -1,5 +1,7 @@
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
 
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
@@ -99,6 +101,7 @@ class TurnIn(BaseModel):
         min_length=1,
         max_length=10000,
     )
+    dice_mode: Literal["automatic", "manual"] = "automatic"
 
     @field_validator("player_input")
     @classmethod
@@ -114,6 +117,18 @@ class TurnIn(BaseModel):
             )
 
         return value
+
+
+class ManualRollIn(BaseModel):
+    pending_roll_id: str = Field(..., min_length=20, max_length=200)
+    rolls: list[StrictInt] = Field(..., min_length=1, max_length=2)
+
+    @field_validator("rolls")
+    @classmethod
+    def validate_d20_results(cls, values: list[int]) -> list[int]:
+        if any(isinstance(value, bool) or value < 1 or value > 20 for value in values):
+            raise ValueError("each manual d20 result must be between 1 and 20")
+        return values
 
 
 class ActiveCharacterUpdate(BaseModel):
