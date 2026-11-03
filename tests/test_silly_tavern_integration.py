@@ -871,7 +871,7 @@ def test_integration_service_preserves_operation_order(
     monkeypatch.setattr(
         turn_repository,
         "save_turn",
-        lambda turn, *, conn=None: turn,
+        lambda turn, *, scope=None, conn=None: turn,
     )
 
     service.process_turn(
