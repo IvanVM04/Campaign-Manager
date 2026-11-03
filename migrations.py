@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 16
+CURRENT_VERSION = 17
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1134,6 +1134,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 16")
         version = 16
 
+    if version < 17:
+        migration_017(conn)
+        conn.execute("PRAGMA user_version = 17")
+        version = 17
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1171,3 +1176,115 @@ def migration_016(conn: sqlite3.Connection) -> None:
         raise
 
 
+
+
+def migration_017(conn: sqlite3.Connection) -> None:
+    """Add weapon metadata, proficiencies and equipped item references."""
+    conn.execute("BEGIN")
+    try:
+        item_columns = {row["name"] for row in conn.execute("PRAGMA table_info(items)")}
+        if "weapon_key" not in item_columns:
+            conn.execute("ALTER TABLE items ADD COLUMN weapon_key TEXT")
+        character_columns = {row["name"] for row in conn.execute("PRAGMA table_info(character_states)")}
+        if "weapon_proficiencies" not in character_columns:
+            conn.execute("ALTER TABLE character_states ADD COLUMN weapon_proficiencies TEXT NOT NULL DEFAULT '[]'")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS equipped_weapons (
+                campaign_id INTEGER NOT NULL,
+                character_entity_id INTEGER NOT NULL,
+                item_instance_id INTEGER NOT NULL,
+                PRIMARY KEY (campaign_id, character_entity_id),
+                UNIQUE (campaign_id, item_instance_id),
+                FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapons_validate_insert
+            BEFORE INSERT ON equipped_weapons
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM character_states cs
+                JOIN item_instances ii ON ii.id = NEW.item_instance_id
+                    AND ii.campaign_id = NEW.campaign_id
+                    AND ii.owner_id = NEW.character_entity_id AND ii.active = 1
+                JOIN items i ON i.id = ii.item_id AND i.campaign_id = NEW.campaign_id
+                WHERE cs.entity_id = NEW.character_entity_id
+                    AND cs.campaign_id = NEW.campaign_id AND i.weapon_key IS NOT NULL
+            )
+            BEGIN SELECT RAISE(ABORT, 'equipped weapon must be owned by character in same campaign'); END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapons_validate_update
+            BEFORE UPDATE ON equipped_weapons
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM character_states cs
+                JOIN item_instances ii ON ii.id = NEW.item_instance_id
+                    AND ii.campaign_id = NEW.campaign_id
+                    AND ii.owner_id = NEW.character_entity_id AND ii.active = 1
+                JOIN items i ON i.id = ii.item_id AND i.campaign_id = NEW.campaign_id
+                WHERE cs.entity_id = NEW.character_entity_id
+                    AND cs.campaign_id = NEW.campaign_id AND i.weapon_key IS NOT NULL
+            )
+            BEGIN SELECT RAISE(ABORT, 'equipped weapon must be owned by character in same campaign'); END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapon_owner_cleanup
+            AFTER UPDATE OF owner_id, active ON item_instances
+            FOR EACH ROW WHEN NEW.owner_id IS NULL OR NEW.owner_id != OLD.owner_id OR NEW.active = 0
+            BEGIN
+                DELETE FROM equipped_weapons
+                WHERE campaign_id = OLD.campaign_id AND item_instance_id = OLD.id;
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapon_definition_guard
+            BEFORE UPDATE OF weapon_key ON items
+            FOR EACH ROW WHEN NEW.weapon_key IS NULL AND EXISTS (
+                SELECT 1 FROM item_instances ii
+                JOIN equipped_weapons ew
+                  ON ew.item_instance_id = ii.id AND ew.campaign_id = ii.campaign_id
+                WHERE ii.item_id = OLD.id AND ii.campaign_id = OLD.campaign_id
+            )
+            BEGIN SELECT RAISE(ABORT, 'unequip weapon before removing its weapon definition'); END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapon_instance_guard
+            BEFORE UPDATE OF item_id ON item_instances
+            FOR EACH ROW WHEN EXISTS (
+                SELECT 1 FROM equipped_weapons ew
+                WHERE ew.campaign_id = OLD.campaign_id AND ew.item_instance_id = OLD.id
+            )
+            BEGIN SELECT RAISE(ABORT, 'unequip weapon before changing its item definition'); END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapon_instance_cleanup
+            AFTER DELETE ON item_instances FOR EACH ROW BEGIN
+                DELETE FROM equipped_weapons WHERE campaign_id = OLD.campaign_id
+                    AND item_instance_id = OLD.id;
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapon_character_cleanup
+            AFTER DELETE ON character_states FOR EACH ROW BEGIN
+                DELETE FROM equipped_weapons WHERE campaign_id = OLD.campaign_id
+                    AND character_entity_id = OLD.entity_id;
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapons_campaign_insert
+            BEFORE INSERT ON equipped_weapons FOR EACH ROW
+            WHEN NOT EXISTS (SELECT 1 FROM campaign WHERE id = NEW.campaign_id)
+            BEGIN SELECT RAISE(ABORT, 'campaign_id does not exist'); END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_weapons_campaign_immutable
+            BEFORE UPDATE OF campaign_id ON equipped_weapons FOR EACH ROW
+            WHEN NEW.campaign_id != OLD.campaign_id
+            BEGIN SELECT RAISE(ABORT, 'campaign_id is immutable'); END
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_equipped_weapons_item ON equipped_weapons(campaign_id, item_instance_id)")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
