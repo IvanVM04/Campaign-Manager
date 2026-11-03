@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
+from models.campaign_scope import CampaignScope
 from models.schemas import (
     ActiveCharacterUpdate,
     CampaignSessionUpdate,
@@ -470,6 +471,7 @@ def get_turns(
     turns = turn_repository.list_turns(
         session_id=session_id,
         limit=limit,
+        scope=CampaignScope(1),
     )
 
     return [
