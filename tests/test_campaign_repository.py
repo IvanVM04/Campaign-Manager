@@ -10,7 +10,7 @@ def test_get_campaign_returns_none_for_missing_campaign():
 def test_get_session_returns_none_for_missing_session():
     repository = CampaignRepository()
 
-    assert repository.get_session(999999) is None
+    assert repository.get_session(999999, campaign_id=1) is None
 
 
 def test_get_current_session_returns_none_for_missing_campaign():
@@ -24,6 +24,7 @@ def test_create_session_and_get_session():
 
     session = repository.create_session(
         number=999,
+        campaign_id=1,
         title="Test Session",
         summary="Resumen de prueba.",
         start_location="Vorder's Hold",
@@ -55,7 +56,7 @@ def test_get_current_session_returns_none_when_campaign_has_no_session(
 def test_fresh_database_creates_default_campaign():
     repository = CampaignRepository()
 
-    campaign = repository.get_campaign()
+    campaign = repository.get_campaign(1)
 
     assert campaign is not None
     assert campaign["id"] == 1
@@ -74,6 +75,7 @@ def test_mutating_methods_use_supplied_connection(
     with get_conn() as conn:
         session = repository.create_session(
             number=1000,
+            campaign_id=1,
             title="Transactional Session",
             summary="Resumen.",
             start_location="Vorder's Hold",
