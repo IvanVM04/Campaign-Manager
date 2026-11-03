@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from models.combatant_state import CombatantState
@@ -126,6 +126,8 @@ class CombatEncounterState:
         if self.turn_index >= len(self.initiative_order):
             self.turn_index = 0
             self.round_number += 1
+        active = self.active_combatant
+        self.combatants[active.combatant_id] = replace(active, action_used=False)
         return self.active_combatant
 
     def complete(self) -> None:

@@ -165,6 +165,32 @@ class CharacterRepository:
 
         return loaded
 
+    def update_current_hp(
+        self,
+        entity_id: int,
+        *,
+        campaign_id: int,
+        expected_current_hp: int,
+        new_current_hp: int,
+        conn,
+    ) -> None:
+        """Compare-and-swap HP inside the caller's transaction."""
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in (expected_current_hp, new_current_hp)
+        ):
+            raise ValueError("hit points must be non-negative integers")
+        cursor = conn.execute(
+            """
+            UPDATE character_states
+            SET current_hp = ?
+            WHERE entity_id = ? AND campaign_id = ? AND current_hp = ?
+            """,
+            (new_current_hp, entity_id, campaign_id, expected_current_hp),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("character hit points changed; reload the encounter")
+
     def delete_character(
         self,
         entity_id: int,

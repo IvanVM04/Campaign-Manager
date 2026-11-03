@@ -122,3 +122,34 @@ def test_missed_attack_rejects_damage_results():
             manual_attack_rolls=(2,),
             manual_damage_rolls=(6,),
         )
+
+
+def test_fixed_damage_attacks_add_ability_modifier_without_rolling_damage_dice():
+    result = resolve_attack(
+        roller=DiceRoller(FixedRandom([12])),
+        attack_bonus=4,
+        target_ac=10,
+        damage_dice_count=0,
+        damage_die_sides=0,
+        damage_bonus=3,
+        fixed_damage=1,
+        damage_type=DamageType.PIERCING,
+    )
+    assert result.hit is True
+    assert result.damage_roll is None
+    assert result.raw_damage == 4
+
+
+def test_fixed_damage_critical_does_not_double_flat_damage():
+    result = resolve_attack(
+        roller=DiceRoller(FixedRandom([20])),
+        attack_bonus=0,
+        target_ac=30,
+        damage_dice_count=0,
+        damage_die_sides=0,
+        damage_bonus=2,
+        fixed_damage=1,
+        damage_type=DamageType.PIERCING,
+    )
+    assert result.critical is True
+    assert result.raw_damage == 3
