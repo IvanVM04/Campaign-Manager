@@ -88,7 +88,7 @@ class ConditionSet:
         return bool(
             self.conditions
             & {
-                Condition.PARALYZED,
+                Condition.BLINDED,
                 Condition.PETRIFIED,
                 Condition.RESTRAINED,
                 Condition.STUNNED,
