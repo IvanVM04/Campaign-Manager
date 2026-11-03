@@ -981,7 +981,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
 
     service = __import__(
         "app"
-    ).runtime_factory.get_runtime(1).runtime_factory.get_runtime(1).silly_tavern_integration_service
+    ).runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_process_turn = service.process_turn
 
