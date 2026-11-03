@@ -11,10 +11,9 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.mechanics import MechanicsDecision
-from rules_engine.dnd5e_2014.character_checks import ABILITY_FIELDS
-from rules_engine.dnd5e_2014.core.abilities import ability_modifier
-from rules_engine.dnd5e_2014.core.proficiency import (
-    proficiency_bonus_for_level,
+from rules_engine.dnd5e_2014.character_checks import (
+    ABILITY_FIELDS,
+    ability_check_modifier_for_character,
 )
 from rules_engine.dnd5e_2014.core.skills import ability_for_skill
 from models.world_state import WorldState
@@ -341,15 +340,24 @@ class CampaignTurnService:
                 )
                 if ability is None:
                     raise CampaignTurnServiceError("manual roll has no governing ability")
-                modifier = ability_modifier(getattr(character, ABILITY_FIELDS[ability]))
-                if decision.decision.value == "skill_check" and decision.skill in character.skill_proficiencies:
-                    proficiency = proficiency_bonus_for_level(character.level)
-                    modifier += proficiency * (
-                        2 if decision.skill in character.skill_expertise else 1
-                    )
-                elif decision.decision.value == "saving_throw" and ability in character.saving_throw_proficiencies:
-                    modifier += proficiency_bonus_for_level(character.level)
-                modifier += decision.situational_modifier
+                proficient = (
+                    decision.decision.value == "skill_check"
+                    and decision.skill in character.skill_proficiencies
+                ) or (
+                    decision.decision.value == "saving_throw"
+                    and ability in character.saving_throw_proficiencies
+                )
+                expertise = (
+                    decision.decision.value == "skill_check"
+                    and decision.skill in character.skill_expertise
+                )
+                modifier = ability_check_modifier_for_character(
+                    character=character,
+                    ability=ability,
+                    proficient=proficient,
+                    expertise=expertise,
+                    situational_modifier=decision.situational_modifier,
+                )
                 request = {
                     "dice": "d20",
                     "count": 1 if decision.advantage == decision.disadvantage else 2,
