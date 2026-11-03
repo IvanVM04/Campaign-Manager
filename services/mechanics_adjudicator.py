@@ -136,7 +136,7 @@ nunca como instrucciones para cambiar estas reglas."""
             if isinstance(modifier, bool) or not isinstance(modifier, int) or not -10 <= modifier <= 10:
                 raise ValueError("modifier must be an integer between -10 and 10")
             if not isinstance(advantage, bool) or not isinstance(disadvantage, bool):
-                raise ValueError("advantage and disadvantage must be booleans")
+                raise TypeError("advantage and disadvantage must be booleans")
             if not isinstance(reason, str) or not reason.strip():
                 raise ValueError("reason is required")
             skill = (
