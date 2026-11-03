@@ -7,11 +7,13 @@ from database import init_db
 from models.campaign_scope import CampaignScope
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
+from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.entity_repository import EntityRepository
 from repositories.turn_repository import TurnRepository
 from services.campaign_state_service import CampaignStateService
 from services.campaign_turn_service import CampaignTurnService
 from services.character_creation_service import CharacterCreationService
+from services.combat_encounter_service import CombatEncounterService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
@@ -42,6 +44,7 @@ class CampaignRuntime:
     context_builder: ContextBuilder
     turn_execution_lock: TurnExecutionLock
     character_creation_service: CharacterCreationService
+    combat_encounter_service: CombatEncounterService
     campaign_turn_service: CampaignTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
@@ -147,6 +150,11 @@ class CampaignRuntimeFactory:
             entity_repository=entity_repository,
             character_repository=character_repository,
         )
+        combat_encounter_service = CombatEncounterService(
+            repository=CombatEncounterRepository(),
+            character_repository=character_repository,
+            entity_repository=entity_repository,
+        )
 
         return CampaignRuntime(
             scope=scope,
@@ -160,6 +168,7 @@ class CampaignRuntimeFactory:
             context_builder=context_builder,
             turn_execution_lock=turn_execution_lock,
             character_creation_service=character_creation_service,
+            combat_encounter_service=combat_encounter_service,
             campaign_turn_service=campaign_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )

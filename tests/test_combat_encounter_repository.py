@@ -35,6 +35,7 @@ def test_save_and_reload_round_trips_full_encounter_state():
     assert loaded.active_combatant.combatant_id == "hero"
     assert loaded.combatants["hero"].conditions.conditions == frozenset({Condition.POISONED})
     assert loaded.combatants["hero"].conditions.exhaustion_level == 2
+    assert loaded.combatants["hero"].dexterity == 10
 
 
 def test_encounters_are_isolated_by_campaign():

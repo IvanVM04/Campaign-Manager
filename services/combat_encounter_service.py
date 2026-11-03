@@ -1,0 +1,184 @@
+"""Application use cases for campaign-scoped combat encounters."""
+
+from __future__ import annotations
+
+from dataclasses import replace
+from uuid import uuid4
+
+from models.combat_encounter_state import CombatEncounterState, EncounterStatus
+from models.combatant_state import CombatantState
+from repositories.combat_encounter_repository import CombatEncounterRepository
+from rules_engine.dnd5e_2014.combat.initiative import roll_initiative
+from rules_engine.dnd5e_2014.core.dice import DiceRoller
+
+
+class CombatEncounterService:
+    """Coordinates encounter lifecycle; rules calculations remain in rules_engine."""
+
+    def __init__(
+        self,
+        *,
+        repository: CombatEncounterRepository,
+        character_repository,
+        entity_repository,
+        dice_roller: DiceRoller | None = None,
+    ) -> None:
+        self.repository = repository
+        self.character_repository = character_repository
+        self.entity_repository = entity_repository
+        self.dice_roller = dice_roller or DiceRoller()
+
+    def create(self, campaign_id: int, participants, encounter_id: str | None = None):
+        if not participants:
+            raise ValueError("an encounter requires at least one participant")
+        encounter_id = encounter_id or uuid4().hex
+        if self.repository.get(encounter_id, campaign_id=campaign_id) is not None:
+            raise ValueError("encounter_id already exists in this campaign")
+        combatants = []
+        for participant in participants:
+            if participant.character_id is not None:
+                character = self.character_repository.get_character(
+                    participant.character_id,
+                    campaign_id=campaign_id,
+                )
+                entity = self.entity_repository.get_entity(
+                    participant.character_id,
+                    campaign_id=campaign_id,
+                )
+                if character is None or entity is None:
+                    raise ValueError(
+                        f"character {participant.character_id} does not exist in this campaign"
+                    )
+                combatants.append(
+                    CombatantState(
+                        combatant_id=f"character-{character.entity_id}",
+                        name=entity.name,
+                        initiative=0,
+                        current_hp=character.current_hp,
+                        max_hp=character.max_hp,
+                        armor_class=character.armor_class,
+                        entity_id=character.entity_id,
+                        is_player_character=True,
+                        dexterity=character.dexterity,
+                    )
+                )
+            else:
+                combatants.append(
+                    CombatantState(
+                        combatant_id=f"npc-{uuid4().hex}",
+                        name=participant.name,
+                        initiative=0,
+                        current_hp=(
+                            participant.current_hp
+                            if participant.current_hp is not None
+                            else participant.max_hp
+                        ),
+                        max_hp=participant.max_hp,
+                        armor_class=participant.armor_class,
+                        dexterity=participant.dexterity,
+                    )
+                )
+        encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
+        return self.repository.save(encounter, campaign_id=campaign_id)
+
+    def get(self, campaign_id: int, encounter_id: str):
+        return self.repository.get(encounter_id, campaign_id=campaign_id)
+
+    def list(self, campaign_id: int):
+        return self.repository.list_for_campaign(campaign_id)
+
+    def start(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        dice_mode: str = "automatic",
+        manual_rolls: dict[str, int] | None = None,
+        initiative_order: tuple[str, ...] | None = None,
+    ):
+        encounter = self._require_encounter(campaign_id, encounter_id)
+        if encounter.status is not EncounterStatus.PREPARING:
+            raise ValueError("only a preparing encounter can be started")
+        manual_rolls = manual_rolls or {}
+        expected_ids = set(encounter.combatants)
+        if dice_mode == "manual":
+            if set(manual_rolls) != expected_ids:
+                raise ValueError("manual mode requires exactly one d20 result for every combatant")
+        elif dice_mode == "automatic":
+            if manual_rolls:
+                raise ValueError("manual_rolls can only be supplied in manual mode")
+        else:
+            raise ValueError("dice_mode must be automatic or manual")
+
+        updated = {}
+        for combatant_id, combatant in encounter.combatants.items():
+            result = roll_initiative(
+                combatant_id=combatant_id,
+                dexterity_score=combatant.dexterity,
+                roller=self.dice_roller,
+                manual_rolls=(
+                    (manual_rolls[combatant_id],) if dice_mode == "manual" else None
+                ),
+            )
+            updated[combatant_id] = replace(combatant, initiative=result.total)
+        encounter.combatants = updated
+
+        if initiative_order is None:
+            tied = encounter.tied_initiative_groups
+            if tied:
+                raise ValueError(
+                    "initiative tie requires initiative_order to break ties: "
+                    + "; ".join(", ".join(group) for group in tied)
+                )
+            initiative_order = tuple(
+                sorted(
+                    encounter.combatants,
+                    key=lambda item: (-encounter.combatants[item].initiative, item),
+                )
+            )
+        encounter.start(tuple(initiative_order))
+        return self.repository.save(encounter, campaign_id=campaign_id)
+
+    def advance_turn(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        expected_round: int | None = None,
+        expected_turn_index: int | None = None,
+    ):
+        encounter = self._require_encounter(campaign_id, encounter_id)
+        self._check_position(encounter, expected_round, expected_turn_index)
+        if encounter.status is not EncounterStatus.ACTIVE:
+            raise ValueError("cannot advance a non-active encounter")
+        encounter.advance_turn()
+        return self.repository.save(encounter, campaign_id=campaign_id)
+
+    def complete(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        expected_round: int | None = None,
+        expected_turn_index: int | None = None,
+    ):
+        encounter = self._require_encounter(campaign_id, encounter_id)
+        self._check_position(encounter, expected_round, expected_turn_index)
+        encounter.complete()
+        return self.repository.save(encounter, campaign_id=campaign_id)
+
+    def _require_encounter(self, campaign_id: int, encounter_id: str):
+        encounter = self.repository.get(encounter_id, campaign_id=campaign_id)
+        if encounter is None:
+            raise LookupError("encounter does not exist in this campaign")
+        return encounter
+
+    @staticmethod
+    def _check_position(encounter, expected_round, expected_turn_index):
+        if expected_round is not None and encounter.round_number != expected_round:
+            raise RuntimeError("encounter round changed; reload the encounter")
+        if (
+            expected_turn_index is not None
+            and encounter.turn_index != expected_turn_index
+        ):
+            raise RuntimeError("encounter turn changed; reload the encounter")
