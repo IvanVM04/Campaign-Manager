@@ -114,6 +114,7 @@ def test_get_turns_filters_by_session_and_limit(
         *,
         session_id=None,
         limit=None,
+        scope=None,
     ):
         calls.append(
             {
