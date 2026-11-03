@@ -1650,7 +1650,6 @@ def test_restore_snapshot_does_not_modify_other_campaign(tmp_path):
         world_repository = WorldRepository()
         snapshot_repository = WorldSnapshotRepository()
         scope_one = CampaignScope(1)
-        CampaignScope(2)
 
         world_one = WorldState(
             entities={
