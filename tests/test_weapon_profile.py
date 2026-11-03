@@ -1,8 +1,8 @@
 import pytest
 
 from models.character_state import CharacterState
-from rules_engine.dnd5e_2014.weapons.catalog import get_weapon
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
+from rules_engine.dnd5e_2014.weapons.catalog import get_weapon
 
 
 def test_finesse_allows_player_to_choose_strength_or_dexterity():

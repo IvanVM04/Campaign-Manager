@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 import database
@@ -9,8 +11,13 @@ from models.world_state import WorldState
 from repositories.character_repository import CharacterRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from repositories.world_repository import WorldRepository
-from rules_engine.dnd5e_2014.weapons.catalog import WEAPON_CATALOG, WeaponCategory, WeaponProperty, get_weapon
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
+from rules_engine.dnd5e_2014.weapons.catalog import (
+    WEAPON_CATALOG,
+    WeaponCategory,
+    WeaponProperty,
+    get_weapon,
+)
 
 
 def setup_db(tmp_path):
@@ -97,7 +104,7 @@ def test_equipped_weapon_requires_owned_weapon_in_same_campaign(tmp_path):
         repository = WeaponEquipmentRepository()
         repository.equip(campaign_id=1, character_entity_id=1, item_instance_id=1)
         assert repository.get_equipped(campaign_id=1, character_entity_id=1)["weapon_key"] == "longsword"
-        with pytest.raises(Exception):
+        with pytest.raises(sqlite3.IntegrityError):
             repository.equip(campaign_id=2, character_entity_id=1, item_instance_id=1)
         with get_conn() as conn:
             conn.execute("UPDATE item_instances SET owner_id = NULL WHERE id = 1 AND campaign_id = 1")
