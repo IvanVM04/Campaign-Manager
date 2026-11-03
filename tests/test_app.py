@@ -214,6 +214,8 @@ def test_play_turn_returns_turn_result(
 
     def fake_play_turn(
         player_input,
+        *,
+        dice_mode="automatic",
     ):
         assert player_input == "Pregunto por Aldric."
         return FakeResult()
