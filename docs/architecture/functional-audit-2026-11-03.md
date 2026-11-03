@@ -259,3 +259,14 @@ The README now describes all three jobs. The workflow file was inspected; a draf
 **Behavioural consequence:** SillyTavern narratives that include damage/healing will no longer automatically update character HP. That is intentional until the deterministic rules engine can produce verified mechanical commands. World-state extraction (entities, items, resources, relations and events) remains available.
 
 **Verification status:** source and tests are committed; execution remains pending CI. This is a safety boundary, not a D&D rules implementation.
+
+
+### F-19 — Deleting selected campaign state could leave dangling campaign pointers
+
+**Severity:** Medium data-integrity issue; corrected by migration 014 in the audit branch.
+
+**Evidence:** campaign pointers are now validated on INSERT/UPDATE by migration 013, but repository methods can delete their target records: `EntityRepository.delete_entity()`, `WorldRepository` removes missing entities during world saves, and `CharacterRepository.delete_character()` deletes the `character_states` row. Deleting a selected current location, active character state or current session could therefore leave the campaign row pointing to a missing record.
+
+**Change in this branch:** migration 014 adds AFTER DELETE triggers that clear the matching pointer for the same campaign: deleting an entity clears `current_location_id`; deleting a character state clears `active_character_id`; deleting a session clears `current_session_id`. Added a migration test covering all three paths.
+
+**Verification status:** migration and test are committed but not executed. Test against a version-13 database copy before release.
