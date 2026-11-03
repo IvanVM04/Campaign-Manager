@@ -32,6 +32,8 @@ class CombatEncounterService:
         if not participants:
             raise ValueError("an encounter requires at least one participant")
         encounter_id = encounter_id or uuid4().hex
+        if self.repository.get(encounter_id, campaign_id=campaign_id) is not None:
+            raise ValueError("encounter_id already exists in this campaign")
         combatants = []
         for participant in participants:
             if participant.character_id is not None:
@@ -124,10 +126,6 @@ class CombatEncounterService:
         if initiative_order is None:
             tied = encounter.tied_initiative_groups
             if tied:
-                encounter.combatants = {
-                    key: replace(value, initiative=0)
-                    for key, value in encounter.combatants.items()
-                }
                 raise ValueError(
                     "initiative tie requires initiative_order to break ties: "
                     + "; ".join(", ".join(group) for group in tied)
