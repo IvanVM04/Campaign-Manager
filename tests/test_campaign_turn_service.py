@@ -3,6 +3,8 @@ import time
 
 import pytest
 
+from models.campaign_scope import CampaignScope
+
 from models.operation_result import OperationResult, OperationStatus
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -1105,7 +1107,8 @@ def test_play_turn_persists_turn_record_when_turn_repository_is_configured():
 
     assert returned is result
 
-    turns = turn_repository.list_turns()
+    turns = turn_repository.list_turns(
+        scope=CampaignScope(1),)
 
     assert len(turns) == 1
 
@@ -1172,7 +1175,8 @@ def test_play_turn_persists_turn_with_same_session_id():
 
     assert returned is result
 
-    turns = turn_repository.list_turns()
+    turns = turn_repository.list_turns(
+        scope=CampaignScope(1),)
 
     assert len(turns) == 1
 
@@ -1193,7 +1197,8 @@ def test_play_turn_loads_recent_turns_before_resolution():
             player_input="Llego a Vorder's Hold.",
             narrative="La lluvia cae sobre la ciudad.",
         )
-    )
+    
+        scope=CampaignScope(1),)
 
     world_service = RecordingWorldService()
 
@@ -1243,7 +1248,8 @@ def test_play_turn_persists_current_turn_after_loading_recent_history():
             player_input="Primer turno.",
             narrative="Primera escena.",
         )
-    )
+    
+        scope=CampaignScope(1),)
 
     result = make_result(
         player_input="Segundo turno.",
@@ -1267,7 +1273,8 @@ def test_play_turn_persists_current_turn_after_loading_recent_history():
         "Segundo turno."
     )
 
-    turns = repository.list_turns()
+    turns = repository.list_turns(
+        scope=CampaignScope(1),)
 
     assert len(turns) == 2
 
@@ -1736,7 +1743,8 @@ def test_failed_turn_rolls_back_database_changes_before_saving_turn(
 
     assert campaign["summary"] == ""
 
-    turns = turn_repository.list_turns()
+    turns = turn_repository.list_turns(
+        scope=CampaignScope(1),)
 
     assert len(turns) == 1
 
@@ -2351,7 +2359,8 @@ def test_failed_turn_rolls_back_created_entity_but_persists_turn(
 
     assert entity is None
 
-    turns = turn_repository.list_turns()
+    turns = turn_repository.list_turns(
+        scope=CampaignScope(1),)
 
     assert len(turns) == 1
 
