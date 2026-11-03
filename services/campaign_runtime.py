@@ -11,8 +11,8 @@ from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.entity_repository import EntityRepository
 from repositories.turn_repository import TurnRepository
 from services.campaign_state_service import CampaignStateService
-from services.combat_encounter_service import CombatEncounterService
 from services.campaign_turn_service import CampaignTurnService
+from services.combat_encounter_service import CombatEncounterService
 from services.character_creation_service import CharacterCreationService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
