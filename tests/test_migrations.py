@@ -15,6 +15,7 @@ from migrations import (
     migration_012,
     migration_013,
     migration_014,
+    migration_015,
 )
 
 
@@ -654,4 +655,24 @@ def test_migration_014_clears_campaign_pointers_when_targets_are_deleted():
     ).fetchone()
     assert row[0] is None
 
+    conn.close()
+
+
+def test_migration_015_adds_empty_proficiencies_without_losing_characters():
+    conn = create_version_13_database()
+    migration_014(conn)
+    conn.execute("PRAGMA user_version = 14")
+    entity_id = conn.execute(
+        "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Hero', 'character', 1)"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO character_states (entity_id, campaign_id) VALUES (?, 1)",
+        (entity_id,),
+    )
+    migration_015(conn)
+    row = conn.execute(
+        "SELECT skill_proficiencies, skill_expertise, saving_throw_proficiencies FROM character_states WHERE entity_id = ?",
+        (entity_id,),
+    ).fetchone()
+    assert tuple(row) == ("[]", "[]", "[]")
     conn.close()
