@@ -117,7 +117,7 @@ class CampaignRuntimeFactory:
             provider=provider,
             operation_parser=operation_parser,
         )
-        mechanics_adjudicator = MechanicsAdjudicator(provider)
+        mechanics_adjudicator = MechanicsAdjudicator(provider, context_builder)
         turn_resolution_service = TurnResolutionService(
             dm_service=dm_service,
             world_service=world_service,
