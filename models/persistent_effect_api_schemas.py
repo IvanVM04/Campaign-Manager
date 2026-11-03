@@ -1,16 +1,34 @@
 """Validated API schemas for persistent campaign effects."""
 
-from typing import Literal
+from enum import Enum
 
 from pydantic import BaseModel, Field, StrictInt, model_validator
 
 
-EffectTypeInput = Literal["condition", "exhaustion", "narrative"]
-EffectSourceInput = Literal[
-    "creature", "item", "spell", "environment", "narrative", "system", "unknown"
-]
-EffectDurationInput = Literal["permanent", "conditional"]
-EffectStatusInput = Literal["active", "suspended"]
+class EffectTypeInput(str, Enum):
+    CONDITION = "condition"
+    EXHAUSTION = "exhaustion"
+    NARRATIVE = "narrative"
+
+
+class EffectSourceInput(str, Enum):
+    CREATURE = "creature"
+    ITEM = "item"
+    SPELL = "spell"
+    ENVIRONMENT = "environment"
+    NARRATIVE = "narrative"
+    SYSTEM = "system"
+    UNKNOWN = "unknown"
+
+
+class EffectDurationInput(str, Enum):
+    PERMANENT = "permanent"
+    CONDITIONAL = "conditional"
+
+
+class EffectStatusInput(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
 
 
 class PersistentEffectCreateIn(BaseModel):
