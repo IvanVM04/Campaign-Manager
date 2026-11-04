@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 23
+CURRENT_VERSION = 24
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1169,6 +1169,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 23")
         version = 23
 
+    if version < 24:
+        migration_024(conn)
+        conn.execute("PRAGMA user_version = 24")
+        version = 24
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1804,4 +1809,76 @@ def migration_023(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_023")
         conn.execute("RELEASE SAVEPOINT migration_023")
+        raise
+
+
+def migration_024(conn: sqlite3.Connection) -> None:
+    """Persist non-player creature mechanics independently from encounters."""
+    conn.execute("SAVEPOINT migration_024")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS creature_states (
+                entity_id INTEGER PRIMARY KEY,
+                campaign_id INTEGER NOT NULL,
+                current_hp INTEGER NOT NULL CHECK (current_hp >= 0),
+                max_hp INTEGER NOT NULL CHECK (max_hp >= 1 AND current_hp <= max_hp),
+                armor_class INTEGER NOT NULL CHECK (armor_class BETWEEN 0 AND 100),
+                strength INTEGER NOT NULL DEFAULT 10 CHECK (strength BETWEEN 1 AND 30),
+                dexterity INTEGER NOT NULL DEFAULT 10 CHECK (dexterity BETWEEN 1 AND 30),
+                constitution INTEGER NOT NULL DEFAULT 10 CHECK (constitution BETWEEN 1 AND 30),
+                intelligence INTEGER NOT NULL DEFAULT 10 CHECK (intelligence BETWEEN 1 AND 30),
+                wisdom INTEGER NOT NULL DEFAULT 10 CHECK (wisdom BETWEEN 1 AND 30),
+                charisma INTEGER NOT NULL DEFAULT 10 CHECK (charisma BETWEEN 1 AND 30),
+                proficiency_bonus INTEGER NOT NULL DEFAULT 2 CHECK (proficiency_bonus BETWEEN 0 AND 20),
+                metadata TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+                FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_creature_states_campaign
+            ON creature_states(campaign_id, entity_id)
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_creature_states_campaign_insert
+            BEFORE INSERT ON creature_states
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.entity_id AND campaign_id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'creature entity must belong to same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_creature_states_campaign_update
+            BEFORE UPDATE OF entity_id, campaign_id ON creature_states
+            FOR EACH ROW
+            WHEN NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.entity_id AND campaign_id = NEW.campaign_id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'creature entity must belong to same campaign');
+            END
+        """)
+        for event in ("INSERT", "UPDATE", "DELETE"):
+            ref = "OLD" if event == "DELETE" else "NEW"
+            conn.execute(f"""
+                CREATE TRIGGER IF NOT EXISTS trg_state_revision_creature_states_{event.lower()}
+                AFTER {event} ON creature_states
+                FOR EACH ROW
+                BEGIN
+                    UPDATE campaign_state_versions
+                    SET revision = revision + 1
+                    WHERE campaign_id = {ref}.campaign_id;
+                END
+            """)
+        conn.execute("RELEASE SAVEPOINT migration_024")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_024")
+        conn.execute("RELEASE SAVEPOINT migration_024")
         raise
