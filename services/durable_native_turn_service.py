@@ -315,7 +315,7 @@ class DurableNativeTurnService:
                     return self._result_from_completed_record(record, turn)
                 if record.lifecycle_state in {"committed", "narration_pending"}:
                     pass
-                elif record.lifecycle_state == "prepared":
+                elif record.lifecycle_state in {"accepted", "awaiting_input", "planning", "prepared"}:
                     pass
                 else:
                     raise DurableNativeTurnError(
