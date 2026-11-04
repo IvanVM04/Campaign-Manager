@@ -193,10 +193,12 @@ def test_equipment_slot_mutation_is_rejected_while_item_is_equipped(tmp_path):
         repository.equip_item(
             campaign_id=1, character_entity_id=1, item_instance_id=1, slot="body"
         )
-        with get_conn() as conn:
-            with pytest.raises(sqlite3.IntegrityError, match="unequip item"):
-                conn.execute(
-                    "UPDATE items SET equipment_slot = 'head' WHERE id = 1 AND campaign_id = 1"
-                )
+        with (
+            get_conn() as conn,
+            pytest.raises(sqlite3.IntegrityError, match="unequip item"),
+        ):
+            conn.execute(
+                "UPDATE items SET equipment_slot = 'head' WHERE id = 1 AND campaign_id = 1"
+            )
     finally:
         database.DB_PATH = previous
