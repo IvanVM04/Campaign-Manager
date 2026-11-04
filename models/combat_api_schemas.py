@@ -20,9 +20,14 @@ class EncounterParticipantIn(BaseModel):
     charisma: int = Field(default=10, ge=1, le=30)
     proficiency_bonus: int = Field(default=2, ge=0, le=20)
     is_player_character: bool = False
+    position_x: StrictInt | None = Field(default=None, ge=-10000, le=10000)
+    position_y: StrictInt | None = Field(default=None, ge=-10000, le=10000)
+    speed_feet: StrictInt = Field(default=30, ge=0, le=1000)
 
     @model_validator(mode="after")
     def validate_source(self):
+        if (self.position_x is None) != (self.position_y is None):
+            raise ValueError("position_x and position_y must be supplied together")
         if self.character_id is not None and self.creature_id is not None:
             raise ValueError("participant cannot reference both a character and a creature")
         if self.character_id is not None or self.creature_id is not None:
@@ -122,3 +127,13 @@ class EncounterReactionIn(BaseModel):
     combatant_id: str = Field(..., min_length=1, max_length=120)
     expected_round: StrictInt = Field(..., ge=1)
     expected_turn_index: StrictInt = Field(..., ge=0)
+
+
+class GridPositionIn(BaseModel):
+    x: StrictInt = Field(..., ge=-10000, le=10000)
+    y: StrictInt = Field(..., ge=-10000, le=10000)
+
+
+class EncounterMoveIn(EncounterTurnIn):
+    combatant_id: str = Field(..., min_length=1, max_length=120)
+    path: list[GridPositionIn] = Field(..., min_length=2, max_length=200)
