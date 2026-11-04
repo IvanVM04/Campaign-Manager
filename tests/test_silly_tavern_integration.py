@@ -282,7 +282,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
     runtime = __import__("app").runtime_factory.get_runtime(1)
     captured = {}
 
-    def fake_prepare(player_input, *, external_turn_id, dice_mode="automatic")
+    def fake_prepare(player_input, *, external_turn_id, dice_mode="automatic"):
         captured["player_input"] = player_input
         captured["external_turn_id"] = external_turn_id
         captured["dice_mode"] = dice_mode
