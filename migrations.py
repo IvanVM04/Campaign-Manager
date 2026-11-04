@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 27
+CURRENT_VERSION = 28
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1189,6 +1189,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 27")
         version = 27
 
+    if version < 28:
+        migration_028(conn)
+        conn.execute("PRAGMA user_version = 28")
+        version = 28
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -2269,4 +2274,24 @@ def migration_027(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_027")
         conn.execute("RELEASE SAVEPOINT migration_027")
+        raise
+
+
+def migration_028(conn: sqlite3.Connection) -> None:
+    """Persist light, medium, heavy armor and shield proficiencies."""
+    conn.execute("SAVEPOINT migration_028")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(character_states)").fetchall()
+        }
+        if "armor_proficiencies" not in columns:
+            conn.execute("""
+                ALTER TABLE character_states
+                ADD COLUMN armor_proficiencies TEXT NOT NULL DEFAULT '[]'
+            """)
+        conn.execute("RELEASE SAVEPOINT migration_028")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_028")
+        conn.execute("RELEASE SAVEPOINT migration_028")
         raise
