@@ -521,6 +521,9 @@ class SillyTavernIntegrationService:
         # CONTEXTO
         # --------------------------------------------------------
 
+        previous_world = self.world_service.get_world()
+        previous_world_snapshot = copy.deepcopy(previous_world)
+
         try:
             with transaction("DEFERRED") as read_conn:
                 state_revision = self.state_version_repository.get_revision(
