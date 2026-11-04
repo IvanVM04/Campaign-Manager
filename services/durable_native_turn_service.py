@@ -1255,10 +1255,23 @@ class DurableNativeTurnService:
             "lifecycle_state": record.lifecycle_state,
             "player_input": record.player_input,
             "pending_roll_id": str(record.id) + ":" + pending["challenge_id"] if active else None,
-            "pending_roll": ({key: value for key, value in pending.items() if key not in {"challenge_id", "decision", "submitted_rolls"}} if active else None),
+            "pending_roll": ({key: value for key, value in pending.items() if key not in {"challenge_id", "decision", "submitted_rolls", "submitted_external_turn_id"}} if active else None),
         }
 
-    def submit_manual_roll(self, pending_roll_id: str, rolls: tuple[int, ...], *, adapter_namespace: str | None = None, defer_narration: bool = False):
+    def submit_manual_roll(
+        self, pending_roll_id: str, rolls: tuple[int, ...], *,
+        adapter_namespace: str | None = None,
+        defer_narration: bool = False,
+        answer_external_turn_id: str | None = None,
+    ):
+        if answer_external_turn_id is not None and (
+            not isinstance(answer_external_turn_id, str)
+            or not answer_external_turn_id.strip()
+            or len(answer_external_turn_id.strip()) > 500
+        ):
+            raise DurableNativeTurnError("answer_external_turn_id must contain 1-500 characters")
+        if answer_external_turn_id is not None:
+            answer_external_turn_id = answer_external_turn_id.strip()
         if not isinstance(pending_roll_id, str) or ":" not in pending_roll_id:
             raise DurableNativeTurnError("pending_roll_id is invalid")
         if not isinstance(rolls, tuple) or not rolls or len(rolls) > 2 or any(isinstance(v, bool) or not isinstance(v, int) or v < 1 or v > 20 for v in rolls):
@@ -1280,6 +1293,15 @@ class DurableNativeTurnService:
             if accepted is not None:
                 if list(rolls) != accepted:
                     raise DurableNativeTurnError("manual roll challenge was already submitted with different results")
+                accepted_external_turn_id = pending.get("submitted_external_turn_id")
+                if (
+                    accepted_external_turn_id is not None
+                    and answer_external_turn_id is not None
+                    and not secrets.compare_digest(str(accepted_external_turn_id), answer_external_turn_id)
+                ):
+                    raise DurableNativeTurnError(
+                        "manual roll challenge was already submitted by a different chat message"
+                    )
                 if record.lifecycle_state in {"narration_pending", "committed"}:
                     return self._preparation_from_record(record) if defer_narration else self._resume_narration(record, already_processed=True)
                 if record.lifecycle_state == "completed":
@@ -1349,6 +1371,8 @@ class DurableNativeTurnService:
             if plan.awaiting_manual_roll or plan.clarification_question:
                 raise DurableNativeTurnError("manual roll could not be resolved")
             pending["submitted_rolls"] = list(rolls)
+            if answer_external_turn_id is not None:
+                pending["submitted_external_turn_id"] = answer_external_turn_id
             with transaction("IMMEDIATE") as conn:
                 self.resolution_repository.transition(record.id, "prepared", scope=self.scope, expected_state="planning", expected_lease_token=token, updates={"proposal_json": self._serialize_operations(plan), "mechanics_json": self._mechanics_to_json(plan.mechanics_result), "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True), "lease_token": None, "lease_expires_at": None}, conn=conn)
             with transaction("IMMEDIATE") as conn:
