@@ -5,7 +5,6 @@ from typing import Any
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
-
 from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
