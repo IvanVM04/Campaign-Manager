@@ -478,7 +478,7 @@ class DurableNativeTurnService:
                     updates={
                         "resulting_revision": resulting_revision,
                         "operation_results_json": self._operation_results_json(result),
-                        "committed_at": datetime.now(timezone.utc).isoformat(),
+                        "committed_at": datetime.now(UTC).isoformat(),
                     },
                     conn=conn,
                 )
@@ -654,7 +654,7 @@ class DurableNativeTurnService:
                 updates={
                     "turn_id": turn.id,
                     "narrative": narrative,
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "completed_at": datetime.now(UTC).isoformat(),
                 },
                 conn=conn,
             )
