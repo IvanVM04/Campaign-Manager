@@ -376,3 +376,32 @@ test("findManualRollOrigin does not associate arbitrary replies without a pendin
     );
     assert.equal(origin, null);
 });
+
+
+test("findManualRollOrigin recovers a completed manual roll only for the original dice reply", async () => {
+    const action = { is_user: true, mes: "Me escondo." };
+    const answer = { is_user: true, mes: "14" };
+    const chat = [action, { is_user: false, mes: "Lanza un d20." }, answer];
+    const getState = async () => ({
+        has_manual_roll: true,
+        lifecycle_state: "completed",
+        pending_roll_id: "42:challenge",
+        submitted_external_turn_id: "answer-turn",
+        player_input: action.mes,
+        pending_roll: { count: 1, modifier: 3 },
+    });
+    const createTurnId = async (message) => message === answer ? "answer-turn" : "action-turn";
+
+    const retry = await findManualRollOrigin(chat, answer, answer.mes, createTurnId, getState);
+    assert.equal(retry.externalTurnId, "action-turn");
+    assert.deepEqual(retry.rolls, [14]);
+
+    const unrelatedReply = await findManualRollOrigin(
+        chat,
+        answer,
+        answer.mes,
+        async (message) => message === answer ? "different-answer-turn" : "action-turn",
+        getState,
+    );
+    assert.equal(unrelatedReply, null);
+});
