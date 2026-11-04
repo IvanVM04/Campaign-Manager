@@ -11,7 +11,6 @@ from models.world_state import WorldState
 from repositories.character_repository import CharacterRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from repositories.world_repository import WorldRepository
-from services.weapon_equipment_service import WeaponEquipmentService
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import (
     WEAPON_CATALOG,
@@ -19,6 +18,7 @@ from rules_engine.dnd5e_2014.weapons.catalog import (
     WeaponProperty,
     get_weapon,
 )
+from services.weapon_equipment_service import WeaponEquipmentService
 
 
 def setup_db(tmp_path):
