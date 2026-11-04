@@ -856,3 +856,53 @@ def test_migration_022_rejects_cross_campaign_turn_link():
             (turn_id,),
         )
     conn.close()
+
+
+def test_migration_022_lifecycle_checks_and_revision_isolation():
+    import pytest
+
+    conn = create_version_20_database()
+    migration_021(conn)
+    migration_022(conn)
+    revision_before = conn.execute(
+        "SELECT revision FROM campaign_state_versions WHERE campaign_id = 1"
+    ).fetchone()[0]
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            """
+            INSERT INTO turn_resolutions (
+                campaign_id, player_input, adapter_namespace,
+                idempotency_key, request_fingerprint, lifecycle_state
+            ) VALUES (1, 'input', 'native', 'bad-prepared', 'sha256:x', 'prepared')
+            """
+        )
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            """
+            INSERT INTO turn_resolutions (
+                campaign_id, player_input, adapter_namespace,
+                idempotency_key, request_fingerprint, lifecycle_state,
+                attempt_count
+            ) VALUES (1, 'input', 'native', 'bad-planning', 'sha256:y', 'planning', 1)
+            """
+        )
+
+    cursor = conn.execute(
+        """
+        INSERT INTO turn_resolutions (
+            campaign_id, player_input, adapter_namespace,
+            idempotency_key, request_fingerprint
+        ) VALUES (1, 'input', 'native', 'valid', 'sha256:z')
+        """
+    )
+    conn.execute(
+        "UPDATE turn_resolutions SET last_error_code='provider_timeout' WHERE id=?",
+        (cursor.lastrowid,),
+    )
+    revision_after = conn.execute(
+        "SELECT revision FROM campaign_state_versions WHERE campaign_id = 1"
+    ).fetchone()[0]
+    assert revision_after == revision_before
+    conn.close()
