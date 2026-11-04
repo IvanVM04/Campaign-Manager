@@ -41,6 +41,23 @@ class WeaponEquipmentRepository:
             slot="main_hand",
         )
 
+    def list_inventory(self, *, campaign_id: int, character_entity_id: int, conn=None):
+        query = """
+            SELECT
+                ii.id AS item_instance_id, ii.item_id, i.name AS item_name,
+                i.weapon_key, i.equipment_slot, ii.instance_number,
+                ii.condition, ii.notes, ii.active
+            FROM item_instances ii
+            JOIN items i
+              ON i.id = ii.item_id AND i.campaign_id = ii.campaign_id
+            WHERE ii.campaign_id = ? AND ii.owner_id = ? AND ii.active = 1
+            ORDER BY i.name, ii.instance_number
+        """
+        params = (campaign_id, character_entity_id)
+        if conn is None:
+            return rows(query, params)
+        return [dict(row) for row in conn.execute(query, params).fetchall()]
+
     def list_equipped(self, *, campaign_id: int, character_entity_id: int, conn=None):
         query = """
             SELECT
