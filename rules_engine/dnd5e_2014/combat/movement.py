@@ -8,6 +8,7 @@ rule where every diagonal square costs 5 feet.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import pairwise
 
 from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
 
@@ -61,7 +62,7 @@ def movement_path_cost_feet(path: tuple[GridPosition, ...]) -> int:
     if any(not isinstance(position, GridPosition) for position in path):
         raise TypeError("path must contain GridPosition values")
     cost = 0
-    for previous, current in zip(path, path[1:]):
+    for previous, current in pairwise(path):
         dx = abs(current.x - previous.x)
         dy = abs(current.y - previous.y)
         if max(dx, dy) != 1:
