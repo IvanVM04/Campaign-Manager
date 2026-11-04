@@ -68,8 +68,8 @@ def test_third_success_stabilizes():
 
 def test_invalid_or_already_resolved_tracks_are_rejected():
     roller = DiceRoller(SequenceRandom([10]))
-    with pytest.raises(ValueError, match="between zero and two"):
-        resolve_death_saving_throw(roller=roller, successes=3)
+    with pytest.raises(ValueError, match="between zero and three"):
+        resolve_death_saving_throw(roller=roller, successes=4)
     with pytest.raises(ValueError, match="already resolved"):
         resolve_death_saving_throw(roller=roller, failures=3)
     with pytest.raises(TypeError, match="must be an integer"):
