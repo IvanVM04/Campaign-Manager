@@ -59,6 +59,18 @@ def bootstrap_campaign(
 
 
 
+@router.get("/characters/{character_entity_id}/inventory")
+def list_character_inventory(character_entity_id: int):
+    runtime = get_current_runtime()
+    return {
+        "character_entity_id": character_entity_id,
+        "items": runtime.weapon_equipment_service.inventory_items(
+            campaign_id=runtime.campaign_id,
+            character_entity_id=character_entity_id,
+        ),
+    }
+
+
 @router.get("/characters/{character_entity_id}/equipment")
 def list_character_equipment(character_entity_id: int):
     runtime = get_current_runtime()
