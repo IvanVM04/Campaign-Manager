@@ -957,7 +957,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
