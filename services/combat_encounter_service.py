@@ -14,6 +14,7 @@ from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.creature_repository import CreatureRepository
 from rules_engine.dnd5e_2014.combat.death_saves import resolve_death_saving_throw
 from rules_engine.dnd5e_2014.combat.initiative import roll_initiative
+from rules_engine.dnd5e_2014.combat.movement import GridPosition, movement_path_cost_feet, movement_speed_feet
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 
 
@@ -84,6 +85,9 @@ class CombatEncounterService:
                         charisma=character.charisma,
                         proficiency_bonus=character.proficiency_bonus,
                         conscious=character.current_hp > 0,
+                    position_x=participant.position_x,
+                    position_y=participant.position_y,
+                    speed_feet=participant.speed_feet,
                     ))
                     continue
 
@@ -148,6 +152,9 @@ class CombatEncounterService:
                     charisma=creature.charisma,
                     proficiency_bonus=creature.proficiency_bonus,
                     conscious=creature.current_hp > 0,
+                    position_x=participant.position_x,
+                    position_y=participant.position_y,
+                    speed_feet=participant.speed_feet,
                 ))
 
             encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
@@ -425,6 +432,39 @@ class CombatEncounterService:
                 conn=conn,
             )
         return result
+
+    def move_combatant(
+        self, campaign_id: int, encounter_id: str, *, combatant_id: str,
+        expected_round: int, expected_turn_index: int, path: tuple[GridPosition, ...],
+    ):
+        """Move the active combatant and persist its movement budget atomically."""
+        with transaction("IMMEDIATE") as conn:
+            encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
+            self._check_position(encounter, expected_round, expected_turn_index)
+            if encounter.status is not EncounterStatus.ACTIVE:
+                raise ValueError("movement requires an active encounter")
+            active = encounter.active_combatant
+            if active is None or active.combatant_id != combatant_id:
+                raise ValueError("only the active combatant can move")
+            if active.dead or not active.conscious or active.conditions.is_incapacitated:
+                raise ValueError("an unconscious, dead or incapacitated combatant cannot move")
+            if active.position_x is None or active.position_y is None:
+                raise ValueError("combatant has no tactical position; set it when creating the encounter")
+            if not isinstance(path, tuple) or len(path) < 2:
+                raise ValueError("movement path must contain a start and a destination")
+            if path[0] != GridPosition(active.position_x, active.position_y):
+                raise ValueError("movement path must start at the combatant's current position")
+            cost = movement_path_cost_feet(path)
+            speed = movement_speed_feet(active.speed_feet, active.conditions)
+            remaining = max(0, speed - active.movement_used_feet)
+            if cost > remaining:
+                raise ValueError("movement path exceeds the combatant's remaining movement")
+            destination = path[-1]
+            encounter.combatants[combatant_id] = replace(
+                active, position_x=destination.x, position_y=destination.y,
+                movement_used_feet=active.movement_used_feet + cost,
+            )
+            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
 
     def use_reaction(
         self,
