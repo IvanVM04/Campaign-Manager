@@ -253,7 +253,8 @@ def test_integration_context_endpoint_returns_500_on_service_error(
     assert response.status_code == 500
 
     assert response.json() == {
-        "detail": "context failed"
+        "detail": "context failed",
+        "code": "internal_error",
     }
 
 
@@ -378,7 +379,8 @@ def test_integration_turn_endpoint_returns_400_on_service_error(
     assert response.status_code == 400
 
     assert response.json() == {
-        "detail": "processing failed"
+        "detail": "processing failed",
+        "code": "bad_request",
     }
 
 
