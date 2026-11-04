@@ -621,6 +621,23 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
     assert "La puerta de roble." in recovered_after_answer["resolved_player_input"]
     assert narrative_calls == []
 
+    replayed_answer = service.submit_clarification(
+        prepared.pending_clarification_id,
+        "La puerta de roble.",
+        adapter_namespace="sillytavern",
+        defer_narration=True,
+        answer_external_turn_id="st-answer-clarification-001",
+    )
+    assert replayed_answer.lifecycle_state == "narration_pending"
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_clarification(
+            prepared.pending_clarification_id,
+            "La puerta de roble.",
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+            answer_external_turn_id="different-answer-message-id",
+        )
+
     completed = service.complete_external_narration(
         external_turn_id="st-clarification-001",
         player_input="Abro una puerta.",
