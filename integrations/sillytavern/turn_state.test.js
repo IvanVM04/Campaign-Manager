@@ -444,3 +444,93 @@ test(
     },
 
 );
+
+
+test(
+    'reset forgets previous turn state and reloads persisted state',
+    async () => {
+        const state =
+            new TurnState();
+
+        const externalTurnId =
+            'turn-reset-regression';
+
+        const firstVersion =
+            await state.getVersion(
+                externalTurnId,
+                'Primera narrativa.',
+                async () => missingTurn(),
+            );
+
+        assert.equal(
+            firstVersion,
+            1,
+        );
+
+        const secondVersion =
+            await state.getVersion(
+                externalTurnId,
+                'Segunda narrativa.',
+                async () => {
+                    throw new Error(
+                        'backend should not be queried before reset',
+                    );
+                },
+            );
+
+        assert.equal(
+            secondVersion,
+            2,
+        );
+
+        assert.equal(
+            state.tryMarkProcessing(
+                externalTurnId,
+                secondVersion,
+            ),
+            true,
+        );
+
+        let persistedStateQueries = 0;
+
+        state.reset();
+
+        const versionAfterReset =
+            await state.getVersion(
+                externalTurnId,
+                'Tercera narrativa.',
+                async (requestedTurnId) => {
+                    persistedStateQueries += 1;
+
+                    assert.equal(
+                        requestedTurnId,
+                        externalTurnId,
+                    );
+
+                    return {
+                        exists: true,
+                        active_version: 1,
+                        narrative: 'Primera narrativa.',
+                    };
+                },
+            );
+
+        assert.equal(
+            persistedStateQueries,
+            1,
+        );
+
+        assert.equal(
+            versionAfterReset,
+            2,
+        );
+
+        assert.equal(
+            state.tryMarkProcessing(
+                externalTurnId,
+                versionAfterReset,
+            ),
+            true,
+        );
+    },
+);
