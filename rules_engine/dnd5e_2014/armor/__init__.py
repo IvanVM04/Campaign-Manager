@@ -2,8 +2,8 @@
 
 from rules_engine.dnd5e_2014.armor.armor_class import (
     ArmorClassResult,
-    derive_armor_class,
     ArmorProficiencyResult,
+    derive_armor_class,
     derive_armor_proficiency,
 )
 from rules_engine.dnd5e_2014.armor.catalog import (
