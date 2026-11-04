@@ -90,6 +90,7 @@ def test_character_state_can_represent_player_character():
     assert character.dexterity == 16
     assert character.current_hp == character.max_hp
 
+
 def test_character_state_validates_armor_proficiency_categories():
     import pytest
 
