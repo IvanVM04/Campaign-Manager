@@ -26,6 +26,8 @@ class Item:
 
     weapon_key: str | None = None
 
+    armor_key: str | None = None
+
     equipment_slot: str | None = None
 
     def __post_init__(self) -> None:
