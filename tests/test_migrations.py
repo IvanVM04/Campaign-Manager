@@ -1064,3 +1064,39 @@ def test_migration_026_creates_slot_projection_and_migrates_legacy_weapon():
     ).fetchone()[0] == "main_hand"
     assert conn.execute("PRAGMA user_version").fetchone()[0] == 26
     conn.close()
+
+
+def test_migration_027_adds_typed_armor_metadata_and_slot_guards():
+    import pytest
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    run_migrations(conn)
+
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(items)").fetchall()
+    }
+    assert "armor_key" in columns
+
+    with pytest.raises(sqlite3.IntegrityError, match="armor items require"):
+        conn.execute("""
+            INSERT INTO items (name, armor_key, equipment_slot, campaign_id)
+            VALUES ('Mis-slotted shield', 'shield', 'body', 1)
+        """)
+
+    with pytest.raises(sqlite3.IntegrityError, match="armor items require"):
+        conn.execute("""
+            INSERT INTO items (name, weapon_key, armor_key, equipment_slot, campaign_id)
+            VALUES ('Weapon armor hybrid', 'longsword', 'leather', 'body', 1)
+        """)
+
+    conn.execute("""
+        INSERT INTO items (name, armor_key, equipment_slot, campaign_id)
+        VALUES ('Leather armor', 'leather', 'body', 1)
+    """)
+    conn.execute("""
+        INSERT INTO items (name, armor_key, equipment_slot, campaign_id)
+        VALUES ('Shield', 'shield', 'off_hand', 1)
+    """)
+    conn.close()
