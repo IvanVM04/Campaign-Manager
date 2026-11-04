@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 from database import get_conn
 from repositories.combat_encounter_repository import CombatEncounterRepository
@@ -376,3 +377,165 @@ def test_unproficient_armor_imposes_disadvantage_on_strength_attack(client):
     assert payload["disadvantage"] is True
     assert payload["armor_training_penalty"] is True
     assert payload["attack"]["selected"] == 4
+
+
+
+def _set_character_target_to_zero_hp(target_id, *, failures=0):
+    repository = CombatEncounterRepository()
+    encounter = repository.get("attack-test", campaign_id=1)
+    target_key = f"character-{target_id}"
+    target = encounter.combatants[target_key]
+    encounter.combatants[target_key] = replace(
+        target,
+        current_hp=0,
+        conscious=False,
+        death_save_successes=0,
+        death_save_failures=failures,
+        stable=False,
+        dead=False,
+    )
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE character_states SET current_hp = 0 WHERE entity_id = ? AND campaign_id = 1",
+            (target_id,),
+        )
+    repository.save(encounter, campaign_id=1)
+    return target_key
+
+
+def test_attack_against_downed_character_adds_one_death_save_failure(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = _set_character_target_to_zero_hp(target_id)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["current_hp"] == 0
+    assert combatant["conscious"] is False
+    assert combatant["death_save_failures"] == 1
+    assert combatant["stable"] is False
+    assert combatant["dead"] is False
+
+
+def test_critical_hit_against_downed_character_adds_two_failures(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = _set_character_target_to_zero_hp(target_id)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [20],
+            "manual_damage_rolls": [6, 6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["death_save_failures"] == 2
+    assert combatant["dead"] is False
+    assert combatant["current_hp"] == 0
+
+
+def test_damage_to_stable_character_makes_them_unstable_again(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = _set_character_target_to_zero_hp(target_id)
+    repository = CombatEncounterRepository()
+    encounter = repository.get("attack-test", campaign_id=1)
+    encounter.combatants[target_key] = replace(
+        encounter.combatants[target_key],
+        death_save_successes=3,
+        stable=True,
+    )
+    repository.save(encounter, campaign_id=1)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["stable"] is False
+    assert combatant["death_save_failures"] == 1
+    assert combatant["death_save_successes"] == 0
+
+
+
+def test_third_failure_from_damage_kills_downed_character(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = _set_character_target_to_zero_hp(target_id, failures=2)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["death_save_failures"] == 3
+    assert combatant["dead"] is True
+    assert combatant["current_hp"] == 0
+    assert combatant["conscious"] is False
+
+
+
+def test_massive_damage_kills_character_when_excess_reaches_max_hp(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = f"character-{target_id}"
+    repository = CombatEncounterRepository()
+    encounter = repository.get("attack-test", campaign_id=1)
+    target = encounter.combatants[target_key]
+    encounter.combatants[target_key] = replace(
+        target,
+        current_hp=1,
+        max_hp=5,
+        conscious=True,
+    )
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE character_states SET current_hp = 1, max_hp = 5 WHERE entity_id = ? AND campaign_id = 1",
+            (target_id,),
+        )
+    repository.save(encounter, campaign_id=1)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["current_hp"] == 0
+    assert combatant["dead"] is True
+    assert combatant["conscious"] is False
