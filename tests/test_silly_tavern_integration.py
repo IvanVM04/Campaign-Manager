@@ -3298,10 +3298,10 @@ def test_integration_service_returns_missing_external_turn_state(
     )
 
     assert result == {
-        "external_turn_id":
-            "missing-turn",
+        "external_turn_id": "missing-turn",
         "exists": False,
         "active_version": 0,
+        "next_version": 1,
         "narrative": None,
     }
 
@@ -3346,12 +3346,11 @@ def test_integration_service_returns_active_external_turn_state(
     )
 
     assert result == {
-        "external_turn_id":
-            "external-turn-123",
+        "external_turn_id": "external-turn-123",
         "exists": True,
         "active_version": 4,
-        "narrative":
-            "La puerta se abre.",
+        "next_version": 5,
+        "narrative": "La puerta se abre.",
     }
 
 def test_integration_service_rejects_non_sequential_turn_version(
