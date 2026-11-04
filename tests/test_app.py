@@ -492,7 +492,10 @@ def test_campaign_header_is_required_for_campaign_endpoints():
     response = TestClient(app).get("/campaign/state")
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "X-Campaign-Id header is required"
+    assert response.json() == {
+        "detail": "X-Campaign-Id header is required",
+        "code": "bad_request",
+    }
 
 
 def test_campaign_header_rejects_unknown_campaign(client):
@@ -502,6 +505,7 @@ def test_campaign_header_rejects_unknown_campaign(client):
     )
 
     assert response.status_code == 404
+    assert response.json()["code"] == "not_found"
 
 
 def test_runtime_factory_builds_isolated_services_for_each_campaign(
@@ -562,6 +566,7 @@ def test_campaign_header_rejects_non_integer_campaign_id(client):
         headers={"X-Campaign-Id": "not-an-id"},
     )
     assert response.status_code == 400
+    assert response.json()["code"] == "bad_request"
 
 
 
