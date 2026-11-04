@@ -269,7 +269,9 @@ def test_encounter_turn_mutations_reject_boolean_position_values(client):
         assert response.status_code == 422
 
 
-def _create_downed_character_encounter(client, encounter_id, *, hero_first=False):
+def _create_downed_character_encounter(
+    client, encounter_id, *, hero_first=False, return_start=False
+):
     character = client.post(
         "/characters",
         json={
@@ -310,6 +312,8 @@ def _create_downed_character_encounter(client, encounter_id, *, hero_first=False
         },
     )
     assert started.status_code == 200, started.text
+    if return_start:
+        return character_id, hero_id, goblin_id, started.json()
     return character_id, hero_id, goblin_id
 
 
@@ -481,34 +485,66 @@ def test_down_player_character_makes_automatic_save_when_its_turn_begins(client,
 
 def test_first_combatant_makes_death_save_during_encounter_start(client, monkeypatch):
     _patch_death_save_roll(monkeypatch, 10)
-    character_id, hero_id, _goblin_id = _create_downed_character_encounter(
-        client, "automatic-death-save-first", hero_first=True
+    _character_id, hero_id, _goblin_id, started = _create_downed_character_encounter(
+        client,
+        "automatic-death-save-first",
+        hero_first=True,
+        return_start=True,
     )
 
-    response = client.post(
-        "/encounters/automatic-death-save-first/start",
-        json={
-            "dice_mode": "manual",
-            "manual_rolls": {hero_id: 18, f"creature-{character_id + 1}": 10},
-            "initiative_order": [hero_id, f"creature-{character_id + 1}"],
-        },
-    )
-    # The helper already started the encounter; starting it a second time is rejected.
-    assert response.status_code == 409
+    assert started["active_combatant_id"] == hero_id
+    assert started["turn_start_death_save"]["selected"] == 10
+    assert started["turn_start_death_save"]["successes"] == 1
+    combatant = started["combatants"][hero_id]
+    assert combatant["death_save_successes"] == 1
+    assert combatant["death_save_last_round"] == 1
+    assert combatant["death_save_last_turn_index"] == 0
 
 
 def test_first_turn_natural_twenty_recovers_and_persists_hp(client, monkeypatch):
     _patch_death_save_roll(monkeypatch, 20)
-    character_id, hero_id, goblin_id = _create_downed_character_encounter(
-        client, "automatic-death-save-first-recovery", hero_first=True
+    character_id, hero_id, _goblin_id, started = _create_downed_character_encounter(
+        client,
+        "automatic-death-save-first-recovery",
+        hero_first=True,
+        return_start=True,
     )
-    # The start response is the source of the event; the helper starts the encounter.
-    encounter = client.get("/encounters/automatic-death-save-first-recovery")
-    assert encounter.status_code == 200
-    combatant = encounter.json()["combatants"][hero_id]
-    assert combatant["current_hp"] == 0
-    # This case is covered through the dedicated start helper below.
-    assert combatant["death_save_last_round"] == 0
+
+    assert started["turn_start_death_save"]["selected"] == 20
+    assert started["turn_start_death_save"]["regained_hp"] == 1
+    combatant = started["combatants"][hero_id]
+    assert combatant["current_hp"] == 1
+    assert combatant["conscious"] is True
+    assert combatant["death_save_successes"] == 0
+    assert combatant["death_save_failures"] == 0
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT current_hp FROM character_states WHERE entity_id = ? AND campaign_id = 1",
+            (character_id,),
+        ).fetchone()
+    assert row["current_hp"] == 1
+
+
+def test_non_first_downed_character_waits_until_its_turn_starts(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 10)
+    _character_id, hero_id, _goblin_id, started = _create_downed_character_encounter(
+        client,
+        "automatic-death-save-not-first",
+        return_start=True,
+    )
+
+    assert started["active_combatant_id"] != hero_id
+    assert started["turn_start_death_save"] is None
+    assert started["combatants"][hero_id]["death_save_successes"] == 0
+
+    hero_turn = client.post(
+        "/encounters/automatic-death-save-not-first/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    assert hero_turn.status_code == 200, hero_turn.text
+    assert hero_turn.json()["active_combatant_id"] == hero_id
+    assert hero_turn.json()["turn_start_death_save"]["selected"] == 10
 
 
 def test_automatic_natural_twenty_recovers_character_and_persists_hp(client, monkeypatch):
