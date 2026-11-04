@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
     buildRetrievalQuery,
+    findClarificationOrigin,
     selectClarificationChallenge,
 } from "./core.js";
 
@@ -131,6 +132,104 @@ test(
                 last_answer: 'La puerta de roble.',
             },
             'Ahora busco la salida.',
+        );
+
+        assert.equal(result, null);
+    },
+);
+
+
+test(
+    'findClarificationOrigin finds the pending action behind one clarification exchange',
+    async () => {
+        const original = { is_user: true, mes: 'Abro una puerta.' };
+        const question = { is_user: false, mes: '¿Qué puerta?' };
+        const answer = { is_user: true, mes: 'La de roble.' };
+        const states = new Map([
+            ['turn-original', {
+                has_clarification: true,
+                lifecycle_state: 'awaiting_input',
+                player_input: 'Abro una puerta.',
+                pending_clarification_id: '42:second-question',
+                last_pending_clarification_id: '42:first-question',
+                last_answer: 'La de roble anterior.',
+            }],
+        ]);
+
+        const result = await findClarificationOrigin(
+            [original, question, answer],
+            answer,
+            'La de hierro.',
+            async (message) => message === original ? 'turn-original' : 'answer-turn',
+            async (turnId) => states.get(turnId) ?? { has_clarification: false },
+        );
+
+        assert.equal(result.externalTurnId, 'turn-original');
+        assert.equal(result.playerInput, 'Abro una puerta.');
+        assert.equal(result.pendingClarificationId, '42:second-question');
+        assert.equal(result.retry, false);
+    },
+);
+
+
+test(
+    'findClarificationOrigin replays the previous challenge when an accepted answer is retried',
+    async () => {
+        const original = { is_user: true, mes: 'Abro una puerta.' };
+        const firstQuestion = { is_user: false, mes: '¿Qué puerta?' };
+        const firstAnswer = { is_user: true, mes: 'La de roble.' };
+        const secondQuestion = { is_user: false, mes: '¿Con cuidado?' };
+        const retryAnswer = { is_user: true, mes: 'La de roble.' };
+        const state = {
+            has_clarification: true,
+            lifecycle_state: 'awaiting_input',
+            player_input: 'Abro una puerta.',
+            pending_clarification_id: '42:second-question',
+            last_pending_clarification_id: '42:first-question',
+            last_answer: 'La de roble.',
+        };
+
+        const result = await findClarificationOrigin(
+            [original, firstQuestion, firstAnswer, secondQuestion, retryAnswer],
+            retryAnswer,
+            'La de roble.',
+            async (message) => message === original ? 'turn-original' : 'unrelated-turn',
+            async (turnId) => turnId === 'turn-original'
+                ? state
+                : { has_clarification: false },
+        );
+
+        assert.equal(result.pendingClarificationId, '42:first-question');
+        assert.equal(result.retry, true);
+    },
+);
+
+
+test(
+    'findClarificationOrigin does not mistake a new turn for a repeated clarification answer',
+    async () => {
+        const original = { is_user: true, mes: 'Abro una puerta.' };
+        const question = { is_user: false, mes: '¿Qué puerta?' };
+        const answer = { is_user: true, mes: 'La de roble.' };
+        const narrative = { is_user: false, mes: 'La puerta de roble se abre.' };
+        const newAction = { is_user: true, mes: 'La de roble.' };
+        const state = {
+            has_clarification: true,
+            lifecycle_state: 'completed',
+            player_input: 'Abro una puerta.',
+            last_pending_clarification_id: '42:first-question',
+            last_answer: 'La de roble.',
+            narrative: 'La puerta de roble se abre.',
+        };
+
+        const result = await findClarificationOrigin(
+            [original, question, answer, narrative, newAction],
+            newAction,
+            'La de roble.',
+            async (message) => message === original ? 'turn-original' : 'unrelated-turn',
+            async (turnId) => turnId === 'turn-original'
+                ? state
+                : { has_clarification: false },
         );
 
         assert.equal(result, null);
