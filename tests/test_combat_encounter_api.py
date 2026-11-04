@@ -634,7 +634,7 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
     # The goblin regains its reaction when its own turn starts.
     advanced = client.post(
         "/encounters/reaction-economy/advance",
-        json={"expected_round": 1, "expected_turn_index": 0},
+        json={"expected_round": 2, "expected_turn_index": 0},
     )
     assert advanced.status_code == 200, advanced.text
     assert advanced.json()["active_combatant_id"] == goblin_id
