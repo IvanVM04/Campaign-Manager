@@ -27,7 +27,7 @@ def get_campaign_clock():
 
     try:
         clock = CampaignClockService(
-            campaign_id=_current_runtime.get().campaign_id
+            campaign_id=get_current_runtime().campaign_id
         ).get()
         return _campaign_clock_payload(clock)
     except LookupError as exc:
@@ -41,7 +41,7 @@ def advance_campaign_clock(data: CampaignClockAdvanceIn):
     try:
         with turn_execution_lock.acquire():
             clock = CampaignClockService(
-                campaign_id=_current_runtime.get().campaign_id
+                campaign_id=get_current_runtime().campaign_id
             ).advance(
                 minutes=data.minutes,
                 expected_elapsed_minutes=data.expected_elapsed_minutes,
