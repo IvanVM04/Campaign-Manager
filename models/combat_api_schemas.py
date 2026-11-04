@@ -116,3 +116,9 @@ class DeathSavingThrowIn(BaseModel):
         if self.dice_mode == "manual" and self.manual_roll is None:
             raise ValueError("manual mode requires one d20 result")
         return self
+
+
+class EncounterReactionIn(BaseModel):
+    combatant_id: str = Field(..., min_length=1, max_length=120)
+    expected_round: StrictInt = Field(..., ge=1)
+    expected_turn_index: StrictInt = Field(..., ge=0)
