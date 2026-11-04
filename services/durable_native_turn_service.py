@@ -209,6 +209,12 @@ class DurableNativeTurnService:
             campaign_id=self.scope.campaign_id,
             conn=conn,
         )
+        fresh_world = self.world_service.repository.load_world(
+            campaign_id=self.scope.campaign_id,
+            conn=conn,
+        )
+        context = replace(context, world=fresh_world)
+        self.world_service.world = fresh_world
         session_id = (
             context.current_session.session_id
             if context.current_session is not None
@@ -434,16 +440,17 @@ class DurableNativeTurnService:
                     session_id=record.session_id,
                     player_input=record.player_input,
                     narrative=narrative,
-                    operation_count=(
-                        len(json.loads(record.proposal_json or '{"operations":[]}')["operations"])
+                    operation_count=len(
+                        json.loads(record.operation_results_json or "[]")
                     ),
-                    successful_operation_count=(
-                        len(json.loads(record.proposal_json or '{"operations":[]}')["operations"])
+                    successful_operation_count=len(
+                        json.loads(record.operation_results_json or "[]")
                     ),
                     failed_operation_count=0,
                     all_operations_succeeded=True,
-                    world_changed=bool(
-                        json.loads(record.operation_results_json or "[]")
+                    world_changed=any(
+                        item.get("changed", False)
+                        for item in json.loads(record.operation_results_json or "[]")
                     ),
                 ),
                 scope=self.scope,
