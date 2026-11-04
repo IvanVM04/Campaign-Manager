@@ -469,10 +469,17 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
     assert completed.narrative == "El personaje observa su entorno."
     assert calls == [
         "Abro una puerta.",
-        "Abro una puerta.\\n\\nAclaración del DM: ¿Qué puerta quieres abrir?"
-        "\\nRespuesta del jugador: La puerta de roble.",
+        "Abro una puerta.\n\nAclaración del DM: ¿Qué puerta quieres abrir?"
+        "\nRespuesta del jugador: La puerta de roble.",
     ]
+    repeated = service.submit_clarification(
+        pending.pending_clarification_id,
+        "La puerta de roble.",
+    )
+    assert repeated.narrative == completed.narrative
+    assert repeated.already_processed is True
     assert len(narrative_calls) == 1
+
     saved = TurnResolutionRepository().get(record.id, scope=service.scope)
     assert saved.lifecycle_state == "completed"
     assert "La puerta de roble." in saved.player_input
