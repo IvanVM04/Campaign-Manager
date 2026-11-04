@@ -317,6 +317,13 @@ class DurableNativeTurnService:
             existing_resolution = self.resolution_repository.get_by_idempotency_key(
                 "sillytavern", external_turn_id, scope=self.scope
             )
+            if existing_resolution is not None:
+                persisted_state = json.loads(existing_resolution.adjudication_json or "{}")
+                persisted_dice_mode = persisted_state.get("dice_mode")
+                if persisted_dice_mode in {"automatic", "manual"}:
+                    dice_mode = persisted_dice_mode
+                elif isinstance(persisted_state.get("manual_roll"), dict):
+                    dice_mode = "manual"
             active_turn = self.turn_repository.get_active_by_external_turn_id(
                 external_turn_id, scope=self.scope
             )
@@ -614,7 +621,7 @@ class DurableNativeTurnService:
                             expected_state="planning", expected_lease_token=lease_token,
                             updates={
                                 "context_revision": revision,
-                                "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True),
+                                "adjudication_json": json.dumps({"manual_roll": pending, "dice_mode": dice_mode}, separators=(",", ":"), sort_keys=True),
                                 "lease_token": None, "lease_expires_at": None,
                             }, conn=conn,
                         )
@@ -663,8 +670,11 @@ class DurableNativeTurnService:
                             "context_revision": revision,
                             "proposal_json": proposal_json,
                             "adjudication_json": json.dumps(
-                                {"decision": plan.mechanics_decision.decision.value}
-                                if plan.mechanics_decision else {},
+                                {
+                                    "decision": plan.mechanics_decision.decision.value,
+                                    "dice_mode": dice_mode,
+                                }
+                                if plan.mechanics_decision else {"dice_mode": dice_mode},
                                 separators=(",", ":"),
                             ),
                             "mechanics_json": mechanics_json,
