@@ -38,7 +38,7 @@ def test_movement_budget_checks_path_cost():
     assert can_move_along_path(path=path, base_speed=10, conditions=ConditionSet())
     assert not can_move_along_path(path=path, base_speed=5, conditions=ConditionSet())
     assert not can_move_along_path(
-        path=path, base_speed=20, conditions=ConditionSet(exhaustion_level=2)
+        path=path, base_speed=10, conditions=ConditionSet(exhaustion_level=2)
     )
 
 
