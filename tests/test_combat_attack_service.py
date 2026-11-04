@@ -330,5 +330,5 @@ def test_attack_uses_current_equipped_armor_and_shield_for_player_target(client)
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["attack"]["hit"] is False
-    assert payload["damage"]["target_armor_class"] == 13
+    assert payload["attack"]["target_ac"] == 13
     assert payload["encounter"]["combatants"][target_combatant_id]["armor_class"] == 13
