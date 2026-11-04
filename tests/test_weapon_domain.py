@@ -161,6 +161,10 @@ def test_equipment_slots_allow_multiple_items_and_clear_on_ownership_change(tmp_
             repository.equip_item(
                 campaign_id=1, character_entity_id=1, item_instance_id=2, slot="off_hand"
             )
+        # A failed replacement must roll back the prior off-hand assignment.
+        assert repository.get_equipped_slot(
+            campaign_id=1, character_entity_id=1, slot="off_hand"
+        )["item_instance_id"] == 3
 
         with get_conn() as conn:
             conn.execute(
