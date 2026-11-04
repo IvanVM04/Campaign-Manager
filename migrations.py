@@ -1762,6 +1762,16 @@ def migration_023(conn: sqlite3.Connection) -> None:
                 CHECK (resulting_revision IS NULL OR resulting_revision >= 1)
             """)
         conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_committed_revision_insert
+            BEFORE INSERT ON turn_resolutions
+            FOR EACH ROW
+            WHEN NEW.lifecycle_state IN ('committed', 'narration_pending', 'completed')
+              AND NEW.resulting_revision IS NULL
+            BEGIN
+                SELECT RAISE(ABORT, 'committed resolution requires resulting revision');
+            END
+        """)
+        conn.execute("""
             CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_committed_revision
             BEFORE UPDATE OF lifecycle_state ON turn_resolutions
             FOR EACH ROW
