@@ -422,8 +422,13 @@ def _patch_death_save_roll(monkeypatch, value):
     from rules_engine.dnd5e_2014.core.dice import D20Roll, DiceRoller, RollMode
 
     values = iter(value if isinstance(value, (list, tuple)) else [value])
+    original_roll = DiceRoller.roll_d20
 
-    def fixed_roll(_self, **_kwargs):
+    def fixed_roll(self, **kwargs):
+        # Keep explicitly supplied initiative rolls untouched; only replace
+        # the automatic d20 used by the death-save resolver.
+        if kwargs.get("manual_rolls") is not None:
+            return original_roll(self, **kwargs)
         roll = next(values)
         return D20Roll(
             rolls=(roll,),
