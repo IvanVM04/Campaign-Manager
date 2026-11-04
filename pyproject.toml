@@ -21,5 +21,3 @@ markers = [
     "real_llm: tests that require a running Ollama instance",
 ]
 
-[tool.ruff.lint.isort]
-known-first-party = ["api"]
