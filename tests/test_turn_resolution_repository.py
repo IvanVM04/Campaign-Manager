@@ -135,6 +135,14 @@ def test_transition_rejects_skipping_commit_or_replaying_state(isolated_database
     created = repository.create(make_record(), scope=CampaignScope(1))
 
     with transaction("IMMEDIATE") as conn:
+        with pytest.raises(ValueError, match="claim_for_planning"):
+            repository.transition(
+                created.id,
+                "planning",
+                scope=CampaignScope(1),
+                expected_state="accepted",
+                conn=conn,
+            )
         with pytest.raises(ValueError, match="invalid"):
             repository.transition(
                 created.id,
