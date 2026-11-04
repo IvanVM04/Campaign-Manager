@@ -1030,6 +1030,14 @@ class SillyTavernIntegrationService:
                 return result
 
         except SillyTavernIntegrationServiceConflictError:
+            try:
+                self.world_service.load()
+            except Exception:
+                self._restore_world_state(
+                    previous_world,
+                    previous_world_snapshot,
+                )
+                self.world_service.world = previous_world
             raise
 
         except Exception as exc:
