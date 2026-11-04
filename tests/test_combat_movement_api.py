@@ -1,6 +1,3 @@
-from database import get_conn
-
-
 def test_encounter_movement_persists_position_and_enforces_turn_budget(client):
     created = client.post(
         "/encounters",
