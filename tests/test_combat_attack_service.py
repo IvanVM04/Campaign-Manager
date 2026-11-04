@@ -332,3 +332,45 @@ def test_attack_uses_current_equipped_armor_and_shield_for_player_target(client)
     assert payload["attack"]["hit"] is False
     assert payload["attack"]["target_ac"] == 13
     assert payload["encounter"]["combatants"][target_combatant_id]["armor_class"] == 13
+
+
+def test_unproficient_armor_imposes_disadvantage_on_strength_attack(client):
+    attacker_id, _target_id, _attacker_combatant_id, target_combatant_id = _prepare_encounter(client)
+    with get_conn() as conn:
+        armor_id = conn.execute(
+            "INSERT INTO items (name, armor_key, equipment_slot, campaign_id) VALUES (?, ?, ?, 1)",
+            ("Untrained leather armor", "leather", "body"),
+        ).lastrowid
+        armor_instance = conn.execute(
+            "INSERT INTO item_instances (item_id, owner_id, campaign_id, active) VALUES (?, ?, 1, 1)",
+            (armor_id, attacker_id),
+        ).lastrowid
+
+    WeaponEquipmentRepository().equip_item(
+        campaign_id=1,
+        character_entity_id=attacker_id,
+        item_instance_id=armor_instance,
+        slot="body",
+    )
+
+    equipment = client.get(f"/characters/{attacker_id}/equipment")
+    assert equipment.status_code == 200
+    assert equipment.json()["armor_proficiency"]["armor_proficient"] is False
+    assert equipment.json()["armor_proficiency"]["spellcasting_blocked"] is True
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_combatant_id,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [18, 4],
+            "manual_damage_rolls": [],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["disadvantage"] is True
+    assert payload["armor_training_penalty"] is True
+    assert payload["attack"]["natural_roll"] == 4
