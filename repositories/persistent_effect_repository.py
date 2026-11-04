@@ -30,7 +30,7 @@ class PersistentEffectRepository:
                 effect.effect_type.value, effect.effect_key, effect.name,
                 effect.description, effect.source_type.value,
                 effect.source_entity_id, effect.source_reference,
-                ("permanent" if effect.duration_type is EffectDurationType.CAMPAIGN_TIME else effect.duration_type.value), effect.duration_condition,
+                ("permanent" if effect.duration_type in (EffectDurationType.CAMPAIGN_TIME, EffectDurationType.ENCOUNTER_ROUNDS, EffectDurationType.ENCOUNTER_TURNS) else effect.duration_type.value), effect.duration_condition,
                 effect.level, effect.status.value,
             ),
         )
