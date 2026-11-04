@@ -27,6 +27,7 @@ class CombatEncounterService:
         entity_repository,
         creature_repository: CreatureRepository | None = None,
         world_service=None,
+        persistent_effect_repository=None,
         dice_roller: DiceRoller | None = None,
     ) -> None:
         self.repository = repository
@@ -34,6 +35,7 @@ class CombatEncounterService:
         self.entity_repository = entity_repository
         self.creature_repository = creature_repository or CreatureRepository()
         self.world_service = world_service
+        self.persistent_effect_repository = persistent_effect_repository
         self.dice_roller = dice_roller or DiceRoller()
 
     def create(self, campaign_id: int, participants, encounter_id: str | None = None):
@@ -218,7 +220,21 @@ class CombatEncounterService:
             self._check_position(encounter, expected_round, expected_turn_index)
             if encounter.status is not EncounterStatus.ACTIVE:
                 raise ValueError("cannot advance a non-active encounter")
+            previous_round = encounter.round_number
             encounter.advance_turn()
+            if self.persistent_effect_repository is not None:
+                absolute_turn = (
+                    (encounter.round_number - 1) * len(encounter.initiative_order)
+                    + encounter.turn_index
+                )
+                self.persistent_effect_repository.expire_encounter_due(
+                    campaign_id,
+                    encounter_id,
+                    round_number=encounter.round_number,
+                    absolute_turn=absolute_turn,
+                    round_changed=encounter.round_number != previous_round,
+                    conn=conn,
+                )
             return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
 
     def complete(
@@ -234,6 +250,10 @@ class CombatEncounterService:
             encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
             self._check_position(encounter, expected_round, expected_turn_index)
             encounter.complete()
+            if self.persistent_effect_repository is not None:
+                self.persistent_effect_repository.expire_encounter(
+                    campaign_id, encounter_id, conn=conn
+                )
             return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
 
     def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
