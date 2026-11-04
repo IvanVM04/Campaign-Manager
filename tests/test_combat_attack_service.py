@@ -539,3 +539,4 @@ def test_massive_damage_kills_character_when_excess_reaches_max_hp(client):
     assert combatant["current_hp"] == 0
     assert combatant["dead"] is True
     assert combatant["conscious"] is False
+    assert combatant["death_save_failures"] == 3
