@@ -3,6 +3,7 @@ import json
 import pytest
 
 from repositories.turn_resolution_repository import TurnResolutionRepository
+from services.durable_native_turn_service import DurableNativeTurnError
 from services.campaign_runtime import CampaignRuntimeFactory
 
 
@@ -91,8 +92,6 @@ def test_narration_failure_leaves_committed_resolution_resumable():
         return "La narración se ha recuperado."
 
     service.resolver.dm_service.provider.generate = fail_once
-
-    from services.durable_native_turn_service import DurableNativeTurnError
 
     with pytest.raises(DurableNativeTurnError):
         service.play_turn(
