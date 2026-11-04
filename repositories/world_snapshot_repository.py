@@ -553,6 +553,7 @@ class WorldSnapshotRepository:
                 wisdom=row["wisdom"],
                 charisma=row["charisma"],
                 proficiency_bonus=row["proficiency_bonus"],
+                armor_proficiencies=json.loads(row.get("armor_proficiencies", "[]")),
                 metadata=metadata or {},
             )
 
