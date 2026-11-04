@@ -248,3 +248,61 @@ def test_silly_tavern_narrative_retry_is_idempotent():
             ("st-chat-turn-002",),
         ).fetchone()[0]
     assert count == 1
+
+
+def test_silly_tavern_legacy_replay_versions_narrative_without_new_resolution():
+    from database import get_conn
+    from models.turn_record import TurnRecord
+
+    service, proposal_calls, _ = _service_with_fake_models()
+    legacy = service.turn_repository.save_turn(
+        TurnRecord(
+            player_input="Entro en la taberna.",
+            narrative="La taberna está llena.",
+            operation_count=1,
+            successful_operation_count=1,
+            failed_operation_count=0,
+            all_operations_succeeded=True,
+            world_changed=True,
+            external_turn_id="legacy-st-turn",
+            version=1,
+            status="active",
+        ),
+        scope=service.scope,
+    )
+
+    prepared = service.prepare_external_turn(
+        "Entro en la taberna.",
+        external_turn_id="legacy-st-turn",
+    )
+    assert prepared.legacy_replay is True
+    assert prepared.lifecycle_state == "legacy_replay"
+    assert proposal_calls == []
+
+    replay = service.complete_external_narration(
+        external_turn_id="legacy-st-turn",
+        player_input="Entro en la taberna.",
+        narrative="La taberna está abarrotada.",
+        turn_version=2,
+    )
+    assert replay.narrative == "La taberna está abarrotada."
+    assert replay.already_processed is True
+    assert proposal_calls == []
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT version, status, operation_count, world_changed
+            FROM turns
+            WHERE external_turn_id=?
+            ORDER BY version
+            """,
+            ("legacy-st-turn",),
+        ).fetchall()
+
+    assert [(row["version"], row["status"]) for row in rows] == [
+        (1, "superseded"),
+        (2, "active"),
+    ]
+    assert rows[1]["operation_count"] == legacy.operation_count
+    assert rows[1]["world_changed"] == 1
