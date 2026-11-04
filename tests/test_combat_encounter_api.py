@@ -1,3 +1,5 @@
+from database import get_conn
+
 def test_encounter_api_lifecycle_with_character_manual_initiative_and_restart_state(client):
     character_response = client.post(
         "/characters",
