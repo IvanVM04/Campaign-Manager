@@ -149,7 +149,7 @@ class TurnResolutionService:
         proposal_from_intent: bool = False,
     ) -> TurnResolutionPlan:
         """
-        Generate narrative and extract a validated operation plan.
+        Prepare a typed operation proposal; optionally preserve the legacy narrative-first path.
 
         This phase performs no database access or state mutation.
         """
@@ -348,6 +348,17 @@ class TurnResolutionService:
         if not isinstance(operations, list):
             raise TurnResolutionServiceError(
                 "LLMWorldExtractor returned an invalid operations list"
+            )
+
+        if proposal_from_intent and any(
+            isinstance(
+                operation.operation if isinstance(operation, ReferencedOperation) else operation,
+                CharacterOperation,
+            )
+            for operation in operations
+        ):
+            raise TurnResolutionServiceError(
+                "character-state changes must come from deterministic mechanics, not an LLM proposal"
             )
 
         normalized_operations = []
