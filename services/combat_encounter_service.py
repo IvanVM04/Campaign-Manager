@@ -26,18 +26,21 @@ class CombatEncounterService:
         character_repository,
         entity_repository,
         creature_repository: CreatureRepository | None = None,
+        world_service=None,
         dice_roller: DiceRoller | None = None,
     ) -> None:
         self.repository = repository
         self.character_repository = character_repository
         self.entity_repository = entity_repository
         self.creature_repository = creature_repository or CreatureRepository()
+        self.world_service = world_service
         self.dice_roller = dice_roller or DiceRoller()
 
     def create(self, campaign_id: int, participants, encounter_id: str | None = None):
         if not participants:
             raise ValueError("an encounter requires at least one participant")
         encounter_id = encounter_id or uuid4().hex
+        created_creature = False
         with transaction("IMMEDIATE") as conn:
             if self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn) is not None:
                 raise ValueError("encounter_id already exists in this campaign")
@@ -99,6 +102,7 @@ class CombatEncounterService:
                         campaign_id=campaign_id,
                         conn=conn,
                     )
+                    created_creature = True
                     creature = self.creature_repository.save_creature(
                         CreatureState(
                             entity_id=entity.id,
@@ -135,7 +139,10 @@ class CombatEncounterService:
                 ))
 
             encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
-            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+            saved_encounter = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+        if created_creature and self.world_service is not None:
+            self.world_service.load()
+        return saved_encounter
 
     def get(self, campaign_id: int, encounter_id: str):
         return self.repository.get(encounter_id, campaign_id=campaign_id)
