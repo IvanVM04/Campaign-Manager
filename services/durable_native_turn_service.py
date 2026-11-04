@@ -254,9 +254,9 @@ class DurableNativeTurnService:
         )
 
     @staticmethod
-    def _fingerprint(player_input: str, session_id, previous_turn_id, dice_mode: str) -> str:
+    def _fingerprint(player_input: str, session_id, actor_id, dice_mode: str) -> str:
         raw = json.dumps(
-            [player_input, session_id, previous_turn_id, dice_mode],
+            [player_input, session_id, actor_id, dice_mode],
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -278,10 +278,18 @@ class DurableNativeTurnService:
             else None
         )
         previous_turn_id = recent[-1].id if recent else 0
-        fingerprint = self._fingerprint(
-            normalized, session_id, previous_turn_id, "automatic"
+        actor_id = (
+            context.active_character.entity_id
+            if context.active_character is not None
+            else None
         )
-        key = idempotency_key or "native-" + fingerprint
+        fingerprint = self._fingerprint(
+            normalized, session_id, actor_id, "automatic"
+        )
+        fallback_identity = hashlib.sha256(
+            f"{fingerprint}:{previous_turn_id}".encode("utf-8")
+        ).hexdigest()
+        key = idempotency_key or "native-" + fallback_identity
         if not isinstance(key, str) or not key.strip() or len(key) > 500:
             raise DurableNativeTurnError("idempotency_key must contain 1-500 characters")
 
