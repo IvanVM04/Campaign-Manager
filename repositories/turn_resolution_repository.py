@@ -173,7 +173,7 @@ class TurnResolutionRepository:
         )
         assignments = ["lifecycle_state=?", "updated_at=CURRENT_TIMESTAMP"]
         params = [target_state]
-        for field_name in updates.keys():
+        for field_name in updates:
             assignments.append(f"{field_name}=?")
             params.append(getattr(candidate, field_name))
         params.extend([resolution_id, scope.campaign_id, expected_state])
