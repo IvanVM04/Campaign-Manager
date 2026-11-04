@@ -155,6 +155,7 @@ class CampaignRuntimeFactory:
             world_service=world_service,
             context_service=campaign_state_service,
             turn_repository=turn_repository,
+            turn_execution_lock=turn_execution_lock,
         )
 
         silly_tavern_integration_service = SillyTavernIntegrationService(
