@@ -839,21 +839,21 @@ class DurableNativeTurnService:
                 and current_active.version >= turn_version
             ):
                 if (
-                        current_active.version == turn_version
-                        and current_active.player_input == player_input
-                        and current_active.narrative == narrative
-                    ):
-                        if record is not None and record.lifecycle_state == "completed":
-                            current_record = self.resolution_repository.get(
-                                record.id, scope=self.scope, conn=conn
-                            )
-                            return self._result_from_completed_record(
-                                current_record, current_active, already_processed=True
-                            )
-                        return TurnResolutionResult.from_persisted_turn(current_active)
-                    raise DurableNativeTurnError(
-                        "external turn version changed while narration was being saved"
-                    )
+                    current_active.version == turn_version
+                    and current_active.player_input == player_input
+                    and current_active.narrative == narrative
+                ):
+                    if record is not None and record.lifecycle_state == "completed":
+                        current_record = self.resolution_repository.get(
+                            record.id, scope=self.scope, conn=conn
+                        )
+                        return self._result_from_completed_record(
+                            current_record, current_active, already_processed=True
+                        )
+                    return TurnResolutionResult.from_persisted_turn(current_active)
+                raise DurableNativeTurnError(
+                    "external turn version changed while narration was being saved"
+                )
             if turn_version != current_latest_version + 1:
                 raise DurableNativeTurnError(
                     f"external turn version must be {current_latest_version + 1}"
