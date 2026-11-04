@@ -1865,6 +1865,15 @@ def migration_024(conn: sqlite3.Connection) -> None:
                 SELECT RAISE(ABORT, 'creature entity must belong to same campaign');
             END
         """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_creature_states_identity_immutable
+            BEFORE UPDATE OF entity_id, campaign_id ON creature_states
+            FOR EACH ROW
+            WHEN NEW.entity_id != OLD.entity_id OR NEW.campaign_id != OLD.campaign_id
+            BEGIN
+                SELECT RAISE(ABORT, 'creature state ownership is immutable');
+            END
+        """)
         for event in ("INSERT", "UPDATE", "DELETE"):
             ref = "OLD" if event == "DELETE" else "NEW"
             conn.execute(f"""
