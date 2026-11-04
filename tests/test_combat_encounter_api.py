@@ -223,8 +223,9 @@ def test_encounter_rejects_creature_reference_from_another_campaign(client):
     assert created.status_code == 201
     creature_id = next(iter(created.json()["combatants"].values()))["entity_id"]
 
-    from app import CampaignRepository, app
     from fastapi.testclient import TestClient
+
+    from app import CampaignRepository, app
 
     other_campaign = CampaignRepository().create_campaign(name="NPC isolation")
     other_client = TestClient(app, headers={"X-Campaign-Id": str(other_campaign["id"])})
