@@ -12,7 +12,6 @@ from models.combat_api_schemas import (
     EncounterTurnIn,
 )
 
-
 router = APIRouter()
 
 
