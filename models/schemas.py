@@ -144,6 +144,18 @@ class ClarificationIn(BaseModel):
         return value
 
 
+class SillyTavernClarificationIn(ClarificationIn):
+    query: str = Field(..., min_length=1, max_length=10000)
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("query must not be empty")
+        return value
+
+
 class ActiveCharacterUpdate(BaseModel):
     character_id: int | None = Field(
         default=None,
