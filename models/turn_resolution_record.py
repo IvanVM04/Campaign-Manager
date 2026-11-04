@@ -79,7 +79,7 @@ class TurnResolutionRecord:
             raise ValueError("idempotency_key must not exceed 500 characters")
         if len(self.request_fingerprint) > 128:
             raise ValueError("request_fingerprint must not exceed 128 characters")
-        if self.lifecycle_state not in VALID_LIFECYCLE_STATES:
+        if not isinstance(self.lifecycle_state, str) or self.lifecycle_state not in VALID_LIFECYCLE_STATES:
             raise ValueError("invalid lifecycle_state")
         if not isinstance(self.attempt_count, int) or isinstance(self.attempt_count, bool):
             raise TypeError("attempt_count must be an integer")
@@ -87,6 +87,22 @@ class TurnResolutionRecord:
             raise ValueError("attempt_count must not be negative")
         if (self.lease_token is None) != (self.lease_expires_at is None):
             raise ValueError("lease_token and lease_expires_at must be set together")
+        if self.lifecycle_state == "planning" and (
+            self.lease_token is None or self.attempt_count < 1
+        ):
+            raise ValueError("planning state requires an active lease and attempt")
+        if self.lifecycle_state == "prepared" and (
+            self.context_revision is None or self.proposal_json is None
+        ):
+            raise ValueError("prepared state requires context_revision and proposal_json")
+        if self.lifecycle_state in {"committed", "narration_pending", "completed"} and (
+            self.committed_at is None
+        ):
+            raise ValueError("committed lifecycle states require committed_at")
+        if self.lifecycle_state == "completed" and (
+            self.completed_at is None or self.narrative is None
+        ):
+            raise ValueError("completed state requires narrative and completed_at")
         for field_name in (
             "proposal_json", "adjudication_json", "mechanics_json",
             "operation_results_json",
