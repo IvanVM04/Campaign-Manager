@@ -260,6 +260,70 @@ def test_integration_context_endpoint_returns_500_on_service_error(
     }
 
 
+def test_integration_resolve_endpoint_commits_before_returning_context(
+    client,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+    captured = {}
+
+    def fake_prepare(player_input, *, external_turn_id):
+        captured["player_input"] = player_input
+        captured["external_turn_id"] = external_turn_id
+        return SimpleNamespace(
+            resolution_id=41,
+            lifecycle_state="narration_pending",
+            committed_resolution='{"resulting_revision": 2}',
+            clarification_question=None,
+            legacy_replay=False,
+        )
+
+    def fake_context(query, *, exclude_external_turn_id=None):
+        captured["query"] = query
+        captured["exclude_external_turn_id"] = exclude_external_turn_id
+        return {
+            "campaign": {"id": 1, "name": "Campaña"},
+            "session": None,
+            "active_character": None,
+            "context": {"query": query, "context": "Estado confirmado."},
+        }
+
+    monkeypatch.setattr(
+        runtime.durable_native_turn_service,
+        "prepare_external_turn",
+        fake_prepare,
+    )
+    monkeypatch.setattr(
+        runtime.silly_tavern_integration_service,
+        "get_context",
+        fake_context,
+    )
+
+    response = client.post(
+        "/integration/turn/resolve",
+        json={
+            "player_input": "Abro la puerta.",
+            "external_turn_id": "st-chat-turn",
+            "query": "Estado actual + acción.",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["resolution_id"] == 41
+    assert data["lifecycle_state"] == "narration_pending"
+    assert data["committed_resolution"] == '{"resulting_revision": 2}'
+    assert data["context"]["context"] == "Estado confirmado."
+    assert captured == {
+        "player_input": "Abro la puerta.",
+        "external_turn_id": "st-chat-turn",
+        "query": "Estado actual + acción.",
+        "exclude_external_turn_id": "st-chat-turn",
+    }
+
+
 def test_integration_turn_endpoint_returns_processed_turn(
     client,
     monkeypatch,
@@ -289,34 +353,32 @@ def test_integration_turn_endpoint_returns_processed_turn(
 
         operation_results = ()
 
-    def fake_process_turn(
+    def fake_complete_external_narration(
+        *,
+        external_turn_id,
         player_input,
         narrative,
-        external_turn_id=None,
-        turn_version=1,
+        turn_version,
     ):
-        assert player_input == (
-            "Abro la puerta."
-        )
-
-        assert narrative == (
-            "La puerta se abre."
-        )
-
+        assert external_turn_id == "st-test-turn"
+        assert player_input == "Abro la puerta."
+        assert narrative == "La puerta se abre."
         assert turn_version == 1
-
         return FakeResult()
 
+    runtime = __import__("app").runtime_factory.get_runtime(1)
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.process_turn",
-        fake_process_turn,
+        runtime.durable_native_turn_service,
+        "complete_external_narration",
+        fake_complete_external_narration,
     )
 
     response = client.post(
-        "/integration/turn",
+        "/integration/turn/complete",
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
+            "external_turn_id": "st-test-turn",
         },
     )
 
@@ -347,42 +409,36 @@ def test_integration_turn_endpoint_returns_processed_turn(
     assert data["operation_results"] == []
 
 
-def test_integration_turn_endpoint_returns_400_on_service_error(
+def test_integration_turn_endpoint_returns_409_on_durable_conflict(
     client,
     monkeypatch,
 ):
-    from services.silly_tavern_integration_service import (
-        SillyTavernIntegrationServiceError,
-    )
+    from services.durable_native_turn_service import DurableNativeTurnError
 
-    def fake_process_turn(
-        player_input,
-        narrative,
-        external_turn_id=None,
-        turn_version=1,
-    ):
-        raise SillyTavernIntegrationServiceError(
-            "processing failed"
-        )
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+
+    def fake_complete_external_narration(**kwargs):
+        raise DurableNativeTurnError("processing failed")
 
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.process_turn",
-        fake_process_turn,
+        runtime.durable_native_turn_service,
+        "complete_external_narration",
+        fake_complete_external_narration,
     )
 
     response = client.post(
-        "/integration/turn",
+        "/integration/turn/complete",
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
         },
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 409
 
     assert response.json() == {
         "detail": "processing failed",
-        "code": "bad_request",
+        "code": "conflict",
     }
 
 
@@ -3242,10 +3298,10 @@ def test_integration_service_returns_missing_external_turn_state(
     )
 
     assert result == {
-        "external_turn_id":
-            "missing-turn",
+        "external_turn_id": "missing-turn",
         "exists": False,
         "active_version": 0,
+        "next_version": 1,
         "narrative": None,
     }
 
@@ -3290,13 +3346,50 @@ def test_integration_service_returns_active_external_turn_state(
     )
 
     assert result == {
-        "external_turn_id":
-            "external-turn-123",
+        "external_turn_id": "external-turn-123",
         "exists": True,
         "active_version": 4,
-        "narrative":
-            "La puerta se abre.",
+        "next_version": 5,
+        "narrative": "La puerta se abre.",
     }
+
+def test_external_turn_state_skips_persisted_failed_narrative_versions(
+    isolated_database,
+):
+    from models.turn_record import TurnRecord
+
+    service, _context_builder, _extractor, _world_service, repository = _build_service()
+    repository.save_turn(
+        TurnRecord(
+            player_input="Abro la puerta.",
+            narrative="Versión activa.",
+            external_turn_id="turn-with-failed-version",
+            version=1,
+            status="active",
+        ),
+        scope=CampaignScope(1),
+    )
+    repository.save_turn(
+        TurnRecord(
+            player_input="Abro la puerta.",
+            narrative="Versión fallida.",
+            operation_count=1,
+            successful_operation_count=0,
+            failed_operation_count=1,
+            all_operations_succeeded=False,
+            external_turn_id="turn-with-failed-version",
+            version=2,
+            status="failed",
+        ),
+        scope=CampaignScope(1),
+    )
+
+    result = service.get_external_turn_state("turn-with-failed-version")
+
+    assert result["active_version"] == 1
+    assert result["next_version"] == 3
+    assert result["narrative"] == "Versión activa."
+
 
 def test_integration_service_rejects_non_sequential_turn_version(
     monkeypatch,

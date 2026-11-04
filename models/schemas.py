@@ -169,6 +169,22 @@ class SillyTavernContextIn(BaseModel):
         return value
 
 
+class SillyTavernTurnResolveIn(BaseModel):
+    """Player intent and stable identity submitted before SillyTavern narration."""
+
+    player_input: str = Field(..., min_length=1, max_length=10000)
+    external_turn_id: str = Field(..., min_length=1, max_length=500)
+    query: str = Field(..., min_length=1, max_length=10000)
+
+    @field_validator("player_input", "external_turn_id", "query")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("text must not be empty")
+        return value
+
+
 class SillyTavernTurnIn(BaseModel):
     """
     Turno ya generado por SillyTavern.

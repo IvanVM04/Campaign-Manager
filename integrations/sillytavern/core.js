@@ -65,6 +65,9 @@ export class TurnState {
         this.turnNarratives =
             new Map();
 
+        this.nextTurnVersions =
+            new Map();
+
         this.lastProcessedTurnVersionKey =
             null;
 
@@ -151,6 +154,15 @@ export class TurnState {
                 persistedState.active_version,
             );
 
+            const persistedNextVersion = persistedState.next_version;
+            this.nextTurnVersions.set(
+                normalizedExternalTurnId,
+                Number.isInteger(persistedNextVersion) &&
+                    persistedNextVersion > persistedState.active_version
+                    ? persistedNextVersion
+                    : persistedState.active_version + 1,
+            );
+
             if (
                 persistedState.exists &&
                 typeof persistedState.narrative ===
@@ -217,11 +229,17 @@ export class TurnState {
          * regeneration/swipe.
          */
         const nextVersion =
+            this.nextTurnVersions.get(normalizedExternalTurnId) ??
             previousVersion + 1;
 
         this.turnVersions.set(
             normalizedExternalTurnId,
             nextVersion,
+        );
+
+        this.nextTurnVersions.set(
+            normalizedExternalTurnId,
+            nextVersion + 1,
         );
 
         this.turnNarratives.set(
@@ -287,5 +305,6 @@ export class TurnState {
 
         this.turnVersions.clear();
         this.turnNarratives.clear();
+        this.nextTurnVersions.clear();
     }
 }

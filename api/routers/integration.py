@@ -1,11 +1,17 @@
 from fastapi import APIRouter, HTTPException
 
 from api.runtime_context import (
+    get_current_runtime,
     silly_tavern_integration_service,
     turn_execution_lock,
 )
 from api.serializers import serialize_operation_result
-from models.schemas import SillyTavernContextIn, SillyTavernTurnIn
+from models.schemas import (
+    SillyTavernContextIn,
+    SillyTavernTurnIn,
+    SillyTavernTurnResolveIn,
+)
+from services.durable_native_turn_service import DurableNativeTurnError
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
@@ -102,54 +108,106 @@ def get_silly_tavern_turn_state(
     return result
 
 
-@router.post("/integration/turn")
-def process_silly_tavern_turn(
-    data: SillyTavernTurnIn,
-):
-    """
-    Procesa una narrativa que ya ha sido generada
-    por SillyTavern.
-
-    Campaign Manager:
-
-        narrativa
-            ↓
-        extracción
-            ↓
-        operaciones
-            ↓
-        WorldService
-            ↓
-        SQLite
-    """
-
+@router.post("/integration/turn/resolve")
+def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
+    """Commit a SillyTavern turn's consequences before external narration begins."""
+    runtime = get_current_runtime()
     try:
-        result = (
-            silly_tavern_integration_service
-            .process_turn(
-                player_input=data.player_input,
-                narrative=data.narrative,
+        with runtime.turn_execution_lock.acquire():
+            preparation = runtime.durable_native_turn_service.prepare_external_turn(
+                data.player_input,
                 external_turn_id=data.external_turn_id,
-                turn_version=data.turn_version,
             )
-        )
-
-    except SillyTavernIntegrationServiceConflictError as exc:
-        raise HTTPException(
-            status_code=409,
-            detail=str(exc),
-        ) from exc
-
+            context_result = runtime.silly_tavern_integration_service.get_context(
+                data.query,
+                exclude_external_turn_id=data.external_turn_id,
+            )
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SillyTavernIntegrationServiceError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
-
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail="failed to process SillyTavern turn",
+            detail="failed to resolve SillyTavern turn before narration",
+        ) from exc
+
+    return {
+        "external_turn_id": data.external_turn_id,
+        "resolution_id": preparation.resolution_id,
+        "lifecycle_state": preparation.lifecycle_state,
+        "committed_resolution": preparation.committed_resolution,
+        "clarification_question": preparation.clarification_question,
+        "legacy_replay": preparation.legacy_replay,
+        "campaign": context_result["campaign"],
+        "session": context_result["session"],
+        "active_character": context_result["active_character"],
+        "context": context_result["context"],
+    }
+
+
+@router.post("/integration/turn")
+def process_silly_tavern_turn(data: SillyTavernTurnIn):
+    """Compatibility endpoint for pre-PR31 SillyTavern extensions.
+
+    New clients must resolve consequences before generation and use
+    /integration/turn/complete only to persist the resulting narration.
+    """
+    try:
+        result = silly_tavern_integration_service.process_turn(
+            player_input=data.player_input,
+            narrative=data.narrative,
+            external_turn_id=data.external_turn_id,
+            turn_version=data.turn_version,
+        )
+    except SillyTavernIntegrationServiceConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SillyTavernIntegrationServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to process legacy SillyTavern turn",
+        ) from exc
+
+    return {
+        "narrative": result.narrative,
+        "player_input": result.player_input,
+        "external_turn_id": data.external_turn_id,
+        "turn_version": data.turn_version,
+        "operation_count": result.operation_count,
+        "successful_operation_count": result.successful_operation_count,
+        "failed_operation_count": result.failed_operation_count,
+        "all_operations_succeeded": result.all_operations_succeeded,
+        "world_changed": result.world_changed,
+        "operations": [
+            type(operation).__name__
+            for operation in result.operations + result.character_operations
+        ],
+        "operation_results": [
+            serialize_operation_result(item)
+            for item in result.operation_results
+        ],
+    }
+
+
+@router.post("/integration/turn/complete")
+def complete_silly_tavern_turn(data: SillyTavernTurnIn):
+    """Persist an external narrative against an already committed resolution."""
+    runtime = get_current_runtime()
+    try:
+        result = runtime.durable_native_turn_service.complete_external_narration(
+            external_turn_id=data.external_turn_id or "",
+            player_input=data.player_input,
+            narrative=data.narrative,
+            turn_version=data.turn_version,
+        )
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to persist SillyTavern narration",
         ) from exc
 
     return {

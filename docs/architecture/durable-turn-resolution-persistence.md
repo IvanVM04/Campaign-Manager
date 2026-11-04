@@ -34,7 +34,7 @@ Migration 023 adds `resulting_revision`; native automatic turns now populate it 
 For reliable client retries after a response may have been lost, native `/turn` accepts an `Idempotency-Key` HTTP header. When supplied, the same key and request fingerprint resolve to the existing lifecycle record. Without a client key, a best-effort native key is derived from the current transcript position; clients should send the header when retrying requests.
 
 The current native integration deliberately does not:
-- adapt SillyTavern requests yet; that remains PR #31;
+- provide durable continuation for manual-roll and clarification waits; these remain follow-ups;
 - persist manual-roll payloads or clarification answers; manual dice mode remains on the compatibility path;
 - add a background recovery worker; a retry of `/turn` with the same `Idempotency-Key` resumes a committed resolution's narration;
 - promise exactly-once execution across external providers; database idempotency and atomic consequence commit prevent duplicate domain application, while narration is safely retryable.
@@ -43,4 +43,4 @@ The repository's `transition` method expects the caller's transaction connection
 
 ## Follow-up
 
-PR30 will wire native turn execution to accept/prepare/commit/narration-pending/completed boundaries and prove crash recovery with failure-injection tests. PR31 will adapt SillyTavern to the same lifecycle.
+PR30 wires native automatic turns to the durable lifecycle. PR31 wires SillyTavern to the same coordinator: the adapter claims a stable external-turn identity, commits consequences before external generation, and completes the narration projection afterward. Regeneration updates only the narrative version and never reapplies domain operations.
