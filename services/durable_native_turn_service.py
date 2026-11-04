@@ -280,11 +280,20 @@ class DurableNativeTurnService:
         )
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def play_turn(self, player_input: str, *, idempotency_key: str | None = None):
+    def play_turn(
+        self, player_input: str, *, idempotency_key: str | None = None,
+        dice_mode: str = "automatic",
+    ):
+        if dice_mode not in {"automatic", "manual"}:
+            raise DurableNativeTurnError("dice_mode must be automatic or manual")
         if self.turn_execution_lock is None:
-            return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
+            return self._play_turn_locked(
+                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
+            )
         with self.turn_execution_lock.acquire():
-            return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
+            return self._play_turn_locked(
+                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
+            )
 
     def prepare_external_turn(
         self,
@@ -368,6 +377,7 @@ class DurableNativeTurnService:
         idempotency_key: str | None = None,
         adapter_namespace: str = "native",
         defer_narration: bool = False,
+        dice_mode: str = "automatic",
     ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
@@ -385,7 +395,7 @@ class DurableNativeTurnService:
         )
         previous_turn_id = recent[-1].id if recent else 0
         fingerprint = self._fingerprint(
-            normalized, session_id, "automatic"
+            normalized, session_id, dice_mode
         )
         fallback_identity = hashlib.sha256(
             f"{fingerprint}:{previous_turn_id}".encode()
@@ -400,7 +410,7 @@ class DurableNativeTurnService:
             )
             if record is not None:
                 fingerprint = self._fingerprint(
-                    normalized, record.session_id, "automatic"
+                    normalized, record.session_id, dice_mode
                 )
                 if record.request_fingerprint != fingerprint:
                     raise DurableNativeTurnError(
@@ -416,14 +426,14 @@ class DurableNativeTurnService:
                         raise DurableNativeTurnError("completed resolution has no transcript")
                     return self._result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "awaiting_input":
-                    question = json.loads(record.adjudication_json or "{}").get(
+                    pending = json.loads(record.adjudication_json or "{}")
+                    if pending.get("manual_roll"):
+                        return self._manual_roll_result(record, pending["manual_roll"])
+                    question = pending.get(
                         "clarification_question",
                         "Necesito una aclaración antes de resolver esa acción.",
                     )
-                    return TurnResolutionResult(
-                        player_input=record.player_input,
-                        narrative=question,
-                    )
+                    return TurnResolutionResult(player_input=record.player_input, narrative=question)
                 if record.lifecycle_state in {
                     "committed",
                     "narration_pending",
@@ -493,15 +503,24 @@ class DurableNativeTurnService:
                 plan = self._plan_from_record(record)
             else:
                 plan = self.resolver.prepare_turn(
-                    context,
-                    normalized,
-                    recent_turns=recent,
+                    context, normalized, recent_turns=recent,
+                    manual_mode=(dice_mode == "manual"),
                     proposal_from_intent=True,
                 )
                 if plan.awaiting_manual_roll:
-                    raise DurableNativeTurnError(
-                        "automatic turn unexpectedly requested a manual roll"
-                    )
+                    pending = self._build_manual_roll_request(record, plan.mechanics_decision, context, revision)
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id, "awaiting_input", scope=self.scope,
+                            expected_state="planning", expected_lease_token=lease_token,
+                            updates={
+                                "context_revision": revision,
+                                "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True),
+                                "lease_token": None, "lease_expires_at": None,
+                            }, conn=conn,
+                        )
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._manual_roll_result(saved, pending)
                 if plan.clarification_question is not None:
                     with transaction("IMMEDIATE") as conn:
                         self.resolution_repository.transition(
@@ -644,6 +663,150 @@ class DurableNativeTurnService:
                 raise
             raise DurableNativeTurnError("native turn execution failed") from exc
 
+    @staticmethod
+    def _manual_roll_result(record, pending):
+        return TurnResolutionResult(
+            player_input=record.player_input, narrative="",
+            pending_roll_id=str(record.id) + ":" + pending["challenge_id"],
+            pending_roll={key: value for key, value in pending.items() if key not in {"challenge_id", "decision"}},
+        )
+
+    def _build_manual_roll_request(self, record, decision, context, revision):
+        if decision is None or context.active_character is None:
+            raise DurableNativeTurnError("manual roll requires a character and mechanics decision")
+        from models.mechanics import MechanicsDecisionType
+        from rules_engine.dnd5e_2014.character_checks import (
+            ability_check_modifier_for_character,
+        )
+        from rules_engine.dnd5e_2014.core.skills import ability_for_skill
+        ability = decision.ability or (ability_for_skill(decision.skill) if decision.skill else None)
+        if ability is None:
+            raise DurableNativeTurnError("manual roll has no governing ability")
+        character = context.active_character
+        proficient = (decision.decision is MechanicsDecisionType.SKILL_CHECK and decision.skill in character.skill_proficiencies) or (decision.decision is MechanicsDecisionType.SAVING_THROW and ability in character.saving_throw_proficiencies)
+        expertise = decision.decision is MechanicsDecisionType.SKILL_CHECK and decision.skill in character.skill_expertise
+        modifier = ability_check_modifier_for_character(character=character, ability=ability, proficient=proficient, expertise=expertise, situational_modifier=decision.situational_modifier)
+        return {
+            "challenge_id": secrets.token_urlsafe(24), "context_revision": revision,
+            "count": 1 if decision.advantage == decision.disadvantage else 2,
+            "dice": "d20", "kind": decision.decision.value,
+            "skill": decision.skill.value if decision.skill else None,
+            "ability": ability.value, "dc": decision.dc, "modifier": modifier,
+            "advantage": decision.advantage, "disadvantage": decision.disadvantage,
+            "decision": {"decision": decision.decision.value, "skill": decision.skill.value if decision.skill else None,
+                "ability": decision.ability.value if decision.ability else None, "dc": decision.dc,
+                "advantage": decision.advantage, "disadvantage": decision.disadvantage,
+                "situational_modifier": decision.situational_modifier, "reason": decision.reason, "question": decision.question},
+        }
+
+    def submit_manual_roll(self, pending_roll_id: str, rolls: tuple[int, ...]):
+        if not isinstance(pending_roll_id, str) or ":" not in pending_roll_id:
+            raise DurableNativeTurnError("pending_roll_id is invalid")
+        if not isinstance(rolls, tuple) or not rolls or len(rolls) > 2 or any(isinstance(v, bool) or not isinstance(v, int) or v < 1 or v > 20 for v in rolls):
+            raise DurableNativeTurnError("manual d20 results must contain one or two integers from 1 to 20")
+        raw_id, challenge_id = pending_roll_id.split(":", 1)
+        if not raw_id.isdigit() or not challenge_id:
+            raise DurableNativeTurnError("pending_roll_id is invalid")
+        def submit():
+            record = self.resolution_repository.get(int(raw_id), scope=self.scope)
+            if record is None:
+                raise DurableNativeTurnError("manual roll request not found")
+            state = json.loads(record.adjudication_json or "{}")
+            pending = state.get("manual_roll")
+            if not pending or not secrets.compare_digest(pending.get("challenge_id", ""), challenge_id):
+                raise DurableNativeTurnError("manual roll challenge is invalid or stale")
+            accepted = pending.get("submitted_rolls")
+            if accepted is not None:
+                if list(rolls) != accepted:
+                    raise DurableNativeTurnError("manual roll challenge was already submitted with different results")
+                if record.lifecycle_state in {"narration_pending", "committed"}:
+                    return self._resume_narration(record, already_processed=True)
+                if record.lifecycle_state == "completed":
+                    turn = self.turn_repository.get_turn(record.turn_id, scope=self.scope)
+                    return self._result_from_completed_record(record, turn, already_processed=True)
+                if record.lifecycle_state == "prepared":
+                    with transaction("DEFERRED") as conn:
+                        context, recent = self._context_and_history(conn)
+                        revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                    if revision != record.context_revision:
+                        raise DurableNativeTurnError("prepared manual roll became stale before commit")
+                    plan = self._plan_from_record(record)
+                    with transaction("IMMEDIATE") as conn:
+                        current_context, current_recent = self._context_and_history(conn)
+                        current_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                        if current_revision != revision or current_context != context or current_recent != recent:
+                            raise DurableNativeTurnError("campaign context changed while recovering the manual roll")
+                        result = self.resolver.apply_plan(current_context, plan, conn=conn)
+                        if not result.all_operations_succeeded:
+                            raise DurableNativeTurnError("one or more proposed consequences failed validation")
+                        resulting_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                        self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
+                        self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._resume_narration(saved, already_processed=True)
+            if record.lifecycle_state not in {"awaiting_input", "planning"}:
+                raise DurableNativeTurnError("manual roll challenge is no longer pending")
+            with transaction("DEFERRED") as conn:
+                context, recent = self._context_and_history(conn)
+                revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+            if revision != pending.get("context_revision") or revision != record.context_revision:
+                expected_state = record.lifecycle_state
+                lease_token = None
+                if expected_state == "planning":
+                    lease_token = secrets.token_urlsafe(24)
+                    try:
+                        with transaction("IMMEDIATE") as conn:
+                            self.resolution_repository.claim_for_planning(
+                                record.id, scope=self.scope, lease_token=lease_token,
+                                lease_expires_at=(datetime.now(UTC) + timedelta(minutes=3)).isoformat(),
+                                now=datetime.now(UTC).isoformat(), conn=conn,
+                            )
+                    except ValueError as exc:
+                        raise DurableNativeTurnError("manual roll is still being submitted; retry") from exc
+                with transaction("IMMEDIATE") as conn:
+                    self.resolution_repository.transition(
+                        record.id, "rejected", scope=self.scope,
+                        expected_state=expected_state,
+                        expected_lease_token=lease_token,
+                        updates={"last_error_code": "stale_manual_roll"}, conn=conn,
+                    )
+                raise DurableNativeTurnError("campaign state changed while waiting for the manual roll")
+            if len(rolls) != pending["count"]:
+                raise DurableNativeTurnError("manual roll has an invalid number of dice")
+            token = secrets.token_urlsafe(24)
+            try:
+                with transaction("IMMEDIATE") as conn:
+                    record = self.resolution_repository.claim_for_planning(record.id, scope=self.scope, lease_token=token, lease_expires_at=(datetime.now(UTC) + timedelta(minutes=3)).isoformat(), now=datetime.now(UTC).isoformat(), conn=conn)
+            except ValueError as exc:
+                raise DurableNativeTurnError("manual roll is already being submitted; retry") from exc
+            from models.mechanics import MechanicsDecision, MechanicsDecisionType
+            from rules_engine.dnd5e_2014.core.abilities import Ability
+            from rules_engine.dnd5e_2014.core.skills import Skill
+            d = pending["decision"]
+            decision = MechanicsDecision(decision=MechanicsDecisionType(d["decision"]), skill=Skill(d["skill"]) if d["skill"] else None, ability=Ability(d["ability"]) if d["ability"] else None, dc=d["dc"], advantage=d["advantage"], disadvantage=d["disadvantage"], situational_modifier=d["situational_modifier"], reason=d["reason"], question=d["question"])
+            plan = self.resolver.prepare_turn(context, record.player_input, recent_turns=recent, manual_mode=True, manual_rolls=rolls, decision_override=decision, proposal_from_intent=True)
+            if plan.awaiting_manual_roll or plan.clarification_question:
+                raise DurableNativeTurnError("manual roll could not be resolved")
+            pending["submitted_rolls"] = list(rolls)
+            with transaction("IMMEDIATE") as conn:
+                self.resolution_repository.transition(record.id, "prepared", scope=self.scope, expected_state="planning", expected_lease_token=token, updates={"proposal_json": self._serialize_operations(plan), "mechanics_json": self._mechanics_to_json(plan.mechanics_result), "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True), "lease_token": None, "lease_expires_at": None}, conn=conn)
+            with transaction("IMMEDIATE") as conn:
+                current_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                current_context, current_recent = self._context_and_history(conn)
+                if current_revision != revision or current_context != context or current_recent != recent:
+                    raise DurableNativeTurnError("campaign context changed while resolving the manual roll")
+                result = self.resolver.apply_plan(current_context, plan, conn=conn)
+                if not result.all_operations_succeeded:
+                    raise DurableNativeTurnError("one or more proposed consequences failed validation")
+                resulting_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
+                self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
+            saved = self.resolution_repository.get(record.id, scope=self.scope)
+            return self._resume_narration(saved, already_processed=False)
+        if self.turn_execution_lock is None:
+            return submit()
+        with self.turn_execution_lock.acquire():
+            return submit()
     @staticmethod
     def _committed_resolution_json(record: TurnResolutionRecord) -> str:
         return json.dumps(
