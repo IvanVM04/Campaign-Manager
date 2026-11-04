@@ -193,6 +193,7 @@ class CampaignRuntimeFactory:
             repository=persistent_effect_repository,
             entity_repository=entity_repository,
             campaign_id=scope.campaign_id,
+            encounter_repository=encounter_repository,
         )
 
         return CampaignRuntime(
