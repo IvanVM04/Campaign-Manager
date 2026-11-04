@@ -36,6 +36,11 @@ class WeaponEquipmentService:
                 slot=slot,
             )
 
+    def inventory_items(self, *, campaign_id: int, character_entity_id: int):
+        return self.repository.list_inventory(
+            campaign_id=campaign_id, character_entity_id=character_entity_id
+        )
+
     def equipped_items(self, *, campaign_id: int, character_entity_id: int):
         return self.repository.list_equipped(
             campaign_id=campaign_id, character_entity_id=character_entity_id
