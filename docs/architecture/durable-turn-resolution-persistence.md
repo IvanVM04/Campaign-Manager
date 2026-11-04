@@ -2,7 +2,7 @@
 
 ## Scope
 
-Migration 022 introduces `turn_resolutions`, a durable execution envelope linked optionally to the existing historical `turns` row. It does not change how a turn is currently executed. Existing `turns` rows, external versioning, and campaign revision tracking remain intact.
+Migration 022 introduces `turn_resolutions`, a durable execution envelope linked optionally to the existing historical `turns` row. Migration 023 adds the resulting campaign revision. Native automatic turns now use this lifecycle; the existing `turns` rows, external versioning, and campaign revision tracking remain intact.
 
 ## Why a linked table
 
@@ -33,12 +33,11 @@ Migration 023 adds `resulting_revision`; native automatic turns now populate it 
 
 For reliable client retries after a response may have been lost, native `/turn` accepts an `Idempotency-Key` HTTP header. When supplied, the same key and request fingerprint resolve to the existing lifecycle record. Without a client key, a best-effort native key is derived from the current transcript position; clients should send the header when retrying requests.
 
-The persistence layer deliberately does not:
-- create resolution records from native or SillyTavern requests;
-- change current turn application, narrative generation, or retry semantics;
-- persist manual-roll payloads or clarification answers yet; (manual dice mode remains on the compatibility path in PR #30)
-- add a recovery worker or public API;
-- promise exactly-once execution across external providers; native request idempotency and atomic consequence commit prevent duplicate domain application, while narration is safely retryable.
+The current native integration deliberately does not:
+- adapt SillyTavern requests yet; that remains PR #31;
+- persist manual-roll payloads or clarification answers; manual dice mode remains on the compatibility path;
+- add a background recovery worker; a retry of `/turn` with the same `Idempotency-Key` resumes a committed resolution's narration;
+- promise exactly-once execution across external providers; database idempotency and atomic consequence commit prevent duplicate domain application, while narration is safely retryable.
 
 The repository's `transition` method expects the caller's transaction connection. The caller must use `BEGIN IMMEDIATE` for claims/transitions that coordinate state mutation. The `turns` transcript should be linked only when its historical record is created in the same transaction as the corresponding committed resolution.
 
