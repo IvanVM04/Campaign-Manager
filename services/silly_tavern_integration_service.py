@@ -871,15 +871,7 @@ class SillyTavernIntegrationService:
                         "campaign state changed while turn operations were being extracted; retry"
                     )
 
-                current_revision = self.state_version_repository.get_revision(
-                    self.campaign_scope.campaign_id,
-                    conn=conn,
-                )
-                if current_revision != state_revision:
-                    raise SillyTavernIntegrationServiceConflictError(
-                        "campaign state changed while turn operations were being extracted; retry"
-                    )
-
+                if current_turn is not None:
                     # ----------------------------------------
                     # REGENERACIÓN
                     # ----------------------------------------
