@@ -3,12 +3,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.requests import Request
+
 from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.requests import Request
 
 
 logger = logging.getLogger(__name__)
