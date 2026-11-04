@@ -113,13 +113,14 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
     """Commit a SillyTavern turn's consequences before external narration begins."""
     runtime = get_current_runtime()
     try:
-        preparation = runtime.durable_native_turn_service.prepare_external_turn(
-            data.player_input,
-            external_turn_id=data.external_turn_id,
-        )
-        context_result = runtime.silly_tavern_integration_service.get_context(
-            data.query
-        )
+        with runtime.turn_execution_lock.acquire():
+            preparation = runtime.durable_native_turn_service.prepare_external_turn(
+                data.player_input,
+                external_turn_id=data.external_turn_id,
+            )
+            context_result = runtime.silly_tavern_integration_service.get_context(
+                data.query
+            )
     except DurableNativeTurnError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SillyTavernIntegrationServiceError as exc:
