@@ -958,7 +958,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 26
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
@@ -1010,7 +1010,7 @@ def test_migration_025_adds_encounter_scoped_effect_timer_columns():
         "encounter_id", "duration_rounds", "expires_at_round",
         "duration_turns", "expires_at_turn", "expired_at_round", "expired_at_turn",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 26
     trigger = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_effect_timer_encounter_campaign'"
     ).fetchone()
