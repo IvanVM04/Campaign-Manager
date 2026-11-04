@@ -743,6 +743,10 @@ class DurableNativeTurnService:
                             if defer_narration
                             else self._clarification_result(record, current_pending)
                         )
+                if record.lifecycle_state == "prepared":
+                    return self._resume_prepared_clarification(
+                        record, defer_narration=defer_narration
+                    )
                 if record.lifecycle_state in {"committed", "narration_pending"}:
                     return (
                         self._preparation_from_record(record)
@@ -762,7 +766,7 @@ class DurableNativeTurnService:
                     return self._result_from_completed_record(
                         record, turn, already_processed=True
                     )
-            if record.lifecycle_state != "awaiting_input":
+            if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise DurableNativeTurnError("clarification request is no longer pending")
             pending = pending_state.get("clarification")
             if not isinstance(pending, dict) or not secrets.compare_digest(
@@ -970,6 +974,100 @@ class DurableNativeTurnService:
             return submit()
         with self.turn_execution_lock.acquire():
             return submit()
+
+    def _resume_prepared_clarification(
+        self,
+        record: TurnResolutionRecord,
+        *,
+        defer_narration: bool,
+    ):
+        with transaction("DEFERRED") as conn:
+            context, recent = self._context_and_history(conn)
+            revision = self.revision_repository.get_revision(
+                self.scope.campaign_id, conn=conn
+            )
+        if revision != record.context_revision:
+            with transaction("IMMEDIATE") as conn:
+                self.resolution_repository.transition(
+                    record.id,
+                    "rejected",
+                    scope=self.scope,
+                    expected_state="prepared",
+                    updates={"last_error_code": "stale_clarification"},
+                    conn=conn,
+                )
+            raise DurableNativeTurnError(
+                "campaign state changed while recovering clarification"
+            )
+
+        plan = self._plan_from_record(record)
+        try:
+            with transaction("IMMEDIATE") as conn:
+                current_context, current_recent = self._context_and_history(conn)
+                current_revision = self.revision_repository.get_revision(
+                    self.scope.campaign_id, conn=conn
+                )
+                if (
+                    current_revision != revision
+                    or current_context != context
+                    or current_recent != recent
+                ):
+                    raise DurableNativeTurnError(
+                        "campaign context changed while recovering clarification"
+                    )
+                result = self.resolver.apply_plan(
+                    current_context, plan, conn=conn
+                )
+                if not result.all_operations_succeeded:
+                    raise DurableNativeTurnError(
+                        "one or more proposed consequences failed validation"
+                    )
+                resulting_revision = self.revision_repository.get_revision(
+                    self.scope.campaign_id, conn=conn
+                )
+                self.resolution_repository.transition(
+                    record.id,
+                    "committed",
+                    scope=self.scope,
+                    expected_state="prepared",
+                    updates={
+                        "resulting_revision": resulting_revision,
+                        "operation_results_json": self._operation_results_json(result),
+                        "committed_at": datetime.now(UTC).isoformat(),
+                    },
+                    conn=conn,
+                )
+                self.resolution_repository.transition(
+                    record.id,
+                    "narration_pending",
+                    scope=self.scope,
+                    expected_state="committed",
+                    conn=conn,
+                )
+        except Exception as exc:
+            current = self.resolution_repository.get(record.id, scope=self.scope)
+            if current is not None and current.lifecycle_state == "prepared":
+                with transaction("IMMEDIATE") as conn:
+                    self.resolution_repository.transition(
+                        record.id,
+                        "rejected",
+                        scope=self.scope,
+                        expected_state="prepared",
+                        updates={"last_error_code": "clarification_recovery_failed"},
+                        conn=conn,
+                    )
+            if isinstance(exc, DurableNativeTurnError):
+                raise
+            raise DurableNativeTurnError(
+                "prepared clarification recovery failed"
+            ) from exc
+
+        saved = self.resolution_repository.get(record.id, scope=self.scope)
+        return (
+            self._preparation_from_record(saved)
+            if defer_narration
+            else self._resume_narration(saved, already_processed=True)
+        )
 
     def _build_manual_roll_request(self, record, decision, context, revision):
         if decision is None or context.active_character is None:
