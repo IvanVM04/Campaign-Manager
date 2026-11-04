@@ -589,3 +589,93 @@ def test_automatic_natural_one_adds_two_death_save_failures(client, monkeypatch)
     payload = response.json()
     assert payload["turn_start_death_save"]["selected"] == 1
     assert payload["combatants"][hero_id]["death_save_failures"] == 2
+
+
+def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client):
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "reaction-economy",
+            "participants": [
+                {"name": "Hero", "max_hp": 12, "current_hp": 12, "armor_class": 16, "dexterity": 18},
+                {"name": "Goblin", "max_hp": 7, "current_hp": 7, "armor_class": 15, "dexterity": 10},
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    hero_id = next(
+        key for key, value in created.json()["combatants"].items()
+        if value["name"] == "Hero"
+    )
+    goblin_id = next(key for key in created.json()["combatants"] if key != hero_id)
+    started = client.post(
+        "/encounters/reaction-economy/start",
+        json={"initiative_order": [hero_id, goblin_id]},
+    )
+    assert started.status_code == 200, started.text
+
+    spent = client.post(
+        "/encounters/reaction-economy/reaction",
+        json={"combatant_id": goblin_id, "expected_round": 1, "expected_turn_index": 0},
+    )
+    assert spent.status_code == 200, spent.text
+    assert spent.json()["combatants"][goblin_id]["reaction_used"] is True
+
+    duplicate = client.post(
+        "/encounters/reaction-economy/reaction",
+        json={"combatant_id": goblin_id, "expected_round": 1, "expected_turn_index": 0},
+    )
+    assert duplicate.status_code == 409
+
+    advanced = client.post(
+        "/encounters/reaction-economy/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    assert advanced.status_code == 200, advanced.text
+    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is True
+
+    advanced = client.post(
+        "/encounters/reaction-economy/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert advanced.status_code == 200, advanced.text
+    assert advanced.json()["active_combatant_id"] == hero_id
+    assert advanced.json()["combatants"][hero_id]["reaction_used"] is False
+    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is True
+
+    advanced = client.post(
+        "/encounters/reaction-economy/advance",
+        json={"expected_round": 2, "expected_turn_index": 0},
+    )
+    assert advanced.status_code == 200, advanced.text
+    assert advanced.json()["active_combatant_id"] == goblin_id
+    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is False
+
+
+def test_reaction_rejects_stale_turn_position_and_unknown_combatant(client):
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "reaction-validation",
+            "participants": [
+                {"name": "Hero", "max_hp": 12, "current_hp": 12, "armor_class": 16, "dexterity": 18},
+            ],
+        },
+    )
+    assert created.status_code == 201
+    started = client.post(
+        "/encounters/reaction-validation/start",
+        json={"initiative_order": [next(iter(created.json()["combatants"]))]},
+    )
+    assert started.status_code == 200
+
+    stale = client.post(
+        "/encounters/reaction-validation/reaction",
+        json={"combatant_id": "unknown", "expected_round": 2, "expected_turn_index": 0},
+    )
+    assert stale.status_code == 409
+    unknown = client.post(
+        "/encounters/reaction-validation/reaction",
+        json={"combatant_id": "unknown", "expected_round": 1, "expected_turn_index": 0},
+    )
+    assert unknown.status_code == 409
