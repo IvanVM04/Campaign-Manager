@@ -23,6 +23,7 @@ from migrations import (
     migration_020,
     migration_021,
     migration_022,
+    run_migrations,
 )
 
 
@@ -905,4 +906,18 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
         "SELECT revision FROM campaign_state_versions WHERE campaign_id = 1"
     ).fetchone()[0]
     assert revision_after == revision_before
+    conn.close()
+
+
+def test_run_migrations_upgrades_version_21_to_22():
+    conn = create_version_20_database()
+    migration_021(conn)
+    conn.execute("PRAGMA user_version = 21")
+
+    run_migrations(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 22
+    assert conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
+    ).fetchone() is not None
     conn.close()
