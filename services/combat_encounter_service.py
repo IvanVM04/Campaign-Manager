@@ -242,8 +242,8 @@ class CombatEncounterService:
         campaign_id: int,
         encounter_id: str,
         *,
-        expected_round: int | None = None,
-        expected_turn_index: int | None = None,
+        expected_round: int,
+        expected_turn_index: int,
     ):
         with get_conn() as conn:
             conn.execute("BEGIN IMMEDIATE")
