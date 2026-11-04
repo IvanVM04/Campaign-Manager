@@ -151,7 +151,10 @@ class CombatAttackService:
                 target_within_5_feet=target_within_5_feet,
             )
             armor_training_penalty = False
-            if self.equipment_service is not None and profile.attack_ability in {"strength", "dexterity"}:
+            if (
+                self.equipment_service is not None
+                and profile.attack_ability in {"strength", "dexterity"}
+            ):
                 armor_training = self.equipment_service.armor_proficiency(
                     character, campaign_id=campaign_id, conn=conn
                 )
