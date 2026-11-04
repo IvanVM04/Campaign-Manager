@@ -76,7 +76,7 @@ A partial consequence set is not a successful turn. If an operation fails and th
 ### 4.4 Narration isolation
 
 1. Narration starts only after the consequence transaction commits.
-2. Narration input is the committed resolution plus an explicitly selected read context; it cannot modify the resolution or domain state.
+2. Narration input includes the committed operation proposal, authoritative operation outcomes, mechanics evidence, and an explicitly selected read context; it cannot modify the resolution or domain state.
 3. Narration failure leaves the turn in `narration_pending` with committed consequences intact.
 4. Retrying narration may produce a replacement narrative, but cannot reapply operations, reroll mechanics, or change committed outcomes.
 5. Persist the final narrative and transition to `completed` atomically.
