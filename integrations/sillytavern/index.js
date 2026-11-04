@@ -367,6 +367,7 @@ globalThis.campaignManagerGenerateInterceptor =
                 chat,
                 playerMessage,
                 playerInput,
+                externalTurnId,
                 createStableTurnId,
                 getPersistedClarificationState,
             );
@@ -388,6 +389,7 @@ globalThis.campaignManagerGenerateInterceptor =
                 context = await getCampaignManagerClarificationContext(
                     clarificationOrigin,
                     playerInput,
+                    externalTurnId,
                 );
                 clarificationTurnLinks.set(
                     externalTurnId,
@@ -1253,6 +1255,7 @@ async function getPersistedClarificationState(
 async function getCampaignManagerClarificationContext(
     clarificationOrigin,
     answer,
+    answerExternalTurnId,
 ) {
     const currentSettings = getSettings();
     const backendUrl = currentSettings.backendUrl
@@ -1280,6 +1283,7 @@ async function getCampaignManagerClarificationContext(
                 pending_clarification_id:
                     clarificationOrigin.pendingClarificationId,
                 answer,
+                answer_external_turn_id: answerExternalTurnId,
                 query: retrievalQuery,
             }),
         },
@@ -1596,6 +1600,7 @@ async function onMessageReceived() {
                 chat,
                 playerMessage,
                 playerInput,
+                currentMessageTurnId,
                 createStableTurnId,
                 getPersistedClarificationState,
             );
