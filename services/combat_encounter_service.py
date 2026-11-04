@@ -232,6 +232,52 @@ class CombatEncounterService:
                 raise ValueError("cannot advance a non-active encounter")
             previous_round = encounter.round_number
             encounter.advance_turn()
+
+            # D&D 5e (2014): an unconscious, unstable player character
+            # makes one death saving throw at the start of each of its turns.
+            active = encounter.active_combatant
+            if (
+                active is not None
+                and active.is_player_character
+                and active.entity_id is not None
+                and active.current_hp == 0
+                and not active.stable
+                and not active.dead
+            ):
+                death_save = resolve_death_saving_throw(
+                    roller=self.dice_roller,
+                    successes=active.death_save_successes,
+                    failures=active.death_save_failures,
+                )
+                recovered = death_save.regained_hp == 1
+                updated = replace(
+                    active,
+                    current_hp=1 if recovered else 0,
+                    conscious=recovered,
+                    death_save_successes=0 if recovered else death_save.successes,
+                    death_save_failures=0 if recovered else death_save.failures,
+                    stable=death_save.stable,
+                    dead=death_save.dead,
+                    death_save_last_round=encounter.round_number,
+                    death_save_last_turn_index=encounter.turn_index,
+                )
+                encounter.combatants[active.combatant_id] = updated
+                if recovered:
+                    character = self.character_repository.get_character(
+                        active.entity_id, campaign_id=campaign_id, conn=conn
+                    )
+                    if character is None or character.current_hp != 0:
+                        raise RuntimeError(
+                            "character hit points and encounter snapshot differ; reload encounter"
+                        )
+                    self.character_repository.update_current_hp(
+                        active.entity_id,
+                        campaign_id=campaign_id,
+                        expected_current_hp=0,
+                        new_current_hp=1,
+                        conn=conn,
+                    )
+
             if self.persistent_effect_repository is not None:
                 absolute_turn = (
                     (encounter.round_number - 1) * len(encounter.initiative_order)
