@@ -72,6 +72,7 @@ class CharacterService:
             skill_proficiencies=character.skill_proficiencies,
             skill_expertise=character.skill_expertise,
             saving_throw_proficiencies=character.saving_throw_proficiencies,
+            armor_proficiencies=character.armor_proficiencies,
             metadata=dict(character.metadata),
         )
 
