@@ -675,7 +675,9 @@ class DurableNativeTurnService:
         if decision is None or context.active_character is None:
             raise DurableNativeTurnError("manual roll requires a character and mechanics decision")
         from models.mechanics import MechanicsDecisionType
-        from rules_engine.dnd5e_2014.character_checks import ability_check_modifier_for_character
+        from rules_engine.dnd5e_2014.character_checks import (
+            ability_check_modifier_for_character,
+        )
         from rules_engine.dnd5e_2014.core.skills import ability_for_skill
         ability = decision.ability or (ability_for_skill(decision.skill) if decision.skill else None)
         if ability is None:
