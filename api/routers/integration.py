@@ -7,6 +7,7 @@ from api.runtime_context import (
 )
 from api.serializers import serialize_operation_result
 from models.schemas import (
+    SillyTavernClarificationIn,
     SillyTavernContextIn,
     SillyTavernTurnIn,
     SillyTavernTurnResolveIn,
@@ -138,7 +139,47 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         "lifecycle_state": preparation.lifecycle_state,
         "committed_resolution": preparation.committed_resolution,
         "clarification_question": preparation.clarification_question,
+        "pending_clarification_id": getattr(
+            preparation, "pending_clarification_id", None
+        ),
         "legacy_replay": preparation.legacy_replay,
+        "campaign": context_result["campaign"],
+        "session": context_result["session"],
+        "active_character": context_result["active_character"],
+        "context": context_result["context"],
+    }
+
+
+@router.post("/integration/turn/clarification")
+def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
+    runtime = get_current_runtime()
+    try:
+        with runtime.turn_execution_lock.acquire():
+            preparation = runtime.durable_native_turn_service.submit_clarification(
+                data.pending_clarification_id,
+                data.answer,
+                adapter_namespace="sillytavern",
+                defer_narration=True,
+            )
+            context_result = runtime.silly_tavern_integration_service.get_context(
+                data.query,
+            )
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SillyTavernIntegrationServiceError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to resume SillyTavern turn clarification",
+        ) from exc
+
+    return {
+        "resolution_id": preparation.resolution_id,
+        "lifecycle_state": preparation.lifecycle_state,
+        "committed_resolution": preparation.committed_resolution,
+        "clarification_question": preparation.clarification_question,
+        "pending_clarification_id": preparation.pending_clarification_id,
         "campaign": context_result["campaign"],
         "session": context_result["session"],
         "active_character": context_result["active_character"],

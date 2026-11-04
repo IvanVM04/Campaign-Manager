@@ -412,3 +412,196 @@ def test_manual_roll_submission_rejects_malformed_challenge_and_die_results():
         service.submit_manual_roll("42:challenge", (0,))
     with pytest.raises(DurableNativeTurnError):
         service.submit_manual_roll("42:challenge", (12, 13, 14))
+
+
+def test_native_clarification_survives_and_resumes_durably(monkeypatch):
+    from services.turn_resolution_service import TurnResolutionPlan
+
+    service, _, narrative_calls = _service_with_fake_models()
+    plans = [
+        TurnResolutionPlan(
+            player_input="Abro la puerta.",
+            narrative="¿Qué puerta?",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+            clarification_question="¿Qué puerta quieres abrir?",
+        ),
+        TurnResolutionPlan(
+            player_input="Abro la puerta de roble.",
+            narrative="",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+        ),
+    ]
+    calls = []
+
+    def prepare_turn(context, player_input, **kwargs):
+        calls.append(player_input)
+        return plans.pop(0)
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", prepare_turn)
+
+    pending = service.play_turn(
+        "Abro una puerta.",
+        idempotency_key="native-clarification-001",
+    )
+    assert pending.pending_clarification_id
+    assert pending.narrative == "¿Qué puerta quieres abrir?"
+    replayed_pending = service.play_turn(
+        "Abro una puerta.",
+        idempotency_key="native-clarification-001",
+    )
+    assert (
+        replayed_pending.pending_clarification_id
+        == pending.pending_clarification_id
+    )
+
+    record = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-clarification-001",
+        scope=service.scope,
+    )
+    assert record.lifecycle_state == "awaiting_input"
+    assert record.context_revision is not None
+    assert json.loads(record.adjudication_json)["clarification"]["question"] == (
+        "¿Qué puerta quieres abrir?"
+    )
+
+    completed = service.submit_clarification(
+        pending.pending_clarification_id,
+        "La puerta de roble.",
+    )
+
+    assert completed.narrative == "El personaje observa su entorno."
+    assert calls == [
+        "Abro una puerta.",
+        (
+            "Abro una puerta."
+            + "\n\nAclaración del DM: ¿Qué puerta quieres abrir?"
+            + "\nRespuesta del jugador: La puerta de roble."
+        ),
+    ]
+    repeated = service.submit_clarification(
+        pending.pending_clarification_id,
+        "La puerta de roble.",
+    )
+    assert repeated.narrative == completed.narrative
+    assert repeated.already_processed is True
+    assert len(narrative_calls) == 1
+
+    saved = TurnResolutionRepository().get(record.id, scope=service.scope)
+    assert saved.lifecycle_state == "completed"
+    assert saved.player_input == "Abro una puerta."
+    assert "La puerta de roble." in service._resolved_player_input(saved)
+    assert json.loads(saved.adjudication_json)["clarification_history"] == [
+        {
+            "question": "¿Qué puerta quieres abrir?",
+            "answer": "La puerta de roble.",
+        }
+    ]
+
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_clarification(
+            pending.pending_clarification_id,
+            "Respuesta duplicada.",
+        )
+
+
+def test_native_clarification_rotates_challenge_when_more_detail_is_needed(monkeypatch):
+    from services.turn_resolution_service import TurnResolutionPlan
+
+    service, _, _ = _service_with_fake_models()
+    questions = iter([
+        "¿Qué puerta?",
+        "¿La abres con cuidado o con fuerza?",
+    ])
+    calls = []
+
+    def prepare_turn(context, player_input, **kwargs):
+        calls.append(player_input)
+        question = next(questions, None)
+        return TurnResolutionPlan(
+            player_input=player_input,
+            narrative=question or "",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+            clarification_question=question,
+        )
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", prepare_turn)
+    first = service.play_turn(
+        "Abro una puerta.",
+        idempotency_key="native-clarification-002",
+    )
+    second = service.submit_clarification(
+        first.pending_clarification_id,
+        "La de roble.",
+    )
+
+    assert second.pending_clarification_id
+    assert second.pending_clarification_id != first.pending_clarification_id
+    assert second.narrative == "¿La abres con cuidado o con fuerza?"
+
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_clarification(
+            first.pending_clarification_id,
+            "Respuesta antigua.",
+        )
+
+
+def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch):
+    from services.turn_resolution_service import TurnResolutionPlan
+
+    service, _, narrative_calls = _service_with_fake_models()
+    plans = [
+        TurnResolutionPlan(
+            player_input="Abro una puerta.",
+            narrative="¿Cuál?",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+            clarification_question="¿Qué puerta quieres abrir?",
+        ),
+        TurnResolutionPlan(
+            player_input="Abro la puerta de roble.",
+            narrative="",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+        ),
+    ]
+
+    def prepare_turn(context, player_input, **kwargs):
+        return plans.pop(0)
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", prepare_turn)
+    prepared = service.prepare_external_turn(
+        "Abro una puerta.",
+        external_turn_id="st-clarification-001",
+    )
+    assert prepared.lifecycle_state == "awaiting_input"
+    assert prepared.pending_clarification_id
+    assert prepared.clarification_question == "¿Qué puerta quieres abrir?"
+
+    resumed = service.submit_clarification(
+        prepared.pending_clarification_id,
+        "La puerta de roble.",
+        adapter_namespace="sillytavern",
+        defer_narration=True,
+    )
+    assert resumed.lifecycle_state == "narration_pending"
+    assert resumed.clarification_question is None
+    assert resumed.pending_clarification_id is None
+    assert narrative_calls == []
+
+    completed = service.complete_external_narration(
+        external_turn_id="st-clarification-001",
+        player_input="Abro una puerta.",
+        narrative="La puerta de roble se abre.",
+        turn_version=1,
+    )
+    assert completed.narrative == "La puerta de roble se abre."
+    assert completed.already_processed is False
