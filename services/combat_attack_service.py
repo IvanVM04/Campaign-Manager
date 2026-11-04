@@ -3,7 +3,7 @@
 import re
 from dataclasses import replace
 
-from database import get_conn
+from database import transaction
 from models.combat_encounter_state import EncounterStatus
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
@@ -51,10 +51,9 @@ class CombatAttackService:
         versatile_two_handed: bool = False,
         finesse_ability: str | None = None,
     ) -> dict:
-        with get_conn() as conn:
+        with transaction("IMMEDIATE") as conn:
             # Acquire the SQLite write lock before reading the encounter so a
             # concurrent action cannot pass the same expected turn position.
-            conn.execute("BEGIN IMMEDIATE")
             encounter = self.encounter_repository.get(
                 encounter_id, campaign_id=campaign_id, conn=conn
             )
