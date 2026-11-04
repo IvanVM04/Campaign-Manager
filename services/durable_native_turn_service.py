@@ -1248,7 +1248,7 @@ class DurableNativeTurnService:
             return {"external_turn_id": external_turn_id, "has_manual_roll": False}
         state = json.loads(record.adjudication_json or "{}")
         pending = state.get("manual_roll")
-        active = isinstance(pending, dict) and record.lifecycle_state not in {"rejected", "failed", "cancelled"}
+        active = isinstance(pending, dict) and record.lifecycle_state in {"awaiting_input", "planning", "prepared", "committed", "narration_pending"}
         return {
             "external_turn_id": external_turn_id,
             "has_manual_roll": active,
