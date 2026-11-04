@@ -42,6 +42,7 @@ class TurnResolutionResult:
 
     pending_roll_id: str | None = None
     pending_roll: dict | None = None
+    pending_clarification_id: str | None = None
 
     already_processed: bool = False
 
