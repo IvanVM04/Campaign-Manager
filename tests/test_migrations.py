@@ -22,6 +22,7 @@ from migrations import (
     migration_019,
     migration_020,
     migration_021,
+    migration_022,
 )
 
 
@@ -731,4 +732,127 @@ def test_migration_021_initializes_revisions_and_tracks_existing_campaigns():
     assert revision == 2
 
     conn.execute("PRAGMA user_version = 21")
+    conn.close()
+
+
+def test_migration_022_creates_durable_turn_resolution_table():
+    conn = create_version_20_database()
+    migration_021(conn)
+    migration_022(conn)
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(turn_resolutions)")
+    }
+    assert {
+        "id", "campaign_id", "idempotency_key", "request_fingerprint",
+        "lifecycle_state", "context_revision", "proposal_json",
+        "attempt_count", "lease_token", "lease_expires_at",
+        "committed_at", "completed_at",
+    } <= columns
+
+    indexes = {
+        row["name"]
+        for row in conn.execute("PRAGMA index_list(turn_resolutions)")
+    }
+    assert "idx_turn_resolutions_campaign_state" in indexes
+    assert "idx_turn_resolutions_expired_lease" in indexes
+    conn.close()
+
+
+def test_migration_022_enforces_campaign_scoped_idempotency():
+    import pytest
+
+    conn = create_version_20_database()
+    migration_021(conn)
+    migration_022(conn)
+
+    values = (1, "open door", "native", "req-1", "sha256:a")
+    conn.execute(
+        """
+        INSERT INTO turn_resolutions (
+            campaign_id, player_input, adapter_namespace,
+            idempotency_key, request_fingerprint
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        values,
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            """
+            INSERT INTO turn_resolutions (
+                campaign_id, player_input, adapter_namespace,
+                idempotency_key, request_fingerprint
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (1, "open door differently", "native", "req-1", "sha256:b"),
+        )
+
+    conn.execute("INSERT INTO campaign (id, name) VALUES (2, 'Campaign 2')")
+    conn.execute(
+        """
+        INSERT INTO turn_resolutions (
+            campaign_id, player_input, adapter_namespace,
+            idempotency_key, request_fingerprint
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (2, "open door", "native", "req-1", "sha256:a"),
+    )
+    conn.close()
+
+
+def test_migration_022_guards_invalid_lifecycle_transitions():
+    import pytest
+
+    conn = create_version_20_database()
+    migration_021(conn)
+    migration_022(conn)
+    cursor = conn.execute(
+        """
+        INSERT INTO turn_resolutions (
+            campaign_id, player_input, adapter_namespace,
+            idempotency_key, request_fingerprint
+        ) VALUES (1, 'look around', 'native', 'req-2', 'sha256:c')
+        """
+    )
+    resolution_id = cursor.lastrowid
+
+    with pytest.raises(sqlite3.IntegrityError, match="invalid"):
+        conn.execute(
+            "UPDATE turn_resolutions SET lifecycle_state='completed' WHERE id=?",
+            (resolution_id,),
+        )
+    conn.close()
+
+
+def test_migration_022_rejects_cross_campaign_turn_link():
+    import pytest
+
+    conn = create_version_20_database()
+    migration_021(conn)
+    migration_022(conn)
+
+    conn.execute("INSERT INTO campaign (id, name) VALUES (2, 'Campaign 2')")
+    session_id = conn.execute(
+        "INSERT INTO sessions (number, title, campaign_id) VALUES (1, 'S1', 1)"
+    ).lastrowid
+    turn_id = conn.execute(
+        """
+        INSERT INTO turns (
+            session_id, player_input, narrative, campaign_id
+        ) VALUES (?, 'input', 'narrative', 1)
+        """,
+        (session_id,),
+    ).lastrowid
+
+    with pytest.raises(sqlite3.IntegrityError, match="same campaign"):
+        conn.execute(
+            """
+            INSERT INTO turn_resolutions (
+                campaign_id, turn_id, player_input, adapter_namespace,
+                idempotency_key, request_fingerprint
+            ) VALUES (2, ?, 'input', 'native', 'req-3', 'sha256:d')
+            """,
+            (turn_id,),
+        )
     conn.close()
