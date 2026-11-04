@@ -6,7 +6,6 @@ from api.runtime_context import (
     turn_repository,
 )
 from models.schemas import ManualRollIn, TurnIn
-from services.campaign_turn_service import CampaignTurnServiceError
 
 router = APIRouter()
 
@@ -71,6 +70,8 @@ def _turn_result_payload(result):
 
 @router.post("/turn")
 def play_turn(data: TurnIn):
+    from services.campaign_turn_service import CampaignTurnServiceError
+
     try:
         result = campaign_turn_service.play_turn(
             data.player_input,
@@ -84,6 +85,8 @@ def play_turn(data: TurnIn):
 
 @router.post("/turn/roll")
 def submit_manual_roll(data: ManualRollIn):
+    from services.campaign_turn_service import CampaignTurnServiceError
+
     try:
         result = campaign_turn_service.submit_manual_roll(
             data.pending_roll_id,
