@@ -57,6 +57,148 @@ export function buildStableTurnIdentityInput(
 }
 
 
+export function selectClarificationChallenge(
+    clarificationState,
+    answer,
+    answerExternalTurnId = null,
+) {
+    if (
+        !clarificationState ||
+        typeof clarificationState !== 'object' ||
+        typeof answer !== 'string' ||
+        !answer.trim() ||
+        clarificationState.has_clarification !== true
+    ) {
+        return null;
+    }
+
+    if (
+        (
+            (
+                typeof answerExternalTurnId === 'string' &&
+                clarificationState.last_answer_external_turn_id === answerExternalTurnId
+            ) ||
+            (
+                !answerExternalTurnId &&
+                clarificationState.last_answer === answer.trim()
+            )
+        ) &&
+        typeof clarificationState.last_pending_clarification_id === 'string' &&
+        clarificationState.last_pending_clarification_id
+    ) {
+        return {
+            pendingClarificationId:
+                clarificationState.last_pending_clarification_id,
+            retry: true,
+        };
+    }
+
+    if (
+        ['awaiting_input', 'planning'].includes(clarificationState.lifecycle_state) &&
+        typeof clarificationState.pending_clarification_id === 'string' &&
+        clarificationState.pending_clarification_id
+    ) {
+        return {
+            pendingClarificationId:
+                clarificationState.pending_clarification_id,
+            retry: false,
+        };
+    }
+
+    return null;
+}
+
+
+export async function findClarificationOrigin(
+    chatMessages,
+    playerMessage,
+    currentAnswer,
+    currentAnswerExternalTurnId,
+    createTurnId,
+    getClarificationState,
+) {
+    if (
+        !Array.isArray(chatMessages) ||
+        typeof createTurnId !== 'function' ||
+        typeof getClarificationState !== 'function' ||
+        typeof currentAnswer !== 'string' ||
+        !currentAnswer.trim()
+    ) {
+        return null;
+    }
+
+    const currentIndex = chatMessages.findIndex(
+        (message) => message === playerMessage,
+    );
+    if (currentIndex < 0) {
+        return null;
+    }
+
+    let previousAssistant = null;
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+        const message = chatMessages[index];
+        if (
+            message &&
+            message.is_user !== true &&
+            typeof message.mes === 'string'
+        ) {
+            previousAssistant = message;
+            break;
+        }
+    }
+
+    const earliestIndex = Math.max(0, currentIndex - 24);
+    for (let index = currentIndex - 1; index >= earliestIndex; index -= 1) {
+        const candidate = chatMessages[index];
+        if (
+            !candidate ||
+            candidate.is_user !== true ||
+            typeof candidate.mes !== 'string' ||
+            !candidate.mes.trim()
+        ) {
+            continue;
+        }
+
+        const candidateInput = candidate.mes.trim();
+        const candidateTurnId = await createTurnId(candidate);
+        const state = await getClarificationState(candidateTurnId);
+        if (!state?.has_clarification) {
+            continue;
+        }
+
+        const selected = selectClarificationChallenge(
+            state,
+            currentAnswer,
+            currentAnswerExternalTurnId,
+        );
+        if (selected) {
+            if (
+                selected.retry &&
+                state.lifecycle_state === 'completed' &&
+                typeof state.narrative === 'string' &&
+                previousAssistant?.mes?.trim() === state.narrative.trim()
+            ) {
+                return null;
+            }
+
+            return {
+                externalTurnId: candidateTurnId,
+                playerInput: state.player_input || candidateInput,
+                pendingClarificationId: selected.pendingClarificationId,
+                retry: selected.retry,
+                state,
+            };
+        }
+
+        if (state.lifecycle_state !== 'awaiting_input') {
+            return null;
+        }
+    }
+
+    return null;
+}
+
+
 export class TurnState {
     constructor() {
         this.turnVersions =

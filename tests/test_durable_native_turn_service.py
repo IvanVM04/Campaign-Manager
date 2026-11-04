@@ -586,16 +586,57 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
     assert prepared.pending_clarification_id
     assert prepared.clarification_question == "¿Qué puerta quieres abrir?"
 
+    recovered = service.get_external_clarification_state(
+        "st-clarification-001"
+    )
+    assert recovered["has_clarification"] is True
+    assert recovered["lifecycle_state"] == "awaiting_input"
+    assert recovered["player_input"] == "Abro una puerta."
+    assert recovered["pending_clarification_id"] == (
+        prepared.pending_clarification_id
+    )
+
     resumed = service.submit_clarification(
         prepared.pending_clarification_id,
         "La puerta de roble.",
         adapter_namespace="sillytavern",
         defer_narration=True,
+        answer_external_turn_id="st-answer-clarification-001",
     )
     assert resumed.lifecycle_state == "narration_pending"
     assert resumed.clarification_question is None
     assert resumed.pending_clarification_id is None
+    recovered_after_answer = service.get_external_clarification_state(
+        "st-clarification-001"
+    )
+    assert recovered_after_answer["lifecycle_state"] == "narration_pending"
+    assert recovered_after_answer["pending_clarification_id"] is None
+    assert recovered_after_answer["last_pending_clarification_id"] == (
+        prepared.pending_clarification_id
+    )
+    assert recovered_after_answer["last_answer"] == "La puerta de roble."
+    assert recovered_after_answer["last_answer_external_turn_id"] == (
+        "st-answer-clarification-001"
+    )
+    assert "La puerta de roble." in recovered_after_answer["resolved_player_input"]
     assert narrative_calls == []
+
+    replayed_answer = service.submit_clarification(
+        prepared.pending_clarification_id,
+        "La puerta de roble.",
+        adapter_namespace="sillytavern",
+        defer_narration=True,
+        answer_external_turn_id="st-answer-clarification-001",
+    )
+    assert replayed_answer.lifecycle_state == "narration_pending"
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_clarification(
+            prepared.pending_clarification_id,
+            "La puerta de roble.",
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+            answer_external_turn_id="different-answer-message-id",
+        )
 
     completed = service.complete_external_narration(
         external_turn_id="st-clarification-001",

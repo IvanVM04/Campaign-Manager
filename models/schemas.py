@@ -146,6 +146,15 @@ class ClarificationIn(BaseModel):
 
 class SillyTavernClarificationIn(ClarificationIn):
     query: str = Field(..., min_length=1, max_length=10000)
+    answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
+
+    @field_validator("answer_external_turn_id")
+    @classmethod
+    def validate_answer_external_turn_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("answer_external_turn_id must not be empty")
+        return value
 
     @field_validator("query")
     @classmethod

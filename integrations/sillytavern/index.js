@@ -13,6 +13,7 @@ import {
 import {
     buildRetrievalQuery,
     buildStableTurnIdentityInput,
+    findClarificationOrigin,
     TurnState,
 } from "./core.js";
 
@@ -32,6 +33,7 @@ const turnState =
     new TurnState();
 
 const resolvedTurnStates = new Map();
+const clarificationTurnLinks = new Map();
 
 // ============================================================
 // CAMPAIGN MANAGER CONTEXT FOR GENERATION
@@ -359,11 +361,60 @@ globalThis.campaignManagerGenerateInterceptor =
             return;
         }
 
-        const context =
-            await getCampaignManagerGenerationContext(
+        let clarificationOrigin;
+        try {
+            clarificationOrigin = await findClarificationOrigin(
+                chat,
+                playerMessage,
+                playerInput,
+                externalTurnId,
+                createStableTurnId,
+                getPersistedClarificationState,
+            );
+        } catch (error) {
+            console.error(
+                '[Campaign Manager] Could not verify whether this message answers a pending clarification:',
+                error,
+            );
+            await clearCampaignManagerContext();
+            if (typeof abort === 'function') {
+                abort();
+            }
+            return;
+        }
+
+        let context;
+        if (clarificationOrigin) {
+            try {
+                context = await getCampaignManagerClarificationContext(
+                    clarificationOrigin,
+                    playerInput,
+                    externalTurnId,
+                );
+                clarificationTurnLinks.set(
+                    externalTurnId,
+                    {
+                        externalTurnId: clarificationOrigin.externalTurnId,
+                        playerInput: clarificationOrigin.playerInput,
+                    },
+                );
+            } catch (error) {
+                console.error(
+                    '[Campaign Manager] Failed to continue durable clarification:',
+                    error,
+                );
+                await clearCampaignManagerContext();
+                if (typeof abort === 'function') {
+                    abort();
+                }
+                return;
+            }
+        } else {
+            context = await getCampaignManagerGenerationContext(
                 playerInput,
                 externalTurnId,
             );
+        }
 
         if (!context) {
             await clearCampaignManagerContext();
@@ -962,6 +1013,7 @@ function registerChatLifecycleDetection() {
         () => {
             turnState.reset();
             resolvedTurnStates.clear();
+            clarificationTurnLinks.clear();
 
             void clearCampaignManagerContext();
 
@@ -1149,6 +1201,146 @@ async function getPersistedTurnState(
     }
 
     return responseBody;
+}
+
+
+async function getPersistedClarificationState(
+    externalTurnId,
+) {
+    const currentSettings = getSettings();
+    const backendUrl = currentSettings.backendUrl
+        .trim()
+        .replace(/\/+$/, '');
+    if (!backendUrl) {
+        throw new Error('Backend URL is empty.');
+    }
+
+    const encodedTurnId = encodeURIComponent(externalTurnId);
+    const response = await fetch(
+        `${backendUrl}/integration/turn/${encodedTurnId}/clarification`,
+        {
+            method: 'GET',
+            headers: getCampaignHeaders(),
+        },
+    );
+
+    let responseBody = null;
+    try {
+        responseBody = await response.json();
+    } catch {
+        responseBody = null;
+    }
+
+    if (!response.ok) {
+        const detail = responseBody?.detail;
+        throw new Error(
+            `HTTP ${response.status}: ${typeof detail === 'string' ? detail : JSON.stringify(detail ?? 'Unknown backend error')}`,
+        );
+    }
+
+    if (
+        !responseBody ||
+        typeof responseBody !== 'object' ||
+        typeof responseBody.has_clarification !== 'boolean'
+    ) {
+        throw new Error(
+            'Campaign Manager returned an invalid clarification state.',
+        );
+    }
+
+    return responseBody;
+}
+
+
+async function getCampaignManagerClarificationContext(
+    clarificationOrigin,
+    answer,
+    answerExternalTurnId,
+) {
+    const currentSettings = getSettings();
+    const backendUrl = currentSettings.backendUrl
+        .trim()
+        .replace(/\/+$/, '');
+    const configuredQuery = typeof currentSettings.contextQuery === 'string'
+        ? currentSettings.contextQuery.trim()
+        : '';
+    if (!backendUrl || !configuredQuery) {
+        throw new Error(
+            'Backend URL and context query are required for clarification.',
+        );
+    }
+
+    const retrievalQuery = buildRetrievalQuery(
+        configuredQuery,
+        `${clarificationOrigin.playerInput}\nRespuesta a la aclaración: ${answer}`,
+    );
+    const response = await fetch(
+        `${backendUrl}/integration/turn/clarification`,
+        {
+            method: 'POST',
+            headers: getCampaignHeaders(true),
+            body: JSON.stringify({
+                pending_clarification_id:
+                    clarificationOrigin.pendingClarificationId,
+                answer,
+                answer_external_turn_id: answerExternalTurnId,
+                query: retrievalQuery,
+            }),
+        },
+    );
+
+    let responseBody = null;
+    try {
+        responseBody = await response.json();
+    } catch {
+        responseBody = null;
+    }
+    if (!response.ok) {
+        const detail = responseBody?.detail;
+        throw new Error(
+            `HTTP ${response.status}: ${typeof detail === 'string' ? detail : JSON.stringify(detail ?? 'Unknown backend error')}`,
+        );
+    }
+    if (
+        !responseBody ||
+        typeof responseBody !== 'object' ||
+        typeof responseBody.lifecycle_state !== 'string' ||
+        typeof responseBody.committed_resolution !== 'string' ||
+        typeof responseBody.context?.context !== 'string'
+    ) {
+        throw new Error(
+            'Campaign Manager returned an invalid clarification continuation.',
+        );
+    }
+
+    resolvedTurnStates.set(
+        clarificationOrigin.externalTurnId,
+        {
+            lifecycleState: responseBody.lifecycle_state,
+            clarificationQuestion: responseBody.clarification_question ?? null,
+            playerInput: clarificationOrigin.playerInput,
+        },
+    );
+
+    if (responseBody.clarification_question) {
+        return [
+            responseBody.context.context.trim(),
+            '',
+            '=== ACLARACIÓN ADICIONAL NECESARIA ===',
+            'La respuesta del jugador se ha registrado, pero Campaign Manager todavía no ha confirmado las consecuencias.',
+            'Formula esta nueva pregunta al jugador y no describas cambios de estado como si hubieran ocurrido.',
+            responseBody.clarification_question,
+        ].join('\n');
+    }
+
+    return [
+        responseBody.context.context.trim(),
+        '',
+        '=== RESOLUCIÓN COMPROMETIDA — FUENTE DE VERDAD ===',
+        'La aclaración se ha procesado y las consecuencias siguientes están confirmadas por Campaign Manager.',
+        'No inventes cambios de estado ni contradigas estos resultados.',
+        responseBody.committed_resolution,
+    ].join('\n');
 }
 
 
@@ -1393,24 +1585,48 @@ async function onMessageReceived() {
     }
 
     let externalTurnId;
+    let durablePlayerInput = playerInput;
 
     try {
-        const playerMessageIndex =
-            chat.findIndex(
-                (message) =>
-                    message === playerMessage,
-            );
-
-        if (playerMessageIndex < 0) {
-            throw new Error(
-                'Could not find the received user message in the current SillyTavern chat.',
-            );
-        }
-
-        externalTurnId =
-            await createStableTurnId(
+        const currentMessageTurnId = await createStableTurnId(playerMessage);
+        const linkedClarification = clarificationTurnLinks.get(
+            currentMessageTurnId,
+        );
+        if (linkedClarification) {
+            externalTurnId = linkedClarification.externalTurnId;
+            durablePlayerInput = linkedClarification.playerInput;
+        } else {
+            const clarificationOrigin = await findClarificationOrigin(
+                chat,
                 playerMessage,
+                playerInput,
+                currentMessageTurnId,
+                createStableTurnId,
+                getPersistedClarificationState,
             );
+            if (clarificationOrigin) {
+                externalTurnId = clarificationOrigin.externalTurnId;
+                durablePlayerInput = clarificationOrigin.playerInput;
+                resolvedTurnStates.set(
+                    externalTurnId,
+                    {
+                        lifecycleState: clarificationOrigin.state.lifecycle_state,
+                        clarificationQuestion:
+                            clarificationOrigin.state.clarification_question ?? null,
+                        playerInput: durablePlayerInput,
+                    },
+                );
+                clarificationTurnLinks.set(
+                    currentMessageTurnId,
+                    {
+                        externalTurnId,
+                        playerInput: durablePlayerInput,
+                    },
+                );
+            } else {
+                externalTurnId = currentMessageTurnId;
+            }
+        }
     } catch (error) {
         console.error(
             '[Campaign Manager] Failed to create stable turn id:',
@@ -1496,7 +1712,7 @@ async function onMessageReceived() {
      */
     void sendTurnToBackend(
         externalTurnId,
-        playerInput,
+        durablePlayerInput,
         narrativeText,
         turnVersion,
     ).catch((error) => {

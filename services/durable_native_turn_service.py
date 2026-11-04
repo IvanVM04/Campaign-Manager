@@ -374,6 +374,80 @@ class DurableNativeTurnService:
         with self.turn_execution_lock.acquire():
             return prepare()
 
+    def get_external_clarification_state(
+        self,
+        external_turn_id: str,
+    ) -> dict:
+        """Return the durable clarification envelope for a SillyTavern turn."""
+        if not isinstance(external_turn_id, str):
+            raise DurableNativeTurnError("external_turn_id must be a string")
+        external_turn_id = external_turn_id.strip()
+        if not external_turn_id or len(external_turn_id) > 500:
+            raise DurableNativeTurnError(
+                "external_turn_id must contain 1-500 characters"
+            )
+
+        record = self.resolution_repository.get_by_idempotency_key(
+            "sillytavern",
+            external_turn_id,
+            scope=self.scope,
+        )
+        if record is None:
+            return {
+                "external_turn_id": external_turn_id,
+                "has_clarification": False,
+                "lifecycle_state": None,
+            }
+
+        adjudication = json.loads(record.adjudication_json or "{}")
+        clarification = adjudication.get("clarification")
+        history = adjudication.get("clarification_history", [])
+        active_challenge_id = (
+            clarification.get("challenge_id")
+            if isinstance(clarification, dict)
+            else None
+        )
+        last_challenge_id = adjudication.get("last_challenge_id")
+        has_clarification = bool(
+            isinstance(clarification, dict)
+            or history
+            or last_challenge_id
+        )
+        active_turn = self.turn_repository.get_active_by_external_turn_id(
+            external_turn_id,
+            scope=self.scope,
+        )
+
+        return {
+            "external_turn_id": external_turn_id,
+            "has_clarification": has_clarification,
+            "lifecycle_state": record.lifecycle_state,
+            "player_input": record.player_input,
+            "clarification_question": (
+                clarification.get("question")
+                if isinstance(clarification, dict)
+                and record.lifecycle_state == "awaiting_input"
+                else None
+            ),
+            "pending_clarification_id": (
+                f"{record.id}:{active_challenge_id}"
+                if record.lifecycle_state in {"awaiting_input", "planning"}
+                and active_challenge_id
+                else None
+            ),
+            "last_pending_clarification_id": (
+                f"{record.id}:{last_challenge_id}"
+                if last_challenge_id
+                else None
+            ),
+            "last_answer": adjudication.get("last_answer"),
+            "last_answer_external_turn_id": adjudication.get(
+                "last_answer_external_turn_id"
+            ),
+            "resolved_player_input": adjudication.get("resolved_player_input"),
+            "narrative": active_turn.narrative if active_turn is not None else None,
+        }
+
     def _play_turn_locked(
         self,
         player_input: str,
@@ -701,7 +775,18 @@ class DurableNativeTurnService:
         *,
         adapter_namespace: str = "native",
         defer_narration: bool = False,
+        answer_external_turn_id: str | None = None,
     ):
+        if answer_external_turn_id is not None and (
+            not isinstance(answer_external_turn_id, str)
+            or not answer_external_turn_id.strip()
+            or len(answer_external_turn_id.strip()) > 500
+        ):
+            raise DurableNativeTurnError(
+                "answer_external_turn_id must contain 1-500 characters"
+            )
+        if answer_external_turn_id is not None:
+            answer_external_turn_id = answer_external_turn_id.strip()
         if (
             not isinstance(pending_clarification_id, str)
             or ":" not in pending_clarification_id
@@ -733,6 +818,13 @@ class DurableNativeTurnService:
                 and secrets.compare_digest(
                     str(pending_state.get("last_answer", "")),
                     answer,
+                )
+                and (
+                    answer_external_turn_id is None
+                    or secrets.compare_digest(
+                        str(pending_state.get("last_answer_external_turn_id", "")),
+                        answer_external_turn_id,
+                    )
                 )
             ):
                 if record.lifecycle_state == "awaiting_input":
@@ -853,6 +945,9 @@ class DurableNativeTurnService:
                                         "clarification_history": history,
                                         "last_challenge_id": challenge_id,
                                         "last_answer": answer,
+                                        "last_answer_external_turn_id": (
+                                            answer_external_turn_id
+                                        ),
                                     },
                                     ensure_ascii=False,
                                     separators=(",", ":"),
@@ -886,6 +981,9 @@ class DurableNativeTurnService:
                                     "resolved_player_input": clarified_input,
                                     "last_challenge_id": challenge_id,
                                     "last_answer": answer,
+                                    "last_answer_external_turn_id": (
+                                        answer_external_turn_id
+                                    ),
                                     "decision": (
                                         plan.mechanics_decision.decision.value
                                         if plan.mechanics_decision else None
