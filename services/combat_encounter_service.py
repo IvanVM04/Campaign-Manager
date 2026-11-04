@@ -289,6 +289,8 @@ class CombatEncounterService:
                 raise ValueError("death saving throws require zero hit points")
             if combatant.stable or combatant.dead:
                 raise ValueError("this combatant's death saving throw track is already resolved")
+            if (combatant.death_save_last_round, combatant.death_save_last_turn_index) == (expected_round, expected_turn_index):
+                raise ValueError("a death saving throw has already been made this turn")
             if dice_mode not in ("automatic", "manual"):
                 raise ValueError("dice_mode must be automatic or manual")
             if dice_mode == "automatic" and manual_roll is not None:
@@ -312,6 +314,8 @@ class CombatEncounterService:
                 death_save_failures=0 if recovered else result.failures,
                 stable=result.stable,
                 dead=result.dead,
+                death_save_last_round=expected_round,
+                death_save_last_turn_index=expected_turn_index,
             )
             encounter.combatants[combatant.combatant_id] = updated
             if recovered:
