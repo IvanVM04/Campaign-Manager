@@ -11,6 +11,7 @@ from models.world_state import WorldState
 from repositories.character_repository import CharacterRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from repositories.world_repository import WorldRepository
+from services.weapon_equipment_service import WeaponEquipmentService
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import (
     WEAPON_CATALOG,
@@ -206,5 +207,82 @@ def test_equipment_slot_mutation_is_rejected_while_item_is_equipped(tmp_path):
             conn.execute(
                 "UPDATE items SET equipment_slot = 'head' WHERE id = 1 AND campaign_id = 1"
             )
+    finally:
+        database.DB_PATH = previous
+
+
+
+def test_armor_item_round_trips_through_world_repository(tmp_path):
+    previous = setup_db(tmp_path)
+    try:
+        state = WorldState(
+            entities={1: Entity(id=1, name="Hero", entity_type="character")},
+            items={
+                1: Item(id=1, name="Leather armor", armor_key="leather"),
+                2: Item(id=2, name="Shield", armor_key="shield"),
+            },
+            item_instances={
+                1: ItemInstance(id=1, item_id=1, owner_id=1),
+                2: ItemInstance(id=2, item_id=2, owner_id=1),
+            },
+        )
+        repository = WorldRepository()
+        repository.save_world(state, campaign_id=1)
+        loaded = repository.load_world(campaign_id=1)
+        assert loaded.items[1].armor_key == "leather"
+        assert loaded.items[1].equipment_slot == "body"
+        assert loaded.items[2].armor_key == "shield"
+        assert loaded.items[2].equipment_slot == "off_hand"
+    finally:
+        database.DB_PATH = previous
+
+
+def test_derived_armor_class_uses_equipped_body_armor_and_shield(tmp_path):
+    previous = setup_db(tmp_path)
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO entities (id, name, entity_type, campaign_id) VALUES (1, 'Hero', 'character', 1)"
+            )
+            conn.execute(
+                "INSERT INTO character_states (entity_id, campaign_id) VALUES (1, 1)"
+            )
+            conn.execute(
+                "INSERT INTO items (id, name, armor_key, equipment_slot, campaign_id) VALUES (1, 'Leather', 'leather', 'body', 1)"
+            )
+            conn.execute(
+                "INSERT INTO items (id, name, armor_key, equipment_slot, campaign_id) VALUES (2, 'Shield', 'shield', 'off_hand', 1)"
+            )
+            conn.execute(
+                "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (1, 1, 1, 1)"
+            )
+            conn.execute(
+                "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (2, 2, 1, 1)"
+            )
+        repository = WeaponEquipmentRepository()
+        repository.equip_item(
+            campaign_id=1, character_entity_id=1, item_instance_id=1, slot="body"
+        )
+        repository.equip_item(
+            campaign_id=1, character_entity_id=1, item_instance_id=2, slot="off_hand"
+        )
+        service = WeaponEquipmentService(repository)
+        character = CharacterState(entity_id=1, dexterity=16, strength=10)
+        result = service.armor_class(character, campaign_id=1)
+        assert result.armor_class == 16
+        assert result.armor_key == "leather"
+        assert result.shield_bonus == 2
+    finally:
+        database.DB_PATH = previous
+
+
+def test_unarmored_armor_class_uses_dexterity_modifier(tmp_path):
+    previous = setup_db(tmp_path)
+    try:
+        service = WeaponEquipmentService(WeaponEquipmentRepository())
+        result = service.armor_class(
+            CharacterState(entity_id=1, dexterity=16), campaign_id=1
+        )
+        assert result.armor_class == 13
     finally:
         database.DB_PATH = previous
