@@ -8,7 +8,6 @@ from api.runtime_context import (
 from models.schemas import ManualRollIn, TurnIn
 from services.campaign_turn_service import CampaignTurnServiceError
 
-
 router = APIRouter()
 
 
