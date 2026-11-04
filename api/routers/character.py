@@ -6,7 +6,6 @@ from api.runtime_context import (
 )
 from models.schemas import CharacterCreate
 
-
 router = APIRouter()
 
 
