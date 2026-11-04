@@ -30,6 +30,8 @@ class EffectDurationType(str, Enum):
     PERMANENT = "permanent"
     CONDITIONAL = "conditional"
     CAMPAIGN_TIME = "campaign_time"
+    ENCOUNTER_ROUNDS = "encounter_rounds"
+    ENCOUNTER_TURNS = "encounter_turns"
 
 
 class EffectStatus(str, Enum):
@@ -61,6 +63,13 @@ class PersistentEffect:
     duration_minutes: int | None = None
     expires_at_minute: int | None = None
     expired_at_minute: int | None = None
+    encounter_id: str | None = None
+    duration_rounds: int | None = None
+    expires_at_round: int | None = None
+    duration_turns: int | None = None
+    expires_at_turn: int | None = None
+    expired_at_round: int | None = None
+    expired_at_turn: int | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.campaign_id, bool) or not isinstance(self.campaign_id, int) or self.campaign_id < 1:
@@ -99,10 +108,33 @@ class PersistentEffect:
                 raise ValueError("campaign-time effects require positive duration_minutes")
             if isinstance(self.expires_at_minute, bool) or not isinstance(self.expires_at_minute, int) or self.expires_at_minute < 1:
                 raise ValueError("campaign-time effects require expires_at_minute")
+        elif self.duration_type in (EffectDurationType.ENCOUNTER_ROUNDS, EffectDurationType.ENCOUNTER_TURNS):
+            if not isinstance(self.encounter_id, str) or not self.encounter_id.strip():
+                raise ValueError("encounter-scoped effects require encounter_id")
+            if self.duration_condition is not None or self.duration_minutes is not None or self.expires_at_minute is not None:
+                raise ValueError("encounter-scoped effects cannot define campaign-time duration")
+            if self.duration_type is EffectDurationType.ENCOUNTER_ROUNDS:
+                if isinstance(self.duration_rounds, bool) or not isinstance(self.duration_rounds, int) or self.duration_rounds < 1:
+                    raise ValueError("encounter-round effects require positive duration_rounds")
+                if isinstance(self.expires_at_round, bool) or not isinstance(self.expires_at_round, int) or self.expires_at_round < 1:
+                    raise ValueError("encounter-round effects require expires_at_round")
+                if self.duration_turns is not None or self.expires_at_turn is not None:
+                    raise ValueError("round effects cannot define turn duration")
+            else:
+                if isinstance(self.duration_turns, bool) or not isinstance(self.duration_turns, int) or self.duration_turns < 1:
+                    raise ValueError("encounter-turn effects require positive duration_turns")
+                if isinstance(self.expires_at_turn, bool) or not isinstance(self.expires_at_turn, int) or self.expires_at_turn < 1:
+                    raise ValueError("encounter-turn effects require expires_at_turn")
+                if self.duration_rounds is not None or self.expires_at_round is not None:
+                    raise ValueError("turn effects cannot define round duration")
         elif self.duration_condition is not None:
             raise ValueError("permanent effects cannot define a duration condition")
-        elif self.duration_minutes is not None or self.expires_at_minute is not None:
-            raise ValueError("only campaign-time effects can define a timed duration")
+        elif any(value is not None for value in (
+            self.duration_minutes, self.expires_at_minute, self.encounter_id,
+            self.duration_rounds, self.expires_at_round, self.duration_turns,
+            self.expires_at_turn,
+        )):
+            raise ValueError("permanent effects cannot define a timed duration")
         if self.effect_type is EffectType.CONDITION:
             try:
                 Condition(self.effect_key)
@@ -126,5 +158,9 @@ class PersistentEffect:
             raise ValueError("id must be a 32-character hexadecimal identifier")
         if self.status in (EffectStatus.REMOVED, EffectStatus.EXPIRED) and self.removed_at is None and self.created_at is not None:
             raise ValueError("persisted inactive effects require removed_at")
-        if self.status is EffectStatus.EXPIRED and self.expired_at_minute is None:
-            raise ValueError("expired effects require expired_at_minute")
+        if self.status is EffectStatus.EXPIRED and self.duration_type is EffectDurationType.CAMPAIGN_TIME and self.expired_at_minute is None:
+            raise ValueError("campaign-time expired effects require expired_at_minute")
+        if self.status is EffectStatus.EXPIRED and self.duration_type is EffectDurationType.ENCOUNTER_ROUNDS and self.expired_at_round is None:
+            raise ValueError("round-based expired effects require expired_at_round")
+        if self.status is EffectStatus.EXPIRED and self.duration_type is EffectDurationType.ENCOUNTER_TURNS and self.expired_at_turn is None:
+            raise ValueError("turn-based expired effects require expired_at_turn")
