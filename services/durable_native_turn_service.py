@@ -474,10 +474,13 @@ class DurableNativeTurnService:
                 self.resolution_repository.get(record.id, scope=self.scope)
             )
         except Exception as exc:
-            if (
-                isinstance(exc, DurableNativeTurnError)
-                and "one or more proposed consequences failed validation" in str(exc)
-            ):
+            rejection_code = None
+            if isinstance(exc, DurableNativeTurnError):
+                if "one or more proposed consequences failed validation" in str(exc):
+                    rejection_code = "operation_validation_failed"
+                elif "campaign state changed" in str(exc) or "campaign context changed" in str(exc):
+                    rejection_code = "stale_context"
+            if rejection_code is not None:
                 with transaction("IMMEDIATE") as conn:
                     current = self.resolution_repository.get(
                         record.id, scope=self.scope, conn=conn
@@ -488,7 +491,7 @@ class DurableNativeTurnService:
                             "rejected",
                             scope=self.scope,
                             expected_state="prepared",
-                            updates={"last_error_code": "operation_validation_failed"},
+                            updates={"last_error_code": rejection_code},
                             conn=conn,
                         )
             if isinstance(exc, DurableNativeTurnError):
