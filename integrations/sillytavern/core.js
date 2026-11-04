@@ -455,7 +455,11 @@ export function parseManualRollResults(answer, expectedCount) {
     if (typeof answer !== 'string' || !Number.isInteger(expectedCount) || expectedCount < 1 || expectedCount > 2) {
         return null;
     }
-    const values = answer.trim().match(/^\\s*(\\d{1,2})(?:\\s*[,;]\\s*(\\d{1,2}))?\\s*$/);
+    const tokens = answer.trim().split(/[,;]/).map((value) => value.trim());
+    if (tokens.length !== expectedCount || tokens.some((value) => !/^\\d{1,2}$/.test(value))) return null;
+    const rolls = tokens.map(Number);
+    if (rolls.some((value) => value < 1 || value > 20)) return null;
+    return rolls;
     if (!values) return null;
     const rolls = values.slice(1).filter(Boolean).map(Number);
     if (rolls.length !== expectedCount || rolls.some((value) => value < 1 || value > 20)) {
