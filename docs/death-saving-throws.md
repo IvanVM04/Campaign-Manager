@@ -14,6 +14,10 @@ The rules engine exposes `resolve_death_saving_throw()` as a deterministic primi
 
 The resolver accepts an injected `DiceRoller`, so production code can use automatic dice while tests and manual workflows can provide reproducible d20 results.
 
-## Integration boundary
+## Encounter integration
 
-This increment implements and tests the rules calculation only. Encounter persistence, death-save counters, automatic saves at the start of a turn, damage received while at 0 hit points, and stabilization/revival workflows are not yet connected to the combat API. Callers must not treat this primitive alone as a complete death-and-dying workflow.
+The encounter API exposes `POST /encounters/{encounter_id}/death-save`. It resolves one save for the active persisted player character when that character has 0 HP. The request must include the expected round and turn index; callers may use automatic dice or provide one manual d20 result.
+
+Successes, failures, stabilization, and death are stored in the encounter's existing combatant snapshot JSON, so no schema migration is needed. A natural 20 restores 1 HP in both the character record and encounter snapshot in one transaction, and clears the saved death-save counters. Stable and dead combatants cannot make further saves through this endpoint.
+
+This increment does not yet automate the save at turn start or handle damage dealt to a combatant already at 0 HP. NPC/monster death-at-zero behaviour remains unchanged.
