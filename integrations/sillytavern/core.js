@@ -60,6 +60,7 @@ export function buildStableTurnIdentityInput(
 export function selectClarificationChallenge(
     clarificationState,
     answer,
+    answerExternalTurnId = null,
 ) {
     if (
         !clarificationState ||
@@ -72,7 +73,16 @@ export function selectClarificationChallenge(
     }
 
     if (
-        clarificationState.last_answer === answer.trim() &&
+        (
+            (
+                typeof answerExternalTurnId === 'string' &&
+                clarificationState.last_answer_external_turn_id === answerExternalTurnId
+            ) ||
+            (
+                !answerExternalTurnId &&
+                clarificationState.last_answer === answer.trim()
+            )
+        ) &&
         typeof clarificationState.last_pending_clarification_id === 'string' &&
         clarificationState.last_pending_clarification_id
     ) {
@@ -103,6 +113,7 @@ export async function findClarificationOrigin(
     chatMessages,
     playerMessage,
     currentAnswer,
+    currentAnswerExternalTurnId,
     createTurnId,
     getClarificationState,
 ) {
@@ -158,6 +169,7 @@ export async function findClarificationOrigin(
         const selected = selectClarificationChallenge(
             state,
             currentAnswer,
+            currentAnswerExternalTurnId,
         );
         if (selected) {
             if (
