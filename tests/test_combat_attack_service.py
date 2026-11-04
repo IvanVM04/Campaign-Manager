@@ -476,4 +476,4 @@ def test_damage_to_stable_character_makes_them_unstable_again(client):
     combatant = response.json()["encounter"]["combatants"][target_key]
     assert combatant["stable"] is False
     assert combatant["death_save_failures"] == 1
-    assert combatant["death_save_successes"] == 3
+    assert combatant["death_save_successes"] == 0
