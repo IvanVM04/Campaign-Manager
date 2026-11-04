@@ -119,3 +119,101 @@ def test_narration_failure_leaves_committed_resolution_resumable():
     assert attempts["count"] == 2
     recovered_world = service.world_service.repository.load_world(campaign_id=1)
     assert len(recovered_world.entities) == 1
+
+
+def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reapply():
+    service, proposal_calls, _ = _service_with_fake_models()
+    narrative_calls = []
+    service.resolver.dm_service.provider.generate = lambda prompt: (
+        narrative_calls.append(prompt) or "Esta llamada no debe ejecutarse."
+    )
+
+    prepared = service.prepare_external_turn(
+        "Abro la puerta.",
+        external_turn_id="st-chat-turn-001",
+    )
+
+    assert prepared.lifecycle_state == "narration_pending"
+    assert prepared.resolution_id is not None
+    assert "resulting_revision" in prepared.committed_resolution
+    assert len(proposal_calls) == 1
+    assert narrative_calls == []
+
+    revision_after_commit = service.revision_repository.get_revision(1)
+
+    first = service.complete_external_narration(
+        external_turn_id="st-chat-turn-001",
+        player_input="Abro la puerta.",
+        narrative="La puerta se abre.",
+        turn_version=1,
+    )
+    assert first.narrative == "La puerta se abre."
+
+    second_preparation = service.prepare_external_turn(
+        "Abro la puerta.",
+        external_turn_id="st-chat-turn-001",
+    )
+    assert second_preparation.lifecycle_state == "completed"
+    assert len(proposal_calls) == 1
+
+    second = service.complete_external_narration(
+        external_turn_id="st-chat-turn-001",
+        player_input="Abro la puerta.",
+        narrative="La puerta se abre con un chirrido.",
+        turn_version=2,
+    )
+    assert second.narrative == "La puerta se abre con un chirrido."
+    assert second.already_processed is True
+    assert service.revision_repository.get_revision(1) == revision_after_commit
+
+    from database import get_conn
+    with get_conn() as conn:
+        versions = conn.execute(
+            """
+            SELECT version, status, narrative
+            FROM turns
+            WHERE external_turn_id=?
+            ORDER BY version
+            """,
+            ("st-chat-turn-001",),
+        ).fetchall()
+
+    assert [(row["version"], row["status"]) for row in versions] == [
+        (1, "superseded"),
+        (2, "active"),
+    ]
+    assert len(proposal_calls) == 1
+    assert narrative_calls == []
+
+
+def test_silly_tavern_narrative_retry_is_idempotent():
+    service, proposal_calls, _ = _service_with_fake_models()
+    service.prepare_external_turn(
+        "Miro la habitación.",
+        external_turn_id="st-chat-turn-002",
+    )
+
+    first = service.complete_external_narration(
+        external_turn_id="st-chat-turn-002",
+        player_input="Miro la habitación.",
+        narrative="Hay una mesa.",
+        turn_version=1,
+    )
+    replay = service.complete_external_narration(
+        external_turn_id="st-chat-turn-002",
+        player_input="Miro la habitación.",
+        narrative="Hay una mesa.",
+        turn_version=1,
+    )
+
+    assert first.narrative == replay.narrative
+    assert replay.already_processed is True
+    assert len(proposal_calls) == 1
+
+    from database import get_conn
+    with get_conn() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM turns WHERE external_turn_id=?",
+            ("st-chat-turn-002",),
+        ).fetchone()[0]
+    assert count == 1
