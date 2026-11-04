@@ -274,7 +274,15 @@ class WorldApplier:
             significance=operation.significance,
             unique=operation.unique,
             notes=operation.notes,
+            weapon_key=operation.weapon_key,
+            equipment_slot=operation.equipment_slot,
         )
+        if item.weapon_key is not None and item.equipment_slot not in ("main_hand", "off_hand"):
+            return OperationResult(
+                status=OperationStatus.INVALID,
+                message="weapon items must use main_hand or off_hand equipment slots",
+                operation=operation,
+            )
 
         world.items[item_id] = item
 
