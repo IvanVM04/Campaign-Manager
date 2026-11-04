@@ -7,6 +7,10 @@ from rules_engine.dnd5e_2014.combat.conditions import (
     attack_roll_advantage_state,
 )
 from rules_engine.dnd5e_2014.combat.damage import DamageType, apply_damage_modifiers
+from rules_engine.dnd5e_2014.combat.death_saves import (
+    DeathSaveResult,
+    resolve_death_saving_throw,
+)
 from rules_engine.dnd5e_2014.combat.initiative import InitiativeResult, roll_initiative
 
 __all__ = [
@@ -14,9 +18,11 @@ __all__ = [
     "Condition",
     "ConditionSet",
     "DamageType",
+    "DeathSaveResult",
     "InitiativeResult",
     "apply_damage_modifiers",
     "attack_roll_advantage_state",
     "resolve_attack",
+    "resolve_death_saving_throw",
     "roll_initiative",
 ]
