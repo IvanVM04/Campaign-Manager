@@ -6,7 +6,6 @@ from api.runtime_context import (
     world_service,
 )
 
-
 router = APIRouter()
 
 
