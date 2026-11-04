@@ -381,8 +381,27 @@ class DurableNativeTurnService:
                         "automatic turn unexpectedly requested a manual roll"
                     )
                 if plan.clarification_question is not None:
-                    raise DurableNativeTurnError(
-                        "clarification requests are not yet durable in the native API"
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id,
+                            "awaiting_input",
+                            scope=self.scope,
+                            expected_state="planning",
+                            expected_lease_token=lease_token,
+                            updates={
+                                "adjudication_json": json.dumps(
+                                    {"clarification_question": plan.clarification_question},
+                                    ensure_ascii=False,
+                                    separators=(",", ":"),
+                                ),
+                                "lease_token": None,
+                                "lease_expires_at": None,
+                            },
+                            conn=conn,
+                        )
+                    return TurnResolutionResult(
+                        player_input=normalized,
+                        narrative=plan.clarification_question,
                     )
                 proposal_json = self._serialize_operations(plan)
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
