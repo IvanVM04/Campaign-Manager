@@ -122,9 +122,9 @@ No second “turns” table or parallel campaign revision counter should be intr
 
 This contract is intentionally implemented incrementally:
 
-1. **PR #28 (this PR):** define lifecycle vocabulary, invariants, trust boundary, and recovery/transaction boundaries. Documentation only.
-2. **PR #29:** inspect and design the minimal durable persistence evolution using the existing `turns` and campaign revision infrastructure; add migration/repository/model tests. Do not yet move both entry paths wholesale.
-3. **PR #30:** split consequence commit from narration; make native turns recoverable and narration retryable.
+1. **PR #28 (merged):** define lifecycle vocabulary, invariants, trust boundary, and recovery/transaction boundaries. Documentation only.
+2. **PR #29:** add migration 022 and a linked `turn_resolutions` execution envelope, model, repository, lifecycle constraints, idempotency uniqueness, lease claims, and migration/model/repository tests. The live turn pipeline is not wired yet.
+3. **PR #30 (next):** wire native turn execution to durable accept/prepare/commit/narration-pending/completed boundaries; commit domain consequences and lifecycle state atomically; retry narration without reapplying consequences.
 4. **PR #31:** adapt SillyTavern to the same application use case and preserve regeneration/snapshot compatibility.
 5. Follow-up work: durable manual-roll/clarification continuation, structured consequence proposals independent of prose, and operational recovery orchestration as needed by the implementation findings.
 
