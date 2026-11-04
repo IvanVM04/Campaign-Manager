@@ -16,11 +16,11 @@ The resolver accepts an injected `DiceRoller`, so production code can use automa
 
 ## Encounter integration
 
-The encounter API exposes `POST /encounters/{encounter_id}/death-save`. It resolves one save for the active persisted player character when that character has 0 HP. The request must include the expected round and turn index; callers may use automatic dice or provide one manual d20 result.
+The encounter API resolves one death save automatically when initiative advances to the turn of an unstable player character at 0 HP. The advance response includes the roll and resulting track under `turn_start_death_save`. The explicit `POST /encounters/{encounter_id}/death-save` endpoint remains available for manual workflows, and the same turn-position guard prevents a second save in that turn.
 
 Successes, failures, stabilization, and death are stored in the encounter's existing combatant snapshot JSON, so no schema migration is needed. A natural 20 restores 1 HP in both the character record and encounter snapshot in one transaction, and clears the saved death-save counters. Stable and dead combatants cannot make further saves through this endpoint.
 
-This increment does not yet automate the save at turn start or handle damage dealt to a combatant already at 0 HP. NPC/monster death-at-zero behaviour remains unchanged.
+Automatic turn-start saves apply to persisted player characters only. NPC/monster death-save automation remains outside this increment.
 
 
 ## Damage while at 0 hit points
@@ -30,3 +30,8 @@ Weapon damage can now target an unconscious combatant at 0 HP. Each damaging hit
 When damage reduces a combatant from positive HP to 0, the combatant becomes unconscious and its death-save track starts at zero. Massive damage kills outright when the damage remaining after reducing the target to 0 HP equals or exceeds its hit point maximum.
 
 These transitions are persisted with the encounter snapshot and the underlying character/creature HP in the same transaction. NPC death-save automation and automatic saves at the start of a turn remain separate follow-up work.
+
+
+## Automatic turn-start resolution
+
+When initiative advances to an unstable player character at 0 HP, the encounter service rolls one unmodified d20 and persists the result in the same transaction as the turn change. A natural 20 restores 1 HP in both the character record and encounter snapshot. A stable or dead combatant does not roll. The response includes the roll details so the client can present the result without issuing a second request.

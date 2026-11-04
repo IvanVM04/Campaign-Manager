@@ -347,7 +347,8 @@ def test_death_save_persists_failure_and_rejects_second_save_in_same_turn(client
     assert reloaded.json()["combatants"][hero_id]["death_save_failures"] == 1
 
 
-def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
+def test_natural_twenty_recovers_character_and_clears_death_save_track(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 20)
     character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "death-save-recovery"
     )
@@ -363,17 +364,9 @@ def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
     assert first.status_code == 200, first.text
     _advance_back_to_hero(client, "death-save-recovery")
 
-    recovery = client.post(
-        "/encounters/death-save-recovery/death-save",
-        json={
-            "expected_round": 2,
-            "expected_turn_index": 0,
-            "dice_mode": "manual",
-            "manual_roll": 20,
-        },
-    )
-    assert recovery.status_code == 200, recovery.text
-    combatant = recovery.json()["encounter"]["combatants"][hero_id]
+    current = client.get("/encounters/death-save-recovery")
+    assert current.status_code == 200, current.text
+    combatant = current.json()["combatants"][hero_id]
     assert combatant["current_hp"] == 1
     assert combatant["conscious"] is True
     assert combatant["death_save_successes"] == 0
@@ -387,36 +380,28 @@ def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
     assert row["current_hp"] == 1
 
 
-def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
+def test_third_death_save_success_stabilizes_and_prevents_more_saves(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, [15, 10])
     _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "death-save-stable"
     )
-    for round_number in (1, 2):
-        response = client.post(
-            "/encounters/death-save-stable/death-save",
-            json={
-                "expected_round": round_number,
-                "expected_turn_index": 0,
-                "dice_mode": "manual",
-                "manual_roll": 15,
-            },
-        )
-        assert response.status_code == 200, response.text
-        if round_number == 1:
-            _advance_back_to_hero(client, "death-save-stable")
-            # Move the fixture's round token forward for the next iteration.
-    _advance_back_to_hero(client, "death-save-stable", current_round=2)
-    third = client.post(
+    first = client.post(
         "/encounters/death-save-stable/death-save",
         json={
-            "expected_round": 3,
+            "expected_round": 1,
             "expected_turn_index": 0,
             "dice_mode": "manual",
-            "manual_roll": 10,
+            "manual_roll": 15,
         },
     )
-    assert third.status_code == 200, third.text
-    combatant = third.json()["encounter"]["combatants"][hero_id]
+    assert first.status_code == 200, first.text
+
+    _advance_back_to_hero(client, "death-save-stable", current_round=1)
+    _advance_back_to_hero(client, "death-save-stable", current_round=2)
+
+    current = client.get("/encounters/death-save-stable")
+    assert current.status_code == 200, current.text
+    combatant = current.json()["combatants"][hero_id]
     assert combatant["stable"] is True
     assert combatant["death_save_successes"] == 3
 
@@ -430,3 +415,119 @@ def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
         },
     )
     assert blocked.status_code == 409
+
+
+
+def _patch_death_save_roll(monkeypatch, value):
+    from rules_engine.dnd5e_2014.core.dice import D20Roll, DiceRoller, RollMode
+
+    values = iter(value if isinstance(value, (list, tuple)) else [value])
+    original_roll = DiceRoller.roll_d20
+
+    def fixed_roll(self, **kwargs):
+        # Keep explicitly supplied initiative rolls untouched; only replace
+        # the automatic d20 used by the death-save resolver.
+        if kwargs.get("manual_rolls") is not None:
+            return original_roll(self, **kwargs)
+        roll = next(values)
+        return D20Roll(
+            rolls=(roll,),
+            selected=roll,
+            mode=RollMode.NORMAL,
+            modifier=0,
+            total=roll,
+        )
+
+    monkeypatch.setattr(DiceRoller, "roll_d20", fixed_roll)
+
+def test_down_player_character_makes_automatic_save_when_its_turn_begins(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 10)
+    _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "automatic-death-save"
+    )
+
+    # Leaving the downed hero's turn must not roll a save.
+    leaving_hero = client.post(
+        "/encounters/automatic-death-save/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    assert leaving_hero.status_code == 200, leaving_hero.text
+    assert leaving_hero.json()["turn_start_death_save"] is None
+
+    # The save is rolled when initiative returns to the downed hero.
+    returning_hero = client.post(
+        "/encounters/automatic-death-save/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert returning_hero.status_code == 200, returning_hero.text
+    payload = returning_hero.json()
+    assert payload["round_number"] == 2
+    assert payload["active_combatant_id"] == hero_id
+    assert payload["turn_start_death_save"]["selected"] == 10
+    assert payload["turn_start_death_save"]["successes"] == 1
+    assert payload["combatants"][hero_id]["death_save_successes"] == 1
+    assert payload["combatants"][hero_id]["death_save_last_round"] == 2
+    assert payload["combatants"][hero_id]["death_save_last_turn_index"] == 0
+
+    # The explicit endpoint cannot make a second save in the same turn.
+    repeated = client.post(
+        "/encounters/automatic-death-save/death-save",
+        json={
+            "expected_round": 2,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_roll": 15,
+        },
+    )
+    assert repeated.status_code == 409
+
+
+def test_automatic_natural_twenty_recovers_character_and_persists_hp(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 20)
+    character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "automatic-death-save-recovery"
+    )
+
+    client.post(
+        "/encounters/automatic-death-save-recovery/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    recovery = client.post(
+        "/encounters/automatic-death-save-recovery/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert recovery.status_code == 200, recovery.text
+    payload = recovery.json()
+    assert payload["turn_start_death_save"]["selected"] == 20
+    assert payload["turn_start_death_save"]["regained_hp"] == 1
+    combatant = payload["combatants"][hero_id]
+    assert combatant["current_hp"] == 1
+    assert combatant["conscious"] is True
+    assert combatant["death_save_successes"] == 0
+    assert combatant["death_save_failures"] == 0
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT current_hp FROM character_states WHERE entity_id = ? AND campaign_id = 1",
+            (character_id,),
+        ).fetchone()
+    assert row["current_hp"] == 1
+
+
+def test_automatic_natural_one_adds_two_death_save_failures(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 1)
+    _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "automatic-death-save-natural-one"
+    )
+    client.post(
+        "/encounters/automatic-death-save-natural-one/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    response = client.post(
+        "/encounters/automatic-death-save-natural-one/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["turn_start_death_save"]["selected"] == 1
+    assert payload["combatants"][hero_id]["death_save_failures"] == 2

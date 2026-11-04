@@ -165,13 +165,29 @@ def resolve_encounter_death_save(encounter_id: str, data: DeathSavingThrowIn):
 def advance_combat_encounter(encounter_id: str, data: EncounterTurnIn):
     try:
         with turn_execution_lock.acquire():
-            encounter = combat_encounter_service.advance_turn(
+            result = combat_encounter_service.advance_turn_with_events(
                 get_current_runtime().campaign_id,
                 encounter_id,
                 expected_round=data.expected_round,
                 expected_turn_index=data.expected_turn_index,
             )
-        return _encounter_payload(encounter)
+        payload = _encounter_payload(result["encounter"])
+        roll = result["death_save"]
+        payload["turn_start_death_save"] = (
+            {
+                "combatant_id": result["combatant_id"],
+                "rolls": list(roll.rolls),
+                "selected": roll.selected,
+                "successes": roll.successes,
+                "failures": roll.failures,
+                "stable": roll.stable,
+                "dead": roll.dead,
+                "regained_hp": roll.regained_hp,
+            }
+            if roll is not None
+            else None
+        )
+        return payload
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
