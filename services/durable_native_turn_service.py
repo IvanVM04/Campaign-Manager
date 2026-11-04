@@ -556,11 +556,27 @@ class DurableNativeTurnService:
         with transaction("DEFERRED") as conn:
             context, recent = self._context_and_history(conn)
         mechanics_result = self._mechanics_from_json(record.mechanics_json)
+        committed_resolution = json.dumps(
+            {
+                "context_revision": record.context_revision,
+                "resulting_revision": record.resulting_revision,
+                "operations": json.loads(
+                    record.proposal_json or '{"operations":[]}'
+                )["operations"],
+                "operation_results": json.loads(
+                    record.operation_results_json or "[]"
+                ),
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
         narrative = self.resolver.generate_narrative(
             context,
             record.player_input,
             recent_turns=recent,
             mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
         if not narrative:
             raise DurableNativeTurnError("DMService returned an empty narrative")
