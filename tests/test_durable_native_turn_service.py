@@ -787,3 +787,48 @@ def test_silly_tavern_completed_manual_roll_state_is_recoverable_for_same_reply(
     assert state["submitted_external_turn_id"] == "answer-turn"
     assert state["pending_roll_id"] == "42:secret-challenge"
     assert state["pending_roll"]["count"] == 1
+
+
+def test_silly_tavern_turn_retry_uses_persisted_manual_dice_mode(monkeypatch):
+    from types import SimpleNamespace
+
+    from models.turn_resolution_result import TurnResolutionResult
+
+    service, _, _ = _service_with_fake_models()
+    captured = {}
+    record = SimpleNamespace(
+        id=42,
+        adjudication_json=json.dumps({"dice_mode": "manual"}),
+    )
+    pending = {"count": 1, "kind": "ability_check", "modifier": 2}
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda *args, **kwargs: record,
+    )
+    monkeypatch.setattr(
+        service.turn_repository,
+        "get_active_by_external_turn_id",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        service,
+        "_play_turn_locked",
+        lambda player_input, **kwargs: (
+            captured.update(kwargs)
+            or TurnResolutionResult(
+                player_input=player_input,
+                narrative="",
+                pending_roll_id="42:" + "a" * 24,
+                pending_roll=pending,
+            )
+        ),
+    )
+
+    service.prepare_external_turn(
+        "Me escondo.",
+        external_turn_id="st-manual-turn",
+        dice_mode="automatic",
+    )
+
+    assert captured["dice_mode"] == "manual"
