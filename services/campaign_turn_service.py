@@ -488,9 +488,16 @@ class CampaignTurnService:
 
                 return result
 
-        except CampaignTurnServiceError:
-            self._restore_world_state(world, world_snapshot)
-            self.world_service.world = world
+        except CampaignTurnServiceError as exc:
+            if "campaign state changed" in str(exc):
+                try:
+                    self.world_service.load()
+                except Exception:
+                    self._restore_world_state(world, world_snapshot)
+                    self.world_service.world = world
+            else:
+                self._restore_world_state(world, world_snapshot)
+                self.world_service.world = world
             raise
         except TurnResolutionServiceError as exc:
             self._restore_world_state(world, world_snapshot)
