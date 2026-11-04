@@ -14,6 +14,8 @@ import {
     buildRetrievalQuery,
     buildStableTurnIdentityInput,
     findClarificationOrigin,
+    findManualRollOrigin,
+    parseManualRollResults,
     TurnState,
 } from "./core.js";
 
@@ -25,6 +27,7 @@ const defaultSettings = {
     backendUrl: 'http://127.0.0.1:8765',
     campaignId: 1,
     contextQuery: 'Quiero conocer el estado actual de la campaña.',
+    diceMode: 'automatic',
 };
 
 let settings = null;
@@ -34,6 +37,7 @@ const turnState =
 
 const resolvedTurnStates = new Map();
 const clarificationTurnLinks = new Map();
+const manualRollTurnLinks = new Map();
 
 // ============================================================
 // CAMPAIGN MANAGER CONTEXT FOR GENERATION
@@ -42,6 +46,7 @@ const clarificationTurnLinks = new Map();
 async function getCampaignManagerGenerationContext(
     playerInput,
     externalTurnId,
+    diceMode = 'automatic',
 ) {
     const currentSettings = getSettings();
 
@@ -114,6 +119,7 @@ async function getCampaignManagerGenerationContext(
                     query: retrievalQuery,
                     player_input: normalizedPlayerInput,
                     external_turn_id: externalTurnId,
+                    dice_mode: diceMode,
                 }),
             },
         );
@@ -193,6 +199,33 @@ async function getCampaignManagerGenerationContext(
                 clarificationQuestion: responseBody.clarification_question ?? null,
             },
         );
+
+        if (responseBody.pending_roll_id) {
+            const pending = responseBody.pending_roll;
+            resolvedTurnStates.set(externalTurnId, {
+                lifecycleState: 'awaiting_input',
+                pendingRollId: responseBody.pending_roll_id,
+                pendingRoll: pending,
+            });
+            const diceCount = pending?.count === 2 ? 'dos d20' : 'un d20';
+            const modifier = Number(pending?.modifier ?? 0);
+            const modifierText = modifier >= 0 ? '+' + modifier : String(modifier);
+            return [
+                responseBody.context.context.trim(),
+                '',
+                '=== TIRADA MANUAL NECESARIA ===',
+                'Campaign Manager está esperando una tirada manual. No resuelvas la acción ni narres su resultado todavía.',
+                'Pide al jugador que lance ' + diceCount + ' y escriba el resultado de cada dado separado por coma.',
+                'Tipo: ' + String(pending?.kind ?? 'check'),
+                'Característica: ' + String(pending?.ability ?? '—'),
+                'Habilidad: ' + String(pending?.skill ?? '—'),
+                'CD: ' + String(pending?.dc ?? '—'),
+                'Modificador calculado por Campaign Manager: ' + modifierText,
+                'Ventaja: ' + String(Boolean(pending?.advantage)),
+                'Desventaja: ' + String(Boolean(pending?.disadvantage)),
+                'No solicites al jugador que calcule el modificador ni el total; Campaign Manager lo hará.',
+            ].join('\\n');
+        }
 
         if (responseBody.clarification_question) {
             return [
@@ -361,8 +394,24 @@ globalThis.campaignManagerGenerateInterceptor =
             return;
         }
 
-        let clarificationOrigin;
+        let manualRollOrigin = null;
         try {
+            manualRollOrigin = await findManualRollOrigin(
+                chat,
+                playerMessage,
+                playerInput,
+                createStableTurnId,
+                getPersistedManualRollState,
+            );
+        } catch (error) {
+            console.error('[Campaign Manager] Could not verify a pending manual roll:', error);
+            await clearCampaignManagerContext();
+            if (typeof abort === 'function') abort();
+            return;
+        }
+
+        let clarificationOrigin = null;
+        if (!manualRollOrigin) try {
             clarificationOrigin = await findClarificationOrigin(
                 chat,
                 playerMessage,
@@ -384,7 +433,26 @@ globalThis.campaignManagerGenerateInterceptor =
         }
 
         let context;
-        if (clarificationOrigin) {
+        if (manualRollOrigin) {
+            try {
+                const submission = await submitCampaignManagerManualRoll(manualRollOrigin, playerInput);
+                manualRollTurnLinks.set(externalTurnId, {
+                    externalTurnId: manualRollOrigin.externalTurnId,
+                    playerInput: manualRollOrigin.playerInput,
+                });
+                resolvedTurnStates.set(manualRollOrigin.externalTurnId, {
+                    lifecycleState: submission.lifecycle_state,
+                    pendingRollId: submission.pending_roll_id ?? null,
+                    pendingRoll: submission.pending_roll ?? null,
+                });
+                context = buildCommittedManualRollContext(submission);
+            } catch (error) {
+                console.error('[Campaign Manager] Failed to submit manual roll:', error);
+                await clearCampaignManagerContext();
+                if (typeof abort === 'function') abort();
+                return;
+            }
+        } else if (clarificationOrigin) {
             try {
                 context = await getCampaignManagerClarificationContext(
                     clarificationOrigin,
@@ -413,6 +481,7 @@ globalThis.campaignManagerGenerateInterceptor =
             context = await getCampaignManagerGenerationContext(
                 playerInput,
                 externalTurnId,
+                currentSettings.diceMode,
             );
         }
 
@@ -594,6 +663,10 @@ function getSettings() {
             defaultSettings.contextQuery;
     }
 
+    if (!['automatic', 'manual'].includes(stored.diceMode)) {
+        stored.diceMode = defaultSettings.diceMode;
+    }
+
     settings = stored;
 
     return settings;
@@ -686,6 +759,14 @@ function createSettingsUi() {
                     >
                 </div>
 
+                <div class="campaign-manager-setting">
+                    <label for="campaign-manager-dice-mode">Dice mode</label>
+                    <select id="campaign-manager-dice-mode" class="text_pole">
+                        <option value="automatic">Automatic rolls</option>
+                        <option value="manual">Manual rolls (player rolls d20)</option>
+                    </select>
+                </div>
+
                 <div class="campaign-manager-actions">
                     <button
                         id="campaign-manager-test"
@@ -748,6 +829,7 @@ function bindSettingsUi() {
     const campaignIdElement = document.getElementById(
         'campaign-manager-campaign-id',
     );
+    const diceModeElement = document.getElementById('campaign-manager-dice-mode');
 
     const testElement =
         document.getElementById(
@@ -759,6 +841,7 @@ function bindSettingsUi() {
         !urlElement ||
         !queryElement ||
         !campaignIdElement ||
+        !diceModeElement ||
         !testElement
     ) {
         warn(
@@ -780,6 +863,7 @@ function bindSettingsUi() {
         currentSettings.contextQuery;
 
     campaignIdElement.value = String(currentSettings.campaignId);
+    diceModeElement.value = currentSettings.diceMode;
 
     enabledElement.addEventListener(
         'change',
@@ -820,6 +904,11 @@ function bindSettingsUi() {
             saveSettings();
         },
     );
+
+    diceModeElement.addEventListener('change', () => {
+        currentSettings.diceMode = diceModeElement.value === 'manual' ? 'manual' : 'automatic';
+        saveSettings();
+    });
 
     testElement.addEventListener(
         'click',
@@ -1014,6 +1103,7 @@ function registerChatLifecycleDetection() {
             turnState.reset();
             resolvedTurnStates.clear();
             clarificationTurnLinks.clear();
+            manualRollTurnLinks.clear();
 
             void clearCampaignManagerContext();
 
@@ -1589,10 +1679,12 @@ async function onMessageReceived() {
 
     try {
         const currentMessageTurnId = await createStableTurnId(playerMessage);
-        const linkedClarification = clarificationTurnLinks.get(
-            currentMessageTurnId,
-        );
-        if (linkedClarification) {
+        const linkedManualRoll = manualRollTurnLinks.get(currentMessageTurnId);
+        const linkedClarification = clarificationTurnLinks.get(currentMessageTurnId);
+        if (linkedManualRoll) {
+            externalTurnId = linkedManualRoll.externalTurnId;
+            durablePlayerInput = linkedManualRoll.playerInput;
+        } else if (linkedClarification) {
             externalTurnId = linkedClarification.externalTurnId;
             durablePlayerInput = linkedClarification.playerInput;
         } else {
