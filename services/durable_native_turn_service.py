@@ -632,6 +632,235 @@ class DurableNativeTurnService:
                 raise
             raise DurableNativeTurnError("native turn execution failed") from exc
 
+    @staticmethod
+    def _committed_resolution_json(record: TurnResolutionRecord) -> str:
+        return json.dumps(
+            {
+                "resolution_id": record.id,
+                "lifecycle_state": record.lifecycle_state,
+                "context_revision": record.context_revision,
+                "resulting_revision": record.resulting_revision,
+                "operations": json.loads(
+                    record.proposal_json or '{"operations":[]}'
+                )["operations"],
+                "operation_results": json.loads(
+                    record.operation_results_json or "[]"
+                ),
+                "mechanics": json.loads(record.mechanics_json)
+                if record.mechanics_json else None,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+
+    def _preparation_from_record(
+        self,
+        record: TurnResolutionRecord,
+    ) -> DurableTurnPreparation:
+        question = None
+        if record.lifecycle_state == "awaiting_input":
+            question = json.loads(
+                record.adjudication_json or "{}"
+            ).get("clarification_question")
+        return DurableTurnPreparation(
+            resolution_id=record.id,
+            lifecycle_state=record.lifecycle_state,
+            player_input=record.player_input,
+            committed_resolution=self._committed_resolution_json(record),
+            clarification_question=question,
+        )
+
+    def complete_external_narration(
+        self,
+        *,
+        external_turn_id: str,
+        player_input: str,
+        narrative: str,
+        turn_version: int,
+    ) -> TurnResolutionResult:
+        if not isinstance(external_turn_id, str) or not external_turn_id.strip():
+            raise DurableNativeTurnError("external_turn_id must not be empty")
+        if not isinstance(player_input, str) or not player_input.strip():
+            raise DurableNativeTurnError("player_input must not be empty")
+        if not isinstance(narrative, str) or not narrative.strip():
+            raise DurableNativeTurnError("narrative must not be empty")
+        if not isinstance(turn_version, int) or isinstance(turn_version, bool) or turn_version < 1:
+            raise DurableNativeTurnError("turn_version must be a positive integer")
+
+        def complete():
+            return self._complete_external_narration_locked(
+                external_turn_id=external_turn_id.strip(),
+                player_input=player_input.strip(),
+                narrative=narrative.strip(),
+                turn_version=turn_version,
+            )
+
+        if self.turn_execution_lock is None:
+            return complete()
+        with self.turn_execution_lock.acquire():
+            return complete()
+
+    def _complete_external_narration_locked(
+        self,
+        *,
+        external_turn_id: str,
+        player_input: str,
+        narrative: str,
+        turn_version: int,
+    ) -> TurnResolutionResult:
+        record = self.resolution_repository.get_by_idempotency_key(
+            "sillytavern", external_turn_id, scope=self.scope
+        )
+        active_turn = self.turn_repository.get_active_by_external_turn_id(
+            external_turn_id, scope=self.scope
+        )
+
+        if record is not None and record.player_input != player_input:
+            raise DurableNativeTurnError(
+                "external turn identity was reused with different player input"
+            )
+
+        if record is not None and record.lifecycle_state == "awaiting_input":
+            raise DurableNativeTurnError(
+                "turn is awaiting player clarification and cannot be completed as narration"
+            )
+
+        if record is not None and record.lifecycle_state not in {
+            "narration_pending",
+            "completed",
+        }:
+            raise DurableNativeTurnError(
+                f"turn is not ready for narration: {record.lifecycle_state}"
+            )
+
+        previous_turn = active_turn
+        if previous_turn is None and record is not None and record.turn_id is not None:
+            previous_turn = self.turn_repository.get_turn(
+                record.turn_id, scope=self.scope
+            )
+
+        if previous_turn is not None:
+            if turn_version == previous_turn.version:
+                if (
+                    previous_turn.player_input != player_input
+                    or previous_turn.narrative != narrative
+                ):
+                    raise DurableNativeTurnError(
+                        "external turn version already exists with different content"
+                    )
+                if record is not None and record.lifecycle_state == "completed":
+                    return self._result_from_completed_record(
+                        record, previous_turn, already_processed=True
+                    )
+                return TurnResolutionResult.from_persisted_turn(previous_turn)
+            if turn_version < previous_turn.version:
+                raise DurableNativeTurnError("external turn version is older than the active version")
+            if turn_version != previous_turn.version + 1:
+                raise DurableNativeTurnError("external turn version must be sequential")
+
+        elif turn_version != 1:
+            raise DurableNativeTurnError("first external turn version must be 1")
+
+        if record is None and previous_turn is None:
+            raise DurableNativeTurnError(
+                "no durable resolution exists for this external turn"
+            )
+
+        operation_results = (
+            json.loads(record.operation_results_json or "[]")
+            if record is not None
+            else []
+        )
+        operation_count = (
+            len(operation_results) if record is not None else previous_turn.operation_count
+        )
+        successful_count = (
+            sum(1 for item in operation_results if item.get("success", False))
+            if record is not None else previous_turn.successful_operation_count
+        )
+        failed_count = operation_count - successful_count
+        world_changed = (
+            any(item.get("changed", False) for item in operation_results)
+            if record is not None else previous_turn.world_changed
+        )
+        session_id = (
+            record.session_id if record is not None else previous_turn.session_id
+        )
+        turn = TurnRecord(
+            session_id=session_id,
+            player_input=player_input,
+            narrative=narrative,
+            operation_count=operation_count,
+            successful_operation_count=successful_count,
+            failed_operation_count=failed_count,
+            all_operations_succeeded=(failed_count == 0),
+            world_changed=world_changed,
+            external_turn_id=external_turn_id,
+            version=turn_version,
+            status="active",
+            snapshot=None,
+        )
+
+        with transaction("IMMEDIATE") as conn:
+            current_active = self.turn_repository.get_active_by_external_turn_id(
+                external_turn_id, scope=self.scope, conn=conn
+            )
+            if current_active is not None:
+                if current_active.version >= turn_version:
+                    if (
+                        current_active.version == turn_version
+                        and current_active.player_input == player_input
+                        and current_active.narrative == narrative
+                    ):
+                        if record is not None and record.lifecycle_state == "completed":
+                            current_record = self.resolution_repository.get(
+                                record.id, scope=self.scope, conn=conn
+                            )
+                            return self._result_from_completed_record(
+                                current_record, current_active, already_processed=True
+                            )
+                        return TurnResolutionResult.from_persisted_turn(current_active)
+                    raise DurableNativeTurnError(
+                        "external turn version changed while narration was being saved"
+                    )
+                if current_active.version + 1 != turn_version:
+                    raise DurableNativeTurnError("external turn version must be sequential")
+                self.turn_repository.supersede_turn(
+                    current_active.id, scope=self.scope, conn=conn
+                )
+            saved_turn = self.turn_repository.save_turn(
+                turn, scope=self.scope, conn=conn
+            )
+            if record is not None and record.lifecycle_state == "narration_pending":
+                self.resolution_repository.transition(
+                    record.id,
+                    "completed",
+                    scope=self.scope,
+                    expected_state="narration_pending",
+                    updates={
+                        "turn_id": saved_turn.id,
+                        "narrative": narrative,
+                        "completed_at": datetime.now(UTC).isoformat(),
+                    },
+                    conn=conn,
+                )
+            elif record is not None:
+                self.resolution_repository.update_completed_projection(
+                    record.id,
+                    turn_id=saved_turn.id,
+                    narrative=narrative,
+                    scope=self.scope,
+                    conn=conn,
+                )
+
+        if record is None:
+            return TurnResolutionResult.from_persisted_turn(saved_turn)
+        completed = self.resolution_repository.get(record.id, scope=self.scope)
+        return self._result_from_completed_record(
+            completed, saved_turn, already_processed=(turn_version > 1)
+        )
+
     def _result_from_completed_record(
         self,
         record: TurnResolutionRecord,
