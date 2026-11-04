@@ -153,6 +153,8 @@ def test_equipment_slots_allow_multiple_items_and_clear_on_ownership_change(tmp_
         repository.equip_item(
             campaign_id=1, character_entity_id=1, item_instance_id=3, slot="off_hand"
         )
+        inventory = repository.list_inventory(campaign_id=1, character_entity_id=1)
+        assert {item["item_instance_id"] for item in inventory} == {1, 2, 3}
         equipped = repository.list_equipped(campaign_id=1, character_entity_id=1)
         assert {item["slot"] for item in equipped} == {"main_hand", "off_hand", "body"}
         assert repository.get_equipped(campaign_id=1, character_entity_id=1)["weapon_key"] == "longsword"
