@@ -372,7 +372,7 @@ def test_integration_turn_endpoint_returns_processed_turn(
     )
 
     response = client.post(
-        "/integration/turn",
+        "/integration/turn/complete",
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
@@ -425,7 +425,7 @@ def test_integration_turn_endpoint_returns_409_on_durable_conflict(
     )
 
     response = client.post(
-        "/integration/turn",
+        "/integration/turn/complete",
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
