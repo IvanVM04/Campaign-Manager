@@ -1,0 +1,23 @@
+"""D&D 5e (2014) armor rules and catalogue."""
+
+from rules_engine.dnd5e_2014.armor.catalog import (
+    ARMOR_CATALOG,
+    ArmorCategory,
+    ArmorDefinition,
+    get_armor,
+    list_armor,
+)
+from rules_engine.dnd5e_2014.armor.armor_class import (
+    ArmorClassResult,
+    derive_armor_class,
+)
+
+__all__ = [
+    "ARMOR_CATALOG",
+    "ArmorCategory",
+    "ArmorClassResult",
+    "ArmorDefinition",
+    "derive_armor_class",
+    "get_armor",
+    "list_armor",
+]
