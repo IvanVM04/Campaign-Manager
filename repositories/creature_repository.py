@@ -1,9 +1,7 @@
 """Campaign-scoped persistence for NPC creature mechanics."""
 
 import json
-import sqlite3
-
-from database import one, rows
+from database import one
 from models.creature_state import CreatureState
 
 
