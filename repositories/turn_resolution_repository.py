@@ -134,6 +134,7 @@ class TurnResolutionRepository:
         scope: CampaignScope,
         expected_state: str,
         updates: dict | None = None,
+        expected_lease_token: str | None = None,
         conn,
     ) -> TurnResolutionRecord:
         self._validate_scope(scope)
@@ -142,6 +143,15 @@ class TurnResolutionRepository:
             raise LookupError("turn resolution not found")
         if current.lifecycle_state != expected_state:
             raise ValueError("turn resolution state changed; reload before transition")
+        if expected_state == "planning" and (
+            not isinstance(expected_lease_token, str) or not expected_lease_token
+        ):
+            raise ValueError("expected_lease_token is required for planning transitions")
+        if (
+            expected_state == "planning"
+            and current.lease_token != expected_lease_token
+        ):
+            raise ValueError("planning lease was superseded")
         if not current.can_transition_to(target_state):
             raise ValueError(
                 f"invalid turn resolution transition: {expected_state} -> {target_state}"
@@ -161,10 +171,14 @@ class TurnResolutionRepository:
             assignments.append(f"{field_name}=?")
             params.append(value)
         params.extend([resolution_id, scope.campaign_id, expected_state])
+        where = " WHERE id=? AND campaign_id=? AND lifecycle_state=?"
+        if expected_state == "planning":
+            where += " AND lease_token=?"
+            params.append(expected_lease_token)
         cursor = conn.execute(
             "UPDATE turn_resolutions SET "
             + ", ".join(assignments)
-            + " WHERE id=? AND campaign_id=? AND lifecycle_state=?",
+            + where,
             tuple(params),
         )
         if cursor.rowcount != 1:
