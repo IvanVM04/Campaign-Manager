@@ -113,13 +113,10 @@ def register_error_handlers(app: FastAPI) -> None:
         request: Request,
         exc: StarletteHTTPException,
     ) -> JSONResponse:
-        detail = exc.detail
-        if exc.status_code >= 500 and exc.status_code != 503:
-            detail = "Internal server error"
         return error_response(
             status_code=exc.status_code,
             code=_code_for_status(exc.status_code),
-            detail=detail,
+            detail=exc.detail,
             headers=exc.headers,
         )
 
