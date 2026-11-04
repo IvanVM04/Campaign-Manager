@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import copy
-import sqlite3
 import secrets
+import sqlite3
 import time
 
 from database import get_conn, transaction
