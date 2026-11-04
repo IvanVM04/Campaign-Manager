@@ -160,7 +160,11 @@ def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reappl
     assert recovered_preparation.lifecycle_state == "narration_pending"
     assert len(proposal_calls) == 1
 
-    revision_after_commit = service.revision_repository.get_revision(1)
+    from database import get_conn
+    with get_conn() as conn:
+        revision_after_commit = service.revision_repository.get_revision(
+            1, conn=conn
+        )
     committed_world = service.world_service.repository.load_world(campaign_id=1)
     assert len(committed_world.entities) == 1
 
@@ -187,11 +191,13 @@ def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reappl
     )
     assert second.narrative == "La puerta se abre con un chirrido."
     assert second.already_processed is True
-    assert service.revision_repository.get_revision(1) == revision_after_commit
+    with get_conn() as conn:
+        assert service.revision_repository.get_revision(
+            1, conn=conn
+        ) == revision_after_commit
     regenerated_world = service.world_service.repository.load_world(campaign_id=1)
     assert len(regenerated_world.entities) == 1
 
-    from database import get_conn
     with get_conn() as conn:
         versions = conn.execute(
             """
