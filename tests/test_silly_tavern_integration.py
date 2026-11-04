@@ -1,5 +1,6 @@
 import threading
 import traceback
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -15,6 +16,7 @@ from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
+import services.silly_tavern_integration_service as integration_module
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
@@ -3525,9 +3527,6 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
 
     world_service = service.world_service
     world_service.load()
-
-    import services.silly_tavern_integration_service as integration_module
-    from contextlib import contextmanager
 
     original_transaction = integration_module.transaction
     transaction_modes = []
