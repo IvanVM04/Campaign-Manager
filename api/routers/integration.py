@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
-from api.runtime_context import silly_tavern_integration_service, turn_execution_lock
+from api.runtime_context import (
+    silly_tavern_integration_service,
+    turn_execution_lock,
+)
 from api.serializers import serialize_operation_result
 from models.schemas import SillyTavernContextIn, SillyTavernTurnIn
 from services.silly_tavern_integration_service import (
