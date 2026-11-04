@@ -936,7 +936,7 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 26
     conn.close()
 
 
