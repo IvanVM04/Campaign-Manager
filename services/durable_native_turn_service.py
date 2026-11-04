@@ -255,9 +255,9 @@ class DurableNativeTurnService:
         )
 
     @staticmethod
-    def _fingerprint(player_input: str, session_id, actor_id, dice_mode: str) -> str:
+    def _fingerprint(player_input: str, session_id, dice_mode: str) -> str:
         raw = json.dumps(
-            [player_input, session_id, actor_id, dice_mode],
+            [player_input, session_id, dice_mode],
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -279,13 +279,8 @@ class DurableNativeTurnService:
             else None
         )
         previous_turn_id = recent[-1].id if recent else 0
-        actor_id = (
-            context.active_character.entity_id
-            if context.active_character is not None
-            else None
-        )
         fingerprint = self._fingerprint(
-            normalized, session_id, actor_id, "automatic"
+            normalized, session_id, "automatic"
         )
         fallback_identity = hashlib.sha256(
             f"{fingerprint}:{previous_turn_id}".encode("utf-8")
@@ -299,6 +294,9 @@ class DurableNativeTurnService:
                 "native", key, scope=self.scope, conn=conn
             )
             if record is not None:
+                fingerprint = self._fingerprint(
+                    normalized, record.session_id, "automatic"
+                )
                 if record.request_fingerprint != fingerprint:
                     raise DurableNativeTurnError(
                         "idempotency key was already used for a different request"
