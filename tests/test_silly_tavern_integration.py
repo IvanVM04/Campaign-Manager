@@ -33,7 +33,7 @@ from services.world_service import WorldService
 
 def test_silly_tavern_clarification_schema_requires_stable_answer_identity():
     data = SillyTavernClarificationIn(
-        pending_clarification_id="42:challenge-token",
+        pending_clarification_id="42:challenge-token-long-enough",
         answer="La puerta de roble.",
         answer_external_turn_id="stable-answer-message-id",
         query="Estado actual de la campaña.",
