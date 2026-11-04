@@ -177,6 +177,8 @@ class SillyTavernIntegrationService:
     def get_context(
         self,
         query: str,
+        *,
+        exclude_external_turn_id: str | None = None,
     ) -> dict:
         """
         Construye el contexto que SillyTavern debe proporcionar
@@ -232,6 +234,12 @@ class SillyTavernIntegrationService:
                     scope=self.campaign_scope,
                 )
             )
+            if exclude_external_turn_id is not None:
+                recent_turns = [
+                    turn
+                    for turn in recent_turns
+                    if turn.external_turn_id != exclude_external_turn_id
+                ]
 
         except Exception as exc:
             raise SillyTavernIntegrationServiceError(
