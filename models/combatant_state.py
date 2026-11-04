@@ -21,6 +21,12 @@ class CombatantState:
     conditions: ConditionSet = field(default_factory=ConditionSet)
     dexterity: int = 10
     action_used: bool = False
+    strength: int = 10
+    constitution: int = 10
+    intelligence: int = 10
+    wisdom: int = 10
+    charisma: int = 10
+    proficiency_bonus: int = 2
 
     def __post_init__(self) -> None:
         if not isinstance(self.combatant_id, str) or not self.combatant_id.strip():
@@ -33,11 +39,22 @@ class CombatantState:
             (self.max_hp, "max_hp"),
             (self.armor_class, "armor_class"),
             (self.dexterity, "dexterity"),
+            (self.strength, "strength"),
+            (self.constitution, "constitution"),
+            (self.intelligence, "intelligence"),
+            (self.wisdom, "wisdom"),
+            (self.charisma, "charisma"),
+            (self.proficiency_bonus, "proficiency_bonus"),
         ):
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{field_name} must be an integer")
-        if not 1 <= self.dexterity <= 30:
-            raise ValueError("dexterity must be between 1 and 30")
+        if any(not 1 <= getattr(self, name) <= 30 for name in (
+            "strength", "dexterity", "constitution", "intelligence",
+            "wisdom", "charisma",
+        )):
+            raise ValueError("ability scores must be between 1 and 30")
+        if not 0 <= self.proficiency_bonus <= 20:
+            raise ValueError("proficiency_bonus must be between 0 and 20")
         if self.max_hp < 1:
             raise ValueError("max_hp must be positive")
         if not 0 <= self.current_hp <= self.max_hp:
