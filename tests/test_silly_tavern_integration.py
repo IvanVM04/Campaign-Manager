@@ -282,9 +282,10 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
     runtime = __import__("app").runtime_factory.get_runtime(1)
     captured = {}
 
-    def fake_prepare(player_input, *, external_turn_id):
+    def fake_prepare(player_input, *, external_turn_id, dice_mode="automatic")
         captured["player_input"] = player_input
         captured["external_turn_id"] = external_turn_id
+        captured["dice_mode"] = dice_mode
         return SimpleNamespace(
             resolution_id=41,
             lifecycle_state="narration_pending",
@@ -320,6 +321,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
             "player_input": "Abro la puerta.",
             "external_turn_id": "st-chat-turn",
             "query": "Estado actual + acción.",
+            "dice_mode": "manual",
         },
     )
 
@@ -332,6 +334,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
     assert captured == {
         "player_input": "Abro la puerta.",
         "external_turn_id": "st-chat-turn",
+        "dice_mode": "manual",
         "query": "Estado actual + acción.",
         "exclude_external_turn_id": "st-chat-turn",
     }
