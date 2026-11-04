@@ -298,3 +298,27 @@ test(
         assert.equal(result.retry, false);
     },
 );
+
+
+test(
+    'selectClarificationChallenge uses the active challenge when identical text comes from a new message',
+    () => {
+        const result = selectClarificationChallenge(
+            {
+                has_clarification: true,
+                lifecycle_state: 'awaiting_input',
+                pending_clarification_id: '42:active-token',
+                last_pending_clarification_id: '42:previous-token',
+                last_answer: 'Sí.',
+                last_answer_external_turn_id: 'message-previous',
+            },
+            'Sí.',
+            'message-current',
+        );
+
+        assert.deepEqual(result, {
+            pendingClarificationId: '42:active-token',
+            retry: false,
+        });
+    },
+);
