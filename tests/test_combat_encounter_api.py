@@ -152,3 +152,84 @@ def test_encounter_api_rejects_duplicate_encounter_id(client):
     assert client.post("/encounters", json=payload).status_code == 201
     response = client.post("/encounters", json=payload)
     assert response.status_code == 422
+
+
+def test_manual_npc_becomes_campaign_creature_and_can_join_later_encounters(client):
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "persist-npc-first",
+            "participants": [
+                {
+                    "name": "Capitán Goblin",
+                    "max_hp": 18,
+                    "current_hp": 13,
+                    "armor_class": 16,
+                    "dexterity": 14,
+                    "strength": 12,
+                    "constitution": 15,
+                    "intelligence": 10,
+                    "wisdom": 11,
+                    "charisma": 8,
+                    "proficiency_bonus": 2,
+                }
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    combatants = created.json()["combatants"]
+    npc = next(iter(combatants.values()))
+    creature_id = npc["entity_id"]
+    assert creature_id is not None
+    assert npc["combatant_id"] == f"creature-{creature_id}"
+    assert npc["current_hp"] == 13
+    assert npc["strength"] == 12
+    assert npc["constitution"] == 15
+    assert npc["intelligence"] == 10
+
+    reloaded = client.get("/encounters/persist-npc-first")
+    assert reloaded.status_code == 200
+    assert reloaded.json()["combatants"][f"creature-{creature_id}"]["wisdom"] == 11
+
+    second = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "persist-npc-second",
+            "participants": [{"creature_id": creature_id}],
+        },
+    )
+    assert second.status_code == 201, second.text
+    reused = second.json()["combatants"][f"creature-{creature_id}"]
+    assert reused["current_hp"] == 13
+    assert reused["max_hp"] == 18
+    assert reused["armor_class"] == 16
+    assert reused["charisma"] == 8
+
+
+def test_encounter_rejects_creature_reference_from_another_campaign(client):
+    created = client.post(
+        "/encounters",
+        json={
+            "participants": [
+                {
+                    "name": "Orco",
+                    "max_hp": 15,
+                    "armor_class": 13,
+                    "dexterity": 10,
+                }
+            ],
+        },
+    )
+    assert created.status_code == 201
+    creature_id = next(iter(created.json()["combatants"].values()))["entity_id"]
+
+    from app import CampaignRepository, app
+    from fastapi.testclient import TestClient
+
+    other_campaign = CampaignRepository().create_campaign(name="NPC isolation")
+    other_client = TestClient(app, headers={"X-Campaign-Id": str(other_campaign["id"])})
+    response = other_client.post(
+        "/encounters",
+        json={"participants": [{"creature_id": creature_id}]},
+    )
+    assert response.status_code == 422
