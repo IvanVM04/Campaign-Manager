@@ -4,7 +4,7 @@ import copy
 import secrets
 import time
 
-from database import get_conn
+from database import get_conn, transaction
 from models.campaign_scope import CampaignScope
 from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision
@@ -394,8 +394,7 @@ class CampaignTurnService:
             # No DB connection is held during model generation/extraction.
             # BEGIN IMMEDIATE ensures no other writer can change campaign
             # state between our fresh read, validation and persistence.
-            with get_conn() as write_conn:
-                write_conn.execute("BEGIN IMMEDIATE")
+            with transaction("IMMEDIATE") as write_conn:
                 current_context = self._load_fresh_turn_context(write_conn)
 
                 current_recent_turns = None
