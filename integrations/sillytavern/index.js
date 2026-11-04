@@ -224,7 +224,7 @@ async function getCampaignManagerGenerationContext(
                 'Ventaja: ' + String(Boolean(pending?.advantage)),
                 'Desventaja: ' + String(Boolean(pending?.disadvantage)),
                 'No solicites al jugador que calcule el modificador ni el total; Campaign Manager lo hará.',
-            ].join('\\n');
+            ].join('\n');
         }
 
         if (responseBody.clarification_question) {
@@ -1343,7 +1343,7 @@ async function getPersistedClarificationState(
 
 
 async function getPersistedManualRollState(externalTurnId) {
-    const backendUrl = getSettings().backendUrl.trim().replace(/\\/+$/, '');
+    const backendUrl = getSettings().backendUrl.trim().replace(/\/+$/, '');
     if (!backendUrl) throw new Error('Backend URL is empty.');
     const response = await fetch(
         `${backendUrl}/integration/turn/${encodeURIComponent(externalTurnId)}/manual-roll`,
@@ -1364,7 +1364,7 @@ async function submitCampaignManagerManualRoll(origin, answer) {
     if (origin.invalid) {
         throw new Error('Introduce exactamente ' + origin.state.pending_roll.count + ' resultado(s) de d20 entre 1 y 20, separados por coma.');
     }
-    const backendUrl = getSettings().backendUrl.trim().replace(/\\/+$/, '');
+    const backendUrl = getSettings().backendUrl.trim().replace(/\/+$/, '');
     const configuredQuery = getSettings().contextQuery.trim();
     const query = buildRetrievalQuery(configuredQuery, origin.playerInput);
     const response = await fetch(`${backendUrl}/integration/turn/roll`, {
@@ -1396,7 +1396,7 @@ function buildCommittedManualRollContext(responseBody) {
         'Campaign Manager ha validado y registrado el resultado de los dados.',
         'Narra ahora el resultado mecánico confirmado. No vuelvas a pedir dados ni cambies el total, el modificador, la CD o el éxito/fracaso.',
         responseBody.committed_resolution,
-    ].join('\\n');
+    ].join('\n');
 }
 
 
