@@ -548,3 +548,58 @@ def test_native_clarification_rotates_challenge_when_more_detail_is_needed(monke
             first.pending_clarification_id,
             "Respuesta antigua.",
         )
+
+
+def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch):
+    from services.turn_resolution_service import TurnResolutionPlan
+
+    service, _, narrative_calls = _service_with_fake_models()
+    plans = [
+        TurnResolutionPlan(
+            player_input="Abro una puerta.",
+            narrative="¿Cuál?",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+            clarification_question="¿Qué puerta quieres abrir?",
+        ),
+        TurnResolutionPlan(
+            player_input="Abro la puerta de roble.",
+            narrative="",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+        ),
+    ]
+
+    def prepare_turn(context, player_input, **kwargs):
+        return plans.pop(0)
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", prepare_turn)
+    prepared = service.prepare_external_turn(
+        "Abro una puerta.",
+        external_turn_id="st-clarification-001",
+    )
+    assert prepared.lifecycle_state == "awaiting_input"
+    assert prepared.pending_clarification_id
+    assert prepared.clarification_question == "¿Qué puerta quieres abrir?"
+
+    resumed = service.submit_clarification(
+        prepared.pending_clarification_id,
+        "La puerta de roble.",
+        adapter_namespace="sillytavern",
+        defer_narration=True,
+    )
+    assert resumed.lifecycle_state == "narration_pending"
+    assert resumed.clarification_question is None
+    assert resumed.pending_clarification_id is None
+    assert narrative_calls == []
+
+    completed = service.complete_external_narration(
+        external_turn_id="st-clarification-001",
+        player_input="Abro una puerta.",
+        narrative="La puerta de roble se abre.",
+        turn_version=1,
+    )
+    assert completed.narrative == "La puerta de roble se abre."
+    assert completed.already_processed is False
