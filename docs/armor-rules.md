@@ -35,3 +35,8 @@ uses the `body` equipment slot; shields use `off_hand`. The database rejects
 hybrid weapon/armor definitions and mismatched armor slots. Physical ownership
 continues to live on `item_instances.owner_id`; `equipped_items` remains the
 campaign-scoped slot projection.
+
+
+## Unarmored Defense
+
+The character metadata key "unarmored_defense" may explicitly be set to "barbarian" or "monk"; it is never inferred from class names. Barbarian AC is 10 + Dexterity modifier + Constitution modifier while wearing no body armor, and a shield remains compatible. Monk AC is 10 + Dexterity modifier + Wisdom modifier while wearing no body armor and not wielding a shield. If the feature's conditions are not met, normal AC calculation applies. The equipment endpoint reports which feature, if any, was applied.
