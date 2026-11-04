@@ -1,6 +1,10 @@
 from fastapi import APIRouter
 
-from api.runtime_context import memory_search_service, turn_execution_lock, world_service
+from api.runtime_context import (
+    memory_search_service,
+    turn_execution_lock,
+    world_service,
+)
 
 
 router = APIRouter()
