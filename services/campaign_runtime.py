@@ -180,6 +180,7 @@ class CampaignRuntimeFactory:
             character_repository=character_repository,
             entity_repository=entity_repository,
             creature_repository=creature_repository,
+            world_service=world_service,
         )
         combat_attack_service = CombatAttackService(
             encounter_repository=encounter_repository,
