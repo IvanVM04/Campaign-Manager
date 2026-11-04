@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from api.runtime_context import campaign_turn_service, turn_repository, get_current_runtime
+from api.runtime_context import (
+    campaign_turn_service,
+    get_current_runtime,
+    turn_repository,
+)
 from models.schemas import ManualRollIn, TurnIn
 from services.campaign_turn_service import CampaignTurnServiceError
 
