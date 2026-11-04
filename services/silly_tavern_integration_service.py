@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from dataclasses import replace
 
-from database import get_conn
+from database import get_conn, transaction
 from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -759,15 +759,7 @@ class SillyTavernIntegrationService:
         # --------------------------------------------------------
 
         try:
-            with get_conn() as conn:
-
-                # ------------------------------------------------
-                # ADQUIRIR LOCK DE ESCRITURA
-                # ------------------------------------------------
-
-                conn.execute(
-                    "BEGIN IMMEDIATE"
-                )
+            with transaction("IMMEDIATE") as conn:
 
                 # ------------------------------------------------
                 # COMPROBACIÓN AUTORITATIVA DE IDEMPOTENCIA
