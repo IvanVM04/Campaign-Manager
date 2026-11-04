@@ -15,12 +15,14 @@ from api.runtime_context import (
     world_service,
 )
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers.campaign import router as campaign_router
 from api.routers.system import router as system_router
+from api.routers.turns import router as turns_router
+from api.routers.memory import router as memory_router
 
 from database import init_db
 from models.campaign_clock_api_schemas import CampaignClockAdvanceIn
@@ -36,10 +38,8 @@ from models.persistent_effect_api_schemas import (
 )
 from models.schemas import (
     CharacterCreate,
-    ManualRollIn,
     SillyTavernContextIn,
     SillyTavernTurnIn,
-    TurnIn,
 )
 from repositories.turn_repository import TurnRepository
 from services.campaign_runtime import CampaignRuntime, CampaignRuntimeFactory
@@ -284,198 +284,8 @@ async def bind_campaign_runtime(request: Request, call_next):
 # API capability routers
 app.include_router(system_router)
 app.include_router(campaign_router)
-
-
-# ============================================================
-# TURN
-# ============================================================
-
-
-def _serialize_mechanics_result(mechanics_result):
-    if mechanics_result is None:
-        return None
-
-    decision = mechanics_result.decision
-    check = mechanics_result.check
-    roll = check.roll
-    return {
-        "decision": decision.decision.value,
-        "skill": decision.skill.value if decision.skill is not None else None,
-        "ability": check.ability.value,
-        "dc": check.dc,
-        "rolls": list(roll.rolls),
-        "selected": roll.selected,
-        "roll_mode": roll.mode.value,
-        "modifier": roll.modifier,
-        "total": check.total,
-        "success": check.success,
-        "reason": decision.reason,
-    }
-
-
-@app.post("/turn")
-def play_turn(data: TurnIn):
-
-    try:
-        result = campaign_turn_service.play_turn(
-            data.player_input,
-            dice_mode=data.dice_mode,
-        )
-
-    except CampaignTurnServiceError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
-
-    return {
-        "narrative": result.narrative,
-        "player_input": result.player_input,
-        "mechanics": _serialize_mechanics_result(getattr(result, "mechanics_result", None)),
-        "pending_roll_id": getattr(result, "pending_roll_id", None),
-        "pending_roll": getattr(result, "pending_roll", None),
-        "operation_count": result.operation_count,
-        "successful_operation_count": (
-            result.successful_operation_count
-        ),
-        "failed_operation_count": (
-            result.failed_operation_count
-        ),
-        "all_operations_succeeded": (
-            result.all_operations_succeeded
-        ),
-        "world_changed": result.world_changed,
-        "operations": [
-            type(operation).__name__
-            for operation in result.operations
-        ],
-        "operation_results": [
-            _serialize_operation_result(
-                operation_result
-            )
-            for operation_result
-            in result.operation_results
-        ],
-    }
-
-@app.post("/turn/roll")
-def submit_manual_roll(data: ManualRollIn):
-    try:
-        result = campaign_turn_service.submit_manual_roll(
-            data.pending_roll_id,
-            tuple(data.rolls),
-        )
-    except (CampaignTurnServiceError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-    return {
-        "narrative": result.narrative,
-        "player_input": result.player_input,
-        "mechanics": _serialize_mechanics_result(result.mechanics_result),
-        "pending_roll_id": result.pending_roll_id,
-        "pending_roll": result.pending_roll,
-        "operation_count": result.operation_count,
-        "successful_operation_count": result.successful_operation_count,
-        "failed_operation_count": result.failed_operation_count,
-        "all_operations_succeeded": result.all_operations_succeeded,
-        "world_changed": result.world_changed,
-        "operations": [
-            type(operation).__name__
-            for operation in result.operations
-        ],
-        "operation_results": [
-            _serialize_operation_result(item)
-            for item in result.operation_results
-        ],
-    }
-
-
-@app.get("/turns")
-def get_turns(
-    session_id: int | None = Query(
-        default=None,
-        ge=1,
-    ),
-    limit: int = Query(
-        default=50,
-        ge=1,
-        le=100,
-    ),
-):
-    turns = turn_repository.list_turns(
-        session_id=session_id,
-        limit=limit,
-        scope=_current_runtime.get().scope,
-    )
-
-    return [
-        {
-            "id": turn.id,
-            "session_id": turn.session_id,
-            "player_input": turn.player_input,
-            "narrative": turn.narrative,
-            "operation_count": (
-                turn.operation_count
-            ),
-            "successful_operation_count": (
-                turn.successful_operation_count
-            ),
-            "failed_operation_count": (
-                turn.failed_operation_count
-            ),
-            "all_operations_succeeded": (
-                turn.all_operations_succeeded
-            ),
-            "world_changed": (
-                turn.world_changed
-            ),
-            "created_at": turn.created_at,
-        }
-        for turn in turns
-    ]
-
-
-# ============================================================
-# MEMORY
-# ============================================================
-
-
-@app.get("/memory/search")
-def search_memory(
-    q: str = Query(
-        ...,
-        min_length=1,
-        max_length=1000,
-    ),
-):
-
-    with turn_execution_lock.acquire():
-
-        world = world_service.get_world()
-
-        return memory_search_service.search(
-            world,
-            q.strip(),
-        )
-
-
-@app.get("/memory/context")
-def memory_context(
-    q: str = Query(
-        ...,
-        min_length=1,
-        max_length=1000,
-    ),
-):
-
-    with turn_execution_lock.acquire():
-
-        world = world_service.get_world()
-
-        return context_builder.build(
-            world,
-            q.strip(),
-        )
+app.include_router(turns_router)
+app.include_router(memory_router)
 
 
 # ============================================================
