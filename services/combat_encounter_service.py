@@ -14,7 +14,11 @@ from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.creature_repository import CreatureRepository
 from rules_engine.dnd5e_2014.combat.death_saves import resolve_death_saving_throw
 from rules_engine.dnd5e_2014.combat.initiative import roll_initiative
-from rules_engine.dnd5e_2014.combat.movement import GridPosition, movement_path_cost_feet, movement_speed_feet
+from rules_engine.dnd5e_2014.combat.movement import (
+    GridPosition,
+    movement_path_cost_feet,
+    movement_speed_feet,
+)
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 
 
