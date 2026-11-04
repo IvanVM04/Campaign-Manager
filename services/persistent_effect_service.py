@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 
 from database import transaction
 from models.persistent_effect import EffectDurationType, EffectStatus, PersistentEffect
@@ -10,13 +11,14 @@ from repositories.campaign_clock_repository import CampaignClockRepository
 
 
 class PersistentEffectService:
-    def __init__(self, *, repository, entity_repository, campaign_id: int, clock_repository=None) -> None:
+    def __init__(self, *, repository, entity_repository, campaign_id: int, clock_repository=None, encounter_repository=None) -> None:
         if isinstance(campaign_id, bool) or not isinstance(campaign_id, int) or campaign_id < 1:
             raise ValueError("campaign_id must be a positive integer")
         self.repository = repository
         self.entity_repository = entity_repository
         self.campaign_id = campaign_id
         self.clock_repository = clock_repository or CampaignClockRepository()
+        self.encounter_repository = encounter_repository
 
     def create(
         self,
@@ -32,6 +34,9 @@ class PersistentEffectService:
         duration_type="permanent",
         duration_condition: str | None = None,
         duration_minutes: int | None = None,
+        encounter_id: str | None = None,
+        duration_rounds: int | None = None,
+        duration_turns: int | None = None,
         level: int | None = None,
     ) -> PersistentEffect:
         effect = PersistentEffect(
@@ -48,6 +53,11 @@ class PersistentEffectService:
             duration_condition=duration_condition,
             duration_minutes=duration_minutes,
             expires_at_minute=(1 if EffectDurationType(duration_type) is EffectDurationType.CAMPAIGN_TIME else None),
+            encounter_id=encounter_id,
+            duration_rounds=duration_rounds,
+            expires_at_round=(1 if EffectDurationType(duration_type) is EffectDurationType.ENCOUNTER_ROUNDS else None),
+            duration_turns=duration_turns,
+            expires_at_turn=(1 if EffectDurationType(duration_type) is EffectDurationType.ENCOUNTER_TURNS else None),
             level=level,
         )
         with transaction("IMMEDIATE") as conn:
@@ -62,23 +72,32 @@ class PersistentEffectService:
             try:
                 if effect.duration_type is EffectDurationType.CAMPAIGN_TIME:
                     clock = self.clock_repository.ensure(self.campaign_id, conn=conn)
-                    effect = PersistentEffect(
-                        campaign_id=effect.campaign_id,
-                        entity_id=effect.entity_id,
-                        effect_type=effect.effect_type,
-                        effect_key=effect.effect_key,
-                        name=effect.name,
-                        description=effect.description,
-                        source_type=effect.source_type,
-                        source_entity_id=effect.source_entity_id,
-                        source_reference=effect.source_reference,
-                        duration_type=effect.duration_type,
-                        duration_minutes=effect.duration_minutes,
-                        expires_at_minute=clock.elapsed_minutes + effect.duration_minutes,
-                        level=effect.level,
-                        id=effect.id,
-                        status=effect.status,
+                    effect = replace(effect, expires_at_minute=clock.elapsed_minutes + effect.duration_minutes)
+                elif effect.duration_type in (EffectDurationType.ENCOUNTER_ROUNDS, EffectDurationType.ENCOUNTER_TURNS):
+                    if self.encounter_repository is None:
+                        raise ValueError("encounter-scoped durations are unavailable")
+                    encounter = self.encounter_repository.get(
+                        effect.encounter_id, campaign_id=self.campaign_id, conn=conn
                     )
+                    if encounter is None or encounter.status.value != "active":
+                        raise LookupError("duration encounter must be active in this campaign")
+                    participant = next(
+                        (item for item in encounter.combatants.values() if item.entity_id == entity_id),
+                        None,
+                    )
+                    if participant is None:
+                        raise ValueError("effect target must participate in the duration encounter")
+                    if effect.duration_type is EffectDurationType.ENCOUNTER_ROUNDS:
+                        effect = replace(
+                            effect,
+                            expires_at_round=encounter.round_number + effect.duration_rounds,
+                        )
+                    else:
+                        absolute_turn = (
+                            (encounter.round_number - 1) * len(encounter.initiative_order)
+                            + encounter.turn_index
+                        )
+                        effect = replace(effect, expires_at_turn=absolute_turn + effect.duration_turns)
                 return self.repository.create(effect, conn=conn)
             except sqlite3.IntegrityError as exc:
                 raise ValueError(str(exc)) from exc
