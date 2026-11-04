@@ -84,7 +84,7 @@ export function selectClarificationChallenge(
     }
 
     if (
-        clarificationState.lifecycle_state === 'awaiting_input' &&
+        ['awaiting_input', 'planning'].includes(clarificationState.lifecycle_state) &&
         typeof clarificationState.pending_clarification_id === 'string' &&
         clarificationState.pending_clarification_id
     ) {
