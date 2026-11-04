@@ -7,21 +7,32 @@ from pydantic import BaseModel, Field, StrictInt, model_validator
 
 class EncounterParticipantIn(BaseModel):
     character_id: int | None = Field(default=None, ge=1)
+    creature_id: int | None = Field(default=None, ge=1)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     max_hp: int | None = Field(default=None, ge=1, le=10000)
     current_hp: int | None = Field(default=None, ge=0, le=10000)
     armor_class: int | None = Field(default=None, ge=0, le=100)
     dexterity: int | None = Field(default=None, ge=1, le=30)
+    strength: int = Field(default=10, ge=1, le=30)
+    constitution: int = Field(default=10, ge=1, le=30)
+    intelligence: int = Field(default=10, ge=1, le=30)
+    wisdom: int = Field(default=10, ge=1, le=30)
+    charisma: int = Field(default=10, ge=1, le=30)
+    proficiency_bonus: int = Field(default=2, ge=0, le=20)
     is_player_character: bool = False
 
     @model_validator(mode="after")
     def validate_source(self):
-        if self.character_id is not None:
+        if self.character_id is not None and self.creature_id is not None:
+            raise ValueError("participant cannot reference both a character and a creature")
+        if self.character_id is not None or self.creature_id is not None:
             if any(value is not None for value in (
                 self.name, self.max_hp, self.current_hp,
                 self.armor_class, self.dexterity,
             )):
-                raise ValueError("character_id cannot be combined with manual combatant stats")
+                raise ValueError("entity references cannot be combined with manual combatant stats")
+            if self.is_player_character != (self.character_id is not None):
+                raise ValueError("is_player_character must match the referenced entity type")
             return self
         required = {
             "name": self.name,
