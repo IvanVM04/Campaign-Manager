@@ -31,12 +31,15 @@ let settings = null;
 const turnState =
     new TurnState();
 
+const resolvedTurnStates = new Map();
+
 // ============================================================
 // CAMPAIGN MANAGER CONTEXT FOR GENERATION
 // ============================================================
 
 async function getCampaignManagerGenerationContext(
     playerInput,
+    externalTurnId,
 ) {
     const currentSettings = getSettings();
 
@@ -99,7 +102,7 @@ async function getCampaignManagerGenerationContext(
 
     try {
         const response = await fetch(
-            `${backendUrl}/integration/context`,
+            `${backendUrl}/integration/turn/resolve`,
             {
                 method: "POST",
 
@@ -107,6 +110,8 @@ async function getCampaignManagerGenerationContext(
 
                 body: JSON.stringify({
                     query: retrievalQuery,
+                    player_input: normalizedPlayerInput,
+                    external_turn_id: externalTurnId,
                 }),
             },
         );
@@ -170,7 +175,34 @@ async function getCampaignManagerGenerationContext(
             );
         }
 
-        return responseBody.context.context.trim();
+        if (
+            typeof responseBody.lifecycle_state !== 'string' ||
+            typeof responseBody.committed_resolution !== 'string'
+        ) {
+            throw new Error(
+                "Campaign Manager response does not contain durable resolution evidence",
+            );
+        }
+
+        resolvedTurnStates.set(
+            externalTurnId,
+            {
+                lifecycleState: responseBody.lifecycle_state,
+                clarificationQuestion: responseBody.clarification_question ?? null,
+            },
+        );
+
+        return [
+            responseBody.context.context.trim(),
+            '',
+            '=== RESOLUCIÓN COMPROMETIDA — FUENTE DE VERDAD ===',
+            'Las consecuencias y resultados siguientes ya están confirmados por Campaign Manager.',
+            'No inventes cambios de estado, no contradigas estos resultados y limita la narración a presentarlos.',
+            responseBody.committed_resolution,
+            responseBody.clarification_question
+                ? `Aclaración solicitada por Campaign Manager: ${responseBody.clarification_question}`
+                : '',
+        ].filter(Boolean).join('\n');
 
     } catch (error) {
         console.warn(
@@ -277,9 +309,35 @@ globalThis.campaignManagerGenerateInterceptor =
             return;
         }
 
+        const playerMessage = getLatestUserMessage();
+        if (
+            !playerMessage ||
+            typeof playerMessage.mes !== 'string' ||
+            playerMessage.mes.trim() !== playerInput
+        ) {
+            warn(
+                'Could not safely match the generation input to the current chat message.',
+            );
+            await clearCampaignManagerContext();
+            return;
+        }
+
+        let externalTurnId;
+        try {
+            externalTurnId = await createStableTurnId(playerMessage);
+        } catch (error) {
+            console.error(
+                '[Campaign Manager] Failed to identify the current turn before generation:',
+                error,
+            );
+            await clearCampaignManagerContext();
+            return;
+        }
+
         const context =
             await getCampaignManagerGenerationContext(
                 playerInput,
+                externalTurnId,
             );
 
         if (!context) {
@@ -875,6 +933,7 @@ function registerChatLifecycleDetection() {
         chatChangedEvent,
         () => {
             turnState.reset();
+            resolvedTurnStates.clear();
 
             void clearCampaignManagerContext();
 
@@ -1142,7 +1201,7 @@ async function sendTurnToBackend(
 
     const response =
         await fetch(
-            `${backendUrl}/integration/turn`,
+            `${backendUrl}/integration/turn/complete`,
             {
                 method: 'POST',
 
@@ -1193,6 +1252,22 @@ async function sendTurnToBackend(
 
     return responseBody;
 }
+
+function getLatestUserMessage() {
+    if (!Array.isArray(chat)) {
+        return null;
+    }
+
+    for (let index = chat.length - 1; index >= 0; index -= 1) {
+        const message = chat[index];
+        if (message && message.is_user === true) {
+            return message;
+        }
+    }
+
+    return null;
+}
+
 
 function getCurrentTurnMessages() {
     if (!Array.isArray(chat)) {
@@ -1314,6 +1389,15 @@ async function onMessageReceived() {
             error,
         );
 
+        return;
+    }
+
+    const resolutionState = resolvedTurnStates.get(externalTurnId);
+    if (resolutionState?.lifecycleState === 'awaiting_input') {
+        log(
+            'Campaign Manager requested clarification; no consequence transcript is completed yet.',
+            { external_turn_id: externalTurnId },
+        );
         return;
     }
 
