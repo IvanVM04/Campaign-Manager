@@ -637,7 +637,7 @@ class DurableNativeTurnService:
                             updates={
                                 "context_revision": revision,
                                 "adjudication_json": json.dumps(
-                                    {"clarification": pending},
+                                    {"clarification": pending, "dice_mode": pending_state.get("dice_mode", "automatic")},
                                     ensure_ascii=False,
                                     separators=(",", ":"),
                                     sort_keys=True,
@@ -939,8 +939,32 @@ class DurableNativeTurnService:
                     context,
                     clarified_input,
                     recent_turns=recent,
+                    manual_mode=(pending_state.get("dice_mode") == "manual"),
                     proposal_from_intent=True,
                 )
+                if plan.awaiting_manual_roll:
+                    manual_pending = self._build_manual_roll_request(
+                        record, plan.mechanics_decision, context, revision
+                    )
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id, "awaiting_input", scope=self.scope,
+                            expected_state="planning", expected_lease_token=token,
+                            updates={
+                                "context_revision": revision,
+                                "adjudication_json": json.dumps({
+                                    "manual_roll": manual_pending,
+                                    "dice_mode": "manual",
+                                    "clarification_history": history,
+                                    "last_challenge_id": challenge_id,
+                                    "last_answer": answer,
+                                    "last_answer_external_turn_id": answer_external_turn_id,
+                                }, separators=(",", ":"), sort_keys=True),
+                                "lease_token": None, "lease_expires_at": None,
+                            }, conn=conn,
+                        )
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._manual_roll_result(saved, manual_pending)
                 if plan.clarification_question is not None:
                     next_pending = {
                         "challenge_id": secrets.token_urlsafe(24),
@@ -1224,7 +1248,7 @@ class DurableNativeTurnService:
             return {"external_turn_id": external_turn_id, "has_manual_roll": False}
         state = json.loads(record.adjudication_json or "{}")
         pending = state.get("manual_roll")
-        active = isinstance(pending, dict) and record.lifecycle_state in {"awaiting_input", "planning"}
+        active = isinstance(pending, dict) and record.lifecycle_state not in {"rejected", "failed", "cancelled"}
         return {
             "external_turn_id": external_turn_id,
             "has_manual_roll": active,
