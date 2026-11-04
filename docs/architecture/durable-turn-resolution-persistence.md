@@ -31,10 +31,12 @@ Uniqueness is enforced by `(campaign_id, adapter_namespace, idempotency_key)`. T
 
 Migration 023 adds `resulting_revision`; native automatic turns now populate it in the same transaction as consequence commit and lifecycle transition. Narration is generated after that transaction and completion stores the transcript and final narrative atomically.
 
+For reliable client retries after a response may have been lost, native `/turn` accepts an `Idempotency-Key` HTTP header. When supplied, the same key and request fingerprint resolve to the existing lifecycle record. Without a client key, a best-effort native key is derived from the current transcript position; clients should send the header when retrying requests.
+
 The persistence layer deliberately does not:
 - create resolution records from native or SillyTavern requests;
 - change current turn application, narrative generation, or retry semantics;
-- persist manual-roll payloads or clarification answers yet;
+- persist manual-roll payloads or clarification answers yet; (manual dice mode remains on the compatibility path in PR #30)
 - add a recovery worker or public API;
 - promise exactly-once execution across external providers; native request idempotency and atomic consequence commit prevent duplicate domain application, while narration is safely retryable.
 
