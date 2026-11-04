@@ -484,7 +484,6 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
         ),
     ]
     repeated = service.submit_clarification(
-    repeated = service.submit_clarification(
         pending.pending_clarification_id,
         "La puerta de roble.",
     )
