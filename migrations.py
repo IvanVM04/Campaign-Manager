@@ -2018,6 +2018,9 @@ def migration_026(conn: sqlite3.Connection) -> None:
             SELECT campaign_id, character_entity_id, 'main_hand', item_instance_id
             FROM equipped_weapons
         """)
+        # The generic projection is now authoritative; retaining legacy rows
+        # would keep legacy weapon-definition guards active indefinitely.
+        conn.execute("DELETE FROM equipped_weapons")
         for event in ("INSERT", "UPDATE"):
             conn.execute(f"""
                 CREATE TRIGGER IF NOT EXISTS trg_equipped_items_validate_{event.lower()}
@@ -2044,6 +2047,26 @@ def migration_026(conn: sqlite3.Connection) -> None:
                     SELECT RAISE(ABORT, 'equipped item must be active, owned by character, and match its slot in the same campaign');
                 END
             """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_items_weapon_slot_insert
+            BEFORE INSERT ON items
+            FOR EACH ROW
+            WHEN NEW.weapon_key IS NOT NULL
+             AND COALESCE(NEW.equipment_slot, 'main_hand') NOT IN ('main_hand', 'off_hand')
+            BEGIN
+                SELECT RAISE(ABORT, 'weapon items must use a hand equipment slot');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_items_weapon_slot_update
+            BEFORE UPDATE OF weapon_key, equipment_slot ON items
+            FOR EACH ROW
+            WHEN NEW.weapon_key IS NOT NULL
+             AND COALESCE(NEW.equipment_slot, 'main_hand') NOT IN ('main_hand', 'off_hand')
+            BEGIN
+                SELECT RAISE(ABORT, 'weapon items must use a hand equipment slot');
+            END
+        """)
         conn.execute("""
             CREATE TRIGGER IF NOT EXISTS trg_equipped_items_owner_cleanup
             AFTER UPDATE OF owner_id, active ON item_instances
