@@ -34,6 +34,7 @@ from database import init_db
 from repositories.turn_repository import TurnRepository
 from services.campaign_runtime import CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
+from services.campaign_turn_service import CampaignTurnService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
@@ -48,6 +49,27 @@ from services.turn_resolution_service import (
     TurnResolutionService,
 )
 from services.world_service import WorldService
+
+__all__ = [
+    "app",
+    "runtime_factory",
+    "create_world_service",
+    "create_context_builder",
+    "create_campaign_turn_service",
+    "campaign_repository",
+    "campaign_state_service",
+    "campaign_turn_service",
+    "character_creation_service",
+    "character_repository",
+    "combat_encounter_service",
+    "context_builder",
+    "entity_repository",
+    "memory_search_service",
+    "silly_tavern_integration_service",
+    "turn_execution_lock",
+    "turn_repository",
+    "world_service",
+]
 
 app = FastAPI(
     title="D&D Campaign Manager",
