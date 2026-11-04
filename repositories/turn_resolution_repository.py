@@ -191,6 +191,31 @@ class TurnResolutionRepository:
             raise ValueError("turn resolution state changed during transition")
         return self.get(resolution_id, scope=scope, conn=conn)
 
+    def update_completed_projection(
+        self,
+        resolution_id: int,
+        *,
+        turn_id: int,
+        narrative: str,
+        scope: CampaignScope,
+        conn,
+    ) -> TurnResolutionRecord:
+        self._validate_scope(scope)
+        self._validate_positive_int(turn_id, "turn_id")
+        if not isinstance(narrative, str) or not narrative.strip():
+            raise ValueError("narrative must not be empty")
+        cursor = conn.execute(
+            """
+            UPDATE turn_resolutions
+            SET turn_id=?, narrative=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND campaign_id=? AND lifecycle_state='completed'
+            """,
+            (turn_id, narrative, resolution_id, scope.campaign_id),
+        )
+        if cursor.rowcount != 1:
+            raise ValueError("completed resolution projection could not be updated")
+        return self.get(resolution_id, scope=scope, conn=conn)
+
     def claim_for_planning(
         self,
         resolution_id: int,
