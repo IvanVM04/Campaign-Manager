@@ -748,6 +748,10 @@ class DurableNativeTurnService:
             )
 
         if previous_turn is not None:
+            if previous_turn.player_input != player_input:
+                raise DurableNativeTurnError(
+                    "external turn identity was reused with different player input"
+                )
             if turn_version == previous_turn.version:
                 if (
                     previous_turn.player_input != player_input
