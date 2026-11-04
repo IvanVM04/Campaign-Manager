@@ -601,6 +601,7 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
         "La puerta de roble.",
         adapter_namespace="sillytavern",
         defer_narration=True,
+        answer_external_turn_id="st-answer-clarification-001",
     )
     assert resumed.lifecycle_state == "narration_pending"
     assert resumed.clarification_question is None
@@ -614,6 +615,9 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
         prepared.pending_clarification_id
     )
     assert recovered_after_answer["last_answer"] == "La puerta de roble."
+    assert recovered_after_answer["last_answer_external_turn_id"] == (
+        "st-answer-clarification-001"
+    )
     assert "La puerta de roble." in recovered_after_answer["resolved_player_input"]
     assert narrative_calls == []
 
