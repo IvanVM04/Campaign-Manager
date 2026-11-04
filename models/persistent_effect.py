@@ -99,7 +99,11 @@ class PersistentEffect:
         if self.duration_type is EffectDurationType.CONDITIONAL:
             if not isinstance(self.duration_condition, str) or not self.duration_condition.strip():
                 raise ValueError("conditional effects require a duration condition")
-            if self.duration_minutes is not None or self.expires_at_minute is not None:
+            if any(value is not None for value in (
+                self.duration_minutes, self.expires_at_minute, self.encounter_id,
+                self.duration_rounds, self.expires_at_round, self.duration_turns,
+                self.expires_at_turn,
+            )):
                 raise ValueError("conditional effects cannot define a timed duration")
         elif self.duration_type is EffectDurationType.CAMPAIGN_TIME:
             if self.duration_condition is not None:
@@ -108,6 +112,11 @@ class PersistentEffect:
                 raise ValueError("campaign-time effects require positive duration_minutes")
             if isinstance(self.expires_at_minute, bool) or not isinstance(self.expires_at_minute, int) or self.expires_at_minute < 1:
                 raise ValueError("campaign-time effects require expires_at_minute")
+            if any(value is not None for value in (
+                self.encounter_id, self.duration_rounds, self.expires_at_round,
+                self.duration_turns, self.expires_at_turn,
+            )):
+                raise ValueError("campaign-time effects cannot define encounter duration")
         elif self.duration_type in (EffectDurationType.ENCOUNTER_ROUNDS, EffectDurationType.ENCOUNTER_TURNS):
             if not isinstance(self.encounter_id, str) or not self.encounter_id.strip():
                 raise ValueError("encounter-scoped effects require encounter_id")
