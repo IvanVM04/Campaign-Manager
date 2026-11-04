@@ -2492,6 +2492,20 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
             return "La escena continúa."
 
     original_get_conn = database.get_conn
+    original_transaction = campaign_turn_module.transaction
+    transaction_modes = []
+
+    @contextmanager
+    def tracked_transaction(mode="DEFERRED"):
+        transaction_modes.append(mode)
+        with original_transaction(mode) as conn:
+            yield conn
+
+    monkeypatch.setattr(
+        campaign_turn_module,
+        "transaction",
+        tracked_transaction,
+    )
 
     @contextmanager
     def tracked_get_conn():
@@ -2517,6 +2531,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
 
     assert result.narrative == "La escena continúa."
     assert active_connections["count"] == 0
+    assert transaction_modes == ["IMMEDIATE"]
     assert len(
         service.turn_repository.list_turns(
             scope=CampaignScope(campaign["id"]),
