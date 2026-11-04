@@ -190,6 +190,7 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
             preparation = runtime.durable_native_turn_service.submit_manual_roll(
                 data.pending_roll_id, tuple(data.rolls),
                 adapter_namespace="sillytavern", defer_narration=True,
+                answer_external_turn_id=data.answer_external_turn_id,
             )
             context_result = runtime.silly_tavern_integration_service.get_context(data.query)
     except DurableNativeTurnError as exc:
