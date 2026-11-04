@@ -308,18 +308,18 @@ def _create_downed_character_encounter(client, encounter_id):
     return character_id, hero_id, goblin_id
 
 
-def _advance_back_to_hero(client, encounter_id):
+def _advance_back_to_hero(client, encounter_id, current_round=1):
     npc_turn = client.post(
         f"/encounters/{encounter_id}/advance",
-        json={"expected_round": 1, "expected_turn_index": 0},
+        json={"expected_round": current_round, "expected_turn_index": 0},
     )
     assert npc_turn.status_code == 200, npc_turn.text
     hero_turn = client.post(
         f"/encounters/{encounter_id}/advance",
-        json={"expected_round": 1, "expected_turn_index": 1},
+        json={"expected_round": current_round, "expected_turn_index": 1},
     )
     assert hero_turn.status_code == 200, hero_turn.text
-    assert hero_turn.json()["round_number"] == 2
+    assert hero_turn.json()["round_number"] == current_round + 1
     assert hero_turn.json()["turn_index"] == 0
 
 
@@ -402,7 +402,7 @@ def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
         if round_number == 1:
             _advance_back_to_hero(client, "death-save-stable")
             # Move the fixture's round token forward for the next iteration.
-    _advance_back_to_hero(client, "death-save-stable")
+    _advance_back_to_hero(client, "death-save-stable", current_round=2)
     third = client.post(
         "/encounters/death-save-stable/death-save",
         json={
