@@ -874,16 +874,12 @@ class DurableNativeTurnService:
                         expected_state="planning",
                         expected_lease_token=token,
                         updates={
-                            "player_input": (
-                                clarified_input
-                                if adapter_namespace == "native"
-                                else record.player_input
-                            ),
                             "context_revision": revision,
                             "proposal_json": self._serialize_operations(plan),
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,
+                                    "resolved_player_input": clarified_input,
                                     "last_challenge_id": challenge_id,
                                     "last_answer": answer,
                                     "decision": (
@@ -1413,6 +1409,11 @@ class DurableNativeTurnService:
             persisted_world_changed=turn.world_changed,
         )
 
+    @staticmethod
+    def _resolved_player_input(record: TurnResolutionRecord) -> str:
+        adjudication = json.loads(record.adjudication_json or "{}")
+        return adjudication.get("resolved_player_input", record.player_input)
+
     def _resume_narration(
         self,
         record: TurnResolutionRecord,
@@ -1434,6 +1435,7 @@ class DurableNativeTurnService:
         with transaction("DEFERRED") as conn:
             context, recent = self._context_and_history(conn)
         mechanics_result = self._mechanics_from_json(record.mechanics_json)
+        resolved_player_input = self._resolved_player_input(record)
         committed_resolution = json.dumps(
             {
                 "context_revision": record.context_revision,
@@ -1451,7 +1453,7 @@ class DurableNativeTurnService:
         )
         narrative = self.resolver.generate_narrative(
             context,
-            record.player_input,
+            resolved_player_input,
             recent_turns=recent,
             mechanics_result=mechanics_result,
             committed_resolution=committed_resolution,
@@ -1463,7 +1465,7 @@ class DurableNativeTurnService:
             turn = self.turn_repository.save_turn(
                 TurnRecord(
                     session_id=record.session_id,
-                    player_input=record.player_input,
+                    player_input=resolved_player_input,
                     narrative=narrative,
                     operation_count=len(
                         json.loads(record.operation_results_json or "[]")
