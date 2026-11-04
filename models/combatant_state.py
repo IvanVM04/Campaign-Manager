@@ -27,6 +27,12 @@ class CombatantState:
     wisdom: int = 10
     charisma: int = 10
     proficiency_bonus: int = 2
+    death_save_successes: int = 0
+    death_save_failures: int = 0
+    stable: bool = False
+    dead: bool = False
+    death_save_last_round: int | None = None
+    death_save_last_turn_index: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.combatant_id, str) or not self.combatant_id.strip():
@@ -45,6 +51,8 @@ class CombatantState:
             (self.wisdom, "wisdom"),
             (self.charisma, "charisma"),
             (self.proficiency_bonus, "proficiency_bonus"),
+            (self.death_save_successes, "death_save_successes"),
+            (self.death_save_failures, "death_save_failures"),
         ):
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{field_name} must be an integer")
@@ -53,6 +61,21 @@ class CombatantState:
             "wisdom", "charisma",
         )):
             raise ValueError("ability scores must be between 1 and 30")
+        if not 0 <= self.death_save_successes <= 3 or not 0 <= self.death_save_failures <= 3:
+            raise ValueError("death saving throw counters must be between zero and three")
+        for value, name in ((self.death_save_last_round, "death_save_last_round"), (self.death_save_last_turn_index, "death_save_last_turn_index")):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+                raise ValueError(f"{name} must be a non-negative integer or None")
+        if (self.death_save_last_round is None) != (self.death_save_last_turn_index is None):
+            raise ValueError("death save turn position must include both round and turn index")
+        if self.death_save_last_round == 0:
+            raise ValueError("death_save_last_round must be positive")
+        if not isinstance(self.stable, bool) or not isinstance(self.dead, bool):
+            raise TypeError("stable and dead must be booleans")
+        if self.stable and self.dead:
+            raise ValueError("a combatant cannot be stable and dead")
+        if self.dead and self.current_hp != 0:
+            raise ValueError("a dead combatant must have zero hit points")
         if not 0 <= self.proficiency_bonus <= 20:
             raise ValueError("proficiency_bonus must be between 0 and 20")
         if self.max_hp < 1:

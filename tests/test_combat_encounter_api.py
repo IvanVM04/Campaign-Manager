@@ -1,3 +1,6 @@
+from database import get_conn
+
+
 def test_encounter_api_lifecycle_with_character_manual_initiative_and_restart_state(client):
     character_response = client.post(
         "/characters",
@@ -262,3 +265,168 @@ def test_encounter_turn_mutations_reject_boolean_position_values(client):
             json={"expected_round": True, "expected_turn_index": False},
         )
         assert response.status_code == 422
+
+
+def _create_downed_character_encounter(client, encounter_id):
+    character = client.post(
+        "/characters",
+        json={
+            "name": "Aventurero caído",
+            "max_hp": 12,
+            "current_hp": 0,
+            "armor_class": 12,
+            "dexterity": 10,
+        },
+    )
+    assert character.status_code == 200, character.text
+    character_id = character.json()["character"]["entity_id"]
+    hero_id = f"character-{character_id}"
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": encounter_id,
+            "participants": [
+                {"character_id": character_id},
+                {
+                    "name": "Goblin",
+                    "max_hp": 7,
+                    "current_hp": 7,
+                    "armor_class": 12,
+                    "dexterity": 10,
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    goblin_id = next(key for key in created.json()["combatants"] if key != hero_id)
+    started = client.post(
+        f"/encounters/{encounter_id}/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {hero_id: 18, goblin_id: 10},
+            "initiative_order": [hero_id, goblin_id],
+        },
+    )
+    assert started.status_code == 200, started.text
+    return character_id, hero_id, goblin_id
+
+
+def _advance_back_to_hero(client, encounter_id, current_round=1):
+    npc_turn = client.post(
+        f"/encounters/{encounter_id}/advance",
+        json={"expected_round": current_round, "expected_turn_index": 0},
+    )
+    assert npc_turn.status_code == 200, npc_turn.text
+    hero_turn = client.post(
+        f"/encounters/{encounter_id}/advance",
+        json={"expected_round": current_round, "expected_turn_index": 1},
+    )
+    assert hero_turn.status_code == 200, hero_turn.text
+    assert hero_turn.json()["round_number"] == current_round + 1
+    assert hero_turn.json()["turn_index"] == 0
+
+
+def test_death_save_persists_failure_and_rejects_second_save_in_same_turn(client):
+    _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "death-save-once"
+    )
+    payload = {
+        "expected_round": 1,
+        "expected_turn_index": 0,
+        "dice_mode": "manual",
+        "manual_roll": 7,
+    }
+    response = client.post("/encounters/death-save-once/death-save", json=payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["death_save"]["failures"] == 1
+    assert response.json()["encounter"]["combatants"][hero_id]["death_save_failures"] == 1
+
+    repeated = client.post("/encounters/death-save-once/death-save", json=payload)
+    assert repeated.status_code == 409
+    reloaded = client.get("/encounters/death-save-once")
+    assert reloaded.json()["combatants"][hero_id]["death_save_failures"] == 1
+
+
+def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
+    character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "death-save-recovery"
+    )
+    first = client.post(
+        "/encounters/death-save-recovery/death-save",
+        json={
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_roll": 4,
+        },
+    )
+    assert first.status_code == 200, first.text
+    _advance_back_to_hero(client, "death-save-recovery")
+
+    recovery = client.post(
+        "/encounters/death-save-recovery/death-save",
+        json={
+            "expected_round": 2,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_roll": 20,
+        },
+    )
+    assert recovery.status_code == 200, recovery.text
+    combatant = recovery.json()["encounter"]["combatants"][hero_id]
+    assert combatant["current_hp"] == 1
+    assert combatant["conscious"] is True
+    assert combatant["death_save_successes"] == 0
+    assert combatant["death_save_failures"] == 0
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT current_hp FROM character_states WHERE entity_id = ? AND campaign_id = 1",
+            (character_id,),
+        ).fetchone()
+    assert row["current_hp"] == 1
+
+
+def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
+    _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "death-save-stable"
+    )
+    for round_number in (1, 2):
+        response = client.post(
+            "/encounters/death-save-stable/death-save",
+            json={
+                "expected_round": round_number,
+                "expected_turn_index": 0,
+                "dice_mode": "manual",
+                "manual_roll": 15,
+            },
+        )
+        assert response.status_code == 200, response.text
+        if round_number == 1:
+            _advance_back_to_hero(client, "death-save-stable")
+            # Move the fixture's round token forward for the next iteration.
+    _advance_back_to_hero(client, "death-save-stable", current_round=2)
+    third = client.post(
+        "/encounters/death-save-stable/death-save",
+        json={
+            "expected_round": 3,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_roll": 10,
+        },
+    )
+    assert third.status_code == 200, third.text
+    combatant = third.json()["encounter"]["combatants"][hero_id]
+    assert combatant["stable"] is True
+    assert combatant["death_save_successes"] == 3
+
+    blocked = client.post(
+        "/encounters/death-save-stable/death-save",
+        json={
+            "expected_round": 3,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_roll": 10,
+        },
+    )
+    assert blocked.status_code == 409

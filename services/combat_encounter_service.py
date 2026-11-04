@@ -12,6 +12,7 @@ from models.creature_state import CreatureState
 from models.entity import Entity
 from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.creature_repository import CreatureRepository
+from rules_engine.dnd5e_2014.combat.death_saves import resolve_death_saving_throw
 from rules_engine.dnd5e_2014.combat.initiative import roll_initiative
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 
@@ -82,6 +83,7 @@ class CombatEncounterService:
                         wisdom=character.wisdom,
                         charisma=character.charisma,
                         proficiency_bonus=character.proficiency_bonus,
+                        conscious=character.current_hp > 0,
                     ))
                     continue
 
@@ -145,6 +147,7 @@ class CombatEncounterService:
                     wisdom=creature.wisdom,
                     charisma=creature.charisma,
                     proficiency_bonus=creature.proficiency_bonus,
+                    conscious=creature.current_hp > 0,
                 ))
 
             encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
@@ -262,6 +265,74 @@ class CombatEncounterService:
                     campaign_id, encounter_id, conn=conn
                 )
             return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+
+    def death_saving_throw(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        expected_round: int,
+        expected_turn_index: int,
+        dice_mode: str = "automatic",
+        manual_roll: int | None = None,
+    ) -> dict:
+        """Resolve and persist the active player's death save atomically."""
+        with transaction("IMMEDIATE") as conn:
+            encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
+            self._check_position(encounter, expected_round, expected_turn_index)
+            if encounter.status is not EncounterStatus.ACTIVE:
+                raise ValueError("death saving throws require an active encounter")
+            combatant = encounter.active_combatant
+            if combatant is None or not combatant.is_player_character or combatant.entity_id is None:
+                raise ValueError("only the active persisted player character can make a death saving throw")
+            if combatant.current_hp != 0:
+                raise ValueError("death saving throws require zero hit points")
+            if combatant.stable or combatant.dead:
+                raise ValueError("this combatant's death saving throw track is already resolved")
+            if (combatant.death_save_last_round, combatant.death_save_last_turn_index) == (expected_round, expected_turn_index):
+                raise ValueError("a death saving throw has already been made this turn")
+            if dice_mode not in ("automatic", "manual"):
+                raise ValueError("dice_mode must be automatic or manual")
+            if dice_mode == "automatic" and manual_roll is not None:
+                raise ValueError("manual_roll can only be supplied in manual mode")
+            if dice_mode == "manual" and manual_roll is None:
+                raise ValueError("manual mode requires one d20 result")
+
+            result = resolve_death_saving_throw(
+                roller=self.dice_roller,
+                successes=combatant.death_save_successes,
+                failures=combatant.death_save_failures,
+                manual_rolls=(manual_roll,) if manual_roll is not None else None,
+            )
+            recovered = result.regained_hp == 1
+            new_hp = 1 if recovered else 0
+            updated = replace(
+                combatant,
+                current_hp=new_hp,
+                conscious=recovered,
+                death_save_successes=0 if recovered else result.successes,
+                death_save_failures=0 if recovered else result.failures,
+                stable=result.stable,
+                dead=result.dead,
+                death_save_last_round=expected_round,
+                death_save_last_turn_index=expected_turn_index,
+            )
+            encounter.combatants[combatant.combatant_id] = updated
+            if recovered:
+                character = self.character_repository.get_character(
+                    combatant.entity_id, campaign_id=campaign_id, conn=conn
+                )
+                if character is None or character.current_hp != 0:
+                    raise RuntimeError("character hit points and encounter snapshot differ; reload encounter")
+                self.character_repository.update_current_hp(
+                    combatant.entity_id,
+                    campaign_id=campaign_id,
+                    expected_current_hp=0,
+                    new_current_hp=1,
+                    conn=conn,
+                )
+            saved = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+            return {"encounter": saved, "combatant_id": combatant.combatant_id, "result": result}
 
     def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
         encounter = self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn)
