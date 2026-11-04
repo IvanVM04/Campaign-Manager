@@ -38,7 +38,7 @@ The extension searches a bounded recent history (24 messages) when reconstructin
 ## Durable manual dice continuation (PR #35)
 
 1. The extension sends `dice_mode=manual` when the player has selected manual dice in the extension settings. Automatic remains the default and preserves the existing flow.
-2. When mechanics require a d20, the backend stores the challenge, dice count, ability/skill, DC, modifier, advantage/disadvantage and context revision in the existing `turn_resolutions` record with `lifecycle_state=awaiting_input`. The challenge token remains server-side.
+2. When mechanics require a d20, the backend stores the challenge, dice count, ability/skill, DC, modifier, advantage/disadvantage and context revision in the existing `turn_resolutions` record with `lifecycle_state=awaiting_input`. The backend exposes only an opaque challenge identifier to the extension; the internal mechanics decision remains server-side.
 3. The extension asks the player to reply with exactly one result (for a normal roll) or two comma/semicolon-separated results (for advantage/disadvantage). Values must be integers from 1 to 20.
 4. The extension searches the bounded recent chat history for the original action's pending manual challenge. It submits the results to `POST /integration/turn/roll` using the durable challenge ID; the backend validates the count and values, computes the final mechanics, commits consequences, and returns committed resolution evidence.
 5. The roll reply is linked to the original external turn ID. It is not treated as a new action or a separate transcript. The generated narrative is completed against the original action.
