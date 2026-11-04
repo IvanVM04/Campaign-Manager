@@ -1,10 +1,11 @@
 import threading
 import traceback
-from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
 import pytest
 
+import services.silly_tavern_integration_service as integration_module
 from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -16,7 +17,6 @@ from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-import services.silly_tavern_integration_service as integration_module
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
