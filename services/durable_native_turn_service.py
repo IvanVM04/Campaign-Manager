@@ -313,9 +313,18 @@ class DurableNativeTurnService:
                     if turn is None:
                         raise DurableNativeTurnError("completed resolution has no transcript")
                     return self._result_from_completed_record(record, turn, already_processed=True)
+                if record.lifecycle_state == "awaiting_input":
+                    question = json.loads(record.adjudication_json or "{}").get(
+                        "clarification_question",
+                        "Necesito una aclaración antes de resolver esa acción.",
+                    )
+                    return TurnResolutionResult(
+                        player_input=record.player_input,
+                        narrative=question,
+                    )
                 if record.lifecycle_state in {"committed", "narration_pending"}:
                     pass
-                elif record.lifecycle_state in {"accepted", "awaiting_input", "planning", "prepared"}:
+                elif record.lifecycle_state in {"accepted", "planning", "prepared"}:
                     pass
                 else:
                     raise DurableNativeTurnError(
