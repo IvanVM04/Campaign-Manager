@@ -909,14 +909,14 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_23():
+def test_run_migrations_upgrades_version_21_to_24():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 23
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -935,5 +935,61 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 23
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
+    conn.close()
+
+
+def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    run_migrations(conn)
+    conn.execute("DROP TABLE creature_states")
+    conn.execute("PRAGMA user_version = 23")
+
+    run_migrations(conn)
+
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(creature_states)")
+    }
+    assert {
+        "entity_id", "campaign_id", "current_hp", "max_hp",
+        "armor_class", "strength", "dexterity", "constitution",
+        "intelligence", "wisdom", "charisma", "proficiency_bonus",
+    } <= columns
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
+
+    entity_id = conn.execute(
+        "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
+    ).lastrowid
+    before = conn.execute(
+        "SELECT revision FROM campaign_state_versions WHERE campaign_id = 1"
+    ).fetchone()["revision"]
+    conn.execute(
+        """
+        INSERT INTO creature_states (
+            entity_id, campaign_id, current_hp, max_hp, armor_class
+        ) VALUES (?, 1, 7, 7, 15)
+        """,
+        (entity_id,),
+    )
+    after = conn.execute(
+        "SELECT revision FROM campaign_state_versions WHERE campaign_id = 1"
+    ).fetchone()["revision"]
+    assert after == before + 1
+
+    conn.execute("INSERT INTO campaign (id, name) VALUES (2, 'Other')")
+    other_entity_id = conn.execute(
+        "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Orc', 'creature', 2)"
+    ).lastrowid
+    import pytest
+    with pytest.raises(sqlite3.IntegrityError, match="same campaign"):
+        conn.execute(
+            """
+            INSERT INTO creature_states (
+                entity_id, campaign_id, current_hp, max_hp, armor_class
+            ) VALUES (?, 1, 10, 10, 13)
+            """,
+            (other_entity_id,),
+        )
     conn.close()

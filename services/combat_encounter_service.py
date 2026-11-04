@@ -5,10 +5,13 @@ from __future__ import annotations
 from dataclasses import replace
 from uuid import uuid4
 
-from database import get_conn
+from database import get_conn, transaction
 from models.combat_encounter_state import CombatEncounterState, EncounterStatus
 from models.combatant_state import CombatantState
+from models.creature_state import CreatureState
+from models.entity import Entity
 from repositories.combat_encounter_repository import CombatEncounterRepository
+from repositories.creature_repository import CreatureRepository
 from rules_engine.dnd5e_2014.combat.initiative import roll_initiative
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 
@@ -22,36 +25,39 @@ class CombatEncounterService:
         repository: CombatEncounterRepository,
         character_repository,
         entity_repository,
+        creature_repository: CreatureRepository | None = None,
+        world_service=None,
         dice_roller: DiceRoller | None = None,
     ) -> None:
         self.repository = repository
         self.character_repository = character_repository
         self.entity_repository = entity_repository
+        self.creature_repository = creature_repository or CreatureRepository()
+        self.world_service = world_service
         self.dice_roller = dice_roller or DiceRoller()
 
     def create(self, campaign_id: int, participants, encounter_id: str | None = None):
         if not participants:
             raise ValueError("an encounter requires at least one participant")
         encounter_id = encounter_id or uuid4().hex
-        if self.repository.get(encounter_id, campaign_id=campaign_id) is not None:
-            raise ValueError("encounter_id already exists in this campaign")
-        combatants = []
-        for participant in participants:
-            if participant.character_id is not None:
-                character = self.character_repository.get_character(
-                    participant.character_id,
-                    campaign_id=campaign_id,
-                )
-                entity = self.entity_repository.get_entity(
-                    participant.character_id,
-                    campaign_id=campaign_id,
-                )
-                if character is None or entity is None:
-                    raise ValueError(
-                        f"character {participant.character_id} does not exist in this campaign"
+        created_creature = False
+        with transaction("IMMEDIATE") as conn:
+            if self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn) is not None:
+                raise ValueError("encounter_id already exists in this campaign")
+            combatants = []
+            for participant in participants:
+                if participant.character_id is not None:
+                    character = self.character_repository.get_character(
+                        participant.character_id, campaign_id=campaign_id, conn=conn
                     )
-                combatants.append(
-                    CombatantState(
+                    entity = self.entity_repository.get_entity(
+                        participant.character_id, campaign_id=campaign_id, conn=conn
+                    )
+                    if character is None or entity is None:
+                        raise ValueError(
+                            f"character {participant.character_id} does not exist in this campaign"
+                        )
+                    combatants.append(CombatantState(
                         combatant_id=f"character-{character.entity_id}",
                         name=entity.name,
                         initiative=0,
@@ -61,26 +67,82 @@ class CombatEncounterService:
                         entity_id=character.entity_id,
                         is_player_character=True,
                         dexterity=character.dexterity,
+                        strength=character.strength,
+                        constitution=character.constitution,
+                        intelligence=character.intelligence,
+                        wisdom=character.wisdom,
+                        charisma=character.charisma,
+                        proficiency_bonus=character.proficiency_bonus,
+                    ))
+                    continue
+
+                if participant.creature_id is not None:
+                    creature = self.creature_repository.get_creature(
+                        participant.creature_id, campaign_id=campaign_id, conn=conn
                     )
-                )
-            else:
-                combatants.append(
-                    CombatantState(
-                        combatant_id=f"npc-{uuid4().hex}",
-                        name=participant.name,
-                        initiative=0,
-                        current_hp=(
-                            participant.current_hp
-                            if participant.current_hp is not None
-                            else participant.max_hp
+                    entity = self.entity_repository.get_entity(
+                        participant.creature_id, campaign_id=campaign_id, conn=conn
+                    )
+                    if creature is None or entity is None:
+                        raise ValueError(
+                            f"creature {participant.creature_id} does not exist in this campaign"
+                        )
+                else:
+                    current_hp = (
+                        participant.current_hp
+                        if participant.current_hp is not None
+                        else participant.max_hp
+                    )
+                    entity = self.entity_repository.save_entity(
+                        Entity(
+                            name=participant.name,
+                            entity_type="creature",
+                            description="NPC combat creature",
                         ),
-                        max_hp=participant.max_hp,
-                        armor_class=participant.armor_class,
-                        dexterity=participant.dexterity,
+                        campaign_id=campaign_id,
+                        conn=conn,
                     )
-                )
-        encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
-        return self.repository.save(encounter, campaign_id=campaign_id)
+                    created_creature = True
+                    creature = self.creature_repository.save_creature(
+                        CreatureState(
+                            entity_id=entity.id,
+                            current_hp=current_hp,
+                            max_hp=participant.max_hp,
+                            armor_class=participant.armor_class,
+                            strength=participant.strength,
+                            dexterity=participant.dexterity,
+                            constitution=participant.constitution,
+                            intelligence=participant.intelligence,
+                            wisdom=participant.wisdom,
+                            charisma=participant.charisma,
+                            proficiency_bonus=participant.proficiency_bonus,
+                        ),
+                        campaign_id=campaign_id,
+                        conn=conn,
+                    )
+                combatants.append(CombatantState(
+                    combatant_id=f"creature-{entity.id}",
+                    name=entity.name,
+                    initiative=0,
+                    current_hp=creature.current_hp,
+                    max_hp=creature.max_hp,
+                    armor_class=creature.armor_class,
+                    entity_id=creature.entity_id,
+                    is_player_character=False,
+                    dexterity=creature.dexterity,
+                    strength=creature.strength,
+                    constitution=creature.constitution,
+                    intelligence=creature.intelligence,
+                    wisdom=creature.wisdom,
+                    charisma=creature.charisma,
+                    proficiency_bonus=creature.proficiency_bonus,
+                ))
+
+            encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
+            saved_encounter = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+        if created_creature and self.world_service is not None:
+            self.world_service.load()
+        return saved_encounter
 
     def get(self, campaign_id: int, encounter_id: str):
         return self.repository.get(encounter_id, campaign_id=campaign_id)

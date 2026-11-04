@@ -12,13 +12,13 @@ Manual dice mode requires explicit d20 and damage dice results. For a miss, send
 
 The service loads the character's current ability scores and proficiencies, the equipped inventory instance and its SRD definition, and the encounter combatants. It derives the attack profile, resolves advantage/disadvantage from the stored conditions and delegates hit/critical/damage rules to the existing `resolve_attack()` engine.
 
-A successful hit updates the encounter snapshot and, for a player-character target, the authoritative `character_states.current_hp` in the same SQLite transaction. A failure to write either side rolls back both. SQLite's immediate write transaction and expected round/turn check reject stale concurrent actions.
+A successful hit updates the encounter snapshot and the target's authoritative mechanical record in the same SQLite transaction: `character_states.current_hp` for a PC or `creature_states.current_hp` for an NPC. A failure to write either side rolls back both. SQLite's immediate write transaction and expected round/turn check reject stale concurrent actions. A failure to write either side rolls back both. SQLite's immediate write transaction and expected round/turn check reject stale concurrent actions.
 
 One attack action is consumed on either a hit or a miss. The next combatant's action is reset when their turn begins.
 
 ## Scope and known limitations
 
-- Only persisted player characters can attack in this release. Manually entered NPCs can be targets, but cannot attack through this use case because they have no campaign entity/inventory association.
+- Only persisted player characters can attack in this release. NPCs are now campaign entities with durable `CreatureState` records; manually supplied encounter participants create them, and later encounters can reuse them through `creature_id`. NPCs can be targets and their HP persists across encounters, but they cannot attack through this use case yet.
 - One attack action per turn is enforced. Extra Attack / multiattack and bonus-action attacks are not yet modelled.
 - Weapon special attacks (including nets and lances), ammunition consumption, off-hand attacks and complete hand-occupancy rules are not implemented. Ammunition weapons and special weapons are rejected rather than incorrectly resolved.
 - The encounter model has no positions or distances yet. The caller supplies the within-5-feet tactical flag; weapon normal/long range cannot yet be validated.

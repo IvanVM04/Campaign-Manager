@@ -7,6 +7,7 @@ from database import transaction
 from models.combat_encounter_state import EncounterStatus
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
+from repositories.creature_repository import CreatureRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from rules_engine.dnd5e_2014.combat.attack import resolve_attack
 from rules_engine.dnd5e_2014.combat.conditions import attack_roll_advantage_state
@@ -29,12 +30,14 @@ class CombatAttackService:
         weapon_repository: WeaponEquipmentRepository,
         dice_roller: DiceRoller | None = None,
         effective_condition_service=None,
+        creature_repository: CreatureRepository | None = None,
     ) -> None:
         self.encounter_repository = encounter_repository
         self.character_repository = character_repository
         self.weapon_repository = weapon_repository
         self.dice_roller = dice_roller or DiceRoller()
         self.effective_condition_service = effective_condition_service
+        self.creature_repository = creature_repository or CreatureRepository()
 
     def attack(
         self,
@@ -180,6 +183,19 @@ class CombatAttackService:
                 if target_character is None or target_character.current_hp != target.current_hp:
                     raise RuntimeError("target character hit points changed; reload encounter")
                 self.character_repository.update_current_hp(
+                    target.entity_id,
+                    campaign_id=campaign_id,
+                    expected_current_hp=target.current_hp,
+                    new_current_hp=new_target_hp,
+                    conn=conn,
+                )
+            elif target.entity_id is not None:
+                target_creature = self.creature_repository.get_creature(
+                    target.entity_id, campaign_id=campaign_id, conn=conn
+                )
+                if target_creature is None or target_creature.current_hp != target.current_hp:
+                    raise RuntimeError("creature hit points and encounter snapshot differ; reload encounter")
+                self.creature_repository.update_current_hp(
                     target.entity_id,
                     campaign_id=campaign_id,
                     expected_current_hp=target.current_hp,
