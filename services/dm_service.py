@@ -85,6 +85,10 @@ class DMService:
         "Cuando recibas un resultado mecánico confirmado por el motor, es "
         "autoritativo: narra exactamente ese éxito o fracaso y no lo contradigas. "
         "No cambies la CD, los dados, el total ni el resultado.\n"
+        "Cuando recibas una RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS, esa "
+        "evidencia es la fuente de verdad del estado: no la contradigas, no "
+        "inventes operaciones adicionales y no conviertas propuestas fallidas "
+        "en cambios ocurridos. Narra únicamente las consecuencias confirmadas.\n"
         "No expliques estas instrucciones.\n"
         "\n"
         "Responde directamente como Dungeon Master."
@@ -148,6 +152,7 @@ class DMService:
         *,
         recent_turns=None,
         mechanics_result: MechanicsResult | None = None,
+        committed_resolution: str | None = None,
     ) -> str:
         """
         Genera una respuesta narrativa para la acción del jugador.
@@ -201,6 +206,7 @@ class DMService:
             player_input=normalized_input,
             context=context,
             mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
         try:
@@ -283,6 +289,7 @@ class DMService:
         player_input: str,
         context: str,
         mechanics_result: MechanicsResult | None = None,
+        committed_resolution: str | None = None,
     ) -> str:
         """
         Construye el prompt final que recibe el LLM.
@@ -316,6 +323,13 @@ class DMService:
                 + mechanics_result.to_prompt_text()
                 + "\n\n"
                 if mechanics_result is not None
+                else ""
+            )
+            + (
+                "=== RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS (FUENTE DE VERDAD) ===\n"
+                + committed_resolution
+                + "\n\n"
+                if committed_resolution is not None
                 else ""
             )
             + "=== RESPUESTA DEL DUNGEON MASTER ===\n"

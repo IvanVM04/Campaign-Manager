@@ -19,6 +19,7 @@ from services.combat_attack_service import CombatAttackService
 from services.combat_encounter_service import CombatEncounterService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
+from services.durable_native_turn_service import DurableNativeTurnService
 from services.effective_condition_service import EffectiveConditionService
 from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
@@ -53,6 +54,7 @@ class CampaignRuntime:
     combat_attack_service: CombatAttackService
     persistent_effect_service: PersistentEffectService
     campaign_turn_service: CampaignTurnService
+    durable_native_turn_service: DurableNativeTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
     @property
@@ -147,6 +149,15 @@ class CampaignRuntimeFactory:
             turn_execution_lock=turn_execution_lock,
         )
 
+        durable_native_turn_service = DurableNativeTurnService(
+            scope=scope,
+            resolver=turn_resolution_service,
+            world_service=world_service,
+            context_service=campaign_state_service,
+            turn_repository=turn_repository,
+            turn_execution_lock=turn_execution_lock,
+        )
+
         silly_tavern_integration_service = SillyTavernIntegrationService(
             campaign_state_service=campaign_state_service,
             context_builder=context_builder,
@@ -195,5 +206,6 @@ class CampaignRuntimeFactory:
             combat_attack_service=combat_attack_service,
             persistent_effect_service=persistent_effect_service,
             campaign_turn_service=campaign_turn_service,
+            durable_native_turn_service=durable_native_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )

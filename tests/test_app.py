@@ -213,15 +213,16 @@ def test_play_turn_returns_turn_result(
             self.operation_results = []
 
     def fake_play_turn(
+        self,
         player_input,
         *,
-        dice_mode="automatic",
+        idempotency_key=None,
     ):
         assert player_input == "Pregunto por Aldric."
         return FakeResult()
 
     monkeypatch.setattr(
-        "app.campaign_turn_service.play_turn",
+        "services.durable_native_turn_service.DurableNativeTurnService.play_turn",
         fake_play_turn,
     )
 
@@ -259,21 +260,19 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
     client,
     monkeypatch,
 ):
-    from services.campaign_turn_service import (
-        CampaignTurnServiceError,
-    )
-
     def fake_play_turn(
+        self,
         player_input,
         *,
-        dice_mode="automatic",
+        idempotency_key=None,
     ):
-        raise CampaignTurnServiceError(
+        from services.durable_native_turn_service import DurableNativeTurnError
+        raise DurableNativeTurnError(
             "Turn resolution failed."
         )
 
     monkeypatch.setattr(
-        "app.campaign_turn_service.play_turn",
+        "services.durable_native_turn_service.DurableNativeTurnService.play_turn",
         fake_play_turn,
     )
 
@@ -284,11 +283,11 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
         },
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 409
 
     assert response.json() == {
         "detail": "Turn resolution failed.",
-        "code": "bad_request",
+        "code": "conflict",
     }
 
 
@@ -389,9 +388,10 @@ def test_play_turn_accepts_player_input_at_maximum_length(
     calls = []
 
     def fake_play_turn(
+        self,
         player_input,
         *,
-        dice_mode="automatic",
+        idempotency_key=None,
     ):
         calls.append(player_input)
 
@@ -408,7 +408,7 @@ def test_play_turn_accepts_player_input_at_maximum_length(
         )
 
     monkeypatch.setattr(
-        "app.campaign_turn_service.play_turn",
+        "services.durable_native_turn_service.DurableNativeTurnService.play_turn",
         fake_play_turn,
     )
 

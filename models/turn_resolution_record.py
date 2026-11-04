@@ -32,6 +32,7 @@ class TurnResolutionRecord:
 
     lifecycle_state: str = "accepted"
     context_revision: int | None = None
+    resulting_revision: int | None = None
     proposal_json: str | None = None
     adjudication_json: str | None = None
     mechanics_json: str | None = None
@@ -65,6 +66,7 @@ class TurnResolutionRecord:
         self._optional_positive_int(self.session_id, "session_id")
         self._optional_positive_int(self.turn_id, "turn_id")
         self._optional_positive_int(self.context_revision, "context_revision")
+        self._optional_positive_int(self.resulting_revision, "resulting_revision")
 
         if not isinstance(self.player_input, str) or not self.player_input.strip():
             raise ValueError("player_input must not be empty")
@@ -95,9 +97,11 @@ class TurnResolutionRecord:
         ):
             raise ValueError("prepared state requires context_revision and proposal_json")
         if self.lifecycle_state in {"committed", "narration_pending", "completed"} and (
-            self.committed_at is None
+            self.committed_at is None or self.resulting_revision is None
         ):
-            raise ValueError("committed lifecycle states require committed_at")
+            raise ValueError(
+                "committed lifecycle states require committed_at and resulting_revision"
+            )
         if self.lifecycle_state == "completed" and (
             self.completed_at is None or self.narrative is None
         ):

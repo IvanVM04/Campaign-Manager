@@ -909,15 +909,31 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_22():
+def test_run_migrations_upgrades_version_21_to_23():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 22
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 23
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
+    conn.close()
+
+
+def test_migration_023_adds_resulting_revision_to_turn_resolutions():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    run_migrations(conn)
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(turn_resolutions)").fetchall()
+    }
+
+    assert "resulting_revision" in columns
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 23
     conn.close()

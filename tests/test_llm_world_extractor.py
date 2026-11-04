@@ -974,3 +974,37 @@ def test_extractor_prompt_disallows_mechanical_character_updates():
     assert "La operación change_character_hp NO está habilitada" in prompt
     assert "NO generes operaciones para modificar" in prompt
     assert "No hay operaciones de personaje habilitadas" in prompt
+
+
+def test_propose_uses_player_intent_not_generated_narrative():
+    operation = FakeOperation()
+    provider = FakeProvider(
+        json.dumps({"operations": [{"type": "create_entity", "name": "Aldric"}]})
+    )
+    parser = FakeParser(operations=[operation])
+    extractor = LLMWorldExtractor(provider=provider, operation_parser=parser)
+
+    result = extractor.propose(
+        "Quiero buscar al tabernero llamado Aldric.",
+        make_context(),
+    )
+
+    assert result == [operation]
+    assert len(provider.calls) == 1
+    prompt = provider.calls[0]
+    assert "Quiero buscar al tabernero llamado Aldric." in prompt
+    assert "INTENCIÓN DEL JUGADOR" in prompt
+    assert "NARRATIVA A ANALIZAR" not in prompt
+    assert "narrativa ya generada" not in prompt
+    assert "Las operaciones son propuestas, no hechos confirmados." in prompt
+
+
+def test_propose_empty_intent_does_not_call_provider():
+    provider = FakeProvider(json.dumps({"operations": []}))
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=FakeParser(),
+    )
+
+    assert extractor.propose("   ", make_context()) == []
+    assert provider.calls == []

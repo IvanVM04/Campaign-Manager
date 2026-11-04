@@ -28,10 +28,11 @@ def test_record_accepts_valid_lifecycle_states():
             "context_revision": 1,
             "proposal_json": '{"operations":[]}',
         },
-        "committed": {"committed_at": "2026-11-04T00:00:00Z"},
-        "narration_pending": {"committed_at": "2026-11-04T00:00:00Z"},
+        "committed": {"committed_at": "2026-11-04T00:00:00Z", "resulting_revision": 2},
+        "narration_pending": {"committed_at": "2026-11-04T00:00:00Z", "resulting_revision": 2},
         "completed": {
             "committed_at": "2026-11-04T00:00:00Z",
+            "resulting_revision": 2,
             "completed_at": "2026-11-04T00:01:00Z",
             "narrative": "Done.",
         },
@@ -70,6 +71,7 @@ def test_transition_graph_is_one_way_after_commit():
     record = make_record(
         lifecycle_state="committed",
         committed_at="2026-11-04T00:00:00Z",
+        resulting_revision=2,
     )
     assert record.can_transition_to("narration_pending")
     assert not record.can_transition_to("planning")
@@ -83,12 +85,13 @@ def test_record_enforces_state_specific_requirements():
     with pytest.raises(ValueError, match="context_revision"):
         make_record(lifecycle_state="prepared")
 
-    with pytest.raises(ValueError, match="committed_at"):
+    with pytest.raises(ValueError, match="committed_at and resulting_revision"):
         make_record(lifecycle_state="committed")
 
     with pytest.raises(ValueError, match="narrative"):
         make_record(
             lifecycle_state="completed",
             committed_at="2026-11-04T00:00:00Z",
+            resulting_revision=2,
             completed_at="2026-11-04T00:01:00Z",
         )

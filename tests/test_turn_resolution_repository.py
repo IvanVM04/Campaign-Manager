@@ -104,7 +104,7 @@ def test_claim_and_transition_lifecycle(isolated_database):
             "committed",
             scope=CampaignScope(1),
             expected_state="prepared",
-            updates={"committed_at": "2026-11-04T00:01:00Z"},
+            updates={"committed_at": "2026-11-04T00:01:00Z", "resulting_revision": 2},
             conn=conn,
         )
         repository.transition(
@@ -128,6 +128,15 @@ def test_claim_and_transition_lifecycle(isolated_database):
 
     assert completed.lifecycle_state == "completed"
     assert completed.narrative == "La puerta se abre."
+    assert completed.resulting_revision == 2
+
+    with transaction("IMMEDIATE") as conn, pytest.raises(
+        sqlite3.IntegrityError, match="evidence is immutable"
+    ):
+        conn.execute(
+            "UPDATE turn_resolutions SET proposal_json='{\"operations\":[{}]}' WHERE id=?",
+            (created.id,),
+        )
 
 
 def test_transition_rejects_skipping_commit_or_replaying_state(isolated_database):
@@ -156,7 +165,7 @@ def test_transition_rejects_skipping_commit_or_replaying_state(isolated_database
         sqlite3.IntegrityError, match="invalid"
     ):
         conn.execute(
-                "UPDATE turn_resolutions SET lifecycle_state='committed' WHERE id=?",
+                "UPDATE turn_resolutions SET lifecycle_state='committed', committed_at='2026-11-04T00:01:00Z', resulting_revision=2 WHERE id=?",
                 (created.id,),
             )
 
