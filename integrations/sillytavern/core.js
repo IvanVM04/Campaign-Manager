@@ -485,6 +485,7 @@ export async function findManualRollOrigin(
     }
     const currentIndex = chatMessages.findIndex((message) => message === playerMessage);
     if (currentIndex < 0) return null;
+    const currentAnswerExternalTurnId = await createTurnId(playerMessage);
     const earliestIndex = Math.max(0, currentIndex - 24);
     for (let index = currentIndex - 1; index >= earliestIndex; index -= 1) {
         const candidate = chatMessages[index];
@@ -494,6 +495,12 @@ export async function findManualRollOrigin(
         const externalTurnId = await createTurnId(candidate);
         const state = await getManualRollState(externalTurnId);
         if (!state?.has_manual_roll || typeof state.pending_roll_id !== 'string') {
+            continue;
+        }
+        if (
+            state.submitted_external_turn_id &&
+            state.submitted_external_turn_id !== currentAnswerExternalTurnId
+        ) {
             continue;
         }
         const submittedRolls = parseManualRollResults(currentAnswer, state.pending_roll?.count);
