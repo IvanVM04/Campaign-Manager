@@ -394,6 +394,14 @@ def test_encounter_turn_and_round_effects_expire_atomically_with_progression(iso
     assert one_turn.expires_at_turn == 1
     assert one_round.expires_at_round == 2
 
+    # Encounter timers must not be consumed by campaign-clock advancement.
+    from services.campaign_clock_service import CampaignClockService
+    CampaignClockService(campaign_id=1).advance(
+        minutes=1, expected_elapsed_minutes=0
+    )
+    still_active = effects.list_for_entity(target.id)
+    assert {item.id for item in still_active} == {one_turn.id, one_round.id}
+
     combat = CombatEncounterService(
         repository=encounter_repo,
         character_repository=CharacterRepository(),
