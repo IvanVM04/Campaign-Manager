@@ -1369,3 +1369,20 @@ def test_prepare_turn_can_propose_consequences_without_generating_narrative():
         ("propose", "Busco al tabernero Aldric.")
     ]
     assert dm.calls == []
+
+
+def test_intent_proposals_cannot_change_character_hp_directly():
+    extractor = RecordingExtractor(
+        operations=[ChangeCharacterHpOperation(entity_id=20, amount=-5)]
+    )
+    service, *_ = make_service(extractor=extractor)
+
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="deterministic mechanics",
+    ):
+        service.prepare_turn(
+            make_turn_context(),
+            "Ataco al goblin.",
+            proposal_from_intent=True,
+        )
