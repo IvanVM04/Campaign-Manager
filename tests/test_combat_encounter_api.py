@@ -347,7 +347,8 @@ def test_death_save_persists_failure_and_rejects_second_save_in_same_turn(client
     assert reloaded.json()["combatants"][hero_id]["death_save_failures"] == 1
 
 
-def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
+def test_natural_twenty_recovers_character_and_clears_death_save_track(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 20)
     character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "death-save-recovery"
     )
@@ -363,17 +364,9 @@ def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
     assert first.status_code == 200, first.text
     _advance_back_to_hero(client, "death-save-recovery")
 
-    recovery = client.post(
-        "/encounters/death-save-recovery/death-save",
-        json={
-            "expected_round": 2,
-            "expected_turn_index": 0,
-            "dice_mode": "manual",
-            "manual_roll": 20,
-        },
-    )
-    assert recovery.status_code == 200, recovery.text
-    combatant = recovery.json()["encounter"]["combatants"][hero_id]
+    current = client.get("/encounters/death-save-recovery")
+    assert current.status_code == 200, current.text
+    combatant = current.json()["combatants"][hero_id]
     assert combatant["current_hp"] == 1
     assert combatant["conscious"] is True
     assert combatant["death_save_successes"] == 0
@@ -387,36 +380,28 @@ def test_natural_twenty_recovers_character_and_clears_death_save_track(client):
     assert row["current_hp"] == 1
 
 
-def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
+def test_third_death_save_success_stabilizes_and_prevents_more_saves(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, [15, 10])
     _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "death-save-stable"
     )
-    for round_number in (1, 2):
-        response = client.post(
-            "/encounters/death-save-stable/death-save",
-            json={
-                "expected_round": round_number,
-                "expected_turn_index": 0,
-                "dice_mode": "manual",
-                "manual_roll": 15,
-            },
-        )
-        assert response.status_code == 200, response.text
-        if round_number == 1:
-            _advance_back_to_hero(client, "death-save-stable")
-            # Move the fixture's round token forward for the next iteration.
-    _advance_back_to_hero(client, "death-save-stable", current_round=2)
-    third = client.post(
+    first = client.post(
         "/encounters/death-save-stable/death-save",
         json={
-            "expected_round": 3,
+            "expected_round": 1,
             "expected_turn_index": 0,
             "dice_mode": "manual",
-            "manual_roll": 10,
+            "manual_roll": 15,
         },
     )
-    assert third.status_code == 200, third.text
-    combatant = third.json()["encounter"]["combatants"][hero_id]
+    assert first.status_code == 200, first.text
+
+    _advance_back_to_hero(client, "death-save-stable", current_round=1)
+    _advance_back_to_hero(client, "death-save-stable", current_round=2)
+
+    current = client.get("/encounters/death-save-stable")
+    assert current.status_code == 200, current.text
+    combatant = current.json()["combatants"][hero_id]
     assert combatant["stable"] is True
     assert combatant["death_save_successes"] == 3
 
@@ -433,17 +418,19 @@ def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
 
 
 
-
 def _patch_death_save_roll(monkeypatch, value):
     from rules_engine.dnd5e_2014.core.dice import D20Roll, DiceRoller, RollMode
 
+    values = iter(value if isinstance(value, (list, tuple)) else [value])
+
     def fixed_roll(_self, **_kwargs):
+        roll = next(values)
         return D20Roll(
-            rolls=(value,),
-            selected=value,
+            rolls=(roll,),
+            selected=roll,
             mode=RollMode.NORMAL,
             modifier=0,
-            total=value,
+            total=roll,
         )
 
     monkeypatch.setattr(DiceRoller, "roll_d20", fixed_roll)
