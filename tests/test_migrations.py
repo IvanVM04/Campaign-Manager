@@ -23,7 +23,6 @@ from migrations import (
     migration_020,
     migration_021,
     migration_022,
-    migration_023,
     run_migrations,
 )
 
