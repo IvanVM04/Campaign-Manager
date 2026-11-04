@@ -15,6 +15,7 @@ class ArmorClassResult:
     strength_requirement_met: bool
     speed_penalty_ft: int
     stealth_disadvantage: bool
+    unarmored_defense_applied: str | None
 
 
 def derive_armor_class(
@@ -23,6 +24,9 @@ def derive_armor_class(
     armor_key: str | None = None,
     shield_equipped: bool = False,
     strength_score: int = 10,
+    unarmored_defense: str | None = None,
+    constitution_score: int = 10,
+    wisdom_score: int = 10,
 ) -> ArmorClassResult:
     """Calculate AC from one armor item and an optional shield.
 
@@ -40,17 +44,31 @@ def derive_armor_class(
             raise ValueError(f"{name} must be between 1 and 30")
     if not isinstance(shield_equipped, bool):
         raise TypeError("shield_equipped must be a boolean")
+    if unarmored_defense not in {None, "barbarian", "monk"}:
+        raise ValueError("unarmored_defense must be barbarian, monk or None")
+    for value, name in ((constitution_score, "constitution_score"), (wisdom_score, "wisdom_score")):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{name} must be an integer")
+        if not 1 <= value <= 30:
+            raise ValueError(f"{name} must be between 1 and 30")
 
     dexterity_modifier = (dexterity_score - 10) // 2
     armor = get_armor(armor_key) if armor_key is not None else None
     if armor is not None and armor.category is ArmorCategory.SHIELD:
         raise ValueError("a shield must be supplied through shield_equipped")
 
+    unarmored_defense_applied = None
     if armor is None:
         base_ac = 10
         dexterity_applied = dexterity_modifier
         strength_met = True
         stealth_disadvantage = False
+        if unarmored_defense == "barbarian":
+            base_ac += (constitution_score - 10) // 2
+            unarmored_defense_applied = "barbarian"
+        elif unarmored_defense == "monk" and not shield_equipped:
+            base_ac += (wisdom_score - 10) // 2
+            unarmored_defense_applied = "monk"
     else:
         base_ac = armor.base_armor_class
         if armor.category is ArmorCategory.LIGHT:
@@ -75,6 +93,7 @@ def derive_armor_class(
         strength_requirement_met=strength_met,
         speed_penalty_ft=10 if not strength_met else 0,
         stealth_disadvantage=stealth_disadvantage,
+        unarmored_defense_applied=unarmored_defense_applied,
     )
 
 
