@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 24
+CURRENT_VERSION = 25
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1174,6 +1174,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 24")
         version = 24
 
+    if version < 25:
+        migration_025(conn)
+        conn.execute("PRAGMA user_version = 25")
+        version = 25
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1890,4 +1895,71 @@ def migration_024(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_024")
         conn.execute("RELEASE SAVEPOINT migration_024")
+        raise
+
+
+def migration_025(conn: sqlite3.Connection) -> None:
+    """Add encounter-scoped round and turn deadlines to persistent effects."""
+    conn.execute("SAVEPOINT migration_025")
+    try:
+        additions = {
+            "encounter_id": "TEXT",
+            "duration_rounds": "INTEGER CHECK (duration_rounds IS NULL OR duration_rounds > 0)",
+            "expires_at_round": "INTEGER CHECK (expires_at_round IS NULL OR expires_at_round > 0)",
+            "duration_turns": "INTEGER CHECK (duration_turns IS NULL OR duration_turns > 0)",
+            "expires_at_turn": "INTEGER CHECK (expires_at_turn IS NULL OR expires_at_turn > 0)",
+            "expired_at_round": "INTEGER CHECK (expired_at_round IS NULL OR expired_at_round > 0)",
+            "expired_at_turn": "INTEGER CHECK (expired_at_turn IS NULL OR expired_at_turn > 0)",
+        }
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(persistent_effect_timers)").fetchall()
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                conn.execute(
+                    f"ALTER TABLE persistent_effect_timers ADD COLUMN {name} {definition}"
+                )
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_effect_timers_encounter_round
+            ON persistent_effect_timers(campaign_id, encounter_id, expires_at_round)
+            WHERE expired_at_round IS NULL AND encounter_id IS NOT NULL
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_effect_timers_encounter_turn
+            ON persistent_effect_timers(campaign_id, encounter_id, expires_at_turn)
+            WHERE expired_at_turn IS NULL AND encounter_id IS NOT NULL
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_effect_timer_encounter_campaign
+            BEFORE INSERT ON persistent_effect_timers
+            FOR EACH ROW
+            WHEN NEW.encounter_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM combat_encounters
+                WHERE encounter_id = NEW.encounter_id
+                  AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'effect timer encounter must belong to same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_effect_timer_encounter_campaign_update
+            BEFORE UPDATE OF encounter_id, campaign_id ON persistent_effect_timers
+            FOR EACH ROW
+            WHEN NEW.encounter_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM combat_encounters
+                WHERE encounter_id = NEW.encounter_id
+                  AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'effect timer encounter must belong to same campaign');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_025")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_025")
+        conn.execute("RELEASE SAVEPOINT migration_025")
         raise
