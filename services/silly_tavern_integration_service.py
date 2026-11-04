@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import sqlite3
 from dataclasses import replace
 
 from database import get_conn, transaction
@@ -8,6 +9,9 @@ from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
+from repositories.campaign_state_version_repository import (
+    CampaignStateVersionRepository,
+)
 from repositories.turn_repository import TurnRepository
 from repositories.world_snapshot_repository import (
     WorldSnapshotRepository,
@@ -160,6 +164,7 @@ class SillyTavernIntegrationService:
         self.world_service = world_service
 
         self.turn_repository = turn_repository
+        self.state_version_repository = CampaignStateVersionRepository()
 
         self.world_snapshot_repository = WorldSnapshotRepository()
         self.campaign_scope = CampaignScope(world_service.campaign_id)
@@ -517,11 +522,30 @@ class SillyTavernIntegrationService:
         # CONTEXTO
         # --------------------------------------------------------
 
+        previous_world = self.world_service.get_world()
+        previous_world_snapshot = copy.deepcopy(previous_world)
+
         try:
-            turn_context = (
-                self.campaign_state_service
-                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
-            )
+            with transaction("DEFERRED") as read_conn:
+                state_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=read_conn,
+                )
+                turn_context = (
+                    self.campaign_state_service
+                    .get_turn_context(
+                        campaign_id=self.campaign_scope.campaign_id,
+                        conn=read_conn,
+                    )
+                )
+                fresh_world = self.world_service.repository.load_world(
+                    campaign_id=self.campaign_scope.campaign_id,
+                    conn=read_conn,
+                )
+                turn_context = replace(
+                    turn_context,
+                    world=fresh_world,
+                )
 
         except CampaignStateServiceError as exc:
             raise SillyTavernIntegrationServiceError(
@@ -542,9 +566,6 @@ class SillyTavernIntegrationService:
                 "CampaignStateService returned an invalid "
                 "TurnContext"
             )
-
-        previous_world = self.world_service.get_world()
-        previous_world_snapshot = copy.deepcopy(previous_world)
 
         # --------------------------------------------------------
         # CONTEXTO DE REGENERACIÓN
@@ -765,6 +786,8 @@ class SillyTavernIntegrationService:
                 # COMPROBACIÓN AUTORITATIVA DE IDEMPOTENCIA
                 # ------------------------------------------------
 
+                current_turn = None
+
                 if normalized_external_turn_id is not None:
 
                     current_turn = (
@@ -843,31 +866,42 @@ class SillyTavernIntegrationService:
                                 )
                             )
 
-                        # ----------------------------------------
-                        # REGENERACIÓN
-                        # ----------------------------------------
+                current_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=conn,
+                )
+                if current_revision != state_revision:
+                    raise SillyTavernIntegrationServiceConflictError(
+                        "campaign state changed while turn operations were being extracted; retry"
+                    )
 
-                        if current_turn.snapshot is None:
-                            raise SillyTavernIntegrationServiceError(
-                                "cannot reconcile turn because the "
-                                "active turn has no snapshot"
-                            )
+                if current_turn is not None:
+                    # ----------------------------------------
+                    # REGENERACIÓN
+                    # ----------------------------------------
 
-                        self.world_snapshot_repository.restore_snapshot(
-                            conn,
-                            current_turn.snapshot,
-                            scope=self.campaign_scope,
+                    if current_turn.snapshot is None:
+                        raise SillyTavernIntegrationServiceError(
+                            "cannot reconcile turn because the "
+                            "active turn has no snapshot"
                         )
 
-                        self.world_service.load(
-                            conn=conn,
-                        )
+                    self.world_snapshot_repository.restore_snapshot(
+                        conn,
+                        current_turn.snapshot,
+                        scope=self.campaign_scope,
+                    )
 
-                        self.turn_repository.supersede_turn(
-                            current_turn.id,
-                            scope=self.campaign_scope,
-                            conn=conn,
-                        )
+                    self.world_service.load(
+                        conn=conn,
+                    )
+
+                    self.turn_repository.supersede_turn(
+                        current_turn.id,
+                        scope=self.campaign_scope,
+                        conn=conn,
+                    )
+
 
                 # ------------------------------------------------
                 # SNAPSHOT DEL ESTADO SOBRE EL QUE SE APLICARÁ
@@ -1000,6 +1034,18 @@ class SillyTavernIntegrationService:
                 return result
 
         except SillyTavernIntegrationServiceConflictError:
+            try:
+                fresh_world = self.world_service.repository.load_world(
+                    campaign_id=self.campaign_scope.campaign_id,
+                )
+            except (sqlite3.Error, ValueError):
+                self._restore_world_state(
+                    previous_world,
+                    previous_world_snapshot,
+                )
+            else:
+                self._restore_world_state(previous_world, fresh_world)
+            self.world_service.world = previous_world
             raise
 
         except Exception as exc:

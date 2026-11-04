@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 20
+CURRENT_VERSION = 21
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1154,6 +1154,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 20")
         version = 20
 
+    if version < 21:
+        migration_021(conn)
+        conn.execute("PRAGMA user_version = 21")
+        version = 21
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1495,4 +1500,93 @@ def migration_020(conn: sqlite3.Connection) -> None:
         conn.commit()
     except Exception:
         conn.rollback()
+        raise
+
+
+def migration_021(conn: sqlite3.Connection) -> None:
+    """Track monotonic revisions for every campaign-scoped state mutation."""
+    conn.execute("SAVEPOINT migration_021")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS campaign_state_versions (
+                campaign_id INTEGER PRIMARY KEY,
+                revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+                FOREIGN KEY (campaign_id)
+                    REFERENCES campaign(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            INSERT OR IGNORE INTO campaign_state_versions (campaign_id, revision)
+            SELECT id, 1 FROM campaign
+        """)
+
+        tables = conn.execute("""
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+        """).fetchall()
+
+        for row in tables:
+            table = row["name"] if isinstance(row, sqlite3.Row) else row[0]
+            if table == "campaign_state_versions":
+                continue
+
+            quoted_table = '"' + table.replace('"', '""') + '"'
+            columns = {
+                column["name"] if isinstance(column, sqlite3.Row) else column[1]
+                for column in conn.execute(
+                    f"PRAGMA table_info({quoted_table})"
+                ).fetchall()
+            }
+
+            if table == "campaign":
+                conn.execute("""
+                    CREATE TRIGGER IF NOT EXISTS trg_campaign_state_revision_insert
+                    AFTER INSERT ON campaign
+                    FOR EACH ROW
+                    BEGIN
+                        INSERT OR IGNORE INTO campaign_state_versions (
+                            campaign_id, revision
+                        ) VALUES (NEW.id, 1);
+                    END
+                """)
+                conn.execute("""
+                    CREATE TRIGGER IF NOT EXISTS trg_campaign_state_revision_update
+                    AFTER UPDATE ON campaign
+                    FOR EACH ROW
+                    BEGIN
+                        UPDATE campaign_state_versions
+                        SET revision = revision + 1
+                        WHERE campaign_id = NEW.id;
+                    END
+                """)
+                continue
+
+            if "campaign_id" not in columns:
+                continue
+
+            trigger_table = table.replace('"', '""')
+            for event in ("INSERT", "UPDATE", "DELETE"):
+                reference = "OLD" if event == "DELETE" else "NEW"
+                trigger_name = (
+                    f"trg_state_revision_{table}_{event.lower()}"
+                    .replace('"', '""')
+                )
+                conn.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS "{trigger_name}"
+                    AFTER {event} ON "{trigger_table}"
+                    FOR EACH ROW
+                    BEGIN
+                        UPDATE campaign_state_versions
+                        SET revision = revision + 1
+                        WHERE campaign_id = {reference}.campaign_id;
+                    END
+                """)
+
+        conn.execute("RELEASE SAVEPOINT migration_021")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_021")
+        conn.execute("RELEASE SAVEPOINT migration_021")
         raise

@@ -166,8 +166,12 @@ Do not attempt this as a broad rewrite in PR19. Design and implement it as a sep
 - Default branch commit and repository tree.
 - CI job definitions and declared commands.
 - Runtime factory, request middleware/proxies, turn services, integration service, combat/effect/clock services, repositories and representative models.
-- Migration version constant (`CURRENT_VERSION = 20`).
+- Migration version constant (`CURRENT_VERSION = 21`).
 - Presence of 75 Python test files and 2 JavaScript test files.
+
+### Subsequent architectural updates (2026-11-04)
+
+PR #25 introduces schema migration 021 for campaign-scoped state revisions. It captures a consistent revision with the turn context and checks it inside the write transaction before applying internal DM or SillyTavern operations. See `campaign-state-revisions.md` for the contract and boundaries.
 
 ### Not verified dynamically
 

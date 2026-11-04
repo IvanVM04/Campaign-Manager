@@ -2517,7 +2517,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
                 active_connections["count"] -= 1
 
     monkeypatch.setattr(
-        campaign_turn_module,
+        database,
         "get_conn",
         tracked_get_conn,
     )
@@ -2531,7 +2531,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
 
     assert result.narrative == "La escena continúa."
     assert active_connections["count"] == 0
-    assert transaction_modes == ["IMMEDIATE"]
+    assert transaction_modes == ["DEFERRED", "IMMEDIATE"]
     assert len(
         service.turn_repository.list_turns(
             scope=CampaignScope(campaign["id"]),
@@ -2540,6 +2540,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
 
 
 def test_planned_turn_rejects_state_changed_during_dm_generation():
+    from database import transaction
     from repositories.campaign_repository import CampaignRepository
     from services.context_builder import ContextBuilder
     from services.fake_llm_provider import FakeLLMProvider
@@ -2570,6 +2571,14 @@ def test_planned_turn_rejects_state_changed_during_dm_generation():
                 tone=turn_context.campaign.tone,
                 summary=turn_context.campaign.summary,
             )
+            with transaction("IMMEDIATE") as conn:
+                conn.execute(
+                    """
+                    INSERT INTO entities (name, entity_type, campaign_id)
+                    VALUES ('Concurrent NPC', 'npc', ?)
+                    """,
+                    (campaign_id,),
+                )
             return "La escena continúa."
 
     service, campaign_repository = _build_planned_turn_service(
@@ -2585,6 +2594,10 @@ def test_planned_turn_rejects_state_changed_during_dm_generation():
 
     updated = campaign_repository.get_campaign(campaign_id)
     assert updated["name"] == "Changed while planning"
+    assert any(
+        entity.name == "Concurrent NPC"
+        for entity in service.world_service.get_world().entities.values()
+    )
     assert service.turn_repository.list_turns(
         scope=CampaignScope(campaign_id),
     ) == []
