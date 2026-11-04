@@ -235,3 +235,25 @@ test(
         assert.equal(result, null);
     },
 );
+
+
+test(
+    'selectClarificationChallenge permits retry recovery while a planning lease is present',
+    () => {
+        const result = selectClarificationChallenge(
+            {
+                has_clarification: true,
+                lifecycle_state: 'planning',
+                pending_clarification_id: '42:active-token',
+                last_pending_clarification_id: null,
+                last_answer: null,
+            },
+            'La puerta de roble.',
+        );
+
+        assert.deepEqual(result, {
+            pendingClarificationId: '42:active-token',
+            retry: false,
+        });
+    },
+);
