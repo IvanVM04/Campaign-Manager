@@ -4,7 +4,7 @@ from api.runtime_context import (
     get_current_runtime,
     turn_repository,
 )
-from models.schemas import ManualRollIn, TurnIn
+from models.schemas import ClarificationIn, ManualRollIn, TurnIn
 
 router = APIRouter()
 
@@ -52,6 +52,9 @@ def _turn_result_payload(result):
         ),
         "pending_roll_id": getattr(result, "pending_roll_id", None),
         "pending_roll": getattr(result, "pending_roll", None),
+        "pending_clarification_id": getattr(
+            result, "pending_clarification_id", None
+        ),
         "operation_count": result.operation_count,
         "successful_operation_count": result.successful_operation_count,
         "failed_operation_count": result.failed_operation_count,
@@ -99,6 +102,25 @@ def submit_manual_roll(data: ManualRollIn):
     try:
         result = get_current_runtime().durable_native_turn_service.submit_manual_roll(
             data.pending_roll_id, tuple(data.rolls)
+        )
+    except (DurableNativeTurnError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return _turn_result_payload(result)
+
+
+@router.post("/turn/clarification")
+def submit_clarification(data: ClarificationIn):
+    from services.durable_native_turn_service import DurableNativeTurnError
+
+    try:
+        result = (
+            get_current_runtime()
+            .durable_native_turn_service
+            .submit_clarification(
+                data.pending_clarification_id,
+                data.answer,
+            )
         )
     except (DurableNativeTurnError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
