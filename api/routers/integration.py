@@ -109,6 +109,24 @@ def get_silly_tavern_turn_state(
     return result
 
 
+@router.get("/integration/turn/{external_turn_id}/clarification")
+def get_silly_tavern_clarification_state(external_turn_id: str):
+    """Recover a pending or recently accepted clarification after client restart."""
+    runtime = get_current_runtime()
+    try:
+        with runtime.turn_execution_lock.acquire():
+            return runtime.durable_native_turn_service.get_external_clarification_state(
+                external_turn_id
+            )
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to obtain SillyTavern clarification state",
+        ) from exc
+
+
 @router.post("/integration/turn/resolve")
 def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
     """Commit a SillyTavern turn's consequences before external narration begins."""
