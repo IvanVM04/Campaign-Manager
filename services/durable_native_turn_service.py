@@ -13,6 +13,7 @@ from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from operations.character_operations import CharacterOperation
+from models.operation_result import OperationResult, OperationStatus
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import WorldOperation
@@ -308,15 +309,11 @@ class DurableNativeTurnService:
                     )
                     if turn is None:
                         raise DurableNativeTurnError("completed resolution has no transcript")
-                    return TurnResolutionResult.from_persisted_turn(turn)
+                    return self._result_from_completed_record(record, turn)
                 if record.lifecycle_state in {"committed", "narration_pending"}:
                     pass
                 elif record.lifecycle_state == "prepared":
                     pass
-                elif record.lifecycle_state == "planning":
-                    raise DurableNativeTurnError(
-                        "turn planning is already in progress; retry after its lease expires"
-                    )
                 else:
                     raise DurableNativeTurnError(
                         f"turn request is in terminal or unsupported state: {record.lifecycle_state}"
@@ -459,6 +456,46 @@ class DurableNativeTurnService:
                 raise
             raise DurableNativeTurnError("native turn execution failed") from exc
 
+    def _result_from_completed_record(
+        self,
+        record: TurnResolutionRecord,
+        turn: TurnRecord,
+    ) -> TurnResolutionResult:
+        parsed = self.resolver.extractor.operation_parser.parse(
+            record.proposal_json or '{"operations":[]}'
+        )
+        def unwrap(raw):
+            return raw.operation if isinstance(raw, ReferencedOperation) else raw
+        world_operations = tuple(
+            unwrap(raw) for raw in parsed if isinstance(unwrap(raw), WorldOperation)
+        )
+        character_operations = tuple(
+            unwrap(raw) for raw in parsed if isinstance(unwrap(raw), CharacterOperation)
+        )
+        stored_results = json.loads(record.operation_results_json or "[]")
+        operation_results = tuple(
+            OperationResult(
+                status=OperationStatus(item["status"]),
+                message=item.get("message", ""),
+                operation=unwrap(parsed[index]) if index < len(parsed) else None,
+            )
+            for index, item in enumerate(stored_results)
+        )
+        return TurnResolutionResult(
+            player_input=turn.player_input,
+            narrative=turn.narrative,
+            operations=world_operations,
+            character_operations=character_operations,
+            operation_results=operation_results,
+            mechanics_result=self._mechanics_from_json(record.mechanics_json),
+            already_processed=True,
+            persisted_operation_count=turn.operation_count,
+            persisted_successful_operation_count=turn.successful_operation_count,
+            persisted_failed_operation_count=turn.failed_operation_count,
+            persisted_all_operations_succeeded=turn.all_operations_succeeded,
+            persisted_world_changed=turn.world_changed,
+        )
+
     def _resume_narration(self, record: TurnResolutionRecord):
         if record.lifecycle_state == "committed":
             with transaction("IMMEDIATE") as conn:
@@ -518,7 +555,10 @@ class DurableNativeTurnService:
                 },
                 conn=conn,
             )
-        return TurnResolutionResult(
-            player_input=record.player_input,
-            narrative=narrative,
+        completed = self.resolution_repository.get(
+            record.id, scope=self.scope
         )
+        completed_turn = self.turn_repository.get_turn(
+            completed.turn_id, scope=self.scope
+        )
+        return self._result_from_completed_record(completed, completed_turn)
