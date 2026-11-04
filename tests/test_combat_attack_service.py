@@ -380,7 +380,7 @@ def test_unproficient_armor_imposes_disadvantage_on_strength_attack(client):
 
 
 
-def _set_character_target_to_zero_hp(target_id):
+def _set_character_target_to_zero_hp(target_id, *, failures=0):
     repository = CombatEncounterRepository()
     encounter = repository.get("attack-test", campaign_id=1)
     target_key = f"character-{target_id}"
@@ -390,7 +390,7 @@ def _set_character_target_to_zero_hp(target_id):
         current_hp=0,
         conscious=False,
         death_save_successes=0,
-        death_save_failures=0,
+        death_save_failures=failures,
         stable=False,
         dead=False,
     )
@@ -477,3 +477,27 @@ def test_damage_to_stable_character_makes_them_unstable_again(client):
     assert combatant["stable"] is False
     assert combatant["death_save_failures"] == 1
     assert combatant["death_save_successes"] == 0
+
+
+
+def test_third_failure_from_damage_kills_downed_character(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = _set_character_target_to_zero_hp(target_id, failures=2)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["death_save_failures"] == 3
+    assert combatant["dead"] is True
+    assert combatant["current_hp"] == 0
+    assert combatant["conscious"] is False
