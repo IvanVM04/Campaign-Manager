@@ -11,6 +11,7 @@ from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.schemas import (
+    SillyTavernClarificationIn,
     SillyTavernContextIn,
     SillyTavernTurnIn,
 )
@@ -28,6 +29,17 @@ from services.world_service import WorldService
 # ============================================================
 # SCHEMAS
 # ============================================================
+
+
+def test_silly_tavern_clarification_schema_requires_stable_answer_identity():
+    data = SillyTavernClarificationIn(
+        pending_clarification_id="42:challenge-token",
+        answer="La puerta de roble.",
+        answer_external_turn_id="stable-answer-message-id",
+        query="Estado actual de la campaña.",
+    )
+
+    assert data.answer_external_turn_id == "stable-answer-message-id"
 
 
 def test_silly_tavern_context_schema_accepts_query():
