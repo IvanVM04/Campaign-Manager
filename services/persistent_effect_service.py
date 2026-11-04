@@ -50,7 +50,7 @@ class PersistentEffectService:
             expires_at_minute=(1 if EffectDurationType(duration_type) is EffectDurationType.CAMPAIGN_TIME else None),
             level=level,
         )
-        with transaction("IMMEDIATE") as conn
+        with transaction("IMMEDIATE") as conn:
             if self.entity_repository.get_entity(
                 entity_id, campaign_id=self.campaign_id, conn=conn
             ) is None:
@@ -103,8 +103,7 @@ class PersistentEffectService:
         target_status = EffectStatus(status)
         if target_status is EffectStatus.EXPIRED:
             raise ValueError("effect expiration is managed by the campaign clock")
-        with get_conn() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with transaction("IMMEDIATE") as conn
             current = self.repository.get(
                 effect_id, campaign_id=self.campaign_id, conn=conn
             )
