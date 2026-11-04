@@ -289,27 +289,24 @@ def test_integration_turn_endpoint_returns_processed_turn(
 
         operation_results = ()
 
-    def fake_process_turn(
+    def fake_complete_external_narration(
+        *,
+        external_turn_id,
         player_input,
         narrative,
-        external_turn_id=None,
-        turn_version=1,
+        turn_version,
     ):
-        assert player_input == (
-            "Abro la puerta."
-        )
-
-        assert narrative == (
-            "La puerta se abre."
-        )
-
+        assert external_turn_id == "st-test-turn"
+        assert player_input == "Abro la puerta."
+        assert narrative == "La puerta se abre."
         assert turn_version == 1
-
         return FakeResult()
 
+    runtime = __import__("app").runtime_factory.get_runtime(1)
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.process_turn",
-        fake_process_turn,
+        runtime.durable_native_turn_service,
+        "complete_external_narration",
+        fake_complete_external_narration,
     )
 
     response = client.post(
@@ -317,6 +314,7 @@ def test_integration_turn_endpoint_returns_processed_turn(
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
+            "external_turn_id": "st-test-turn",
         },
     )
 
@@ -355,19 +353,17 @@ def test_integration_turn_endpoint_returns_400_on_service_error(
         SillyTavernIntegrationServiceError,
     )
 
-    def fake_process_turn(
-        player_input,
-        narrative,
-        external_turn_id=None,
-        turn_version=1,
-    ):
-        raise SillyTavernIntegrationServiceError(
-            "processing failed"
-        )
+    from services.durable_native_turn_service import DurableNativeTurnError
+
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+
+    def fake_complete_external_narration(**kwargs):
+        raise DurableNativeTurnError("processing failed")
 
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.process_turn",
-        fake_process_turn,
+        runtime.durable_native_turn_service,
+        "complete_external_narration",
+        fake_complete_external_narration,
     )
 
     response = client.post(
@@ -378,11 +374,11 @@ def test_integration_turn_endpoint_returns_400_on_service_error(
         },
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 409
 
     assert response.json() == {
         "detail": "processing failed",
-        "code": "bad_request",
+        "code": "conflict",
     }
 
 
