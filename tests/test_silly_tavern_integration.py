@@ -3574,7 +3574,7 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
             turn_version=1,
         )
 
-    assert transaction_modes == ["IMMEDIATE"]
+    assert transaction_modes == ["DEFERRED", "IMMEDIATE"]
     assert world_service.world is original_world
     assert original_world.entities == original_snapshot.entities
     assert original_world.items == original_snapshot.items
@@ -3594,3 +3594,51 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
         "SELECT id FROM turns WHERE campaign_id = ? AND external_turn_id = ?",
         (1, "memory-rollback-after-save-failure"),
     ) is None
+
+
+def test_silly_tavern_rejects_operations_extracted_from_stale_campaign_state(
+    monkeypatch,
+):
+    from repositories.campaign_repository import CampaignRepository
+
+    (
+        service,
+        _context_builder,
+        extractor,
+        _world_service,
+        turn_repository,
+    ) = _build_service()
+
+    campaign_repository = CampaignRepository()
+    campaign = campaign_repository.get_campaign(1)
+
+    def mutate_campaign_during_extraction(_narrative, _context):
+        campaign_repository.update_campaign(
+            campaign_id=1,
+            name="Changed during extraction",
+            system=campaign["system"],
+            tone=campaign["tone"] or "",
+            summary=campaign["summary"] or "",
+        )
+        return []
+
+    monkeypatch.setattr(
+        extractor,
+        "extract",
+        mutate_campaign_during_extraction,
+    )
+
+    with pytest.raises(
+        SillyTavernIntegrationServiceConflictError,
+        match="campaign state changed while turn operations were being extracted",
+    ):
+        service.process_turn(
+            player_input="Miro alrededor.",
+            narrative="La escena continúa.",
+            external_turn_id="stale-campaign-state",
+            turn_version=1,
+        )
+
+    assert turn_repository.list_turns(
+        scope=CampaignScope(1),
+    ) == []

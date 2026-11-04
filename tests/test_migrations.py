@@ -16,6 +16,12 @@ from migrations import (
     migration_013,
     migration_014,
     migration_015,
+    migration_016,
+    migration_017,
+    migration_018,
+    migration_019,
+    migration_020,
+    migration_021,
 )
 
 
@@ -676,4 +682,53 @@ def test_migration_015_adds_empty_proficiencies_without_losing_characters():
         (entity_id,),
     ).fetchone()
     assert tuple(row) == ("[]", "[]", "[]")
+    conn.close()
+
+
+def create_version_20_database():
+    conn = create_version_13_database()
+    migrations = (
+        migration_014,
+        migration_015,
+        migration_016,
+        migration_017,
+        migration_018,
+        migration_019,
+        migration_020,
+    )
+    for version, migration in enumerate(migrations, start=14):
+        migration(conn)
+        conn.execute(f"PRAGMA user_version = {version}")
+    return conn
+
+
+def test_migration_021_initializes_revisions_and_tracks_existing_campaigns():
+    conn = create_version_20_database()
+    conn.execute(
+        "INSERT INTO campaign (id, name) VALUES (2, 'Campaign 2')"
+    )
+    entity_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Existing NPC', 'npc', 1)
+        """
+    ).lastrowid
+
+    migration_021(conn)
+
+    revisions = conn.execute(
+        "SELECT campaign_id, revision FROM campaign_state_versions ORDER BY campaign_id"
+    ).fetchall()
+    assert [tuple(row) for row in revisions] == [(1, 1), (2, 1)]
+
+    conn.execute(
+        "UPDATE entities SET name = 'Updated NPC' WHERE id = ? AND campaign_id = 1",
+        (entity_id,),
+    )
+    revision = conn.execute(
+        "SELECT revision FROM campaign_state_versions WHERE campaign_id = 1"
+    ).fetchone()[0]
+    assert revision == 2
+
+    conn.execute("PRAGMA user_version = 21")
     conn.close()
