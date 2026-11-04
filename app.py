@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.errors import register_error_handlers
 from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
@@ -52,6 +53,7 @@ app = FastAPI(
     title="D&D Campaign Manager",
     version="0.1.0",
 )
+register_error_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
