@@ -36,6 +36,7 @@ def test_save_and_reload_round_trips_full_encounter_state():
     assert loaded.combatants["hero"].conditions.conditions == frozenset({Condition.POISONED})
     assert loaded.combatants["hero"].conditions.exhaustion_level == 2
     assert loaded.combatants["hero"].dexterity == 10
+    assert loaded.combatants["hero"].reaction_used is False
 
 
 def test_encounters_are_isolated_by_campaign():
@@ -110,3 +111,19 @@ def test_deserialize_legacy_snapshot_without_death_save_fields():
     assert hero.dead is False
     assert hero.death_save_last_round is None
     assert hero.death_save_last_turn_index is None
+
+
+def test_repository_round_trips_consumed_reaction():
+    from dataclasses import replace
+
+    repository = CombatEncounterRepository()
+    encounter = make_encounter()
+    encounter.start(("hero", "goblin"))
+    encounter.combatants["hero"] = replace(
+        encounter.combatants["hero"], reaction_used=True
+    )
+
+    loaded = repository.save(encounter, campaign_id=1)
+
+    assert loaded.combatants["hero"].reaction_used is True
+    assert loaded.combatants["goblin"].reaction_used is False
