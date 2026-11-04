@@ -228,6 +228,31 @@ class DurableNativeTurnService:
         )
         return context, recent
 
+    def _plan_from_record(self, record: TurnResolutionRecord) -> TurnResolutionPlan:
+        from services.operation_parser import OperationParser
+
+        parser = self.resolver.extractor.operation_parser
+        parsed = parser.parse(record.proposal_json or '{"operations":[]}')
+        ordered = tuple(parsed)
+        def unwrap(raw):
+            return raw.operation if isinstance(raw, ReferencedOperation) else raw
+        world_operations = tuple(
+            raw for raw in ordered if isinstance(unwrap(raw), WorldOperation)
+        )
+        character_operations = tuple(
+            raw for raw in ordered if isinstance(unwrap(raw), CharacterOperation)
+        )
+        mechanics_result = self._mechanics_from_json(record.mechanics_json)
+        return TurnResolutionPlan(
+            player_input=record.player_input,
+            narrative="",
+            world_operations=world_operations,
+            character_operations=character_operations,
+            ordered_operations=ordered,
+            mechanics_result=mechanics_result,
+            mechanics_decision=mechanics_result.decision if mechanics_result else None,
+        )
+
     @staticmethod
     def _fingerprint(player_input: str, session_id, previous_turn_id, dice_mode: str) -> str:
         raw = json.dumps(
@@ -279,9 +304,7 @@ class DurableNativeTurnService:
                 if record.lifecycle_state in {"committed", "narration_pending"}:
                     pass
                 elif record.lifecycle_state == "prepared":
-                    raise DurableNativeTurnError(
-                        "prepared resolution requires recovery before a new attempt"
-                    )
+                    pass
                 elif record.lifecycle_state == "planning":
                     raise DurableNativeTurnError(
                         "turn planning is already in progress; retry after its lease expires"
@@ -307,57 +330,76 @@ class DurableNativeTurnService:
         if record.lifecycle_state in {"committed", "narration_pending"}:
             return self._resume_narration(record)
 
-        lease_token = secrets.token_urlsafe(24)
-        now = datetime.now(timezone.utc)
-        with transaction("IMMEDIATE") as conn:
-            record = self.resolution_repository.claim_for_planning(
-                record.id,
-                scope=self.scope,
-                lease_token=lease_token,
-                lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
-                now=now.isoformat(),
-                conn=conn,
-            )
-
-        try:
-            plan = self.resolver.prepare_turn(
-                context,
-                normalized,
-                recent_turns=recent,
-                proposal_from_intent=True,
-            )
-            if plan.awaiting_manual_roll:
-                raise DurableNativeTurnError(
-                    "automatic turn unexpectedly requested a manual roll"
-                )
-            if plan.clarification_question is not None:
-                raise DurableNativeTurnError(
-                    "clarification requests are not yet durable in the native API"
-                )
-            proposal_json = self._serialize_operations(plan)
-            mechanics_json = self._mechanics_to_json(plan.mechanics_result)
-
+        resume_prepared = record.lifecycle_state == "prepared"
+        lease_token = None
+        if not resume_prepared:
+            lease_token = secrets.token_urlsafe(24)
+            now = datetime.now(timezone.utc)
             with transaction("IMMEDIATE") as conn:
-                self.resolution_repository.transition(
+                record = self.resolution_repository.claim_for_planning(
                     record.id,
-                    "prepared",
                     scope=self.scope,
-                    expected_state="planning",
-                    expected_lease_token=lease_token,
-                    updates={
-                        "context_revision": revision,
-                        "proposal_json": proposal_json,
-                        "adjudication_json": json.dumps(
-                            {"decision": plan.mechanics_decision.decision.value}
-                            if plan.mechanics_decision else {},
-                            separators=(",", ":"),
-                        ),
-                        "mechanics_json": mechanics_json,
-                        "lease_token": None,
-                        "lease_expires_at": None,
-                    },
+                    lease_token=lease_token,
+                    lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
+                    now=now.isoformat(),
                     conn=conn,
                 )
+
+        try:
+            if resume_prepared:
+                if record.context_revision != revision:
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id,
+                            "rejected",
+                            scope=self.scope,
+                            expected_state="prepared",
+                            updates={"last_error_code": "stale_context"},
+                            conn=conn,
+                        )
+                    raise DurableNativeTurnError(
+                        "prepared turn became stale before commit and was rejected"
+                    )
+                plan = self._plan_from_record(record)
+            else:
+                plan = self.resolver.prepare_turn(
+                    context,
+                    normalized,
+                    recent_turns=recent,
+                    proposal_from_intent=True,
+                )
+                if plan.awaiting_manual_roll:
+                    raise DurableNativeTurnError(
+                        "automatic turn unexpectedly requested a manual roll"
+                    )
+                if plan.clarification_question is not None:
+                    raise DurableNativeTurnError(
+                        "clarification requests are not yet durable in the native API"
+                    )
+                proposal_json = self._serialize_operations(plan)
+                mechanics_json = self._mechanics_to_json(plan.mechanics_result)
+
+                with transaction("IMMEDIATE") as conn:
+                    self.resolution_repository.transition(
+                        record.id,
+                        "prepared",
+                        scope=self.scope,
+                        expected_state="planning",
+                        expected_lease_token=lease_token,
+                        updates={
+                            "context_revision": revision,
+                            "proposal_json": proposal_json,
+                            "adjudication_json": json.dumps(
+                                {"decision": plan.mechanics_decision.decision.value}
+                                if plan.mechanics_decision else {},
+                                separators=(",", ":"),
+                            ),
+                            "mechanics_json": mechanics_json,
+                            "lease_token": None,
+                            "lease_expires_at": None,
+                        },
+                        conn=conn,
+                    )
 
             with transaction("IMMEDIATE") as conn:
                 current_revision = self.revision_repository.get_revision(
