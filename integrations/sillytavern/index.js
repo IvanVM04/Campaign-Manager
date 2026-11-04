@@ -1469,6 +1469,31 @@ async function getCampaignManagerClarificationContext(
         },
     );
 
+    if (responseBody.pending_roll_id) {
+        const pending = responseBody.pending_roll;
+        resolvedTurnStates.set(clarificationOrigin.externalTurnId, {
+            lifecycleState: 'awaiting_input',
+            pendingRollId: responseBody.pending_roll_id,
+            pendingRoll: pending,
+            playerInput: clarificationOrigin.playerInput,
+        });
+        const diceCount = pending?.count === 2 ? 'dos d20' : 'un d20';
+        const modifier = Number(pending?.modifier ?? 0);
+        const modifierText = modifier >= 0 ? '+' + modifier : String(modifier);
+        return [
+            responseBody.context.context.trim(),
+            '',
+            '=== TIRADA MANUAL NECESARIA ===',
+            'La aclaración ya está registrada. Antes de narrar, Campaign Manager necesita una tirada manual.',
+            'Pide al jugador que lance ' + diceCount + ' y escriba los resultados separados por coma.',
+            'Característica: ' + String(pending?.ability ?? '—'),
+            'Habilidad: ' + String(pending?.skill ?? '—'),
+            'CD: ' + String(pending?.dc ?? '—'),
+            'Modificador calculado por Campaign Manager: ' + modifierText,
+            'No calcules el total ni resuelvas el éxito o fracaso.',
+        ].join('\\n');
+    }
+
     if (responseBody.clarification_question) {
         return [
             responseBody.context.context.trim(),
