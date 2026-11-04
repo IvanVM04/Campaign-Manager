@@ -1,7 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from models.schemas import ManualRollIn, TurnIn
+from models.schemas import (
+    ManualRollIn,
+    SillyTavernManualRollIn,
+    SillyTavernTurnResolveIn,
+    TurnIn,
+)
 
 
 def test_turn_schema_defaults_to_automatic_dice():
@@ -31,3 +36,43 @@ def test_manual_roll_schema_accepts_one_or_two_d20_values():
 
     assert one.rolls == [13]
     assert two.rolls == [4, 19]
+
+
+def test_silly_tavern_turn_resolve_schema_defaults_to_automatic_mode():
+    request = SillyTavernTurnResolveIn(
+        player_input="Me escondo.",
+        external_turn_id="turn-" + "a" * 24,
+        query="Estado de la campaña.",
+    )
+    assert request.dice_mode == "automatic"
+
+
+def test_silly_tavern_turn_resolve_schema_accepts_manual_mode():
+    request = SillyTavernTurnResolveIn(
+        player_input="Me escondo.",
+        external_turn_id="turn-" + "b" * 24,
+        query="Estado de la campaña.",
+        dice_mode="manual",
+    )
+    assert request.dice_mode == "manual"
+
+
+def test_silly_tavern_manual_roll_schema_accepts_valid_roll_submission():
+    request = SillyTavernManualRollIn(
+        pending_roll_id="42:" + "c" * 24,
+        rolls=[7, 18],
+        query="Estado de la campaña.",
+        answer_external_turn_id="answer-" + "d" * 24,
+    )
+    assert request.rolls == [7, 18]
+
+
+@pytest.mark.parametrize("rolls", [[0], [21], [2, 3, 4], [True], ["12"]])
+def test_silly_tavern_manual_roll_schema_rejects_invalid_roll_submission(rolls):
+    with pytest.raises(ValidationError):
+        SillyTavernManualRollIn(
+            pending_roll_id="42:" + "c" * 24,
+            rolls=rolls,
+            query="Estado de la campaña.",
+            answer_external_turn_id="answer-" + "d" * 24,
+        )

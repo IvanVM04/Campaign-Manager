@@ -55,12 +55,34 @@ It is a manual integration check and is not replaced by the automated JavaScript
    - Confirm the new chat starts with its own turn identity and that no local processing/failure marker from the previous chat blocks it.
    - Return to the original chat and verify that persisted backend state is reloaded rather than inferred from stale local cache.
 
+
+10. **Manual dice — normal roll**
+    - Set Dice mode to Manual rolls in the Campaign Manager extension settings.
+    - Trigger an ability check, skill check or saving throw.
+    - Confirm the DM asks for one d20 result and shows the server-computed modifier and DC.
+    - Reply with a single integer from 1 to 20.
+    - Confirm the backend resolves the check and the narrative is stored against the original action, not the numeric reply.
+
+11. **Manual dice — advantage/disadvantage**
+    - Trigger a check with advantage, then enter two comma-separated d20 results.
+    - Repeat with disadvantage.
+    - Confirm the backend selects the correct die, applies the modifier once and computes success/failure.
+    - Confirm one result is rejected when two are required, and values outside 1–20 are rejected.
+
+12. **Manual dice — restart and idempotency**
+    - Reload the extension while a manual roll is pending.
+    - Reply with the required result(s) and confirm the challenge is recovered from the backend.
+    - Retry the exact same result submission and confirm no consequences are applied twice.
+    - Submit different results for an already accepted challenge and confirm the backend rejects them.
+    - Switch back to Automatic rolls and confirm the default automatic flow works again.
+
 ## Acceptance criteria
 
 - Each distinct regeneration is processed at most once.
 - A duplicate delivery does not reapply consequences.
 - A failed, uncommitted version can be retried.
 - Clarification answers resume the original action, including across reloads and multiple clarification rounds.
+- Manual dice challenges recover across reloads, accept only the required number of valid d20 results, and commit the original turn at most once.
 - A subsequent ordinary action receives a new external turn identity.
 - Switching chats clears local turn-version, narrative, processing, failure, and clarification-link state.
 - The backend remains authoritative when local state is reset.

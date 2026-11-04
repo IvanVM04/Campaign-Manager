@@ -44,6 +44,8 @@ class DurableTurnPreparation:
     clarification_question: str | None = None
     pending_clarification_id: str | None = None
     legacy_replay: bool = False
+    pending_roll_id: str | None = None
+    pending_roll: dict | None = None
 
 
 class DurableNativeTurnService:
@@ -301,17 +303,28 @@ class DurableNativeTurnService:
         player_input: str,
         *,
         external_turn_id: str,
+        dice_mode: str = "automatic",
     ) -> DurableTurnPreparation:
         if not isinstance(external_turn_id, str) or not external_turn_id.strip():
             raise DurableNativeTurnError("external_turn_id must not be empty")
         external_turn_id = external_turn_id.strip()
+        if dice_mode not in {"automatic", "manual"}:
+            raise DurableNativeTurnError("dice_mode must be automatic or manual")
         if len(external_turn_id) > 500:
             raise DurableNativeTurnError("external_turn_id must not exceed 500 characters")
 
         def prepare():
+            effective_dice_mode = dice_mode
             existing_resolution = self.resolution_repository.get_by_idempotency_key(
                 "sillytavern", external_turn_id, scope=self.scope
             )
+            if existing_resolution is not None:
+                persisted_state = json.loads(existing_resolution.adjudication_json or "{}")
+                persisted_dice_mode = persisted_state.get("dice_mode")
+                if persisted_dice_mode in {"automatic", "manual"}:
+                    effective_dice_mode = persisted_dice_mode
+                elif isinstance(persisted_state.get("manual_roll"), dict):
+                    effective_dice_mode = "manual"
             active_turn = self.turn_repository.get_active_by_external_turn_id(
                 external_turn_id, scope=self.scope
             )
@@ -346,7 +359,20 @@ class DurableNativeTurnService:
                 idempotency_key=external_turn_id,
                 adapter_namespace="sillytavern",
                 defer_narration=True,
+                dice_mode=effective_dice_mode,
             )
+            if isinstance(result, TurnResolutionResult) and result.pending_roll_id:
+                record = self.resolution_repository.get_by_idempotency_key(
+                    "sillytavern", external_turn_id, scope=self.scope
+                )
+                return DurableTurnPreparation(
+                    resolution_id=record.id if record is not None else None,
+                    lifecycle_state="awaiting_input",
+                    player_input=result.player_input,
+                    committed_resolution=json.dumps({"manual_roll_required": True}),
+                    pending_roll_id=result.pending_roll_id,
+                    pending_roll=result.pending_roll,
+                )
             if isinstance(result, TurnResolutionResult):
                 question = result.narrative
                 record = self.resolution_repository.get_by_idempotency_key(
@@ -502,7 +528,7 @@ class DurableNativeTurnService:
                     )
                     if turn is None:
                         raise DurableNativeTurnError("completed resolution has no transcript")
-                    return self._result_from_completed_record(record, turn, already_processed=True)
+                    return self._preparation_from_record(record) if defer_narration else self._result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "awaiting_input":
                     pending = json.loads(record.adjudication_json or "{}")
                     if pending.get("manual_roll"):
@@ -596,7 +622,7 @@ class DurableNativeTurnService:
                             expected_state="planning", expected_lease_token=lease_token,
                             updates={
                                 "context_revision": revision,
-                                "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True),
+                                "adjudication_json": json.dumps({"manual_roll": pending, "dice_mode": dice_mode}, separators=(",", ":"), sort_keys=True),
                                 "lease_token": None, "lease_expires_at": None,
                             }, conn=conn,
                         )
@@ -619,7 +645,7 @@ class DurableNativeTurnService:
                             updates={
                                 "context_revision": revision,
                                 "adjudication_json": json.dumps(
-                                    {"clarification": pending},
+                                    {"clarification": pending, "dice_mode": dice_mode},
                                     ensure_ascii=False,
                                     separators=(",", ":"),
                                     sort_keys=True,
@@ -645,8 +671,11 @@ class DurableNativeTurnService:
                             "context_revision": revision,
                             "proposal_json": proposal_json,
                             "adjudication_json": json.dumps(
-                                {"decision": plan.mechanics_decision.decision.value}
-                                if plan.mechanics_decision else {},
+                                {
+                                    "decision": plan.mechanics_decision.decision.value,
+                                    "dice_mode": dice_mode,
+                                }
+                                if plan.mechanics_decision else {"dice_mode": dice_mode},
                                 separators=(",", ":"),
                             ),
                             "mechanics_json": mechanics_json,
@@ -921,8 +950,32 @@ class DurableNativeTurnService:
                     context,
                     clarified_input,
                     recent_turns=recent,
+                    manual_mode=(pending_state.get("dice_mode") == "manual"),
                     proposal_from_intent=True,
                 )
+                if plan.awaiting_manual_roll:
+                    manual_pending = self._build_manual_roll_request(
+                        record, plan.mechanics_decision, context, revision
+                    )
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id, "awaiting_input", scope=self.scope,
+                            expected_state="planning", expected_lease_token=token,
+                            updates={
+                                "context_revision": revision,
+                                "adjudication_json": json.dumps({
+                                    "manual_roll": manual_pending,
+                                    "dice_mode": "manual",
+                                    "clarification_history": history,
+                                    "last_challenge_id": challenge_id,
+                                    "last_answer": answer,
+                                    "last_answer_external_turn_id": answer_external_turn_id,
+                                }, separators=(",", ":"), sort_keys=True),
+                                "lease_token": None, "lease_expires_at": None,
+                            }, conn=conn,
+                        )
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._manual_roll_result(saved, manual_pending)
                 if plan.clarification_question is not None:
                     next_pending = {
                         "challenge_id": secrets.token_urlsafe(24),
@@ -942,6 +995,7 @@ class DurableNativeTurnService:
                                 "adjudication_json": json.dumps(
                                     {
                                         "clarification": next_pending,
+                                        "dice_mode": pending_state.get("dice_mode", "automatic"),
                                         "clarification_history": history,
                                         "last_challenge_id": challenge_id,
                                         "last_answer": answer,
@@ -978,6 +1032,7 @@ class DurableNativeTurnService:
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,
+                                    "dice_mode": pending_state.get("dice_mode", "automatic"),
                                     "resolved_player_input": clarified_input,
                                     "last_challenge_id": challenge_id,
                                     "last_answer": answer,
@@ -1195,7 +1250,54 @@ class DurableNativeTurnService:
                 "situational_modifier": decision.situational_modifier, "reason": decision.reason, "question": decision.question},
         }
 
-    def submit_manual_roll(self, pending_roll_id: str, rolls: tuple[int, ...]):
+    def get_external_manual_roll_state(self, external_turn_id: str) -> dict:
+        if not isinstance(external_turn_id, str) or not external_turn_id.strip():
+            raise DurableNativeTurnError("external_turn_id must not be empty")
+        external_turn_id = external_turn_id.strip()
+        record = self.resolution_repository.get_by_idempotency_key(
+            "sillytavern", external_turn_id, scope=self.scope
+        )
+        if record is None:
+            return {"external_turn_id": external_turn_id, "has_manual_roll": False}
+        state = json.loads(record.adjudication_json or "{}")
+        pending = state.get("manual_roll")
+        submitted_external_turn_id = (
+            pending.get("submitted_external_turn_id")
+            if isinstance(pending, dict)
+            else None
+        )
+        active = isinstance(pending, dict) and (
+            record.lifecycle_state in {"awaiting_input", "planning", "prepared", "committed", "narration_pending"}
+            or (
+                record.lifecycle_state == "completed"
+                and isinstance(submitted_external_turn_id, str)
+                and bool(submitted_external_turn_id)
+            )
+        )
+        return {
+            "external_turn_id": external_turn_id,
+            "has_manual_roll": active,
+            "lifecycle_state": record.lifecycle_state,
+            "player_input": record.player_input,
+            "submitted_external_turn_id": submitted_external_turn_id if active else None,
+            "pending_roll_id": str(record.id) + ":" + pending["challenge_id"] if active else None,
+            "pending_roll": ({key: value for key, value in pending.items() if key not in {"challenge_id", "decision", "submitted_rolls", "submitted_external_turn_id"}} if active else None),
+        }
+
+    def submit_manual_roll(
+        self, pending_roll_id: str, rolls: tuple[int, ...], *,
+        adapter_namespace: str | None = None,
+        defer_narration: bool = False,
+        answer_external_turn_id: str | None = None,
+    ):
+        if answer_external_turn_id is not None and (
+            not isinstance(answer_external_turn_id, str)
+            or not answer_external_turn_id.strip()
+            or len(answer_external_turn_id.strip()) > 500
+        ):
+            raise DurableNativeTurnError("answer_external_turn_id must contain 1-500 characters")
+        if answer_external_turn_id is not None:
+            answer_external_turn_id = answer_external_turn_id.strip()
         if not isinstance(pending_roll_id, str) or ":" not in pending_roll_id:
             raise DurableNativeTurnError("pending_roll_id is invalid")
         if not isinstance(rolls, tuple) or not rolls or len(rolls) > 2 or any(isinstance(v, bool) or not isinstance(v, int) or v < 1 or v > 20 for v in rolls):
@@ -1207,6 +1309,8 @@ class DurableNativeTurnService:
             record = self.resolution_repository.get(int(raw_id), scope=self.scope)
             if record is None:
                 raise DurableNativeTurnError("manual roll request not found")
+            if adapter_namespace is not None and record.adapter_namespace != adapter_namespace:
+                raise DurableNativeTurnError("manual roll challenge belongs to a different adapter")
             state = json.loads(record.adjudication_json or "{}")
             pending = state.get("manual_roll")
             if not pending or not secrets.compare_digest(pending.get("challenge_id", ""), challenge_id):
@@ -1215,8 +1319,17 @@ class DurableNativeTurnService:
             if accepted is not None:
                 if list(rolls) != accepted:
                     raise DurableNativeTurnError("manual roll challenge was already submitted with different results")
+                accepted_external_turn_id = pending.get("submitted_external_turn_id")
+                if (
+                    accepted_external_turn_id is not None
+                    and answer_external_turn_id is not None
+                    and not secrets.compare_digest(str(accepted_external_turn_id), answer_external_turn_id)
+                ):
+                    raise DurableNativeTurnError(
+                        "manual roll challenge was already submitted by a different chat message"
+                    )
                 if record.lifecycle_state in {"narration_pending", "committed"}:
-                    return self._resume_narration(record, already_processed=True)
+                    return self._preparation_from_record(record) if defer_narration else self._resume_narration(record, already_processed=True)
                 if record.lifecycle_state == "completed":
                     turn = self.turn_repository.get_turn(record.turn_id, scope=self.scope)
                     return self._result_from_completed_record(record, turn, already_processed=True)
@@ -1239,7 +1352,7 @@ class DurableNativeTurnService:
                         self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
                         self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
                     saved = self.resolution_repository.get(record.id, scope=self.scope)
-                    return self._resume_narration(saved, already_processed=True)
+                    return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=True)
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise DurableNativeTurnError("manual roll challenge is no longer pending")
             with transaction("DEFERRED") as conn:
@@ -1284,6 +1397,8 @@ class DurableNativeTurnService:
             if plan.awaiting_manual_roll or plan.clarification_question:
                 raise DurableNativeTurnError("manual roll could not be resolved")
             pending["submitted_rolls"] = list(rolls)
+            if answer_external_turn_id is not None:
+                pending["submitted_external_turn_id"] = answer_external_turn_id
             with transaction("IMMEDIATE") as conn:
                 self.resolution_repository.transition(record.id, "prepared", scope=self.scope, expected_state="planning", expected_lease_token=token, updates={"proposal_json": self._serialize_operations(plan), "mechanics_json": self._mechanics_to_json(plan.mechanics_result), "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True), "lease_token": None, "lease_expires_at": None}, conn=conn)
             with transaction("IMMEDIATE") as conn:
@@ -1298,7 +1413,7 @@ class DurableNativeTurnService:
                 self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
                 self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
             saved = self.resolution_repository.get(record.id, scope=self.scope)
-            return self._resume_narration(saved, already_processed=False)
+            return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=False)
         if self.turn_execution_lock is None:
             return submit()
         with self.turn_execution_lock.acquire():
@@ -1331,8 +1446,17 @@ class DurableNativeTurnService:
     ) -> DurableTurnPreparation:
         question = None
         clarification = None
+        pending_roll_id = None
+        pending_roll = None
         if record.lifecycle_state == "awaiting_input":
             pending = json.loads(record.adjudication_json or "{}")
+            manual_roll = pending.get("manual_roll")
+            if isinstance(manual_roll, dict):
+                pending_roll_id = str(record.id) + ":" + manual_roll["challenge_id"]
+                pending_roll = {
+                    key: value for key, value in manual_roll.items()
+                    if key not in {"challenge_id", "decision", "submitted_rolls"}
+                }
             clarification = pending.get("clarification")
             question = (
                 clarification.get("question")
@@ -1350,6 +1474,8 @@ class DurableNativeTurnService:
                 if isinstance(clarification, dict)
                 else None
             ),
+            pending_roll_id=pending_roll_id,
+            pending_roll=pending_roll,
         )
 
     def complete_external_narration(

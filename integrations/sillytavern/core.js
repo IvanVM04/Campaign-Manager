@@ -450,3 +450,68 @@ export class TurnState {
         this.nextTurnVersions.clear();
     }
 }
+
+export function parseManualRollResults(answer, expectedCount) {
+    if (typeof answer !== 'string' || !Number.isInteger(expectedCount) || expectedCount < 1 || expectedCount > 2) {
+        return null;
+    }
+    const tokens = answer.trim().split(/[,;]/).map((value) => value.trim());
+    if (tokens.length !== expectedCount || tokens.some((value) => !/^\d{1,2}$/.test(value))) {
+        return null;
+    }
+    const rolls = tokens.map(Number);
+    if (rolls.some((value) => value < 1 || value > 20)) {
+        return null;
+    }
+    return rolls;
+}
+
+
+export async function findManualRollOrigin(
+    chatMessages,
+    playerMessage,
+    currentAnswer,
+    createTurnId,
+    getManualRollState,
+) {
+    if (
+        !Array.isArray(chatMessages) ||
+        typeof createTurnId !== 'function' ||
+        typeof getManualRollState !== 'function' ||
+        typeof currentAnswer !== 'string' ||
+        !currentAnswer.trim()
+    ) {
+        return null;
+    }
+    const currentIndex = chatMessages.findIndex((message) => message === playerMessage);
+    if (currentIndex < 0) return null;
+    const currentAnswerExternalTurnId = await createTurnId(playerMessage);
+    const earliestIndex = Math.max(0, currentIndex - 24);
+    for (let index = currentIndex - 1; index >= earliestIndex; index -= 1) {
+        const candidate = chatMessages[index];
+        if (!candidate || candidate.is_user !== true || typeof candidate.mes !== 'string' || !candidate.mes.trim()) {
+            continue;
+        }
+        const externalTurnId = await createTurnId(candidate);
+        const state = await getManualRollState(externalTurnId);
+        if (!state?.has_manual_roll || typeof state.pending_roll_id !== 'string') {
+            continue;
+        }
+        if (
+            state.submitted_external_turn_id &&
+            state.submitted_external_turn_id !== currentAnswerExternalTurnId
+        ) {
+            continue;
+        }
+        const submittedRolls = parseManualRollResults(currentAnswer, state.pending_roll?.count);
+        return {
+            externalTurnId,
+            playerInput: state.player_input || candidate.mes.trim(),
+            pendingRollId: state.pending_roll_id,
+            rolls: submittedRolls,
+            invalid: !submittedRolls,
+            state,
+        };
+    }
+    return null;
+}

@@ -646,3 +646,189 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
     )
     assert completed.narrative == "La puerta de roble se abre."
     assert completed.already_processed is False
+
+
+def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
+    from types import SimpleNamespace
+
+    from models.turn_resolution_result import TurnResolutionResult
+
+    service, _, _ = _service_with_fake_models()
+    captured = {}
+    pending = {
+        "count": 2,
+        "dice": "d20",
+        "kind": "skill_check",
+        "skill": "stealth",
+        "ability": "dexterity",
+        "dc": 15,
+        "modifier": 5,
+        "advantage": True,
+        "disadvantage": False,
+    }
+    monkeypatch.setattr(
+        service,
+        "_play_turn_locked",
+        lambda player_input, **kwargs: (
+            captured.update(kwargs)
+            or TurnResolutionResult(
+                player_input=player_input,
+                narrative="",
+                pending_roll_id="42:" + "a" * 24,
+                pending_roll=pending,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda *args, **kwargs: SimpleNamespace(id=42, adjudication_json=None),
+    )
+
+    preparation = service.prepare_external_turn(
+        "Me escondo del guardia.",
+        external_turn_id="st-manual-turn",
+        dice_mode="manual",
+    )
+
+    assert captured["dice_mode"] == "manual"
+    assert captured["defer_narration"] is True
+    assert preparation.lifecycle_state == "awaiting_input"
+    assert preparation.pending_roll_id == "42:" + "a" * 24
+    assert preparation.pending_roll == pending
+
+
+def test_silly_tavern_manual_roll_state_exposes_pending_challenge_without_internal_decision(monkeypatch):
+    from types import SimpleNamespace
+
+    service, _, _ = _service_with_fake_models()
+    pending = {
+        "challenge_id": "secret-challenge",
+        "count": 2,
+        "dice": "d20",
+        "kind": "skill_check",
+        "modifier": 5,
+        "decision": {"dc": 15, "reason": "private adjudication"},
+    }
+    record = SimpleNamespace(
+        id=42,
+        lifecycle_state="awaiting_input",
+        player_input="Me escondo.",
+        adjudication_json=json.dumps({"manual_roll": pending}),
+    )
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda *args, **kwargs: record,
+    )
+
+    state = service.get_external_manual_roll_state("st-manual-turn")
+
+    assert state["has_manual_roll"] is True
+    assert state["pending_roll_id"] == "42:secret-challenge"
+    assert state["pending_roll"] == {
+        "count": 2,
+        "dice": "d20",
+        "kind": "skill_check",
+        "modifier": 5,
+    }
+    assert "decision" not in state["pending_roll"]
+    assert "challenge_id" not in state["pending_roll"]
+
+
+def test_silly_tavern_manual_roll_state_is_scoped_to_sillytavern(monkeypatch):
+    service, _, _ = _service_with_fake_models()
+    captured = {}
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda namespace, key, **kwargs: (
+            captured.update({"namespace": namespace, "key": key})
+            or None
+        ),
+    )
+
+    state = service.get_external_manual_roll_state("st-manual-turn")
+    assert state["has_manual_roll"] is False
+    assert captured == {
+        "namespace": "sillytavern",
+        "key": "st-manual-turn",
+    }
+
+
+def test_silly_tavern_completed_manual_roll_state_is_recoverable_for_same_reply(monkeypatch):
+    from types import SimpleNamespace
+
+    service, _, _ = _service_with_fake_models()
+    pending = {
+        "challenge_id": "secret-challenge",
+        "count": 1,
+        "dice": "d20",
+        "kind": "ability_check",
+        "modifier": 3,
+        "submitted_rolls": [14],
+        "submitted_external_turn_id": "answer-turn",
+    }
+    record = SimpleNamespace(
+        id=42,
+        lifecycle_state="completed",
+        player_input="Me escondo.",
+        adjudication_json=json.dumps({"manual_roll": pending}),
+    )
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda *args, **kwargs: record,
+    )
+
+    state = service.get_external_manual_roll_state("st-manual-turn")
+
+    assert state["has_manual_roll"] is True
+    assert state["submitted_external_turn_id"] == "answer-turn"
+    assert state["pending_roll_id"] == "42:secret-challenge"
+    assert state["pending_roll"]["count"] == 1
+
+
+def test_silly_tavern_turn_retry_uses_persisted_manual_dice_mode(monkeypatch):
+    from types import SimpleNamespace
+
+    from models.turn_resolution_result import TurnResolutionResult
+
+    service, _, _ = _service_with_fake_models()
+    captured = {}
+    record = SimpleNamespace(
+        id=42,
+        adjudication_json=json.dumps({"dice_mode": "manual"}),
+    )
+    pending = {"count": 1, "kind": "ability_check", "modifier": 2}
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda *args, **kwargs: record,
+    )
+    monkeypatch.setattr(
+        service.turn_repository,
+        "get_active_by_external_turn_id",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        service,
+        "_play_turn_locked",
+        lambda player_input, **kwargs: (
+            captured.update(kwargs)
+            or TurnResolutionResult(
+                player_input=player_input,
+                narrative="",
+                pending_roll_id="42:" + "a" * 24,
+                pending_roll=pending,
+            )
+        ),
+    )
+
+    service.prepare_external_turn(
+        "Me escondo.",
+        external_turn_id="st-manual-turn",
+        dice_mode="automatic",
+    )
+
+    assert captured["dice_mode"] == "manual"

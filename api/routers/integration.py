@@ -9,6 +9,7 @@ from api.serializers import serialize_operation_result
 from models.schemas import (
     SillyTavernClarificationIn,
     SillyTavernContextIn,
+    SillyTavernManualRollIn,
     SillyTavernTurnIn,
     SillyTavernTurnResolveIn,
 )
@@ -136,6 +137,7 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
             preparation = runtime.durable_native_turn_service.prepare_external_turn(
                 data.player_input,
                 external_turn_id=data.external_turn_id,
+                dice_mode=data.dice_mode,
             )
             context_result = runtime.silly_tavern_integration_service.get_context(
                 data.query,
@@ -160,7 +162,49 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         "pending_clarification_id": getattr(
             preparation, "pending_clarification_id", None
         ),
+        "pending_roll_id": getattr(preparation, "pending_roll_id", None),
+        "pending_roll": getattr(preparation, "pending_roll", None),
         "legacy_replay": preparation.legacy_replay,
+        "campaign": context_result["campaign"],
+        "session": context_result["session"],
+        "active_character": context_result["active_character"],
+        "context": context_result["context"],
+    }
+
+
+@router.get("/integration/turn/{external_turn_id}/manual-roll")
+def get_silly_tavern_manual_roll_state(external_turn_id: str):
+    runtime = get_current_runtime()
+    try:
+        with runtime.turn_execution_lock.acquire():
+            return runtime.durable_native_turn_service.get_external_manual_roll_state(external_turn_id)
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/integration/turn/roll")
+def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
+    runtime = get_current_runtime()
+    try:
+        with runtime.turn_execution_lock.acquire():
+            preparation = runtime.durable_native_turn_service.submit_manual_roll(
+                data.pending_roll_id, tuple(data.rolls),
+                adapter_namespace="sillytavern", defer_narration=True,
+                answer_external_turn_id=data.answer_external_turn_id,
+            )
+            context_result = runtime.silly_tavern_integration_service.get_context(data.query)
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SillyTavernIntegrationServiceError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="failed to submit SillyTavern manual roll") from exc
+    return {
+        "resolution_id": preparation.resolution_id,
+        "lifecycle_state": preparation.lifecycle_state,
+        "committed_resolution": preparation.committed_resolution,
+        "pending_roll_id": preparation.pending_roll_id,
+        "pending_roll": preparation.pending_roll,
         "campaign": context_result["campaign"],
         "session": context_result["session"],
         "active_character": context_result["active_character"],
@@ -199,6 +243,8 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
         "committed_resolution": preparation.committed_resolution,
         "clarification_question": preparation.clarification_question,
         "pending_clarification_id": preparation.pending_clarification_id,
+        "pending_roll_id": getattr(preparation, "pending_roll_id", None),
+        "pending_roll": getattr(preparation, "pending_roll", None),
         "campaign": context_result["campaign"],
         "session": context_result["session"],
         "active_character": context_result["active_character"],

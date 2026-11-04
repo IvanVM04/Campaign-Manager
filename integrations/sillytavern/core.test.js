@@ -4,6 +4,8 @@ import test from "node:test";
 import {
     buildRetrievalQuery,
     findClarificationOrigin,
+    findManualRollOrigin,
+    parseManualRollResults,
     selectClarificationChallenge,
 } from "./core.js";
 
@@ -322,3 +324,84 @@ test(
         });
     },
 );
+
+
+test("parseManualRollResults validates exactly the requested d20 results", () => {
+    assert.deepEqual(parseManualRollResults("17", 1), [17]);
+    assert.deepEqual(parseManualRollResults("4, 19", 2), [4, 19]);
+    assert.deepEqual(parseManualRollResults("4;19", 2), [4, 19]);
+    assert.equal(parseManualRollResults("0", 1), null);
+    assert.equal(parseManualRollResults("21", 1), null);
+    assert.equal(parseManualRollResults("4, 19", 1), null);
+    assert.equal(parseManualRollResults("4", 2), null);
+    assert.equal(parseManualRollResults("I rolled 17", 1), null);
+});
+
+
+test("findManualRollOrigin recovers the original action and rejects malformed dice input", async () => {
+    const action = { is_user: true, mes: "Me escondo del guardia." };
+    const assistant = { is_user: false, mes: "Lanza dos d20 y dime los resultados." };
+    const answer = { is_user: true, mes: "8, 16" };
+    const chat = [action, assistant, answer];
+    const createTurnId = async (message) => message === action ? "original-turn" : "answer-turn";
+    const getState = async (turnId) => turnId === "original-turn" ? {
+        has_manual_roll: true,
+        pending_roll_id: "42:challenge",
+        player_input: action.mes,
+        pending_roll: { count: 2, modifier: 5 },
+    } : { has_manual_roll: false };
+
+    const origin = await findManualRollOrigin(chat, answer, answer.mes, createTurnId, getState);
+    assert.equal(origin.externalTurnId, "original-turn");
+    assert.equal(origin.pendingRollId, "42:challenge");
+    assert.deepEqual(origin.rolls, [8, 16]);
+    assert.equal(origin.invalid, false);
+
+    const invalid = await findManualRollOrigin(chat, answer, "8", createTurnId, getState);
+    assert.equal(invalid.invalid, true);
+    assert.equal(invalid.pendingRollId, "42:challenge");
+});
+
+
+test("findManualRollOrigin does not associate arbitrary replies without a pending challenge", async () => {
+    const action = { is_user: true, mes: "Abro la puerta." };
+    const answer = { is_user: true, mes: "12" };
+    const chat = [action, answer];
+    const origin = await findManualRollOrigin(
+        chat,
+        answer,
+        answer.mes,
+        async () => "turn-id",
+        async () => ({ has_manual_roll: false }),
+    );
+    assert.equal(origin, null);
+});
+
+
+test("findManualRollOrigin recovers a completed manual roll only for the original dice reply", async () => {
+    const action = { is_user: true, mes: "Me escondo." };
+    const answer = { is_user: true, mes: "14" };
+    const chat = [action, { is_user: false, mes: "Lanza un d20." }, answer];
+    const getState = async () => ({
+        has_manual_roll: true,
+        lifecycle_state: "completed",
+        pending_roll_id: "42:challenge",
+        submitted_external_turn_id: "answer-turn",
+        player_input: action.mes,
+        pending_roll: { count: 1, modifier: 3 },
+    });
+    const createTurnId = async (message) => message === answer ? "answer-turn" : "action-turn";
+
+    const retry = await findManualRollOrigin(chat, answer, answer.mes, createTurnId, getState);
+    assert.equal(retry.externalTurnId, "action-turn");
+    assert.deepEqual(retry.rolls, [14]);
+
+    const unrelatedReply = await findManualRollOrigin(
+        chat,
+        answer,
+        answer.mes,
+        async (message) => message === answer ? "different-answer-turn" : "action-turn",
+        getState,
+    );
+    assert.equal(unrelatedReply, null);
+});
