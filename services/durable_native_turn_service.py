@@ -4,20 +4,22 @@ import hashlib
 import json
 import secrets
 from dataclasses import fields, is_dataclass, replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 
 from database import transaction
 from models.campaign_scope import CampaignScope
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
+from models.operation_result import OperationResult, OperationStatus
 from models.turn_resolution_result import TurnResolutionResult
 from operations.character_operations import CharacterOperation
-from models.operation_result import OperationResult, OperationStatus
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import WorldOperation
-from repositories.campaign_state_version_repository import CampaignStateVersionRepository
+from repositories.campaign_state_version_repository import (
+    CampaignStateVersionRepository,
+)
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turn_resolution_service import (
@@ -153,7 +155,11 @@ class DurableNativeTurnService:
     def _mechanics_from_json(payload: str | None):
         if payload is None:
             return None
-        from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
+        from models.mechanics import (
+            MechanicsDecision,
+            MechanicsDecisionType,
+            MechanicsResult,
+        )
         from rules_engine.dnd5e_2014.checks import CheckResult
         from rules_engine.dnd5e_2014.core.abilities import Ability
         from rules_engine.dnd5e_2014.core.dice import D20Roll, RollMode
@@ -260,7 +266,7 @@ class DurableNativeTurnService:
             ensure_ascii=False,
             separators=(",", ":"),
         )
-        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        return hashlib.sha256(raw.encode()).hexdigest()
 
     def play_turn(self, player_input: str, *, idempotency_key: str | None = None):
         if self.turn_execution_lock is None:
@@ -322,9 +328,7 @@ class DurableNativeTurnService:
                         player_input=record.player_input,
                         narrative=question,
                     )
-                if record.lifecycle_state in {"committed", "narration_pending"}:
-                    pass
-                elif record.lifecycle_state in {"accepted", "planning", "prepared"}:
+                if record.lifecycle_state in {"committed", "narration_pending", "accepted", "planning", "prepared"}:
                     pass
                 else:
                     raise DurableNativeTurnError(
@@ -351,7 +355,7 @@ class DurableNativeTurnService:
         lease_token = None
         if not resume_prepared:
             lease_token = secrets.token_urlsafe(24)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             with transaction("IMMEDIATE") as conn:
                 record = self.resolution_repository.claim_for_planning(
                     record.id,
