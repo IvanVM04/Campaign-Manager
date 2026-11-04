@@ -477,8 +477,10 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
     assert completed.narrative == "El personaje observa su entorno."
     assert calls == [
         "Abro una puerta.",
-        "Abro una puerta.\n\nAclaración del DM: ¿Qué puerta quieres abrir?"
-        "\nRespuesta del jugador: La puerta de roble.",
+        (
+            "Abro una puerta.\\n\\nAclaración del DM: ¿Qué puerta quieres abrir?"
+            "\\nRespuesta del jugador: La puerta de roble."
+        ),
     ]
     repeated = service.submit_clarification(
         pending.pending_clarification_id,
