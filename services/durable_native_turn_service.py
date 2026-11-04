@@ -1105,6 +1105,7 @@ class DurableNativeTurnService:
         record: TurnResolutionRecord,
     ) -> DurableTurnPreparation:
         question = None
+        clarification = None
         if record.lifecycle_state == "awaiting_input":
             pending = json.loads(record.adjudication_json or "{}")
             clarification = pending.get("clarification")
