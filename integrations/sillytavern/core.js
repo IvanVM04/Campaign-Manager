@@ -57,6 +57,48 @@ export function buildStableTurnIdentityInput(
 }
 
 
+export function selectClarificationChallenge(
+    clarificationState,
+    answer,
+) {
+    if (
+        !clarificationState ||
+        typeof clarificationState !== 'object' ||
+        typeof answer !== 'string' ||
+        !answer.trim() ||
+        clarificationState.has_clarification !== true
+    ) {
+        return null;
+    }
+
+    if (
+        clarificationState.last_answer === answer.trim() &&
+        typeof clarificationState.last_pending_clarification_id === 'string' &&
+        clarificationState.last_pending_clarification_id
+    ) {
+        return {
+            pendingClarificationId:
+                clarificationState.last_pending_clarification_id,
+            retry: true,
+        };
+    }
+
+    if (
+        clarificationState.lifecycle_state === 'awaiting_input' &&
+        typeof clarificationState.pending_clarification_id === 'string' &&
+        clarificationState.pending_clarification_id
+    ) {
+        return {
+            pendingClarificationId:
+                clarificationState.pending_clarification_id,
+            retry: false,
+        };
+    }
+
+    return null;
+}
+
+
 export class TurnState {
     constructor() {
         this.turnVersions =
