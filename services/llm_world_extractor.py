@@ -120,7 +120,7 @@ class LLMWorldExtractor:
         dynamic_marker = "CONTEXTO ACTUAL DEL MUNDO"
         if dynamic_marker not in legacy_context:
             raise LLMExtractionError("failed to build structured world context")
-        dynamic_context = legacy_context.split(dynamic_marker, 1)[1]
+        dynamic_context = legacy_context.rsplit(dynamic_marker, 1)[1]
         dynamic_context = dynamic_context.replace(
             "NARRATIVA A ANALIZAR", "INTENCIÓN DEL JUGADOR"
         )
