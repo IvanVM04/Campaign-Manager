@@ -171,7 +171,26 @@ class CombatEncounterService:
         manual_rolls: dict[str, int] | None = None,
         initiative_order: tuple[str, ...] | None = None,
     ):
-        with get_conn() as conn:
+        """Start an encounter and preserve the historical encounter-only return."""
+        return self.start_with_events(
+            campaign_id,
+            encounter_id,
+            dice_mode=dice_mode,
+            manual_rolls=manual_rolls,
+            initiative_order=initiative_order,
+        )["encounter"]
+
+    def start_with_events(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        dice_mode: str = "automatic",
+        manual_rolls: dict[str, int] | None = None,
+        initiative_order: tuple[str, ...] | None = None,
+    ) -> dict:
+        """Start initiative and resolve start-of-turn events atomically."""
+        with transaction("IMMEDIATE") as conn:
             conn.execute("BEGIN IMMEDIATE")
             encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
             if encounter.status is not EncounterStatus.PREPARING:
@@ -214,7 +233,9 @@ class CombatEncounterService:
                     )
                 )
             encounter.start(tuple(initiative_order))
-            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+            event = self._resolve_turn_start_death_save(encounter, campaign_id, conn)
+            saved = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+            return {"encounter": saved, **event}
 
     def advance_turn(
         self,
