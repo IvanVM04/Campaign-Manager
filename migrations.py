@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 21
+CURRENT_VERSION = 22
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1159,6 +1159,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 21")
         version = 21
 
+    if version < 22:
+        migration_022(conn)
+        conn.execute("PRAGMA user_version = 22")
+        version = 22
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1589,4 +1594,133 @@ def migration_021(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_021")
         conn.execute("RELEASE SAVEPOINT migration_021")
+        raise
+
+
+def migration_022(conn: sqlite3.Connection) -> None:
+    """Persist recoverable turn-resolution attempts separately from turn history."""
+    conn.execute("SAVEPOINT migration_022")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS turn_resolutions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL,
+                session_id INTEGER,
+                turn_id INTEGER,
+                player_input TEXT NOT NULL CHECK (length(trim(player_input)) > 0),
+                adapter_namespace TEXT NOT NULL CHECK (
+                    length(trim(adapter_namespace)) BETWEEN 1 AND 100
+                ),
+                idempotency_key TEXT NOT NULL CHECK (
+                    length(trim(idempotency_key)) BETWEEN 1 AND 500
+                ),
+                request_fingerprint TEXT NOT NULL CHECK (
+                    length(trim(request_fingerprint)) BETWEEN 1 AND 128
+                ),
+                lifecycle_state TEXT NOT NULL DEFAULT 'accepted'
+                    CHECK (lifecycle_state IN (
+                        'accepted', 'planning', 'awaiting_input', 'prepared',
+                        'committed', 'narration_pending', 'completed', 'rejected'
+                    )),
+                context_revision INTEGER CHECK (
+                    context_revision IS NULL OR context_revision >= 1
+                ),
+                proposal_json TEXT,
+                adjudication_json TEXT,
+                mechanics_json TEXT,
+                operation_results_json TEXT,
+                narrative TEXT,
+                attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+                lease_token TEXT,
+                lease_expires_at TEXT,
+                last_error_code TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                committed_at TEXT,
+                completed_at TEXT,
+                CHECK (
+                    (lease_token IS NULL AND lease_expires_at IS NULL)
+                    OR (lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
+                ),
+                UNIQUE (campaign_id, adapter_namespace, idempotency_key),
+                FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE,
+                FOREIGN KEY (turn_id) REFERENCES turns(id) ON DELETE SET NULL
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_turn_resolutions_campaign_state
+            ON turn_resolutions(campaign_id, lifecycle_state, created_at)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_turn_resolutions_expired_lease
+            ON turn_resolutions(lifecycle_state, lease_expires_at)
+            WHERE lifecycle_state = 'planning'
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_identity_immutable
+            BEFORE UPDATE OF campaign_id, adapter_namespace, idempotency_key,
+                request_fingerprint, player_input ON turn_resolutions
+            FOR EACH ROW
+            WHEN NEW.campaign_id != OLD.campaign_id
+              OR NEW.adapter_namespace != OLD.adapter_namespace
+              OR NEW.idempotency_key != OLD.idempotency_key
+              OR NEW.request_fingerprint != OLD.request_fingerprint
+              OR NEW.player_input != OLD.player_input
+            BEGIN
+                SELECT RAISE(ABORT, 'turn resolution request identity is immutable');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_transition_guard
+            BEFORE UPDATE OF lifecycle_state ON turn_resolutions
+            FOR EACH ROW
+            WHEN NEW.lifecycle_state != OLD.lifecycle_state
+              AND NOT (
+                (OLD.lifecycle_state = 'accepted'
+                    AND NEW.lifecycle_state IN ('planning', 'rejected'))
+                OR (OLD.lifecycle_state = 'planning'
+                    AND NEW.lifecycle_state IN ('accepted', 'awaiting_input', 'prepared', 'rejected'))
+                OR (OLD.lifecycle_state = 'awaiting_input'
+                    AND NEW.lifecycle_state IN ('planning', 'rejected'))
+                OR (OLD.lifecycle_state = 'prepared'
+                    AND NEW.lifecycle_state IN ('committed', 'rejected'))
+                OR (OLD.lifecycle_state = 'committed'
+                    AND NEW.lifecycle_state = 'narration_pending')
+                OR (OLD.lifecycle_state = 'narration_pending'
+                    AND NEW.lifecycle_state = 'completed')
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'invalid turn resolution lifecycle transition');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_turn_campaign
+            BEFORE INSERT ON turn_resolutions
+            FOR EACH ROW
+            WHEN NEW.turn_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM turns
+                WHERE id = NEW.turn_id AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'turn resolution turn must belong to same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_turn_campaign_update
+            BEFORE UPDATE OF turn_id ON turn_resolutions
+            FOR EACH ROW
+            WHEN NEW.turn_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM turns
+                WHERE id = NEW.turn_id AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'turn resolution turn must belong to same campaign');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_022")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_022")
+        conn.execute("RELEASE SAVEPOINT migration_022")
         raise
