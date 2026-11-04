@@ -156,7 +156,7 @@ def test_transition_rejects_skipping_commit_or_replaying_state(isolated_database
         sqlite3.IntegrityError, match="invalid"
     ):
         conn.execute(
-                "UPDATE turn_resolutions SET lifecycle_state='committed' WHERE id=?",
+                "UPDATE turn_resolutions SET lifecycle_state='committed', committed_at='2026-11-04T00:01:00Z', resulting_revision=2 WHERE id=?",
                 (created.id,),
             )
 
