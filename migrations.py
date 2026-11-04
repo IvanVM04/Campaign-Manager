@@ -1505,7 +1505,7 @@ def migration_020(conn: sqlite3.Connection) -> None:
 
 def migration_021(conn: sqlite3.Connection) -> None:
     """Track monotonic revisions for every campaign-scoped state mutation."""
-    conn.execute("BEGIN")
+    conn.execute("SAVEPOINT migration_021")
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS campaign_state_versions (
@@ -1585,7 +1585,8 @@ def migration_021(conn: sqlite3.Connection) -> None:
                     END
                 """)
 
-        conn.commit()
+        conn.execute("RELEASE SAVEPOINT migration_021")
     except Exception:
-        conn.rollback()
+        conn.execute("ROLLBACK TO SAVEPOINT migration_021")
+        conn.execute("RELEASE SAVEPOINT migration_021")
         raise
