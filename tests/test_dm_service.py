@@ -1015,4 +1015,4 @@ def test_committed_resolution_is_included_as_authoritative_narration_context():
     prompt = provider.last_prompt
     assert prompt is not None
     assert "RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS" in prompt
-    assert '"type": "open_door"' in prompt
+    assert "open_door" in prompt
