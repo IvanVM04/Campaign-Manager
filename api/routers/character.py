@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
-from api.runtime_context import character_creation_service, get_current_runtime
+from api.runtime_context import (
+    character_creation_service,
+    get_current_runtime,
+)
 from models.schemas import CharacterCreate
 
 
