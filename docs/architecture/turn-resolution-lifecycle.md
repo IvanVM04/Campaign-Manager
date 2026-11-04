@@ -2,7 +2,7 @@
 
 **Status:** Proposed architecture contract (PR #28)
 **Scope:** Native campaign turns and external adapters, including SillyTavern
-**Implementation:** PRs #29-#30 (native automatic turns); adapter and manual-input continuation remain follow-ups
+**Implementation:** PRs #29-#31 (native automatic turns and SillyTavern adapter); manual-input continuation remains a follow-up
 
 ## 1. Purpose
 
