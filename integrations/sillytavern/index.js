@@ -15,7 +15,6 @@ import {
     buildStableTurnIdentityInput,
     findClarificationOrigin,
     findManualRollOrigin,
-    parseManualRollResults,
     TurnState,
 } from "./core.js";
 
