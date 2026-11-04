@@ -13,7 +13,7 @@ The `turns` table is a completed/history-oriented transcript with required narra
 - Campaign and optional session / historical turn references.
 - Normalized player input, adapter namespace, idempotency key, and request fingerprint.
 - Lifecycle state: accepted, planning, awaiting_input, prepared, committed, narration_pending, completed, rejected.
-- Context revision and JSON payload slots for proposal, adjudication, mechanics, and operation outcomes.
+- Context revision and resulting revision, plus JSON payload slots for proposal, adjudication, mechanics, and operation outcomes.
 - Optional narrative, attempt count, lease token/expiry, safe error category, and lifecycle timestamps.
 
 Uniqueness is enforced by `(campaign_id, adapter_namespace, idempotency_key)`. The fingerprint is immutable with the request identity; callers must compare it on duplicate lookup and return a conflict when it differs.
@@ -29,12 +29,14 @@ Uniqueness is enforced by `(campaign_id, adapter_namespace, idempotency_key)`. T
 
 ## Important limitations
 
-This PR establishes persistence primitives only. It deliberately does not:
+Migration 023 adds `resulting_revision`; native automatic turns now populate it in the same transaction as consequence commit and lifecycle transition. Narration is generated after that transaction and completion stores the transcript and final narrative atomically.
+
+The persistence layer deliberately does not:
 - create resolution records from native or SillyTavern requests;
 - change current turn application, narrative generation, or retry semantics;
 - persist manual-roll payloads or clarification answers yet;
 - add a recovery worker or public API;
-- claim exactly-once execution before PR30 wires the commit transaction to these records.
+- promise exactly-once execution across external providers; native request idempotency and atomic consequence commit prevent duplicate domain application, while narration is safely retryable.
 
 The repository's `transition` method expects the caller's transaction connection. The caller must use `BEGIN IMMEDIATE` for claims/transitions that coordinate state mutation. The `turns` transcript should be linked only when its historical record is created in the same transaction as the corresponding committed resolution.
 
