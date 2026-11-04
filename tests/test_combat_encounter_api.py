@@ -610,7 +610,11 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
     goblin_id = next(key for key in created.json()["combatants"] if key != hero_id)
     started = client.post(
         "/encounters/reaction-economy/start",
-        json={"initiative_order": [hero_id, goblin_id]},
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {hero_id: 18, goblin_id: 10},
+            "initiative_order": [hero_id, goblin_id],
+        },
     )
     assert started.status_code == 200, started.text
 
