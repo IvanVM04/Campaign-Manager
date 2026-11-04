@@ -492,7 +492,8 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
 
     saved = TurnResolutionRepository().get(record.id, scope=service.scope)
     assert saved.lifecycle_state == "completed"
-    assert "La puerta de roble." in saved.player_input
+    assert saved.player_input == "Abro una puerta."
+    assert "La puerta de roble." in service._resolved_player_input(saved)
     assert json.loads(saved.adjudication_json)["clarification_history"] == [
         {
             "question": "¿Qué puerta quieres abrir?",
