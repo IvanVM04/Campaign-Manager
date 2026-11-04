@@ -146,6 +146,7 @@ class TurnResolutionService:
         manual_mode: bool = False,
         manual_rolls: tuple[int, ...] | None = None,
         decision_override: MechanicsDecision | None = None,
+        proposal_from_intent: bool = False,
     ) -> TurnResolutionPlan:
         """
         Generate narrative and extract a validated operation plan.
@@ -289,45 +290,58 @@ class TurnResolutionService:
                 )
                 mechanics_result = MechanicsResult(decision, check)
 
-        try:
-            if recent_turns is None:
-                if mechanics_result is None:
-                    narrative = self.dm_service.generate(context, normalized_input)
-                else:
-                    narrative = self.dm_service.generate(
-                        context, normalized_input, mechanics_result=mechanics_result
-                    )
-            else:
-                if mechanics_result is None:
-                    narrative = self.dm_service.generate(
-                        context, normalized_input, recent_turns=recent_turns
-                    )
-                else:
-                    narrative = self.dm_service.generate(
-                        context, normalized_input, recent_turns=recent_turns,
-                        mechanics_result=mechanics_result,
-                    )
-        except Exception as exc:
-            raise TurnResolutionServiceError(
-                "DMService failed to generate the turn"
-            ) from exc
+        if not isinstance(proposal_from_intent, bool):
+            raise TypeError("proposal_from_intent must be a boolean")
 
-        if not isinstance(narrative, str):
-            raise TurnResolutionServiceError(
-                "DMService returned a non-string narrative"
-            )
-        narrative = narrative.strip()
-        if not narrative:
-            raise TurnResolutionServiceError(
-                "DMService returned an empty narrative"
-            )
+        if proposal_from_intent:
+            try:
+                operations = self.extractor.propose(normalized_input, context)
+            except Exception as exc:
+                raise TurnResolutionServiceError(
+                    "LLMWorldExtractor failed to propose consequences"
+                ) from exc
+            narrative = ""
+        else:
+            try:
+                if recent_turns is None:
+                    if mechanics_result is None:
+                        narrative = self.dm_service.generate(context, normalized_input)
+                    else:
+                        narrative = self.dm_service.generate(
+                            context, normalized_input, mechanics_result=mechanics_result
+                        )
+                else:
+                    if mechanics_result is None:
+                        narrative = self.dm_service.generate(
+                            context, normalized_input, recent_turns=recent_turns
+                        )
+                    else:
+                        narrative = self.dm_service.generate(
+                            context, normalized_input, recent_turns=recent_turns,
+                            mechanics_result=mechanics_result,
+                        )
+            except Exception as exc:
+                raise TurnResolutionServiceError(
+                    "DMService failed to generate the turn"
+                ) from exc
 
-        try:
-            operations = self.extractor.extract(narrative, context)
-        except Exception as exc:
-            raise TurnResolutionServiceError(
-                "LLMWorldExtractor failed to extract operations"
-            ) from exc
+            if not isinstance(narrative, str):
+                raise TurnResolutionServiceError(
+                    "DMService returned a non-string narrative"
+                )
+            narrative = narrative.strip()
+            if not narrative:
+                raise TurnResolutionServiceError(
+                    "DMService returned an empty narrative"
+                )
+
+            try:
+                operations = self.extractor.extract(narrative, context)
+            except Exception as exc:
+                raise TurnResolutionServiceError(
+                    "LLMWorldExtractor failed to extract operations"
+                ) from exc
+
 
         if not isinstance(operations, list):
             raise TurnResolutionServiceError(
@@ -379,6 +393,27 @@ class TurnResolutionService:
             mechanics_result=mechanics_result,
             mechanics_decision=decision,
         )
+
+    def generate_narrative(
+        self,
+        turn_context: TurnContext,
+        player_input: str,
+        *,
+        recent_turns=None,
+        mechanics_result: MechanicsResult | None = None,
+    ) -> str:
+        """Generate presentation prose after the consequence commit."""
+        try:
+            return self.dm_service.generate(
+                turn_context,
+                player_input,
+                recent_turns=recent_turns,
+                mechanics_result=mechanics_result,
+            ).strip()
+        except Exception as exc:
+            raise TurnResolutionServiceError(
+                "DMService failed to narrate committed turn"
+            ) from exc
 
     def apply_plan(
         self,
