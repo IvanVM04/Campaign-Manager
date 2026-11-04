@@ -13,6 +13,7 @@ from models.schemas import (
 )
 from services.durable_native_turn_service import DurableNativeTurnError
 from services.silly_tavern_integration_service import (
+    SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
 )
 
@@ -144,8 +145,52 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
 
 
 @router.post("/integration/turn")
-@router.post("/integration/turn/complete")
 def process_silly_tavern_turn(data: SillyTavernTurnIn):
+    """Compatibility endpoint for pre-PR31 SillyTavern extensions.
+
+    New clients must resolve consequences before generation and use
+    /integration/turn/complete only to persist the resulting narration.
+    """
+    try:
+        result = silly_tavern_integration_service.process_turn(
+            player_input=data.player_input,
+            narrative=data.narrative,
+            external_turn_id=data.external_turn_id,
+            turn_version=data.turn_version,
+        )
+    except SillyTavernIntegrationServiceConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except SillyTavernIntegrationServiceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to process legacy SillyTavern turn",
+        ) from exc
+
+    return {
+        "narrative": result.narrative,
+        "player_input": result.player_input,
+        "external_turn_id": data.external_turn_id,
+        "turn_version": data.turn_version,
+        "operation_count": result.operation_count,
+        "successful_operation_count": result.successful_operation_count,
+        "failed_operation_count": result.failed_operation_count,
+        "all_operations_succeeded": result.all_operations_succeeded,
+        "world_changed": result.world_changed,
+        "operations": [
+            type(operation).__name__
+            for operation in result.operations + result.character_operations
+        ],
+        "operation_results": [
+            serialize_operation_result(item)
+            for item in result.operation_results
+        ],
+    }
+
+
+@router.post("/integration/turn/complete")
+def complete_silly_tavern_turn(data: SillyTavernTurnIn):
     """Persist an external narrative against an already committed resolution."""
     runtime = get_current_runtime()
     try:
