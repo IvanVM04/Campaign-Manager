@@ -99,3 +99,20 @@ class EncounterAttackIn(BaseModel):
         if self.manual_damage_rolls is not None and any(value < 1 for value in self.manual_damage_rolls):
             raise ValueError("manual damage rolls must be positive")
         return self
+
+
+class DeathSavingThrowIn(BaseModel):
+    """One death saving throw for the active player character."""
+
+    expected_round: StrictInt = Field(..., ge=1)
+    expected_turn_index: StrictInt = Field(..., ge=0)
+    dice_mode: Literal["automatic", "manual"] = "automatic"
+    manual_roll: StrictInt | None = Field(default=None, ge=1, le=20)
+
+    @model_validator(mode="after")
+    def validate_dice_mode(self):
+        if self.dice_mode == "automatic" and self.manual_roll is not None:
+            raise ValueError("manual_roll can only be supplied in manual mode")
+        if self.dice_mode == "manual" and self.manual_roll is None:
+            raise ValueError("manual mode requires one d20 result")
+        return self
