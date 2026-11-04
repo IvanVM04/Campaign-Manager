@@ -722,7 +722,27 @@ class DurableNativeTurnService:
                 if record.lifecycle_state == "completed":
                     turn = self.turn_repository.get_turn(record.turn_id, scope=self.scope)
                     return self._result_from_completed_record(record, turn, already_processed=True)
-            if record.lifecycle_state != "awaiting_input":
+                if record.lifecycle_state == "prepared":
+                    with transaction("DEFERRED") as conn:
+                        context, recent = self._context_and_history(conn)
+                        revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                    if revision != record.context_revision:
+                        raise DurableNativeTurnError("prepared manual roll became stale before commit")
+                    plan = self._plan_from_record(record)
+                    with transaction("IMMEDIATE") as conn:
+                        current_context, current_recent = self._context_and_history(conn)
+                        current_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                        if current_revision != revision or current_context != context or current_recent != recent:
+                            raise DurableNativeTurnError("campaign context changed while recovering the manual roll")
+                        result = self.resolver.apply_plan(current_context, plan, conn=conn)
+                        if not result.all_operations_succeeded:
+                            raise DurableNativeTurnError("one or more proposed consequences failed validation")
+                        resulting_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
+                        self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
+                        self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._resume_narration(saved, already_processed=True)
+            if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise DurableNativeTurnError("manual roll challenge is no longer pending")
             with transaction("DEFERRED") as conn:
                 context, recent = self._context_and_history(conn)
