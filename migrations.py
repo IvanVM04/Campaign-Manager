@@ -1771,6 +1771,25 @@ def migration_023(conn: sqlite3.Connection) -> None:
                 SELECT RAISE(ABORT, 'committed resolution requires resulting revision');
             END
         """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_committed_evidence_immutable
+            BEFORE UPDATE OF context_revision, resulting_revision, proposal_json,
+                adjudication_json, mechanics_json, operation_results_json
+            ON turn_resolutions
+            FOR EACH ROW
+            WHEN OLD.lifecycle_state IN ('committed', 'narration_pending', 'completed')
+              AND (
+                NEW.context_revision IS NOT OLD.context_revision
+                OR NEW.resulting_revision IS NOT OLD.resulting_revision
+                OR NEW.proposal_json IS NOT OLD.proposal_json
+                OR NEW.adjudication_json IS NOT OLD.adjudication_json
+                OR NEW.mechanics_json IS NOT OLD.mechanics_json
+                OR NEW.operation_results_json IS NOT OLD.operation_results_json
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'committed resolution evidence is immutable');
+            END
+        """)
         conn.execute("RELEASE SAVEPOINT migration_023")
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_023")
