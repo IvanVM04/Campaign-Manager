@@ -15,7 +15,7 @@ from api.runtime_context import (
     world_service,
 )
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -31,29 +31,9 @@ from api.routers.effects import router as effects_router
 from api.routers.clock import router as clock_router
 
 from database import init_db
-from models.campaign_clock_api_schemas import CampaignClockAdvanceIn
-from models.combat_api_schemas import (
-    EncounterAttackIn,
-    EncounterCreateIn,
-    EncounterStartIn,
-    EncounterTurnIn,
-)
-from models.persistent_effect_api_schemas import (
-    PersistentEffectCreateIn,
-    PersistentEffectStatusIn,
-)
-from models.schemas import (
-    CharacterCreate,
-    SillyTavernContextIn,
-    SillyTavernTurnIn,
-)
 from repositories.turn_repository import TurnRepository
-from services.campaign_runtime import CampaignRuntime, CampaignRuntimeFactory
+from services.campaign_runtime import CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
-from services.campaign_turn_service import (
-    CampaignTurnService,
-    CampaignTurnServiceError,
-)
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
@@ -62,10 +42,6 @@ from services.memory_search_service import MemorySearchService
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import (
     OperationParser,
-)
-from services.silly_tavern_integration_service import (
-    SillyTavernIntegrationServiceConflictError,
-    SillyTavernIntegrationServiceError,
 )
 from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import (
@@ -243,17 +219,6 @@ def create_campaign_turn_service(
 # ============================================================
 
 runtime_factory = CampaignRuntimeFactory()
-def _get_active_runtime() -> CampaignRuntime:
-    runtime = _current_runtime.get()
-    if runtime is None:
-        raise RuntimeError(
-            "campaign runtime is only available inside an HTTP request"
-        )
-    return runtime
-
-
-
-
 @app.middleware("http")
 async def bind_campaign_runtime(request: Request, call_next):
     if request.method == "OPTIONS" or request.url.path in {"/", "/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
@@ -588,23 +553,3 @@ app.include_router(system_router)
 app.include_router(campaign_router)
 app.include_router(turns_router)
 app.include_router(memory_router)
-
-
-# ============================================================
-# SERIALIZATION
-# ============================================================
-
-
-def _serialize_operation_result(
-    result,
-):
-    return {
-        "status": result.status.value,
-        "message": result.message,
-        "operation": (
-            type(result.operation).__name__
-            if result.operation is not None
-            else None
-        ),
-    }
-
