@@ -3,7 +3,6 @@ import math
 from models.entity import Entity
 from models.event import Event
 from models.item import Item, ItemInstance
-from rules_engine.dnd5e_2014.armor.catalog import get_armor
 from models.operation_result import (
     OperationResult,
     OperationStatus,
@@ -29,6 +28,7 @@ from operations.world_operations import (
     UpdateRelationOperation,
     WorldOperation,
 )
+from rules_engine.dnd5e_2014.armor.catalog import get_armor
 
 
 class WorldApplier:
