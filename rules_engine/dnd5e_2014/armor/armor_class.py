@@ -13,6 +13,7 @@ class ArmorClassResult:
     dexterity_modifier: int
     dexterity_applied: int
     strength_requirement_met: bool
+    speed_penalty_ft: int
     stealth_disadvantage: bool
 
 
@@ -72,6 +73,7 @@ def derive_armor_class(
         dexterity_modifier=dexterity_modifier,
         dexterity_applied=dexterity_applied,
         strength_requirement_met=strength_met,
+        speed_penalty_ft=10 if not strength_met else 0,
         stealth_disadvantage=stealth_disadvantage,
     )
 
