@@ -80,15 +80,20 @@ def list_character_equipment(character_entity_id: int):
     )
     if character is None:
         raise HTTPException(status_code=404, detail="character does not exist")
+    armor = runtime.weapon_equipment_service.armor_class(
+        character, campaign_id=runtime.campaign_id
+    )
     return {
         "character_entity_id": character_entity_id,
         "items": runtime.weapon_equipment_service.equipped_items(
             campaign_id=runtime.campaign_id,
             character_entity_id=character_entity_id,
         ),
-        "armor_class": runtime.weapon_equipment_service.armor_class(
-            character, campaign_id=runtime.campaign_id
-        ).armor_class,
+        "armor_class": armor.armor_class,
+        "armor_movement": {
+            "strength_requirement_met": armor.strength_requirement_met,
+            "speed_penalty_ft": armor.speed_penalty_ft,
+        },
         "armor_proficiency": asdict(
             runtime.weapon_equipment_service.armor_proficiency(
                 character, campaign_id=runtime.campaign_id

@@ -65,9 +65,34 @@ def test_armor_result_exposes_strength_and_stealth_constraints():
         dexterity_score=10, armor_key="plate", strength_score=16
     )
     assert not chain.strength_requirement_met
+    assert chain.speed_penalty_ft == 10
     assert scale.stealth_disadvantage
     assert plate.strength_requirement_met
+    assert plate.speed_penalty_ft == 0
     assert plate.stealth_disadvantage
+
+
+@pytest.mark.parametrize(
+    ("armor", "strength", "expected_penalty"),
+    [
+        ("chain_mail", 12, 10),
+        ("chain_mail", 13, 0),
+        ("splint", 14, 10),
+        ("plate", 15, 0),
+        ("ring_mail", 3, 0),
+        ("leather", 3, 0),
+        (None, 3, 0),
+    ],
+)
+def test_armor_strength_requirement_derives_speed_penalty(
+    armor, strength, expected_penalty
+):
+    result = derive_armor_class(
+        dexterity_score=10,
+        strength_score=strength,
+        armor_key=armor,
+    )
+    assert result.speed_penalty_ft == expected_penalty
 
 
 def test_shield_is_not_accepted_as_body_armor():
