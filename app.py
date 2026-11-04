@@ -26,7 +26,6 @@ from models.schemas import (
     SillyTavernTurnIn,
     TurnIn,
 )
-from repositories.campaign_repository import CampaignRepository
 from repositories.turn_repository import TurnRepository
 from services.campaign_runtime import CampaignRuntime, CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
