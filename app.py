@@ -1,8 +1,11 @@
-from contextvars import ContextVar
+from api.runtime_context import _current_runtime
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from api.routers.campaign import router as campaign_router
+from api.routers.system import router as system_router
 
 from database import init_db
 from models.campaign_clock_api_schemas import CampaignClockAdvanceIn
@@ -17,13 +20,8 @@ from models.persistent_effect_api_schemas import (
     PersistentEffectStatusIn,
 )
 from models.schemas import (
-    ActiveCharacterUpdate,
-    CampaignCreate,
-    CampaignSessionUpdate,
-    CampaignUpdate,
     CharacterCreate,
     ManualRollIn,
-    SessionIn,
     SillyTavernContextIn,
     SillyTavernTurnIn,
     TurnIn,
@@ -225,12 +223,6 @@ def create_campaign_turn_service(
 # ============================================================
 
 runtime_factory = CampaignRuntimeFactory()
-_current_runtime: ContextVar[CampaignRuntime | None] = ContextVar(
-    "campaign_runtime",
-    default=None,
-)
-
-
 def _get_active_runtime() -> CampaignRuntime:
     runtime = _current_runtime.get()
     if runtime is None:
@@ -307,194 +299,10 @@ async def bind_campaign_runtime(request: Request, call_next):
         _current_runtime.reset(token)
 
 
-# ============================================================
-# BASIC
-# ============================================================
+# API capability routers
+app.include_router(system_router)
+app.include_router(campaign_router)
 
-
-@app.get("/")
-def root():
-    return {
-        "ok": True,
-        "service": "D&D Campaign Manager",
-        "version": "0.1.0",
-    }
-
-
-@app.get("/health")
-def health():
-    """Liveness: confirma que el proceso HTTP está respondiendo."""
-    return {
-        "ok": True,
-    }
-
-
-@app.get("/ready")
-def readiness():
-    """Readiness: comprueba que SQLite acepta una consulta sencilla."""
-    from database import get_conn
-
-    try:
-        with get_conn() as conn:
-            conn.execute("SELECT 1").fetchone()
-    except Exception:  # noqa: BLE001 - readiness must map any DB failure to 503
-        raise HTTPException(
-            status_code=503,
-            detail="database unavailable",
-        ) from None
-
-    return {
-        "ok": True,
-        "database": "ready",
-    }
-
-
-# ============================================================
-# CAMPAIGN
-# ============================================================
-
-@app.get("/campaigns")
-def list_campaigns():
-    return CampaignRepository().list_campaigns()
-
-
-@app.post("/campaigns", status_code=201)
-def create_campaign(data: CampaignCreate):
-    try:
-        return CampaignRepository().create_campaign(
-            name=data.name,
-            system=data.system,
-            tone=data.tone,
-            summary=data.summary,
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail="failed to create campaign",
-        ) from exc
-
-
-
-@app.patch("/campaign")
-def update_campaign(data: CampaignUpdate):
-
-    with turn_execution_lock.acquire():
-
-        current = campaign_repository.get_campaign(_current_runtime.get().campaign_id)
-
-        values = {
-            "name": (
-                data.name
-                if data.name is not None
-                else current["name"]
-            ),
-            "system": (
-                data.system
-                if data.system is not None
-                else current["system"]
-            ),
-            "tone": (
-                data.tone
-                if data.tone is not None
-                else current["tone"]
-            ),
-            "summary": (
-                data.summary
-                if data.summary is not None
-                else current["summary"]
-            ),
-        }
-
-        return campaign_repository.update_campaign(
-            campaign_id=_current_runtime.get().campaign_id,
-            **values,
-        )
-
-
-@app.patch("/campaign/session")
-def update_campaign_session(
-    data: CampaignSessionUpdate,
-):
-
-    try:
-        with turn_execution_lock.acquire():
-            state = (
-                campaign_state_service.set_current_session(
-                    data.session_id
-                )
-            )
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
-
-    return {
-        "campaign_id": state.campaign_id,
-        "current_session_id": (
-            state.current_session_id
-        ),
-    }
-
-
-@app.post("/sessions")
-def create_session(data: SessionIn):
-
-    with turn_execution_lock.acquire():
-        return campaign_repository.create_session(
-            **data.model_dump(),
-            campaign_id=_current_runtime.get().campaign_id,
-        )
-
-@app.get("/campaign/state")
-def get_campaign_state():
-
-    try:
-        state = campaign_state_service.get_state()
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=str(exc),
-        ) from exc
-
-    return {
-        "campaign_id": state.campaign_id,
-        "name": state.name,
-        "system": state.system,
-        "tone": state.tone,
-        "current_location_id": state.current_location_id,
-        "current_session_id": state.current_session_id,
-        "active_character_id": state.active_character_id,
-        "summary": state.summary,
-    }
-
-@app.patch("/campaign/active-character")
-def update_active_character(
-    data: ActiveCharacterUpdate,
-):
-
-    try:
-        with turn_execution_lock.acquire():
-            state = (
-                campaign_state_service.set_active_character(
-                    data.character_id
-                )
-            )
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
-
-    return {
-        "campaign_id": state.campaign_id,
-        "active_character_id": (
-            state.active_character_id
-        ),
-    }
 
 # ============================================================
 # TURN
