@@ -534,3 +534,43 @@ test(
         );
     },
 );
+
+
+test(
+    'regeneration skips versions already persisted as failed while preserving active version',
+    async () => {
+        const state = new TurnState();
+        const version = await state.getVersion(
+            'turn-with-failed-version',
+            'Narrativa alternativa.',
+            async () => ({
+                exists: true,
+                active_version: 1,
+                next_version: 3,
+                narrative: 'Narrativa activa.',
+            }),
+        );
+
+        assert.equal(version, 3);
+    },
+);
+
+
+test(
+    'first successful narrative skips failed persisted versions when no active version exists',
+    async () => {
+        const state = new TurnState();
+        const version = await state.getVersion(
+            'turn-with-only-failed-version',
+            'Nueva narrativa.',
+            async () => ({
+                exists: false,
+                active_version: 0,
+                next_version: 2,
+                narrative: null,
+            }),
+        );
+
+        assert.equal(version, 2);
+    },
+);
