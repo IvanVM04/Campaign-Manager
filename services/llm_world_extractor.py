@@ -17,16 +17,12 @@ class LLMExtractionError(ValueError):
 
 class LLMWorldExtractor:
     """
-    Extrae operaciones persistentes a partir de la narrativa generada
-    por el DM.
+    Convierte texto no confiable en operaciones tipadas.
 
-    El extractor:
-        - recibe narrativa + TurnContext
-        - construye el prompt
-        - consulta al proveedor LLM
-        - parsea el JSON
-        - delega la conversión de operaciones al OperationParser
-        - valida el resultado
+    extract() conserva la compatibilidad narrativa de adaptadores existentes.
+    propose() recibe la intención del jugador y crea una propuesta estructurada
+    independiente de la narración final. Ambas rutas delegan validación
+    estructural en OperationParser; la validación de dominio sigue en WorldService.
 
     El extractor NO:
         - modifica el mundo
