@@ -57,7 +57,7 @@ def resolve_death_saving_throw(
         new_failures += 1
 
     dead = new_failures >= 3
-    stable = not dead and (new_successes >= 3 or regained_hp == 1)
+    stable = not dead and new_successes >= 3
     return DeathSaveResult(
         rolls=roll.rolls,
         selected=roll.selected,
