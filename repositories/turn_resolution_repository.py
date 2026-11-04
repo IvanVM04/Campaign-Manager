@@ -175,7 +175,7 @@ class TurnResolutionRepository:
         params = [target_state]
         for field_name, value in updates.items():
             assignments.append(f"{field_name}=?")
-            params.append(value)
+            params.append(getattr(candidate, field_name))
         params.extend([resolution_id, scope.campaign_id, expected_state])
         where = " WHERE id=? AND campaign_id=? AND lifecycle_state=?"
         if expected_state == "planning":
