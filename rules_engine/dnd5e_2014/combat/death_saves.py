@@ -37,9 +37,9 @@ def resolve_death_saving_throw(
     for value, name in ((successes, "successes"), (failures, "failures")):
         if isinstance(value, bool) or not isinstance(value, int):
             raise TypeError(f"{name} must be an integer")
-        if not 0 <= value <= 2:
-            raise ValueError(f"{name} must be between zero and two")
-    if successes >= 3 or failures >= 3:
+        if not 0 <= value <= 3:
+            raise ValueError(f"{name} must be between zero and three")
+    if successes == 3 or failures == 3:
         raise ValueError("death saving throw track is already resolved")
 
     roll = roller.roll_d20(manual_rolls=manual_rolls)
