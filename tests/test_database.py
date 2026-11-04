@@ -62,8 +62,7 @@ def test_transaction_commits_on_success_and_rolls_back_on_error():
             ("committed",),
         )
 
-    with pytest.raises(RuntimeError, match="abort transaction"):
-        with transaction("IMMEDIATE") as conn:
+    with pytest.raises(RuntimeError, match="abort transaction"), transaction("IMMEDIATE") as conn:
             conn.execute(
                 "INSERT INTO transaction_probe (value) VALUES (?)",
                 ("rolled back",),
@@ -83,6 +82,5 @@ def test_transaction_commits_on_success_and_rolls_back_on_error():
 
 @pytest.mark.parametrize("mode", ["invalid", ""])
 def test_transaction_rejects_unsupported_modes(mode):
-    with pytest.raises(ValueError, match="transaction mode"):
-        with transaction(mode):
-            pytest.fail("invalid transaction mode must not open a transaction")
+    with pytest.raises(ValueError, match="transaction mode"), transaction(mode):
+        pytest.fail("invalid transaction mode must not open a transaction")
