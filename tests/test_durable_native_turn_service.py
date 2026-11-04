@@ -449,6 +449,14 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
     )
     assert pending.pending_clarification_id
     assert pending.narrative == "¿Qué puerta quieres abrir?"
+    replayed_pending = service.play_turn(
+        "Abro una puerta.",
+        idempotency_key="native-clarification-001",
+    )
+    assert (
+        replayed_pending.pending_clarification_id
+        == pending.pending_clarification_id
+    )
 
     record = TurnResolutionRepository().get_by_idempotency_key(
         "native",
