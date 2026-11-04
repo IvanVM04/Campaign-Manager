@@ -34,6 +34,10 @@ class CombatantState:
     dead: bool = False
     death_save_last_round: int | None = None
     death_save_last_turn_index: int | None = None
+    position_x: int | None = None
+    position_y: int | None = None
+    speed_feet: int = 30
+    movement_used_feet: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.combatant_id, str) or not self.combatant_id.strip():
@@ -54,6 +58,8 @@ class CombatantState:
             (self.proficiency_bonus, "proficiency_bonus"),
             (self.death_save_successes, "death_save_successes"),
             (self.death_save_failures, "death_save_failures"),
+            (self.speed_feet, "speed_feet"),
+            (self.movement_used_feet, "movement_used_feet"),
         ):
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{field_name} must be an integer")
@@ -88,6 +94,15 @@ class CombatantState:
             raise ValueError("three death save successes must stabilize the combatant")
         if self.death_save_failures == 3 and not self.dead:
             raise ValueError("three death save failures must kill the combatant")
+        for value, name in ((self.position_x, "position_x"), (self.position_y, "position_y")):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+                raise TypeError(f"{name} must be an integer or None")
+        if (self.position_x is None) != (self.position_y is None):
+            raise ValueError("combatant position must include both coordinates")
+        if not 0 <= self.speed_feet <= 1000:
+            raise ValueError("speed_feet must be between zero and 1000")
+        if not 0 <= self.movement_used_feet <= 10000:
+            raise ValueError("movement_used_feet must be between zero and 10000")
         if not 0 <= self.proficiency_bonus <= 20:
             raise ValueError("proficiency_bonus must be between 0 and 20")
         if self.max_hp < 1:
