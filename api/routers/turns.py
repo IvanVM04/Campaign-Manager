@@ -75,11 +75,17 @@ def play_turn(
     from services.durable_native_turn_service import DurableNativeTurnError
 
     try:
-        result = get_current_runtime().durable_native_turn_service.play_turn(
-            data.player_input,
-            idempotency_key=idempotency_key,
-            dice_mode=data.dice_mode,
-        )
+        if data.dice_mode == "manual":
+            result = get_current_runtime().durable_native_turn_service.play_turn(
+                data.player_input,
+                idempotency_key=idempotency_key,
+                dice_mode="manual",
+            )
+        else:
+            result = get_current_runtime().durable_native_turn_service.play_turn(
+                data.player_input,
+                idempotency_key=idempotency_key,
+            )
     except DurableNativeTurnError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
