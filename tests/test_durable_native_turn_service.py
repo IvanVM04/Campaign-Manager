@@ -754,3 +754,36 @@ def test_silly_tavern_manual_roll_state_is_scoped_to_sillytavern(monkeypatch):
         "namespace": "sillytavern",
         "key": "st-manual-turn",
     }
+
+
+def test_silly_tavern_completed_manual_roll_state_is_recoverable_for_same_reply(monkeypatch):
+    from types import SimpleNamespace
+
+    service, _, _ = _service_with_fake_models()
+    pending = {
+        "challenge_id": "secret-challenge",
+        "count": 1,
+        "dice": "d20",
+        "kind": "ability_check",
+        "modifier": 3,
+        "submitted_rolls": [14],
+        "submitted_external_turn_id": "answer-turn",
+    }
+    record = SimpleNamespace(
+        id=42,
+        lifecycle_state="completed",
+        player_input="Me escondo.",
+        adjudication_json=json.dumps({"manual_roll": pending}),
+    )
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get_by_idempotency_key",
+        lambda *args, **kwargs: record,
+    )
+
+    state = service.get_external_manual_roll_state("st-manual-turn")
+
+    assert state["has_manual_roll"] is True
+    assert state["submitted_external_turn_id"] == "answer-turn"
+    assert state["pending_roll_id"] == "42:secret-challenge"
+    assert state["pending_roll"]["count"] == 1
