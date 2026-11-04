@@ -4,6 +4,7 @@ from rules_engine.dnd5e_2014.armor import (
     ARMOR_CATALOG,
     ArmorCategory,
     derive_armor_class,
+    derive_armor_proficiency,
     get_armor,
     list_armor,
 )
@@ -83,3 +84,44 @@ def test_armor_class_rejects_invalid_ability_scores(value):
 def test_unknown_armor_is_rejected():
     with pytest.raises(LookupError, match="unknown SRD armor"):
         derive_armor_class(dexterity_score=10, armor_key="mithril_bikini")
+
+
+@pytest.mark.parametrize(
+    ("armor", "shield", "proficiencies", "expected"),
+    [
+        ("leather", False, {"light"}, True),
+        ("chain_mail", False, {"heavy"}, True),
+        ("chain_mail", False, {"medium"}, False),
+        (None, True, {"shields"}, True),
+        (None, True, {"light"}, False),
+        ("leather", True, {"light", "shields"}, True),
+        ("leather", True, {"light"}, False),
+    ],
+)
+def test_armor_proficiency_rules(armor, shield, proficiencies, expected):
+    result = derive_armor_proficiency(
+        armor_key=armor,
+        shield_equipped=shield,
+        proficiencies=proficiencies,
+    )
+    assert result.armor_proficient is expected
+    assert result.strength_dexterity_disadvantage is (not expected)
+    assert result.spellcasting_blocked is (not expected)
+
+
+def test_armor_proficiency_reports_each_untrained_item():
+    result = derive_armor_proficiency(
+        armor_key="plate",
+        shield_equipped=True,
+        proficiencies={"light"},
+    )
+    assert result.unproficient_armor_keys == ("plate", "shield")
+
+
+def test_armor_proficiency_rejects_unknown_training():
+    with pytest.raises(ValueError, match="unknown armor proficiency"):
+        derive_armor_proficiency(
+            armor_key="leather",
+            shield_equipped=False,
+            proficiencies={"plate"},
+        )
