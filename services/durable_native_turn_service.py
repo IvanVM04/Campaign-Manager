@@ -286,7 +286,82 @@ class DurableNativeTurnService:
         with self.turn_execution_lock.acquire():
             return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
 
-    def _play_turn_locked(self, player_input: str, *, idempotency_key: str | None = None):
+    def prepare_external_turn(
+        self,
+        player_input: str,
+        *,
+        external_turn_id: str,
+    ) -> DurableTurnPreparation:
+        if not isinstance(external_turn_id, str) or not external_turn_id.strip():
+            raise DurableNativeTurnError("external_turn_id must not be empty")
+        external_turn_id = external_turn_id.strip()
+        if len(external_turn_id) > 500:
+            raise DurableNativeTurnError("external_turn_id must not exceed 500 characters")
+
+        def prepare():
+            existing_resolution = self.resolution_repository.get_by_idempotency_key(
+                "sillytavern", external_turn_id, scope=self.scope
+            )
+            active_turn = self.turn_repository.get_active_by_external_turn_id(
+                external_turn_id, scope=self.scope
+            )
+            if existing_resolution is None and active_turn is not None:
+                return DurableTurnPreparation(
+                    resolution_id=None,
+                    lifecycle_state="legacy_replay",
+                    player_input=active_turn.player_input,
+                    committed_resolution=json.dumps(
+                        {
+                            "legacy_replay": True,
+                            "message": (
+                                "This turn predates durable resolution. "
+                                "Preserve its existing world effects; narration regeneration "
+                                "must not create new consequences."
+                            ),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                    legacy_replay=True,
+                )
+            result = self._play_turn_locked(
+                player_input,
+                idempotency_key=external_turn_id,
+                adapter_namespace="sillytavern",
+                defer_narration=True,
+            )
+            if isinstance(result, TurnResolutionResult):
+                question = result.narrative
+                record = self.resolution_repository.get_by_idempotency_key(
+                    "sillytavern", external_turn_id, scope=self.scope
+                )
+                return DurableTurnPreparation(
+                    resolution_id=record.id if record is not None else None,
+                    lifecycle_state=(
+                        record.lifecycle_state if record is not None else "awaiting_input"
+                    ),
+                    player_input=result.player_input,
+                    committed_resolution=json.dumps(
+                        {"clarification_required": question},
+                        ensure_ascii=False,
+                    ),
+                    clarification_question=question,
+                )
+            return result
+
+        if self.turn_execution_lock is None:
+            return prepare()
+        with self.turn_execution_lock.acquire():
+            return prepare()
+
+    def _play_turn_locked(
+        self,
+        player_input: str,
+        *,
+        idempotency_key: str | None = None,
+        adapter_namespace: str = "native",
+        defer_narration: bool = False,
+    ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
             raise DurableNativeTurnError("player_input must not be empty")
@@ -314,7 +389,7 @@ class DurableNativeTurnService:
 
         with transaction("IMMEDIATE") as conn:
             record = self.resolution_repository.get_by_idempotency_key(
-                "native", key, scope=self.scope, conn=conn
+                adapter_namespace, key, scope=self.scope, conn=conn
             )
             if record is not None:
                 fingerprint = self._fingerprint(
@@ -325,6 +400,8 @@ class DurableNativeTurnService:
                         "idempotency key was already used for a different request"
                     )
                 if record.lifecycle_state == "completed":
+                    if defer_narration:
+                        return self._preparation_from_record(record)
                     turn = self.turn_repository.get_turn(
                         record.turn_id, scope=self.scope, conn=conn
                     )
@@ -358,7 +435,7 @@ class DurableNativeTurnService:
                         campaign_id=self.scope.campaign_id,
                         session_id=session_id,
                         player_input=normalized,
-                        adapter_namespace="native",
+                        adapter_namespace=adapter_namespace,
                         idempotency_key=key,
                         request_fingerprint=fingerprint,
                     ),
@@ -367,6 +444,8 @@ class DurableNativeTurnService:
                 )
 
         if record.lifecycle_state in {"committed", "narration_pending"}:
+            if defer_narration:
+                return self._preparation_from_record(record)
             return self._resume_narration(record, already_processed=True)
 
         resume_prepared = record.lifecycle_state == "prepared"
@@ -501,8 +580,13 @@ class DurableNativeTurnService:
                     expected_state="committed",
                     conn=conn,
                 )
+            committed_record = self.resolution_repository.get(
+                record.id, scope=self.scope
+            )
+            if defer_narration:
+                return self._preparation_from_record(committed_record)
             return self._resume_narration(
-                self.resolution_repository.get(record.id, scope=self.scope),
+                committed_record,
                 already_processed=False,
             )
         except Exception as exc:
