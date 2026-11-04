@@ -5,8 +5,8 @@ from operations.world_operations import (
     CreateItemInstanceOperation,
     CreateItemOperation,
 )
-from services.world_applier import WorldApplier
 from services.operation_parser import OperationParser
+from services.world_applier import WorldApplier
 
 
 def build_world():
