@@ -345,7 +345,7 @@ class DurableNativeTurnService:
                 )
 
         if record.lifecycle_state in {"committed", "narration_pending"}:
-            return self._resume_narration(record)
+            return self._resume_narration(record, already_processed=True)
 
         resume_prepared = record.lifecycle_state == "prepared"
         lease_token = None
@@ -480,7 +480,8 @@ class DurableNativeTurnService:
                     conn=conn,
                 )
             return self._resume_narration(
-                self.resolution_repository.get(record.id, scope=self.scope)
+                self.resolution_repository.get(record.id, scope=self.scope),
+                already_processed=False,
             )
         except Exception as exc:
             if (
@@ -567,7 +568,12 @@ class DurableNativeTurnService:
             persisted_world_changed=turn.world_changed,
         )
 
-    def _resume_narration(self, record: TurnResolutionRecord):
+    def _resume_narration(
+        self,
+        record: TurnResolutionRecord,
+        *,
+        already_processed: bool,
+    ):
         if record.lifecycle_state == "committed":
             with transaction("IMMEDIATE") as conn:
                 record = self.resolution_repository.transition(
@@ -649,5 +655,5 @@ class DurableNativeTurnService:
             completed.turn_id, scope=self.scope
         )
         return self._result_from_completed_record(
-            completed, completed_turn, already_processed=False
+            completed, completed_turn, already_processed=already_processed
         )
