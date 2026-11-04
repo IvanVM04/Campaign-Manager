@@ -709,9 +709,36 @@ class DurableNativeTurnService:
             record = self.resolution_repository.get(int(raw_id), scope=self.scope)
             if record is None:
                 raise DurableNativeTurnError("clarification request was not found")
+            pending_state = json.loads(record.adjudication_json or "{}")
+            if (
+                secrets.compare_digest(
+                    str(pending_state.get("last_challenge_id", "")),
+                    challenge_id,
+                )
+                and secrets.compare_digest(
+                    str(pending_state.get("last_answer", "")),
+                    answer,
+                )
+            ):
+                if record.lifecycle_state == "awaiting_input":
+                    current_pending = pending_state.get("clarification")
+                    if isinstance(current_pending, dict):
+                        return self._clarification_result(record, current_pending)
+                if record.lifecycle_state in {"committed", "narration_pending"}:
+                    return self._resume_narration(record, already_processed=True)
+                if record.lifecycle_state == "completed":
+                    turn = self.turn_repository.get_turn(
+                        record.turn_id, scope=self.scope
+                    )
+                    if turn is None:
+                        raise DurableNativeTurnError(
+                            "completed clarification has no transcript"
+                        )
+                    return self._result_from_completed_record(
+                        record, turn, already_processed=True
+                    )
             if record.lifecycle_state != "awaiting_input":
                 raise DurableNativeTurnError("clarification request is no longer pending")
-            pending_state = json.loads(record.adjudication_json or "{}")
             pending = pending_state.get("clarification")
             if not isinstance(pending, dict) or not secrets.compare_digest(
                 str(pending.get("challenge_id", "")), challenge_id
@@ -792,7 +819,12 @@ class DurableNativeTurnService:
                             updates={
                                 "context_revision": revision,
                                 "adjudication_json": json.dumps(
-                                    {"clarification": next_pending},
+                                    {
+                                        "clarification": next_pending,
+                                        "clarification_history": history,
+                                        "last_challenge_id": challenge_id,
+                                        "last_answer": answer,
+                                    },
                                     ensure_ascii=False,
                                     separators=(",", ":"),
                                     sort_keys=True,
@@ -819,6 +851,8 @@ class DurableNativeTurnService:
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,
+                                    "last_challenge_id": challenge_id,
+                                    "last_answer": answer,
                                     "decision": (
                                         plan.mechanics_decision.decision.value
                                         if plan.mechanics_decision else None
