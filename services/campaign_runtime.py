@@ -8,6 +8,7 @@ from models.campaign_scope import CampaignScope
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
+from repositories.creature_repository import CreatureRepository
 from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
@@ -173,16 +174,19 @@ class CampaignRuntimeFactory:
             character_repository=character_repository,
         )
         encounter_repository = CombatEncounterRepository()
+        creature_repository = CreatureRepository()
         combat_encounter_service = CombatEncounterService(
             repository=encounter_repository,
             character_repository=character_repository,
             entity_repository=entity_repository,
+            creature_repository=creature_repository,
         )
         combat_attack_service = CombatAttackService(
             encounter_repository=encounter_repository,
             character_repository=character_repository,
             weapon_repository=WeaponEquipmentRepository(),
             effective_condition_service=effective_condition_service,
+            creature_repository=creature_repository,
         )
         persistent_effect_service = PersistentEffectService(
             repository=persistent_effect_repository,
