@@ -18,7 +18,11 @@ shield.
 
 ## Deliberate boundary
 
-Strength-based speed penalties, class-feature AC alternatives (such as Unarmored Defense), magic-item bonuses and immediate refresh of every active encounter snapshot after an equipment change remain out of scope. Attack resolution recalculates a player target's AC from current equipment and writes that value back into the encounter snapshot when the target is attacked. NPC armor remains represented by its stored creature AC. The rules engine remains deterministic and has no persistence or provider dependencies.\n\n## Armor proficiency\n\nCharacters store proficiency categories `light`, `medium`, `heavy` and `shields`. The equipment endpoint reports whether each equipped armor item is proficient, the unproficient item keys, whether Strength/Dexterity checks, saves and attacks should have disadvantage, and whether spellcasting is blocked. Combat weapon attacks using Strength or Dexterity apply that disadvantage. The current application does not yet expose spellcasting or general ability-check/save resolution hooks, so those reported flags are ready for those systems but do not claim to enforce unavailable actions. Characters with no declared armor proficiencies are treated as untrained; class names are not guessed or mapped automatically.
+Strength-based speed penalties, class-feature AC alternatives (such as Unarmored Defense), magic-item bonuses and immediate refresh of every active encounter snapshot after an equipment change remain out of scope. Attack resolution recalculates a player target's AC from current equipment and writes that value back into the encounter snapshot when the target is attacked. NPC armor remains represented by its stored creature AC. The rules engine remains deterministic and has no persistence or provider dependencies.
+
+## Armor proficiency
+
+Characters store proficiency categories `light`, `medium`, `heavy` and `shields`. The equipment endpoint reports whether each equipped armor item is proficient, the unproficient item keys, whether Strength/Dexterity checks, saves and attacks should have disadvantage, and whether spellcasting is blocked. Combat weapon attacks using Strength or Dexterity apply that disadvantage. The current application does not yet expose spellcasting or general ability-check/save resolution hooks, so those reported flags are ready for those systems but do not claim to enforce unavailable actions. Characters with no declared armor proficiencies are treated as untrained; class names are not guessed or mapped automatically.
 
 
 ## Item integration
