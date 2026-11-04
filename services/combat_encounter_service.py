@@ -191,7 +191,6 @@ class CombatEncounterService:
     ) -> dict:
         """Start initiative and resolve start-of-turn events atomically."""
         with transaction("IMMEDIATE") as conn:
-            conn.execute("BEGIN IMMEDIATE")
             encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
             if encounter.status is not EncounterStatus.PREPARING:
                 raise ValueError("only a preparing encounter can be started")
