@@ -50,7 +50,6 @@ from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
 from services.world_service import WorldService
 
-
 app = FastAPI(
     title="D&D Campaign Manager",
     version="0.1.0",
