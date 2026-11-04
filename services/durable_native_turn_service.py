@@ -1304,7 +1304,7 @@ class DurableNativeTurnService:
                         self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
                         self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
                     saved = self.resolution_repository.get(record.id, scope=self.scope)
-                    return self._resume_narration(saved, already_processed=True)
+                    return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=True)
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise DurableNativeTurnError("manual roll challenge is no longer pending")
             with transaction("DEFERRED") as conn:
