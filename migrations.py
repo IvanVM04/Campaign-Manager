@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 22
+CURRENT_VERSION = 23
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1164,6 +1164,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 22")
         version = 22
 
+    if version < 23:
+        migration_023(conn)
+        conn.execute("PRAGMA user_version = 23")
+        version = 23
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1739,4 +1744,25 @@ def migration_022(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_022")
         conn.execute("RELEASE SAVEPOINT migration_022")
+        raise
+
+
+def migration_023(conn: sqlite3.Connection) -> None:
+    """Record the campaign revision produced by a committed turn."""
+    conn.execute("SAVEPOINT migration_023")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(turn_resolutions)").fetchall()
+        }
+        if "resulting_revision" not in columns:
+            conn.execute("""
+                ALTER TABLE turn_resolutions
+                ADD COLUMN resulting_revision INTEGER
+                CHECK (resulting_revision IS NULL OR resulting_revision >= 1)
+            """)
+        conn.execute("RELEASE SAVEPOINT migration_023")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_023")
+        conn.execute("RELEASE SAVEPOINT migration_023")
         raise
