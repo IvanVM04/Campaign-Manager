@@ -2517,7 +2517,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
                 active_connections["count"] -= 1
 
     monkeypatch.setattr(
-        campaign_turn_module,
+        database,
         "get_conn",
         tracked_get_conn,
     )
@@ -2531,7 +2531,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
 
     assert result.narrative == "La escena continúa."
     assert active_connections["count"] == 0
-    assert transaction_modes == ["IMMEDIATE"]
+    assert transaction_modes == ["DEFERRED", "IMMEDIATE"]
     assert len(
         service.turn_repository.list_turns(
             scope=CampaignScope(campaign["id"]),
