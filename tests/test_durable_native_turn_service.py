@@ -31,6 +31,8 @@ def test_native_turn_commits_before_narration_and_completes_durably():
     assert result.already_processed is False
     assert len(proposal_calls) == 1
     assert len(narrative_calls) == 1
+    assert "RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS" in narrative_calls[0]
+    assert '"operations": []' in narrative_calls[0]
 
     record = TurnResolutionRepository().get_by_idempotency_key(
         "native",
