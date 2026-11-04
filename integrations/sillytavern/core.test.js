@@ -160,6 +160,7 @@ test(
             [original, question, answer],
             answer,
             'La de hierro.',
+            'answer-two-turn',
             async (message) => message === original ? 'turn-original' : 'answer-turn',
             async (turnId) => states.get(turnId) ?? { has_clarification: false },
         );
@@ -187,12 +188,14 @@ test(
             pending_clarification_id: '42:second-question',
             last_pending_clarification_id: '42:first-question',
             last_answer: 'La de roble.',
+            last_answer_external_turn_id: 'retry-answer-turn',
         };
 
         const result = await findClarificationOrigin(
             [original, firstQuestion, firstAnswer, secondQuestion, retryAnswer],
             retryAnswer,
             'La de roble.',
+            'retry-answer-turn',
             async (message) => message === original ? 'turn-original' : 'unrelated-turn',
             async (turnId) => turnId === 'turn-original'
                 ? state
@@ -219,6 +222,7 @@ test(
             player_input: 'Abro una puerta.',
             last_pending_clarification_id: '42:first-question',
             last_answer: 'La de roble.',
+            last_answer_external_turn_id: 'new-action-turn',
             narrative: 'La puerta de roble se abre.',
         };
 
@@ -226,6 +230,7 @@ test(
             [original, question, answer, narrative, newAction],
             newAction,
             'La de roble.',
+            'new-action-turn',
             async (message) => message === original ? 'turn-original' : 'unrelated-turn',
             async (turnId) => turnId === 'turn-original'
                 ? state
@@ -274,12 +279,14 @@ test(
             pending_clarification_id: '42:third-question',
             last_pending_clarification_id: '42:second-question',
             last_answer: 'La de roble.',
+            last_answer_external_turn_id: 'answer-one-turn',
         };
 
         const result = await findClarificationOrigin(
             [original, questionOne, answerOne, questionTwo, answerTwo],
             answerTwo,
             'Con cuidado.',
+            'answer-two-turn',
             async (message) => message === original ? 'turn-original' : 'answer-turn',
             async (turnId) => turnId === 'turn-original'
                 ? state
