@@ -234,3 +234,31 @@ def test_encounter_rejects_creature_reference_from_another_campaign(client):
         json={"participants": [{"creature_id": creature_id}]},
     )
     assert response.status_code == 422
+
+
+
+def test_encounter_turn_mutations_require_complete_expected_position(client):
+    for action in ("advance", "complete"):
+        missing = client.post(f"/encounters/missing-position/{action}", json={})
+        assert missing.status_code == 422
+
+        missing_round = client.post(
+            f"/encounters/missing-round/{action}",
+            json={"expected_turn_index": 0},
+        )
+        assert missing_round.status_code == 422
+
+        missing_turn = client.post(
+            f"/encounters/missing-turn/{action}",
+            json={"expected_round": 1},
+        )
+        assert missing_turn.status_code == 422
+
+
+def test_encounter_turn_mutations_reject_boolean_position_values(client):
+    for action in ("advance", "complete"):
+        response = client.post(
+            f"/encounters/invalid-position/{action}",
+            json={"expected_round": True, "expected_turn_index": False},
+        )
+        assert response.status_code == 422
