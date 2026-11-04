@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
 from api.runtime_context import get_current_runtime
-from services.campaign_state_service import CampaignStateServiceError
 from models.schemas import (
     ActiveCharacterUpdate,
     CampaignCreate,
@@ -10,6 +9,7 @@ from models.schemas import (
     SessionIn,
 )
 from repositories.campaign_repository import CampaignRepository
+from services.campaign_state_service import CampaignStateServiceError
 
 router = APIRouter()
 
