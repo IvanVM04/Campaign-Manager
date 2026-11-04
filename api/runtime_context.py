@@ -4,7 +4,6 @@ from contextvars import ContextVar
 
 from services.campaign_runtime import CampaignRuntime
 
-
 _current_runtime: ContextVar[CampaignRuntime | None] = ContextVar(
     "campaign_runtime",
     default=None,
