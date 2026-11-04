@@ -265,6 +265,16 @@ class WorldApplier:
                     operation=operation,
                 )
 
+        equipment_slot = operation.equipment_slot
+        if operation.weapon_key is not None:
+            equipment_slot = equipment_slot or "main_hand"
+            if equipment_slot not in ("main_hand", "off_hand"):
+                return OperationResult(
+                    status=OperationStatus.INVALID,
+                    message="weapon items must use main_hand or off_hand equipment slots",
+                    operation=operation,
+                )
+
         item_id = self._next_item_id(world)
 
         item = Item(
@@ -275,14 +285,8 @@ class WorldApplier:
             unique=operation.unique,
             notes=operation.notes,
             weapon_key=operation.weapon_key,
-            equipment_slot=operation.equipment_slot,
+            equipment_slot=equipment_slot,
         )
-        if item.weapon_key is not None and item.equipment_slot not in ("main_hand", "off_hand"):
-            return OperationResult(
-                status=OperationStatus.INVALID,
-                message="weapon items must use main_hand or off_hand equipment slots",
-                operation=operation,
-            )
 
         world.items[item_id] = item
 
