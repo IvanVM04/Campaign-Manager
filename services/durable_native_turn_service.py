@@ -460,15 +460,20 @@ class DurableNativeTurnService:
         if not resume_prepared:
             lease_token = secrets.token_urlsafe(24)
             now = datetime.now(UTC)
-            with transaction("IMMEDIATE") as conn:
-                record = self.resolution_repository.claim_for_planning(
-                    record.id,
-                    scope=self.scope,
-                    lease_token=lease_token,
-                    lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
-                    now=now.isoformat(),
-                    conn=conn,
-                )
+            try:
+                with transaction("IMMEDIATE") as conn:
+                    record = self.resolution_repository.claim_for_planning(
+                        record.id,
+                        scope=self.scope,
+                        lease_token=lease_token,
+                        lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
+                        now=now.isoformat(),
+                        conn=conn,
+                    )
+            except ValueError as exc:
+                raise DurableNativeTurnError(
+                    "turn resolution is already being planned; retry with the same identity"
+                ) from exc
 
         try:
             if resume_prepared:
