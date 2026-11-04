@@ -285,6 +285,12 @@ app.include_router(character_router)
 app.include_router(combat_router)
 app.include_router(effects_router)
 app.include_router(clock_router)
+app.include_router(integration_router)
+app.include_router(world_router)
+app.include_router(character_router)
+app.include_router(combat_router)
+app.include_router(effects_router)
+app.include_router(clock_router)
 
 
 from api.runtime_context import (
@@ -526,17 +532,6 @@ def create_campaign_turn_service(
 # ============================================================
 
 runtime_factory = CampaignRuntimeFactory()
-def _get_active_runtime() -> CampaignRuntime:
-    runtime = _current_runtime.get()
-    if runtime is None:
-        raise RuntimeError(
-            "campaign runtime is only available inside an HTTP request"
-        )
-    return runtime
-
-
-
-
 @app.middleware("http")
 async def bind_campaign_runtime(request: Request, call_next):
     if request.method == "OPTIONS" or request.url.path in {"/", "/health", "/ready", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect", "/campaigns"}:
