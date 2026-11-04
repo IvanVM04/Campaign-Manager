@@ -1,8 +1,5 @@
 from fastapi import APIRouter, HTTPException
 
-from database import get_conn
-
-
 router = APIRouter()
 
 
@@ -26,6 +23,8 @@ def health():
 @router.get("/ready")
 def readiness():
     """Readiness: verifies that SQLite accepts a simple query."""
+    from database import get_conn
+
     try:
         with get_conn() as conn:
             conn.execute("SELECT 1").fetchone()
