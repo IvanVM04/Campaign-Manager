@@ -534,7 +534,10 @@ class SillyTavernIntegrationService:
                         conn=read_conn,
                     )
                 )
-                fresh_world = self.world_service.load(conn=read_conn)
+                fresh_world = self.world_service.repository.load_world(
+                    campaign_id=self.campaign_scope.campaign_id,
+                    conn=read_conn,
+                )
                 turn_context = replace(
                     turn_context,
                     world=fresh_world,
@@ -559,9 +562,6 @@ class SillyTavernIntegrationService:
                 "CampaignStateService returned an invalid "
                 "TurnContext"
             )
-
-        previous_world = self.world_service.get_world()
-        previous_world_snapshot = copy.deepcopy(previous_world)
 
         # --------------------------------------------------------
         # CONTEXTO DE REGENERACIÓN
@@ -1031,13 +1031,17 @@ class SillyTavernIntegrationService:
 
         except SillyTavernIntegrationServiceConflictError:
             try:
-                self.world_service.load()
-            except Exception:
+                fresh_world = self.world_service.repository.load_world(
+                    campaign_id=self.campaign_scope.campaign_id,
+                )
+            except (sqlite3.Error, ValueError):
                 self._restore_world_state(
                     previous_world,
                     previous_world_snapshot,
                 )
-                self.world_service.world = previous_world
+            else:
+                self._restore_world_state(previous_world, fresh_world)
+            self.world_service.world = previous_world
             raise
 
         except Exception as exc:
