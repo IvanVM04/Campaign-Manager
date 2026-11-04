@@ -2,9 +2,9 @@
 
 from models.character_state import CharacterState
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
+from rules_engine.dnd5e_2014.armor.armor_class import derive_armor_class
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import get_weapon
-from rules_engine.dnd5e_2014.armor.armor_class import derive_armor_class
 
 
 class WeaponEquipmentService:
