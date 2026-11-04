@@ -1,3 +1,4 @@
+# ruff: noqa: I001  # Keep framework adapter imports local and isolated.
 from __future__ import annotations
 
 import logging
