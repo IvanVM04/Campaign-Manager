@@ -2038,10 +2038,13 @@ def migration_026(conn: sqlite3.Connection) -> None:
                      AND i.campaign_id = NEW.campaign_id
                     WHERE cs.entity_id = NEW.character_entity_id
                       AND cs.campaign_id = NEW.campaign_id
-                      AND COALESCE(
-                          i.equipment_slot,
-                          CASE WHEN i.weapon_key IS NOT NULL THEN 'main_hand' END
-                      ) = NEW.slot
+                      AND (
+                          COALESCE(i.equipment_slot, '') = NEW.slot
+                          OR (
+                              i.weapon_key IS NOT NULL
+                              AND NEW.slot IN ('main_hand', 'off_hand')
+                          )
+                      )
                 )
                 BEGIN
                     SELECT RAISE(ABORT, 'equipped item must be active, owned by character, and match its slot in the same campaign');
@@ -2107,10 +2110,13 @@ def migration_026(conn: sqlite3.Connection) -> None:
                  AND ei.campaign_id = ii.campaign_id
                 WHERE ii.item_id = OLD.id
                   AND ii.campaign_id = OLD.campaign_id
-                  AND ei.slot != COALESCE(
-                      NEW.equipment_slot,
-                      CASE WHEN NEW.weapon_key IS NOT NULL THEN 'main_hand' END,
-                      ''
+                  AND NOT (
+                      (NEW.weapon_key IS NOT NULL AND ei.slot IN ('main_hand', 'off_hand'))
+                      OR ei.slot = COALESCE(
+                          NEW.equipment_slot,
+                          CASE WHEN NEW.weapon_key IS NOT NULL THEN 'main_hand' END,
+                          ''
+                      )
                   )
             )
             BEGIN
