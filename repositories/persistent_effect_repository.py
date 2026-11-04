@@ -48,8 +48,8 @@ class PersistentEffectRepository:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    effect.id, effect.campaign_id, effect.duration_minutes,
-                    effect.expires_at_minute, effect.encounter_id,
+                    effect.id, effect.campaign_id, effect.duration_minutes or 1,
+                    effect.expires_at_minute or 1, effect.encounter_id,
                     effect.duration_rounds, effect.expires_at_round,
                     effect.duration_turns, effect.expires_at_turn,
                 ),
@@ -126,7 +126,8 @@ class PersistentEffectRepository:
             FROM persistent_effect_timers timer
             JOIN persistent_effects effect
               ON effect.id = timer.effect_id AND effect.campaign_id = timer.campaign_id
-            WHERE timer.campaign_id = ? AND timer.expired_at_minute IS NULL
+            WHERE timer.campaign_id = ? AND timer.encounter_id IS NULL
+              AND timer.expired_at_minute IS NULL
               AND timer.expires_at_minute <= ? AND effect.status IN ('active', 'suspended')
             """,
             (campaign_id, elapsed_minutes),
@@ -219,11 +220,13 @@ class PersistentEffectRepository:
         duration_rounds = row["duration_rounds"]
         duration_turns = row["duration_turns"]
         duration_type = (
-            EffectDurationType.CAMPAIGN_TIME if duration_minutes is not None
-            else EffectDurationType.ENCOUNTER_ROUNDS if duration_rounds is not None
+            EffectDurationType.ENCOUNTER_ROUNDS if duration_rounds is not None
             else EffectDurationType.ENCOUNTER_TURNS if duration_turns is not None
+            else EffectDurationType.CAMPAIGN_TIME if duration_minutes is not None
             else EffectDurationType(row["duration_type"])
         )
+        if duration_type is not EffectDurationType.CAMPAIGN_TIME:
+            duration_minutes = None
         status = (
             EffectStatus.EXPIRED if any(value is not None for value in (
                 expired_at_minute, row["expired_at_round"], row["expired_at_turn"]
@@ -243,8 +246,14 @@ class PersistentEffectRepository:
             duration_type=duration_type,
             duration_condition=row["duration_condition"],
             duration_minutes=duration_minutes,
-            expires_at_minute=row["expires_at_minute"],
-            expired_at_minute=expired_at_minute,
+            expires_at_minute=(
+                row["expires_at_minute"]
+                if duration_type is EffectDurationType.CAMPAIGN_TIME else None
+            ),
+            expired_at_minute=(
+                expired_at_minute
+                if duration_type is EffectDurationType.CAMPAIGN_TIME else None
+            ),
             encounter_id=encounter_id,
             duration_rounds=duration_rounds,
             expires_at_round=row["expires_at_round"],
