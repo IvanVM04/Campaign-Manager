@@ -162,8 +162,8 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         "pending_clarification_id": getattr(
             preparation, "pending_clarification_id", None
         ),
-        "pending_roll_id": preparation.pending_roll_id,
-        "pending_roll": preparation.pending_roll,
+        "pending_roll_id": getattr(preparation, "pending_roll_id", None),
+        "pending_roll": getattr(preparation, "pending_roll", None),
         "legacy_replay": preparation.legacy_replay,
         "campaign": context_result["campaign"],
         "session": context_result["session"],
