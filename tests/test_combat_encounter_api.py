@@ -430,3 +430,130 @@ def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
         },
     )
     assert blocked.status_code == 409
+
+
+
+def test_down_player_character_makes_automatic_save_when_its_turn_begins(client, monkeypatch):
+    from api.runtime_context import combat_encounter_service
+    from rules_engine.dnd5e_2014.core.dice import DiceRoller
+
+    class FixedRandom:
+        def randint(self, _minimum, _maximum):
+            return 10
+
+    monkeypatch.setattr(
+        combat_encounter_service,
+        "dice_roller",
+        DiceRoller(rng=FixedRandom()),
+    )
+    _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "automatic-death-save"
+    )
+
+    # Leaving the downed hero's turn must not roll a save.
+    leaving_hero = client.post(
+        "/encounters/automatic-death-save/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    assert leaving_hero.status_code == 200, leaving_hero.text
+    assert leaving_hero.json()["turn_start_death_save"] is None
+
+    # The save is rolled when initiative returns to the downed hero.
+    returning_hero = client.post(
+        "/encounters/automatic-death-save/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert returning_hero.status_code == 200, returning_hero.text
+    payload = returning_hero.json()
+    assert payload["round_number"] == 2
+    assert payload["active_combatant_id"] == hero_id
+    assert payload["turn_start_death_save"]["selected"] == 10
+    assert payload["turn_start_death_save"]["successes"] == 1
+    assert payload["combatants"][hero_id]["death_save_successes"] == 1
+    assert payload["combatants"][hero_id]["death_save_last_round"] == 2
+    assert payload["combatants"][hero_id]["death_save_last_turn_index"] == 0
+
+    # The explicit endpoint cannot make a second save in the same turn.
+    repeated = client.post(
+        "/encounters/automatic-death-save/death-save",
+        json={
+            "expected_round": 2,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_roll": 15,
+        },
+    )
+    assert repeated.status_code == 409
+
+
+def test_automatic_natural_twenty_recovers_character_and_persists_hp(client, monkeypatch):
+    from api.runtime_context import combat_encounter_service
+    from rules_engine.dnd5e_2014.core.dice import DiceRoller
+
+    class FixedRandom:
+        def randint(self, _minimum, _maximum):
+            return 20
+
+    monkeypatch.setattr(
+        combat_encounter_service,
+        "dice_roller",
+        DiceRoller(rng=FixedRandom()),
+    )
+    character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "automatic-death-save-recovery"
+    )
+
+    client.post(
+        "/encounters/automatic-death-save-recovery/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    recovery = client.post(
+        "/encounters/automatic-death-save-recovery/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert recovery.status_code == 200, recovery.text
+    payload = recovery.json()
+    assert payload["turn_start_death_save"]["selected"] == 20
+    assert payload["turn_start_death_save"]["regained_hp"] == 1
+    combatant = payload["combatants"][hero_id]
+    assert combatant["current_hp"] == 1
+    assert combatant["conscious"] is True
+    assert combatant["death_save_successes"] == 0
+    assert combatant["death_save_failures"] == 0
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT current_hp FROM character_states WHERE entity_id = ? AND campaign_id = 1",
+            (character_id,),
+        ).fetchone()
+    assert row["current_hp"] == 1
+
+
+def test_automatic_natural_one_adds_two_death_save_failures(client, monkeypatch):
+    from api.runtime_context import combat_encounter_service
+    from rules_engine.dnd5e_2014.core.dice import DiceRoller
+
+    class FixedRandom:
+        def randint(self, _minimum, _maximum):
+            return 1
+
+    monkeypatch.setattr(
+        combat_encounter_service,
+        "dice_roller",
+        DiceRoller(rng=FixedRandom()),
+    )
+    _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
+        client, "automatic-death-save-natural-one"
+    )
+    client.post(
+        "/encounters/automatic-death-save-natural-one/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
+    response = client.post(
+        "/encounters/automatic-death-save-natural-one/advance",
+        json={"expected_round": 1, "expected_turn_index": 1},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["turn_start_death_save"]["selected"] == 1
+    assert payload["combatants"][hero_id]["death_save_failures"] == 2
