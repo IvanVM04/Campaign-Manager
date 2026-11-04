@@ -21,6 +21,7 @@ class CombatantState:
     conditions: ConditionSet = field(default_factory=ConditionSet)
     dexterity: int = 10
     action_used: bool = False
+    reaction_used: bool = False
     strength: int = 10
     constitution: int = 10
     intelligence: int = 10
@@ -105,6 +106,8 @@ class CombatantState:
             raise TypeError("conscious must be a boolean")
         if not isinstance(self.action_used, bool):
             raise TypeError("action_used must be a boolean")
+        if not isinstance(self.reaction_used, bool):
+            raise TypeError("reaction_used must be a boolean")
         if not isinstance(self.conditions, ConditionSet):
             raise TypeError("conditions must be a ConditionSet")
 

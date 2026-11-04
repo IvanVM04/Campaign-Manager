@@ -9,6 +9,7 @@ from models.combat_api_schemas import (
     DeathSavingThrowIn,
     EncounterAttackIn,
     EncounterCreateIn,
+    EncounterReactionIn,
     EncounterStartIn,
     EncounterTurnIn,
 )
@@ -55,6 +56,7 @@ def _encounter_payload(encounter):
                 "death_save_last_round": combatant.death_save_last_round,
                 "death_save_last_turn_index": combatant.death_save_last_turn_index,
                 "action_used": combatant.action_used,
+                "reaction_used": combatant.reaction_used,
                 "entity_id": combatant.entity_id,
                 "is_player_character": combatant.is_player_character,
                 "conscious": combatant.conscious,
@@ -281,6 +283,24 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
                 "target_current_hp": result["target_current_hp"],
             },
         }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/encounters/{encounter_id}/reaction")
+def use_combat_reaction(encounter_id: str, data: EncounterReactionIn):
+    try:
+        with turn_execution_lock.acquire():
+            encounter = combat_encounter_service.use_reaction(
+                get_current_runtime().campaign_id,
+                encounter_id,
+                combatant_id=data.combatant_id,
+                expected_round=data.expected_round,
+                expected_turn_index=data.expected_turn_index,
+            )
+        return _encounter_payload(encounter)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:

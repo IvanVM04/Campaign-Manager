@@ -127,7 +127,7 @@ class CombatEncounterState:
             self.turn_index = 0
             self.round_number += 1
         active = self.active_combatant
-        self.combatants[active.combatant_id] = replace(active, action_used=False)
+        self.combatants[active.combatant_id] = replace(active, action_used=False, reaction_used=False)
         return self.active_combatant
 
     def complete(self) -> None:

@@ -119,3 +119,20 @@ def test_stable_and_dead_states_accept_only_consistent_tracks():
 
     assert stable.stable is True
     assert dead.dead is True
+
+
+def test_action_and_reaction_refresh_when_combatant_turn_begins():
+    from dataclasses import replace
+
+    encounter = CombatEncounterState.prepare("enc-economy", make_combatants())
+    encounter.start(("hero", "goblin-a", "goblin-b"))
+    encounter.combatants["hero"] = replace(
+        encounter.combatants["hero"], action_used=True, reaction_used=True
+    )
+    encounter.advance_turn()
+    encounter.advance_turn()
+    active = encounter.advance_turn()
+
+    assert active.combatant_id == "hero"
+    assert active.action_used is False
+    assert active.reaction_used is False
