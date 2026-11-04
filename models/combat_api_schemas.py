@@ -68,8 +68,10 @@ class EncounterStartIn(BaseModel):
 
 
 class EncounterTurnIn(BaseModel):
-    expected_round: int | None = Field(default=None, ge=1)
-    expected_turn_index: int | None = Field(default=None, ge=0)
+    """Optimistic concurrency token required for encounter mutations."""
+
+    expected_round: StrictInt = Field(..., ge=1)
+    expected_turn_index: StrictInt = Field(..., ge=0)
 
 
 class EncounterAttackIn(BaseModel):

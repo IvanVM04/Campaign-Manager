@@ -211,8 +211,8 @@ class CombatEncounterService:
         campaign_id: int,
         encounter_id: str,
         *,
-        expected_round: int | None = None,
-        expected_turn_index: int | None = None,
+        expected_round: int,
+        expected_turn_index: int,
     ):
         with get_conn() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -242,8 +242,8 @@ class CombatEncounterService:
         campaign_id: int,
         encounter_id: str,
         *,
-        expected_round: int | None = None,
-        expected_turn_index: int | None = None,
+        expected_round: int,
+        expected_turn_index: int,
     ):
         with get_conn() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -264,10 +264,7 @@ class CombatEncounterService:
 
     @staticmethod
     def _check_position(encounter, expected_round, expected_turn_index):
-        if expected_round is not None and encounter.round_number != expected_round:
+        if encounter.round_number != expected_round:
             raise RuntimeError("encounter round changed; reload the encounter")
-        if (
-            expected_turn_index is not None
-            and encounter.turn_index != expected_turn_index
-        ):
+        if encounter.turn_index != expected_turn_index:
             raise RuntimeError("encounter turn changed; reload the encounter")
