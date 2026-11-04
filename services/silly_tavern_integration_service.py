@@ -8,6 +8,9 @@ from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
+from repositories.campaign_state_version_repository import (
+    CampaignStateVersionRepository,
+)
 from repositories.turn_repository import TurnRepository
 from repositories.world_snapshot_repository import (
     WorldSnapshotRepository,
@@ -160,6 +163,7 @@ class SillyTavernIntegrationService:
         self.world_service = world_service
 
         self.turn_repository = turn_repository
+        self.state_version_repository = CampaignStateVersionRepository()
 
         self.world_snapshot_repository = WorldSnapshotRepository()
         self.campaign_scope = CampaignScope(world_service.campaign_id)
@@ -187,10 +191,23 @@ class SillyTavernIntegrationService:
         )
 
         try:
-            turn_context = (
-                self.campaign_state_service
-                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
-            )
+            with transaction("DEFERRED") as read_conn:
+                state_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=read_conn,
+                )
+                turn_context = (
+                    self.campaign_state_service
+                    .get_turn_context(
+                        campaign_id=self.campaign_scope.campaign_id,
+                        conn=read_conn,
+                    )
+                )
+                fresh_world = self.world_service.load(conn=read_conn)
+                turn_context = replace(
+                    turn_context,
+                    world=fresh_world,
+                )
 
         except CampaignStateServiceError as exc:
             raise SillyTavernIntegrationServiceError(
@@ -760,6 +777,15 @@ class SillyTavernIntegrationService:
 
         try:
             with transaction("IMMEDIATE") as conn:
+
+                current_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=conn,
+                )
+                if current_revision != state_revision:
+                    raise SillyTavernIntegrationServiceConflictError(
+                        "campaign state changed while turn operations were being extracted; retry"
+                    )
 
                 # ------------------------------------------------
                 # COMPROBACIÓN AUTORITATIVA DE IDEMPOTENCIA
