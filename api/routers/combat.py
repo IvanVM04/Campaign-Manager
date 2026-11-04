@@ -8,6 +8,7 @@ from api.runtime_context import (
 from models.combat_api_schemas import (
     EncounterAttackIn,
     EncounterCreateIn,
+    DeathSavingThrowIn,
     EncounterStartIn,
     EncounterTurnIn,
 )
@@ -47,6 +48,10 @@ def _encounter_payload(encounter):
                 "wisdom": combatant.wisdom,
                 "charisma": combatant.charisma,
                 "proficiency_bonus": combatant.proficiency_bonus,
+                "death_save_successes": combatant.death_save_successes,
+                "death_save_failures": combatant.death_save_failures,
+                "stable": combatant.stable,
+                "dead": combatant.dead,
                 "action_used": combatant.action_used,
                 "entity_id": combatant.entity_id,
                 "is_player_character": combatant.is_player_character,
@@ -116,6 +121,38 @@ def start_combat_encounter(encounter_id: str, data: EncounterStartIn):
                 ),
             )
         return _encounter_payload(encounter)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/encounters/{encounter_id}/death-save")
+def resolve_encounter_death_save(encounter_id: str, data: DeathSavingThrowIn):
+    try:
+        with turn_execution_lock.acquire():
+            result = combat_encounter_service.death_saving_throw(
+                get_current_runtime().campaign_id,
+                encounter_id,
+                expected_round=data.expected_round,
+                expected_turn_index=data.expected_turn_index,
+                dice_mode=data.dice_mode,
+                manual_roll=data.manual_roll,
+            )
+        roll = result["result"]
+        return {
+            "encounter": _encounter_payload(result["encounter"]),
+            "combatant_id": result["combatant_id"],
+            "death_save": {
+                "rolls": list(roll.rolls),
+                "selected": roll.selected,
+                "successes": roll.successes,
+                "failures": roll.failures,
+                "stable": roll.stable,
+                "dead": roll.dead,
+                "regained_hp": roll.regained_hp,
+            },
+        }
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
