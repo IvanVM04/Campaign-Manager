@@ -60,7 +60,7 @@ def _code_for_status(status_code: int) -> str:
     return "http_error"
 
 
-def register_error_handlers(app: Any) -> None:
+def register_error_handlers(app: object) -> None:
     """Install consistent error responses without exposing internal failures."""
     from fastapi import Request
     from fastapi.exceptions import RequestValidationError
