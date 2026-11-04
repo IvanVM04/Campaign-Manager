@@ -909,14 +909,14 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_24():
+def test_run_migrations_upgrades_version_21_to_25():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -935,7 +935,7 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
     conn.close()
 
 
@@ -957,7 +957,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 24
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
@@ -992,4 +992,26 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
             """,
             (other_entity_id,),
         )
+    conn.close()
+
+
+
+def test_migration_025_adds_encounter_scoped_effect_timer_columns():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    run_migrations(conn)
+
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(persistent_effect_timers)")
+    }
+    assert {
+        "encounter_id", "duration_rounds", "expires_at_round",
+        "duration_turns", "expires_at_turn", "expired_at_round", "expired_at_turn",
+    } <= columns
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 25
+    trigger = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_effect_timer_encounter_campaign'"
+    ).fetchone()
+    assert trigger is not None
     conn.close()

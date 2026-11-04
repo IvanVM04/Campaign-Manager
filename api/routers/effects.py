@@ -31,6 +31,13 @@ def _persistent_effect_payload(effect):
         "duration_minutes": effect.duration_minutes,
         "expires_at_minute": effect.expires_at_minute,
         "expired_at_minute": effect.expired_at_minute,
+        "encounter_id": effect.encounter_id,
+        "duration_rounds": effect.duration_rounds,
+        "expires_at_round": effect.expires_at_round,
+        "expired_at_round": effect.expired_at_round,
+        "duration_turns": effect.duration_turns,
+        "expires_at_turn": effect.expires_at_turn,
+        "expired_at_turn": effect.expired_at_turn,
         "level": effect.level,
         "status": effect.status.value,
         "created_at": effect.created_at,
@@ -70,6 +77,9 @@ def create_entity_effect(entity_id: int, data: PersistentEffectCreateIn):
                 duration_type=data.duration_type,
                 duration_condition=data.duration_condition,
                 duration_minutes=data.duration_minutes,
+                encounter_id=data.encounter_id,
+                duration_rounds=data.duration_rounds,
+                duration_turns=data.duration_turns,
                 level=data.level,
             )
         return _persistent_effect_payload(effect)

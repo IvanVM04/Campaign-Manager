@@ -335,3 +335,90 @@ def test_campaign_time_api_schema_requires_strict_positive_minutes():
             duration_type="campaign_time",
             duration_minutes=True,
         )
+
+
+
+def test_encounter_turn_and_round_effects_expire_atomically_with_progression(isolated_database):
+    from models.combat_encounter_state import CombatEncounterState
+    from models.combatant_state import CombatantState
+    from repositories.character_repository import CharacterRepository
+    from repositories.combat_encounter_repository import CombatEncounterRepository
+    from services.combat_encounter_service import CombatEncounterService
+
+    entities = EntityRepository()
+    target = entities.save_entity(Entity(name="Mira", entity_type="player_character"), campaign_id=1)
+    other = entities.save_entity(Entity(name="Goblin", entity_type="creature"), campaign_id=1)
+    encounter_repo = CombatEncounterRepository()
+    encounter = CombatEncounterState.prepare(
+        "effect-duration-encounter",
+        (
+            CombatantState(
+                combatant_id=f"character-{target.id}", name="Mira", initiative=20,
+                current_hp=10, max_hp=10, armor_class=15, entity_id=target.id,
+                is_player_character=True,
+            ),
+            CombatantState(
+                combatant_id=f"creature-{other.id}", name="Goblin", initiative=10,
+                current_hp=7, max_hp=7, armor_class=13, entity_id=other.id,
+            ),
+        ),
+    )
+    encounter.start((f"character-{target.id}", f"creature-{other.id}"))
+    encounter_repo.save(encounter, campaign_id=1)
+
+    effects_repo = PersistentEffectRepository()
+    effects = PersistentEffectService(
+        repository=effects_repo,
+        entity_repository=entities,
+        campaign_id=1,
+        encounter_repository=encounter_repo,
+    )
+    one_turn = effects.create(
+        entity_id=target.id,
+        effect_type="condition",
+        effect_key="poisoned",
+        name="Veneno de un turno",
+        duration_type="encounter_turns",
+        encounter_id=encounter.encounter_id,
+        duration_turns=1,
+    )
+    one_round = effects.create(
+        entity_id=target.id,
+        effect_type="condition",
+        effect_key="blinded",
+        name="Ceguera de una ronda",
+        duration_type="encounter_rounds",
+        encounter_id=encounter.encounter_id,
+        duration_rounds=1,
+    )
+    assert one_turn.expires_at_turn == 1
+    assert one_round.expires_at_round == 2
+
+    # Encounter timers must not be consumed by campaign-clock advancement.
+    from services.campaign_clock_service import CampaignClockService
+    CampaignClockService(campaign_id=1).advance(
+        minutes=1, expected_elapsed_minutes=0
+    )
+    still_active = effects.list_for_entity(target.id)
+    assert {item.id for item in still_active} == {one_turn.id, one_round.id}
+
+    combat = CombatEncounterService(
+        repository=encounter_repo,
+        character_repository=CharacterRepository(),
+        entity_repository=entities,
+        persistent_effect_repository=effects_repo,
+    )
+    combat.advance_turn(1, encounter.encounter_id, expected_round=1, expected_turn_index=0)
+
+    after_one_turn = effects.list_for_entity(target.id, include_removed=True)
+    turn_effect = next(item for item in after_one_turn if item.id == one_turn.id)
+    round_effect = next(item for item in after_one_turn if item.id == one_round.id)
+    assert turn_effect.status.value == "expired"
+    assert turn_effect.expired_at_turn == 1
+    assert round_effect.status.value == "active"
+
+    combat.advance_turn(1, encounter.encounter_id, expected_round=1, expected_turn_index=1)
+    after_round = effects.list_for_entity(target.id, include_removed=True)
+    round_effect = next(item for item in after_round if item.id == one_round.id)
+    assert round_effect.status.value == "expired"
+    assert round_effect.expired_at_round == 2

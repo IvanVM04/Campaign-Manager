@@ -16,7 +16,7 @@ This increment supports `permanent`, `conditional`, and `campaign_time`. Permane
 
 Timed effects expose `duration_minutes`, `expires_at_minute`, and (after expiration) `expired_at_minute`. Expiration changes the domain status to `expired` while retaining the record for history. A separate timer table preserves compatibility with the original effect table and its campaign-scope constraints.
 
-Round-based and turn-based expiration are not accepted yet; they will be coordinated with encounter lifecycle separately.
+Encounter-scoped durations are supported through `encounter_rounds` and `encounter_turns`. They require an active encounter and a target participating in it. A round duration expires when the encounter advances into the deadline round; a turn duration expires after the configured number of encounter turn advances. Turn deadlines use a persisted absolute turn position derived from round and initiative index. Both timer types expire atomically with encounter advancement and are retained as `expired` history. Completing an encounter expires any remaining encounter-scoped effects. These deadlines are independent of campaign clock minutes.
 
 ## Sources and scope
 
