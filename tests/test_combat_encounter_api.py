@@ -631,12 +631,22 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
     )
     assert duplicate.status_code == 409
 
+    # The goblin regains its reaction when its own turn starts.
     advanced = client.post(
         "/encounters/reaction-economy/advance",
         json={"expected_round": 1, "expected_turn_index": 0},
     )
     assert advanced.status_code == 200, advanced.text
-    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is True
+    assert advanced.json()["active_combatant_id"] == goblin_id
+    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is False
+
+    # It can spend that refreshed reaction during its turn.
+    spent_on_own_turn = client.post(
+        "/encounters/reaction-economy/reaction",
+        json={"combatant_id": goblin_id, "expected_round": 1, "expected_turn_index": 1},
+    )
+    assert spent_on_own_turn.status_code == 200, spent_on_own_turn.text
+    assert spent_on_own_turn.json()["combatants"][goblin_id]["reaction_used"] is True
 
     advanced = client.post(
         "/encounters/reaction-economy/advance",
@@ -649,7 +659,7 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
 
     advanced = client.post(
         "/encounters/reaction-economy/advance",
-        json={"expected_round": 2, "expected_turn_index": 0},
+        json={"expected_round": 1, "expected_turn_index": 0},
     )
     assert advanced.status_code == 200, advanced.text
     assert advanced.json()["active_combatant_id"] == goblin_id
