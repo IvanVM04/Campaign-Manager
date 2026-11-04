@@ -2086,7 +2086,8 @@ def migration_026(conn: sqlite3.Connection) -> None:
                   AND ii.campaign_id = OLD.campaign_id
                   AND ei.slot != COALESCE(
                       NEW.equipment_slot,
-                      CASE WHEN NEW.weapon_key IS NOT NULL THEN 'main_hand' END
+                      CASE WHEN NEW.weapon_key IS NOT NULL THEN 'main_hand' END,
+                      ''
                   )
             )
             BEGIN
