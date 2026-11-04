@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.campaign_runtime import CampaignRuntimeFactory
 
@@ -90,7 +92,6 @@ def test_narration_failure_leaves_committed_resolution_resumable():
 
     service.resolver.dm_service.provider.generate = fail_once
 
-    import pytest
     from services.durable_native_turn_service import DurableNativeTurnError
 
     with pytest.raises(DurableNativeTurnError):
