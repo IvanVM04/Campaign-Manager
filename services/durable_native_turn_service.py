@@ -42,6 +42,7 @@ class DurableTurnPreparation:
     player_input: str
     committed_resolution: str
     clarification_question: str | None = None
+    pending_clarification_id: str | None = None
     legacy_replay: bool = False
 
 
@@ -362,6 +363,9 @@ class DurableNativeTurnService:
                         ensure_ascii=False,
                     ),
                     clarification_question=question,
+                    pending_clarification_id=getattr(
+                        result, "pending_clarification_id", None
+                    ),
                 )
             return result
 
@@ -1115,6 +1119,11 @@ class DurableNativeTurnService:
             player_input=record.player_input,
             committed_resolution=self._committed_resolution_json(record),
             clarification_question=question,
+            pending_clarification_id=(
+                str(record.id) + ":" + clarification["challenge_id"]
+                if isinstance(clarification, dict)
+                else None
+            ),
         )
 
     def complete_external_narration(
