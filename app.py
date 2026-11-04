@@ -1,4 +1,19 @@
-from api.runtime_context import _current_runtime
+from api.runtime_context import (
+    _current_runtime,
+    campaign_repository,
+    campaign_state_service,
+    campaign_turn_service,
+    character_creation_service,
+    character_repository,
+    combat_encounter_service,
+    context_builder,
+    entity_repository,
+    memory_search_service,
+    silly_tavern_integration_service,
+    turn_execution_lock,
+    turn_repository,
+    world_service,
+)
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -231,38 +246,6 @@ def _get_active_runtime() -> CampaignRuntime:
     return runtime
 
 
-class _RuntimeProxy:
-    """Compatibilidad temporal: delega cada acceso al runtime de la petición."""
-
-    def __init__(self, attribute: str) -> None:
-        self._attribute = attribute
-
-    def __getattr__(self, name: str):
-        # Resolve at invocation time to keep each call request-scoped and
-        # preserve monkeypatch compatibility in the test suite.
-        def dispatch(*args, **kwargs):
-            runtime = _get_active_runtime()
-            target = getattr(getattr(runtime, self._attribute), name)
-            return target(*args, **kwargs)
-
-        return dispatch
-
-
-campaign_repository = _RuntimeProxy("campaign_repository")
-character_repository = _RuntimeProxy("character_repository")
-entity_repository = _RuntimeProxy("entity_repository")
-turn_repository = _RuntimeProxy("turn_repository")
-world_service = _RuntimeProxy("world_service")
-campaign_state_service = _RuntimeProxy("campaign_state_service")
-memory_search_service = _RuntimeProxy("memory_search_service")
-context_builder = _RuntimeProxy("context_builder")
-turn_execution_lock = _RuntimeProxy("turn_execution_lock")
-character_creation_service = _RuntimeProxy("character_creation_service")
-combat_encounter_service = _RuntimeProxy("combat_encounter_service")
-campaign_turn_service = _RuntimeProxy("campaign_turn_service")
-silly_tavern_integration_service = _RuntimeProxy(
-    "silly_tavern_integration_service"
-)
 
 
 @app.middleware("http")
