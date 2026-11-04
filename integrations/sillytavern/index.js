@@ -1205,7 +1205,7 @@ async function getPersistedClarificationState(
     const currentSettings = getSettings();
     const backendUrl = currentSettings.backendUrl
         .trim()
-        .replace(/\\/+$/, '');
+        .replace(/\/+$/, '');
     if (!backendUrl) {
         throw new Error('Backend URL is empty.');
     }
@@ -1327,7 +1327,7 @@ async function getCampaignManagerClarificationContext(
     const currentSettings = getSettings();
     const backendUrl = currentSettings.backendUrl
         .trim()
-        .replace(/\\/+$/, '');
+        .replace(/\/+$/, '');
     const configuredQuery = typeof currentSettings.contextQuery === 'string'
         ? currentSettings.contextQuery.trim()
         : '';
@@ -1339,7 +1339,7 @@ async function getCampaignManagerClarificationContext(
 
     const retrievalQuery = buildRetrievalQuery(
         configuredQuery,
-        `${clarificationOrigin.playerInput}\\nRespuesta a la aclaración: ${answer}`,
+        `${clarificationOrigin.playerInput}\nRespuesta a la aclaración: ${answer}`,
     );
     const response = await fetch(
         `${backendUrl}/integration/turn/clarification`,
@@ -1396,7 +1396,7 @@ async function getCampaignManagerClarificationContext(
             'La respuesta del jugador se ha registrado, pero Campaign Manager todavía no ha confirmado las consecuencias.',
             'Formula esta nueva pregunta al jugador y no describas cambios de estado como si hubieran ocurrido.',
             responseBody.clarification_question,
-        ].join('\\n');
+        ].join('\n');
     }
 
     return [
@@ -1406,7 +1406,7 @@ async function getCampaignManagerClarificationContext(
         'La aclaración se ha procesado y las consecuencias siguientes están confirmadas por Campaign Manager.',
         'No inventes cambios de estado ni contradigas estos resultados.',
         responseBody.committed_resolution,
-    ].join('\\n');
+    ].join('\n');
 }
 
 
