@@ -11,6 +11,7 @@ from models.combatant_state import CombatantState
 from models.creature_state import CreatureState
 from models.entity import Entity
 from repositories.combat_encounter_repository import CombatEncounterRepository
+from repositories.creature_repository import CreatureRepository
 from rules_engine.dnd5e_2014.combat.initiative import roll_initiative
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 
@@ -24,13 +25,13 @@ class CombatEncounterService:
         repository: CombatEncounterRepository,
         character_repository,
         entity_repository,
-        creature_repository,
+        creature_repository: CreatureRepository | None = None,
         dice_roller: DiceRoller | None = None,
     ) -> None:
         self.repository = repository
         self.character_repository = character_repository
         self.entity_repository = entity_repository
-        self.creature_repository = creature_repository
+        self.creature_repository = creature_repository or CreatureRepository()
         self.dice_roller = dice_roller or DiceRoller()
 
     def create(self, campaign_id: int, participants, encounter_id: str | None = None):
