@@ -119,7 +119,8 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
                 external_turn_id=data.external_turn_id,
             )
             context_result = runtime.silly_tavern_integration_service.get_context(
-                data.query
+                data.query,
+                exclude_external_turn_id=data.external_turn_id,
             )
     except DurableNativeTurnError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
