@@ -31,8 +31,8 @@ class EncounterParticipantIn(BaseModel):
                 self.armor_class, self.dexterity,
             )):
                 raise ValueError("entity references cannot be combined with manual combatant stats")
-            if self.is_player_character != (self.character_id is not None):
-                raise ValueError("is_player_character must match the referenced entity type")
+            if self.creature_id is not None and self.is_player_character:
+                raise ValueError("creatures cannot be marked as player characters")
             return self
         required = {
             "name": self.name,
