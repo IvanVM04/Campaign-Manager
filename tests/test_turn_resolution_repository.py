@@ -153,17 +153,10 @@ def test_transition_rejects_skipping_commit_or_replaying_state(isolated_database
             )
 
     with transaction("IMMEDIATE") as conn:
-        conn.execute(
-            "UPDATE turn_resolutions SET lifecycle_state='committed' WHERE id=?",
-            (created.id,),
-        )
-        with pytest.raises(ValueError, match="invalid"):
-            repository.transition(
-                created.id,
-                "planning",
-                scope=CampaignScope(1),
-                expected_state="committed",
-                conn=conn,
+        with pytest.raises(sqlite3.IntegrityError, match="invalid"):
+            conn.execute(
+                "UPDATE turn_resolutions SET lifecycle_state='committed' WHERE id=?",
+                (created.id,),
             )
 
 
