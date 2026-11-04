@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
-from api.runtime_context import combat_encounter_service, get_current_runtime, turn_execution_lock
+from api.runtime_context import (
+    combat_encounter_service,
+    get_current_runtime,
+    turn_execution_lock,
+)
 from models.combat_api_schemas import (
     EncounterAttackIn,
     EncounterCreateIn,
