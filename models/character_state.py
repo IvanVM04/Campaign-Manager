@@ -34,7 +34,9 @@ class CharacterState:
         self.skill_expertise = frozenset(Skill(value) for value in self.skill_expertise)
         self.saving_throw_proficiencies = frozenset(Ability(value) for value in self.saving_throw_proficiencies)
         self.weapon_proficiencies = frozenset(str(value) for value in self.weapon_proficiencies)
-        self.armor_proficiencies = frozenset(str(value) for value in self.armor_proficiencies)
+        self.armor_proficiencies = frozenset(
+            str(value) for value in self.armor_proficiencies
+        )
         valid_armor_proficiencies = {"light", "medium", "heavy", "shields"}
         if not self.armor_proficiencies.issubset(valid_armor_proficiencies):
             raise ValueError("armor proficiencies must be light, medium, heavy or shields")
