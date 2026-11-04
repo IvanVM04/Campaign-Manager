@@ -232,3 +232,51 @@ def test_persistent_poisoned_attacker_has_disadvantage_on_attack(client):
     )
     assert response.status_code == 200, response.text
     assert response.json()["disadvantage"] is True
+
+
+def test_npc_damage_is_persisted_and_reused_across_encounters(client):
+    _attacker_entity_id, _target, attacker_id, target_id = _prepare_encounter(
+        client, target_is_character=False
+    )
+    encounter = CombatEncounterRepository().get("attack-test", campaign_id=1)
+    creature_entity_id = encounter.combatants[target_id].entity_id
+    assert creature_entity_id is not None
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_id,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["damage"]["target_current_hp"] == 0
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT current_hp, max_hp FROM creature_states WHERE entity_id = ? AND campaign_id = 1",
+            (creature_entity_id,),
+        ).fetchone()
+    assert row["current_hp"] == 0
+    assert row["max_hp"] == 7
+
+    reused = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "reuse-persisted-npc",
+            "participants": [
+                {"character_id": int(attacker_id.split("-")[1])},
+                {"creature_id": creature_entity_id},
+            ],
+        },
+    )
+    assert reused.status_code == 201, reused.text
+    reused_combatants = reused.json()["combatants"]
+    npc = reused_combatants[f"creature-{creature_entity_id}"]
+    assert npc["entity_id"] == creature_entity_id
+    assert npc["current_hp"] == 0
+    assert npc["defeated"] is True
