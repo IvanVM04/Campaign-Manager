@@ -87,6 +87,7 @@ def test_world_repository_round_trips_weapon_key(tmp_path):
         repository.save_world(state, campaign_id=1)
         loaded = repository.load_world(campaign_id=1)
         assert loaded.items[1].weapon_key == "longsword"
+        assert loaded.items[1].equipment_slot == "main_hand"
         assert loaded.item_instances[1].owner_id == 1
     finally:
         database.DB_PATH = previous
