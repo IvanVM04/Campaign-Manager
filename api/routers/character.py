@@ -1,4 +1,5 @@
 import sqlite3
+from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 
@@ -88,6 +89,9 @@ def list_character_equipment(character_entity_id: int):
         "armor_class": runtime.weapon_equipment_service.armor_class(
             character, campaign_id=runtime.campaign_id
         ).armor_class,
+        "armor_proficiency": asdict(runtime.weapon_equipment_service.armor_proficiency(
+            character, campaign_id=runtime.campaign_id
+        )),
     }
 
 
