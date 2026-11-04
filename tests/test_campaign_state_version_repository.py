@@ -53,16 +53,18 @@ def test_campaign_revision_rolls_back_with_failed_transaction():
     with get_conn() as conn:
         before = repository.get_revision(1, conn=conn)
 
-    with pytest.raises(RuntimeError, match="abort"):
-        with transaction("IMMEDIATE") as conn:
-            conn.execute(
-                """
-                INSERT INTO entities (name, entity_type, campaign_id)
-                VALUES (?, ?, ?)
-                """,
-                ("Transient", "npc", 1),
-            )
-            raise RuntimeError("abort")
+    with (
+        pytest.raises(RuntimeError, match="abort"),
+        transaction("IMMEDIATE") as conn,
+    ):
+        conn.execute(
+            """
+            INSERT INTO entities (name, entity_type, campaign_id)
+            VALUES (?, ?, ?)
+            """,
+            ("Transient", "npc", 1),
+        )
+        raise RuntimeError("abort")
 
     with get_conn() as conn:
         after = repository.get_revision(1, conn=conn)
