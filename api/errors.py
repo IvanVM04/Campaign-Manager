@@ -3,12 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.requests import Request
-from fastapi import FastAPI
-from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+import fastapi
+import starlette
 
 
 logger = logging.getLogger(__name__)
@@ -51,12 +47,12 @@ def error_response(
     code: str,
     detail: Any,
     headers: dict[str, str] | None = None,
-) -> JSONResponse:
+) -> starlette.responses.JSONResponse:
     """Build the backwards-compatible, machine-readable API error body."""
-    return JSONResponse(
+    return starlette.responses.JSONResponse(
         status_code=status_code,
         content={
-            "detail": jsonable_encoder(detail),
+            "detail": fastapi.encoders.jsonable_encoder(detail),
             "code": code,
         },
         headers=headers,
@@ -71,14 +67,14 @@ def _code_for_status(status_code: int) -> str:
     return "http_error"
 
 
-def register_error_handlers(app: FastAPI) -> None:
+def register_error_handlers(app: fastapi.FastAPI) -> None:
     """Install consistent error responses without exposing internal failures."""
 
     @app.exception_handler(APIError)
     async def handle_api_error(
-        request: Request,
+        request: starlette.requests.Request,
         exc: APIError,
-    ) -> JSONResponse:
+    ) -> starlette.responses.JSONResponse:
         detail = exc.detail
         if exc.status_code >= 500 and exc.status_code != 503:
             detail = "Internal server error"
@@ -89,11 +85,11 @@ def register_error_handlers(app: FastAPI) -> None:
             headers=exc.headers,
         )
 
-    @app.exception_handler(RequestValidationError)
+    @app.exception_handler(fastapi.exceptions.starlette.requests.RequestValidationError)
     async def handle_validation_error(
-        request: Request,
-        exc: RequestValidationError,
-    ) -> JSONResponse:
+        request: starlette.requests.Request,
+        exc: fastapi.exceptions.starlette.requests.RequestValidationError,
+    ) -> starlette.responses.JSONResponse:
         public_errors = [
             {
                 "loc": error["loc"],
@@ -108,11 +104,11 @@ def register_error_handlers(app: FastAPI) -> None:
             detail=public_errors,
         )
 
-    @app.exception_handler(StarletteHTTPException)
+    @app.exception_handler(starlette.exceptions.HTTPException)
     async def handle_http_error(
-        request: Request,
-        exc: StarletteHTTPException,
-    ) -> JSONResponse:
+        request: starlette.requests.Request,
+        exc: starlette.exceptions.HTTPException,
+    ) -> starlette.responses.JSONResponse:
         return error_response(
             status_code=exc.status_code,
             code=_code_for_status(exc.status_code),
@@ -122,9 +118,9 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(
-        request: Request,
+        request: starlette.requests.Request,
         exc: Exception,
-    ) -> JSONResponse:
+    ) -> starlette.responses.JSONResponse:
         logger.exception(
             "Unhandled API exception",
             exc_info=(type(exc), exc, exc.__traceback__),
