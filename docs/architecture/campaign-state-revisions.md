@@ -31,3 +31,7 @@ Manual-roll requests retain the revision captured when the roll was requested. I
 This protects database-backed campaign state across service instances and processes. It does not replace the in-process `TurnExecutionLock`, provide distributed locking, or make arbitrary in-memory mutations safe. Callers must continue to reload authoritative state when opening a new processing snapshot and restore in-memory objects after rollback.
 
 The revision is intentionally conservative: any campaign-scoped row mutation invalidates a plan, even if the changed row would not have affected that plan. This favors correctness over avoiding occasional retries.
+
+## Future migration requirement
+
+Any future migration that adds a campaign-owned table with a `campaign_id` column must also install INSERT, UPDATE and DELETE revision triggers for that table. Migration 021 discovers the campaign-owned tables present when it runs; it cannot automatically discover tables added by later migrations.
