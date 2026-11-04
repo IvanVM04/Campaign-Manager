@@ -29,6 +29,14 @@ class Item:
     equipment_slot: str | None = None
 
     def __post_init__(self) -> None:
+        if self.weapon_key is not None and self.armor_key is not None:
+            raise ValueError("an item cannot be both a weapon and armor")
+        if self.armor_key is not None:
+            expected_slot = "off_hand" if self.armor_key == "shield" else "body"
+            if self.equipment_slot is None:
+                self.equipment_slot = expected_slot
+            elif self.equipment_slot != expected_slot:
+                raise ValueError("armor items must use body or off_hand for shields")
         if self.weapon_key is not None and self.equipment_slot is None:
             self.equipment_slot = "main_hand"
         if self.equipment_slot is not None and self.equipment_slot not in {
