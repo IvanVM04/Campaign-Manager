@@ -1,7 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from models.schemas import ManualRollIn, SillyTavernManualRollIn, SillyTavernTurnResolveIn, TurnIn
+from models.schemas import (
+    ManualRollIn,
+    SillyTavernManualRollIn,
+    SillyTavernTurnResolveIn,
+    TurnIn,
+)
 
 
 def test_turn_schema_defaults_to_automatic_dice():
