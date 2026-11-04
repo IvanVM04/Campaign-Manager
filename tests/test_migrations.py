@@ -910,14 +910,14 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_27():
+def test_run_migrations_upgrades_version_21_to_28():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 27
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -936,7 +936,7 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 27
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
     conn.close()
 
 
@@ -958,7 +958,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 27
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
@@ -1010,7 +1010,7 @@ def test_migration_025_adds_encounter_scoped_effect_timer_columns():
         "encounter_id", "duration_rounds", "expires_at_round",
         "duration_turns", "expires_at_turn", "expired_at_round", "expired_at_turn",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 27
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
     trigger = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_effect_timer_encounter_campaign'"
     ).fetchone()
@@ -1062,7 +1062,7 @@ def test_migration_026_creates_slot_projection_and_migrates_legacy_weapon():
     assert conn.execute(
         "SELECT equipment_slot FROM items WHERE id=1"
     ).fetchone()[0] == "main_hand"
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 27
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
     conn.close()
 
 
@@ -1099,4 +1099,28 @@ def test_migration_027_adds_typed_armor_metadata_and_slot_guards():
         INSERT INTO items (name, armor_key, equipment_slot, campaign_id)
         VALUES ('Shield', 'shield', 'off_hand', 1)
     """)
+    conn.close()
+
+
+def test_migration_028_persists_armor_proficiencies_with_empty_legacy_default():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    run_migrations(conn)
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(character_states)")
+    }
+    assert "armor_proficiencies" in columns
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    conn.execute("""
+        INSERT INTO entities (id, name, entity_type, campaign_id)
+        VALUES (1, 'Legacy hero', 'player_character', 1)
+    """)
+    conn.execute("""
+        INSERT INTO character_states (entity_id, campaign_id)
+        VALUES (1, 1)
+    """)
+    assert conn.execute(
+        "SELECT armor_proficiencies FROM character_states WHERE entity_id=1"
+    ).fetchone()[0] == "[]"
     conn.close()

@@ -2,7 +2,9 @@
 
 from rules_engine.dnd5e_2014.armor.armor_class import (
     ArmorClassResult,
+    ArmorProficiencyResult,
     derive_armor_class,
+    derive_armor_proficiency,
 )
 from rules_engine.dnd5e_2014.armor.catalog import (
     ARMOR_CATALOG,
@@ -17,7 +19,9 @@ __all__ = [
     "ArmorCategory",
     "ArmorClassResult",
     "ArmorDefinition",
+    "ArmorProficiencyResult",
     "derive_armor_class",
+    "derive_armor_proficiency",
     "get_armor",
     "list_armor",
 ]

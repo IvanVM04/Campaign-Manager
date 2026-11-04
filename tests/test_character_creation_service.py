@@ -64,6 +64,7 @@ def test_create_character_creates_entity_and_character(
         skill_proficiencies=["stealth", "perception"],
         skill_expertise=["stealth"],
         saving_throw_proficiencies=["dexterity", "wisdom"],
+        armor_proficiencies=["light", "shields"],
     )
 
     character = character_creation_service.create_character(
@@ -88,6 +89,7 @@ def test_create_character_creates_entity_and_character(
     assert {skill.value for skill in character.skill_proficiencies} == {"stealth", "perception"}
     assert {skill.value for skill in character.skill_expertise} == {"stealth"}
     assert {ability.value for ability in character.saving_throw_proficiencies} == {"dexterity", "wisdom"}
+    assert character.armor_proficiencies == frozenset({"light", "shields"})
 
     entity_repository = EntityRepository()
     character_repository = CharacterRepository()
@@ -110,6 +112,7 @@ def test_create_character_creates_entity_and_character(
     assert persisted_character is not None
     assert persisted_character.entity_id == character.entity_id
     assert persisted_character.class_name == "Ranger"
+    assert persisted_character.armor_proficiencies == frozenset({"light", "shields"})
 
 
 def test_create_character_activates_character(
@@ -254,3 +257,21 @@ def test_create_character_rolls_back_all_changes_on_activation_failure(
 def test_character_create_rejects_expertise_without_proficiency():
     with pytest.raises(ValueError, match="expertise requires skill proficiency"):
         CharacterCreate(name="Invalid", max_hp=8, skill_expertise=["stealth"])
+
+
+def test_character_create_rejects_duplicate_armor_proficiencies():
+    with pytest.raises(ValueError, match="armor_proficiencies cannot contain duplicates"):
+        CharacterCreate(
+            name="Duplicate training",
+            max_hp=8,
+            armor_proficiencies=["light", "light"],
+        )
+
+
+def test_character_create_rejects_unknown_armor_proficiency():
+    with pytest.raises(ValueError):
+        CharacterCreate(
+            name="Invalid training",
+            max_hp=8,
+            armor_proficiencies=["plate"],
+        )

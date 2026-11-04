@@ -193,6 +193,7 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
             "proficient": result["proficient"],
             "advantage": result["advantage"],
             "disadvantage": result["disadvantage"],
+            "armor_training_penalty": result["armor_training_penalty"],
             "attack": {
                 "rolls": list(attack.attack_roll.rolls),
                 "selected": attack.attack_roll.selected,

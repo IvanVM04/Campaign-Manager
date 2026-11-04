@@ -391,6 +391,10 @@ class CharacterCreate(BaseModel):
 
     saving_throw_proficiencies: list[Ability] = Field(default_factory=list)
 
+    armor_proficiencies: list[Literal["light", "medium", "heavy", "shields"]] = Field(
+        default_factory=list
+    )
+
     metadata: dict = Field(
         default_factory=dict,
     )
@@ -403,6 +407,8 @@ class CharacterCreate(BaseModel):
             raise ValueError("skill_expertise cannot contain duplicates")
         if len(set(self.saving_throw_proficiencies)) != len(self.saving_throw_proficiencies):
             raise ValueError("saving_throw_proficiencies cannot contain duplicates")
+        if len(set(self.armor_proficiencies)) != len(self.armor_proficiencies):
+            raise ValueError("armor_proficiencies cannot contain duplicates")
         if not set(self.skill_expertise).issubset(self.skill_proficiencies):
             raise ValueError("skill expertise requires skill proficiency")
         return self
