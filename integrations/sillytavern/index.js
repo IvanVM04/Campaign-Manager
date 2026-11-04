@@ -192,6 +192,27 @@ async function getCampaignManagerGenerationContext(
             },
         );
 
+        if (responseBody.clarification_question) {
+            return [
+                responseBody.context.context.trim(),
+                '',
+                '=== ACLARACIÓN NECESARIA ===',
+                'Campaign Manager no ha confirmado consecuencias para esta acción.',
+                'Formula la siguiente pregunta al jugador y no describas cambios de estado como si hubieran ocurrido.',
+                responseBody.clarification_question,
+            ].join('\n');
+        }
+
+        if (responseBody.legacy_replay) {
+            return [
+                responseBody.context.context.trim(),
+                '',
+                '=== REGENERACIÓN DE TURNO HISTÓRICO ===',
+                'Este turno fue procesado por una versión anterior. Conserva el estado existente y no propongas consecuencias nuevas.',
+                responseBody.committed_resolution,
+            ].join('\n');
+        }
+
         return [
             responseBody.context.context.trim(),
             '',
@@ -199,10 +220,7 @@ async function getCampaignManagerGenerationContext(
             'Las consecuencias y resultados siguientes ya están confirmados por Campaign Manager.',
             'No inventes cambios de estado, no contradigas estos resultados y limita la narración a presentarlos.',
             responseBody.committed_resolution,
-            responseBody.clarification_question
-                ? `Aclaración solicitada por Campaign Manager: ${responseBody.clarification_question}`
-                : '',
-        ].filter(Boolean).join('\n');
+        ].join('\n');
 
     } catch (error) {
         console.warn(
