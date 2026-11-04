@@ -501,3 +501,41 @@ def test_third_failure_from_damage_kills_downed_character(client):
     assert combatant["dead"] is True
     assert combatant["current_hp"] == 0
     assert combatant["conscious"] is False
+
+
+
+def test_massive_damage_kills_character_when_excess_reaches_max_hp(client):
+    _, target_id, _attacker_id, _target_combatant_id = _prepare_encounter(client)
+    target_key = f"character-{target_id}"
+    repository = CombatEncounterRepository()
+    encounter = repository.get("attack-test", campaign_id=1)
+    target = encounter.combatants[target_key]
+    encounter.combatants[target_key] = replace(
+        target,
+        current_hp=1,
+        max_hp=5,
+        conscious=True,
+    )
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE character_states SET current_hp = 1, max_hp = 5 WHERE entity_id = ? AND campaign_id = 1",
+            (target_id,),
+        )
+    repository.save(encounter, campaign_id=1)
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    combatant = response.json()["encounter"]["combatants"][target_key]
+    assert combatant["current_hp"] == 0
+    assert combatant["dead"] is True
+    assert combatant["conscious"] is False
