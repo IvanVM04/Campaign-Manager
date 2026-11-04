@@ -89,3 +89,11 @@ def test_character_state_can_represent_player_character():
     assert character.class_name == "Rogue"
     assert character.dexterity == 16
     assert character.current_hp == character.max_hp
+
+def test_character_state_validates_armor_proficiency_categories():
+    import pytest
+
+    character = CharacterState(entity_id=9, armor_proficiencies={"light", "shields"})
+    assert character.armor_proficiencies == frozenset({"light", "shields"})
+    with pytest.raises(ValueError, match="armor proficiencies"):
+        CharacterState(entity_id=10, armor_proficiencies={"plate"})
