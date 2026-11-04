@@ -74,3 +74,44 @@ def derive_armor_class(
         strength_requirement_met=strength_met,
         stealth_disadvantage=stealth_disadvantage,
     )
+
+
+@dataclass(frozen=True)
+class ArmorProficiencyResult:
+    armor_proficient: bool
+    unproficient_armor_keys: tuple[str, ...]
+    strength_dexterity_disadvantage: bool
+    spellcasting_blocked: bool
+
+
+def derive_armor_proficiency(
+    *,
+    armor_key: str | None,
+    shield_equipped: bool,
+    proficiencies: frozenset[str] | set[str] | tuple[str, ...],
+) -> ArmorProficiencyResult:
+    """Apply the 2014 armor-training rule to equipped body armor and shield."""
+    valid = {"light", "medium", "heavy", "shields"}
+    normalized = frozenset(proficiencies)
+    if not normalized.issubset(valid):
+        raise ValueError("unknown armor proficiency")
+    if not isinstance(shield_equipped, bool):
+        raise TypeError("shield_equipped must be a boolean")
+
+    unproficient: list[str] = []
+    if armor_key is not None:
+        armor = get_armor(armor_key)
+        if armor.category is ArmorCategory.SHIELD:
+            raise ValueError("a shield must be supplied through shield_equipped")
+        if armor.category.value not in normalized:
+            unproficient.append(armor_key)
+    if shield_equipped and "shields" not in normalized:
+        unproficient.append("shield")
+
+    proficient = not unproficient
+    return ArmorProficiencyResult(
+        armor_proficient=proficient,
+        unproficient_armor_keys=tuple(unproficient),
+        strength_dexterity_disadvantage=not proficient,
+        spellcasting_blocked=not proficient,
+    )
