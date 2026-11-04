@@ -2,6 +2,7 @@
 
 from models.character_state import CharacterState
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
+from rules_engine.dnd5e_2014.armor.armor_class import derive_armor_class
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import get_weapon
 
@@ -44,6 +45,31 @@ class WeaponEquipmentService:
     def equipped_items(self, *, campaign_id: int, character_entity_id: int):
         return self.repository.list_equipped(
             campaign_id=campaign_id, character_entity_id=character_entity_id
+        )
+
+    def armor_class(self, character: CharacterState, *, campaign_id: int, conn=None):
+        """Derive current AC from the character's equipped body armor and shield."""
+        body = self.repository.get_equipped_slot(
+            campaign_id=campaign_id,
+            character_entity_id=character.entity_id,
+            slot="body",
+            conn=conn,
+        )
+        off_hand = self.repository.get_equipped_slot(
+            campaign_id=campaign_id,
+            character_entity_id=character.entity_id,
+            slot="off_hand",
+            conn=conn,
+        )
+        armor_key = body["armor_key"] if body is not None else None
+        shield_equipped = bool(
+            off_hand is not None and off_hand["armor_key"] == "shield"
+        )
+        return derive_armor_class(
+            dexterity_score=character.dexterity,
+            strength_score=character.strength,
+            armor_key=armor_key,
+            shield_equipped=shield_equipped,
         )
 
     def attack_profile(

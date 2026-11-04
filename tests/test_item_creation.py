@@ -218,6 +218,64 @@ def test_create_weapon_rejects_non_hand_equipment_slot():
 
 
 
+
+def test_create_armor_item_defaults_to_body_slot():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(name="Armadura de cuero", armor_key="leather"),
+    )
+    assert result.success
+    item = next(iter(world.items.values()))
+    assert item.armor_key == "leather"
+    assert item.equipment_slot == "body"
+
+
+def test_create_shield_item_defaults_to_off_hand_slot():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(name="Escudo", armor_key="shield"),
+    )
+    assert result.success
+    item = next(iter(world.items.values()))
+    assert item.armor_key == "shield"
+    assert item.equipment_slot == "off_hand"
+
+
+def test_create_armor_rejects_incompatible_slot_and_weapon_metadata():
+    world = build_world()
+    wrong_slot = WorldApplier().apply(
+        world,
+        CreateItemOperation(
+            name="Armadura", armor_key="leather", equipment_slot="off_hand"
+        ),
+    )
+    both = WorldApplier().apply(
+        world,
+        CreateItemOperation(
+            name="Armadura espada", armor_key="leather", weapon_key="longsword"
+        ),
+    )
+    assert wrong_slot.status.value == "invalid"
+    assert both.status.value == "invalid"
+    assert world.items == {}
+
+
+def test_parser_accepts_armor_metadata_on_item_definition():
+    operation = OperationParser().parse({
+        "operations": [{
+            "type": "create_item",
+            "name": "Escudo",
+            "armor_key": "shield",
+            "equipment_slot": "off_hand",
+        }]
+    })[0]
+    assert isinstance(operation, CreateItemOperation)
+    assert operation.armor_key == "shield"
+    assert operation.equipment_slot == "off_hand"
+
+
 def test_parser_accepts_equipment_metadata_on_item_definition():
     operations = OperationParser().parse({
         "operations": [{

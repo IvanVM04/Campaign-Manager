@@ -45,7 +45,7 @@ class WeaponEquipmentRepository:
         query = """
             SELECT
                 ii.id AS item_instance_id, ii.item_id, i.name AS item_name,
-                i.weapon_key, i.equipment_slot, ii.instance_number,
+                i.weapon_key, i.armor_key, i.equipment_slot, ii.instance_number,
                 ii.condition, ii.notes, ii.active
             FROM item_instances ii
             JOIN items i
@@ -63,7 +63,7 @@ class WeaponEquipmentRepository:
             SELECT
                 ei.character_entity_id, ei.slot, ei.item_instance_id,
                 ii.item_id, i.name AS item_name, ii.instance_number,
-                i.weapon_key, i.equipment_slot, ii.owner_id, ii.active,
+                i.weapon_key, i.armor_key, i.equipment_slot, ii.owner_id, ii.active,
                 ii.condition, ii.notes
             FROM equipped_items ei
             JOIN item_instances ii
@@ -85,7 +85,7 @@ class WeaponEquipmentRepository:
         query = """
             SELECT
                 ei.character_entity_id, ei.slot, ei.item_instance_id,
-                ii.item_id, i.weapon_key, i.equipment_slot,
+                ii.item_id, i.weapon_key, i.armor_key, i.equipment_slot,
                 ii.condition, ii.notes
             FROM equipped_items ei
             JOIN item_instances ii

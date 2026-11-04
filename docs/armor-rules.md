@@ -1,9 +1,6 @@
 # D&D 5e (2014) armor rules foundation
 
-This increment adds the deterministic SRD 5.1 armor catalogue and Armor Class
-calculation to the rules engine. It does not yet connect armor definitions to
-campaign item instances or change encounter snapshots; those are the next
-integration step.
+The armor catalogue is connected to campaign item definitions and equipped item instances. Player-character Armor Class is derived from the currently equipped body armor and optional shield when equipment is queried, an encounter is created, or a player character is targeted by an attack.
 
 ## Supported rules
 
@@ -21,7 +18,13 @@ shield.
 
 ## Deliberate boundary
 
-This is rules-engine data/calculation only. Equipment ownership, armor
-proficiency enforcement, active-encounter AC refresh and item-to-catalogue
-references are not introduced here. The rules engine remains deterministic
-and has no persistence or provider dependencies.
+Armor proficiency enforcement, Strength-based speed penalties, class-feature AC alternatives (such as Unarmored Defense), magic-item bonuses and immediate refresh of every active encounter snapshot after an equipment change remain out of scope. Attack resolution recalculates a player target's AC from current equipment and writes that value back into the encounter snapshot when the target is attacked. NPC armor remains represented by its stored creature AC. The rules engine remains deterministic and has no persistence or provider dependencies.
+
+
+## Item integration
+
+Item definitions may set `armor_key` to one of the catalogue keys. Body armor
+uses the `body` equipment slot; shields use `off_hand`. The database rejects
+hybrid weapon/armor definitions and mismatched armor slots. Physical ownership
+continues to live on `item_instances.owner_id`; `equipped_items` remains the
+campaign-scoped slot projection.

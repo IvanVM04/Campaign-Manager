@@ -31,6 +31,7 @@ class CombatAttackService:
         dice_roller: DiceRoller | None = None,
         effective_condition_service=None,
         creature_repository: CreatureRepository | None = None,
+        equipment_service=None,
     ) -> None:
         self.encounter_repository = encounter_repository
         self.character_repository = character_repository
@@ -38,6 +39,7 @@ class CombatAttackService:
         self.dice_roller = dice_roller or DiceRoller()
         self.effective_condition_service = effective_condition_service
         self.creature_repository = creature_repository or CreatureRepository()
+        self.equipment_service = equipment_service
 
     def attack(
         self,
@@ -148,10 +150,25 @@ class CombatAttackService:
                 target=target_conditions,
                 target_within_5_feet=target_within_5_feet,
             )
+            target_armor_class = target.armor_class
+            if (
+                target.is_player_character
+                and target.entity_id is not None
+                and self.equipment_service is not None
+            ):
+                target_character_for_ac = self.character_repository.get_character(
+                    target.entity_id, campaign_id=campaign_id, conn=conn
+                )
+                if target_character_for_ac is None:
+                    raise LookupError("target character does not exist in this campaign")
+                target_armor_class = self.equipment_service.armor_class(
+                    target_character_for_ac, campaign_id=campaign_id, conn=conn
+                ).armor_class
+
             result = resolve_attack(
                 roller=self.dice_roller,
                 attack_bonus=profile.attack_bonus,
-                target_ac=target.armor_class,
+                target_ac=target_armor_class,
                 damage_dice_count=dice_count,
                 damage_die_sides=die_sides,
                 damage_bonus=profile.damage_bonus,
@@ -170,6 +187,7 @@ class CombatAttackService:
             updated_combatants[attacker.combatant_id] = replace(attacker, action_used=True)
             updated_combatants[target.combatant_id] = replace(
                 target, current_hp=new_target_hp,
+                armor_class=target_armor_class,
                 conscious=target.conscious and new_target_hp > 0,
             )
             encounter.combatants = updated_combatants
@@ -216,4 +234,5 @@ class CombatAttackService:
                 "disadvantage": disadvantage,
                 "result": result,
                 "target_current_hp": new_target_hp,
+                "target_armor_class": target_armor_class,
             }

@@ -186,6 +186,7 @@ class CampaignRuntimeFactory:
             creature_repository=creature_repository,
             world_service=world_service,
             persistent_effect_repository=persistent_effect_repository,
+            equipment_service=weapon_equipment_service,
         )
         combat_attack_service = CombatAttackService(
             encounter_repository=encounter_repository,
@@ -193,6 +194,7 @@ class CampaignRuntimeFactory:
             weapon_repository=weapon_equipment_repository,
             effective_condition_service=effective_condition_service,
             creature_repository=creature_repository,
+            equipment_service=weapon_equipment_service,
         )
         persistent_effect_service = PersistentEffectService(
             repository=persistent_effect_repository,

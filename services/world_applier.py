@@ -28,6 +28,7 @@ from operations.world_operations import (
     UpdateRelationOperation,
     WorldOperation,
 )
+from rules_engine.dnd5e_2014.armor.catalog import get_armor
 
 
 class WorldApplier:
@@ -277,6 +278,29 @@ class WorldApplier:
                 message="unsupported equipment slot",
                 operation=operation,
             )
+        if operation.weapon_key is not None and operation.armor_key is not None:
+            return OperationResult(
+                status=OperationStatus.INVALID,
+                message="an item cannot be both a weapon and armor",
+                operation=operation,
+            )
+        if operation.armor_key is not None:
+            try:
+                armor = get_armor(operation.armor_key)
+            except LookupError:
+                return OperationResult(
+                    status=OperationStatus.INVALID,
+                    message="unknown SRD armor definition",
+                    operation=operation,
+                )
+            expected_slot = "off_hand" if armor.category.value == "shield" else "body"
+            equipment_slot = equipment_slot or expected_slot
+            if equipment_slot != expected_slot:
+                return OperationResult(
+                    status=OperationStatus.INVALID,
+                    message="armor items must use body; shields must use off_hand",
+                    operation=operation,
+                )
         if operation.weapon_key is not None:
             equipment_slot = equipment_slot or "main_hand"
             if equipment_slot not in ("main_hand", "off_hand"):
@@ -296,6 +320,7 @@ class WorldApplier:
             unique=operation.unique,
             notes=operation.notes,
             weapon_key=operation.weapon_key,
+            armor_key=operation.armor_key,
             equipment_slot=equipment_slot,
         )
 

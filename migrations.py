@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 26
+CURRENT_VERSION = 27
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1184,6 +1184,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 26")
         version = 26
 
+    if version < 27:
+        migration_027(conn)
+        conn.execute("PRAGMA user_version = 27")
+        version = 27
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -2178,4 +2183,90 @@ def migration_026(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_026")
         conn.execute("RELEASE SAVEPOINT migration_026")
+        raise
+
+
+
+def migration_027(conn: sqlite3.Connection) -> None:
+    """Add typed armor definitions to campaign item templates."""
+    conn.execute("SAVEPOINT migration_027")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(items)").fetchall()
+        }
+        if "armor_key" not in columns:
+            conn.execute("""
+                ALTER TABLE items ADD COLUMN armor_key TEXT
+                CHECK (
+                    armor_key IS NULL OR armor_key IN (
+                        'padded', 'leather', 'studded_leather',
+                        'hide', 'chain_shirt', 'scale_mail', 'breastplate',
+                        'half_plate', 'ring_mail', 'chain_mail', 'splint',
+                        'plate', 'shield'
+                    )
+                )
+            """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_items_equipment_definition_insert
+            BEFORE INSERT ON items
+            FOR EACH ROW
+            WHEN (NEW.weapon_key IS NOT NULL AND NEW.armor_key IS NOT NULL)
+              OR (
+                NEW.armor_key IS NOT NULL
+                AND COALESCE(NEW.equipment_slot, '') !=
+                    CASE WHEN NEW.armor_key = 'shield' THEN 'off_hand' ELSE 'body' END
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'armor items require a matching body or off_hand slot and cannot also be weapons');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_items_equipment_definition_update
+            BEFORE UPDATE OF weapon_key, armor_key, equipment_slot ON items
+            FOR EACH ROW
+            WHEN (NEW.weapon_key IS NOT NULL AND NEW.armor_key IS NOT NULL)
+              OR (
+                NEW.armor_key IS NOT NULL
+                AND COALESCE(NEW.equipment_slot, '') !=
+                    CASE WHEN NEW.armor_key = 'shield' THEN 'off_hand' ELSE 'body' END
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'armor items require a matching body or off_hand slot and cannot also be weapons');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_armor_slot_guard
+            BEFORE UPDATE OF equipment_slot, weapon_key, armor_key ON items
+            FOR EACH ROW
+            WHEN EXISTS (
+                SELECT 1 FROM item_instances ii
+                JOIN equipped_items ei
+                  ON ei.item_instance_id = ii.id
+                 AND ei.campaign_id = ii.campaign_id
+                WHERE ii.item_id = OLD.id
+                  AND ii.campaign_id = OLD.campaign_id
+                  AND NOT (
+                    (NEW.weapon_key IS NOT NULL AND ei.slot IN ('main_hand', 'off_hand'))
+                    OR (
+                      NEW.armor_key IS NOT NULL
+                      AND ei.slot = CASE
+                        WHEN NEW.armor_key = 'shield' THEN 'off_hand'
+                        ELSE 'body'
+                      END
+                    )
+                    OR (
+                      NEW.weapon_key IS NULL AND NEW.armor_key IS NULL
+                      AND ei.slot = COALESCE(NEW.equipment_slot, '')
+                    )
+                  )
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'unequip item before changing its equipment definition');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_027")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_027")
+        conn.execute("RELEASE SAVEPOINT migration_027")
         raise
