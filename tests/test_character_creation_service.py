@@ -257,3 +257,21 @@ def test_create_character_rolls_back_all_changes_on_activation_failure(
 def test_character_create_rejects_expertise_without_proficiency():
     with pytest.raises(ValueError, match="expertise requires skill proficiency"):
         CharacterCreate(name="Invalid", max_hp=8, skill_expertise=["stealth"])
+
+
+def test_character_create_rejects_duplicate_armor_proficiencies():
+    with pytest.raises(ValueError, match="armor_proficiencies cannot contain duplicates"):
+        CharacterCreate(
+            name="Duplicate training",
+            max_hp=8,
+            armor_proficiencies=["light", "light"],
+        )
+
+
+def test_character_create_rejects_unknown_armor_proficiency():
+    with pytest.raises(ValueError):
+        CharacterCreate(
+            name="Invalid training",
+            max_hp=8,
+            armor_proficiencies=["plate"],
+        )
