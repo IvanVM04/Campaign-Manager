@@ -11,6 +11,9 @@ The armor catalogue is connected to campaign item definitions and equipped item 
 - Shield: +2 AC, independent of body armor.
 - Strength requirements and Stealth-disadvantage properties are returned as
   explicit derived flags for application-layer enforcement.
+- Heavy armor with a Strength requirement reduces the wearer's walking speed by
+  10 feet when their Strength score is below that requirement. The equipment
+  endpoint reports this as `armor_movement.speed_penalty_ft` (10 or 0).
 
 The catalogue includes padded, leather, studded leather, hide, chain shirt,
 scale mail, breastplate, half plate, ring mail, chain mail, splint, plate and
@@ -18,7 +21,7 @@ shield.
 
 ## Deliberate boundary
 
-Strength-based speed penalties, class-feature AC alternatives (such as Unarmored Defense), magic-item bonuses and immediate refresh of every active encounter snapshot after an equipment change remain out of scope. Attack resolution recalculates a player target's AC from current equipment and writes that value back into the encounter snapshot when the target is attacked. NPC armor remains represented by its stored creature AC. The rules engine remains deterministic and has no persistence or provider dependencies.
+Movement execution is not yet part of the combat action system, so this phase derives and exposes the Strength-based 10-foot speed penalty but does not consume movement or enforce a movement budget. Class-feature AC alternatives (such as Unarmored Defense), magic-item bonuses and immediate refresh of every active encounter snapshot after an equipment change remain out of scope. Attack resolution recalculates a player target's AC from current equipment and writes that value back into the encounter snapshot when the target is attacked. NPC armor remains represented by its stored creature AC. The rules engine remains deterministic and has no persistence or provider dependencies.
 
 ## Armor proficiency
 
