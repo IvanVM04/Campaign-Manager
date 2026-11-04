@@ -191,23 +191,10 @@ class SillyTavernIntegrationService:
         )
 
         try:
-            with transaction("DEFERRED") as read_conn:
-                state_revision = self.state_version_repository.get_revision(
-                    self.campaign_scope.campaign_id,
-                    conn=read_conn,
-                )
-                turn_context = (
-                    self.campaign_state_service
-                    .get_turn_context(
-                        campaign_id=self.campaign_scope.campaign_id,
-                        conn=read_conn,
-                    )
-                )
-                fresh_world = self.world_service.load(conn=read_conn)
-                turn_context = replace(
-                    turn_context,
-                    world=fresh_world,
-                )
+            turn_context = (
+                self.campaign_state_service
+                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
+            )
 
         except CampaignStateServiceError as exc:
             raise SillyTavernIntegrationServiceError(
@@ -535,10 +522,23 @@ class SillyTavernIntegrationService:
         # --------------------------------------------------------
 
         try:
-            turn_context = (
-                self.campaign_state_service
-                .get_turn_context(campaign_id=self.campaign_scope.campaign_id)
-            )
+            with transaction("DEFERRED") as read_conn:
+                state_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=read_conn,
+                )
+                turn_context = (
+                    self.campaign_state_service
+                    .get_turn_context(
+                        campaign_id=self.campaign_scope.campaign_id,
+                        conn=read_conn,
+                    )
+                )
+                fresh_world = self.world_service.load(conn=read_conn)
+                turn_context = replace(
+                    turn_context,
+                    world=fresh_world,
+                )
 
         except CampaignStateServiceError as exc:
             raise SillyTavernIntegrationServiceError(
