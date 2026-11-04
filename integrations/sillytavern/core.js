@@ -480,9 +480,6 @@ export async function findManualRollOrigin(
     ) {
         return null;
     }
-    const rolls = parseManualRollResults(currentAnswer, 1)
-        ?? parseManualRollResults(currentAnswer, 2);
-    if (!rolls) return null;
     const currentIndex = chatMessages.findIndex((message) => message === playerMessage);
     if (currentIndex < 0) return null;
     const earliestIndex = Math.max(0, currentIndex - 24);
@@ -497,14 +494,12 @@ export async function findManualRollOrigin(
             continue;
         }
         const submittedRolls = parseManualRollResults(currentAnswer, state.pending_roll?.count);
-        if (!submittedRolls) {
-            return null;
-        }
         return {
             externalTurnId,
             playerInput: state.player_input || candidate.mes.trim(),
             pendingRollId: state.pending_roll_id,
             rolls: submittedRolls,
+            invalid: !submittedRolls,
             state,
         };
     }
