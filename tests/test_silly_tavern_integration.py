@@ -1,8 +1,8 @@
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from types import SimpleNamespace
 from contextlib import contextmanager, nullcontext
+from types import SimpleNamespace
 
 import pytest
 
