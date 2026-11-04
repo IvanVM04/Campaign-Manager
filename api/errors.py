@@ -91,10 +91,18 @@ def register_error_handlers(app: FastAPI) -> None:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
+        public_errors = [
+            {
+                "loc": error["loc"],
+                "msg": error["msg"],
+                "type": error["type"],
+            }
+            for error in exc.errors()
+        ]
         return error_response(
             status_code=422,
             code="validation_error",
-            detail=exc.errors(),
+            detail=public_errors,
         )
 
     @app.exception_handler(StarletteHTTPException)
