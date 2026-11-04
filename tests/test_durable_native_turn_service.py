@@ -362,3 +362,53 @@ def test_legacy_silly_tavern_replay_skips_a_persisted_failed_version():
         (2, "failed"),
         (3, "active"),
     ]
+
+def test_manual_roll_challenge_is_server_computed_and_hides_internal_decision():
+    from types import SimpleNamespace
+
+    from models.character_state import CharacterState
+    from models.mechanics import MechanicsDecision, MechanicsDecisionType
+    from rules_engine.dnd5e_2014.core.skills import Skill
+
+    service, _, _ = _service_with_fake_models()
+    character = CharacterState(
+        entity_id=77,
+        dexterity=16,
+        skill_proficiencies=frozenset({Skill.STEALTH}),
+    )
+    decision = MechanicsDecision(
+        decision=MechanicsDecisionType.SKILL_CHECK,
+        skill=Skill.STEALTH,
+        dc=15,
+        advantage=True,
+        reason="The character is moving unseen.",
+    )
+
+    pending = service._build_manual_roll_request(
+        None, decision, SimpleNamespace(active_character=character), 12
+    )
+    result = service._manual_roll_result(
+        SimpleNamespace(id=42, player_input="Me oculto."), pending
+    )
+
+    assert pending["modifier"] == 5
+    assert pending["dc"] == 15
+    assert pending["count"] == 2
+    assert pending["context_revision"] == 12
+    assert pending["challenge_id"]
+    assert result.pending_roll_id == f"42:{pending['challenge_id']}"
+    assert "decision" not in result.pending_roll
+    assert "challenge_id" not in result.pending_roll
+
+
+def test_manual_roll_submission_rejects_malformed_challenge_and_die_results():
+    from services.durable_native_turn_service import DurableNativeTurnError
+
+    service, _, _ = _service_with_fake_models()
+
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_manual_roll("not-a-challenge", (12,))
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_manual_roll("42:challenge", (0,))
+    with pytest.raises(DurableNativeTurnError):
+        service.submit_manual_roll("42:challenge", (12, 13, 14))
