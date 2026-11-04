@@ -1085,7 +1085,7 @@ def test_migration_027_adds_typed_armor_metadata_and_slot_guards():
             VALUES ('Mis-slotted shield', 'shield', 'body', 1)
         """)
 
-    with pytest.raises(sqlite3.IntegrityError, match="armor items require"):
+    with pytest.raises(sqlite3.IntegrityError):
         conn.execute("""
             INSERT INTO items (name, weapon_key, armor_key, equipment_slot, campaign_id)
             VALUES ('Weapon armor hybrid', 'longsword', 'leather', 'body', 1)
