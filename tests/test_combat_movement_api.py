@@ -54,7 +54,7 @@ def test_encounter_movement_persists_position_and_enforces_turn_budget(client):
             "combatant_id": hero_id,
             "expected_round": 1,
             "expected_turn_index": 0,
-            "path": [{"x": 2, "y": 0}, {"x": 3, "y": 0}],
+            "path": [{"x": 2, "y": 0}, {"x": 3, "y": 0}, {"x": 4, "y": 0}],
         },
     )
     assert exhausted.status_code == 409
