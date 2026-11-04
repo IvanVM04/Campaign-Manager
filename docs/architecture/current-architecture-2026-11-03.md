@@ -180,7 +180,7 @@ The current implemented scope remains partial. The presence of a rules package m
 
 ## 8. External interfaces
 
-- FastAPI is the backend API and currently defines routes, middleware, serialization, error translation and legacy composition in `app.py`.
+- FastAPI is the backend API. `app.py` is the composition root: it creates the application, configures middleware, binds campaign runtime and mounts capability routers under `api/routers/`. Request-scoped runtime resolution and temporary compatibility proxies live in `api/runtime_context.py`. Router modules currently cover system, campaign, turns, memory, SillyTavern integration, world/export, character, combat, effects and campaign clock. Error translation remains local to handlers; centralized error contracts are still future work.
 - SillyTavern is an external client adapter, implemented in JavaScript and served through the API.
 - No standalone player-facing web frontend is present in the audited tree.
 - VTT/tactical map infrastructure is not present and remains out of MVP scope.
