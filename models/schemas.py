@@ -131,6 +131,19 @@ class ManualRollIn(BaseModel):
         return values
 
 
+class ClarificationIn(BaseModel):
+    pending_clarification_id: str = Field(..., min_length=20, max_length=200)
+    answer: str = Field(..., min_length=1, max_length=5000)
+
+    @field_validator("answer")
+    @classmethod
+    def validate_answer(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("answer must not be empty")
+        return value
+
+
 class ActiveCharacterUpdate(BaseModel):
     character_id: int | None = Field(
         default=None,
