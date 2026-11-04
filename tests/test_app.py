@@ -287,7 +287,8 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
     assert response.status_code == 400
 
     assert response.json() == {
-        "detail": "Turn resolution failed."
+        "detail": "Turn resolution failed.",
+        "code": "bad_request",
     }
 
 
@@ -625,6 +626,7 @@ def test_readiness_returns_503_when_database_is_unavailable(
     assert response.status_code == 503
     assert response.json() == {
         "detail": "database unavailable",
+        "code": "service_unavailable",
     }
 
 
