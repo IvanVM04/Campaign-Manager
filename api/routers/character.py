@@ -1,3 +1,5 @@
+import sqlite3
+
 from fastapi import APIRouter, HTTPException
 
 from api.runtime_context import (
@@ -5,6 +7,7 @@ from api.runtime_context import (
     get_current_runtime,
 )
 from models.schemas import CharacterCreate
+from models.equipment_api_schemas import EquipItemIn, EquipmentSlot
 
 router = APIRouter()
 
@@ -53,3 +56,52 @@ def bootstrap_campaign(
             status_code=400,
             detail=str(exc),
         )
+
+
+
+@router.get("/characters/{character_entity_id}/equipment")
+def list_character_equipment(character_entity_id: int):
+    runtime = get_current_runtime()
+    return {
+        "character_entity_id": character_entity_id,
+        "items": runtime.weapon_equipment_service.equipped_items(
+            campaign_id=runtime.campaign_id,
+            character_entity_id=character_entity_id,
+        ),
+    }
+
+
+@router.post("/characters/{character_entity_id}/equipment", status_code=201)
+def equip_character_item(character_entity_id: int, data: EquipItemIn):
+    runtime = get_current_runtime()
+    try:
+        runtime.weapon_equipment_service.equip(
+            campaign_id=runtime.campaign_id,
+            character_entity_id=character_entity_id,
+            item_instance_id=data.item_instance_id,
+            slot=data.slot,
+        )
+        return {
+            "character_entity_id": character_entity_id,
+            "slot": data.slot,
+            "item_instance_id": data.item_instance_id,
+        }
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/characters/{character_entity_id}/equipment/{slot}")
+def unequip_character_slot(character_entity_id: int, slot: EquipmentSlot):
+    runtime = get_current_runtime()
+    runtime.weapon_equipment_service.unequip(
+        campaign_id=runtime.campaign_id,
+        character_entity_id=character_entity_id,
+        slot=slot,
+    )
+    return {
+        "character_entity_id": character_entity_id,
+        "slot": slot,
+        "unequipped": True,
+    }
