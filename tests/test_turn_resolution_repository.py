@@ -99,7 +99,7 @@ def test_claim_and_transition_lifecycle(isolated_database):
         )
         assert prepared.lifecycle_state == "prepared"
 
-        committed = repository.transition(
+        repository.transition(
             created.id,
             "committed",
             scope=CampaignScope(1),
@@ -107,7 +107,7 @@ def test_claim_and_transition_lifecycle(isolated_database):
             updates={"committed_at": "2026-11-04T00:01:00Z"},
             conn=conn,
         )
-        pending = repository.transition(
+        repository.transition(
             created.id,
             "narration_pending",
             scope=CampaignScope(1),
@@ -152,9 +152,10 @@ def test_transition_rejects_skipping_commit_or_replaying_state(isolated_database
                 conn=conn,
             )
 
-    with transaction("IMMEDIATE") as conn:
-        with pytest.raises(sqlite3.IntegrityError, match="invalid"):
-            conn.execute(
+    with transaction("IMMEDIATE") as conn, pytest.raises(
+        sqlite3.IntegrityError, match="invalid"
+    ):
+        conn.execute(
                 "UPDATE turn_resolutions SET lifecycle_state='committed' WHERE id=?",
                 (created.id,),
             )
@@ -175,9 +176,10 @@ def test_expired_planning_lease_can_be_reclaimed_but_active_lease_cannot(isolate
         )
         assert first.attempt_count == 1
 
-    with transaction("IMMEDIATE") as conn:
-        with pytest.raises(ValueError, match="not claimable"):
-            repository.claim_for_planning(
+    with transaction("IMMEDIATE") as conn, pytest.raises(
+        ValueError, match="not claimable"
+    ):
+        repository.claim_for_planning(
                 created.id,
                 scope=CampaignScope(1),
                 lease_token="worker-b",
@@ -203,9 +205,10 @@ def test_transition_requires_expected_state(isolated_database):
     repository = TurnResolutionRepository()
     created = repository.create(make_record(), scope=CampaignScope(1))
 
-    with transaction("IMMEDIATE") as conn:
-        with pytest.raises(ValueError, match="state changed"):
-            repository.transition(
+    with transaction("IMMEDIATE") as conn, pytest.raises(
+        ValueError, match="state changed"
+    ):
+        repository.transition(
                 created.id,
                 "planning",
                 scope=CampaignScope(1),
