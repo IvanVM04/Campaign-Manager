@@ -80,7 +80,7 @@ def test_world_repository_round_trips_weapon_key(tmp_path):
     try:
         state = WorldState(
             entities={1: Entity(id=1, name="Hero", entity_type="character")},
-            items={1: Item(id=1, name="Longsword", weapon_key="longsword")},
+            items={1: Item(id=1, name="Longsword", weapon_key="longsword", equipment_slot="main_hand")},
             item_instances={1: ItemInstance(id=1, item_id=1, owner_id=1)},
         )
         repository = WorldRepository()
@@ -109,5 +109,84 @@ def test_equipped_weapon_requires_owned_weapon_in_same_campaign(tmp_path):
         with get_conn() as conn:
             conn.execute("UPDATE item_instances SET owner_id = NULL WHERE id = 1 AND campaign_id = 1")
         assert repository.get_equipped(campaign_id=1, character_entity_id=1) is None
+    finally:
+        database.DB_PATH = previous
+
+
+
+def test_equipment_slots_allow_multiple_items_and_clear_on_ownership_change(tmp_path):
+    previous = setup_db(tmp_path)
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO entities (id, name, entity_type, campaign_id) VALUES (1, 'Hero', 'character', 1)"
+            )
+            conn.execute(
+                "INSERT INTO character_states (entity_id, campaign_id) VALUES (1, 1)"
+            )
+            conn.execute(
+                "INSERT INTO items (id, name, weapon_key, equipment_slot, campaign_id) VALUES (1, 'Sword', 'longsword', 'main_hand', 1)"
+            )
+            conn.execute(
+                "INSERT INTO items (id, name, equipment_slot, campaign_id) VALUES (2, 'Chain mail', 'body', 1)"
+            )
+            conn.execute(
+                "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (1, 1, 1, 1)"
+            )
+            conn.execute(
+                "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (2, 2, 1, 1)"
+            )
+        repository = WeaponEquipmentRepository()
+        repository.equip_item(
+            campaign_id=1, character_entity_id=1, item_instance_id=1, slot="main_hand"
+        )
+        repository.equip_item(
+            campaign_id=1, character_entity_id=1, item_instance_id=2, slot="body"
+        )
+        equipped = repository.list_equipped(campaign_id=1, character_entity_id=1)
+        assert {item["slot"] for item in equipped} == {"main_hand", "body"}
+        assert repository.get_equipped(campaign_id=1, character_entity_id=1)["weapon_key"] == "longsword"
+
+        with pytest.raises(sqlite3.IntegrityError, match="match its slot"):
+            repository.equip_item(
+                campaign_id=1, character_entity_id=1, item_instance_id=2, slot="off_hand"
+            )
+
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE item_instances SET owner_id = NULL WHERE id = 2 AND campaign_id = 1"
+            )
+        assert [item["slot"] for item in repository.list_equipped(
+            campaign_id=1, character_entity_id=1
+        )] == ["main_hand"]
+    finally:
+        database.DB_PATH = previous
+
+
+def test_equipment_slot_mutation_is_rejected_while_item_is_equipped(tmp_path):
+    previous = setup_db(tmp_path)
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO entities (id, name, entity_type, campaign_id) VALUES (1, 'Hero', 'character', 1)"
+            )
+            conn.execute(
+                "INSERT INTO character_states (entity_id, campaign_id) VALUES (1, 1)"
+            )
+            conn.execute(
+                "INSERT INTO items (id, name, equipment_slot, campaign_id) VALUES (1, 'Armor', 'body', 1)"
+            )
+            conn.execute(
+                "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (1, 1, 1, 1)"
+            )
+        repository = WeaponEquipmentRepository()
+        repository.equip_item(
+            campaign_id=1, character_entity_id=1, item_instance_id=1, slot="body"
+        )
+        with get_conn() as conn:
+            with pytest.raises(sqlite3.IntegrityError, match="unequip item"):
+                conn.execute(
+                    "UPDATE items SET equipment_slot = 'head' WHERE id = 1 AND campaign_id = 1"
+                )
     finally:
         database.DB_PATH = previous
