@@ -13,7 +13,7 @@ import {
 import {
     buildRetrievalQuery,
     buildStableTurnIdentityInput,
-    selectClarificationChallenge,
+    findClarificationOrigin,
     TurnState,
 } from "./core.js";
 
@@ -364,8 +364,11 @@ globalThis.campaignManagerGenerateInterceptor =
         let clarificationOrigin;
         try {
             clarificationOrigin = await findClarificationOrigin(
+                chat,
                 playerMessage,
                 playerInput,
+                createStableTurnId,
+                getPersistedClarificationState,
             );
         } catch (error) {
             console.error(
@@ -1247,79 +1250,6 @@ async function getPersistedClarificationState(
 }
 
 
-async function findClarificationOrigin(
-    playerMessage,
-    currentAnswer,
-) {
-    if (!Array.isArray(chat)) {
-        return null;
-    }
-
-    const currentIndex = chat.findIndex(
-        (message) => message === playerMessage,
-    );
-    if (currentIndex < 0) {
-        return null;
-    }
-
-    let previousAssistant = null;
-    for (let index = currentIndex - 1; index >= 0; index -= 1) {
-        const message = chat[index];
-        if (message && message.is_user !== true && typeof message.mes === 'string') {
-            previousAssistant = message;
-            break;
-        }
-    }
-
-    for (let index = currentIndex - 1; index >= 0; index -= 1) {
-        const candidate = chat[index];
-        if (!candidate || candidate.is_user !== true || typeof candidate.mes !== 'string') {
-            continue;
-        }
-
-        const candidateInput = candidate.mes.trim();
-        if (!candidateInput) {
-            continue;
-        }
-
-        const candidateTurnId = await createStableTurnId(candidate);
-        const state = await getPersistedClarificationState(candidateTurnId);
-        if (!state.has_clarification) {
-            continue;
-        }
-
-        const selected = selectClarificationChallenge(
-            state,
-            currentAnswer,
-        );
-        if (selected) {
-            if (
-                selected.retry &&
-                state.lifecycle_state === 'completed' &&
-                typeof state.narrative === 'string' &&
-                previousAssistant?.mes?.trim() === state.narrative.trim()
-            ) {
-                return null;
-            }
-
-            return {
-                externalTurnId: candidateTurnId,
-                playerInput: state.player_input || candidateInput,
-                pendingClarificationId: selected.pendingClarificationId,
-                retry: selected.retry,
-                state,
-            };
-        }
-
-        if (state.lifecycle_state !== 'awaiting_input') {
-            return null;
-        }
-    }
-
-    return null;
-}
-
-
 async function getCampaignManagerClarificationContext(
     clarificationOrigin,
     answer,
@@ -1663,8 +1593,11 @@ async function onMessageReceived() {
             durablePlayerInput = linkedClarification.playerInput;
         } else {
             const clarificationOrigin = await findClarificationOrigin(
+                chat,
                 playerMessage,
                 playerInput,
+                createStableTurnId,
+                getPersistedClarificationState,
             );
             if (clarificationOrigin) {
                 externalTurnId = clarificationOrigin.externalTurnId;
@@ -1765,7 +1698,7 @@ async function onMessageReceived() {
      */
     void sendTurnToBackend(
         externalTurnId,
-        playerInput,
+        durablePlayerInput,
         narrativeText,
         turnVersion,
     ).catch((error) => {
