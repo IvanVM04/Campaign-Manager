@@ -314,6 +314,7 @@ class DurableNativeTurnService:
             raise DurableNativeTurnError("external_turn_id must not exceed 500 characters")
 
         def prepare():
+            effective_dice_mode = dice_mode
             existing_resolution = self.resolution_repository.get_by_idempotency_key(
                 "sillytavern", external_turn_id, scope=self.scope
             )
@@ -321,9 +322,9 @@ class DurableNativeTurnService:
                 persisted_state = json.loads(existing_resolution.adjudication_json or "{}")
                 persisted_dice_mode = persisted_state.get("dice_mode")
                 if persisted_dice_mode in {"automatic", "manual"}:
-                    dice_mode = persisted_dice_mode
+                    effective_dice_mode = persisted_dice_mode
                 elif isinstance(persisted_state.get("manual_roll"), dict):
-                    dice_mode = "manual"
+                    effective_dice_mode = "manual"
             active_turn = self.turn_repository.get_active_by_external_turn_id(
                 external_turn_id, scope=self.scope
             )
@@ -358,7 +359,7 @@ class DurableNativeTurnService:
                 idempotency_key=external_turn_id,
                 adapter_namespace="sillytavern",
                 defer_narration=True,
-                dice_mode=dice_mode,
+                dice_mode=effective_dice_mode,
             )
             if isinstance(result, TurnResolutionResult) and result.pending_roll_id:
                 record = self.resolution_repository.get_by_idempotency_key(
