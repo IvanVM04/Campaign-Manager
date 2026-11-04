@@ -455,6 +455,23 @@ class DurableNativeTurnService:
                 self.resolution_repository.get(record.id, scope=self.scope)
             )
         except Exception as exc:
+            if (
+                isinstance(exc, DurableNativeTurnError)
+                and "one or more proposed consequences failed validation" in str(exc)
+            ):
+                with transaction("IMMEDIATE") as conn:
+                    current = self.resolution_repository.get(
+                        record.id, scope=self.scope, conn=conn
+                    )
+                    if current is not None and current.lifecycle_state == "prepared":
+                        self.resolution_repository.transition(
+                            record.id,
+                            "rejected",
+                            scope=self.scope,
+                            expected_state="prepared",
+                            updates={"last_error_code": "operation_validation_failed"},
+                            conn=conn,
+                        )
             if isinstance(exc, DurableNativeTurnError):
                 raise
             raise DurableNativeTurnError("native turn execution failed") from exc
