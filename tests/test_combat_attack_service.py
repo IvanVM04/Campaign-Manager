@@ -323,7 +323,7 @@ def test_attack_uses_current_equipped_armor_and_shield_for_player_target(client)
             "expected_round": 1,
             "expected_turn_index": 0,
             "dice_mode": "manual",
-            "manual_attack_rolls": [10],
+            "manual_attack_rolls": [7],
             "manual_damage_rolls": [],
         },
     )
