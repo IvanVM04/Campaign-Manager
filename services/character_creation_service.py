@@ -72,6 +72,7 @@ class CharacterCreationService:
                 skill_proficiencies=data.skill_proficiencies,
                 skill_expertise=data.skill_expertise,
                 saving_throw_proficiencies=data.saving_throw_proficiencies,
+                armor_proficiencies=data.armor_proficiencies,
                 metadata=data.metadata,
             )
 
