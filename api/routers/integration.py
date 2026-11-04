@@ -11,7 +11,6 @@ from services.silly_tavern_integration_service import (
     SillyTavernIntegrationServiceError,
 )
 
-
 router = APIRouter()
 
 
