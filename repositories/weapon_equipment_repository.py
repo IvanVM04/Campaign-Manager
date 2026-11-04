@@ -85,7 +85,7 @@ class WeaponEquipmentRepository:
         query = """
             SELECT
                 ei.character_entity_id, ei.slot, ei.item_instance_id,
-                ii.item_id, i.weapon_key, i.equipment_slot,
+                ii.item_id, i.weapon_key, i.armor_key, i.equipment_slot,
                 ii.condition, ii.notes
             FROM equipped_items ei
             JOIN item_instances ii
