@@ -12,6 +12,9 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
+from repositories.campaign_state_version_repository import (
+    CampaignStateVersionRepository,
+)
 from repositories.turn_repository import TurnRepository
 from rules_engine.dnd5e_2014.character_checks import (
     ability_check_modifier_for_character,
@@ -120,6 +123,7 @@ class CampaignTurnService:
             )
 
         self.turn_repository = turn_repository
+        self.state_version_repository = CampaignStateVersionRepository()
 
         if not isinstance(
             turn_execution_lock,
@@ -198,6 +202,7 @@ class CampaignTurnService:
                 manual_rolls=rolls,
                 expected_context=pending["context"],
                 expected_recent_turns=pending["recent_turns"],
+                expected_revision=pending["state_revision"],
             )
             self._pending_manual_rolls.pop(pending_roll_id, None)
             return result
@@ -268,6 +273,7 @@ class CampaignTurnService:
         manual_rolls: tuple[int, ...] | None = None,
         expected_context: TurnContext | None = None,
         expected_recent_turns=None,
+        expected_revision: int | None = None,
     ) -> TurnResolutionResult:
         """
         Execute LLM planning outside SQLite transactions, then re-read and
@@ -288,7 +294,11 @@ class CampaignTurnService:
         try:
             # Read a consistent prompt context and history, then release the
             # connection before any provider/LLM work begins.
-            with get_conn() as read_conn:
+            with transaction("DEFERRED") as read_conn:
+                initial_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=read_conn,
+                )
                 initial_context = self._load_fresh_turn_context(read_conn)
                 recent_turns = None
                 if self.turn_repository is not None:
@@ -306,6 +316,11 @@ class CampaignTurnService:
 
             world = initial_context.world
             world_snapshot = copy.deepcopy(world)
+
+            if expected_revision is not None and initial_revision != expected_revision:
+                raise CampaignTurnServiceError(
+                    "campaign state changed while waiting for the manual roll"
+                )
 
             if expected_context is not None and initial_context != expected_context:
                 raise CampaignTurnServiceError(
@@ -383,6 +398,7 @@ class CampaignTurnService:
                     "decision": decision,
                     "context": initial_context,
                     "recent_turns": recent_turns,
+                    "state_revision": initial_revision,
                 }
                 return TurnResolutionResult(
                     player_input=normalized_input,
@@ -395,6 +411,15 @@ class CampaignTurnService:
             # BEGIN IMMEDIATE ensures no other writer can change campaign
             # state between our fresh read, validation and persistence.
             with transaction("IMMEDIATE") as write_conn:
+                current_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=write_conn,
+                )
+                if current_revision != initial_revision:
+                    raise CampaignTurnServiceError(
+                        "campaign state changed while the turn was being prepared; retry"
+                    )
+
                 current_context = self._load_fresh_turn_context(write_conn)
 
                 current_recent_turns = None
