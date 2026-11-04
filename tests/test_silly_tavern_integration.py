@@ -260,6 +260,68 @@ def test_integration_context_endpoint_returns_500_on_service_error(
     }
 
 
+def test_integration_resolve_endpoint_commits_before_returning_context(
+    client,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+    captured = {}
+
+    def fake_prepare(player_input, *, external_turn_id):
+        captured["player_input"] = player_input
+        captured["external_turn_id"] = external_turn_id
+        return SimpleNamespace(
+            resolution_id=41,
+            lifecycle_state="narration_pending",
+            committed_resolution='{"resulting_revision": 2}',
+            clarification_question=None,
+            legacy_replay=False,
+        )
+
+    def fake_context(query):
+        captured["query"] = query
+        return {
+            "campaign": {"id": 1, "name": "Campaña"},
+            "session": None,
+            "active_character": None,
+            "context": {"query": query, "context": "Estado confirmado."},
+        }
+
+    monkeypatch.setattr(
+        runtime.durable_native_turn_service,
+        "prepare_external_turn",
+        fake_prepare,
+    )
+    monkeypatch.setattr(
+        runtime.silly_tavern_integration_service,
+        "get_context",
+        fake_context,
+    )
+
+    response = client.post(
+        "/integration/turn/resolve",
+        json={
+            "player_input": "Abro la puerta.",
+            "external_turn_id": "st-chat-turn",
+            "query": "Estado actual + acción.",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["resolution_id"] == 41
+    assert data["lifecycle_state"] == "narration_pending"
+    assert data["committed_resolution"] == '{"resulting_revision": 2}'
+    assert data["context"]["context"] == "Estado confirmado."
+    assert captured == {
+        "player_input": "Abro la puerta.",
+        "external_turn_id": "st-chat-turn",
+        "query": "Estado actual + acción.",
+    }
+
+
 def test_integration_turn_endpoint_returns_processed_turn(
     client,
     monkeypatch,
@@ -345,14 +407,10 @@ def test_integration_turn_endpoint_returns_processed_turn(
     assert data["operation_results"] == []
 
 
-def test_integration_turn_endpoint_returns_400_on_service_error(
+def test_integration_turn_endpoint_returns_409_on_durable_conflict(
     client,
     monkeypatch,
 ):
-    from services.silly_tavern_integration_service import (
-        SillyTavernIntegrationServiceError,
-    )
-
     from services.durable_native_turn_service import DurableNativeTurnError
 
     runtime = __import__("app").runtime_factory.get_runtime(1)
