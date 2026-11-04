@@ -411,6 +411,9 @@ class CharacterCreate(BaseModel):
             raise ValueError("armor_proficiencies cannot contain duplicates")
         if not set(self.skill_expertise).issubset(self.skill_proficiencies):
             raise ValueError("skill expertise requires skill proficiency")
+        unarmored_defense = self.metadata.get("unarmored_defense")
+        if unarmored_defense not in (None, "barbarian", "monk"):
+            raise ValueError("metadata.unarmored_defense must be barbarian, monk or omitted")
         return self
 
     @field_validator("name")
