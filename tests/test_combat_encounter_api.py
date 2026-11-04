@@ -632,16 +632,24 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
     )
     assert duplicate.status_code == 409
 
-    # Advancing to the goblin's turn does not refresh its reaction.
+    # At the start of the goblin's first turn, its reaction is available again.
     advanced = client.post(
         "/encounters/reaction-economy/advance",
         json={"expected_round": 1, "expected_turn_index": 0},
     )
     assert advanced.status_code == 200, advanced.text
     assert advanced.json()["active_combatant_id"] == goblin_id
-    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is True
+    assert advanced.json()["combatants"][goblin_id]["reaction_used"] is False
 
-    # The reaction refreshes only when the goblin's next turn begins.
+    # Spend that reaction during the goblin's own turn.
+    spent_on_own_turn = client.post(
+        "/encounters/reaction-economy/reaction",
+        json={"combatant_id": goblin_id, "expected_round": 1, "expected_turn_index": 1},
+    )
+    assert spent_on_own_turn.status_code == 200, spent_on_own_turn.text
+    assert spent_on_own_turn.json()["combatants"][goblin_id]["reaction_used"] is True
+
+    # It remains spent through the hero's turn.
     advanced = client.post(
         "/encounters/reaction-economy/advance",
         json={"expected_round": 1, "expected_turn_index": 1},
@@ -651,6 +659,7 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
     assert advanced.json()["round_number"] == 2
     assert advanced.json()["combatants"][goblin_id]["reaction_used"] is True
 
+    # It refreshes when the goblin's next turn begins.
     advanced = client.post(
         "/encounters/reaction-economy/advance",
         json={"expected_round": 2, "expected_turn_index": 0},
@@ -658,13 +667,6 @@ def test_reaction_can_be_used_once_and_refreshes_on_combatants_next_turn(client)
     assert advanced.status_code == 200, advanced.text
     assert advanced.json()["active_combatant_id"] == goblin_id
     assert advanced.json()["combatants"][goblin_id]["reaction_used"] is False
-
-    spent_on_own_turn = client.post(
-        "/encounters/reaction-economy/reaction",
-        json={"combatant_id": goblin_id, "expected_round": 2, "expected_turn_index": 1},
-    )
-    assert spent_on_own_turn.status_code == 200, spent_on_own_turn.text
-    assert spent_on_own_turn.json()["combatants"][goblin_id]["reaction_used"] is True
 
 
 def test_reaction_rejects_stale_turn_position_and_unknown_combatant(client):
