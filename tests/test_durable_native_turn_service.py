@@ -3,8 +3,8 @@ import json
 import pytest
 
 from repositories.turn_resolution_repository import TurnResolutionRepository
-from services.durable_native_turn_service import DurableNativeTurnError
 from services.campaign_runtime import CampaignRuntimeFactory
+from services.durable_native_turn_service import DurableNativeTurnError
 
 
 def _service_with_fake_models():
