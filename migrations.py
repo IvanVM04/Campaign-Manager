@@ -1647,6 +1647,22 @@ def migration_022(conn: sqlite3.Connection) -> None:
                     (lease_token IS NULL AND lease_expires_at IS NULL)
                     OR (lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
                 ),
+                CHECK (
+                    lifecycle_state != 'planning'
+                    OR (lease_token IS NOT NULL AND attempt_count > 0)
+                ),
+                CHECK (
+                    lifecycle_state != 'prepared'
+                    OR (context_revision IS NOT NULL AND proposal_json IS NOT NULL)
+                ),
+                CHECK (
+                    lifecycle_state NOT IN ('committed', 'narration_pending', 'completed')
+                    OR committed_at IS NOT NULL
+                ),
+                CHECK (
+                    lifecycle_state != 'completed'
+                    OR (completed_at IS NOT NULL AND narrative IS NOT NULL)
+                ),
                 UNIQUE (campaign_id, adapter_namespace, idempotency_key),
                 FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE,
                 FOREIGN KEY (turn_id) REFERENCES turns(id) ON DELETE SET NULL
