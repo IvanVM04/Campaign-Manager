@@ -312,7 +312,7 @@ class DurableNativeTurnService:
                     )
                     if turn is None:
                         raise DurableNativeTurnError("completed resolution has no transcript")
-                    return self._result_from_completed_record(record, turn)
+                    return self._result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state in {"committed", "narration_pending"}:
                     pass
                 elif record.lifecycle_state in {"accepted", "awaiting_input", "planning", "prepared"}:
@@ -502,6 +502,8 @@ class DurableNativeTurnService:
         self,
         record: TurnResolutionRecord,
         turn: TurnRecord,
+        *,
+        already_processed: bool,
     ) -> TurnResolutionResult:
         parsed = self.resolver.extractor.operation_parser.parse(
             record.proposal_json or '{"operations":[]}'
@@ -530,7 +532,7 @@ class DurableNativeTurnService:
             character_operations=character_operations,
             operation_results=operation_results,
             mechanics_result=self._mechanics_from_json(record.mechanics_json),
-            already_processed=True,
+            already_processed=already_processed,
             persisted_operation_count=turn.operation_count,
             persisted_successful_operation_count=turn.successful_operation_count,
             persisted_failed_operation_count=turn.failed_operation_count,
@@ -603,4 +605,6 @@ class DurableNativeTurnService:
         completed_turn = self.turn_repository.get_turn(
             completed.turn_id, scope=self.scope
         )
-        return self._result_from_completed_record(completed, completed_turn)
+        return self._result_from_completed_record(
+            completed, completed_turn, already_processed=False
+        )
