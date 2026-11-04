@@ -280,3 +280,55 @@ def test_npc_damage_is_persisted_and_reused_across_encounters(client):
     assert npc["entity_id"] == creature_entity_id
     assert npc["current_hp"] == 0
     assert npc["defeated"] is True
+
+
+def test_attack_uses_current_equipped_armor_and_shield_for_player_target(client):
+    _, target_id, _attacker_combatant_id, target_combatant_id = _prepare_encounter(client)
+    with get_conn() as conn:
+        armor_id = conn.execute(
+            "INSERT INTO items (name, armor_key, equipment_slot, campaign_id) VALUES (?, ?, ?, 1)",
+            ("Target leather armor", "leather", "body"),
+        ).lastrowid
+        shield_id = conn.execute(
+            "INSERT INTO items (name, armor_key, equipment_slot, campaign_id) VALUES (?, ?, ?, 1)",
+            ("Target shield", "shield", "off_hand"),
+        ).lastrowid
+        armor_instance = conn.execute(
+            "INSERT INTO item_instances (item_id, owner_id, campaign_id, active) VALUES (?, ?, 1, 1)",
+            (armor_id, target_id),
+        ).lastrowid
+        shield_instance = conn.execute(
+            "INSERT INTO item_instances (item_id, owner_id, campaign_id, active) VALUES (?, ?, 1, 1)",
+            (shield_id, target_id),
+        ).lastrowid
+
+    equipment = WeaponEquipmentRepository()
+    equipment.equip_item(
+        campaign_id=1, character_entity_id=target_id,
+        item_instance_id=armor_instance, slot="body",
+    )
+    equipment.equip_item(
+        campaign_id=1, character_entity_id=target_id,
+        item_instance_id=shield_instance, slot="off_hand",
+    )
+
+    equipped_response = client.get(f"/characters/{target_id}/equipment")
+    assert equipped_response.status_code == 200
+    assert equipped_response.json()["armor_class"] == 13
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_combatant_id,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [10],
+            "manual_damage_rolls": [],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["attack"]["hit"] is False
+    assert payload["damage"]["target_armor_class"] == 13
+    assert payload["encounter"]["combatants"][target_combatant_id]["armor_class"] == 13
