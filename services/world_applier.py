@@ -265,6 +265,27 @@ class WorldApplier:
                     operation=operation,
                 )
 
+        equipment_slot = operation.equipment_slot
+        allowed_slots = {
+            "main_hand", "off_hand", "body", "head", "hands", "feet",
+            "cloak", "neck", "ring_1", "ring_2", "waist", "wondrous",
+            "ammunition",
+        }
+        if equipment_slot is not None and equipment_slot not in allowed_slots:
+            return OperationResult(
+                status=OperationStatus.INVALID,
+                message="unsupported equipment slot",
+                operation=operation,
+            )
+        if operation.weapon_key is not None:
+            equipment_slot = equipment_slot or "main_hand"
+            if equipment_slot not in ("main_hand", "off_hand"):
+                return OperationResult(
+                    status=OperationStatus.INVALID,
+                    message="weapon items must use main_hand or off_hand equipment slots",
+                    operation=operation,
+                )
+
         item_id = self._next_item_id(world)
 
         item = Item(
@@ -274,6 +295,8 @@ class WorldApplier:
             significance=operation.significance,
             unique=operation.unique,
             notes=operation.notes,
+            weapon_key=operation.weapon_key,
+            equipment_slot=equipment_slot,
         )
 
         world.items[item_id] = item

@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 25
+CURRENT_VERSION = 26
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1179,6 +1179,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 25")
         version = 25
 
+    if version < 26:
+        migration_026(conn)
+        conn.execute("PRAGMA user_version = 26")
+        version = 26
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -1962,4 +1967,215 @@ def migration_025(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_025")
         conn.execute("RELEASE SAVEPOINT migration_025")
+        raise
+
+
+
+def migration_026(conn: sqlite3.Connection) -> None:
+    """Make character equipment a campaign-scoped, slot-based projection."""
+    conn.execute("SAVEPOINT migration_026")
+    try:
+        item_columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(items)").fetchall()
+        }
+        if "equipment_slot" not in item_columns:
+            conn.execute("""
+                ALTER TABLE items ADD COLUMN equipment_slot TEXT
+                CHECK (
+                    equipment_slot IS NULL OR equipment_slot IN (
+                        'main_hand', 'off_hand', 'body', 'head', 'hands',
+                        'feet', 'cloak', 'neck', 'ring_1', 'ring_2',
+                        'waist', 'wondrous', 'ammunition'
+                    )
+                )
+            """)
+        conn.execute("""
+            UPDATE items SET equipment_slot = 'main_hand'
+            WHERE weapon_key IS NOT NULL AND equipment_slot IS NULL
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS equipped_items (
+                campaign_id INTEGER NOT NULL,
+                character_entity_id INTEGER NOT NULL,
+                slot TEXT NOT NULL CHECK (slot IN (
+                    'main_hand', 'off_hand', 'body', 'head', 'hands',
+                    'feet', 'cloak', 'neck', 'ring_1', 'ring_2',
+                    'waist', 'wondrous', 'ammunition'
+                )),
+                item_instance_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (campaign_id, character_entity_id, slot),
+                UNIQUE (campaign_id, item_instance_id),
+                FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            INSERT OR IGNORE INTO equipped_items (
+                campaign_id, character_entity_id, slot, item_instance_id
+            )
+            SELECT campaign_id, character_entity_id, 'main_hand', item_instance_id
+            FROM equipped_weapons
+        """)
+        # The generic projection is now authoritative; retaining legacy rows
+        # would keep legacy weapon-definition guards active indefinitely.
+        conn.execute("DELETE FROM equipped_weapons")
+        for event in ("INSERT", "UPDATE"):
+            conn.execute(f"""
+                CREATE TRIGGER IF NOT EXISTS trg_equipped_items_validate_{event.lower()}
+                BEFORE {event} ON equipped_items
+                FOR EACH ROW
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM character_states cs
+                    JOIN item_instances ii
+                      ON ii.id = NEW.item_instance_id
+                     AND ii.campaign_id = NEW.campaign_id
+                     AND ii.owner_id = NEW.character_entity_id
+                     AND ii.active = 1
+                    JOIN items i
+                      ON i.id = ii.item_id
+                     AND i.campaign_id = NEW.campaign_id
+                    WHERE cs.entity_id = NEW.character_entity_id
+                      AND cs.campaign_id = NEW.campaign_id
+                      AND (
+                          COALESCE(i.equipment_slot, '') = NEW.slot
+                          OR (
+                              i.weapon_key IS NOT NULL
+                              AND NEW.slot IN ('main_hand', 'off_hand')
+                          )
+                      )
+                )
+                BEGIN
+                    SELECT RAISE(ABORT, 'equipped item must be active, owned by character, and match its slot in the same campaign');
+                END
+            """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_items_weapon_slot_insert
+            BEFORE INSERT ON items
+            FOR EACH ROW
+            WHEN NEW.weapon_key IS NOT NULL
+             AND COALESCE(NEW.equipment_slot, 'main_hand') NOT IN ('main_hand', 'off_hand')
+            BEGIN
+                SELECT RAISE(ABORT, 'weapon items must use a hand equipment slot');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_items_weapon_slot_update
+            BEFORE UPDATE OF weapon_key, equipment_slot ON items
+            FOR EACH ROW
+            WHEN NEW.weapon_key IS NOT NULL
+             AND COALESCE(NEW.equipment_slot, 'main_hand') NOT IN ('main_hand', 'off_hand')
+            BEGIN
+                SELECT RAISE(ABORT, 'weapon items must use a hand equipment slot');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_owner_cleanup
+            AFTER UPDATE OF owner_id, active ON item_instances
+            FOR EACH ROW
+            WHEN NEW.owner_id IS NULL OR NEW.owner_id != OLD.owner_id OR NEW.active = 0
+            BEGIN
+                DELETE FROM equipped_items
+                WHERE campaign_id = OLD.campaign_id AND item_instance_id = OLD.id;
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_instance_cleanup
+            AFTER DELETE ON item_instances
+            FOR EACH ROW
+            BEGIN
+                DELETE FROM equipped_items
+                WHERE campaign_id = OLD.campaign_id AND item_instance_id = OLD.id;
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_character_cleanup
+            AFTER DELETE ON character_states
+            FOR EACH ROW
+            BEGIN
+                DELETE FROM equipped_items
+                WHERE campaign_id = OLD.campaign_id
+                  AND character_entity_id = OLD.entity_id;
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_slot_guard
+            BEFORE UPDATE OF equipment_slot, weapon_key ON items
+            FOR EACH ROW
+            WHEN EXISTS (
+                SELECT 1 FROM item_instances ii
+                JOIN equipped_items ei
+                  ON ei.item_instance_id = ii.id
+                 AND ei.campaign_id = ii.campaign_id
+                WHERE ii.item_id = OLD.id
+                  AND ii.campaign_id = OLD.campaign_id
+                  AND NOT (
+                      (NEW.weapon_key IS NOT NULL AND ei.slot IN ('main_hand', 'off_hand'))
+                      OR ei.slot = COALESCE(
+                          NEW.equipment_slot,
+                          CASE WHEN NEW.weapon_key IS NOT NULL THEN 'main_hand' END,
+                          ''
+                      )
+                  )
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'unequip item before changing its equipment slot or weapon definition');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_instance_definition_guard
+            BEFORE UPDATE OF item_id ON item_instances
+            FOR EACH ROW
+            WHEN EXISTS (
+                SELECT 1 FROM equipped_items
+                WHERE campaign_id = OLD.campaign_id
+                  AND item_instance_id = OLD.id
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'unequip item before changing its definition');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_campaign_insert
+            BEFORE INSERT ON equipped_items
+            FOR EACH ROW
+            WHEN NOT EXISTS (SELECT 1 FROM campaign WHERE id = NEW.campaign_id)
+            BEGIN
+                SELECT RAISE(ABORT, 'campaign_id does not exist');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_equipped_items_campaign_immutable
+            BEFORE UPDATE OF campaign_id, character_entity_id, slot, item_instance_id
+            ON equipped_items
+            FOR EACH ROW
+            WHEN NEW.campaign_id != OLD.campaign_id
+              OR NEW.character_entity_id != OLD.character_entity_id
+              OR NEW.slot != OLD.slot
+              OR NEW.item_instance_id != OLD.item_instance_id
+            BEGIN
+                SELECT RAISE(ABORT, 'equipped item identity is immutable; replace the slot assignment');
+            END
+        """)
+        for event in ("INSERT", "UPDATE", "DELETE"):
+            ref = "OLD" if event == "DELETE" else "NEW"
+            conn.execute(f"""
+                CREATE TRIGGER IF NOT EXISTS trg_state_revision_equipped_items_{event.lower()}
+                AFTER {event} ON equipped_items
+                FOR EACH ROW
+                BEGIN
+                    UPDATE campaign_state_versions
+                    SET revision = revision + 1
+                    WHERE campaign_id = {ref}.campaign_id;
+                END
+            """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_equipped_items_character
+            ON equipped_items(campaign_id, character_entity_id, slot)
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_026")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_026")
+        conn.execute("RELEASE SAVEPOINT migration_026")
         raise

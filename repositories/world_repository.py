@@ -77,7 +77,7 @@ class WorldRepository:
 
     def _load_items(self, world, *, campaign_id, conn=None):
         data = self._rows("""
-            SELECT id, name, description, significance, unique_item, notes, weapon_key
+            SELECT id, name, description, significance, unique_item, notes, weapon_key, equipment_slot
             FROM items
             WHERE campaign_id = ?
         """, (campaign_id,), conn=conn)
@@ -91,6 +91,7 @@ class WorldRepository:
                 unique=bool(row["unique_item"]),
                 notes=row["notes"],
                 weapon_key=row["weapon_key"],
+                equipment_slot=row["equipment_slot"],
             )
             world.items[item.id] = item
 
@@ -319,9 +320,9 @@ class WorldRepository:
                 query="""
                     INSERT INTO items (
                         id, name, description, significance,
-                        unique_item, notes, weapon_key, campaign_id
+                        unique_item, notes, weapon_key, equipment_slot, campaign_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         name = excluded.name,
                         description = excluded.description,
@@ -329,6 +330,7 @@ class WorldRepository:
                         unique_item = excluded.unique_item,
                         notes = excluded.notes,
                         weapon_key = excluded.weapon_key,
+                        equipment_slot = excluded.equipment_slot,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE items.campaign_id = excluded.campaign_id
                 """,
@@ -340,6 +342,7 @@ class WorldRepository:
                     int(item.unique),
                     item.notes,
                     item.weapon_key,
+                    item.equipment_slot,
                     campaign_id,
                 ),
             )

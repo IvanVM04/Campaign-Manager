@@ -5,6 +5,7 @@ from operations.world_operations import (
     CreateItemInstanceOperation,
     CreateItemOperation,
 )
+from services.operation_parser import OperationParser
 from services.world_applier import WorldApplier
 
 
@@ -176,3 +177,55 @@ def test_create_item_instance_rejects_duplicate_instance_number():
 
     assert result.status.value == "duplicate"
     assert len(world.item_instances) == 1
+
+
+def test_create_item_preserves_weapon_and_equipment_metadata():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(
+            name="Espada larga",
+            weapon_key="longsword",
+            equipment_slot="off_hand",
+        ),
+    )
+    assert result.success
+    item = next(iter(world.items.values()))
+    assert item.weapon_key == "longsword"
+    assert item.equipment_slot == "off_hand"
+
+
+def test_create_weapon_defaults_to_main_hand():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(name="Espada larga", weapon_key="longsword"),
+    )
+    assert result.success
+    assert next(iter(world.items.values())).equipment_slot == "main_hand"
+
+
+def test_create_weapon_rejects_non_hand_equipment_slot():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(
+            name="Espada larga", weapon_key="longsword", equipment_slot="body"
+        ),
+    )
+    assert result.status.value == "invalid"
+    assert world.items == {}
+
+
+
+def test_parser_accepts_equipment_metadata_on_item_definition():
+    operations = OperationParser().parse({
+        "operations": [{
+            "type": "create_item",
+            "name": "Chain mail",
+            "equipment_slot": "body",
+        }]
+    })
+    operation = operations[0]
+    assert isinstance(operation, CreateItemOperation)
+    assert operation.equipment_slot == "body"
