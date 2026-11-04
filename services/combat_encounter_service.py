@@ -28,6 +28,7 @@ class CombatEncounterService:
         creature_repository: CreatureRepository | None = None,
         world_service=None,
         persistent_effect_repository=None,
+        equipment_service=None,
         dice_roller: DiceRoller | None = None,
     ) -> None:
         self.repository = repository
@@ -36,6 +37,7 @@ class CombatEncounterService:
         self.creature_repository = creature_repository or CreatureRepository()
         self.world_service = world_service
         self.persistent_effect_repository = persistent_effect_repository
+        self.equipment_service = equipment_service
         self.dice_roller = dice_roller or DiceRoller()
 
     def create(self, campaign_id: int, participants, encounter_id: str | None = None):
@@ -59,13 +61,18 @@ class CombatEncounterService:
                         raise ValueError(
                             f"character {participant.character_id} does not exist in this campaign"
                         )
+                    armor_class = character.armor_class
+                    if self.equipment_service is not None:
+                        armor_class = self.equipment_service.armor_class(
+                            character, campaign_id=campaign_id, conn=conn
+                        ).armor_class
                     combatants.append(CombatantState(
                         combatant_id=f"character-{character.entity_id}",
                         name=entity.name,
                         initiative=0,
                         current_hp=character.current_hp,
                         max_hp=character.max_hp,
-                        armor_class=character.armor_class,
+                        armor_class=armor_class,
                         entity_id=character.entity_id,
                         is_player_character=True,
                         dexterity=character.dexterity,
