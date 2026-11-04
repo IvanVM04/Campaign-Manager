@@ -694,7 +694,14 @@ class DurableNativeTurnService:
             ),
         )
 
-    def submit_clarification(self, pending_clarification_id: str, answer: str):
+    def submit_clarification(
+        self,
+        pending_clarification_id: str,
+        answer: str,
+        *,
+        adapter_namespace: str = "native",
+        defer_narration: bool = False,
+    ):
         if (
             not isinstance(pending_clarification_id, str)
             or ":" not in pending_clarification_id
@@ -713,6 +720,10 @@ class DurableNativeTurnService:
             record = self.resolution_repository.get(int(raw_id), scope=self.scope)
             if record is None:
                 raise DurableNativeTurnError("clarification request was not found")
+            if record.adapter_namespace != adapter_namespace:
+                raise DurableNativeTurnError(
+                    "clarification challenge belongs to a different adapter"
+                )
             pending_state = json.loads(record.adjudication_json or "{}")
             if (
                 secrets.compare_digest(
@@ -727,9 +738,19 @@ class DurableNativeTurnService:
                 if record.lifecycle_state == "awaiting_input":
                     current_pending = pending_state.get("clarification")
                     if isinstance(current_pending, dict):
-                        return self._clarification_result(record, current_pending)
+                        return (
+                            self._preparation_from_record(record)
+                            if defer_narration
+                            else self._clarification_result(record, current_pending)
+                        )
                 if record.lifecycle_state in {"committed", "narration_pending"}:
-                    return self._resume_narration(record, already_processed=True)
+                    return (
+                        self._preparation_from_record(record)
+                        if defer_narration
+                        else self._resume_narration(record, already_processed=True)
+                    )
+                if record.lifecycle_state == "completed" and defer_narration:
+                    return self._preparation_from_record(record)
                 if record.lifecycle_state == "completed":
                     turn = self.turn_repository.get_turn(
                         record.turn_id, scope=self.scope
@@ -839,7 +860,11 @@ class DurableNativeTurnService:
                             conn=conn,
                         )
                     saved = self.resolution_repository.get(record.id, scope=self.scope)
-                    return self._clarification_result(saved, next_pending)
+                    return (
+                        self._preparation_from_record(saved)
+                        if defer_narration
+                        else self._clarification_result(saved, next_pending)
+                    )
 
                 with transaction("IMMEDIATE") as conn:
                     self.resolution_repository.transition(
@@ -918,7 +943,11 @@ class DurableNativeTurnService:
                         conn=conn,
                     )
                 saved = self.resolution_repository.get(record.id, scope=self.scope)
-                return self._resume_narration(saved, already_processed=False)
+                return (
+                    self._preparation_from_record(saved)
+                    if defer_narration
+                    else self._resume_narration(saved, already_processed=False)
+                )
             except Exception as exc:
                 current = self.resolution_repository.get(record.id, scope=self.scope)
                 if current is not None and current.lifecycle_state == "prepared":
