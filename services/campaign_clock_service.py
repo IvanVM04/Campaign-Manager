@@ -1,6 +1,6 @@
 """Use cases for advancing fictional campaign time."""
 
-from database import get_conn
+from database import transaction
 from models.campaign_clock import CampaignClock
 from repositories.campaign_clock_repository import CampaignClockRepository
 from repositories.campaign_repository import CampaignRepository
@@ -17,8 +17,7 @@ class CampaignClockService:
         self.effect_repository = effect_repository or PersistentEffectRepository()
 
     def get(self) -> CampaignClock:
-        with get_conn() as conn:
-            conn.execute("BEGIN")
+        with transaction("DEFERRED") as conn
             if self.campaign_repository.get_campaign(self.campaign_id, conn=conn) is None:
                 raise LookupError("campaign does not exist")
             return self.repository.ensure(self.campaign_id, conn=conn)
@@ -32,8 +31,7 @@ class CampaignClockService:
             or expected_elapsed_minutes < 0
         ):
             raise ValueError("expected_elapsed_minutes must be a non-negative integer")
-        with get_conn() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with transaction("IMMEDIATE") as conn
             if self.campaign_repository.get_campaign(self.campaign_id, conn=conn) is None:
                 raise LookupError("campaign does not exist")
             self.repository.ensure(self.campaign_id, conn=conn)
