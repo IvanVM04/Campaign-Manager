@@ -1,4 +1,5 @@
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -39,6 +40,24 @@ def get_conn():
 
     finally:
         conn.close()
+
+
+@contextmanager
+def transaction(mode: str = "DEFERRED") -> Iterator[sqlite3.Connection]:
+    """Own one explicit SQLite transaction and its connection lifecycle.
+
+    The yielded connection is valid only inside this context. Repositories
+    participating in the use case must receive it explicitly. Nested
+    transactions are intentionally unsupported; compose work on this
+    connection instead.
+    """
+    normalized_mode = mode.upper()
+    if normalized_mode not in {"DEFERRED", "IMMEDIATE", "EXCLUSIVE"}:
+        raise ValueError("transaction mode must be DEFERRED, IMMEDIATE or EXCLUSIVE")
+
+    with get_conn() as conn:
+        conn.execute(f"BEGIN {normalized_mode}")
+        yield conn
 
 
 def init_db():
