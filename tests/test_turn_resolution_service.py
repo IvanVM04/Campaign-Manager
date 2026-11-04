@@ -77,6 +77,12 @@ class RecordingExtractor(LLMWorldExtractor):
         )
         return self.operations
 
+    def propose(self, player_intent, context, *, mechanics_result=None):
+        self.received_text = player_intent
+        self.received_context = context
+        self.calls.append(("propose", player_intent))
+        return self.operations
+
 
 class RecordingApplier(WorldApplier):
 
@@ -1338,3 +1344,28 @@ def test_apply_plan_applies_only_after_plan_is_prepared():
     assert result.all_operations_succeeded is True
     assert len(applier.calls) == 1
     assert service.world_service.world.entities[1].name == "Aldric"
+
+
+def test_prepare_turn_can_propose_consequences_without_generating_narrative():
+    operation = CreateEntityOperation(
+        name="Aldric",
+        entity_type="npc",
+        description="Tabernero.",
+        notes="",
+        active=True,
+    )
+    extractor = RecordingExtractor(operations=[operation])
+    service, dm, _, _ = make_service(extractor=extractor)
+
+    plan = service.prepare_turn(
+        make_turn_context(),
+        "Busco al tabernero Aldric.",
+        proposal_from_intent=True,
+    )
+
+    assert plan.narrative == ""
+    assert plan.ordered_operations == (operation,)
+    assert extractor.calls == [
+        ("propose", "Busco al tabernero Aldric.")
+    ]
+    assert dm.calls == []
