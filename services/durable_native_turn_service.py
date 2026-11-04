@@ -748,8 +748,26 @@ class DurableNativeTurnService:
                 context, recent = self._context_and_history(conn)
                 revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
             if revision != pending.get("context_revision") or revision != record.context_revision:
+                expected_state = record.lifecycle_state
+                lease_token = None
+                if expected_state == "planning":
+                    lease_token = secrets.token_urlsafe(24)
+                    try:
+                        with transaction("IMMEDIATE") as conn:
+                            self.resolution_repository.claim_for_planning(
+                                record.id, scope=self.scope, lease_token=lease_token,
+                                lease_expires_at=(datetime.now(UTC) + timedelta(minutes=3)).isoformat(),
+                                now=datetime.now(UTC).isoformat(), conn=conn,
+                            )
+                    except ValueError as exc:
+                        raise DurableNativeTurnError("manual roll is still being submitted; retry") from exc
                 with transaction("IMMEDIATE") as conn:
-                    self.resolution_repository.transition(record.id, "rejected", scope=self.scope, expected_state="awaiting_input", updates={"last_error_code": "stale_manual_roll"}, conn=conn)
+                    self.resolution_repository.transition(
+                        record.id, "rejected", scope=self.scope,
+                        expected_state=expected_state,
+                        expected_lease_token=lease_token,
+                        updates={"last_error_code": "stale_manual_roll"}, conn=conn,
+                    )
                 raise DurableNativeTurnError("campaign state changed while waiting for the manual roll")
             if len(rolls) != pending["count"]:
                 raise DurableNativeTurnError("manual roll has an invalid number of dice")
