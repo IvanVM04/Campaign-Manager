@@ -373,4 +373,4 @@ def test_unproficient_armor_imposes_disadvantage_on_strength_attack(client):
     payload = response.json()
     assert payload["disadvantage"] is True
     assert payload["armor_training_penalty"] is True
-    assert payload["attack"]["natural_roll"] == 4
+    assert payload["attack"]["selected"] == 4
