@@ -13,7 +13,6 @@ from models.schemas import (
 )
 from services.durable_native_turn_service import DurableNativeTurnError
 from services.silly_tavern_integration_service import (
-    SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
 )
 
