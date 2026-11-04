@@ -64,6 +64,12 @@ class CombatEncounterService:
                         entity_id=character.entity_id,
                         is_player_character=True,
                         dexterity=character.dexterity,
+                        strength=character.strength,
+                        constitution=character.constitution,
+                        intelligence=character.intelligence,
+                        wisdom=character.wisdom,
+                        charisma=character.charisma,
+                        proficiency_bonus=character.proficiency_bonus,
                     ))
                     continue
 
@@ -120,6 +126,12 @@ class CombatEncounterService:
                     entity_id=creature.entity_id,
                     is_player_character=False,
                     dexterity=creature.dexterity,
+                    strength=creature.strength,
+                    constitution=creature.constitution,
+                    intelligence=creature.intelligence,
+                    wisdom=creature.wisdom,
+                    charisma=creature.charisma,
+                    proficiency_bonus=creature.proficiency_bonus,
                 ))
 
             encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
