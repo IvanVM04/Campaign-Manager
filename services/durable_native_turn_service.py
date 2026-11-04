@@ -834,9 +834,11 @@ class DurableNativeTurnService:
                 (turn.version for turn in current_versions),
                 default=0,
             )
-            if current_active is not None:
-                if current_active.version >= turn_version:
-                    if (
+            if (
+                current_active is not None
+                and current_active.version >= turn_version
+            ):
+                if (
                         current_active.version == turn_version
                         and current_active.player_input == player_input
                         and current_active.narrative == narrative
