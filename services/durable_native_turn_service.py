@@ -44,6 +44,7 @@ class DurableNativeTurnService:
         context_service,
         turn_repository: TurnRepository,
         resolution_repository: TurnResolutionRepository | None = None,
+        turn_execution_lock=None,
     ) -> None:
         self.scope = scope
         self.resolver = resolver
@@ -52,6 +53,7 @@ class DurableNativeTurnService:
         self.turn_repository = turn_repository
         self.resolution_repository = resolution_repository or TurnResolutionRepository()
         self.revision_repository = CampaignStateVersionRepository()
+        self.turn_execution_lock = turn_execution_lock
 
     @staticmethod
     def _json_default(value):
@@ -264,6 +266,12 @@ class DurableNativeTurnService:
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def play_turn(self, player_input: str, *, idempotency_key: str | None = None):
+        if self.turn_execution_lock is None:
+            return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
+        with self.turn_execution_lock.acquire():
+            return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
+
+    def _play_turn_locked(self, player_input: str, *, idempotency_key: str | None = None):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
             raise DurableNativeTurnError("player_input must not be empty")
