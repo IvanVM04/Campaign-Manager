@@ -58,7 +58,7 @@ def list_combat_encounters():
     return [
         _encounter_payload(encounter)
         for encounter in combat_encounter_service.list(
-            _current_runtime.get().campaign_id
+            get_current_runtime().campaign_id
         )
     ]
 
@@ -68,7 +68,7 @@ def create_combat_encounter(data: EncounterCreateIn):
     try:
         with turn_execution_lock.acquire():
             encounter = combat_encounter_service.create(
-                _current_runtime.get().campaign_id,
+                get_current_runtime().campaign_id,
                 data.participants,
                 data.encounter_id,
             )
@@ -81,7 +81,7 @@ def create_combat_encounter(data: EncounterCreateIn):
 def get_combat_encounter(encounter_id: str):
     try:
         encounter = combat_encounter_service.get(
-            _current_runtime.get().campaign_id,
+            get_current_runtime().campaign_id,
             encounter_id,
         )
     except ValueError as exc:
@@ -96,7 +96,7 @@ def start_combat_encounter(encounter_id: str, data: EncounterStartIn):
     try:
         with turn_execution_lock.acquire():
             encounter = combat_encounter_service.start(
-                _current_runtime.get().campaign_id,
+                get_current_runtime().campaign_id,
                 encounter_id,
                 dice_mode=data.dice_mode,
                 manual_rolls=data.manual_rolls,
@@ -118,7 +118,7 @@ def advance_combat_encounter(encounter_id: str, data: EncounterTurnIn):
     try:
         with turn_execution_lock.acquire():
             encounter = combat_encounter_service.advance_turn(
-                _current_runtime.get().campaign_id,
+                get_current_runtime().campaign_id,
                 encounter_id,
                 expected_round=data.expected_round,
                 expected_turn_index=data.expected_turn_index,
@@ -135,7 +135,7 @@ def complete_combat_encounter(encounter_id: str, data: EncounterTurnIn):
     try:
         with turn_execution_lock.acquire():
             encounter = combat_encounter_service.complete(
-                _current_runtime.get().campaign_id,
+                get_current_runtime().campaign_id,
                 encounter_id,
                 expected_round=data.expected_round,
                 expected_turn_index=data.expected_turn_index,
@@ -153,8 +153,8 @@ def complete_combat_encounter(encounter_id: str, data: EncounterTurnIn):
 def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
     try:
         with turn_execution_lock.acquire():
-            result = _current_runtime.get().combat_attack_service.attack(
-                campaign_id=_current_runtime.get().campaign_id,
+            result = get_current_runtime().combat_attack_service.attack(
+                campaign_id=get_current_runtime().campaign_id,
                 encounter_id=encounter_id,
                 target_combatant_id=data.target_combatant_id,
                 expected_round=data.expected_round,
