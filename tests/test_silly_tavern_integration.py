@@ -3526,6 +3526,24 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     world_service = service.world_service
     world_service.load()
 
+    import services.silly_tavern_integration_service as integration_module
+    from contextlib import contextmanager
+
+    original_transaction = integration_module.transaction
+    transaction_modes = []
+
+    @contextmanager
+    def tracked_transaction(mode="DEFERRED"):
+        transaction_modes.append(mode)
+        with original_transaction(mode) as conn:
+            yield conn
+
+    monkeypatch.setattr(
+        integration_module,
+        "transaction",
+        tracked_transaction,
+    )
+
     original_world = world_service.get_world()
     original_snapshot = copy.deepcopy(original_world)
     operation = CreateEntityOperation(
@@ -3557,6 +3575,7 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
             turn_version=1,
         )
 
+    assert transaction_modes == ["IMMEDIATE"]
     assert world_service.world is original_world
     assert original_world.entities == original_snapshot.entities
     assert original_world.items == original_snapshot.items
