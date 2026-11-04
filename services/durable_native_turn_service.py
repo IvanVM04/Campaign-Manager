@@ -752,16 +752,21 @@ class DurableNativeTurnService:
                 record.turn_id, scope=self.scope
             )
 
+        existing_versions = self.turn_repository.get_versions_by_external_turn_id(
+            external_turn_id, scope=self.scope
+        )
+        latest_version = max(
+            (turn.version for turn in existing_versions),
+            default=0,
+        )
+
         if previous_turn is not None:
             if previous_turn.player_input != player_input:
                 raise DurableNativeTurnError(
                     "external turn identity was reused with different player input"
                 )
             if turn_version == previous_turn.version:
-                if (
-                    previous_turn.player_input != player_input
-                    or previous_turn.narrative != narrative
-                ):
+                if previous_turn.narrative != narrative:
                     raise DurableNativeTurnError(
                         "external turn version already exists with different content"
                     )
@@ -772,11 +777,11 @@ class DurableNativeTurnService:
                 return TurnResolutionResult.from_persisted_turn(previous_turn)
             if turn_version < previous_turn.version:
                 raise DurableNativeTurnError("external turn version is older than the active version")
-            if turn_version != previous_turn.version + 1:
-                raise DurableNativeTurnError("external turn version must be sequential")
 
-        elif turn_version != 1:
-            raise DurableNativeTurnError("first external turn version must be 1")
+        if turn_version != latest_version + 1:
+            raise DurableNativeTurnError(
+                f"external turn version must be {latest_version + 1}"
+            )
 
         if record is None and previous_turn is None:
             raise DurableNativeTurnError(
@@ -822,6 +827,13 @@ class DurableNativeTurnService:
             current_active = self.turn_repository.get_active_by_external_turn_id(
                 external_turn_id, scope=self.scope, conn=conn
             )
+            current_versions = self.turn_repository.get_versions_by_external_turn_id(
+                external_turn_id, scope=self.scope, conn=conn
+            )
+            current_latest_version = max(
+                (turn.version for turn in current_versions),
+                default=0,
+            )
             if current_active is not None:
                 if current_active.version >= turn_version:
                     if (
@@ -840,8 +852,11 @@ class DurableNativeTurnService:
                     raise DurableNativeTurnError(
                         "external turn version changed while narration was being saved"
                     )
-                if current_active.version + 1 != turn_version:
-                    raise DurableNativeTurnError("external turn version must be sequential")
+            if turn_version != current_latest_version + 1:
+                raise DurableNativeTurnError(
+                    f"external turn version must be {current_latest_version + 1}"
+                )
+            if current_active is not None:
                 self.turn_repository.supersede_turn(
                     current_active.id, scope=self.scope, conn=conn
                 )
