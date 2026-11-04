@@ -649,6 +649,8 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
 
 
 def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
+    from types import SimpleNamespace
+
     from models.turn_resolution_result import TurnResolutionResult
 
     service, _, _ = _service_with_fake_models()
@@ -735,8 +737,6 @@ def test_silly_tavern_manual_roll_state_exposes_pending_challenge_without_intern
 
 
 def test_silly_tavern_manual_roll_state_is_scoped_to_sillytavern(monkeypatch):
-    from types import SimpleNamespace
-
     service, _, _ = _service_with_fake_models()
     captured = {}
     monkeypatch.setattr(
