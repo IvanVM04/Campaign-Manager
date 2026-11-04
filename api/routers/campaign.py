@@ -10,7 +10,6 @@ from models.schemas import (
 )
 from repositories.campaign_repository import CampaignRepository
 
-
 router = APIRouter()
 
 
