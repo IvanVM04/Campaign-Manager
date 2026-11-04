@@ -85,10 +85,10 @@ def register_error_handlers(app: fastapi.FastAPI) -> None:
             headers=exc.headers,
         )
 
-    @app.exception_handler(fastapi.exceptions.fastapi.RequestValidationError)
+    @app.exception_handler(fastapi.exceptions.RequestValidationError)
     async def handle_validation_error(
         request: fastapi.Request,
-        exc: fastapi.exceptions.fastapi.RequestValidationError,
+        exc: fastapi.exceptions.RequestValidationError,
     ) -> fastapi.responses.JSONResponse:
         public_errors = [
             {
