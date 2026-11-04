@@ -203,7 +203,10 @@ class CombatAttackService:
                 if target.current_hp == 0:
                     # Damage while dying causes one failed save, or two on a
                     # critical hit. Stable creatures become unstable again.
+                    was_stable = stable
                     stable = False
+                    if was_stable:
+                        death_save_successes = 0
                     death_save_failures = min(
                         3, death_save_failures + (2 if result.critical else 1)
                     )
