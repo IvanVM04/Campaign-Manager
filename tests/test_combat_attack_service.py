@@ -213,7 +213,9 @@ def test_attack_rejects_manual_npc_as_attacker(client):
 
 
 def test_persistent_poisoned_attacker_has_disadvantage_on_attack(client):
-    attacker_id, _target_id, _attacker_combatant_id, target_combatant_id = _prepare_encounter(client)
+    attacker_id, _target_id, _attacker_combatant_id, target_combatant_id = _prepare_encounter(
+        client
+    )
     effect = client.post(
         f"/entities/{attacker_id}/effects",
         json={"effect_type": "condition", "effect_key": "poisoned", "name": "Veneno persistente"},
