@@ -479,12 +479,11 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
         "Abro una puerta.",
         (
             "Abro una puerta."
-            + "\\n\\nAclaración del DM: ¿Qué puerta quieres abrir?"
-            + "\\nRespuesta del jugador: La puerta de roble."
+            + "\n\nAclaración del DM: ¿Qué puerta quieres abrir?"
+            + "\nRespuesta del jugador: La puerta de roble."
         ),
     ]
-        ),
-    ]
+    repeated = service.submit_clarification(
     repeated = service.submit_clarification(
         pending.pending_clarification_id,
         "La puerta de roble.",
