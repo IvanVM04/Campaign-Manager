@@ -181,6 +181,7 @@ class CampaignRuntimeFactory:
             entity_repository=entity_repository,
             creature_repository=creature_repository,
             world_service=world_service,
+            persistent_effect_repository=persistent_effect_repository,
         )
         combat_attack_service = CombatAttackService(
             encounter_repository=encounter_repository,
