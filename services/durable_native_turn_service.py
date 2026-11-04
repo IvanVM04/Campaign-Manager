@@ -1248,12 +1248,25 @@ class DurableNativeTurnService:
             return {"external_turn_id": external_turn_id, "has_manual_roll": False}
         state = json.loads(record.adjudication_json or "{}")
         pending = state.get("manual_roll")
-        active = isinstance(pending, dict) and record.lifecycle_state in {"awaiting_input", "planning", "prepared", "committed", "narration_pending"}
+        submitted_external_turn_id = (
+            pending.get("submitted_external_turn_id")
+            if isinstance(pending, dict)
+            else None
+        )
+        active = isinstance(pending, dict) and (
+            record.lifecycle_state in {"awaiting_input", "planning", "prepared", "committed", "narration_pending"}
+            or (
+                record.lifecycle_state == "completed"
+                and isinstance(submitted_external_turn_id, str)
+                and bool(submitted_external_turn_id)
+            )
+        )
         return {
             "external_turn_id": external_turn_id,
             "has_manual_roll": active,
             "lifecycle_state": record.lifecycle_state,
             "player_input": record.player_input,
+            "submitted_external_turn_id": submitted_external_turn_id if active else None,
             "pending_roll_id": str(record.id) + ":" + pending["challenge_id"] if active else None,
             "pending_roll": ({key: value for key, value in pending.items() if key not in {"challenge_id", "decision", "submitted_rolls", "submitted_external_turn_id"}} if active else None),
         }
