@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
 from api.runtime_context import (
     campaign_turn_service,
@@ -69,14 +69,26 @@ def _turn_result_payload(result):
 
 
 @router.post("/turn")
-def play_turn(data: TurnIn):
+def play_turn(
+    data: TurnIn,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
     from services.campaign_turn_service import CampaignTurnServiceError
+    from services.durable_native_turn_service import DurableNativeTurnError
 
     try:
-        result = campaign_turn_service.play_turn(
-            data.player_input,
-            dice_mode=data.dice_mode,
-        )
+        if data.dice_mode == "automatic":
+            result = get_current_runtime().durable_native_turn_service.play_turn(
+                data.player_input,
+                idempotency_key=idempotency_key,
+            )
+        else:
+            result = campaign_turn_service.play_turn(
+                data.player_input,
+                dice_mode=data.dice_mode,
+            )
+    except DurableNativeTurnError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except CampaignTurnServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
