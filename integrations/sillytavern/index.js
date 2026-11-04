@@ -1602,6 +1602,15 @@ async function onMessageReceived() {
             if (clarificationOrigin) {
                 externalTurnId = clarificationOrigin.externalTurnId;
                 durablePlayerInput = clarificationOrigin.playerInput;
+                resolvedTurnStates.set(
+                    externalTurnId,
+                    {
+                        lifecycleState: clarificationOrigin.state.lifecycle_state,
+                        clarificationQuestion:
+                            clarificationOrigin.state.clarification_question ?? null,
+                        playerInput: durablePlayerInput,
+                    },
+                );
                 clarificationTurnLinks.set(
                     currentMessageTurnId,
                     {
