@@ -28,7 +28,10 @@ from api.routers.effects import router as effects_router
 from api.routers.integration import router as integration_router
 from api.routers.memory import router as memory_router
 from api.routers.system import router as system_router
-from api.routers.turns import router as turns_router
+from api.routers.turns import (
+    _serialize_mechanics_result,
+    router as turns_router,
+)
 from api.routers.world import router as world_router
 from database import init_db
 from repositories.turn_repository import TurnRepository
@@ -207,6 +210,7 @@ __all__ = [
     "create_world_service",
     "create_context_builder",
     "create_campaign_turn_service",
+    "_serialize_mechanics_result",
     "campaign_repository",
     "campaign_state_service",
     "campaign_turn_service",
