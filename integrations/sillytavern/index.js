@@ -337,6 +337,9 @@ globalThis.campaignManagerGenerateInterceptor =
                 'Could not safely match the generation input to the current chat message.',
             );
             await clearCampaignManagerContext();
+            if (typeof abort === 'function') {
+                abort();
+            }
             return;
         }
 
@@ -349,6 +352,9 @@ globalThis.campaignManagerGenerateInterceptor =
                 error,
             );
             await clearCampaignManagerContext();
+            if (typeof abort === 'function') {
+                abort();
+            }
             return;
         }
 
@@ -360,6 +366,9 @@ globalThis.campaignManagerGenerateInterceptor =
 
         if (!context) {
             await clearCampaignManagerContext();
+            if (typeof abort === 'function') {
+                abort();
+            }
             return;
         }
 
