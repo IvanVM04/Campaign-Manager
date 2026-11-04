@@ -104,7 +104,7 @@ def test_claim_and_transition_lifecycle(isolated_database):
             "committed",
             scope=CampaignScope(1),
             expected_state="prepared",
-            updates={"committed_at": "2026-11-04T00:01:00Z"},
+            updates={"committed_at": "2026-11-04T00:01:00Z", "resulting_revision": 2},
             conn=conn,
         )
         repository.transition(
