@@ -34,6 +34,7 @@ from api.runtime_context import (
     world_service,
 )
 from database import init_db
+from repositories.campaign_repository import CampaignRepository
 from repositories.turn_repository import TurnRepository
 from services.campaign_runtime import CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
@@ -205,6 +206,7 @@ app.include_router(clock_router)
 # Keep these names available while downstream tests and integrations migrate
 # from the historical app-module service proxies to request-scoped access.
 __all__ = [
+    "CampaignRepository",
     "_serialize_mechanics_result",
     "app",
     "campaign_repository",
