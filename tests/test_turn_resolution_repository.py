@@ -134,7 +134,7 @@ def test_claim_and_transition_lifecycle(isolated_database):
         sqlite3.IntegrityError, match="evidence is immutable"
     ):
         conn.execute(
-            "UPDATE turn_resolutions SET proposal_json='{\"operations\":[]}' WHERE id=?",
+            "UPDATE turn_resolutions SET proposal_json='{\"operations\":[{}]}' WHERE id=?",
             (created.id,),
         )
 
