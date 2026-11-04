@@ -6,8 +6,8 @@ from api.runtime_context import (
     character_creation_service,
     get_current_runtime,
 )
-from models.schemas import CharacterCreate
 from models.equipment_api_schemas import EquipItemIn, EquipmentSlot
+from models.schemas import CharacterCreate
 
 router = APIRouter()
 
