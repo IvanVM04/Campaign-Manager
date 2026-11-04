@@ -306,6 +306,13 @@ class DurableNativeTurnService:
                 external_turn_id, scope=self.scope
             )
             if existing_resolution is None and active_turn is not None:
+                normalized_input = (
+                    player_input.strip() if isinstance(player_input, str) else ""
+                )
+                if active_turn.player_input != normalized_input:
+                    raise DurableNativeTurnError(
+                        "external turn identity was reused with different player input"
+                    )
                 return DurableTurnPreparation(
                     resolution_id=None,
                     lifecycle_state="legacy_replay",
