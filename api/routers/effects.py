@@ -46,7 +46,7 @@ def list_entity_effects(
     include_removed: bool = False,
 ):
     try:
-        effects = _current_runtime.get().persistent_effect_service.list_for_entity(
+        effects = get_current_runtime().persistent_effect_service.list_for_entity(
             entity_id,
             include_removed=include_removed,
         )
@@ -59,7 +59,7 @@ def list_entity_effects(
 def create_entity_effect(entity_id: int, data: PersistentEffectCreateIn):
     try:
         with turn_execution_lock.acquire():
-            effect = _current_runtime.get().persistent_effect_service.create(
+            effect = get_current_runtime().persistent_effect_service.create(
                 entity_id=entity_id,
                 effect_type=data.effect_type,
                 effect_key=data.effect_key,
@@ -87,7 +87,7 @@ def update_persistent_effect_status(
 ):
     try:
         with turn_execution_lock.acquire():
-            effect = _current_runtime.get().persistent_effect_service.set_status(
+            effect = get_current_runtime().persistent_effect_service.set_status(
                 effect_id,
                 data.status,
             )
@@ -102,7 +102,7 @@ def update_persistent_effect_status(
 def remove_persistent_effect(effect_id: str):
     try:
         with turn_execution_lock.acquire():
-            effect = _current_runtime.get().persistent_effect_service.remove(
+            effect = get_current_runtime().persistent_effect_service.remove(
                 effect_id
             )
         return _persistent_effect_payload(effect)
