@@ -23,7 +23,7 @@ Uniqueness is enforced by `(campaign_id, adapter_namespace, idempotency_key)`. T
 - Application transitions are conditional on the expected current state.
 - SQLite triggers reject illegal lifecycle transitions even if a caller bypasses the repository.
 - A planning claim increments attempts and is allowed for accepted/awaiting-input rows or planning rows whose lease has expired.
-- The lease token identifies the current attempt. A worker must verify its token when saving a prepared result; this repository's transition API is the initial compare-and-set boundary and future orchestration must include token matching.
+- The lease token identifies the current attempt. The repository requires the expected lease token for every transition out of `planning`, fencing a worker whose lease was reclaimed. The future consequence-commit use case must perform this token check in the same `BEGIN IMMEDIATE` transaction as its domain mutations.
 - Identity fields cannot be edited after insert.
 - A historical `turn_id`, when supplied, must belong to the same campaign.
 
