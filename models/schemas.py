@@ -144,6 +144,19 @@ class ClarificationIn(BaseModel):
         return value
 
 
+class SillyTavernManualRollIn(ManualRollIn):
+    query: str = Field(..., min_length=1, max_length=10000)
+    answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
+
+    @field_validator("query", "answer_external_turn_id")
+    @classmethod
+    def validate_manual_roll_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("text must not be empty")
+        return value
+
+
 class SillyTavernClarificationIn(ClarificationIn):
     query: str = Field(..., min_length=1, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
@@ -209,6 +222,7 @@ class SillyTavernTurnResolveIn(BaseModel):
     player_input: str = Field(..., min_length=1, max_length=10000)
     external_turn_id: str = Field(..., min_length=1, max_length=500)
     query: str = Field(..., min_length=1, max_length=10000)
+    dice_mode: Literal["automatic", "manual"] = "automatic"
 
     @field_validator("player_input", "external_turn_id", "query")
     @classmethod
