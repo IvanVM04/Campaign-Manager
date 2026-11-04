@@ -337,22 +337,28 @@ def _advance_back_to_hero(client, encounter_id, current_round=1):
     assert hero_turn.json()["turn_index"] == 1
 
 
-def test_death_save_persists_failure_and_rejects_second_save_in_same_turn(client):
+def test_death_save_persists_failure_and_rejects_second_save_in_same_turn(client, monkeypatch):
+    _patch_death_save_roll(monkeypatch, 7)
     _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "death-save-once"
     )
-    payload = {
-        "expected_round": 1,
-        "expected_turn_index": 1,
-        "dice_mode": "manual",
-        "manual_roll": 7,
-    }
-    response = client.post("/encounters/death-save-once/death-save", json=payload)
+    response = client.post(
+        "/encounters/death-save-once/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
+    )
     assert response.status_code == 200, response.text
-    assert response.json()["death_save"]["failures"] == 1
-    assert response.json()["encounter"]["combatants"][hero_id]["death_save_failures"] == 1
+    assert response.json()["turn_start_death_save"]["failures"] == 1
+    assert response.json()["combatants"][hero_id]["death_save_failures"] == 1
 
-    repeated = client.post("/encounters/death-save-once/death-save", json=payload)
+    repeated = client.post(
+        "/encounters/death-save-once/death-save",
+        json={
+            "expected_round": 1,
+            "expected_turn_index": 1,
+            "dice_mode": "manual",
+            "manual_roll": 7,
+        },
+    )
     assert repeated.status_code == 409
     reloaded = client.get("/encounters/death-save-once")
     assert reloaded.json()["combatants"][hero_id]["death_save_failures"] == 1
@@ -364,16 +370,11 @@ def test_natural_twenty_recovers_character_and_clears_death_save_track(client, m
         client, "death-save-recovery"
     )
     first = client.post(
-        "/encounters/death-save-recovery/death-save",
-        json={
-            "expected_round": 1,
-            "expected_turn_index": 1,
-            "dice_mode": "manual",
-            "manual_roll": 4,
-        },
+        "/encounters/death-save-recovery/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
     )
     assert first.status_code == 200, first.text
-    _advance_back_to_hero(client, "death-save-recovery")
+    assert first.json()["turn_start_death_save"]["selected"] == 20
 
     current = client.get("/encounters/death-save-recovery")
     assert current.status_code == 200, current.text
@@ -392,20 +393,16 @@ def test_natural_twenty_recovers_character_and_clears_death_save_track(client, m
 
 
 def test_third_death_save_success_stabilizes_and_prevents_more_saves(client, monkeypatch):
-    _patch_death_save_roll(monkeypatch, [15, 10])
+    _patch_death_save_roll(monkeypatch, [15, 10, 10])
     _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "death-save-stable"
     )
     first = client.post(
-        "/encounters/death-save-stable/death-save",
-        json={
-            "expected_round": 1,
-            "expected_turn_index": 1,
-            "dice_mode": "manual",
-            "manual_roll": 15,
-        },
+        "/encounters/death-save-stable/advance",
+        json={"expected_round": 1, "expected_turn_index": 0},
     )
     assert first.status_code == 200, first.text
+    assert first.json()["turn_start_death_save"]["selected"] == 15
 
     _advance_back_to_hero(client, "death-save-stable", current_round=1)
     _advance_back_to_hero(client, "death-save-stable", current_round=2)
