@@ -522,6 +522,12 @@ class DurableNativeTurnService:
                     saved = self.resolution_repository.get(record.id, scope=self.scope)
                     return self._manual_roll_result(saved, pending)
                 if plan.clarification_question is not None:
+                    pending = {
+                        "challenge_id": secrets.token_urlsafe(24),
+                        "context_revision": revision,
+                        "question": plan.clarification_question,
+                        "history": [],
+                    }
                     with transaction("IMMEDIATE") as conn:
                         self.resolution_repository.transition(
                             record.id,
@@ -530,20 +536,20 @@ class DurableNativeTurnService:
                             expected_state="planning",
                             expected_lease_token=lease_token,
                             updates={
+                                "context_revision": revision,
                                 "adjudication_json": json.dumps(
-                                    {"clarification_question": plan.clarification_question},
+                                    {"clarification": pending},
                                     ensure_ascii=False,
                                     separators=(",", ":"),
+                                    sort_keys=True,
                                 ),
                                 "lease_token": None,
                                 "lease_expires_at": None,
                             },
                             conn=conn,
                         )
-                    return TurnResolutionResult(
-                        player_input=normalized,
-                        narrative=plan.clarification_question,
-                    )
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._clarification_result(saved, pending)
                 proposal_json = self._serialize_operations(plan)
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 
@@ -670,6 +676,230 @@ class DurableNativeTurnService:
             pending_roll_id=str(record.id) + ":" + pending["challenge_id"],
             pending_roll={key: value for key, value in pending.items() if key not in {"challenge_id", "decision"}},
         )
+
+    @staticmethod
+    def _clarification_result(record, pending):
+        return TurnResolutionResult(
+            player_input=record.player_input,
+            narrative=pending["question"],
+            pending_clarification_id=(
+                str(record.id) + ":" + pending["challenge_id"]
+            ),
+        )
+
+    def submit_clarification(self, pending_clarification_id: str, answer: str):
+        if (
+            not isinstance(pending_clarification_id, str)
+            or ":" not in pending_clarification_id
+        ):
+            raise DurableNativeTurnError("pending_clarification_id is invalid")
+        if not isinstance(answer, str) or not answer.strip():
+            raise DurableNativeTurnError("clarification answer must not be empty")
+        answer = answer.strip()
+        if len(answer) > 5000:
+            raise DurableNativeTurnError("clarification answer must not exceed 5000 characters")
+        raw_id, challenge_id = pending_clarification_id.split(":", 1)
+        if not raw_id.isdigit() or not challenge_id:
+            raise DurableNativeTurnError("pending_clarification_id is invalid")
+
+        def submit():
+            record = self.resolution_repository.get(int(raw_id), scope=self.scope)
+            if record is None:
+                raise DurableNativeTurnError("clarification request was not found")
+            if record.lifecycle_state != "awaiting_input":
+                raise DurableNativeTurnError("clarification request is no longer pending")
+            pending_state = json.loads(record.adjudication_json or "{}")
+            pending = pending_state.get("clarification")
+            if not isinstance(pending, dict) or not secrets.compare_digest(
+                str(pending.get("challenge_id", "")), challenge_id
+            ):
+                raise DurableNativeTurnError("clarification challenge is invalid or expired")
+
+            token = secrets.token_urlsafe(24)
+            now = datetime.now(UTC)
+            try:
+                with transaction("IMMEDIATE") as conn:
+                    record = self.resolution_repository.claim_for_planning(
+                        record.id,
+                        scope=self.scope,
+                        lease_token=token,
+                        lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
+                        now=now.isoformat(),
+                        conn=conn,
+                    )
+            except ValueError as exc:
+                raise DurableNativeTurnError(
+                    "clarification is already being processed; retry"
+                ) from exc
+
+            try:
+                with transaction("DEFERRED") as conn:
+                    context, recent = self._context_and_history(conn)
+                    revision = self.revision_repository.get_revision(
+                        self.scope.campaign_id, conn=conn
+                    )
+                if (
+                    revision != record.context_revision
+                    or revision != pending.get("context_revision")
+                ):
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id,
+                            "rejected",
+                            scope=self.scope,
+                            expected_state="planning",
+                            expected_lease_token=token,
+                            updates={"last_error_code": "stale_clarification"},
+                            conn=conn,
+                        )
+                    raise DurableNativeTurnError(
+                        "campaign state changed while waiting for clarification"
+                    )
+
+                history = list(pending.get("history", []))
+                history.append({
+                    "question": pending["question"],
+                    "answer": answer,
+                })
+                clarified_input = record.player_input + "".join(
+                    "\\n\\nAclaración del DM: " + item["question"]
+                    + "\\nRespuesta del jugador: " + item["answer"]
+                    for item in history
+                )
+                plan = self.resolver.prepare_turn(
+                    context,
+                    clarified_input,
+                    recent_turns=recent,
+                    proposal_from_intent=True,
+                )
+                if plan.clarification_question is not None:
+                    next_pending = {
+                        "challenge_id": secrets.token_urlsafe(24),
+                        "context_revision": revision,
+                        "question": plan.clarification_question,
+                        "history": history,
+                    }
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id,
+                            "awaiting_input",
+                            scope=self.scope,
+                            expected_state="planning",
+                            expected_lease_token=token,
+                            updates={
+                                "context_revision": revision,
+                                "adjudication_json": json.dumps(
+                                    {"clarification": next_pending},
+                                    ensure_ascii=False,
+                                    separators=(",", ":"),
+                                    sort_keys=True,
+                                ),
+                                "lease_token": None,
+                                "lease_expires_at": None,
+                            },
+                            conn=conn,
+                        )
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._clarification_result(saved, next_pending)
+
+                with transaction("IMMEDIATE") as conn:
+                    self.resolution_repository.transition(
+                        record.id,
+                        "prepared",
+                        scope=self.scope,
+                        expected_state="planning",
+                        expected_lease_token=token,
+                        updates={
+                            "player_input": clarified_input,
+                            "context_revision": revision,
+                            "proposal_json": self._serialize_operations(plan),
+                            "adjudication_json": json.dumps(
+                                {
+                                    "clarification_history": history,
+                                    "decision": (
+                                        plan.mechanics_decision.decision.value
+                                        if plan.mechanics_decision else None
+                                    ),
+                                },
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                                sort_keys=True,
+                            ),
+                            "mechanics_json": self._mechanics_to_json(
+                                plan.mechanics_result
+                            ),
+                            "lease_token": None,
+                            "lease_expires_at": None,
+                        },
+                        conn=conn,
+                    )
+
+                with transaction("IMMEDIATE") as conn:
+                    current_revision = self.revision_repository.get_revision(
+                        self.scope.campaign_id, conn=conn
+                    )
+                    current_context, current_recent = self._context_and_history(conn)
+                    if (
+                        current_revision != revision
+                        or current_context != context
+                        or current_recent != recent
+                    ):
+                        raise DurableNativeTurnError(
+                            "campaign context changed while clarification was being resolved"
+                        )
+                    result = self.resolver.apply_plan(
+                        current_context, plan, conn=conn
+                    )
+                    if not result.all_operations_succeeded:
+                        raise DurableNativeTurnError(
+                            "one or more proposed consequences failed validation"
+                        )
+                    resulting_revision = self.revision_repository.get_revision(
+                        self.scope.campaign_id, conn=conn
+                    )
+                    self.resolution_repository.transition(
+                        record.id,
+                        "committed",
+                        scope=self.scope,
+                        expected_state="prepared",
+                        updates={
+                            "resulting_revision": resulting_revision,
+                            "operation_results_json": self._operation_results_json(result),
+                            "committed_at": datetime.now(UTC).isoformat(),
+                        },
+                        conn=conn,
+                    )
+                    self.resolution_repository.transition(
+                        record.id,
+                        "narration_pending",
+                        scope=self.scope,
+                        expected_state="committed",
+                        conn=conn,
+                    )
+                saved = self.resolution_repository.get(record.id, scope=self.scope)
+                return self._resume_narration(saved, already_processed=False)
+            except Exception as exc:
+                current = self.resolution_repository.get(record.id, scope=self.scope)
+                if current is not None and current.lifecycle_state == "prepared":
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id,
+                            "rejected",
+                            scope=self.scope,
+                            expected_state="prepared",
+                            updates={"last_error_code": "clarification_resolution_failed"},
+                            conn=conn,
+                        )
+                if isinstance(exc, DurableNativeTurnError):
+                    raise
+                raise DurableNativeTurnError(
+                    "clarification resolution failed"
+                ) from exc
+
+        if self.turn_execution_lock is None:
+            return submit()
+        with self.turn_execution_lock.acquire():
+            return submit()
 
     def _build_manual_roll_request(self, record, decision, context, revision):
         if decision is None or context.active_character is None:
