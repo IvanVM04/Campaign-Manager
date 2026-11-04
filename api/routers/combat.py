@@ -55,6 +55,7 @@ def _encounter_payload(encounter):
                 "death_save_last_round": combatant.death_save_last_round,
                 "death_save_last_turn_index": combatant.death_save_last_turn_index,
                 "action_used": combatant.action_used,
+                "reaction_used": combatant.reaction_used,
                 "entity_id": combatant.entity_id,
                 "is_player_character": combatant.is_player_character,
                 "conscious": combatant.conscious,
