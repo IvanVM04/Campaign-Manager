@@ -6,6 +6,7 @@ from operations.world_operations import (
     CreateItemOperation,
 )
 from services.world_applier import WorldApplier
+from services.operation_parser import OperationParser
 
 
 def build_world():
@@ -214,3 +215,17 @@ def test_create_weapon_rejects_non_hand_equipment_slot():
     )
     assert result.status.value == "invalid"
     assert world.items == {}
+
+
+
+def test_parser_accepts_equipment_metadata_on_item_definition():
+    operations = OperationParser().parse({
+        "operations": [{
+            "type": "create_item",
+            "name": "Chain mail",
+            "equipment_slot": "body",
+        }]
+    })
+    operation = operations[0]
+    assert isinstance(operation, CreateItemOperation)
+    assert operation.equipment_slot == "body"
