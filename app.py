@@ -4,6 +4,19 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.routers.campaign import router as campaign_router
+from api.routers.character import router as character_router
+from api.routers.clock import router as clock_router
+from api.routers.combat import router as combat_router
+from api.routers.effects import router as effects_router
+from api.routers.integration import router as integration_router
+from api.routers.memory import router as memory_router
+from api.routers.system import router as system_router
+from api.routers.turns import (
+    _serialize_mechanics_result,
+    router as turns_router,
+)
+from api.routers.world import router as world_router
 from api.runtime_context import (
     _current_runtime,
     campaign_repository,
@@ -20,19 +33,6 @@ from api.runtime_context import (
     turn_repository,
     world_service,
 )
-from api.routers.campaign import router as campaign_router
-from api.routers.character import router as character_router
-from api.routers.clock import router as clock_router
-from api.routers.combat import router as combat_router
-from api.routers.effects import router as effects_router
-from api.routers.integration import router as integration_router
-from api.routers.memory import router as memory_router
-from api.routers.system import router as system_router
-from api.routers.turns import (
-    _serialize_mechanics_result,
-    router as turns_router,
-)
-from api.routers.world import router as world_router
 from database import init_db
 from repositories.turn_repository import TurnRepository
 from services.campaign_runtime import CampaignRuntimeFactory
@@ -205,12 +205,8 @@ app.include_router(clock_router)
 # Keep these names available while downstream tests and integrations migrate
 # from the historical app-module service proxies to request-scoped access.
 __all__ = [
-    "app",
-    "runtime_factory",
-    "create_world_service",
-    "create_context_builder",
-    "create_campaign_turn_service",
     "_serialize_mechanics_result",
+    "app",
     "campaign_repository",
     "campaign_state_service",
     "campaign_turn_service",
@@ -218,8 +214,12 @@ __all__ = [
     "character_repository",
     "combat_encounter_service",
     "context_builder",
+    "create_campaign_turn_service",
+    "create_context_builder",
+    "create_world_service",
     "entity_repository",
     "memory_search_service",
+    "runtime_factory",
     "silly_tavern_integration_service",
     "turn_execution_lock",
     "turn_repository",
