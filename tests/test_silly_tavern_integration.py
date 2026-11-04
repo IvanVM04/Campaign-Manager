@@ -3353,6 +3353,44 @@ def test_integration_service_returns_active_external_turn_state(
         "narrative": "La puerta se abre.",
     }
 
+def test_external_turn_state_skips_persisted_failed_narrative_versions(
+    isolated_database,
+):
+    from models.turn_record import TurnRecord
+
+    service, _context_builder, _extractor, _world_service, repository = _build_service()
+    repository.save_turn(
+        TurnRecord(
+            player_input="Abro la puerta.",
+            narrative="Versión activa.",
+            external_turn_id="turn-with-failed-version",
+            version=1,
+            status="active",
+        ),
+        scope=CampaignScope(1),
+    )
+    repository.save_turn(
+        TurnRecord(
+            player_input="Abro la puerta.",
+            narrative="Versión fallida.",
+            operation_count=1,
+            successful_operation_count=0,
+            failed_operation_count=1,
+            all_operations_succeeded=False,
+            external_turn_id="turn-with-failed-version",
+            version=2,
+            status="failed",
+        ),
+        scope=CampaignScope(1),
+    )
+
+    result = service.get_external_turn_state("turn-with-failed-version")
+
+    assert result["active_version"] == 1
+    assert result["next_version"] == 3
+    assert result["narrative"] == "Versión activa."
+
+
 def test_integration_service_rejects_non_sequential_turn_version(
     monkeypatch,
 ):
