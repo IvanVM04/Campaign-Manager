@@ -257,3 +257,37 @@ test(
         });
     },
 );
+
+
+test(
+    'findClarificationOrigin follows several rounds back to the original action',
+    async () => {
+        const original = { is_user: true, mes: 'Abro una puerta.' };
+        const questionOne = { is_user: false, mes: '¿Qué puerta?' };
+        const answerOne = { is_user: true, mes: 'La de roble.' };
+        const questionTwo = { is_user: false, mes: '¿La abres con cuidado?' };
+        const answerTwo = { is_user: true, mes: 'Con cuidado.' };
+        const state = {
+            has_clarification: true,
+            lifecycle_state: 'awaiting_input',
+            player_input: 'Abro una puerta.',
+            pending_clarification_id: '42:third-question',
+            last_pending_clarification_id: '42:second-question',
+            last_answer: 'La de roble.',
+        };
+
+        const result = await findClarificationOrigin(
+            [original, questionOne, answerOne, questionTwo, answerTwo],
+            answerTwo,
+            'Con cuidado.',
+            async (message) => message === original ? 'turn-original' : 'answer-turn',
+            async (turnId) => turnId === 'turn-original'
+                ? state
+                : { has_clarification: false },
+        );
+
+        assert.equal(result.externalTurnId, 'turn-original');
+        assert.equal(result.pendingClarificationId, '42:third-question');
+        assert.equal(result.retry, false);
+    },
+);
