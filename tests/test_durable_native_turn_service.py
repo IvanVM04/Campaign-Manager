@@ -63,6 +63,16 @@ def test_native_turn_retry_does_not_reapply_or_replan_completed_resolution():
 def test_narration_failure_leaves_committed_resolution_resumable():
     service, proposal_calls, _ = _service_with_fake_models()
     attempts = {"count": 0}
+    service.resolver.extractor.provider = lambda prompt: json.dumps({
+        "operations": [{
+            "type": "create_entity",
+            "name": "Aldric",
+            "entity_type": "npc",
+            "description": "Tabernero.",
+            "notes": "",
+            "active": True,
+        }]
+    })
 
     def fail_once(prompt):
         attempts["count"] += 1
@@ -73,6 +83,7 @@ def test_narration_failure_leaves_committed_resolution_resumable():
     service.resolver.dm_service.provider.generate = fail_once
 
     import pytest
+    import json
     from services.durable_native_turn_service import DurableNativeTurnError
 
     with pytest.raises(DurableNativeTurnError):
@@ -88,6 +99,8 @@ def test_narration_failure_leaves_committed_resolution_resumable():
     )
     assert record.lifecycle_state == "narration_pending"
     assert record.resulting_revision is not None
+    committed_world = service.world_service.repository.load_world(campaign_id=1)
+    assert len(committed_world.entities) == 1
 
     resumed = service.play_turn(
         "Miro alrededor.",
@@ -97,3 +110,5 @@ def test_narration_failure_leaves_committed_resolution_resumable():
     assert resumed.narrative == "La narración se ha recuperado."
     assert len(proposal_calls) == 1
     assert attempts["count"] == 2
+    recovered_world = service.world_service.repository.load_world(campaign_id=1)
+    assert len(recovered_world.entities) == 1
