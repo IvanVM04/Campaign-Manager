@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from api.errors import error_response, register_error_handlers
 
-from api.errors import register_error_handlers
 from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
@@ -164,23 +163,26 @@ async def bind_campaign_runtime(request: Request, call_next):
 
     raw_campaign_id = request.headers.get("X-Campaign-Id")
     if raw_campaign_id is None:
-        return JSONResponse(
+        return error_response(
             status_code=400,
-            content={"detail": "X-Campaign-Id header is required"},
+            code="bad_request",
+            detail="X-Campaign-Id header is required",
         )
 
     try:
         campaign_id = int(raw_campaign_id)
         runtime = runtime_factory.get_runtime(campaign_id)
     except (TypeError, ValueError):
-        return JSONResponse(
+        return error_response(
             status_code=400,
-            content={"detail": "X-Campaign-Id must be a positive integer"},
+            code="bad_request",
+            detail="X-Campaign-Id must be a positive integer",
         )
     except LookupError:
-        return JSONResponse(
+        return error_response(
             status_code=404,
-            content={"detail": "campaign does not exist"},
+            code="not_found",
+            detail="campaign does not exist",
         )
 
     token = _current_runtime.set(runtime)
