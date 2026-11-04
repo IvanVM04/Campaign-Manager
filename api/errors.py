@@ -85,10 +85,10 @@ def register_error_handlers(app: fastapi.FastAPI) -> None:
             headers=exc.headers,
         )
 
-    @app.exception_handler(fastapi.exceptions.starlette.requests.RequestValidationError)
+    @app.exception_handler(fastapi.exceptions.RequestValidationError)
     async def handle_validation_error(
         request: starlette.requests.Request,
-        exc: fastapi.exceptions.starlette.requests.RequestValidationError,
+        exc: fastapi.exceptions.RequestValidationError,
     ) -> starlette.responses.JSONResponse:
         public_errors = [
             {
