@@ -90,6 +90,7 @@ def list_character_equipment(character_entity_id: int):
             character_entity_id=character_entity_id,
         ),
         "armor_class": armor.armor_class,
+        "unarmored_defense_applied": armor.unarmored_defense_applied,
         "armor_movement": {
             "strength_requirement_met": armor.strength_requirement_met,
             "speed_penalty_ft": armor.speed_penalty_ft,

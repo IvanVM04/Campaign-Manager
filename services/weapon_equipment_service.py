@@ -73,6 +73,9 @@ class WeaponEquipmentService:
             strength_score=character.strength,
             armor_key=armor_key,
             shield_equipped=shield_equipped,
+            unarmored_defense=character.metadata.get("unarmored_defense"),
+            constitution_score=character.constitution,
+            wisdom_score=character.wisdom,
         )
 
     def armor_proficiency(

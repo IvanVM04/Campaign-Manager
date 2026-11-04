@@ -150,3 +150,41 @@ def test_armor_proficiency_rejects_unknown_training():
             shield_equipped=False,
             proficiencies={"plate"},
         )
+
+@pytest.mark.parametrize(
+    ("feature", "shield", "constitution", "wisdom", "expected", "applied"),
+    [
+        ("barbarian", False, 16, 10, 13, "barbarian"),
+        ("barbarian", True, 16, 10, 15, "barbarian"),
+        ("monk", False, 10, 16, 13, "monk"),
+        ("monk", True, 10, 16, 12, None),
+        ("monk", False, 10, 10, 10, "monk"),
+        (None, False, 16, 16, 10, None),
+    ],
+)
+def test_unarmored_defense_variants(feature, shield, constitution, wisdom, expected, applied):
+    result = derive_armor_class(
+        dexterity_score=10,
+        shield_equipped=shield,
+        unarmored_defense=feature,
+        constitution_score=constitution,
+        wisdom_score=wisdom,
+    )
+    assert result.armor_class == expected
+    assert result.unarmored_defense_applied == applied
+
+
+def test_unarmored_defense_does_not_replace_worn_armor():
+    result = derive_armor_class(
+        dexterity_score=14,
+        armor_key="leather",
+        unarmored_defense="barbarian",
+        constitution_score=18,
+    )
+    assert result.armor_class == 13
+    assert result.unarmored_defense_applied is None
+
+
+def test_unarmored_defense_rejects_unknown_feature():
+    with pytest.raises(ValueError, match="unarmored_defense"):
+        derive_armor_class(dexterity_score=10, unarmored_defense="fighter")
