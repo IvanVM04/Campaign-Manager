@@ -77,16 +77,11 @@ def play_turn(
     from services.durable_native_turn_service import DurableNativeTurnError
 
     try:
-        if data.dice_mode == "automatic":
-            result = get_current_runtime().durable_native_turn_service.play_turn(
-                data.player_input,
-                idempotency_key=idempotency_key,
-            )
-        else:
-            result = campaign_turn_service.play_turn(
-                data.player_input,
-                dice_mode=data.dice_mode,
-            )
+        result = get_current_runtime().durable_native_turn_service.play_turn(
+            data.player_input,
+            idempotency_key=idempotency_key,
+            dice_mode=data.dice_mode,
+        )
     except DurableNativeTurnError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except CampaignTurnServiceError as exc:
@@ -97,14 +92,13 @@ def play_turn(
 
 @router.post("/turn/roll")
 def submit_manual_roll(data: ManualRollIn):
-    from services.campaign_turn_service import CampaignTurnServiceError
+    from services.durable_native_turn_service import DurableNativeTurnError
 
     try:
-        result = campaign_turn_service.submit_manual_roll(
-            data.pending_roll_id,
-            tuple(data.rolls),
+        result = get_current_runtime().durable_native_turn_service.submit_manual_roll(
+            data.pending_roll_id, tuple(data.rolls)
         )
-    except (CampaignTurnServiceError, TypeError, ValueError) as exc:
+    except (DurableNativeTurnError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return _turn_result_payload(result)
