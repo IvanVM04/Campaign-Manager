@@ -72,7 +72,6 @@ def play_turn(
     data: TurnIn,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
-    from services.campaign_turn_service import CampaignTurnServiceError
     from services.durable_native_turn_service import DurableNativeTurnError
 
     try:
@@ -83,8 +82,6 @@ def play_turn(
         )
     except DurableNativeTurnError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except CampaignTurnServiceError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return _turn_result_payload(result)
 
