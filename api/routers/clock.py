@@ -23,8 +23,6 @@ def _campaign_clock_payload(clock):
 
 @router.get("/campaign/clock")
 def get_campaign_clock():
-    from services.campaign_clock_service import CampaignClockService
-
     try:
         clock = CampaignClockService(
             campaign_id=get_current_runtime().campaign_id
@@ -36,8 +34,6 @@ def get_campaign_clock():
 
 @router.post("/campaign/clock/advance")
 def advance_campaign_clock(data: CampaignClockAdvanceIn):
-    from services.campaign_clock_service import CampaignClockService
-
     try:
         with turn_execution_lock.acquire():
             clock = CampaignClockService(
