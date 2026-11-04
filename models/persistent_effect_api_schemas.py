@@ -52,13 +52,19 @@ class PersistentEffectCreateIn(BaseModel):
 
     @model_validator(mode="after")
     def validate_effect_shape(self):
-        if self.duration_type == "conditional" and not self.duration_condition:
-            raise ValueError("conditional effects require duration_condition")
-        if self.duration_type == "permanent" and (self.duration_condition is not None or self.duration_minutes is not None):
-            raise ValueError("permanent effects cannot define a duration")
-        if self.duration_type == "conditional" and self.duration_minutes is not None:
-            raise ValueError("conditional effects cannot define duration_minutes")
-        if self.duration_type == "campaign_time":
+        timed_values = (
+            self.duration_minutes, self.encounter_id,
+            self.duration_rounds, self.duration_turns,
+        )
+        if self.duration_type == "permanent":
+            if self.duration_condition is not None or any(value is not None for value in timed_values):
+                raise ValueError("permanent effects cannot define a duration")
+        elif self.duration_type == "conditional":
+            if not self.duration_condition:
+                raise ValueError("conditional effects require duration_condition")
+            if any(value is not None for value in timed_values):
+                raise ValueError("conditional effects cannot define timed duration fields")
+        elif self.duration_type == "campaign_time":
             if self.duration_condition is not None or self.duration_minutes is None or any(
                 value is not None for value in (self.encounter_id, self.duration_rounds, self.duration_turns)
             ):
@@ -71,10 +77,6 @@ class PersistentEffectCreateIn(BaseModel):
                     raise ValueError("encounter_rounds effects require duration_rounds only")
             elif self.duration_turns is None or self.duration_rounds is not None:
                 raise ValueError("encounter_turns effects require duration_turns only")
-        elif any(value is not None for value in (
-            self.duration_minutes, self.encounter_id, self.duration_rounds, self.duration_turns
-        )):
-            raise ValueError("duration fields do not match duration_type")
         if self.effect_type == "condition":
             from rules_engine.dnd5e_2014.combat.conditions import Condition
             try:
