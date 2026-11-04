@@ -1164,11 +1164,6 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 22")
         version = 22
 
-    if version < 22:
-        migration_022(conn)
-        conn.execute("PRAGMA user_version = 22")
-        version = 22
-
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
