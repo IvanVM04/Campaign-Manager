@@ -132,12 +132,17 @@ class LLMWorldExtractor:
             "han ocurrido ni inventes resultados mecánicos. El backend validará "
             "y resolverá la propuesta antes de persistirla."
         )
-        dynamic_context = dynamic_context.replace(
-            "\n\n\n============================================================\n"
-            "FIN DE LOS DATOS DE ENTRADA",
-            f"\n\n{intent}\n\n"
-            "============================================================\n"
-            "FIN DE LOS DATOS DE ENTRADA"
+        end_marker = "============================================================\nFIN DE LOS DATOS DE ENTRADA"
+        if end_marker not in dynamic_context:
+            raise LLMExtractionError("failed to place player intent in proposal context")
+        dynamic_context = dynamic_context.rsplit(end_marker, 1)
+        dynamic_context = (
+            dynamic_context[0].rstrip()
+            + "\n\n"
+            + intent
+            + "\n\n"
+            + end_marker
+            + dynamic_context[1]
         )
         prompt = (
             "Eres un planificador de consecuencias para un motor de campaña "
