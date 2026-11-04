@@ -995,6 +995,7 @@ class DurableNativeTurnService:
                                 "adjudication_json": json.dumps(
                                     {
                                         "clarification": next_pending,
+                                        "dice_mode": pending_state.get("dice_mode", "automatic"),
                                         "clarification_history": history,
                                         "last_challenge_id": challenge_id,
                                         "last_answer": answer,
@@ -1031,6 +1032,7 @@ class DurableNativeTurnService:
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,
+                                    "dice_mode": pending_state.get("dice_mode", "automatic"),
                                     "resolved_player_input": clarified_input,
                                     "last_challenge_id": challenge_id,
                                     "last_answer": answer,
