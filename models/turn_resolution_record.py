@@ -97,9 +97,11 @@ class TurnResolutionRecord:
         ):
             raise ValueError("prepared state requires context_revision and proposal_json")
         if self.lifecycle_state in {"committed", "narration_pending", "completed"} and (
-            self.committed_at is None
+            self.committed_at is None or self.resulting_revision is None
         ):
-            raise ValueError("committed lifecycle states require committed_at")
+            raise ValueError(
+                "committed lifecycle states require committed_at and resulting_revision"
+            )
         if self.lifecycle_state == "completed" and (
             self.completed_at is None or self.narrative is None
         ):
