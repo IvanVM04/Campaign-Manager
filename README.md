@@ -659,6 +659,8 @@ JavaScript tests (Node 20)
 
 The real LLM tests are intentionally excluded from CI because they require a locally running Ollama service and model.
 
+Each job reports its own status in the pull request; wait for all three jobs to finish before treating the CI run as complete.
+
 ---
 
 ## Design Decisions
