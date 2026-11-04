@@ -295,7 +295,9 @@ class TurnResolutionService:
 
         if proposal_from_intent:
             try:
-                operations = self.extractor.propose(normalized_input, context)
+                operations = self.extractor.propose(
+                    normalized_input, context, mechanics_result=mechanics_result
+                )
             except Exception as exc:
                 raise TurnResolutionServiceError(
                     "LLMWorldExtractor failed to propose consequences"
