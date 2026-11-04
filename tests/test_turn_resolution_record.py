@@ -16,11 +16,29 @@ def make_record(**overrides):
 
 
 def test_record_accepts_valid_lifecycle_states():
-    for state in (
-        "accepted", "planning", "awaiting_input", "prepared",
-        "committed", "narration_pending", "completed", "rejected",
-    ):
-        assert make_record(lifecycle_state=state).lifecycle_state == state
+    valid_values = {
+        "accepted": {},
+        "planning": {
+            "attempt_count": 1,
+            "lease_token": "worker-a",
+            "lease_expires_at": "2099-01-01T00:00:00Z",
+        },
+        "awaiting_input": {},
+        "prepared": {
+            "context_revision": 1,
+            "proposal_json": '{"operations":[]}',
+        },
+        "committed": {"committed_at": "2026-11-04T00:00:00Z"},
+        "narration_pending": {"committed_at": "2026-11-04T00:00:00Z"},
+        "completed": {
+            "committed_at": "2026-11-04T00:00:00Z",
+            "completed_at": "2026-11-04T00:01:00Z",
+            "narrative": "Done.",
+        },
+        "rejected": {},
+    }
+    for state, values in valid_values.items():
+        assert make_record(lifecycle_state=state, **values).lifecycle_state == state
 
 
 def test_record_rejects_unknown_lifecycle_state():
@@ -49,7 +67,10 @@ def test_record_rejects_boolean_attempt_count():
 
 
 def test_transition_graph_is_one_way_after_commit():
-    record = make_record(lifecycle_state="committed")
+    record = make_record(
+        lifecycle_state="committed",
+        committed_at="2026-11-04T00:00:00Z",
+    )
     assert record.can_transition_to("narration_pending")
     assert not record.can_transition_to("planning")
     assert not record.can_transition_to("prepared")
