@@ -682,7 +682,7 @@ def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
     monkeypatch.setattr(
         service.resolution_repository,
         "get_by_idempotency_key",
-        lambda *args, **kwargs: SimpleNamespace(id=42),
+        lambda *args, **kwargs: SimpleNamespace(id=42, adjudication_json=None),
     )
 
     preparation = service.prepare_external_turn(
