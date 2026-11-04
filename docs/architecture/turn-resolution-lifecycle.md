@@ -2,7 +2,7 @@
 
 **Status:** Proposed architecture contract (PR #28)
 **Scope:** Native campaign turns and external adapters, including SillyTavern
-**Implementation:** Deliberately deferred to follow-up PRs
+**Implementation:** PRs #29-#30 (native automatic turns); adapter and manual-input continuation remain follow-ups
 
 ## 1. Purpose
 
@@ -124,9 +124,9 @@ This contract is intentionally implemented incrementally:
 
 1. **PR #28 (merged):** define lifecycle vocabulary, invariants, trust boundary, and recovery/transaction boundaries. Documentation only.
 2. **PR #29:** add migration 022 and a linked `turn_resolutions` execution envelope, model, repository, lifecycle constraints, idempotency uniqueness, lease claims, and migration/model/repository tests. The live turn pipeline is not wired yet.
-3. **PR #30 (next):** wire native turn execution to durable accept/prepare/commit/narration-pending/completed boundaries; commit domain consequences and lifecycle state atomically; retry narration without reapplying consequences.
+3. **PR #30:** wire native automatic turn execution to durable accept/prepare/commit/narration-pending/completed boundaries; generate typed consequence proposals from player intent; commit domain consequences, operation evidence, and the resulting revision atomically; retry narration without reapplying consequences. Migration 023 adds `resulting_revision` to the execution envelope.
 4. **PR #31:** adapt SillyTavern to the same application use case and preserve regeneration/snapshot compatibility.
-5. Follow-up work: durable manual-roll/clarification continuation, structured consequence proposals independent of prose, and operational recovery orchestration as needed by the implementation findings.
+5. Follow-up work: durable manual-roll/clarification continuation, recovery worker/operational orchestration, and any multi-process deployment guarantees.
 
 Each implementation PR must include failure-injection tests for its boundary and must preserve campaign isolation and existing API/adapter compatibility.
 
