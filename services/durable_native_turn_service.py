@@ -23,7 +23,6 @@ from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
-    TurnResolutionServiceError,
 )
 from services.world_service import WorldService
 
@@ -232,8 +231,6 @@ class DurableNativeTurnService:
         return context, recent
 
     def _plan_from_record(self, record: TurnResolutionRecord) -> TurnResolutionPlan:
-        from services.operation_parser import OperationParser
-
         parser = self.resolver.extractor.operation_parser
         parsed = parser.parse(record.proposal_json or '{"operations":[]}')
         ordered = tuple(parsed)
