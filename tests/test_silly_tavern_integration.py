@@ -280,8 +280,9 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
             legacy_replay=False,
         )
 
-    def fake_context(query):
+    def fake_context(query, *, exclude_external_turn_id=None):
         captured["query"] = query
+        captured["exclude_external_turn_id"] = exclude_external_turn_id
         return {
             "campaign": {"id": 1, "name": "Campaña"},
             "session": None,
@@ -319,6 +320,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         "player_input": "Abro la puerta.",
         "external_turn_id": "st-chat-turn",
         "query": "Estado actual + acción.",
+        "exclude_external_turn_id": "st-chat-turn",
     }
 
 
