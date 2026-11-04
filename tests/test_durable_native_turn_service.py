@@ -152,6 +152,14 @@ def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reappl
     assert len(proposal_calls) == 1
     assert narrative_calls == []
 
+    recovered_preparation = service.prepare_external_turn(
+        "Abro la puerta.",
+        external_turn_id="st-chat-turn-001",
+    )
+    assert recovered_preparation.resolution_id == prepared.resolution_id
+    assert recovered_preparation.lifecycle_state == "narration_pending"
+    assert len(proposal_calls) == 1
+
     revision_after_commit = service.revision_repository.get_revision(1)
     committed_world = service.world_service.repository.load_world(campaign_id=1)
     assert len(committed_world.entities) == 1
