@@ -161,3 +161,24 @@ This is the decision record for the current consolidation phase. Each decision d
 **Why:** They add UI and synchronization complexity before character, world, rules and turn resolution are complete.
 
 **Consequences:** Focus on the standalone campaign and AI-DM experience first.
+
+
+## ADR-012 — Make turn resolution durable and narration retryable
+
+**Status:** Accepted as target; implementation incomplete (PR #28 contract)
+
+**Decision:** A turn is a durable application lifecycle. Its accepted request identity, prepared consequence proposal, atomic consequence commit, and narration completion are distinct stages. Consequences are committed exactly once; narration is generated only after commit and can be retried without replaying domain mutations.
+
+**Why:** The current native path generates prose before extracting persistent operations and stores the narrative alongside consequence application. Historical `TurnRecord` data and campaign state revisions provide useful foundations, but do not yet represent a restart-resilient lifecycle or a separately retryable narration stage.
+
+**Consequences:**
+- Use one shared application contract for native API and external adapters.
+- Enforce idempotency in persistence using campaign + adapter namespace + request key and a request fingerprint.
+- Revalidate the prepared context revision and domain preconditions inside the consequence commit transaction.
+- Persist the accepted resolution and its outcomes atomically with domain mutations.
+- Treat AI consequence output as untrusted structured proposals; narrative is not the source of truth.
+- Generate narration after commit; narration retries never reapply consequences or reroll mechanics.
+- Evolve the existing turn persistence deliberately; do not create a parallel turn history or revision system.
+- Keep SQLite, short write transactions, and the current single-process deployment constraint.
+
+See [Durable turn-resolution lifecycle contract](turn-resolution-lifecycle.md) for lifecycle states, transition rules, transaction boundaries, recovery, and migration sequencing.
