@@ -1491,7 +1491,7 @@ async function getCampaignManagerClarificationContext(
             'CD: ' + String(pending?.dc ?? '—'),
             'Modificador calculado por Campaign Manager: ' + modifierText,
             'No calcules el total ni resuelvas el éxito o fracaso.',
-        ].join('\\n');
+        ].join('\n');
     }
 
     if (responseBody.clarification_question) {
