@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import sqlite3
 import secrets
 import time
 
@@ -492,7 +493,7 @@ class CampaignTurnService:
             if "campaign state changed" in str(exc):
                 try:
                     self.world_service.load()
-                except Exception:
+                except (sqlite3.Error, ValueError):
                     self._restore_world_state(world, world_snapshot)
                     self.world_service.world = world
             else:
