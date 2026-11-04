@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi import FastAPI, Request
 
 
 logger = logging.getLogger(__name__)
