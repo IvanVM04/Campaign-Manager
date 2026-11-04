@@ -29,7 +29,7 @@ def test_srd_armor_catalog_contains_all_13_armor_and_shield_entries():
         (18, "chain_mail", False, 16),
         (18, "plate", False, 18),
         (18, "plate", True, 20),
-        (8, "leather", True, 10),
+        (8, "leather", True, 12),
     ],
 )
 def test_armor_class_calculation(dexterity, armor, shield, expected):
