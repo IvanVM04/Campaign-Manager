@@ -223,6 +223,7 @@ async function getCampaignManagerGenerationContext(
         ].join('\n');
 
     } catch (error) {
+        resolvedTurnStates.delete(externalTurnId);
         console.warn(
             "[Campaign Manager] Failed to obtain generation context:",
             error,
