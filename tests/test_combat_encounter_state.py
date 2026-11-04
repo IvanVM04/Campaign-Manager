@@ -81,3 +81,41 @@ def test_action_is_reset_when_combatant_turn_begins():
     active = encounter.advance_turn()
     assert active.combatant_id == "hero"
     assert active.action_used is False
+
+
+@pytest.mark.parametrize(
+    "changes, message",
+    [
+        ({"stable": True, "conscious": True, "death_save_successes": 3}, "cannot be conscious"),
+        ({"stable": True, "death_save_successes": 2}, "three death save successes"),
+        ({"dead": True, "death_save_failures": 2}, "three death save failures"),
+        ({"death_save_successes": 3}, "must stabilize"),
+        ({"death_save_failures": 3}, "must kill"),
+        ({"stable": True, "current_hp": 1, "death_save_successes": 3}, "zero hit points"),
+    ],
+)
+def test_combatant_rejects_inconsistent_terminal_death_save_state(changes, message):
+    from dataclasses import replace
+
+    base = CombatantState(
+        "hero", "Aventurero", 18, 0, 12, 16,
+        entity_id=1, is_player_character=True, conscious=False,
+    )
+    with pytest.raises(ValueError, match=message):
+        replace(base, **changes)
+
+
+def test_stable_and_dead_states_accept_only_consistent_tracks():
+    stable = CombatantState(
+        "stable", "Aventurero", 18, 0, 12, 16,
+        entity_id=1, is_player_character=True, conscious=False,
+        death_save_successes=3, stable=True,
+    )
+    dead = CombatantState(
+        "dead", "Aventurero", 18, 0, 12, 16,
+        entity_id=1, is_player_character=True, conscious=False,
+        death_save_failures=3, dead=True,
+    )
+
+    assert stable.stable is True
+    assert dead.dead is True

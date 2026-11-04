@@ -218,7 +218,9 @@ class CombatAttackService:
                     dead = damage - target.current_hp >= target.max_hp
                     conscious = False
                     death_save_successes = 0
-                    death_save_failures = 0
+                    # Massive damage is an immediate death; keep the terminal
+                    # state consistent with the three-failure invariant.
+                    death_save_failures = 3 if dead else 0
                     stable = False
                 if dead:
                     new_target_hp = 0

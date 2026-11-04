@@ -67,3 +67,46 @@ def test_list_and_delete_are_campaign_scoped():
     assert repository.get("encounter-1", campaign_id=1) is not None
     assert repository.delete("encounter-1", campaign_id=1) is True
     assert repository.get("encounter-1", campaign_id=1) is None
+
+
+def test_deserialize_legacy_snapshot_without_death_save_fields():
+    import json
+
+    row = {
+        "encounter_id": "legacy-encounter",
+        "status": "preparing",
+        "round_number": 0,
+        "turn_index": 0,
+        "initiative_order": "[]",
+        "combatants": json.dumps({
+            "hero": {
+                "name": "Hero",
+                "initiative": 0,
+                "current_hp": 12,
+                "max_hp": 12,
+                "armor_class": 16,
+            },
+            "stable_hero": {
+                "name": "Stable Hero",
+                "initiative": 0,
+                "current_hp": 0,
+                "max_hp": 12,
+                "armor_class": 16,
+                "stable": True,
+            }
+        }),
+    }
+
+    loaded = CombatEncounterRepository._deserialize(row)
+    hero = loaded.combatants["hero"]
+    stable_hero = loaded.combatants["stable_hero"]
+
+    assert stable_hero.stable is True
+    assert stable_hero.conscious is False
+    assert stable_hero.death_save_successes == 3
+    assert hero.death_save_successes == 0
+    assert hero.death_save_failures == 0
+    assert hero.stable is False
+    assert hero.dead is False
+    assert hero.death_save_last_round is None
+    assert hero.death_save_last_turn_index is None

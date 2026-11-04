@@ -58,6 +58,18 @@ class CombatEncounterRepository:
         payload = json.loads(row["combatants"])
         combatants = {}
         for combatant_id, value in payload.items():
+            stable = value.get("stable", False)
+            dead = value.get("dead", False)
+            death_save_successes = value.get(
+                "death_save_successes", 3 if stable else 0
+            )
+            death_save_failures = value.get(
+                "death_save_failures", 3 if dead else 0
+            )
+            # Older snapshots may contain terminal flags but predate the
+            # explicit counters/consciousness fields. Normalize only absent
+            # fields; explicitly stored contradictory values remain invalid.
+            conscious = value.get("conscious", not (stable or dead))
             combatants[combatant_id] = CombatantState(
                 combatant_id=combatant_id,
                 name=value["name"],
@@ -72,16 +84,16 @@ class CombatEncounterRepository:
                 wisdom=value.get("wisdom", 10),
                 charisma=value.get("charisma", 10),
                 proficiency_bonus=value.get("proficiency_bonus", 2),
-                death_save_successes=value.get("death_save_successes", 0),
-                death_save_failures=value.get("death_save_failures", 0),
-                stable=value.get("stable", False),
-                dead=value.get("dead", False),
+                death_save_successes=death_save_successes,
+                death_save_failures=death_save_failures,
+                stable=stable,
+                dead=dead,
                 death_save_last_round=value.get("death_save_last_round"),
                 death_save_last_turn_index=value.get("death_save_last_turn_index"),
                 action_used=value.get("action_used", False),
                 entity_id=value.get("entity_id"),
                 is_player_character=value.get("is_player_character", False),
-                conscious=value.get("conscious", True),
+                conscious=conscious,
                 conditions=ConditionSet(
                     frozenset(Condition(item) for item in value.get("conditions", [])),
                     value.get("exhaustion_level", 0),

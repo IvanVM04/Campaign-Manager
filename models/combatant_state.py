@@ -74,8 +74,19 @@ class CombatantState:
             raise TypeError("stable and dead must be booleans")
         if self.stable and self.dead:
             raise ValueError("a combatant cannot be stable and dead")
-        if self.dead and self.current_hp != 0:
-            raise ValueError("a dead combatant must have zero hit points")
+        if self.stable or self.dead:
+            if self.current_hp != 0:
+                raise ValueError("a stable or dead combatant must have zero hit points")
+            if self.conscious:
+                raise ValueError("a stable or dead combatant cannot be conscious")
+        if self.stable and self.death_save_successes != 3:
+            raise ValueError("a stable combatant must have three death save successes")
+        if self.dead and self.death_save_failures != 3:
+            raise ValueError("a dead combatant must have three death save failures")
+        if self.death_save_successes == 3 and not self.stable:
+            raise ValueError("three death save successes must stabilize the combatant")
+        if self.death_save_failures == 3 and not self.dead:
+            raise ValueError("three death save failures must kill the combatant")
         if not 0 <= self.proficiency_bonus <= 20:
             raise ValueError("proficiency_bonus must be between 0 and 20")
         if self.max_hp < 1:
