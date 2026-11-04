@@ -9,6 +9,7 @@ from models.schemas import (
     SessionIn,
 )
 from repositories.campaign_repository import CampaignRepository
+from services.campaign_state_service import CampaignStateServiceError
 
 router = APIRouter()
 
@@ -29,7 +30,7 @@ def create_campaign(data: CampaignCreate):
         )
     except Exception as exc:
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail="failed to create campaign",
         ) from exc
 
@@ -75,10 +76,15 @@ def update_campaign_session(data: CampaignSessionUpdate):
             state = runtime.campaign_state_service.set_current_session(
                 data.session_id
             )
-    except Exception as exc:
+    except CampaignStateServiceError as exc:
         raise HTTPException(
             status_code=400,
             detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to update campaign session",
         ) from exc
 
     return {
@@ -104,10 +110,15 @@ def get_campaign_state():
 
     try:
         state = runtime.campaign_state_service.get_state()
+    except CampaignStateServiceError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail="failed to retrieve campaign state",
         ) from exc
 
     return {
@@ -131,10 +142,15 @@ def update_active_character(data: ActiveCharacterUpdate):
             state = runtime.campaign_state_service.set_active_character(
                 data.character_id
             )
-    except Exception as exc:
+    except CampaignStateServiceError as exc:
         raise HTTPException(
             status_code=400,
             detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="failed to update active character",
         ) from exc
 
     return {
