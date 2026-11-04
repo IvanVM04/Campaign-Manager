@@ -60,7 +60,7 @@ class CreatureRepository:
             raise ValueError("hit points must be non-negative integers")
         cursor = conn.execute(
             """
-            UPDATE creature_states SET current_hp = ?
+            UPDATE creature_states SET current_hp = ?, updated_at = CURRENT_TIMESTAMP
             WHERE entity_id = ? AND campaign_id = ? AND current_hp = ?
             """,
             (new_current_hp, entity_id, campaign_id, expected_current_hp),
