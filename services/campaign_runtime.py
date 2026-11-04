@@ -33,8 +33,8 @@ from services.silly_tavern_integration_service import (
 )
 from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
-from services.world_service import WorldService
 from services.weapon_equipment_service import WeaponEquipmentService
+from services.world_service import WorldService
 
 
 @dataclass(slots=True)
