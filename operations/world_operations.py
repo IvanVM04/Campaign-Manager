@@ -84,6 +84,8 @@ class CreateItemOperation(WorldOperation):
     significance: str = ""
     unique: bool = False
     notes: str = ""
+    weapon_key: str | None = None
+    equipment_slot: str | None = None
 
 
 @dataclass(frozen=True)
