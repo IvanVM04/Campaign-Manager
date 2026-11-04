@@ -123,6 +123,19 @@ def test_narration_failure_leaves_committed_resolution_resumable():
 
 def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reapply():
     service, proposal_calls, _ = _service_with_fake_models()
+    proposal_payload = json.dumps({
+        "operations": [{
+            "type": "create_entity",
+            "name": "Aldric",
+            "entity_type": "npc",
+            "description": "Tabernero.",
+            "notes": "",
+            "active": True,
+        }]
+    })
+    service.resolver.extractor.provider = lambda prompt: (
+        proposal_calls.append(prompt) or proposal_payload
+    )
     narrative_calls = []
     service.resolver.dm_service.provider.generate = lambda prompt: (
         narrative_calls.append(prompt) or "Esta llamada no debe ejecutarse."
@@ -140,6 +153,8 @@ def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reappl
     assert narrative_calls == []
 
     revision_after_commit = service.revision_repository.get_revision(1)
+    committed_world = service.world_service.repository.load_world(campaign_id=1)
+    assert len(committed_world.entities) == 1
 
     first = service.complete_external_narration(
         external_turn_id="st-chat-turn-001",
@@ -165,6 +180,8 @@ def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reappl
     assert second.narrative == "La puerta se abre con un chirrido."
     assert second.already_processed is True
     assert service.revision_repository.get_revision(1) == revision_after_commit
+    regenerated_world = service.world_service.repository.load_world(campaign_id=1)
+    assert len(regenerated_world.entities) == 1
 
     from database import get_conn
     with get_conn() as conn:
