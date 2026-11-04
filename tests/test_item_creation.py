@@ -176,3 +176,41 @@ def test_create_item_instance_rejects_duplicate_instance_number():
 
     assert result.status.value == "duplicate"
     assert len(world.item_instances) == 1
+
+
+def test_create_item_preserves_weapon_and_equipment_metadata():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(
+            name="Espada larga",
+            weapon_key="longsword",
+            equipment_slot="off_hand",
+        ),
+    )
+    assert result.success
+    item = next(iter(world.items.values()))
+    assert item.weapon_key == "longsword"
+    assert item.equipment_slot == "off_hand"
+
+
+def test_create_weapon_defaults_to_main_hand():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(name="Espada larga", weapon_key="longsword"),
+    )
+    assert result.success
+    assert next(iter(world.items.values())).equipment_slot == "main_hand"
+
+
+def test_create_weapon_rejects_non_hand_equipment_slot():
+    world = build_world()
+    result = WorldApplier().apply(
+        world,
+        CreateItemOperation(
+            name="Espada larga", weapon_key="longsword", equipment_slot="body"
+        ),
+    )
+    assert result.status.value == "invalid"
+    assert world.items == {}
