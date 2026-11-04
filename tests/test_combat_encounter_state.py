@@ -136,3 +136,19 @@ def test_action_and_reaction_refresh_when_combatant_turn_begins():
     assert active.combatant_id == "hero"
     assert active.action_used is False
     assert active.reaction_used is False
+
+
+def test_movement_budget_resets_when_combatant_turn_begins():
+    from dataclasses import replace
+
+    encounter = CombatEncounterState.prepare("enc-movement", make_combatants())
+    encounter.start(("hero", "goblin-a", "goblin-b"))
+    encounter.combatants["hero"] = replace(
+        encounter.combatants["hero"], movement_used_feet=25
+    )
+    encounter.advance_turn()
+    encounter.advance_turn()
+    active = encounter.advance_turn()
+
+    assert active.combatant_id == "hero"
+    assert active.movement_used_feet == 0
