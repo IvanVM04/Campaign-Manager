@@ -305,7 +305,11 @@ def _create_downed_character_encounter(
         f"/encounters/{encounter_id}/start",
         json={
             "dice_mode": "manual",
-            "manual_rolls": {hero_id: 18, goblin_id: 10},
+            "manual_rolls": (
+                {hero_id: 18, goblin_id: 10}
+                if hero_first
+                else {hero_id: 10, goblin_id: 18}
+            ),
             "initiative_order": (
                 [hero_id, goblin_id] if hero_first else [goblin_id, hero_id]
             ),
