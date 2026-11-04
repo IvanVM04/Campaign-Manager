@@ -75,7 +75,9 @@ class WeaponEquipmentService:
             shield_equipped=shield_equipped,
         )
 
-    def armor_proficiency(self, character: CharacterState, *, campaign_id: int, conn=None):
+    def armor_proficiency(
+        self, character: CharacterState, *, campaign_id: int, conn=None
+    ):
         """Report whether equipped armor and shield match character training."""
         body = self.repository.get_equipped_slot(
             campaign_id=campaign_id,
