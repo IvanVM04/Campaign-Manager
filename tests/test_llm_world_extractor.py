@@ -995,6 +995,7 @@ def test_propose_uses_player_intent_not_generated_narrative():
     assert "Quiero buscar al tabernero llamado Aldric." in prompt
     assert "INTENCIÓN DEL JUGADOR" in prompt
     assert "NARRATIVA A ANALIZAR" not in prompt
+    assert "narrativa ya generada" not in prompt
     assert "Las operaciones son propuestas, no hechos confirmados." in prompt
 
 
