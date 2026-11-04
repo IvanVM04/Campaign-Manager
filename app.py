@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from api.errors import error_response, register_error_handlers
 
+from api.errors import error_response, register_error_handlers
 from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
