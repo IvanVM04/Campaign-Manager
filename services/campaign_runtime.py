@@ -34,6 +34,7 @@ from services.silly_tavern_integration_service import (
 from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
 from services.world_service import WorldService
+from services.weapon_equipment_service import WeaponEquipmentService
 
 
 @dataclass(slots=True)
@@ -53,6 +54,7 @@ class CampaignRuntime:
     character_creation_service: CharacterCreationService
     combat_encounter_service: CombatEncounterService
     combat_attack_service: CombatAttackService
+    weapon_equipment_service: WeaponEquipmentService
     persistent_effect_service: PersistentEffectService
     campaign_turn_service: CampaignTurnService
     durable_native_turn_service: DurableNativeTurnService
@@ -175,6 +177,8 @@ class CampaignRuntimeFactory:
         )
         encounter_repository = CombatEncounterRepository()
         creature_repository = CreatureRepository()
+        weapon_equipment_repository = WeaponEquipmentRepository()
+        weapon_equipment_service = WeaponEquipmentService(weapon_equipment_repository)
         combat_encounter_service = CombatEncounterService(
             repository=encounter_repository,
             character_repository=character_repository,
@@ -186,7 +190,7 @@ class CampaignRuntimeFactory:
         combat_attack_service = CombatAttackService(
             encounter_repository=encounter_repository,
             character_repository=character_repository,
-            weapon_repository=WeaponEquipmentRepository(),
+            weapon_repository=weapon_equipment_repository,
             effective_condition_service=effective_condition_service,
             creature_repository=creature_repository,
         )
@@ -211,6 +215,7 @@ class CampaignRuntimeFactory:
             character_creation_service=character_creation_service,
             combat_encounter_service=combat_encounter_service,
             combat_attack_service=combat_attack_service,
+            weapon_equipment_service=weapon_equipment_service,
             persistent_effect_service=persistent_effect_service,
             campaign_turn_service=campaign_turn_service,
             durable_native_turn_service=durable_native_turn_service,
