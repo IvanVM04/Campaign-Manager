@@ -874,7 +874,11 @@ class DurableNativeTurnService:
                         expected_state="planning",
                         expected_lease_token=token,
                         updates={
-                            "player_input": clarified_input,
+                            "player_input": (
+                                clarified_input
+                                if adapter_namespace == "native"
+                                else record.player_input
+                            ),
                             "context_revision": revision,
                             "proposal_json": self._serialize_operations(plan),
                             "adjudication_json": json.dumps(
