@@ -433,19 +433,23 @@ def test_third_death_save_success_stabilizes_and_prevents_more_saves(client):
 
 
 
+
+def _patch_death_save_roll(monkeypatch, value):
+    from rules_engine.dnd5e_2014.core.dice import D20Roll, DiceRoller, RollMode
+
+    def fixed_roll(_self, **_kwargs):
+        return D20Roll(
+            rolls=(value,),
+            selected=value,
+            mode=RollMode.NORMAL,
+            modifier=0,
+            total=value,
+        )
+
+    monkeypatch.setattr(DiceRoller, "roll_d20", fixed_roll)
+
 def test_down_player_character_makes_automatic_save_when_its_turn_begins(client, monkeypatch):
-    from api.runtime_context import combat_encounter_service
-    from rules_engine.dnd5e_2014.core.dice import DiceRoller
-
-    class FixedRandom:
-        def randint(self, _minimum, _maximum):
-            return 10
-
-    monkeypatch.setattr(
-        combat_encounter_service,
-        "dice_roller",
-        DiceRoller(rng=FixedRandom()),
-    )
+    _patch_death_save_roll(monkeypatch, 10)
     _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "automatic-death-save"
     )
@@ -487,18 +491,7 @@ def test_down_player_character_makes_automatic_save_when_its_turn_begins(client,
 
 
 def test_automatic_natural_twenty_recovers_character_and_persists_hp(client, monkeypatch):
-    from api.runtime_context import combat_encounter_service
-    from rules_engine.dnd5e_2014.core.dice import DiceRoller
-
-    class FixedRandom:
-        def randint(self, _minimum, _maximum):
-            return 20
-
-    monkeypatch.setattr(
-        combat_encounter_service,
-        "dice_roller",
-        DiceRoller(rng=FixedRandom()),
-    )
+    _patch_death_save_roll(monkeypatch, 20)
     character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "automatic-death-save-recovery"
     )
@@ -530,18 +523,7 @@ def test_automatic_natural_twenty_recovers_character_and_persists_hp(client, mon
 
 
 def test_automatic_natural_one_adds_two_death_save_failures(client, monkeypatch):
-    from api.runtime_context import combat_encounter_service
-    from rules_engine.dnd5e_2014.core.dice import DiceRoller
-
-    class FixedRandom:
-        def randint(self, _minimum, _maximum):
-            return 1
-
-    monkeypatch.setattr(
-        combat_encounter_service,
-        "dice_roller",
-        DiceRoller(rng=FixedRandom()),
-    )
+    _patch_death_save_roll(monkeypatch, 1)
     _character_id, hero_id, _goblin_id = _create_downed_character_encounter(
         client, "automatic-death-save-natural-one"
     )
