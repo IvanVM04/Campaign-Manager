@@ -3819,12 +3819,13 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
     runtime = __import__("app").runtime_factory.get_runtime(1)
     captured = {}
 
-    def fake_submit(pending_roll_id, rolls, *, adapter_namespace, defer_narration):
+    def fake_submit(pending_roll_id, rolls, *, adapter_namespace, defer_narration, answer_external_turn_id):
         captured.update({
             "pending_roll_id": pending_roll_id,
             "rolls": rolls,
             "adapter_namespace": adapter_namespace,
             "defer_narration": defer_narration,
+            "answer_external_turn_id": answer_external_turn_id,
         })
         return SimpleNamespace(
             resolution_id=42,
@@ -3863,6 +3864,7 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
         "rolls": (17, 8),
         "adapter_namespace": "sillytavern",
         "defer_narration": True,
+        "answer_external_turn_id": "answer-" + "b" * 24,
     }
 
 
