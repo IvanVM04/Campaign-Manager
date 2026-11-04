@@ -132,10 +132,16 @@ def test_equipment_slots_allow_multiple_items_and_clear_on_ownership_change(tmp_
                 "INSERT INTO items (id, name, equipment_slot, campaign_id) VALUES (2, 'Chain mail', 'body', 1)"
             )
             conn.execute(
+                "INSERT INTO items (id, name, weapon_key, equipment_slot, campaign_id) VALUES (3, 'Dagger', 'dagger', 'main_hand', 1)"
+            )
+            conn.execute(
                 "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (1, 1, 1, 1)"
             )
             conn.execute(
                 "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (2, 2, 1, 1)"
+            )
+            conn.execute(
+                "INSERT INTO item_instances (id, item_id, owner_id, campaign_id) VALUES (3, 3, 1, 1)"
             )
         repository = WeaponEquipmentRepository()
         repository.equip_item(
@@ -144,8 +150,11 @@ def test_equipment_slots_allow_multiple_items_and_clear_on_ownership_change(tmp_
         repository.equip_item(
             campaign_id=1, character_entity_id=1, item_instance_id=2, slot="body"
         )
+        repository.equip_item(
+            campaign_id=1, character_entity_id=1, item_instance_id=3, slot="off_hand"
+        )
         equipped = repository.list_equipped(campaign_id=1, character_entity_id=1)
-        assert {item["slot"] for item in equipped} == {"main_hand", "body"}
+        assert {item["slot"] for item in equipped} == {"main_hand", "off_hand", "body"}
         assert repository.get_equipped(campaign_id=1, character_entity_id=1)["weapon_key"] == "longsword"
 
         with pytest.raises(sqlite3.IntegrityError, match="match its slot"):
@@ -159,7 +168,7 @@ def test_equipment_slots_allow_multiple_items_and_clear_on_ownership_change(tmp_
             )
         assert [item["slot"] for item in repository.list_equipped(
             campaign_id=1, character_entity_id=1
-        )] == ["main_hand"]
+        )] == ["main_hand", "off_hand"]
     finally:
         database.DB_PATH = previous
 
