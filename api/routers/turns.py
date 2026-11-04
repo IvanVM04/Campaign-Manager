@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Header, HTTPException, Query
 
 from api.runtime_context import (
-    campaign_turn_service,
     get_current_runtime,
     turn_repository,
 )
