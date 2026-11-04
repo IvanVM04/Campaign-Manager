@@ -40,9 +40,14 @@ def test_idempotency_identity_is_unique_per_campaign_and_adapter(isolated_databa
         repository.create(make_record(request_fingerprint="sha256:different"), scope=CampaignScope(1))
 
     with pytest.raises(sqlite3.IntegrityError):
-        repository.create(make_record(adapter_namespace="native-v2"), scope=CampaignScope(1), conn=None) if False else repository.create(
-            make_record(), scope=CampaignScope(1)
-        )
+        repository.create(make_record(), scope=CampaignScope(1))
+
+    # The same key is independent in a distinct adapter namespace.
+    other_adapter = repository.create(
+        make_record(adapter_namespace="sillytavern"),
+        scope=CampaignScope(1),
+    )
+    assert other_adapter.adapter_namespace == "sillytavern"
 
 
 def test_same_idempotency_key_can_exist_in_another_campaign(isolated_database):
@@ -83,6 +88,7 @@ def test_claim_and_transition_lifecycle(isolated_database):
             "prepared",
             scope=CampaignScope(1),
             expected_state="planning",
+            expected_lease_token="worker-a",
             updates={
                 "context_revision": 1,
                 "proposal_json": '{"operations":[]}',
