@@ -782,6 +782,8 @@ class SillyTavernIntegrationService:
                 # COMPROBACIÓN AUTORITATIVA DE IDEMPOTENCIA
                 # ------------------------------------------------
 
+                current_turn = None
+
                 if normalized_external_turn_id is not None:
 
                     current_turn = (
@@ -869,31 +871,41 @@ class SillyTavernIntegrationService:
                         "campaign state changed while turn operations were being extracted; retry"
                     )
 
-                        # ----------------------------------------
-                        # REGENERACIÓN
-                        # ----------------------------------------
+                current_revision = self.state_version_repository.get_revision(
+                    self.campaign_scope.campaign_id,
+                    conn=conn,
+                )
+                if current_revision != state_revision:
+                    raise SillyTavernIntegrationServiceConflictError(
+                        "campaign state changed while turn operations were being extracted; retry"
+                    )
 
-                        if current_turn.snapshot is None:
-                            raise SillyTavernIntegrationServiceError(
-                                "cannot reconcile turn because the "
-                                "active turn has no snapshot"
-                            )
+                    # ----------------------------------------
+                    # REGENERACIÓN
+                    # ----------------------------------------
 
-                        self.world_snapshot_repository.restore_snapshot(
-                            conn,
-                            current_turn.snapshot,
-                            scope=self.campaign_scope,
+                    if current_turn.snapshot is None:
+                        raise SillyTavernIntegrationServiceError(
+                            "cannot reconcile turn because the "
+                            "active turn has no snapshot"
                         )
 
-                        self.world_service.load(
-                            conn=conn,
-                        )
+                    self.world_snapshot_repository.restore_snapshot(
+                        conn,
+                        current_turn.snapshot,
+                        scope=self.campaign_scope,
+                    )
 
-                        self.turn_repository.supersede_turn(
-                            current_turn.id,
-                            scope=self.campaign_scope,
-                            conn=conn,
-                        )
+                    self.world_service.load(
+                        conn=conn,
+                    )
+
+                    self.turn_repository.supersede_turn(
+                        current_turn.id,
+                        scope=self.campaign_scope,
+                        conn=conn,
+                    )
+
 
                 # ------------------------------------------------
                 # SNAPSHOT DEL ESTADO SOBRE EL QUE SE APLICARÁ
