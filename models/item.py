@@ -37,6 +37,8 @@ class Item:
             "ammunition",
         }:
             raise ValueError("unsupported equipment slot")
+        if self.weapon_key is not None and self.equipment_slot not in ("main_hand", "off_hand"):
+            raise ValueError("weapon items must use main_hand or off_hand equipment slots")
 
 
 @dataclass
