@@ -637,7 +637,7 @@ class DurableNativeTurnService:
                             updates={
                                 "context_revision": revision,
                                 "adjudication_json": json.dumps(
-                                    {"clarification": pending, "dice_mode": pending_state.get("dice_mode", "automatic")},
+                                    {"clarification": pending, "dice_mode": dice_mode},
                                     ensure_ascii=False,
                                     separators=(",", ":"),
                                     sort_keys=True,
