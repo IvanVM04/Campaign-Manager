@@ -429,6 +429,9 @@ class DurableNativeTurnService:
                     pending = json.loads(record.adjudication_json or "{}")
                     if pending.get("manual_roll"):
                         return self._manual_roll_result(record, pending["manual_roll"])
+                    clarification = pending.get("clarification")
+                    if isinstance(clarification, dict):
+                        return self._clarification_result(record, clarification)
                     question = pending.get(
                         "clarification_question",
                         "Necesito una aclaración antes de resolver esa acción.",
@@ -762,8 +765,8 @@ class DurableNativeTurnService:
                     "answer": answer,
                 })
                 clarified_input = record.player_input + "".join(
-                    "\\n\\nAclaración del DM: " + item["question"]
-                    + "\\nRespuesta del jugador: " + item["answer"]
+                    "\n\nAclaración del DM: " + item["question"]
+                    + "\nRespuesta del jugador: " + item["answer"]
                     for item in history
                 )
                 plan = self.resolver.prepare_turn(
@@ -1065,9 +1068,13 @@ class DurableNativeTurnService:
     ) -> DurableTurnPreparation:
         question = None
         if record.lifecycle_state == "awaiting_input":
-            question = json.loads(
-                record.adjudication_json or "{}"
-            ).get("clarification_question")
+            pending = json.loads(record.adjudication_json or "{}")
+            clarification = pending.get("clarification")
+            question = (
+                clarification.get("question")
+                if isinstance(clarification, dict)
+                else pending.get("clarification_question")
+            )
         return DurableTurnPreparation(
             resolution_id=record.id,
             lifecycle_state=record.lifecycle_state,
