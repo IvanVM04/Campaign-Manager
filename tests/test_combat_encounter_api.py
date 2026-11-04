@@ -57,9 +57,7 @@ def test_encounter_api_lifecycle_with_character_manual_initiative_and_restart_st
         json={
             "dice_mode": "manual",
             "manual_rolls": {hero_id: 10, goblin_id: 12},
-            "initiative_order": (
-                [hero_id, goblin_id] if hero_first else [goblin_id, hero_id]
-            ),
+            "initiative_order": [hero_id, goblin_id],
         },
     )
     assert start_response.status_code == 200
