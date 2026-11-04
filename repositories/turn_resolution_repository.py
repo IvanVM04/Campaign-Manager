@@ -51,7 +51,7 @@ class TurnResolutionRepository:
             INSERT INTO turn_resolutions (
                 campaign_id, session_id, turn_id, player_input,
                 adapter_namespace, idempotency_key, request_fingerprint,
-                lifecycle_state, context_revision, proposal_json,
+                lifecycle_state, context_revision, resulting_revision, proposal_json,
                 adjudication_json, mechanics_json, operation_results_json,
                 narrative, attempt_count, lease_token, lease_expires_at,
                 last_error_code, committed_at, completed_at
