@@ -474,6 +474,24 @@ class DurableNativeTurnService:
                 self.resolution_repository.get(record.id, scope=self.scope)
             )
         except Exception as exc:
+            if (
+                record.lifecycle_state == "planning"
+                and "character-state changes must come from deterministic mechanics" in str(exc)
+            ):
+                with transaction("IMMEDIATE") as conn:
+                    current = self.resolution_repository.get(
+                        record.id, scope=self.scope, conn=conn
+                    )
+                    if current is not None and current.lifecycle_state == "planning":
+                        self.resolution_repository.transition(
+                            record.id,
+                            "rejected",
+                            scope=self.scope,
+                            expected_state="planning",
+                            expected_lease_token=lease_token,
+                            updates={"last_error_code": "character_operation_not_allowed"},
+                            conn=conn,
+                        )
             rejection_code = None
             if isinstance(exc, DurableNativeTurnError):
                 if "one or more proposed consequences failed validation" in str(exc):
