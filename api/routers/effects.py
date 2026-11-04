@@ -6,7 +6,6 @@ from models.persistent_effect_api_schemas import (
     PersistentEffectStatusIn,
 )
 
-
 router = APIRouter()
 
 
