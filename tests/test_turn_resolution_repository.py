@@ -184,7 +184,7 @@ def test_expired_planning_lease_can_be_reclaimed_but_active_lease_cannot(isolate
                 scope=CampaignScope(1),
                 lease_token="worker-b",
                 lease_expires_at="2026-11-04T10:02:00Z",
-                now="2026-11-04T10:01:00Z",
+                now="2026-11-04T09:59:30Z",
                 conn=conn,
             )
 
