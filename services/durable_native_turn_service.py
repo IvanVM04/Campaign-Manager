@@ -328,7 +328,13 @@ class DurableNativeTurnService:
                         player_input=record.player_input,
                         narrative=question,
                     )
-                if record.lifecycle_state in {"committed", "narration_pending", "accepted", "planning", "prepared"}:
+                if record.lifecycle_state in {
+                    "committed",
+                    "narration_pending",
+                    "accepted",
+                    "planning",
+                    "prepared",
+                }:
                     pass
                 else:
                     raise DurableNativeTurnError(
