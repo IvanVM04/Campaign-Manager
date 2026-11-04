@@ -1,12 +1,4 @@
-# ruff: noqa: I001  # Keep framework adapter imports local and isolated.
 from __future__ import annotations
-
-import logging
-from typing import Any
-
-
-logger = logging.getLogger(__name__)
-
 
 HTTP_ERROR_CODES = {
     400: "bad_request",
@@ -43,7 +35,7 @@ def error_response(
     *,
     status_code: int,
     code: str,
-    detail: Any,
+    detail: object,
     headers: dict[str, str] | None = None,
 ):
     """Build the backwards-compatible, machine-readable API error body."""
@@ -126,7 +118,9 @@ def register_error_handlers(app: Any) -> None:
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
-        logger.exception(
+        import logging
+
+        logging.getLogger(__name__).exception(
             "Unhandled API exception",
             exc_info=(type(exc), exc, exc.__traceback__),
         )
