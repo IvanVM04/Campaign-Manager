@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 
@@ -31,6 +31,18 @@ from services.world_service import WorldService
 
 class DurableNativeTurnError(RuntimeError):
     """Failure while executing or resuming a durable native turn."""
+
+
+@dataclass(frozen=True, slots=True)
+class DurableTurnPreparation:
+    """Committed resolution evidence awaiting an adapter-generated narrative."""
+
+    resolution_id: int | None
+    lifecycle_state: str
+    player_input: str
+    committed_resolution: str
+    clarification_question: str | None = None
+    legacy_replay: bool = False
 
 
 class DurableNativeTurnService:
