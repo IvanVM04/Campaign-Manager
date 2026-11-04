@@ -150,6 +150,13 @@ class CombatAttackService:
                 target=target_conditions,
                 target_within_5_feet=target_within_5_feet,
             )
+            armor_training_penalty = False
+            if self.equipment_service is not None and profile.attack_ability in {"strength", "dexterity"}:
+                armor_training = self.equipment_service.armor_proficiency(
+                    character, campaign_id=campaign_id, conn=conn
+                )
+                armor_training_penalty = armor_training.strength_dexterity_disadvantage
+                disadvantage = disadvantage or armor_training_penalty
             target_armor_class = target.armor_class
             if (
                 target.is_player_character
@@ -232,6 +239,7 @@ class CombatAttackService:
                 "proficient": profile.proficient,
                 "advantage": advantage,
                 "disadvantage": disadvantage,
+                "armor_training_penalty": armor_training_penalty,
                 "result": result,
                 "target_current_hp": new_target_hp,
                 "target_armor_class": target_armor_class,
