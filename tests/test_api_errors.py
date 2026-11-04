@@ -26,6 +26,14 @@ def error_client():
     def unexpected_error():
         raise RuntimeError("private database path")
 
+    @app.get("/application-internal-error")
+    def application_internal_error():
+        raise APIError(
+            status_code=500,
+            code="database_failure",
+            detail="private database path",
+        )
+
     @app.post("/validation-error")
     def validation_error(quantity: int):
         return {"quantity": quantity}
@@ -72,5 +80,16 @@ def test_unexpected_error_is_logged_but_not_exposed(error_client):
     assert response.json() == {
         "detail": "Internal server error",
         "code": "internal_error",
+    }
+    assert "private database path" not in response.text
+
+
+def test_application_server_error_does_not_expose_internal_detail(error_client):
+    response = error_client.get("/application-internal-error")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "Internal server error",
+        "code": "database_failure",
     }
     assert "private database path" not in response.text
