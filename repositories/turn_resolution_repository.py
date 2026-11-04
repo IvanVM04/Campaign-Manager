@@ -20,7 +20,7 @@ class TurnResolutionRepository:
     """
 
     _UPDATE_FIELDS = frozenset({
-        "session_id", "turn_id", "context_revision", "resulting_revision", "proposal_json",
+        "session_id", "turn_id", "player_input", "context_revision", "resulting_revision", "proposal_json",
         "adjudication_json", "mechanics_json", "operation_results_json",
         "narrative", "lease_token", "lease_expires_at", "last_error_code",
         "committed_at", "completed_at",
