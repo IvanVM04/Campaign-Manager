@@ -9,9 +9,9 @@ from enum import Enum
 
 from database import transaction
 from models.campaign_scope import CampaignScope
+from models.operation_result import OperationResult, OperationStatus
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
-from models.operation_result import OperationResult, OperationStatus
 from models.turn_resolution_result import TurnResolutionResult
 from operations.character_operations import CharacterOperation
 from operations.operation_reference import OperationReference
@@ -294,7 +294,7 @@ class DurableNativeTurnService:
             normalized, session_id, "automatic"
         )
         fallback_identity = hashlib.sha256(
-            f"{fingerprint}:{previous_turn_id}".encode("utf-8")
+            f"{fingerprint}:{previous_turn_id}".encode()
         ).hexdigest()
         key = idempotency_key or "native-" + fallback_identity
         if not isinstance(key, str) or not key.strip() or len(key) > 500:
