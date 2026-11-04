@@ -29,7 +29,27 @@ It is a manual integration check and is not replaced by the automated JavaScript
    - Retry the same generated turn.
    - Confirm the failed attempt did not consume an active version and the retry can be processed.
 
-5. **Chat change / reset**
+5. **Single clarification**
+   - Trigger an ambiguous action that makes Campaign Manager ask a clarification question.
+   - Reply with the missing detail.
+   - Confirm the reply continues the original action, the world consequences are committed once, and the generated narrative is stored under the original external turn ID.
+
+6. **Multiple clarification rounds**
+   - Use an action that requires two clarification questions.
+   - Answer both questions.
+   - Confirm the second answer continues the same durable resolution and neither answer is recorded as a separate player action.
+
+7. **Restart recovery**
+   - Stop/reload the browser or extension while a clarification is pending.
+   - Reopen the same chat and answer the pending question.
+   - Repeat after submitting an answer but before narration is generated.
+   - Confirm the extension recovers the active/last challenge from the backend and retries without duplicate consequences.
+
+8. **Normal action after clarification**
+   - Complete a clarified action, then send a new ordinary player action.
+   - Confirm the new action receives its own external turn ID and is not mistaken for a repeated clarification answer.
+
+9. **Chat change / reset**
    - Switch to a different SillyTavern chat.
    - Generate a response in the new chat.
    - Confirm the new chat starts with its own turn identity and that no local processing/failure marker from the previous chat blocks it.
@@ -40,7 +60,9 @@ It is a manual integration check and is not replaced by the automated JavaScript
 - Each distinct regeneration is processed at most once.
 - A duplicate delivery does not reapply consequences.
 - A failed, uncommitted version can be retried.
-- Switching chats clears local turn-version, narrative, processing, and failure state.
+- Clarification answers resume the original action, including across reloads and multiple clarification rounds.
+- A subsequent ordinary action receives a new external turn identity.
+- Switching chats clears local turn-version, narrative, processing, failure, and clarification-link state.
 - The backend remains authoritative when local state is reset.
 
 ## Recording the result
