@@ -1,6 +1,7 @@
 """Campaign-scoped persistence for NPC creature mechanics."""
 
 import json
+
 from database import one
 from models.creature_state import CreatureState
 
