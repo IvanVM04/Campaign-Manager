@@ -243,6 +243,8 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
         "committed_resolution": preparation.committed_resolution,
         "clarification_question": preparation.clarification_question,
         "pending_clarification_id": preparation.pending_clarification_id,
+        "pending_roll_id": getattr(preparation, "pending_roll_id", None),
+        "pending_roll": getattr(preparation, "pending_roll", None),
         "campaign": context_result["campaign"],
         "session": context_result["session"],
         "active_character": context_result["active_character"],
