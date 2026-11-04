@@ -300,3 +300,65 @@ def test_silly_tavern_legacy_replay_versions_narrative_without_new_resolution():
     ]
     assert rows[1]["operation_count"] == legacy.operation_count
     assert rows[1]["world_changed"] == 1
+
+
+def test_legacy_silly_tavern_replay_skips_a_persisted_failed_version():
+    from models.turn_record import TurnRecord
+
+    service, proposal_calls, _ = _service_with_fake_models()
+    service.turn_repository.save_turn(
+        TurnRecord(
+            player_input="Abro la puerta.",
+            narrative="Versión activa.",
+            external_turn_id="legacy-failed-swipe",
+            version=1,
+            status="active",
+        ),
+        scope=service.scope,
+    )
+    service.turn_repository.save_turn(
+        TurnRecord(
+            player_input="Abro la puerta.",
+            narrative="Versión fallida.",
+            operation_count=1,
+            successful_operation_count=0,
+            failed_operation_count=1,
+            all_operations_succeeded=False,
+            external_turn_id="legacy-failed-swipe",
+            version=2,
+            status="failed",
+        ),
+        scope=service.scope,
+    )
+
+    preparation = service.prepare_external_turn(
+        "Abro la puerta.",
+        external_turn_id="legacy-failed-swipe",
+    )
+    assert preparation.legacy_replay is True
+
+    result = service.complete_external_narration(
+        external_turn_id="legacy-failed-swipe",
+        player_input="Abro la puerta.",
+        narrative="Nueva versión tras el intento fallido.",
+        turn_version=3,
+    )
+    assert result.narrative == "Nueva versión tras el intento fallido."
+    assert proposal_calls == []
+
+    from database import get_conn
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT version, status
+            FROM turns
+            WHERE external_turn_id=?
+            ORDER BY version
+            """,
+            ("legacy-failed-swipe",),
+        ).fetchall()
+    assert [(row["version"], row["status"]) for row in rows] == [
+        (1, "superseded"),
+        (2, "failed"),
+        (3, "active"),
+    ]
