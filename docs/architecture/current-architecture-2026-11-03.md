@@ -157,10 +157,11 @@ The effect is a persistent campaign entity; the clock is campaign-level state; c
 ## 6. Persistence and transaction model
 
 - SQLite is the only persistence adapter currently visible.
-- Schema evolution is centralized in `migrations.py`; `CURRENT_VERSION = 20`.
+- Schema evolution is centralized in `migrations.py`; `CURRENT_VERSION = 21`.
 - Repositories accept caller-supplied connections in many operations, allowing services to compose multi-repository transactions.
 - Several services still import `get_conn()` directly and choose transaction boundaries themselves.
 - Campaign scoping is represented by `CampaignScope` in multiple repositories, and migrations add campaign ownership/reference safeguards.
+- Migration 021 adds a campaign-scoped monotonic state revision maintained by SQLite triggers; internal DM and SillyTavern turn processing reject stale plans before applying operations.
 - Turn history stores external IDs, versions, status and snapshots to support SillyTavern reconciliation.
 
 The ability to pass a shared connection is a useful transaction seam. The weakness is that transaction ownership is distributed across service methods rather than represented by a named Unit of Work/application transaction abstraction.
