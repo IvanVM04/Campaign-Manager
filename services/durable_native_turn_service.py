@@ -431,7 +431,7 @@ class DurableNativeTurnService:
             ),
             "pending_clarification_id": (
                 f"{record.id}:{active_challenge_id}"
-                if record.lifecycle_state == "awaiting_input"
+                if record.lifecycle_state in {"awaiting_input", "planning"}
                 and active_challenge_id
                 else None
             ),
