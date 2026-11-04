@@ -99,6 +99,94 @@ export function selectClarificationChallenge(
 }
 
 
+export async function findClarificationOrigin(
+    chatMessages,
+    playerMessage,
+    currentAnswer,
+    createTurnId,
+    getClarificationState,
+) {
+    if (
+        !Array.isArray(chatMessages) ||
+        typeof createTurnId !== 'function' ||
+        typeof getClarificationState !== 'function' ||
+        typeof currentAnswer !== 'string' ||
+        !currentAnswer.trim()
+    ) {
+        return null;
+    }
+
+    const currentIndex = chatMessages.findIndex(
+        (message) => message === playerMessage,
+    );
+    if (currentIndex < 0) {
+        return null;
+    }
+
+    let previousAssistant = null;
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+        const message = chatMessages[index];
+        if (
+            message &&
+            message.is_user !== true &&
+            typeof message.mes === 'string'
+        ) {
+            previousAssistant = message;
+            break;
+        }
+    }
+
+    const earliestIndex = Math.max(0, currentIndex - 24);
+    for (let index = currentIndex - 1; index >= earliestIndex; index -= 1) {
+        const candidate = chatMessages[index];
+        if (
+            !candidate ||
+            candidate.is_user !== true ||
+            typeof candidate.mes !== 'string' ||
+            !candidate.mes.trim()
+        ) {
+            continue;
+        }
+
+        const candidateInput = candidate.mes.trim();
+        const candidateTurnId = await createTurnId(candidate);
+        const state = await getClarificationState(candidateTurnId);
+        if (!state?.has_clarification) {
+            continue;
+        }
+
+        const selected = selectClarificationChallenge(
+            state,
+            currentAnswer,
+        );
+        if (selected) {
+            if (
+                selected.retry &&
+                state.lifecycle_state === 'completed' &&
+                typeof state.narrative === 'string' &&
+                previousAssistant?.mes?.trim() === state.narrative.trim()
+            ) {
+                return null;
+            }
+
+            return {
+                externalTurnId: candidateTurnId,
+                playerInput: state.player_input || candidateInput,
+                pendingClarificationId: selected.pendingClarificationId,
+                retry: selected.retry,
+                state,
+            };
+        }
+
+        if (state.lifecycle_state !== 'awaiting_input') {
+            return null;
+        }
+    }
+
+    return null;
+}
+
+
 export class TurnState {
     constructor() {
         this.turnVersions =
