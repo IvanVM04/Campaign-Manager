@@ -201,7 +201,8 @@ class TurnResolutionRepository:
         conn,
     ) -> TurnResolutionRecord:
         self._validate_scope(scope)
-        self._validate_positive_int(turn_id, "turn_id")
+        if not isinstance(turn_id, int) or isinstance(turn_id, bool) or turn_id < 1:
+            raise ValueError("turn_id must be a positive integer")
         if not isinstance(narrative, str) or not narrative.strip():
             raise ValueError("narrative must not be empty")
         cursor = conn.execute(
