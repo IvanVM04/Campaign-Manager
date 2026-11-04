@@ -83,8 +83,8 @@ class CombatAttackService:
                 raise ValueError("target is not part of this encounter")
             if target.combatant_id == attacker.combatant_id:
                 raise ValueError("a combatant cannot target itself")
-            if target.defeated:
-                raise ValueError("cannot attack a defeated target")
+            if target.dead:
+                raise ValueError("cannot attack a dead target")
             if dice_mode not in ("automatic", "manual"):
                 raise ValueError("dice_mode must be automatic or manual")
             if dice_mode == "automatic" and (
@@ -192,13 +192,45 @@ class CombatAttackService:
                 ),
             )
 
-            new_target_hp = apply_hit_point_damage(target.current_hp, result.damage_after_defenses)
+            damage = result.damage_after_defenses
+            new_target_hp = apply_hit_point_damage(target.current_hp, damage)
+            death_save_successes = target.death_save_successes
+            death_save_failures = target.death_save_failures
+            stable = target.stable
+            dead = target.dead
+            conscious = target.conscious
+            if damage > 0:
+                if target.current_hp == 0:
+                    # Damage while dying causes one failed save, or two on a
+                    # critical hit. Stable creatures become unstable again.
+                    stable = False
+                    death_save_failures = min(
+                        3, death_save_failures + (2 if result.critical else 1)
+                    )
+                    dead = death_save_failures >= 3
+                    conscious = False
+                elif new_target_hp == 0:
+                    # Massive damage can kill outright when the excess damage
+                    # equals or exceeds the creature's hit point maximum.
+                    dead = damage - target.current_hp >= target.max_hp
+                    conscious = False
+                    death_save_successes = 0
+                    death_save_failures = 0
+                    stable = False
+                if dead:
+                    new_target_hp = 0
+                    conscious = False
             updated_combatants = dict(encounter.combatants)
             updated_combatants[attacker.combatant_id] = replace(attacker, action_used=True)
             updated_combatants[target.combatant_id] = replace(
-                target, current_hp=new_target_hp,
+                target,
+                current_hp=new_target_hp,
                 armor_class=target_armor_class,
-                conscious=target.conscious and new_target_hp > 0,
+                conscious=conscious,
+                death_save_successes=death_save_successes,
+                death_save_failures=death_save_failures,
+                stable=stable,
+                dead=dead,
             )
             encounter.combatants = updated_combatants
 
