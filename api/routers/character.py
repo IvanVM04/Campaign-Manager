@@ -14,7 +14,7 @@ def create_character(
 ):
     try:
         character = character_creation_service.create_character(
-            campaign_id=_current_runtime.get().campaign_id,
+            campaign_id=get_current_runtime().campaign_id,
             data=data,
             activate=activate,
         )
@@ -35,13 +35,13 @@ def bootstrap_campaign(
 ):
     try:
         character = character_creation_service.create_character(
-            campaign_id=_current_runtime.get().campaign_id,
+            campaign_id=get_current_runtime().campaign_id,
             data=data,
             activate=True,
         )
 
         return {
-            "campaign_id": _current_runtime.get().campaign_id,
+            "campaign_id": get_current_runtime().campaign_id,
             "character": character,
             "active_character_id": character.entity_id,
         }
