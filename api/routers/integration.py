@@ -139,7 +139,9 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         "lifecycle_state": preparation.lifecycle_state,
         "committed_resolution": preparation.committed_resolution,
         "clarification_question": preparation.clarification_question,
-        "pending_clarification_id": getattr(\n            preparation, "pending_clarification_id", None\n        ),
+        "pending_clarification_id": getattr(
+            preparation, "pending_clarification_id", None
+        ),
         "legacy_replay": preparation.legacy_replay,
         "campaign": context_result["campaign"],
         "session": context_result["session"],
