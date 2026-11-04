@@ -414,6 +414,7 @@ class TurnResolutionService:
         *,
         recent_turns=None,
         mechanics_result: MechanicsResult | None = None,
+        committed_resolution: str | None = None,
     ) -> str:
         """Generate presentation prose after the consequence commit."""
         try:
@@ -422,6 +423,7 @@ class TurnResolutionService:
                 player_input,
                 recent_turns=recent_turns,
                 mechanics_result=mechanics_result,
+                committed_resolution=committed_resolution,
             ).strip()
         except Exception as exc:
             raise TurnResolutionServiceError(
