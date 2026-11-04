@@ -114,6 +114,10 @@ class TurnResolutionRepository:
         conn=None,
     ) -> TurnResolutionRecord | None:
         self._validate_scope(scope)
+        if not isinstance(adapter_namespace, str) or not adapter_namespace.strip():
+            raise ValueError("adapter_namespace must not be empty")
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ValueError("idempotency_key must not be empty")
         query = (
             f"SELECT {self._FIELDS} FROM turn_resolutions "
             "WHERE campaign_id=? AND adapter_namespace=? AND idempotency_key=?"
@@ -152,6 +156,8 @@ class TurnResolutionRepository:
             and current.lease_token != expected_lease_token
         ):
             raise ValueError("planning lease was superseded")
+        if target_state == "planning":
+            raise ValueError("use claim_for_planning to acquire a planning lease")
         if not current.can_transition_to(target_state):
             raise ValueError(
                 f"invalid turn resolution transition: {expected_state} -> {target_state}"
