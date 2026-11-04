@@ -280,11 +280,20 @@ class DurableNativeTurnService:
         )
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def play_turn(self, player_input: str, *, idempotency_key: str | None = None):
+    def play_turn(
+        self, player_input: str, *, idempotency_key: str | None = None,
+        dice_mode: str = "automatic",
+    ):
+        if dice_mode not in {"automatic", "manual"}:
+            raise DurableNativeTurnError("dice_mode must be automatic or manual")
         if self.turn_execution_lock is None:
-            return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
+            return self._play_turn_locked(
+                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
+            )
         with self.turn_execution_lock.acquire():
-            return self._play_turn_locked(player_input, idempotency_key=idempotency_key)
+            return self._play_turn_locked(
+                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
+            )
 
     def prepare_external_turn(
         self,
@@ -368,6 +377,7 @@ class DurableNativeTurnService:
         idempotency_key: str | None = None,
         adapter_namespace: str = "native",
         defer_narration: bool = False,
+        dice_mode: str = "automatic",
     ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
@@ -385,7 +395,7 @@ class DurableNativeTurnService:
         )
         previous_turn_id = recent[-1].id if recent else 0
         fingerprint = self._fingerprint(
-            normalized, session_id, "automatic"
+            normalized, session_id, dice_mode
         )
         fallback_identity = hashlib.sha256(
             f"{fingerprint}:{previous_turn_id}".encode()
@@ -400,7 +410,7 @@ class DurableNativeTurnService:
             )
             if record is not None:
                 fingerprint = self._fingerprint(
-                    normalized, record.session_id, "automatic"
+                    normalized, record.session_id, dice_mode
                 )
                 if record.request_fingerprint != fingerprint:
                     raise DurableNativeTurnError(
@@ -416,14 +426,14 @@ class DurableNativeTurnService:
                         raise DurableNativeTurnError("completed resolution has no transcript")
                     return self._result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "awaiting_input":
-                    question = json.loads(record.adjudication_json or "{}").get(
+                    pending = json.loads(record.adjudication_json or "{}")
+                    if pending.get("manual_roll"):
+                        return self._manual_roll_result(record, pending["manual_roll"])
+                    question = pending.get(
                         "clarification_question",
                         "Necesito una aclaración antes de resolver esa acción.",
                     )
-                    return TurnResolutionResult(
-                        player_input=record.player_input,
-                        narrative=question,
-                    )
+                    return TurnResolutionResult(player_input=record.player_input, narrative=question)
                 if record.lifecycle_state in {
                     "committed",
                     "narration_pending",
@@ -493,15 +503,24 @@ class DurableNativeTurnService:
                 plan = self._plan_from_record(record)
             else:
                 plan = self.resolver.prepare_turn(
-                    context,
-                    normalized,
-                    recent_turns=recent,
+                    context, normalized, recent_turns=recent,
+                    manual_mode=(dice_mode == "manual"),
                     proposal_from_intent=True,
                 )
                 if plan.awaiting_manual_roll:
-                    raise DurableNativeTurnError(
-                        "automatic turn unexpectedly requested a manual roll"
-                    )
+                    pending = self._build_manual_roll_request(record, plan.mechanics_decision, context, revision)
+                    with transaction("IMMEDIATE") as conn:
+                        self.resolution_repository.transition(
+                            record.id, "awaiting_input", scope=self.scope,
+                            expected_state="planning", expected_lease_token=lease_token,
+                            updates={
+                                "context_revision": revision,
+                                "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True),
+                                "lease_token": None, "lease_expires_at": None,
+                            }, conn=conn,
+                        )
+                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    return self._manual_roll_result(saved, pending)
                 if plan.clarification_question is not None:
                     with transaction("IMMEDIATE") as conn:
                         self.resolution_repository.transition(
