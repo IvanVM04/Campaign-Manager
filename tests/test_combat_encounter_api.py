@@ -308,7 +308,9 @@ def _create_downed_character_encounter(
         json={
             "dice_mode": "manual",
             "manual_rolls": {hero_id: 18, goblin_id: 10},
-            "initiative_order": [hero_id, goblin_id],
+            "initiative_order": (
+                [hero_id, goblin_id] if hero_first else [goblin_id, hero_id]
+            ),
         },
     )
     assert started.status_code == 200, started.text
