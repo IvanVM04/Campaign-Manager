@@ -3793,3 +3793,87 @@ def test_silly_tavern_rejects_operations_extracted_from_stale_campaign_state(
     assert turn_repository.list_turns(
         scope=CampaignScope(1),
     ) == []
+
+
+def test_silly_tavern_manual_roll_state_endpoint_returns_durable_challenge(client, monkeypatch):
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+    expected = {
+        "external_turn_id": "st-manual-turn",
+        "has_manual_roll": True,
+        "lifecycle_state": "awaiting_input",
+        "player_input": "Me escondo.",
+        "pending_roll_id": "42:" + "a" * 24,
+        "pending_roll": {"count": 2, "dice": "d20", "modifier": 5},
+    }
+    monkeypatch.setattr(
+        runtime.durable_native_turn_service,
+        "get_external_manual_roll_state",
+        lambda external_turn_id: expected,
+    )
+    response = client.get("/integration/turn/st-manual-turn/manual-roll")
+    assert response.status_code == 200
+    assert response.json() == expected
+
+
+def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolution(client, monkeypatch):
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+    captured = {}
+
+    def fake_submit(pending_roll_id, rolls, *, adapter_namespace, defer_narration):
+        captured.update({
+            "pending_roll_id": pending_roll_id,
+            "rolls": rolls,
+            "adapter_namespace": adapter_namespace,
+            "defer_narration": defer_narration,
+        })
+        return SimpleNamespace(
+            resolution_id=42,
+            lifecycle_state="narration_pending",
+            committed_resolution='{"mechanics":{"total":22,"success":true}}',
+            pending_roll_id=None,
+            pending_roll=None,
+        )
+
+    def fake_context(query):
+        return {
+            "campaign": {"id": 1, "name": "Campaña"},
+            "session": None,
+            "active_character": None,
+            "context": {"query": query, "context": "Estado actual."},
+        }
+
+    monkeypatch.setattr(runtime.durable_native_turn_service, "submit_manual_roll", fake_submit)
+    monkeypatch.setattr(runtime.silly_tavern_integration_service, "get_context", fake_context)
+
+    response = client.post(
+        "/integration/turn/roll",
+        json={
+            "pending_roll_id": "42:" + "a" * 24,
+            "rolls": [17, 8],
+            "query": "Estado de campaña.",
+            "answer_external_turn_id": "answer-" + "b" * 24,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["lifecycle_state"] == "narration_pending"
+    assert response.json()["context"]["context"] == "Estado actual."
+    assert captured == {
+        "pending_roll_id": "42:" + "a" * 24,
+        "rolls": (17, 8),
+        "adapter_namespace": "sillytavern",
+        "defer_narration": True,
+    }
+
+
+def test_silly_tavern_manual_roll_endpoint_rejects_invalid_dice_results(client):
+    response = client.post(
+        "/integration/turn/roll",
+        json={
+            "pending_roll_id": "42:" + "a" * 24,
+            "rolls": [0, 21],
+            "query": "Estado de campaña.",
+            "answer_external_turn_id": "answer-" + "b" * 24,
+        },
+    )
+    assert response.status_code == 422
