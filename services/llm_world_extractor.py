@@ -222,7 +222,9 @@ class LLMWorldExtractor:
         for item_id, item in world.items.items():
             item_lines.append(
                 f"- ID {item_id}: "
-                f"{item.name}"
+                f"{item.name} "
+                f"(weapon_key={item.weapon_key}, armor_key={item.armor_key}, "
+                f"equipment_slot={item.equipment_slot})"
             )
 
         known_items = (
@@ -846,6 +848,15 @@ Ejemplo:
   "notes": "",
   "ref": "llave_hierro"
 }
+
+Para armaduras y escudos SRD 5e 2014, añade `armor_key` a la definición
+del objeto cuando corresponda. Valores permitidos:
+`padded`, `leather`, `studded_leather`, `hide`, `chain_shirt`,
+`scale_mail`, `breastplate`, `half_plate`, `ring_mail`,
+`chain_mail`, `splint`, `plate`, `shield`.
+La armadura corporal usa `equipment_slot: "body"`; el escudo usa
+`equipment_slot: "off_hand"`. No asignes `weapon_key` a una armadura
+ni combines `weapon_key` y `armor_key`.
 
 
 ============================================================
