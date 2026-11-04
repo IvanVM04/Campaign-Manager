@@ -649,7 +649,7 @@ def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch
 
 
 def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
-    from types import SimpleNamespace
+    from models.turn_resolution_result import TurnResolutionResult
 
     service, _, _ = _service_with_fake_models()
     captured = {}
@@ -669,8 +669,9 @@ def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
         "_play_turn_locked",
         lambda player_input, **kwargs: (
             captured.update(kwargs)
-            or SimpleNamespace(
+            or TurnResolutionResult(
                 player_input=player_input,
+                narrative="",
                 pending_roll_id="42:" + "a" * 24,
                 pending_roll=pending,
             )
