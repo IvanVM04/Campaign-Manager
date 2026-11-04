@@ -1342,6 +1342,64 @@ async function getPersistedClarificationState(
 }
 
 
+async function getPersistedManualRollState(externalTurnId) {
+    const backendUrl = getSettings().backendUrl.trim().replace(/\\/+$/, '');
+    if (!backendUrl) throw new Error('Backend URL is empty.');
+    const response = await fetch(
+        `${backendUrl}/integration/turn/${encodeURIComponent(externalTurnId)}/manual-roll`,
+        { method: 'GET', headers: getCampaignHeaders() },
+    );
+    const body = await response.json();
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${body?.detail ?? 'Unknown backend error'}`);
+    }
+    if (!body || typeof body.has_manual_roll !== 'boolean') {
+        throw new Error('Campaign Manager returned an invalid manual roll state.');
+    }
+    return body;
+}
+
+
+async function submitCampaignManagerManualRoll(origin, answer) {
+    if (origin.invalid) {
+        throw new Error('Introduce exactamente ' + origin.state.pending_roll.count + ' resultado(s) de d20 entre 1 y 20, separados por coma.');
+    }
+    const backendUrl = getSettings().backendUrl.trim().replace(/\\/+$/, '');
+    const configuredQuery = getSettings().contextQuery.trim();
+    const query = buildRetrievalQuery(configuredQuery, origin.playerInput);
+    const response = await fetch(`${backendUrl}/integration/turn/roll`, {
+        method: 'POST',
+        headers: getCampaignHeaders(true),
+        body: JSON.stringify({
+            pending_roll_id: origin.pendingRollId,
+            rolls: origin.rolls,
+            answer_external_turn_id: await createStableTurnId(getLatestUserMessage()),
+            query,
+        }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${body?.detail ?? 'Unknown backend error'}`);
+    }
+    if (typeof body.lifecycle_state !== 'string' || typeof body.committed_resolution !== 'string') {
+        throw new Error('Campaign Manager returned an invalid manual roll resolution.');
+    }
+    return body;
+}
+
+
+function buildCommittedManualRollContext(responseBody) {
+    return [
+        responseBody.context?.context?.trim() ?? '',
+        '',
+        '=== RESULTADO DE TIRADA MANUAL COMPROMETIDO — FUENTE DE VERDAD ===',
+        'Campaign Manager ha validado y registrado el resultado de los dados.',
+        'Narra ahora el resultado mecánico confirmado. No vuelvas a pedir dados ni cambies el total, el modificador, la CD o el éxito/fracaso.',
+        responseBody.committed_resolution,
+    ].join('\\n');
+}
+
+
 async function getCampaignManagerClarificationContext(
     clarificationOrigin,
     answer,
