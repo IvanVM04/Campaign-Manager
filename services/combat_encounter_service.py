@@ -171,8 +171,24 @@ class CombatEncounterService:
         manual_rolls: dict[str, int] | None = None,
         initiative_order: tuple[str, ...] | None = None,
     ):
-        with get_conn() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        return self.start_with_events(
+            campaign_id,
+            encounter_id,
+            dice_mode=dice_mode,
+            manual_rolls=manual_rolls,
+            initiative_order=initiative_order,
+        )["encounter"]
+
+    def start_with_events(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        dice_mode: str = "automatic",
+        manual_rolls: dict[str, int] | None = None,
+        initiative_order: tuple[str, ...] | None = None,
+    ) -> dict:
+        with transaction("IMMEDIATE") as conn:
             encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
             if encounter.status is not EncounterStatus.PREPARING:
                 raise ValueError("only a preparing encounter can be started")
@@ -183,7 +199,7 @@ class CombatEncounterService:
                     raise ValueError("manual mode requires exactly one d20 result for every combatant")
             elif dice_mode == "automatic":
                 if manual_rolls:
-                    raise ValueError("manual_rolls can only be supplied in manual mode")
+                    raise ValueError("manual_rolls can only be supplied in automatic mode")
             else:
                 raise ValueError("dice_mode must be automatic or manual")
 
@@ -214,7 +230,9 @@ class CombatEncounterService:
                     )
                 )
             encounter.start(tuple(initiative_order))
-            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+            event = self._resolve_turn_start_death_save(encounter, campaign_id, conn)
+            saved = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+            return {"encounter": saved, **event}
 
     def advance_turn(
         self,
@@ -248,57 +266,7 @@ class CombatEncounterService:
             previous_round = encounter.round_number
             encounter.advance_turn()
 
-            death_save = None
-            death_save_combatant_id = None
-            active = encounter.active_combatant
-            if (
-                active is not None
-                and active.is_player_character
-                and active.entity_id is not None
-                and active.current_hp == 0
-                and not active.stable
-                and not active.dead
-            ):
-                position = (encounter.round_number, encounter.turn_index)
-                if (
-                    active.death_save_last_round,
-                    active.death_save_last_turn_index,
-                ) != position:
-                    death_save = resolve_death_saving_throw(
-                        roller=self.dice_roller,
-                        successes=active.death_save_successes,
-                        failures=active.death_save_failures,
-                    )
-                    recovered = death_save.regained_hp == 1
-                    updated = replace(
-                        active,
-                        current_hp=1 if recovered else 0,
-                        conscious=recovered,
-                        death_save_successes=0 if recovered else death_save.successes,
-                        death_save_failures=0 if recovered else death_save.failures,
-                        stable=death_save.stable,
-                        dead=death_save.dead,
-                        death_save_last_round=encounter.round_number,
-                        death_save_last_turn_index=encounter.turn_index,
-                    )
-                    encounter.combatants[active.combatant_id] = updated
-                    death_save_combatant_id = active.combatant_id
-                    if recovered:
-                        character = self.character_repository.get_character(
-                            active.entity_id, campaign_id=campaign_id, conn=conn
-                        )
-                        if character is None or character.current_hp != 0:
-                            raise RuntimeError(
-                                "character hit points and encounter snapshot differ; reload encounter"
-                            )
-                        self.character_repository.update_current_hp(
-                            active.entity_id,
-                            campaign_id=campaign_id,
-                            expected_current_hp=0,
-                            new_current_hp=1,
-                            conn=conn,
-                        )
-
+            event = self._resolve_turn_start_death_save(encounter, campaign_id, conn)
             if self.persistent_effect_repository is not None:
                 absolute_turn = (
                     (encounter.round_number - 1) * len(encounter.initiative_order)
@@ -313,11 +281,7 @@ class CombatEncounterService:
                     conn=conn,
                 )
             saved = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
-            return {
-                "encounter": saved,
-                "death_save": death_save,
-                "combatant_id": death_save_combatant_id,
-            }
+            return {"encounter": saved, **event}
 
     def complete(
         self,
@@ -405,6 +369,61 @@ class CombatEncounterService:
                 )
             saved = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
             return {"encounter": saved, "combatant_id": combatant.combatant_id, "result": result}
+
+
+    def _resolve_turn_start_death_save(self, encounter, campaign_id: int, conn) -> dict:
+        """Resolve one death save if the active turn belongs to a downed PC."""
+        active = encounter.active_combatant
+        if (
+            active is None
+            or not active.is_player_character
+            or active.entity_id is None
+            or active.current_hp != 0
+            or active.stable
+            or active.dead
+        ):
+            return {"death_save": None, "combatant_id": None}
+
+        position = (encounter.round_number, encounter.turn_index)
+        if (
+            active.death_save_last_round,
+            active.death_save_last_turn_index,
+        ) == position:
+            return {"death_save": None, "combatant_id": None}
+
+        result = resolve_death_saving_throw(
+            roller=self.dice_roller,
+            successes=active.death_save_successes,
+            failures=active.death_save_failures,
+        )
+        recovered = result.regained_hp == 1
+        encounter.combatants[active.combatant_id] = replace(
+            active,
+            current_hp=1 if recovered else 0,
+            conscious=recovered,
+            death_save_successes=0 if recovered else result.successes,
+            death_save_failures=0 if recovered else result.failures,
+            stable=result.stable,
+            dead=result.dead,
+            death_save_last_round=encounter.round_number,
+            death_save_last_turn_index=encounter.turn_index,
+        )
+        if recovered:
+            character = self.character_repository.get_character(
+                active.entity_id, campaign_id=campaign_id, conn=conn
+            )
+            if character is None or character.current_hp != 0:
+                raise RuntimeError(
+                    "character hit points and encounter snapshot differ; reload encounter"
+                )
+            self.character_repository.update_current_hp(
+                active.entity_id,
+                campaign_id=campaign_id,
+                expected_current_hp=0,
+                new_current_hp=1,
+                conn=conn,
+            )
+        return {"death_save": result, "combatant_id": active.combatant_id}
 
     def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
         encounter = self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn)
