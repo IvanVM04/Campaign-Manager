@@ -426,6 +426,31 @@ class CombatEncounterService:
             )
         return result
 
+    def use_reaction(
+        self,
+        campaign_id: int,
+        encounter_id: str,
+        *,
+        combatant_id: str,
+        expected_round: int,
+        expected_turn_index: int,
+    ):
+        """Consume a combatant's reaction; reactions refresh at that combatant's turn."""
+        with transaction("IMMEDIATE") as conn:
+            encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
+            self._check_position(encounter, expected_round, expected_turn_index)
+            if encounter.status is not EncounterStatus.ACTIVE:
+                raise ValueError("reactions require an active encounter")
+            combatant = encounter.combatants.get(combatant_id)
+            if combatant is None:
+                raise ValueError("combatant is not part of this encounter")
+            if combatant.dead or not combatant.conscious or combatant.conditions.is_incapacitated:
+                raise ValueError("an unconscious, dead or incapacitated combatant cannot use a reaction")
+            if combatant.reaction_used:
+                raise ValueError("this combatant has already used its reaction")
+            encounter.combatants[combatant_id] = replace(combatant, reaction_used=True)
+            return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+
     def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
         encounter = self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn)
         if encounter is None:
