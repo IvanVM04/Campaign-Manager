@@ -3196,6 +3196,48 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
     assert character_after is not None
     assert character_after.current_hp == original_hp
 
+def test_integration_clarification_state_endpoint_returns_durable_state(
+    client,
+    monkeypatch,
+):
+    expected = {
+        "external_turn_id": "external-turn-clarification",
+        "has_clarification": True,
+        "lifecycle_state": "awaiting_input",
+        "player_input": "Abro una puerta.",
+        "clarification_question": "¿Qué puerta?",
+        "pending_clarification_id": "42:challenge",
+        "last_pending_clarification_id": None,
+        "last_answer": None,
+        "resolved_player_input": None,
+        "narrative": None,
+    }
+
+    class FakeLock:
+        def acquire(self):
+            return nullcontext()
+
+    runtime = SimpleNamespace(
+        turn_execution_lock=FakeLock(),
+        durable_native_turn_service=SimpleNamespace(
+            get_external_clarification_state=lambda external_turn_id: expected
+            if external_turn_id == "external-turn-clarification"
+            else None,
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.get(
+        "/integration/turn/external-turn-clarification/clarification"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == expected
+
+
 def test_integration_turn_state_endpoint_returns_missing_turn(
     client,
     monkeypatch,
