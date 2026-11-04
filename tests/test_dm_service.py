@@ -1000,3 +1000,19 @@ def test_default_prompt_respects_campaign_tone_and_defers_mechanics():
     assert "No inventes ni resuelvas tiradas" in prompt
     assert "motor de reglas" in prompt
     assert "No conviertas una consecuencia mecánica pendiente" in prompt
+
+
+def test_committed_resolution_is_included_as_authoritative_narration_context():
+    provider = FakeLLMProvider(response="La acción se resuelve.")
+    service = DMService(provider)
+
+    service.generate(
+        make_turn_context(),
+        "Abro la puerta.",
+        committed_resolution='{"operations":[{"type":"open_door"}],"operation_results":[{"success":true}]}',
+    )
+
+    prompt = provider.last_prompt
+    assert prompt is not None
+    assert "RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS" in prompt
+    assert '"type": "open_door"' in prompt
