@@ -391,7 +391,9 @@ class CharacterCreate(BaseModel):
 
     saving_throw_proficiencies: list[Ability] = Field(default_factory=list)
 
-    armor_proficiencies: list[Literal["light", "medium", "heavy", "shields"]] = Field(default_factory=list)
+    armor_proficiencies: list[Literal["light", "medium", "heavy", "shields"]] = Field(
+        default_factory=list
+    )
 
     metadata: dict = Field(
         default_factory=dict,
