@@ -7,7 +7,6 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 logger = logging.getLogger(__name__)
@@ -72,6 +71,7 @@ def _code_for_status(status_code: int) -> str:
 
 def register_error_handlers(app: FastAPI) -> None:
     """Install consistent error responses without exposing internal failures."""
+    from starlette.exceptions import HTTPException as StarletteHTTPException
 
     @app.exception_handler(APIError)
     async def handle_api_error(
