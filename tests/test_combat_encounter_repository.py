@@ -85,13 +85,25 @@ def test_deserialize_legacy_snapshot_without_death_save_fields():
                 "current_hp": 12,
                 "max_hp": 12,
                 "armor_class": 16,
+            },
+            "stable_hero": {
+                "name": "Stable Hero",
+                "initiative": 0,
+                "current_hp": 0,
+                "max_hp": 12,
+                "armor_class": 16,
+                "stable": True,
             }
         }),
     }
 
     loaded = CombatEncounterRepository._deserialize(row)
     hero = loaded.combatants["hero"]
+    stable_hero = loaded.combatants["stable_hero"]
 
+    assert stable_hero.stable is True
+    assert stable_hero.conscious is False
+    assert stable_hero.death_save_successes == 3
     assert hero.death_save_successes == 0
     assert hero.death_save_failures == 0
     assert hero.stable is False
