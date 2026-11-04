@@ -63,7 +63,7 @@ class PersistentEffectRepository:
         campaign_id: int,
         conn: sqlite3.Connection | None = None,
     ) -> PersistentEffect | None:
-        query = "SELECT pe.*, timer.duration_minutes AS timer_duration_minutes, timer.expires_at_minute, timer.expired_at_minute FROM persistent_effects pe LEFT JOIN persistent_effect_timers timer ON timer.effect_id = pe.id WHERE pe.id = ? AND pe.campaign_id = ?"
+        query = "SELECT pe.*, timer.duration_minutes AS timer_duration_minutes, timer.expires_at_minute, timer.expired_at_minute, timer.encounter_id, timer.duration_rounds, timer.expires_at_round, timer.duration_turns, timer.expires_at_turn, timer.expired_at_round, timer.expired_at_turn FROM persistent_effects pe LEFT JOIN persistent_effect_timers timer ON timer.effect_id = pe.id WHERE pe.id = ? AND pe.campaign_id = ?"
         params = (effect_id, campaign_id)
         if conn is None:
             row = one(query, params)
@@ -82,7 +82,10 @@ class PersistentEffectRepository:
     ) -> list[PersistentEffect]:
         query = """
             SELECT pe.*, timer.duration_minutes AS timer_duration_minutes,
-                   timer.expires_at_minute, timer.expired_at_minute
+                   timer.expires_at_minute, timer.expired_at_minute,
+                   timer.encounter_id, timer.duration_rounds, timer.expires_at_round,
+                   timer.duration_turns, timer.expires_at_turn,
+                   timer.expired_at_round, timer.expired_at_turn
             FROM persistent_effects pe
             LEFT JOIN persistent_effect_timers timer ON timer.effect_id = pe.id
             WHERE pe.campaign_id = ? AND pe.entity_id = ?
