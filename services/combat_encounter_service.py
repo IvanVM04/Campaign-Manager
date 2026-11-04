@@ -336,39 +336,15 @@ class CombatEncounterService:
             if dice_mode == "manual" and manual_roll is None:
                 raise ValueError("manual mode requires one d20 result")
 
-            result = resolve_death_saving_throw(
-                roller=self.dice_roller,
-                successes=combatant.death_save_successes,
-                failures=combatant.death_save_failures,
+            result = self._resolve_and_apply_death_save(
+                encounter,
+                combatant,
+                campaign_id,
+                conn,
+                round_number=expected_round,
+                turn_index=expected_turn_index,
                 manual_rolls=(manual_roll,) if manual_roll is not None else None,
             )
-            recovered = result.regained_hp == 1
-            new_hp = 1 if recovered else 0
-            updated = replace(
-                combatant,
-                current_hp=new_hp,
-                conscious=recovered,
-                death_save_successes=0 if recovered else result.successes,
-                death_save_failures=0 if recovered else result.failures,
-                stable=result.stable,
-                dead=result.dead,
-                death_save_last_round=expected_round,
-                death_save_last_turn_index=expected_turn_index,
-            )
-            encounter.combatants[combatant.combatant_id] = updated
-            if recovered:
-                character = self.character_repository.get_character(
-                    combatant.entity_id, campaign_id=campaign_id, conn=conn
-                )
-                if character is None or character.current_hp != 0:
-                    raise RuntimeError("character hit points and encounter snapshot differ; reload encounter")
-                self.character_repository.update_current_hp(
-                    combatant.entity_id,
-                    campaign_id=campaign_id,
-                    expected_current_hp=0,
-                    new_current_hp=1,
-                    conn=conn,
-                )
             saved = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
             return {"encounter": saved, "combatant_id": combatant.combatant_id, "result": result}
 
@@ -393,39 +369,62 @@ class CombatEncounterService:
         ) == position:
             return {"death_save": None, "combatant_id": None}
 
+        result = self._resolve_and_apply_death_save(
+            encounter,
+            active,
+            campaign_id,
+            conn,
+            round_number=encounter.round_number,
+            turn_index=encounter.turn_index,
+        )
+        return {"death_save": result, "combatant_id": active.combatant_id}
+
+    def _resolve_and_apply_death_save(
+        self,
+        encounter,
+        combatant: CombatantState,
+        campaign_id: int,
+        conn,
+        *,
+        round_number: int,
+        turn_index: int,
+        manual_rolls: tuple[int, ...] | None = None,
+    ):
+        """Resolve a death save and apply its snapshot/character changes atomically."""
         result = resolve_death_saving_throw(
             roller=self.dice_roller,
-            successes=active.death_save_successes,
-            failures=active.death_save_failures,
+            successes=combatant.death_save_successes,
+            failures=combatant.death_save_failures,
+            manual_rolls=manual_rolls,
         )
         recovered = result.regained_hp == 1
-        encounter.combatants[active.combatant_id] = replace(
-            active,
+        encounter.combatants[combatant.combatant_id] = replace(
+            combatant,
             current_hp=1 if recovered else 0,
             conscious=recovered,
             death_save_successes=0 if recovered else result.successes,
             death_save_failures=0 if recovered else result.failures,
             stable=result.stable,
             dead=result.dead,
-            death_save_last_round=encounter.round_number,
-            death_save_last_turn_index=encounter.turn_index,
+            death_save_last_round=round_number,
+            death_save_last_turn_index=turn_index,
         )
         if recovered:
             character = self.character_repository.get_character(
-                active.entity_id, campaign_id=campaign_id, conn=conn
+                combatant.entity_id, campaign_id=campaign_id, conn=conn
             )
             if character is None or character.current_hp != 0:
                 raise RuntimeError(
                     "character hit points and encounter snapshot differ; reload encounter"
                 )
             self.character_repository.update_current_hp(
-                active.entity_id,
+                combatant.entity_id,
                 campaign_id=campaign_id,
                 expected_current_hp=0,
                 new_current_hp=1,
                 conn=conn,
             )
-        return {"death_save": result, "combatant_id": active.combatant_id}
+        return result
 
     def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
         encounter = self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn)
