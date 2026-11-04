@@ -1,3 +1,5 @@
+import json
+
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.campaign_runtime import CampaignRuntimeFactory
 
@@ -63,7 +65,7 @@ def test_native_turn_retry_does_not_reapply_or_replan_completed_resolution():
 def test_narration_failure_leaves_committed_resolution_resumable():
     service, proposal_calls, _ = _service_with_fake_models()
     attempts = {"count": 0}
-    service.resolver.extractor.provider = lambda prompt: json.dumps({
+    proposal_payload = json.dumps({
         "operations": [{
             "type": "create_entity",
             "name": "Aldric",
@@ -73,6 +75,9 @@ def test_narration_failure_leaves_committed_resolution_resumable():
             "active": True,
         }]
     })
+    service.resolver.extractor.provider = lambda prompt: (
+        proposal_calls.append(prompt) or proposal_payload
+    )
 
     def fail_once(prompt):
         attempts["count"] += 1
@@ -83,7 +88,6 @@ def test_narration_failure_leaves_committed_resolution_resumable():
     service.resolver.dm_service.provider.generate = fail_once
 
     import pytest
-    import json
     from services.durable_native_turn_service import DurableNativeTurnError
 
     with pytest.raises(DurableNativeTurnError):
