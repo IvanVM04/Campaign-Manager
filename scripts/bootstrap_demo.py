@@ -13,6 +13,72 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
+DEMO_CAMPAIGN_SUMMARY = """Aventura inicial: Las campanas de Puenteviejo.
+
+PREMISA
+El personaje llega a la Posada del Camino, en el pequeño pueblo de
+Puenteviejo, durante una noche de lluvia. Desde hace tres noches se oye
+una campana bajo el viejo puente, aunque la campana de la capilla lleva
+años desaparecida. Esta tarde no ha regresado Nilo, el correo local.
+
+PERSONAJES
+- Mara: posadera práctica y hospitalaria. Vio a Nilo salir hacia el puente
+  con una bolsa de cuero. Está preocupada, pero no quiere alarmar al pueblo.
+- Bram: carretero nervioso que afirma haber visto una luz azul junto al río.
+  No vio quién la llevaba.
+- Nilo: correo desaparecido. Es curioso, algo imprudente y conoce un acceso
+  de mantenimiento bajo el puente.
+
+VERDAD PARA EL DIRECTOR DE JUEGO (NO REVELAR SIN DESCUBRIRLA)
+Nilo encontró la entrada a una cámara de mantenimiento bajo el puente.
+La campana suena cuando el agua mueve un mecanismo antiguo. Nilo quedó
+atrapado al ceder una escalera podrida; está vivo y tiene la bolsa consigo.
+La luz azul procede de un hongo luminiscente. No hay un enemigo obligatorio:
+el problema puede resolverse investigando, hablando, improvisando o usando
+la fuerza para retirar los restos que bloquean la salida.
+
+ESTRUCTURA ABIERTA
+- En la posada se puede hablar con Mara y Bram, examinar la bolsa de viaje
+  abandonada de Nilo o preguntar a otros viajeros.
+- En el puente se pueden seguir huellas, examinar la piedra húmeda y localizar
+  una corriente de aire o el sonido de la campana.
+- Bajo el puente hay un acceso estrecho, una escalera rota y obstáculos que
+  requieren una solución razonable. Premia enfoques distintos; no fuerces
+  una única habilidad ni una única secuencia.
+- Al encontrar a Nilo, permite decidir cómo ayudarle y qué hacer con la bolsa.
+  La vuelta a la posada cierra la primera aventura y deja consecuencias para
+  futuras sesiones.
+
+DIRECCIÓN
+Presenta solo lo que el personaje puede percibir. No reveles la verdad oculta
+ni resuelvas decisiones del jugador por él. Pide aclaraciones si una acción
+es ambigua. Usa pruebas solo cuando haya incertidumbre significativa y
+consecuencias relevantes; las acciones rutinarias no requieren tirada.
+No fuerces combate: esta aventura sirve para probar conversación,
+exploración, investigación, pruebas y consecuencias persistentes.
+"""
+
+
+DEMO_SESSION_SUMMARY = """Objetivo de esta sesión: averiguar qué ocurrió con Nilo, el correo,
+y regresar con él o descubrir su destino.
+
+Comienza con el personaje entrando en la Posada del Camino mientras la lluvia
+golpea los postigos. Mara, la posadera, comenta que Nilo no ha vuelto. El
+jugador decide libremente qué investigar y en qué orden. Mantén abiertas varias
+soluciones y deja que las acciones tengan consecuencias. La sesión puede
+terminar cuando el personaje vuelva a la posada con Nilo o con información
+fiable sobre su destino."""
+
+
+DEMO_SESSION_NOTES = """Escenario de demostración para una primera partida.
+PNJ conocidos: Mara (posadera), Bram (carretero), Nilo (correo desaparecido).
+Pistas iniciales: lluvia reciente, huellas embarradas hacia el puente, bolsa
+de viaje abandonada en la posada, campana audible bajo el puente.
+No reveles los secretos de la aventura hasta que el personaje los descubra.
+No presupongas combate ni una solución única. Registra PNJ, lugares, pistas,
+relaciones y eventos importantes como estado persistente cuando corresponda."""
+
+
 def build_demo_payloads(campaign_name: str, character_name: str, tone: str):
     """Return the API payloads used to create the demo campaign."""
     return {
@@ -20,21 +86,15 @@ def build_demo_payloads(campaign_name: str, character_name: str, tone: str):
             "name": campaign_name,
             "system": "D&D 5e 2014",
             "tone": tone,
-            "summary": (
-                "Campaña de demostración para probar el flujo de juego "
-                "de Campaign Manager."
-            ),
+            "summary": DEMO_CAMPAIGN_SUMMARY,
         },
         "session": {
             "number": 1,
-            "title": "La posada del camino",
-            "summary": (
-                "Una primera sesión breve para probar exploración, "
-                "interacción y tiradas."
-            ),
-            "start_location": "Posada del Camino",
+            "title": "Las campanas de Puenteviejo",
+            "summary": DEMO_SESSION_SUMMARY,
+            "start_location": "Posada del Camino, Puenteviejo",
             "end_location": "",
-            "notes": "Escenario de demostración; puedes modificarlo libremente.",
+            "notes": DEMO_SESSION_NOTES,
         },
         "character": {
             "name": character_name,
@@ -168,7 +228,7 @@ def main() -> int:
     print(f"Character ID: {result['character_id']}")
     print()
     print("Configure the SillyTavern extension with this Campaign ID.")
-    print("Use the local backend URL shown above and start a new chat.")
+    print("Your first adventure is 'Las campanas de Puenteviejo'.")
     print("This script creates a new campaign each time it is run.")
     return 0
 
