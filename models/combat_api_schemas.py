@@ -24,6 +24,7 @@ class EncounterParticipantIn(BaseModel):
     position_y: StrictInt | None = Field(default=None, ge=-10000, le=10000)
     speed_feet: StrictInt = Field(default=30, ge=0, le=1000)
     npc_melee_weapon_key: str | None = Field(default=None, min_length=1, max_length=60)
+    npc_melee_weapon_keys: list[str] | None = Field(default=None, min_length=1, max_length=10)
     npc_melee_proficient: bool = True
 
     @model_validator(mode="after")
@@ -32,7 +33,16 @@ class EncounterParticipantIn(BaseModel):
             raise ValueError("position_x and position_y must be supplied together")
         if self.character_id is not None and self.creature_id is not None:
             raise ValueError("participant cannot reference both a character and a creature")
-        if self.character_id is not None and self.npc_melee_weapon_key is not None:
+        if self.npc_melee_weapon_key is not None and self.npc_melee_weapon_keys is not None:
+            raise ValueError("supply npc_melee_weapon_key or npc_melee_weapon_keys, not both")
+        if self.npc_melee_weapon_keys is not None and (
+            any(not isinstance(key, str) or not key.strip() for key in self.npc_melee_weapon_keys)
+            or len(set(self.npc_melee_weapon_keys)) != len(self.npc_melee_weapon_keys)
+        ):
+            raise ValueError("NPC melee weapon keys must be non-empty and unique")
+        if self.character_id is not None and (
+            self.npc_melee_weapon_key is not None or self.npc_melee_weapon_keys is not None
+        ):
             raise ValueError("player characters use their equipped weapon, not an NPC attack profile")
         if self.npc_melee_weapon_key is not None and not isinstance(self.npc_melee_proficient, bool):
             raise TypeError("npc_melee_proficient must be a boolean")
@@ -44,7 +54,9 @@ class EncounterParticipantIn(BaseModel):
                 raise ValueError("entity references cannot be combined with manual combatant stats")
             if self.creature_id is not None and self.is_player_character:
                 raise ValueError("creatures cannot be marked as player characters")
-            if self.creature_id is not None and self.npc_melee_weapon_key is not None:
+            if self.creature_id is not None and (
+                self.npc_melee_weapon_key is not None or self.npc_melee_weapon_keys is not None
+            ):
                 return self
             return self
         required = {
@@ -153,6 +165,7 @@ class EncounterOpportunityAttackIn(EncounterAttackIn):
     attacker_combatant_id: str = Field(..., min_length=1, max_length=120)
     mover_previous_position: GridPositionIn
     reach_feet: StrictInt = Field(default=5, ge=5, le=30)
+    npc_attack_weapon_key: str | None = Field(default=None, min_length=1, max_length=60)
     voluntary: bool = True
     disengaging: bool = False
 
