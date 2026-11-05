@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, Query
 
 from api.errors import api_error_for_exception
 
