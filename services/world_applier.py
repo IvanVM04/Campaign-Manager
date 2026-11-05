@@ -11,18 +11,22 @@ from models.world_state import WorldState
 from operations.world_operations import (
     CreateEntityOperation,
     CreateEventOperation,
+    CreateItemInstanceOperation,
+    CreateItemOperation,
     CreateRelationOperation,
     CreateResourceOperation,
     GainResourceOperation,
     RemoveRelationOperation,
     SpendResourceOperation,
+    TransferItemOperation,
     TransferResourceOperation,
     UpdateEntityOperation,
+    UpdateItemInstanceOperation,
     UpdateRelationOperation,
     WorldOperation,
 )
-from services.world_relation_applier import WorldRelationApplier
 from services.world_item_applier import WorldItemApplier
+from services.world_relation_applier import WorldRelationApplier
 
 
 class WorldApplier:
