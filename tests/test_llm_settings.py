@@ -65,7 +65,7 @@ def test_llm_settings_create_distinct_role_providers():
     }
 
 
-@pytest.mark.parametrize("base_url", ["", "localhost:11434", "ftp://localhost:21", "http:///missing-host", "http://localhost:11434?x=1"])
+@pytest.mark.parametrize("base_url", ["", "localhost:11434", "ftp://localhost:21", "http:///missing-host", "http://localhost:11434?x=1", "http://localhost:bad", "http://user:pass@localhost:11434"])
 def test_llm_settings_reject_invalid_base_url(base_url):
     with pytest.raises(ValueError, match="absolute HTTP"):
         LLMSettings(base_url=base_url)
