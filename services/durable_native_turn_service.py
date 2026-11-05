@@ -9,18 +9,15 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.campaign_scope import CampaignScope
-from models.operation_result import OperationResult, OperationStatus
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
-from operations.character_operations import CharacterOperation
-from operations.referenced_operation import ReferencedOperation
-from operations.world_operations import WorldOperation
 from repositories.campaign_state_version_repository import (
     CampaignStateVersionRepository,
 )
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
+from services.durable_turn_result_mapper import DurableTurnResultMapper
 from services.durable_turn_preparation_mapper import (
     DurableTurnPreparation,
     DurableTurnPreparationMapper,
@@ -1541,39 +1538,13 @@ class DurableNativeTurnService:
         *,
         already_processed: bool,
     ) -> TurnResolutionResult:
-        parsed = self.resolver.extractor.operation_parser.parse(
-            record.proposal_json or '{"operations":[]}'
+        mapper = DurableTurnResultMapper(
+            self.resolver.extractor.operation_parser
         )
-        def unwrap(raw):
-            return raw.operation if isinstance(raw, ReferencedOperation) else raw
-        world_operations = tuple(
-            unwrap(raw) for raw in parsed if isinstance(unwrap(raw), WorldOperation)
-        )
-        character_operations = tuple(
-            unwrap(raw) for raw in parsed if isinstance(unwrap(raw), CharacterOperation)
-        )
-        stored_results = json.loads(record.operation_results_json or "[]")
-        operation_results = tuple(
-            OperationResult(
-                status=OperationStatus(item["status"]),
-                message=item.get("message", ""),
-                operation=unwrap(parsed[index]) if index < len(parsed) else None,
-            )
-            for index, item in enumerate(stored_results)
-        )
-        return TurnResolutionResult(
-            player_input=turn.player_input,
-            narrative=turn.narrative,
-            operations=world_operations,
-            character_operations=character_operations,
-            operation_results=operation_results,
-            mechanics_result=self._mechanics_from_json(record.mechanics_json),
+        return mapper.from_completed_record(
+            record,
+            turn,
             already_processed=already_processed,
-            persisted_operation_count=turn.operation_count,
-            persisted_successful_operation_count=turn.successful_operation_count,
-            persisted_failed_operation_count=turn.failed_operation_count,
-            persisted_all_operations_succeeded=turn.all_operations_succeeded,
-            persisted_world_changed=turn.world_changed,
         )
 
     @staticmethod
