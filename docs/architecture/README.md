@@ -1,0 +1,25 @@
+# Architecture documentation index
+
+## Current baseline
+
+- [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): current audited baseline, findings, legacy inventory, documentation corrections, recommended sequence and effort estimates.
+- [Turn pipeline compatibility boundaries](turn-pipeline-compatibility.md): active durable native/SillyTavern flow and explicit deprecation gates.
+- [Durable SillyTavern adapter contract](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete and retry semantics.
+- [Writer, lock and cache audit](writer-lock-cache-audit.md): current single-process synchronization assumptions and mutation ownership.
+- [SQLite transaction ownership](sqlite-transaction-ownership.md): transaction and shared-connection contract.
+- [Turn-resolution lifecycle](turn-resolution-lifecycle.md): durable state transitions and commit boundaries.
+- [MVP quickstart](../mvp-quickstart.md) and [manual SillyTavern smoke test](../sillytavern-smoke-test.md): operational setup and manual acceptance.
+
+## Historical snapshots
+
+The following documents are retained as decision and audit history. Their findings describe the repository at their recorded baseline and must not be treated as current without checking the 2026-11-06 audit.
+
+- [Current architecture snapshot — 2026-11-05](current-architecture-2026-11-05.md)
+- [Comprehensive architecture audit — 2026-11-05](comprehensive-architecture-audit-2026-11-05.md)
+- [Audit and refactor plan — 2026-11-05](audit-and-refactor-plan-2026-11-05.md)
+- [Engineering audit — 2026-11-03](engineering-audit-2026-11-03.md)
+- [Functional audit — 2026-11-03](functional-audit-2026-11-03.md)
+- [Architecture decisions — 2026-11-03](architecture-decisions-2026-11-03.md)
+- [Roadmap — 2026-11-03](roadmap-2026-11-03.md)
+
+Historical audit findings may have been fixed, superseded or invalidated by subsequent module moves. Preserve those files, but track current work in the latest audit and in focused implementation PRs.
