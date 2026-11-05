@@ -8,9 +8,9 @@ from api.runtime_context import (
 from models.combat_api_schemas import (
     DeathSavingThrowIn,
     EncounterAttackIn,
-    EncounterOpportunityAttackIn,
     EncounterCreateIn,
     EncounterMoveIn,
+    EncounterOpportunityAttackIn,
     EncounterReactionIn,
     EncounterStartIn,
     EncounterTurnIn,
