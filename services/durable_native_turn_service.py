@@ -4,26 +4,21 @@ import hashlib
 import json
 import logging
 import secrets
-from dataclasses import dataclass, fields, is_dataclass, replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
-from enum import Enum
 
 from database import transaction
 from models.campaign_scope import CampaignScope
-from models.operation_result import OperationResult, OperationStatus
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
-from operations.character_operations import CharacterOperation
-from operations.operation_reference import OperationReference
-from operations.referenced_operation import ReferencedOperation
-from operations.world_operations import WorldOperation
 from repositories.campaign_state_version_repository import (
     CampaignStateVersionRepository,
 )
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.llm_world_extractor import LLMExtractionError
+from services.turn_resolution_codec import TurnResolutionCodec
 from services.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
@@ -78,159 +73,29 @@ class DurableNativeTurnService:
 
     @staticmethod
     def _json_default(value):
-        if isinstance(value, Enum):
-            return value.value
-        if is_dataclass(value):
-            return {
-                field.name: getattr(value, field.name)
-                for field in fields(value)
-            }
-        raise TypeError(f"cannot serialize {type(value).__name__}")
+        return TurnResolutionCodec.json_default(value)
 
     @classmethod
     def _operation_value(cls, value):
-        if isinstance(value, OperationReference):
-            return "$" + value.name
-        if isinstance(value, Enum):
-            return value.value
-        if isinstance(value, tuple):
-            return [cls._operation_value(item) for item in value]
-        if isinstance(value, list):
-            return [cls._operation_value(item) for item in value]
-        if isinstance(value, dict):
-            return {key: cls._operation_value(item) for key, item in value.items()}
-        if is_dataclass(value):
-            return {
-                field.name: cls._operation_value(getattr(value, field.name))
-                for field in fields(value)
-            }
-        return value
+        return TurnResolutionCodec.operation_value(value)
 
     def _serialize_operations(self, plan: TurnResolutionPlan) -> str:
-        from services.operation_parser import OperationParser
-
-        type_names = {
-            operation_class: operation_name
-            for operation_name, operation_class in OperationParser._BUILDERS.items()
-        }
-        serialized = []
-        for raw in plan.ordered_operations:
-            ref = None
-            operation = raw
-            if isinstance(raw, ReferencedOperation):
-                ref = raw.ref
-                operation = raw.operation
-            operation_type = type_names.get(type(operation))
-            if operation_type is None:
-                raise DurableNativeTurnError(
-                    f"unsupported operation type: {type(operation).__name__}"
-                )
-            payload = {
-                "type": operation_type,
-                **self._operation_value(operation),
-            }
-            if ref is not None:
-                payload["ref"] = ref
-            serialized.append(payload)
-        return json.dumps({"operations": serialized}, separators=(",", ":"), sort_keys=True)
+        try:
+            return TurnResolutionCodec.serialize_operations(plan)
+        except ValueError as exc:
+            raise DurableNativeTurnError(str(exc)) from exc
 
     @staticmethod
     def _mechanics_to_json(result) -> str | None:
-        if result is None:
-            return None
-        decision = result.decision
-        check = result.check
-        roll = check.roll
-        return json.dumps({
-            "decision": {
-                "decision": decision.decision.value,
-                "skill": decision.skill.value if decision.skill else None,
-                "ability": decision.ability.value if decision.ability else None,
-                "dc": decision.dc,
-                "advantage": decision.advantage,
-                "disadvantage": decision.disadvantage,
-                "situational_modifier": decision.situational_modifier,
-                "reason": decision.reason,
-                "question": decision.question,
-            },
-            "check": {
-                "kind": check.kind,
-                "ability": check.ability.value,
-                "ability_score": check.ability_score,
-                "ability_modifier": check.ability_modifier,
-                "proficiency_bonus": check.proficiency_bonus,
-                "proficiency_applied": check.proficiency_applied,
-                "situational_modifier": check.situational_modifier,
-                "rolls": list(roll.rolls),
-                "selected": roll.selected,
-                "mode": roll.mode.value,
-                "modifier": roll.modifier,
-                "total": roll.total,
-                "dc": check.dc,
-                "success": check.success,
-            },
-        }, separators=(",", ":"), sort_keys=True)
+        return TurnResolutionCodec.mechanics_to_json(result)
 
     @staticmethod
     def _mechanics_from_json(payload: str | None):
-        if payload is None:
-            return None
-        from models.mechanics import (
-            MechanicsDecision,
-            MechanicsDecisionType,
-            MechanicsResult,
-        )
-        from rules_engine.dnd5e_2014.checks import CheckResult
-        from rules_engine.dnd5e_2014.core.abilities import Ability
-        from rules_engine.dnd5e_2014.core.dice import D20Roll, RollMode
-        from rules_engine.dnd5e_2014.core.skills import Skill
-
-        data = json.loads(payload)
-        d = data["decision"]
-        decision = MechanicsDecision(
-            decision=MechanicsDecisionType(d["decision"]),
-            skill=Skill(d["skill"]) if d["skill"] else None,
-            ability=Ability(d["ability"]) if d["ability"] else None,
-            dc=d["dc"],
-            advantage=d["advantage"],
-            disadvantage=d["disadvantage"],
-            situational_modifier=d["situational_modifier"],
-            reason=d["reason"],
-            question=d["question"],
-        )
-        c = data["check"]
-        roll = D20Roll(
-            rolls=tuple(c["rolls"]),
-            selected=c["selected"],
-            mode=RollMode(c["mode"]),
-            modifier=c["modifier"],
-            total=c["total"],
-        )
-        check = CheckResult(
-            kind=c["kind"],
-            ability=Ability(c["ability"]),
-            ability_score=c["ability_score"],
-            ability_modifier=c["ability_modifier"],
-            proficiency_bonus=c["proficiency_bonus"],
-            proficiency_applied=c["proficiency_applied"],
-            situational_modifier=c["situational_modifier"],
-            roll=roll,
-            dc=c["dc"],
-            success=c["success"],
-        )
-        return MechanicsResult(decision, check)
+        return TurnResolutionCodec.mechanics_from_json(payload)
 
     @staticmethod
     def _operation_results_json(result: TurnResolutionResult) -> str:
-        return json.dumps([
-            {
-                "status": item.status.value,
-                "message": item.message,
-                "changed": item.changed,
-                "success": item.success,
-            }
-            for item in result.operation_results
-        ], separators=(",", ":"), sort_keys=True)
+        return TurnResolutionCodec.operation_results_json(result)
 
     def _context_and_history(self, conn):
         context = self.context_service.get_turn_context(
@@ -257,26 +122,9 @@ class DurableNativeTurnService:
         return context, recent
 
     def _plan_from_record(self, record: TurnResolutionRecord) -> TurnResolutionPlan:
-        parser = self.resolver.extractor.operation_parser
-        parsed = parser.parse(record.proposal_json or '{"operations":[]}')
-        ordered = tuple(parsed)
-        def unwrap(raw):
-            return raw.operation if isinstance(raw, ReferencedOperation) else raw
-        world_operations = tuple(
-            raw for raw in ordered if isinstance(unwrap(raw), WorldOperation)
-        )
-        character_operations = tuple(
-            raw for raw in ordered if isinstance(unwrap(raw), CharacterOperation)
-        )
-        mechanics_result = self._mechanics_from_json(record.mechanics_json)
-        return TurnResolutionPlan(
-            player_input=record.player_input,
-            narrative="",
-            world_operations=world_operations,
-            character_operations=character_operations,
-            ordered_operations=ordered,
-            mechanics_result=mechanics_result,
-            mechanics_decision=mechanics_result.decision if mechanics_result else None,
+        return TurnResolutionCodec.plan_from_record(
+            record,
+            self.resolver.extractor.operation_parser,
         )
 
     @staticmethod
