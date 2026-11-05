@@ -42,7 +42,7 @@ from services.dm_service import DMService
 from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
-from services.ollama_provider import OllamaProvider
+from services.llm_settings import LLMSettings
 from services.operation_parser import OperationParser
 from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
@@ -53,6 +53,8 @@ app = FastAPI(
     version="0.1.0",
 )
 register_error_handlers(app)
+
+DEFAULT_LLM_SETTINGS = LLMSettings.from_env()
 
 app.add_middleware(
     CORSMiddleware,
@@ -95,6 +97,7 @@ def create_campaign_turn_service(
     turn_repository: TurnRepository | None = None,
     *,
     turn_execution_lock: TurnExecutionLock,
+    llm_settings: LLMSettings | None = None,
 ) -> CampaignTurnService:
     """Build the campaign turn-resolution service graph."""
     if not isinstance(world_service, WorldService):
@@ -114,14 +117,20 @@ def create_campaign_turn_service(
     ):
         raise TypeError("turn_repository must be a TurnRepository")
 
-    provider = OllamaProvider()
+    if llm_settings is not None and not isinstance(llm_settings, LLMSettings):
+        raise TypeError("llm_settings must be an LLMSettings instance or None")
+
+    settings = llm_settings or DEFAULT_LLM_SETTINGS
+    narrative_provider = settings.create_provider("narrative")
+    extraction_provider = settings.create_provider("extraction")
+    mechanics_provider = settings.create_provider("mechanics")
     operation_parser = OperationParser()
     dm_service = DMService(
-        provider=provider,
+        provider=narrative_provider,
         context_builder=context_builder,
     )
     extractor = LLMWorldExtractor(
-        provider=provider,
+        provider=extraction_provider,
         operation_parser=operation_parser,
     )
     turn_resolution_service = TurnResolutionService(
@@ -129,7 +138,7 @@ def create_campaign_turn_service(
         world_service=world_service,
         extractor=extractor,
         mechanics_adjudicator=MechanicsAdjudicator(
-            provider,
+            mechanics_provider,
             context_builder,
         ),
     )
@@ -143,7 +152,7 @@ def create_campaign_turn_service(
     )
 
 
-runtime_factory = CampaignRuntimeFactory()
+runtime_factory = CampaignRuntimeFactory(llm_settings=DEFAULT_LLM_SETTINGS)
 
 
 @app.middleware("http")
