@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    describeTurnFailure,
     buildRetrievalQuery,
     summarizeConnectionReadiness,
     findClarificationOrigin,
@@ -441,4 +442,16 @@ test("summarizeConnectionReadiness rejects a malformed response", () => {
         ready: false,
         message: "Invalid backend response.",
     });
+});
+
+
+test("describeTurnFailure gives actionable guidance for stable backend error codes", () => {
+    assert.deepEqual(describeTurnFailure(503, "llm_provider_unavailable"), {
+        title: "Campaign Manager: proveedor no disponible",
+        message: "No se ha podido contactar con el proveedor del modelo. Comprueba que Ollama esté funcionando y vuelve a intentarlo con el mismo mensaje.",
+    });
+    assert.match(describeTurnFailure(502, "invalid_llm_response").message, /misma acción/);
+    assert.match(describeTurnFailure(500, "turn_resolution_failed").message, /logs del backend/);
+    assert.match(describeTurnFailure(409, "conflict").message, /no regeneres repetidamente/);
+    assert.match(describeTurnFailure(null, null).message, /backend esté iniciado/);
 });
