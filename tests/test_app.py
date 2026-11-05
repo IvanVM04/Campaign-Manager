@@ -1,4 +1,5 @@
 import threading
+from contextlib import contextmanager
 
 import pytest
 
@@ -739,3 +740,108 @@ def test_world_entity_bootstrap_rejects_duplicate_names_in_request(client):
     )
 
     assert response.status_code == 422
+
+def test_character_creation_routes_refresh_runtime_world_cache(client):
+    from app import runtime_factory
+    from services.campaign_runtime import CampaignRuntimeFactory
+
+    runtime = runtime_factory.get_runtime(1)
+    created = client.post(
+        "/characters",
+        json={"name": "Cache Hero", "max_hp": 12, "current_hp": 12},
+    )
+    assert created.status_code == 200, created.text
+    created_id = created.json()["character"]["entity_id"]
+
+    assert created_id in runtime.world_service.get_world().entities
+    assert (
+        runtime.world_service.get_world().entities[created_id].name
+        == "Cache Hero"
+    )
+
+    bootstrapped = client.post(
+        "/campaign/bootstrap",
+        json={"name": "Bootstrap Hero", "max_hp": 9, "current_hp": 9},
+    )
+    assert bootstrapped.status_code == 200, bootstrapped.text
+    bootstrapped_id = bootstrapped.json()["active_character_id"]
+
+    assert bootstrapped_id in runtime.world_service.get_world().entities
+    assert (
+        runtime.world_service.get_world().entities[bootstrapped_id].name
+        == "Bootstrap Hero"
+    )
+
+    reloaded_runtime = CampaignRuntimeFactory().get_runtime(1)
+    reloaded_entities = reloaded_runtime.world_service.get_world().entities
+    assert created_id in reloaded_entities
+    assert bootstrapped_id in reloaded_entities
+
+
+def test_character_equipment_and_clock_routes_use_campaign_lock(
+    client,
+    monkeypatch,
+):
+    from app import runtime_factory
+    from database import get_conn
+
+    class RecordingLock:
+        def __init__(self):
+            self.calls = 0
+
+        @contextmanager
+        def acquire(self):
+            self.calls += 1
+            yield
+
+    runtime = runtime_factory.get_runtime(1)
+    lock = RecordingLock()
+    monkeypatch.setattr(runtime, "turn_execution_lock", lock)
+
+    created = client.post(
+        "/characters",
+        json={"name": "Lock Hero", "max_hp": 10, "current_hp": 10},
+    )
+    assert created.status_code == 200, created.text
+    character_id = created.json()["character"]["entity_id"]
+
+    bootstrapped = client.post(
+        "/campaign/bootstrap",
+        json={"name": "Lock Bootstrap Hero", "max_hp": 8, "current_hp": 8},
+    )
+    assert bootstrapped.status_code == 200, bootstrapped.text
+
+    with get_conn() as conn:
+        item_id = conn.execute(
+            """
+            INSERT INTO items (name, weapon_key, equipment_slot, campaign_id)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("Lock Test Sword", "longsword", "main_hand", 1),
+        ).lastrowid
+        item_instance_id = conn.execute(
+            """
+            INSERT INTO item_instances (item_id, owner_id, campaign_id, active)
+            VALUES (?, ?, ?, 1)
+            """,
+            (item_id, character_id, 1),
+        ).lastrowid
+
+    equipped = client.post(
+        f"/characters/{character_id}/equipment",
+        json={"item_instance_id": item_instance_id, "slot": "main_hand"},
+    )
+    assert equipped.status_code == 201, equipped.text
+
+    equipment = client.get(f"/characters/{character_id}/equipment")
+    assert equipment.status_code == 200, equipment.text
+
+    unequipped = client.delete(
+        f"/characters/{character_id}/equipment/main_hand"
+    )
+    assert unequipped.status_code == 200, unequipped.text
+
+    clock = client.get("/campaign/clock")
+    assert clock.status_code == 200, clock.text
+
+    assert lock.calls == 6

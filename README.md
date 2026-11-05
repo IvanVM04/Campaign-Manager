@@ -111,7 +111,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [the comprehensive architecture and reliability audit](docs/architecture/comprehensive-architecture-audit-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
+See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [the writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), [the comprehensive architecture and reliability audit](docs/architecture/comprehensive-architecture-audit-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
 
 ---
 
@@ -498,6 +498,7 @@ Each job reports its own status in the pull request; wait for all three jobs to 
 ## Architecture documents
 
 - [Current architecture snapshot (2026-11-05)](docs/architecture/current-architecture-2026-11-05.md)
+- [Writer, lock and cache-coherence audit](docs/architecture/writer-lock-cache-audit.md)
 - [Architecture audit and refactoring plan (2026-11-05)](docs/architecture/audit-and-refactor-plan-2026-11-05.md)
 - [Historical engineering audit (2026-11-03)](docs/architecture/engineering-audit-2026-11-03.md)
 - [Domain boundaries and state ownership](docs/architecture/domain-boundaries-2026-11-03.md)

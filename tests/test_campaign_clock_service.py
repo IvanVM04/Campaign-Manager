@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import pytest
 
 from repositories.campaign_repository import CampaignRepository
@@ -48,3 +50,28 @@ def test_campaign_clock_rejects_invalid_advances(isolated_database):
         service.advance(minutes=0, expected_elapsed_minutes=0)
     with pytest.raises(ValueError):
         service.advance(minutes=True, expected_elapsed_minutes=0)
+
+def test_campaign_clock_get_uses_immediate_transaction_for_lazy_initialization(
+    isolated_database,
+    monkeypatch,
+):
+    from database import transaction as real_transaction
+
+    modes = []
+
+    @contextmanager
+    def tracked_transaction(mode):
+        modes.append(mode)
+        with real_transaction(mode) as conn:
+            yield conn
+
+    monkeypatch.setattr(
+        "services.campaign_clock_service.transaction",
+        tracked_transaction,
+    )
+
+    campaign = CampaignRepository().create_campaign(name="Clock initialization")
+    clock = CampaignClockService(campaign_id=campaign["id"]).get()
+
+    assert clock.elapsed_minutes == 0
+    assert modes == ["IMMEDIATE"]

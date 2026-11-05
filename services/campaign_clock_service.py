@@ -17,7 +17,7 @@ class CampaignClockService:
         self.effect_repository = effect_repository or PersistentEffectRepository()
 
     def get(self) -> CampaignClock:
-        with transaction("DEFERRED") as conn:
+        with transaction("IMMEDIATE") as conn:
             if self.campaign_repository.get_campaign(self.campaign_id, conn=conn) is None:
                 raise LookupError("campaign does not exist")
             return self.repository.ensure(self.campaign_id, conn=conn)
