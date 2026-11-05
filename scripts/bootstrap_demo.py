@@ -9,8 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+import urllib.error
+import urllib.request
 
 
 DEMO_CAMPAIGN_SUMMARY = """Aventura inicial: Las campanas de Puenteviejo.
@@ -127,21 +127,21 @@ def request_json(base_url: str, path: str, *, method: str = "GET", payload=None,
     if campaign_id is not None:
         headers["X-Campaign-Id"] = str(campaign_id)
 
-    request = Request(
+    request = urllib.request.Request(
         f"{base_url.rstrip('/')}{path}",
         data=body,
         headers=headers,
         method=method,
     )
     try:
-        with urlopen(request, timeout=15) as response:
+        with urllib.request.urlopen(request, timeout=15) as response:
             raw = response.read()
-    except HTTPError as exc:
+    except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(
             f"API request {method} {path} failed with HTTP {exc.code}: {detail}"
         ) from exc
-    except (URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError) as exc:
         raise RuntimeError(
             f"Cannot reach Campaign Manager at {base_url}: {exc}"
         ) from exc
