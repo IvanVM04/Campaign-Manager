@@ -69,3 +69,27 @@ class DurableTurnResultMapper:
             persisted_all_operations_succeeded=turn.all_operations_succeeded,
             persisted_world_changed=turn.world_changed,
         )
+
+    @staticmethod
+    def manual_roll_result(record, pending) -> TurnResolutionResult:
+        return TurnResolutionResult(
+            player_input=record.player_input,
+            narrative="",
+            pending_roll_id=str(record.id) + ":" + pending["challenge_id"],
+            pending_roll={
+                key: value
+                for key, value in pending.items()
+                if key not in {"challenge_id", "decision"}
+            },
+        )
+
+    @staticmethod
+    def clarification_result(record, pending) -> TurnResolutionResult:
+        return TurnResolutionResult(
+            player_input=record.player_input,
+            narrative=pending["question"],
+            pending_clarification_id=(
+                str(record.id) + ":" + pending["challenge_id"]
+            ),
+        )
+
