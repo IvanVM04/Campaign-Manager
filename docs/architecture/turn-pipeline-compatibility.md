@@ -12,7 +12,9 @@ This document is the source of truth for which turn pipeline owns each entry poi
 | `POST /integration/turn/resolve` | `DurableNativeTurnService.prepare_external_turn()` | Active | Commits consequences before SillyTavern generates prose |
 | `POST /integration/turn/complete` | `DurableNativeTurnService.complete_external_narration()` | Active | Persists narrative/version against the committed resolution; never applies consequences |
 | `POST /integration/turn/clarification`, `/roll` | `DurableNativeTurnService` | Active | Resumes a persisted challenge against the original resolution |
-| `GET /integration/turn/{external_turn_id}` and challenge-state GET routes | Durable service + `SillyTavernIntegrationService.get_context()` | Active | Reads durable transcript/challenge state and campaign context |
+| `GET /integration/turn/{external_turn_id}` | `SillyTavernIntegrationService.get_external_turn_state()` | Active | Reads the active external transcript version |
+| `GET /integration/turn/{external_turn_id}/clarification` and `/manual-roll` | `DurableNativeTurnService` | Active | Reads durable challenge state |
+| `POST /integration/context` | `SillyTavernIntegrationService.get_context()` | Active | Builds campaign context/history for the external client |
 | `POST /integration/turn` | `SillyTavernIntegrationService.process_turn()` | Deprecated compatibility | Legacy narrative-first extraction and snapshot reconciliation; weaker guarantees and a separate mutation path |
 | In-process `CampaignTurnService.play_turn()` / `submit_manual_roll()` | `CampaignTurnService` | Compatibility-only | Not used by the native HTTP route; retained for older in-process callers and regression coverage |
 
