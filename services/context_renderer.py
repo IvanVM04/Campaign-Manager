@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from models.turn_record import TurnRecord
 from services.context_ranker import ContextRanker
@@ -9,7 +9,7 @@ from services.context_ranker import ContextRanker
 class ContextRenderer:
     """Builds ranked textual context while respecting independent budgets."""
 
-    CATEGORY_BASE_SCORES = {
+    CATEGORY_BASE_SCORES: ClassVar[dict[str, float]] = {
         "entities": 1.00,
         "relations": 0.80,
         "events": 0.70,
@@ -20,7 +20,7 @@ class ContextRenderer:
         "recent_turns": 0.90,
     }
 
-    CATEGORY_PRIORITY = {
+    CATEGORY_PRIORITY: ClassVar[dict[str, int]] = {
         "entities": 0,
         "relations": 1,
         "events": 2,
