@@ -5,6 +5,7 @@ from models.operation_result import (
 )
 from models.world_state import WorldState
 from operations.world_operations import (
+    CreateEntityOperation,
     CreateEventOperation,
     CreateItemInstanceOperation,
     CreateItemOperation,
@@ -15,6 +16,7 @@ from operations.world_operations import (
     SpendResourceOperation,
     TransferItemOperation,
     TransferResourceOperation,
+    UpdateEntityOperation,
     UpdateItemInstanceOperation,
     UpdateRelationOperation,
     WorldOperation,
@@ -124,10 +126,6 @@ class WorldApplier:
 
     def _apply_update_item_instance(self, world, operation):
         return self._item_applier._apply_update_item_instance(world, operation)
-
-    # ============================================================
-    # RESOURCES
-    # ============================================================
 
     # ============================================================
     # RESOURCES (compatibility delegates)
