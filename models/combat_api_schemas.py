@@ -51,6 +51,9 @@ class EncounterParticipantIn(BaseModel):
     npc_melee_weapon_keys: list[str] | None = Field(default=None, min_length=1, max_length=10)
     npc_melee_proficient: bool = True
     npc_natural_attacks: list[NpcNaturalAttackIn] | None = Field(default=None, min_length=1, max_length=10)
+    damage_resistances: list[Literal["acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic", "piercing", "poison", "psychic", "radiant", "slashing", "thunder"]] | None = Field(default=None, max_length=13)
+    damage_vulnerabilities: list[Literal["acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic", "piercing", "poison", "psychic", "radiant", "slashing", "thunder"]] | None = Field(default=None, max_length=13)
+    damage_immunities: list[Literal["acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic", "piercing", "poison", "psychic", "radiant", "slashing", "thunder"]] | None = Field(default=None, max_length=13)
 
     @model_validator(mode="after")
     def validate_source(self):
@@ -62,6 +65,10 @@ class EncounterParticipantIn(BaseModel):
             natural_keys = [profile.key for profile in self.npc_natural_attacks]
             if len(set(natural_keys)) != len(natural_keys):
                 raise ValueError("NPC natural attack keys must be unique")
+        for field_name in ("damage_resistances", "damage_vulnerabilities", "damage_immunities"):
+            values = getattr(self, field_name)
+            if values is not None and len(set(values)) != len(values):
+                raise ValueError(f"{field_name} must contain unique damage types")
         if self.npc_melee_weapon_key is not None and self.npc_melee_weapon_keys is not None:
             raise ValueError("supply npc_melee_weapon_key or npc_melee_weapon_keys, not both")
         if self.npc_melee_weapon_keys is not None and (
@@ -72,8 +79,9 @@ class EncounterParticipantIn(BaseModel):
         if self.character_id is not None and (
             self.npc_melee_weapon_key is not None or self.npc_melee_weapon_keys is not None
             or self.npc_natural_attacks is not None
+            or any(getattr(self, field_name) is not None for field_name in ("damage_resistances", "damage_vulnerabilities", "damage_immunities"))
         ):
-            raise ValueError("player characters use their equipped weapon, not an NPC attack profile")
+            raise ValueError("player characters cannot use NPC attack profiles or creature damage defenses")
         if self.npc_melee_weapon_key is not None and not isinstance(self.npc_melee_proficient, bool):
             raise TypeError("npc_melee_proficient must be a boolean")
         if self.character_id is not None or self.creature_id is not None:
