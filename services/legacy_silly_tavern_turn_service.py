@@ -14,13 +14,8 @@ from database import get_conn, transaction
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
-from repositories.campaign_state_version_repository import CampaignStateVersionRepository
-from repositories.turn_repository import TurnRepository
-from repositories.world_snapshot_repository import WorldSnapshotRepository
 from services.campaign_state_service import CampaignStateServiceError
 from services.llm_world_extractor import LLMExtractionError
-from services.turn_execution_lock import TurnExecutionLock
-from services.world_service import WorldService
 
 
 class LegacySillyTavernTurnService:
@@ -743,7 +738,7 @@ class LegacySillyTavernTurnService:
 
                 return result
 
-        except SillyTavernIntegrationServiceConflictError:
+        except self.conflict_error_type:
             try:
                 fresh_world = self.world_service.repository.load_world(
                     campaign_id=self.campaign_scope.campaign_id,
