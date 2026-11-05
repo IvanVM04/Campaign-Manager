@@ -328,6 +328,7 @@ def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAtta
                 ),
                 reach_feet=data.reach_feet,
                 npc_attack_weapon_key=data.npc_attack_weapon_key,
+                npc_natural_attack_key=data.npc_natural_attack_key,
                 voluntary=data.voluntary,
                 disengaging=data.disengaging,
             )
@@ -338,6 +339,7 @@ def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAtta
             "attacker_combatant_id": result["attacker_combatant_id"],
             "target_combatant_id": result["target_combatant_id"],
             "weapon_key": result["weapon_key"],
+            "natural_attack_key": result["natural_attack_key"],
             "attack_ability": result["attack_ability"],
             "attack_bonus": result["attack_bonus"],
             "proficient": result["proficient"],

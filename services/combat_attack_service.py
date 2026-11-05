@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import replace
+from types import SimpleNamespace
 
 from database import transaction
 from models.character_state import CharacterState
@@ -66,6 +67,7 @@ class CombatAttackService:
         mover_previous_position: GridPosition | None = None,
         reach_feet: int = 5,
         npc_attack_weapon_key: str | None = None,
+        npc_natural_attack_key: str | None = None,
         voluntary: bool = True,
         disengaging: bool = False,
     ) -> dict:
@@ -155,7 +157,12 @@ class CombatAttackService:
             ):
                 raise ValueError("manual mode requires attack and damage rolls")
 
+            natural_attack_key = None
+            profile = None
+            weapon = None
             if attacker.is_player_character:
+                if npc_attack_weapon_key is not None or npc_natural_attack_key is not None:
+                    raise ValueError("NPC attack selection is only valid for NPC opportunity attacks")
                 character = self.character_repository.get_character(
                     attacker.entity_id, campaign_id=campaign_id, conn=conn
                 )
@@ -171,8 +178,6 @@ class CombatAttackService:
                 if equipped is None or equipped["weapon_key"] is None:
                     raise ValueError("attacking character has no equipped weapon")
                 weapon = get_weapon(equipped["weapon_key"])
-                if npc_attack_weapon_key is not None:
-                    raise ValueError("NPC weapon selection is only valid for NPC opportunity attacks")
             else:
                 creature = self.creature_repository.get_creature(
                     attacker.entity_id, campaign_id=campaign_id, conn=conn
@@ -181,69 +186,142 @@ class CombatAttackService:
                     raise LookupError("attacking creature does not exist in this campaign")
                 if creature.current_hp != attacker.current_hp:
                     raise RuntimeError("creature hit points and encounter snapshot differ; reload encounter")
+
+                natural_attacks = creature.metadata.get("npc_natural_attacks", [])
+                if not isinstance(natural_attacks, list):
+                    raise ValueError("NPC natural attack configuration is invalid")
                 npc_attacks = creature.metadata.get("npc_melee_attacks")
                 if not isinstance(npc_attacks, list) or not npc_attacks:
                     legacy_profile = creature.metadata.get("npc_melee_attack")
                     npc_attacks = [legacy_profile] if isinstance(legacy_profile, dict) else []
-                if not npc_attacks:
-                    raise ValueError("NPC opportunity attacker requires a configured melee weapon profile")
-                if any(
-                    not isinstance(profile, dict)
-                    or not isinstance(profile.get("weapon_key"), str)
-                    for profile in npc_attacks
-                ):
-                    raise ValueError("NPC melee weapon configuration is invalid")
-                selected_profile = (
-                    next(
-                        (profile for profile in npc_attacks
-                         if profile["weapon_key"] == npc_attack_weapon_key),
+
+                selected_natural = None
+                if npc_natural_attack_key is not None:
+                    selected_natural = next(
+                        (item for item in natural_attacks
+                         if isinstance(item, dict) and item.get("key") == npc_natural_attack_key),
                         None,
                     )
-                    if npc_attack_weapon_key is not None else npc_attacks[0]
-                )
-                if selected_profile is None:
-                    raise ValueError("selected NPC weapon is not configured for this creature")
-                weapon = get_weapon(selected_profile["weapon_key"])
-                proficient = selected_profile.get("proficient", True)
-                if not isinstance(proficient, bool):
-                    raise ValueError("NPC melee proficiency configuration is invalid")
-                character = CharacterState(
-                    entity_id=creature.entity_id,
-                    current_hp=creature.current_hp,
-                    max_hp=creature.max_hp,
-                    armor_class=creature.armor_class,
-                    strength=creature.strength,
-                    dexterity=creature.dexterity,
-                    constitution=creature.constitution,
-                    intelligence=creature.intelligence,
-                    wisdom=creature.wisdom,
-                    charisma=creature.charisma,
-                    proficiency_bonus=creature.proficiency_bonus,
-                    weapon_proficiencies=(
-                        frozenset({weapon.category.value}) if proficient else frozenset()
-                    ),
-                )
+                    if selected_natural is None:
+                        raise ValueError("selected NPC natural attack is not configured for this creature")
+                elif not npc_attacks and natural_attacks:
+                    selected_natural = natural_attacks[0]
+
+                if selected_natural is not None:
+                    if not isinstance(selected_natural, dict):
+                        raise ValueError("NPC natural attack configuration is invalid")
+                    required = ("key", "name", "ability", "damage_dice", "damage_type", "reach_feet", "proficient")
+                    if any(field not in selected_natural for field in required):
+                        raise ValueError("NPC natural attack configuration is invalid")
+                    ability = selected_natural["ability"]
+                    dice_match = _DAMAGE_DICE.fullmatch(selected_natural["damage_dice"]) if isinstance(selected_natural["damage_dice"], str) else None
+                    try:
+                        damage_type = DamageType(selected_natural["damage_type"])
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError("NPC natural attack damage type is invalid") from exc
+                    if (
+                        ability not in ("strength", "dexterity")
+                        or dice_match is None
+                        or isinstance(selected_natural["reach_feet"], bool)
+                        or not isinstance(selected_natural["reach_feet"], int)
+                        or not 5 <= selected_natural["reach_feet"] <= 30
+                        or selected_natural["reach_feet"] % 5
+                        or not isinstance(selected_natural["proficient"], bool)
+                    ):
+                        raise ValueError("NPC natural attack configuration is invalid")
+                    proficient = selected_natural["proficient"]
+                    modifier = (getattr(creature, ability) - 10) // 2
+                    character = CharacterState(
+                        entity_id=creature.entity_id,
+                        current_hp=creature.current_hp,
+                        max_hp=creature.max_hp,
+                        armor_class=creature.armor_class,
+                        strength=creature.strength,
+                        dexterity=creature.dexterity,
+                        constitution=creature.constitution,
+                        intelligence=creature.intelligence,
+                        wisdom=creature.wisdom,
+                        charisma=creature.charisma,
+                        proficiency_bonus=creature.proficiency_bonus,
+                    )
+                    profile = SimpleNamespace(
+                        weapon_key=None,
+                        attack_ability=ability,
+                        attack_bonus=modifier + (creature.proficiency_bonus if proficient else 0),
+                        damage_dice=selected_natural["damage_dice"],
+                        damage_bonus=modifier,
+                        damage_type=damage_type.value,
+                        proficient=proficient,
+                        properties=frozenset(),
+                        reach_feet=selected_natural["reach_feet"],
+                    )
+                    natural_attack_key = selected_natural["key"]
+                else:
+                    if npc_natural_attack_key is not None:
+                        raise ValueError("selected NPC natural attack is not configured for this creature")
+                    if not npc_attacks:
+                        raise ValueError("NPC opportunity attacker requires a configured melee weapon profile or natural attack profile")
+                    if any(
+                        not isinstance(item, dict)
+                        or not isinstance(item.get("weapon_key"), str)
+                        for item in npc_attacks
+                    ):
+                        raise ValueError("NPC melee weapon configuration is invalid")
+                    selected_profile = (
+                        next(
+                            (item for item in npc_attacks
+                             if item["weapon_key"] == npc_attack_weapon_key),
+                            None,
+                        )
+                        if npc_attack_weapon_key is not None else npc_attacks[0]
+                    )
+                    if selected_profile is None:
+                        raise ValueError("selected NPC weapon is not configured for this creature")
+                    weapon = get_weapon(selected_profile["weapon_key"])
+                    proficient = selected_profile.get("proficient", True)
+                    if not isinstance(proficient, bool):
+                        raise ValueError("NPC melee proficiency configuration is invalid")
+                    character = CharacterState(
+                        entity_id=creature.entity_id,
+                        current_hp=creature.current_hp,
+                        max_hp=creature.max_hp,
+                        armor_class=creature.armor_class,
+                        strength=creature.strength,
+                        dexterity=creature.dexterity,
+                        constitution=creature.constitution,
+                        intelligence=creature.intelligence,
+                        wisdom=creature.wisdom,
+                        charisma=creature.charisma,
+                        proficiency_bonus=creature.proficiency_bonus,
+                        weapon_proficiencies=(
+                            frozenset({weapon.category.value}) if proficient else frozenset()
+                        ),
+                    )
             if opportunity_attack:
-                if weapon.is_ranged:
-                    raise ValueError("opportunity attacks require a melee weapon")
-                expected_reach = 10 if WeaponProperty.REACH in weapon.properties else 5
+                if weapon is not None:
+                    if weapon.is_ranged:
+                        raise ValueError("opportunity attacks require a melee weapon or natural attack")
+                    expected_reach = 10 if WeaponProperty.REACH in weapon.properties else 5
+                else:
+                    expected_reach = profile.reach_feet
                 if reach_feet != expected_reach:
-                    raise ValueError("reach_feet must match the equipped weapon's reach")
-            if WeaponProperty.SPECIAL in weapon.properties:
+                    raise ValueError("reach_feet must match the selected attack profile's reach")
+            if weapon is not None and WeaponProperty.SPECIAL in weapon.properties:
                 raise ValueError("this weapon requires a special attack resolver")
-            if WeaponProperty.AMMUNITION in weapon.properties:
+            if weapon is not None and WeaponProperty.AMMUNITION in weapon.properties:
                 raise ValueError("ammunition tracking is not implemented yet")
-            if versatile_two_handed and WeaponProperty.TWO_HANDED in weapon.properties:
-                raise ValueError("this weapon is already two-handed, not versatile")
-            if versatile_two_handed and WeaponProperty.VERSATILE not in weapon.properties:
+            if weapon is not None and versatile_two_handed and WeaponProperty.VERSATILE not in weapon.properties:
                 raise ValueError("weapon does not have the versatile property")
 
-            profile = derive_attack_profile(
-                character,
-                weapon,
-                versatile_two_handed=versatile_two_handed,
-                finesse_ability=finesse_ability,
-            )
+            if profile is None:
+                profile = derive_attack_profile(
+                    character,
+                    weapon,
+                    versatile_two_handed=versatile_two_handed,
+                    finesse_ability=finesse_ability,
+                )
+            elif versatile_two_handed or finesse_ability is not None:
+                raise ValueError("weapon-specific options cannot be used with an NPC natural attack")
             match = _DAMAGE_DICE.fullmatch(profile.damage_dice)
             if match:
                 dice_count, die_sides, fixed_damage = int(match.group(1)), int(match.group(2)), 0
@@ -251,7 +329,10 @@ class CombatAttackService:
                 try:
                     dice_count, die_sides, fixed_damage = 0, 0, int(profile.damage_dice)
                 except ValueError as exc:
-                    raise ValueError("weapon damage expression is not supported") from exc
+                    raise ValueError("attack damage expression is not supported") from exc
+
+            if weapon is not None and versatile_two_handed and WeaponProperty.TWO_HANDED in weapon.properties:
+                raise ValueError("this weapon is already two-handed, not versatile")
 
             attacker_conditions = attacker.conditions
             target_conditions = target.conditions
@@ -395,7 +476,8 @@ class CombatAttackService:
                 "encounter": encounter,
                 "attacker_combatant_id": attacker.combatant_id,
                 "target_combatant_id": target.combatant_id,
-                "weapon_key": weapon.key,
+                "weapon_key": weapon.key if weapon is not None else None,
+                "natural_attack_key": natural_attack_key,
                 "attack_ability": profile.attack_ability,
                 "attack_bonus": profile.attack_bonus,
                 "proficient": profile.proficient,
