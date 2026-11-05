@@ -103,7 +103,7 @@ def bootstrap(base_url: str, campaign_name: str, character_name: str, tone: str)
     )
     campaign_id = campaign.get("id")
     if not isinstance(campaign_id, int):
-        raise RuntimeError("Campaign creation response did not include an integer id")
+        raise TypeError("Campaign creation response did not include an integer id")
 
     session = request_json(
         base_url,
@@ -114,7 +114,7 @@ def bootstrap(base_url: str, campaign_name: str, character_name: str, tone: str)
     )
     session_id = session.get("id")
     if not isinstance(session_id, int):
-        raise RuntimeError("Session creation response did not include an integer id")
+        raise TypeError("Session creation response did not include an integer id")
 
     request_json(
         base_url,
@@ -132,7 +132,7 @@ def bootstrap(base_url: str, campaign_name: str, character_name: str, tone: str)
     )
     character_id = character_result.get("active_character_id")
     if not isinstance(character_id, int):
-        raise RuntimeError("Character bootstrap response did not include an active character id")
+        raise TypeError("Character bootstrap response did not include an active character id")
 
     return {
         "campaign_id": campaign_id,
@@ -158,7 +158,7 @@ def main() -> int:
             args.character_name,
             args.tone,
         )
-    except RuntimeError as exc:
+    except (RuntimeError, TypeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
