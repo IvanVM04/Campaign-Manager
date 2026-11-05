@@ -23,9 +23,9 @@ from services.dm_service import DMService
 from services.durable_native_turn_service import DurableNativeTurnService
 from services.effective_condition_service import EffectiveConditionService
 from services.llm_world_extractor import LLMWorldExtractor
+from services.llm_settings import LLMSettings
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
-from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
 from services.persistent_effect_service import PersistentEffectService
 from services.silly_tavern_integration_service import (
@@ -68,8 +68,11 @@ class CampaignRuntime:
 class CampaignRuntimeFactory:
     """Crea y cachea runtimes independientes, uno por campaña."""
 
-    def __init__(self) -> None:
+    def __init__(self, llm_settings: LLMSettings | None = None) -> None:
+        if llm_settings is not None and not isinstance(llm_settings, LLMSettings):
+            raise TypeError("llm_settings must be an LLMSettings instance or None")
         init_db()
+        self._llm_settings = llm_settings or LLMSettings.from_env()
         self._runtimes: dict[int, CampaignRuntime] = {}
         self._lock = RLock()
         self._campaign_repository = CampaignRepository()
@@ -126,17 +129,19 @@ class CampaignRuntimeFactory:
         )
         turn_execution_lock = TurnExecutionLock()
 
-        provider = OllamaProvider()
+        narrative_provider = self._llm_settings.create_provider("narrative")
+        extraction_provider = self._llm_settings.create_provider("extraction")
+        mechanics_provider = self._llm_settings.create_provider("mechanics")
         operation_parser = OperationParser()
         dm_service = DMService(
-            provider=provider,
+            provider=narrative_provider,
             context_builder=context_builder,
         )
         extractor = LLMWorldExtractor(
-            provider=provider,
+            provider=extraction_provider,
             operation_parser=operation_parser,
         )
-        mechanics_adjudicator = MechanicsAdjudicator(provider, context_builder)
+        mechanics_adjudicator = MechanicsAdjudicator(mechanics_provider, context_builder)
         turn_resolution_service = TurnResolutionService(
             dm_service=dm_service,
             world_service=world_service,
