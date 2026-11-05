@@ -22,5 +22,12 @@ One attack action is consumed on either a hit or a miss. The next combatant's ac
 - One attack action per turn is enforced. Extra Attack / multiattack and bonus-action attacks are not yet modelled.
 - Weapon special attacks (including nets and lances), ammunition consumption, off-hand attacks and complete hand-occupancy rules are not implemented. Ammunition weapons and special weapons are rejected rather than incorrectly resolved.
 - The encounter model has no positions or distances yet. The caller supplies the within-5-feet tactical flag; weapon normal/long range cannot yet be validated.
-- Target damage resistances, vulnerabilities and immunities are not persisted on combatants yet. The shared resolver remains responsible for applying a supplied `DamageAdjustment`, but this use case currently uses its neutral default.
+- NPC damage resistances, vulnerabilities and immunities are stored in creature metadata and applied to weapon/natural attacks. Player-character damage defenses and spell/save damage are not yet integrated into this attack use case.
 - Death saves, concentration and condition application caused by attacks are outside this increment.
+
+
+## NPC damage defenses
+
+When creating a manually supplied NPC participant, optionally provide `damage_resistances`, `damage_vulnerabilities`, and/or `damage_immunities` as lists of damage-type keys (for example `["fire", "cold"]`). The lists are validated, persisted with the campaign creature, and reused when that creature appears in later encounters. For an existing `creature_id`, supplying one of these fields updates only that defense list; omitted lists preserve the creature's saved value.
+
+The normal and opportunity attack resolvers apply the target NPC's defenses to the attack's damage type. Immunity reduces damage to zero; resistance halves it (rounding down); vulnerability doubles it. If resistance and vulnerability both apply to the same damage type, they cancel. Immunity takes precedence. The response reports the three defense flags used for the damage instance. This increment does not yet apply these defenses to player characters, spells, or saving-throw damage.
