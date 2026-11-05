@@ -23,6 +23,7 @@ from repositories.campaign_state_version_repository import (
 )
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
+from services.llm_world_extractor import LLMExtractionError
 from services.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
@@ -759,6 +760,37 @@ class DurableNativeTurnService:
                             updates={"last_error_code": "character_operation_not_allowed"},
                             conn=conn,
                         )
+            # A failure before the prepared/commit boundary must not strand
+            # the idempotent request in planning until its lease expires.
+            # Requeue only while this attempt still owns the lease; the token
+            # check fences off stale workers and preserves committed work.
+            with transaction("IMMEDIATE") as conn:
+                current = self.resolution_repository.get(
+                    record.id, scope=self.scope, conn=conn
+                )
+                if (
+                    current is not None
+                    and current.lifecycle_state == "planning"
+                    and current.lease_token == lease_token
+                ):
+                    self.resolution_repository.transition(
+                        record.id,
+                        "accepted",
+                        scope=self.scope,
+                        expected_state="planning",
+                        expected_lease_token=lease_token,
+                        updates={
+                            "lease_token": None,
+                            "lease_expires_at": None,
+                            "last_error_code": (
+                                "invalid_llm_proposal"
+                                if isinstance(exc, LLMExtractionError)
+                                else "planning_failed"
+                            ),
+                        },
+                        conn=conn,
+                    )
+
             rejection_code = None
             if isinstance(exc, DurableNativeTurnError):
                 if "one or more proposed consequences failed validation" in str(exc):
