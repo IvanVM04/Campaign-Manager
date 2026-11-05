@@ -4,10 +4,11 @@ from typing import Any, ClassVar
 
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
+from services.memory_search_service import MemorySearchService
+
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
 from .context_renderer import ContextRenderer
-from services.memory_search_service import MemorySearchService
 
 
 class ContextBuilder:
@@ -162,9 +163,7 @@ class ContextBuilder:
             result
         )
 
-        self._strip_internal_context_fields(
-            result
-        )
+        ContextRenderer._strip_internal_context_fields(result)
 
         return result
 
@@ -263,16 +262,6 @@ class ContextBuilder:
     def _build_text_context(self, result: dict[str, Any]) -> str:
         return self.context_renderer._build_text_context(result)
 
-    def _render_candidates_with_budget(
-        self,
-        candidates: list[dict[str, Any]],
-        max_chars: int,
-    ) -> str:
-        return self.context_renderer._render_candidates_with_budget(
-            candidates,
-            max_chars,
-        )
-
     def _build_context_candidates(
         self,
         result: dict[str, Any],
@@ -282,36 +271,6 @@ class ContextBuilder:
             result,
             query,
         )
-
-    @staticmethod
-    def _entity_lines(entities: list[dict[str, Any]]) -> list[str]:
-        return ContextRenderer._entity_lines(entities)
-
-    @staticmethod
-    def _relation_lines(relations: list[dict[str, Any]]) -> list[str]:
-        return ContextRenderer._relation_lines(relations)
-
-    @staticmethod
-    def _event_lines(events: list[dict[str, Any]]) -> list[str]:
-        return ContextRenderer._event_lines(events)
-
-    @staticmethod
-    def _item_lines(items: list[dict[str, Any]]) -> list[str]:
-        return ContextRenderer._item_lines(items)
-
-    @staticmethod
-    def _item_instance_lines(instances: list[dict[str, Any]]) -> list[str]:
-        return ContextRenderer._item_instance_lines(instances)
-
-    @staticmethod
-    def _resource_lines(resources: list[dict[str, Any]]) -> list[str]:
-        return ContextRenderer._resource_lines(resources)
-
-    @staticmethod
-    def _resource_balance_lines(
-        balances: list[dict[str, Any]],
-    ) -> list[str]:
-        return ContextRenderer._resource_balance_lines(balances)
 
     @staticmethod
     def _category_header(category: str) -> str:
@@ -347,11 +306,3 @@ class ContextBuilder:
     # ============================================================
     # INTERNAL FIELD CLEANUP
     # ============================================================
-
-    @staticmethod
-    def _strip_internal_context_fields(result: dict[str, Any]) -> None:
-        ContextRenderer._strip_internal_context_fields(result)
-
-    @staticmethod
-    def _build_recent_turns_context(recent_turns: list[TurnRecord]) -> str:
-        return ContextRenderer._build_recent_turns_context(recent_turns)
