@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import math
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+import math
+import os
 from typing import Literal
 from urllib.parse import urlsplit
 
