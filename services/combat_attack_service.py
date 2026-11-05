@@ -331,8 +331,6 @@ class CombatAttackService:
 
             if weapon is not None and versatile_two_handed and WeaponProperty.TWO_HANDED in weapon.properties:
                 raise ValueError("this weapon is already two-handed, not versatile")
-            if versatile_two_handed and WeaponProperty.VERSATILE not in weapon.properties:
-                raise ValueError("weapon does not have the versatile property")
 
             profile = derive_attack_profile(
                 character,
