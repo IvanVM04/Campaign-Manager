@@ -5,11 +5,14 @@ from collections.abc import Callable
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
 from operations.turn_operations import TurnOperation
-from services.llm_extraction_errors import LLMExtractionError as LLMExtractionError
+from services.llm_extraction_errors import LLMExtractionError as _LLMExtractionError
 from services.llm_world_prompt_builder import LLMWorldPromptBuilder
 from services.llm_world_proposal_prompt_builder import LLMWorldProposalPromptBuilder
 from services.llm_world_proposal_validator import LLMWorldProposalValidator
 from services.llm_world_response_parser import LLMWorldResponseParser
+
+
+LLMExtractionError = _LLMExtractionError
 
 
 class LLMWorldExtractor:
