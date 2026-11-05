@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from database import get_conn
 from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
@@ -320,3 +322,35 @@ def test_npc_without_melee_profile_cannot_make_opportunity_attack(client):
     assert "configured melee weapon profile" in response.json()["detail"]
     encounter = CombatEncounterRepository().get("npc-no-profile-test", campaign_id=1)
     assert encounter.combatants[npc_key].reaction_used is False
+
+
+
+@pytest.mark.parametrize(
+    ("weapon_key", "detail"),
+    [
+        ("not-a-real-weapon", "unknown NPC melee weapon profile"),
+        ("shortbow", "supported melee weapons"),
+        ("lance", "supported melee weapons"),
+    ],
+)
+def test_encounter_rejects_unsupported_npc_opportunity_profiles(
+    client, weapon_key, detail
+):
+    response = client.post(
+        "/encounters",
+        json={
+            "encounter_id": f"invalid-npc-profile-{weapon_key}",
+            "participants": [
+                {
+                    "name": "Invalid profile NPC",
+                    "max_hp": 12,
+                    "armor_class": 12,
+                    "dexterity": 10,
+                    "npc_melee_weapon_key": weapon_key,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert detail in response.json()["detail"]
