@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from models.turn_resolution_record import TurnResolutionRecord
 
+
 @dataclass(frozen=True, slots=True)
 class DurableTurnPreparation:
     """Committed resolution evidence awaiting an adapter-generated narrative."""
