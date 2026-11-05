@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 from operations.character_operations import CharacterOperation
+
 from .llm_extraction_errors import LLMExtractionError
 
 
