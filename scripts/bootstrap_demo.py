@@ -4,7 +4,7 @@ Run the backend first, then execute:
     python scripts/bootstrap_demo.py
 """
 
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 import argparse
 import json
