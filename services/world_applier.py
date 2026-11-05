@@ -40,7 +40,12 @@ class WorldApplier:
     La persistencia corresponde a WorldService/WorldRepository.
     """
 
-    def __init__(self, relation_applier=None, item_applier=None, resource_applier=None) -> None:
+    def __init__(
+        self,
+        relation_applier=None,
+        item_applier=None,
+        resource_applier=None,
+    ) -> None:
         self._relation_applier = relation_applier or WorldRelationApplier()
         self._item_applier = item_applier or WorldItemApplier()
         self._resource_applier = resource_applier or WorldResourceApplier()
@@ -70,7 +75,12 @@ class WorldApplier:
 
         if isinstance(
             operation,
-            (CreateResourceOperation, GainResourceOperation, SpendResourceOperation, TransferResourceOperation),
+            (
+                CreateResourceOperation,
+                GainResourceOperation,
+                SpendResourceOperation,
+                TransferResourceOperation,
+            ),
         ):
             return self._resource_applier.apply(world, operation)
 
@@ -372,37 +382,6 @@ class WorldApplier:
     @staticmethod
     def _coerce_entity_id(value) -> int | None:
         return WorldRelationApplier._coerce_entity_id(value)
-
-    @staticmethod
-    def _find_balance(
-        world: WorldState,
-        resource_id: int,
-        owner_id: int,
-    ) -> ResourceBalance | None:
-
-        for balance in world.resource_balances.values():
-
-            if (
-                balance.resource_id == resource_id
-                and balance.owner_id == owner_id
-            ):
-                return balance
-
-        return None
-
-    @staticmethod
-    def _next_balance_id(
-        world: WorldState,
-    ) -> int:
-
-        numeric_ids = [
-            balance_id
-            for balance_id in world.resource_balances
-            if isinstance(balance_id, int)
-            and not isinstance(balance_id, bool)
-        ]
-
-        return max(numeric_ids, default=0) + 1
 
     def _next_item_id(self, world):
         return self._item_applier._next_item_id(world)
