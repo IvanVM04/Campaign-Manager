@@ -3935,3 +3935,86 @@ def test_silly_tavern_clarification_endpoint_returns_manual_roll_challenge(clien
     assert response.json()["pending_roll"]["count"] == 1
     assert captured["adapter_namespace"] == "sillytavern"
     assert captured["defer_narration"] is True
+
+
+
+def test_integration_resolve_maps_wrapped_provider_failure_to_503(
+    client,
+    monkeypatch,
+):
+    from services.durable_native_turn_service import DurableNativeTurnError
+    from services.llm_provider import LLMProviderError
+    from services.turn_resolution_service import TurnResolutionServiceError
+
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+
+    def fail_prepare(*args, **kwargs):
+        try:
+            try:
+                raise LLMProviderError("connection refused")
+            except LLMProviderError as provider_error:
+                raise TurnResolutionServiceError("proposal failed") from provider_error
+        except TurnResolutionServiceError as resolver_error:
+            raise DurableNativeTurnError("native turn execution failed") from resolver_error
+
+    monkeypatch.setattr(
+        runtime.durable_native_turn_service,
+        "prepare_external_turn",
+        fail_prepare,
+    )
+
+    response = client.post(
+        "/integration/turn/resolve",
+        json={
+            "player_input": "Hablo con Mara.",
+            "external_turn_id": "st-provider-outage",
+            "query": "Contexto.",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "The language model provider is temporarily unavailable.",
+        "code": "llm_provider_unavailable",
+    }
+
+
+def test_integration_resolve_maps_invalid_model_response_to_502(
+    client,
+    monkeypatch,
+):
+    from services.durable_native_turn_service import DurableNativeTurnError
+    from services.llm_world_extractor import LLMExtractionError
+    from services.turn_resolution_service import TurnResolutionServiceError
+
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+
+    def fail_prepare(*args, **kwargs):
+        try:
+            try:
+                raise LLMExtractionError("Unknown operation type")
+            except LLMExtractionError as extraction_error:
+                raise TurnResolutionServiceError("proposal failed") from extraction_error
+        except TurnResolutionServiceError as resolver_error:
+            raise DurableNativeTurnError("native turn execution failed") from resolver_error
+
+    monkeypatch.setattr(
+        runtime.durable_native_turn_service,
+        "prepare_external_turn",
+        fail_prepare,
+    )
+
+    response = client.post(
+        "/integration/turn/resolve",
+        json={
+            "player_input": "Hablo con Mara.",
+            "external_turn_id": "st-invalid-model-response",
+            "query": "Contexto.",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": "Internal server error",
+        "code": "invalid_llm_response",
+    }

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, Query
 
+from api.errors import api_error_for_exception
 from api.runtime_context import (
     get_current_runtime,
     turn_repository,
@@ -90,7 +91,12 @@ def play_turn(
                 idempotency_key=idempotency_key,
             )
     except DurableNativeTurnError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="conflict",
+            fallback_detail=str(exc),
+        ) from exc
 
     return _turn_result_payload(result)
 
@@ -104,7 +110,12 @@ def submit_manual_roll(data: ManualRollIn):
             data.pending_roll_id, tuple(data.rolls)
         )
     except (DurableNativeTurnError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="conflict",
+            fallback_detail=str(exc),
+        ) from exc
 
     return _turn_result_payload(result)
 
@@ -123,7 +134,12 @@ def submit_clarification(data: ClarificationIn):
             )
         )
     except (DurableNativeTurnError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="conflict",
+            fallback_detail=str(exc),
+        ) from exc
 
     return _turn_result_payload(result)
 
