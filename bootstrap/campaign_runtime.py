@@ -20,6 +20,7 @@ from services.character_creation_service import CharacterCreationService
 from services.character_service import CharacterService
 from services.combat.combat_attack_service import CombatAttackService
 from services.combat.combat_encounter_service import CombatEncounterService
+from services.combat.weapon_equipment_service import WeaponEquipmentService
 from services.context_builder import ContextBuilder
 from services.dm_service import DMService
 from services.durable_native_turn_service import DurableNativeTurnService
@@ -35,7 +36,6 @@ from services.silly_tavern_integration_service import (
 )
 from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
-from services.combat.weapon_equipment_service import WeaponEquipmentService
 from services.world_service import WorldService
 
 
