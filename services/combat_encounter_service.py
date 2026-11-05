@@ -212,6 +212,22 @@ class CombatEncounterService:
                         campaign_id=campaign_id,
                         conn=conn,
                     )
+                defense_fields = (
+                    "damage_resistances", "damage_vulnerabilities", "damage_immunities"
+                )
+                supplied_defenses = {
+                    field_name: getattr(participant, field_name)
+                    for field_name in defense_fields
+                    if getattr(participant, field_name) is not None
+                }
+                if supplied_defenses:
+                    metadata = dict(creature.metadata)
+                    metadata.update(supplied_defenses)
+                    creature = self.creature_repository.save_creature(
+                        replace(creature, metadata=metadata),
+                        campaign_id=campaign_id,
+                        conn=conn,
+                    )
                 combatants.append(CombatantState(
                     combatant_id=f"creature-{entity.id}",
                     name=entity.name,
