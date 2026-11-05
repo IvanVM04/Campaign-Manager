@@ -714,3 +714,79 @@ def test_encounter_rejects_invalid_npc_natural_attack_profiles(client, profile):
         },
     )
     assert response.status_code == 422
+
+ 
+
+def test_active_npc_can_make_natural_attack_on_its_turn(client):
+    target_response = client.post(
+        "/characters",
+        json={
+            "name": "Target hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    assert target_response.status_code == 200, target_response.text
+    target_id = target_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-turn-natural-attack-test",
+            "participants": [
+                {
+                    "name": "Cave beast", "max_hp": 18, "current_hp": 18,
+                    "armor_class": 13, "strength": 16, "dexterity": 12,
+                    "proficiency_bonus": 2,
+                    "npc_natural_attacks": [
+                        {
+                            "key": "bite", "name": "Bite", "ability": "strength",
+                            "damage_dice": "1d6", "damage_type": "piercing",
+                            "reach_feet": 5, "proficient": True,
+                        }
+                    ],
+                },
+                {"character_id": target_id},
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    target_key = f"character-{target_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-turn-natural-attack-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {npc_key: 18, target_key: 10},
+            "initiative_order": [npc_key, target_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+
+    response = client.post(
+        "/encounters/npc-turn-natural-attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "npc_natural_attack_key": "bite",
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [4],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["attacker_combatant_id"] == npc_key
+    assert payload["natural_attack_key"] == "bite"
+    assert payload["weapon_key"] is None
+    assert payload["attack"]["hit"] is True
+    assert payload["damage"]["after_defenses"] == 7
+    assert payload["damage"]["target_current_hp"] == 13
+    assert payload["encounter"]["combatants"][npc_key]["action_used"] is True
+    assert payload["encounter"]["combatants"][npc_key]["reaction_used"] is False
+
+    encounter = CombatEncounterRepository().get(
+        "npc-turn-natural-attack-test", campaign_id=1
+    )
+    assert encounter.combatants[npc_key].action_used is True
