@@ -337,3 +337,27 @@ def test_get_turn_context_includes_current_session():
     assert context.current_session is not None
     assert context.current_session.session_id == session["id"]
     assert context.current_session.title == "Primera sesión"
+
+def test_campaign_state_service_accepts_structural_world_state_port(
+    isolated_database,
+):
+    class FakeWorldStatePort:
+        campaign_id = 1
+
+        def get_world(self):
+            return WorldState()
+
+        def load(self):
+            return WorldState()
+
+        def save(self):
+            return None
+
+    service = CampaignStateService(
+        campaign_repository=CampaignRepository(),
+        character_repository=CharacterRepository(),
+        entity_repository=EntityRepository(),
+        world_service=FakeWorldStatePort(),
+    )
+
+    assert isinstance(service.get_world(), WorldState)
