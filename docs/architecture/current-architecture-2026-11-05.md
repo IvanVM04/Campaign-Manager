@@ -64,7 +64,7 @@ The runtime owns a campaign-scoped `WorldService`, repositories, context/memory 
 
 `POST /turn` delegates to `DurableNativeTurnService.play_turn()`. The service captures a consistent context/history and campaign revision, creates or retrieves an idempotent resolution, claims planning with a lease, and calls `TurnResolutionService.prepare_turn()` outside the write transaction. The plan contains structured operations and optional mechanics evidence. A short `BEGIN IMMEDIATE` transaction checks the captured revision/context, applies operations, records outcomes and resulting revision, and transitions to narration-pending. Native narration is then generated from the committed resolution and the transcript/completion transition is persisted.
 
-Manual rolls and clarifications are stored in the durable resolution record and resumed against the original request identity. The older `CampaignTurnService` remains in the runtime graph and has a separate in-memory manual-roll path; it is not the route used by current `POST /turn`.
+Manual rolls and clarifications are stored in the durable resolution record and resumed against the original request identity. `CampaignTurnService` remains in the runtime graph only as an in-process compatibility surface; it is not called by the native HTTP route. Its public turn-execution methods log compatibility usage, and new gameplay behavior belongs in `DurableNativeTurnService`.
 
 ### SillyTavern
 
@@ -78,7 +78,7 @@ The current extension flow is:
 6. Swipe/regeneration changes narrative versions only; committed consequences are not replayed.
 7. Clarification/manual-roll challenges resume the same durable resolution.
 
-The old `POST /integration/turn` endpoint and `SillyTavernIntegrationService.process_turn()` remain for legacy clients. They use narrative extraction and snapshot reconciliation semantics. Do not describe them as equivalent to the active durable flow.
+The old `POST /integration/turn` endpoint and `SillyTavernIntegrationService.process_turn()` remain for legacy clients. They are marked deprecated in OpenAPI and each endpoint call logs structured usage. They use narrative extraction and snapshot reconciliation semantics. Do not describe them as equivalent to the active durable flow. Removal is gated on downstream compatibility checks and observed usage; see [turn pipeline compatibility](turn-pipeline-compatibility.md).
 
 ## 5. State ownership and persistence
 

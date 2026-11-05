@@ -147,11 +147,12 @@ Do not extract all four in one PR. Begin with pure codecs or challenge handling;
 ### A-06 — Legacy and current turn pipelines coexist in the same service graph
 
 **Priority:** P1/P2  
-**Evidence:** `CampaignRuntimeFactory` constructs `CampaignTurnService`, `DurableNativeTurnService` and `SillyTavernIntegrationService`. The active native route calls the durable coordinator; the older campaign turn service remains as a separate orchestration path and retains an in-memory manual-roll flow. The old SillyTavern service remains for compatibility.
+**Status:** compatibility boundaries documented and instrumented; legacy removal remains gated.  
+**Evidence:** `POST /turn` and the active SillyTavern resolve/complete endpoints use `DurableNativeTurnService`. `POST /integration/turn` still invokes narrative-first `SillyTavernIntegrationService.process_turn()`; it is now marked deprecated in OpenAPI and logs campaign/external-turn usage. `CampaignTurnService` is not used by the native HTTP route, remains in the runtime graph for older in-process callers, and logs use of its public turn-execution methods.
 
-**Risk:** unused code continues to be maintained and creates ambiguity about the source of truth for new behavior; tests can pass on one path while production routes another.
+**Risk:** the compatibility paths have different guarantees and may continue to be used by external clients or in-process consumers that are not visible in this repository.
 
-**Direction:** map each route to the exact active use case, mark compatibility-only services/methods, and avoid new features on legacy paths. After proving no active callers remain, remove obsolete native orchestration in a separate reviewed change. Do not remove merely because a class appears unused; check imports, tests, extension compatibility and downstream usage first.
+**Direction:** use the [turn pipeline compatibility map](turn-pipeline-compatibility.md) as the route-to-use-case source of truth. Do not add gameplay behavior to compatibility paths. Do not remove the old endpoint, service, snapshot repository or compatibility proxy until downstream consumers are checked and structured usage is zero for an agreed migration window. Retire them in a separate reviewed PR; preserve existing campaign history.
 
 ### A-07 — Large modules concentrate domain policy and persistence logic
 

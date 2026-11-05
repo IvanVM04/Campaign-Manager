@@ -1,6 +1,7 @@
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 import copy
+import logging
 import secrets
 import sqlite3
 import time
@@ -33,6 +34,9 @@ from services.turn_resolution_service import (
 from services.world_service import WorldService
 
 
+logger = logging.getLogger(__name__)
+
+
 class CampaignTurnServiceError(RuntimeError):
     """
     Error base del servicio de turno de campaña.
@@ -41,7 +45,13 @@ class CampaignTurnServiceError(RuntimeError):
 
 class CampaignTurnService:
     """
-    Fachada de alto nivel para ejecutar un turno de campaña.
+    Compatibility-only native turn service.
+
+    The HTTP native turn route now uses DurableNativeTurnService. This
+    service remains in the runtime graph for older in-process callers and
+    regression coverage; new gameplay behavior must be added to the durable
+    coordinator instead. Calls are logged so remaining consumers can be
+    identified before this compatibility surface is removed.
 
     Arquitectura:
 
@@ -172,6 +182,11 @@ class CampaignTurnService:
         *,
         dice_mode: str = "automatic",
     ) -> TurnResolutionResult:
+        logger.warning(
+            "Compatibility-only CampaignTurnService.play_turn used; "
+            "use DurableNativeTurnService for new turn workflows",
+            extra={"campaign_id": self.campaign_scope.campaign_id},
+        )
         if dice_mode not in {"automatic", "manual"}:
             raise ValueError("dice_mode must be 'automatic' or 'manual'")
         with self.turn_execution_lock.acquire():
@@ -186,6 +201,11 @@ class CampaignTurnService:
         pending_roll_id: str,
         rolls: tuple[int, ...],
     ) -> TurnResolutionResult:
+        logger.warning(
+            "Compatibility-only CampaignTurnService.submit_manual_roll "
+            "used; use the durable turn challenge workflow",
+            extra={"campaign_id": self.campaign_scope.campaign_id},
+        )
         if not isinstance(pending_roll_id, str) or not pending_roll_id:
             raise ValueError("pending_roll_id is required")
         if not isinstance(rolls, tuple):

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from api.errors import api_error_for_exception
@@ -21,6 +23,7 @@ from services.silly_tavern_integration_service import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -268,15 +271,25 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
     }
 
 
-@router.post("/integration/turn")
+@router.post("/integration/turn", deprecated=True)
 def process_silly_tavern_turn(data: SillyTavernTurnIn):
-    """Compatibility endpoint for pre-PR31 SillyTavern extensions.
+    """Deprecated compatibility endpoint for pre-PR31 SillyTavern extensions.
 
-    New clients must resolve consequences before generation and use
-    /integration/turn/complete only to persist the resulting narration.
+    This narrative-first endpoint does not provide the durable resolution
+    guarantees of /integration/turn/resolve and /integration/turn/complete.
+    New clients must use the durable two-phase flow.
     """
+    runtime = get_current_runtime()
+    logger.warning(
+        "Deprecated legacy SillyTavern turn endpoint used; migrate to "
+        "/integration/turn/resolve and /integration/turn/complete",
+        extra={
+            "campaign_id": runtime.campaign_id,
+            "external_turn_id": data.external_turn_id,
+        },
+    )
     try:
-        result = silly_tavern_integration_service.process_turn(
+        result = runtime.silly_tavern_integration_service.process_turn(
             player_input=data.player_input,
             narrative=data.narrative,
             external_turn_id=data.external_turn_id,

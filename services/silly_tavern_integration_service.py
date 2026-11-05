@@ -48,7 +48,14 @@ class SillyTavernIntegrationServiceConflictError(
 
 class SillyTavernIntegrationService:
     """
-    Integra SillyTavern con Campaign Manager.
+    Compatibility adapter and shared context provider for SillyTavern.
+
+    The active extension uses DurableNativeTurnService for turn resolution
+    and this service for context/history and legacy transcript-state reads.
+    process_turn() remains
+    solely for pre-PR31 clients and retains the older narrative-first,
+    snapshot-reconciliation contract. Do not add new gameplay behavior to
+    that legacy method.
 
     SillyTavern es responsable de generar la narrativa.
 
@@ -373,6 +380,10 @@ class SillyTavernIntegrationService:
         external_turn_id: str | None = None,
         turn_version: int = 1,
     ) -> TurnResolutionResult:
+        """Process a legacy narrative-first turn.
+
+        New clients use the durable resolve/complete workflow.
+        """
         with self.turn_execution_lock.acquire():
             return self._process_turn_locked(
                 player_input=player_input,
