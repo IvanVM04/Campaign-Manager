@@ -210,13 +210,13 @@ The observed failure logged `resolution_id=4` and `lifecycle_state=planning`, wh
 
 ### F-07 — Legacy and current turn pipelines coexist
 
-**Priority:** P1 · **Status:** previously identified; still present.
+**Priority:** P1 · **Status:** compatibility boundaries documented and instrumented; removal intentionally deferred.
 
-**Evidence:** `CampaignRuntimeFactory` constructs `CampaignTurnService`, `DurableNativeTurnService` and `SillyTavernIntegrationService`. `POST /integration/turn` and the old narrative-first `process_turn` remain for compatibility; the current extension uses `/integration/turn/resolve` and `/integration/turn/complete`.
+**Evidence:** `POST /turn` and the active SillyTavern resolve/complete endpoints use `DurableNativeTurnService`. `POST /integration/turn` still invokes narrative-first `SillyTavernIntegrationService.process_turn()`; it is marked deprecated in OpenAPI and logs structured campaign/external-turn usage. `CampaignTurnService` is not used by the native HTTP route, remains in the runtime graph for older in-process callers, and logs use of its public turn-execution methods. See [turn pipeline compatibility](turn-pipeline-compatibility.md).
 
-**Risk:** the workflows have different guarantees. Future work can modify the wrong path or tests can exercise legacy behavior instead of the active contract.
+**Risk:** compatibility paths have different guarantees and may still have consumers outside the tracked repository.
 
-**Recommendation:** maintain a route-to-use-case table; label compatibility endpoints in OpenAPI/README; add usage telemetry/deprecation policy where practical; do not add new gameplay behavior to the legacy pipeline. Remove it only after compatibility and caller checks.
+**Recommendation:** do not add gameplay behavior to compatibility paths. Inspect structured usage over an agreed migration window and confirm downstream callers before removing either compatibility surface. Retire old route/service/snapshot code in a separate reviewed change; do not silently break pre-PR31 extensions or in-process imports.
 
 ### F-08 — Orchestration and domain modules are oversized
 
