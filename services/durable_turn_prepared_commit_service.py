@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from database import transaction
 
 
@@ -76,6 +78,7 @@ class DurableTurnPreparedCommitService:
                     "operation_results_json": self.operation_results_serializer(
                         result
                     ),
+                    "committed_at": datetime.now(UTC).isoformat(),
                 },
                 conn=conn,
             )
