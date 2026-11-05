@@ -34,7 +34,7 @@ from api.runtime_context import (
 from database import init_db
 from repositories.campaign_repository import CampaignRepository
 from repositories.turn_repository import TurnRepository
-from services.campaign_runtime import CampaignRuntimeFactory
+from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from services.campaign_state_service import CampaignStateService
 from services.campaign_turn_service import CampaignTurnService
 from services.context_builder import ContextBuilder
