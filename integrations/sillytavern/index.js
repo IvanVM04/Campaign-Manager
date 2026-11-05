@@ -11,7 +11,8 @@ import {
 } from '../../../script.js';
 
 import {
-    buildRetrievalQuery,\n    summarizeConnectionReadiness,
+    buildRetrievalQuery,
+    summarizeConnectionReadiness,
     buildStableTurnIdentityInput,
     findClarificationOrigin,
     findManualRollOrigin,
