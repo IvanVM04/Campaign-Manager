@@ -120,7 +120,7 @@ class CampaignRuntimeFactory:
             entity_repository=entity_repository,
             world_service=world_service,
             campaign_id=scope.campaign_id,
-            persistent_effect_repository=persistent_effect_repository,
+            effective_condition_service=effective_condition_service,
         )
 
         memory_search_service = MemorySearchService()
