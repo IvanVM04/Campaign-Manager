@@ -20,6 +20,7 @@ from rules_engine.dnd5e_2014.combat.movement import (
     movement_speed_feet,
 )
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
+from rules_engine.dnd5e_2014.weapons.catalog import WeaponProperty, get_weapon
 
 
 class CombatEncounterService:
@@ -49,6 +50,22 @@ class CombatEncounterService:
     def create(self, campaign_id: int, participants, encounter_id: str | None = None):
         if not participants:
             raise ValueError("an encounter requires at least one participant")
+        for participant in participants:
+            weapon_key = participant.npc_melee_weapon_key
+            if weapon_key is None:
+                continue
+            try:
+                weapon = get_weapon(weapon_key)
+            except LookupError as exc:
+                raise ValueError(f"unknown NPC melee weapon profile: {weapon_key}") from exc
+            if (
+                weapon.is_ranged
+                or WeaponProperty.SPECIAL in weapon.properties
+                or WeaponProperty.AMMUNITION in weapon.properties
+            ):
+                raise ValueError(
+                    "NPC opportunity profiles must use supported melee weapons"
+                )
         encounter_id = encounter_id or uuid4().hex
         created_creature = False
         with transaction("IMMEDIATE") as conn:
