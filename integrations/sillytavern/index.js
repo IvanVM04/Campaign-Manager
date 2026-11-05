@@ -11,7 +11,8 @@ import {
 } from '../../../script.js';
 
 import {
-    buildRetrievalQuery,\n    summarizeConnectionReadiness,
+    buildRetrievalQuery,
+    summarizeConnectionReadiness,
     buildStableTurnIdentityInput,
     findClarificationOrigin,
     findManualRollOrigin,
@@ -672,12 +673,19 @@ function getSettings() {
 }
 
 function saveSettings() {
+    const tavernContext = getContext();
+
     if (
-        typeof saveSettingsDebounced ===
-        'function'
+        tavernContext &&
+        typeof tavernContext.saveSettingsDebounced === 'function'
     ) {
-        saveSettingsDebounced();
+        tavernContext.saveSettingsDebounced();
+        return;
     }
+
+    warn(
+        'SillyTavern saveSettingsDebounced API is unavailable. Settings may not persist.',
+    );
 }
 
 function createSettingsUi() {
