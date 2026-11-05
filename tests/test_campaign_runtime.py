@@ -86,7 +86,6 @@ def test_legacy_runtime_import_is_compatible_with_bootstrap():
     assert CampaignRuntimeFactory is BootstrapCampaignRuntimeFactory
 
 
-
 def test_runtime_shares_effective_condition_service_between_consumers(
     isolated_database,
 ):
