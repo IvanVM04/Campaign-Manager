@@ -157,13 +157,14 @@ Do not extract all four in one PR. Begin with pure codecs or challenge handling;
 ### A-07 — Large modules concentrate domain policy and persistence logic
 
 **Priority:** P2  
+**Status:** `WorldApplier` operation families are delegated to cohesive collaborators; `ContextBuilder` now delegates candidate formatting, ranking selection, and budgeted rendering to `ContextRenderer`. Retrieval and graph expansion remain separate collaborators.  
 **Evidence:** current file sizes include `LLMWorldExtractor` (~2,682 lines), `WorldApplier` (~1,352), `ContextBuilder` (~1,134), `CampaignTurnService` (~963), `SillyTavernIntegrationService` (~1,184), and `migrations.py` (~2,298). `WorldApplier` handles many unrelated operation families; `ContextBuilder` handles retrieval, ranking/budgeting and formatting.
 
 **Risk:** unrelated edits conflict; tests need extensive fixtures; domain rules and presentation details are harder to isolate.
 
 **Direction:** extract by cohesive behavior, not line count alone:
 - split world operation handlers by entity/item/resource/relation/event while retaining one orchestrating applier and shared transaction contract;
-- split context candidate retrieval/ranking/rendering behind stable interfaces;
+- keep context retrieval (`MemorySearchService`), graph expansion (`ContextExpander`), ranking (`ContextRanker`), and textual candidate formatting/budgeting (`ContextRenderer`) behind separate boundaries; review candidate construction separately if it grows;
 - split migrations into ordered modules only after protecting migration ordering and fresh/upgrade database tests;
 - split extractor prompt construction, response parsing and operation policy.
 A large file is a review signal, not proof that every class needs splitting.
