@@ -163,3 +163,160 @@ def test_opportunity_attack_consumes_only_one_reaction(client):
     second = client.post("/encounters/opportunity-test/opportunity-attack", json=payload)
     assert second.status_code == 409
     assert "already used its reaction" in second.json()["detail"]
+
+
+
+def test_npc_opportunity_attacker_uses_persisted_creature_weapon_profile(client):
+    mover_response = client.post(
+        "/characters",
+        json={
+            "name": "Escaping hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    assert mover_response.status_code == 200, mover_response.text
+    mover_id = mover_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-opportunity-test",
+            "participants": [
+                {
+                    "character_id": mover_id,
+                    "position_x": 1,
+                    "position_y": 0,
+                },
+                {
+                    "name": "Orc guard",
+                    "max_hp": 15,
+                    "current_hp": 15,
+                    "armor_class": 13,
+                    "strength": 16,
+                    "dexterity": 10,
+                    "proficiency_bonus": 2,
+                    "position_x": 0,
+                    "position_y": 0,
+                    "npc_melee_weapon_key": "longsword",
+                    "npc_melee_proficient": True,
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    mover_key = f"character-{mover_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-opportunity-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {mover_key: 18, npc_key: 10},
+            "initiative_order": [mover_key, npc_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+    moved = client.post(
+        "/encounters/npc-opportunity-test/move",
+        json={
+            "combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "path": [{"x": 1, "y": 0}, {"x": 2, "y": 0}],
+        },
+    )
+    assert moved.status_code == 200, moved.text
+
+    response = client.post(
+        "/encounters/npc-opportunity-test/opportunity-attack",
+        json={
+            "attacker_combatant_id": npc_key,
+            "target_combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "mover_previous_position": {"x": 1, "y": 0},
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["weapon_key"] == "longsword"
+    assert payload["attack"]["hit"] is True
+    assert payload["damage"]["target_current_hp"] == 11
+    assert payload["encounter"]["combatants"][npc_key]["reaction_used"] is True
+
+    creature_id = int(npc_key.split("-")[1])
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT current_hp, metadata FROM creature_states WHERE entity_id = ? AND campaign_id = 1",
+            (creature_id,),
+        ).fetchone()
+    assert row["current_hp"] == 15
+    assert json.loads(row["metadata"])["npc_melee_attack"]["weapon_key"] == "longsword"
+
+
+def test_npc_without_melee_profile_cannot_make_opportunity_attack(client):
+    mover_response = client.post(
+        "/characters",
+        json={
+            "name": "Escaping hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    mover_id = mover_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-no-profile-test",
+            "participants": [
+                {"character_id": mover_id, "position_x": 1, "position_y": 0},
+                {
+                    "name": "Unarmed guard", "max_hp": 15, "armor_class": 12,
+                    "dexterity": 10, "position_x": 0, "position_y": 0,
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    mover_key = f"character-{mover_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-no-profile-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {mover_key: 18, npc_key: 10},
+            "initiative_order": [mover_key, npc_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+    moved = client.post(
+        "/encounters/npc-no-profile-test/move",
+        json={
+            "combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "path": [{"x": 1, "y": 0}, {"x": 2, "y": 0}],
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    response = client.post(
+        "/encounters/npc-no-profile-test/opportunity-attack",
+        json={
+            "attacker_combatant_id": npc_key,
+            "target_combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "mover_previous_position": {"x": 1, "y": 0},
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 409
+    assert "configured melee weapon profile" in response.json()["detail"]
+    encounter = CombatEncounterRepository().get("npc-no-profile-test", campaign_id=1)
+    assert encounter.combatants[npc_key].reaction_used is False
