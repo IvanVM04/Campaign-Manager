@@ -260,7 +260,7 @@ class CombatAttackService:
                     if npc_natural_attack_key is not None:
                         raise ValueError("selected NPC natural attack is not configured for this creature")
                     if not npc_attacks:
-                        raise ValueError("NPC opportunity attacker requires a configured melee weapon or natural attack profile")
+                        raise ValueError("NPC opportunity attacker requires a configured melee weapon profile or natural attack profile")
                     if any(
                         not isinstance(item, dict)
                         or not isinstance(item.get("weapon_key"), str)
@@ -333,21 +333,6 @@ class CombatAttackService:
 
             if weapon is not None and versatile_two_handed and WeaponProperty.TWO_HANDED in weapon.properties:
                 raise ValueError("this weapon is already two-handed, not versatile")
-
-            profile = derive_attack_profile(
-                character,
-                weapon,
-                versatile_two_handed=versatile_two_handed,
-                finesse_ability=finesse_ability,
-            )
-            match = _DAMAGE_DICE.fullmatch(profile.damage_dice)
-            if match:
-                dice_count, die_sides, fixed_damage = int(match.group(1)), int(match.group(2)), 0
-            else:
-                try:
-                    dice_count, die_sides, fixed_damage = 0, 0, int(profile.damage_dice)
-                except ValueError as exc:
-                    raise ValueError("weapon damage expression is not supported") from exc
 
             attacker_conditions = attacker.conditions
             target_conditions = target.conditions
