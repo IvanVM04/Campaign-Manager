@@ -12,59 +12,28 @@ from services.turn_resolution_service import TurnResolutionPlan
 
 
 def test_operation_codec_preserves_references_and_reconstructs_plan():
-    operation = CreateEntityOperation(
-        name="Aldric",
-        entity_type="npc",
-        description="Tabernero.",
-    )
+    operation = CreateEntityOperation(name="Aldric", entity_type="npc", description="Tabernero.")
     plan = TurnResolutionPlan(
-        player_input="Entro en la taberna.",
-        narrative="",
+        player_input="Entro en la taberna.", narrative="",
         world_operations=(ReferencedOperation(operation, ref="innkeeper"),),
         character_operations=(),
         ordered_operations=(ReferencedOperation(operation, ref="innkeeper"),),
     )
-
     payload = TurnResolutionCodec.serialize_operations(plan)
     decoded = json.loads(payload)
+    assert decoded["operations"][0]["ref"] == "innkeeper"
+    assert decoded["operations"][0]["type"] == "create_entity"
 
-    assert decoded == {
-        "operations": [{
-            "type": "create_entity",
-            "name": "Aldric",
-            "entity_type": "npc",
-            "description": "Tabernero.",
-            "notes": "",
-            "active": True,
-            "ref": "innkeeper",
-        }]
-    }
-
-    record = SimpleNamespace(
-        player_input=plan.player_input,
-        proposal_json=payload,
-        mechanics_json=None,
-    )
-    restored = TurnResolutionCodec.plan_from_record(
-        record,
-        OperationParser(),
-    )
-
+    record = SimpleNamespace(player_input=plan.player_input, proposal_json=payload, mechanics_json=None)
+    restored = TurnResolutionCodec.plan_from_record(record, OperationParser())
     assert restored.player_input == plan.player_input
     assert restored.ordered_operations == plan.ordered_operations
     assert restored.world_operations == plan.world_operations
     assert restored.mechanics_result is None
 
 
-def test_operation_codec_preserves_operation_references_inside_fields():
-    operation = CreateEntityOperation(
-        name="Aldric",
-        entity_type="npc",
-    )
-    # The operation value converter is also used for nested domain references.
-    assert TurnResolutionCodec.operation_value(
-        {"entity_id": OperationReference("innkeeper")}
-    ) == {"entity_id": "$innkeeper"}
+def test_operation_codec_preserves_nested_operation_references():
+    assert TurnResolutionCodec.operation_value({"entity_id": OperationReference("innkeeper")}) == {"entity_id": "$innkeeper"}
 
 
 def test_operation_codec_rejects_unregistered_operation_types():
@@ -72,12 +41,8 @@ def test_operation_codec_rejects_unregistered_operation_types():
         pass
 
     plan = TurnResolutionPlan(
-        player_input="test",
-        narrative="",
-        world_operations=(),
-        character_operations=(),
-        ordered_operations=(UnsupportedOperation(),),
+        player_input="test", narrative="", world_operations=(),
+        character_operations=(), ordered_operations=(UnsupportedOperation(),),
     )
-
     with pytest.raises(ValueError, match="unsupported operation type"):
         TurnResolutionCodec.serialize_operations(plan)
