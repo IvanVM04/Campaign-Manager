@@ -9,7 +9,7 @@ Retrieve, expand, rank, select and render campaign context for application and L
 - context_ranker.py — relevance ranking.
 - context_renderer.py — selection and rendering.
 
-The LLM-specific world-context projection is currently llm_world_context_renderer.py and is proposed for llm_world/.
+The LLM-specific world-context projection now lives in services/llm_world/llm_world_context_renderer.py. It consumes shared context output but belongs to LLM prompt construction, not generic context retrieval.
 
 ## Dependency rules
 - Read through explicit collaborators and ports.
