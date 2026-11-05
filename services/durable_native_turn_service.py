@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import secrets
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from logging import getLogger
 
 from database import transaction
 from models.campaign_scope import CampaignScope
@@ -30,7 +30,7 @@ from services.turn_resolution_service import (
 from services.world_service import WorldService
 
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DurableNativeTurnError(RuntimeError):
