@@ -117,117 +117,57 @@ See [the current architecture snapshot](docs/architecture/current-architecture-2
 
 ## Turn Processing
 
-A normal SillyTavern turn follows this general flow:
+The current native and SillyTavern flows use the durable turn coordinator:
 
 ```text
-Player action
-     │
-     ▼
-SillyTavern generates narrative
-     │
-     ▼
-POST /integration/turn
-     │
-     ▼
-LLMWorldExtractor
-     │
-     ▼
-Structured operations
-     │
-     ▼
-Operation validation
-     │
-     ▼
-WorldService
-     │
-     ▼
-SQLite persistence
-     │
-     ▼
-TurnRecord
+Player intent
+    |
+    v
+POST /turn  OR  POST /integration/turn/resolve
+    |
+    v
+DurableNativeTurnService
+    |
+    +--> consistent context + campaign revision
+    |
+    +--> MechanicsAdjudicator
+    |       -> deterministic supported d20 resolution
+    |
+    +--> structured consequence proposal
+    |
+    +--> validate + short BEGIN IMMEDIATE transaction
+    |       -> apply world/character operations
+    |       -> persist resolution, evidence and resulting revision
+    |
+    v
+narration_pending
+    |
+    +--> native DMService OR SillyTavern generation
+    |
+    v
+persist narrative / transcript version
+    |
+    v
+completed
 ```
 
-The narrative itself is not treated as the source of truth for persistent state.
+Clarifications and manual d20 rolls pause and resume the same durable resolution. The campaign state and resolution transition are committed atomically before narration. If narration fails, retrying the same request resumes narration without reapplying consequences.
 
-Instead:
-
-```text
-Narrative
-    ↓
-LLM extraction
-    ↓
-Structured operations
-    ↓
-Domain validation
-    ↓
-WorldState
-    ↓
-SQLite
-```
-
-This makes the LLM an interpreter of the narrative rather than the component directly responsible for database mutations.
+The LLM proposes intent interpretation and structured world consequences; deterministic application code validates operations, campaign scope and supported mechanics. The LLM is never allowed to write directly to SQLite. The legacy `POST /integration/turn` endpoint still accepts a completed narrative and extracts world operations for older clients only; it does not have the same contract as the current durable path.
 
 ---
 
 ## Turn Versioning & Regeneration
 
-One of the main consistency problems when integrating with SillyTavern is **response regeneration / swiping**.
+SillyTavern identifies a player action with a stable `external_turn_id`. The durable resolution belongs to that action, while generated assistant prose may have multiple versions.
 
-For example:
+- The first generation completes narrative version 1.
+- A swipe/regeneration stores the next narrative version against the same committed resolution.
+- A swipe does **not** restore the world snapshot, rerun mechanics or reapply consequences.
+- Re-delivery of the same completed version is idempotent; conflicting content or invalid version sequencing is rejected.
+- Clarification and manual-roll replies remain attached to the original external turn.
 
-```text
-Turn 42
-  Version 1
-      │
-      ├── Player: "I open the chest."
-      │
-      └── Narrative: "You find an ancient sword."
-                │
-                ▼
-          World changes
-          Sword created
-
-
-User regenerates response
-
-
-Turn 42
-  Version 2
-      │
-      ├── Same player action
-      │
-      └── Different narrative
-                │
-                ▼
-          Restore snapshot
-                │
-                ▼
-          Apply version 2
-```
-
-Each externally identified turn can therefore have multiple versions:
-
-```text
-external_turn_id = "turn-42"
-
-version 1 → superseded
-version 2 → superseded
-version 3 → active
-```
-
-Before applying a new version, the previous active version's world snapshot is restored.
-
-This prevents regenerated narratives from accumulating mutually incompatible world changes.
-
-### Idempotency
-
-If the same `external_turn_id` and version are received again with identical content, the persisted result can be reused instead of applying the turn twice.
-
-If the same identifier/version is received with different content, the integration reports a conflict.
-
-Older versions are also rejected once a newer active version exists.
-
-This provides a clear consistency model for external turn processing.
+The older compatibility endpoint `POST /integration/turn` retains the historical snapshot-reconciliation behavior for legacy clients. It is not the normal workflow for the current extension. See [the durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
 
 ---
 
@@ -389,7 +329,7 @@ Development and testing tools include:
 
 * pytest
 * Ruff
-* httpx
+* httpx2
 
 ---
 
@@ -493,34 +433,9 @@ The exact model is intentionally not hard-coded into the project documentation s
 
 ## SillyTavern Integration
 
-The intended workflow is:
+The current extension resolves and commits consequences before it asks SillyTavern to generate prose. It then persists the narrative against the same external turn identity. Campaign Manager remains the authority for persistent campaign state and supported mechanics; SillyTavern remains the narrative interface.
 
-```text
-SillyTavern
-     │
-     │ Generate narrative
-     ▼
-Campaign Manager
-     │
-     ├── Retrieve persistent context
-     │
-     ├── Extract world changes
-     │
-     ├── Validate operations
-     │
-     ├── Apply changes
-     │
-     └── Persist turn
-     ▼
-SQLite
-```
-
-Campaign Manager does not replace SillyTavern as the narrative interface.
-
-Instead, it acts as a persistent campaign-state backend.
-
-This separation allows the narrative layer and the world-state layer to evolve independently.
-
+See [the smoke-test checklist](docs/sillytavern-smoke-test.md) for manual acceptance scenarios covering duplicate delivery, swipes, clarification, manual rolls, restart recovery and persistent world continuity. Use a disposable campaign for this test.
 ---
 
 ## Testing
@@ -592,6 +507,14 @@ The real LLM tests are intentionally excluded from CI because they require a loc
 Each job reports its own status in the pull request; wait for all three jobs to finish before treating the CI run as complete.
 
 ---
+
+## Architecture documents
+
+- [Current architecture snapshot (2026-11-05)](docs/architecture/current-architecture-2026-11-05.md)
+- [Architecture audit and refactoring plan (2026-11-05)](docs/architecture/audit-and-refactor-plan-2026-11-05.md)
+- [Historical engineering audit (2026-11-03)](docs/architecture/engineering-audit-2026-11-03.md)
+- [Domain boundaries and state ownership](docs/architecture/domain-boundaries-2026-11-03.md)
+- [Durable turn lifecycle](docs/architecture/turn-resolution-lifecycle.md)
 
 ## Design Decisions
 
