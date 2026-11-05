@@ -13,7 +13,7 @@ from repositories.creature_repository import CreatureRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from rules_engine.dnd5e_2014.combat.attack import resolve_attack
 from rules_engine.dnd5e_2014.combat.conditions import attack_roll_advantage_state
-from rules_engine.dnd5e_2014.combat.damage import DamageType, apply_hit_point_damage
+from rules_engine.dnd5e_2014.combat.damage import DamageAdjustment, DamageType, apply_hit_point_damage
 from rules_engine.dnd5e_2014.combat.movement import (
     GridPosition,
     grid_distance_feet,
@@ -372,6 +372,32 @@ class CombatAttackService:
                     target_character_for_ac, campaign_id=campaign_id, conn=conn
                 ).armor_class
 
+            damage_adjustment = DamageAdjustment()
+            if not target.is_player_character and target.entity_id is not None:
+                target_creature_for_defenses = self.creature_repository.get_creature(
+                    target.entity_id, campaign_id=campaign_id, conn=conn
+                )
+                if target_creature_for_defenses is None:
+                    raise LookupError("target creature does not exist in this campaign")
+                metadata = target_creature_for_defenses.metadata
+                defense_values = {}
+                valid_damage_types = {item.value for item in DamageType}
+                for field_name in ("damage_resistances", "damage_vulnerabilities", "damage_immunities"):
+                    values = metadata.get(field_name, [])
+                    if (
+                        not isinstance(values, list)
+                        or any(not isinstance(value, str) or value not in valid_damage_types for value in values)
+                        or len(set(values)) != len(values)
+                    ):
+                        raise ValueError(f"NPC {field_name} configuration is invalid")
+                    defense_values[field_name] = values
+                damage_type_key = profile.damage_type
+                damage_adjustment = DamageAdjustment(
+                    immune=damage_type_key in defense_values["damage_immunities"],
+                    resistant=damage_type_key in defense_values["damage_resistances"],
+                    vulnerable=damage_type_key in defense_values["damage_vulnerabilities"],
+                )
+
             result = resolve_attack(
                 roller=self.dice_roller,
                 attack_bonus=profile.attack_bonus,
@@ -383,6 +409,7 @@ class CombatAttackService:
                 damage_type=DamageType(profile.damage_type),
                 advantage=advantage,
                 disadvantage=disadvantage,
+                damage_adjustment=damage_adjustment,
                 manual_attack_rolls=manual_attack_rolls,
                 manual_damage_rolls=(
                     tuple(manual_damage_rolls) if manual_damage_rolls is not None else None
@@ -484,6 +511,8 @@ class CombatAttackService:
                 "armor_training_penalty": armor_training_penalty,
                 "result": result,
                 "target_current_hp": new_target_hp,
+                "damage_adjustment": damage_adjustment,
                 "target_armor_class": target_armor_class,
+                "damage_adjustment": damage_adjustment,
                 "opportunity_attack": opportunity_attack,
             }
