@@ -48,11 +48,15 @@ class LLMWorldExtractor:
         self.provider = provider
         self.operation_parser = operation_parser
         self.proposal_validator = LLMWorldProposalValidator(
-            provider=provider,
+            provider=self._provide,
             operation_parser=operation_parser,
             parse_response=self._parse_response,
             parse_operations=self._parse_operations,
         )
+
+    def _provide(self, prompt: str) -> str:
+        """Resolve the current provider so runtime/test overrides stay in sync."""
+        return self.provider(prompt)
 
     def __call__(
         self,
