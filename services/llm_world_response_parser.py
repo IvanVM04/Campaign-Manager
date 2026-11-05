@@ -29,7 +29,7 @@ class LLMWorldResponseParser:
         if response.startswith("```"):
             lines = response.splitlines()
             if len(lines) >= 2 and lines[-1].strip() == "```":
-                response = "\\n".join(lines[1:-1]).strip()
+                response = "\n".join(lines[1:-1]).strip()
 
         try:
             payload = json.loads(response)
