@@ -13,7 +13,11 @@ from repositories.creature_repository import CreatureRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from rules_engine.dnd5e_2014.combat.attack import resolve_attack
 from rules_engine.dnd5e_2014.combat.conditions import attack_roll_advantage_state
-from rules_engine.dnd5e_2014.combat.damage import DamageAdjustment, DamageType, apply_hit_point_damage
+from rules_engine.dnd5e_2014.combat.damage import (
+    DamageAdjustment,
+    DamageType,
+    apply_hit_point_damage,
+)
 from rules_engine.dnd5e_2014.combat.movement import (
     GridPosition,
     grid_distance_feet,
