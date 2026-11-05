@@ -90,107 +90,28 @@ This is the target architecture, not a description of completed modules. Existin
 
 ## Architecture
 
-The application is organized around a layered architecture that separates HTTP handling, domain logic, persistence and LLM interaction.
+The current request path for SillyTavern is the durable adapter flow:
 
 ```text
-                         ┌─────────────────┐
-                         │   SillyTavern   │
-                         │ Narrative / UI  │
-                         └────────┬────────┘
-                                  │
-                    player_input + narrative
-                                  │
-                                  ▼
-                    ┌───────────────────────┐
-                    │        FastAPI        │
-                    │      REST API         │
-                    └───────────┬───────────┘
-                                │
-                                ▼
-              ┌────────────────────────────────┐
-              │ SillyTavernIntegrationService  │
-              └───────────────┬────────────────┘
-                              │
-                    ┌─────────┴─────────┐
-                    ▼                   ▼
-          ┌─────────────────┐   ┌──────────────────┐
-          │ ContextBuilder  │   │ LLMWorldExtractor│
-          │ Memory Search   │   │ Operation Parser │
-          └─────────────────┘   └────────┬─────────┘
-                                         │
-                                         ▼
-                               ┌──────────────────┐
-                               │   WorldService   │
-                               │  WorldApplier    │
-                               └────────┬─────────┘
-                                        │
-                                        ▼
-                                  ┌───────────┐
-                                  │  SQLite   │
-                                  │ Persistence│
-                                  └───────────┘
+SillyTavern extension
+  -> POST /integration/turn/resolve
+      -> DurableNativeTurnService
+      -> TurnResolutionService.prepare_turn
+          -> MechanicsAdjudicator
+          -> deterministic supported d20 mechanics
+          -> structured consequence proposal
+      -> validate context revision + apply proposal
+      -> atomic state + turn-resolution commit
+  -> SillyTavern generates narrative from committed evidence
+  -> POST /integration/turn/complete
+      -> persist narrative version
 ```
 
-### Main components
+The native `POST /turn` route uses the same durable coordinator and application resolution path, then narrates from the committed result. Manual rolls and clarifications pause and resume the same durable resolution. Regeneration/swipes create narrative versions without replaying world consequences. The legacy `POST /integration/turn` route remains for older extensions only.
 
-#### `WorldService`
+The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-Owns the current in-memory `WorldState` and coordinates the application of structured operations.
-
-The service works against a working copy of the world and persists successful changes to SQLite.
-
-#### `TurnResolutionService`
-
-Coordinates the domain-level resolution of a turn without coupling the core turn flow directly to the HTTP layer.
-
-Its responsibilities include coordinating:
-
-* narrative generation;
-* context;
-* world extraction;
-* operation application;
-* turn resolution results.
-
-#### `SillyTavernIntegrationService`
-
-Acts as the integration boundary between SillyTavern and the campaign backend.
-
-It handles:
-
-* incoming player input;
-* generated narrative;
-* persistent context;
-* world extraction;
-* turn persistence;
-* external turn identifiers;
-* turn versions;
-* regeneration reconciliation.
-
-#### `LLMWorldExtractor`
-
-Uses an LLM to identify persistent world changes from narrative text.
-
-Instead of letting generated text directly manipulate the database, the LLM produces structured operations that are subsequently parsed, validated and applied by the application.
-
-#### `OperationParser`
-
-Converts the extracted representation into domain operations such as creating or modifying world entities and item instances.
-
-#### `MemorySearchService`
-
-Provides retrieval over the current world state and builds structured representations that can be used as persistent campaign memory.
-
-#### Repositories
-
-Persistence is separated from the domain services through repository classes.
-
-Examples include:
-
-* `CampaignRepository`
-* `CharacterRepository`
-* `EntityRepository`
-* `TurnRepository`
-* `WorldSnapshotRepository`
+See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
 
 ---
 
@@ -369,7 +290,7 @@ This keeps the project local and lightweight while still providing explicit sche
 
 ## API
 
-The application exposes a REST API through FastAPI. Every campaign-scoped endpoint requires the `X-Campaign-Id` request header. The `/`, `/health`, API documentation, CORS preflight and campaign listing/creation endpoints are exempt.
+The application exposes a REST API through FastAPI capability routers under `api/routers/`. Every campaign-scoped endpoint requires the `X-Campaign-Id` request header. The `/`, `/health`, `/ready`, API documentation, CORS preflight and campaign listing/creation endpoints are exempt.
 
 Example:
 
@@ -404,6 +325,8 @@ PATCH /campaign/active-character
 
 ```text
 POST /turn
+POST /turn/roll
+POST /turn/clarification
 GET  /turns
 ```
 
@@ -418,8 +341,15 @@ GET /memory/context
 
 ```text
 POST /integration/context
-POST /integration/turn
-```
+POST /integration/turn/resolve
+POST /integration/turn/roll
+POST /integration/turn/clarification
+GET  /integration/turn/{external_turn_id}
+GET  /integration/turn/{external_turn_id}/clarification
+GET  /integration/turn/{external_turn_id}/manual-roll
+POST /integration/turn/complete
+
+`POST /integration/turn` remains for legacy extension compatibility only.
 
 ### World
 
