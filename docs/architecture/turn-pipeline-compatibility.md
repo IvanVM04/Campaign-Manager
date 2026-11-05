@@ -22,7 +22,7 @@ This document is the source of truth for which turn pipeline owns each entry poi
 
 The current extension calls `/integration/turn/resolve` before generation and `/integration/turn/complete` after generation. It does not call `POST /integration/turn`. Swipes/regenerations create narrative versions against the same committed resolution; they do not restore snapshots, rerun mechanics or replay consequences.
 
-`SillyTavernIntegrationService` remains in the active runtime because it supplies campaign context/history and external transcript-state reads. Its `process_turn()` method is legacy-only; the presence of the service in the runtime graph does not make that method part of the active turn lifecycle.
+`SillyTavernIntegrationService` remains in the active runtime because it supplies campaign context/history and external transcript-state reads. Its `process_turn()` method is a compatibility delegate to `LegacySillyTavernTurnService`; that collaborator owns the deprecated narrative-first extraction, snapshot reconciliation and legacy version persistence. The presence of either service in the runtime graph does not make that method part of the active turn lifecycle.
 
 ## Compatibility and deprecation policy
 
