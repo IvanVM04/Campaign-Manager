@@ -77,7 +77,7 @@ class DurableNativeTurnService:
             resolver=resolver,
             revision_repository=self.revision_repository,
             resolution_repository=self.resolution_repository,
-            context_loader=self._context_and_history,
+            context_loader=lambda conn: self._context_and_history(conn),
             operation_results_serializer=self._operation_results_json,
             error_type=DurableNativeTurnError,
         )
