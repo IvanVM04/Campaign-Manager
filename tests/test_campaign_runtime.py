@@ -97,3 +97,14 @@ def test_runtime_shares_effective_condition_service_between_consumers(
         runtime.campaign_state_service.effective_condition_service
         is runtime.combat_attack_service.effective_condition_service
     )
+
+
+def test_runtime_shares_character_repository_with_world_service(
+    isolated_database,
+):
+    runtime = CampaignRuntimeFactory().get_runtime(1)
+
+    assert (
+        runtime.world_service.character_applier.character_service.character_repository
+        is runtime.character_repository
+    )
