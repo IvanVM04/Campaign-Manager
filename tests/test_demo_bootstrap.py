@@ -1,4 +1,9 @@
-from scripts.bootstrap_demo import build_demo_payloads
+from scripts.bootstrap_demo import (
+    DEMO_CAMPAIGN_SUMMARY,
+    DEMO_SESSION_NOTES,
+    DEMO_SESSION_SUMMARY,
+    build_demo_payloads,
+)
 
 
 def test_demo_payloads_create_a_level_one_fighter_campaign():
@@ -39,3 +44,20 @@ def test_demo_character_proficiencies_are_valid_and_unique():
         "heavy",
         "shields",
     }
+
+
+def test_demo_campaign_contains_a_playable_open_ended_adventure():
+    payloads = build_demo_payloads("Test", "Hero", "")
+
+    assert payloads["campaign"]["summary"] == DEMO_CAMPAIGN_SUMMARY
+    assert "Mara" in DEMO_CAMPAIGN_SUMMARY
+    assert "Bram" in DEMO_CAMPAIGN_SUMMARY
+    assert "Nilo" in DEMO_CAMPAIGN_SUMMARY
+    assert "No fuerces combate" in DEMO_CAMPAIGN_SUMMARY
+    assert "No reveles la verdad oculta" in DEMO_CAMPAIGN_SUMMARY
+
+    session = payloads["session"]
+    assert session["title"] == "Las campanas de Puenteviejo"
+    assert session["summary"] == DEMO_SESSION_SUMMARY
+    assert session["notes"] == DEMO_SESSION_NOTES
+    assert "pistas" in DEMO_SESSION_NOTES.lower()
