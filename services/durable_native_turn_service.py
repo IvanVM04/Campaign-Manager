@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import secrets
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-import logging
 
 from database import transaction
 from models.campaign_scope import CampaignScope
