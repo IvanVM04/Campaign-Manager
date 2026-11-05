@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -25,7 +26,7 @@ def test_operation_codec_preserves_references_and_reconstructs_plan():
     )
 
     payload = TurnResolutionCodec.serialize_operations(plan)
-    decoded = __import__("json").loads(payload)
+    decoded = json.loads(payload)
 
     assert decoded == {
         "operations": [{
