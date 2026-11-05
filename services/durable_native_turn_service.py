@@ -1138,7 +1138,6 @@ class DurableNativeTurnService:
                 ),
             )
             saved = self.resolution_repository.get(record.id, scope=self.scope)
-            return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=False)            saved = self.resolution_repository.get(record.id, scope=self.scope)
             return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=False)
         if self.turn_execution_lock is None:
             return submit()
