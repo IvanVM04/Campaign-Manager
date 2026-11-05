@@ -93,3 +93,54 @@ def test_application_server_error_does_not_expose_internal_detail(error_client):
         "code": "database_failure",
     }
     assert "private database path" not in response.text
+
+
+
+def test_wrapped_llm_provider_failure_maps_to_service_unavailable():
+    from api.errors import api_error_for_exception
+    from services.llm_provider import LLMProviderError
+    from services.turn_resolution_service import TurnResolutionServiceError
+    from services.durable_native_turn_service import DurableNativeTurnError
+
+    try:
+        try:
+            raise LLMProviderError("connection refused")
+        except LLMProviderError as provider_error:
+            raise TurnResolutionServiceError("extractor failed") from provider_error
+    except TurnResolutionServiceError as resolver_error:
+        wrapped = DurableNativeTurnError("native turn execution failed")
+        wrapped.__cause__ = resolver_error
+
+    error = api_error_for_exception(
+        wrapped,
+        fallback_status=409,
+        fallback_code="turn_conflict",
+    )
+
+    assert error.status_code == 503
+    assert error.code == "llm_provider_unavailable"
+
+
+def test_wrapped_invalid_llm_response_maps_to_bad_gateway():
+    from api.errors import api_error_for_exception
+    from services.llm_world_extractor import LLMExtractionError
+    from services.turn_resolution_service import TurnResolutionServiceError
+    from services.durable_native_turn_service import DurableNativeTurnError
+
+    try:
+        try:
+            raise LLMExtractionError("unknown operation type")
+        except LLMExtractionError as extraction_error:
+            raise TurnResolutionServiceError("extractor failed") from extraction_error
+    except TurnResolutionServiceError as resolver_error:
+        wrapped = DurableNativeTurnError("native turn execution failed")
+        wrapped.__cause__ = resolver_error
+
+    error = api_error_for_exception(
+        wrapped,
+        fallback_status=409,
+        fallback_code="turn_conflict",
+    )
+
+    assert error.status_code == 502
+    assert error.code == "invalid_llm_response"
