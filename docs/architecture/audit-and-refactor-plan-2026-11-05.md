@@ -157,7 +157,7 @@ Do not extract all four in one PR. Begin with pure codecs or challenge handling;
 ### A-07 — Large modules concentrate domain policy and persistence logic
 
 **Priority:** P2  
-**Status:** `WorldApplier` operation families are delegated to cohesive collaborators; `ContextBuilder` now delegates candidate formatting, ranking selection, and budgeted rendering to `ContextRenderer`. Retrieval and graph expansion remain separate collaborators.  
+**Status:** `WorldApplier` operation families are delegated to cohesive collaborators; `ContextBuilder` delegates candidate formatting and budgeted rendering to `ContextRenderer`; `LLMWorldPromptBuilder` delegates world-snapshot projection to `LLMWorldContextRenderer`. Retrieval, graph expansion, static prompt instructions, and provider orchestration remain separate collaborators.  
 **Evidence:** current file sizes include `LLMWorldExtractor` (~2,682 lines), `WorldApplier` (~1,352), `ContextBuilder` (~1,134), `CampaignTurnService` (~963), `SillyTavernIntegrationService` (~1,184), and `migrations.py` (~2,298). `WorldApplier` handles many unrelated operation families; `ContextBuilder` handles retrieval, ranking/budgeting and formatting.
 
 **Risk:** unrelated edits conflict; tests need extensive fixtures; domain rules and presentation details are harder to isolate.
