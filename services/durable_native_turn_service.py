@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import secrets
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from database import transaction
@@ -21,6 +21,10 @@ from repositories.campaign_state_version_repository import (
 )
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
+from services.durable_turn_preparation_mapper import (
+    DurableTurnPreparation,
+    DurableTurnPreparationMapper,
+)
 from services.llm_world_extractor import LLMExtractionError
 from services.turn_resolution_codec import TurnResolutionCodec
 from services.turn_resolution_service import (
@@ -35,21 +39,6 @@ logger = logging.getLogger(__name__)
 
 class DurableNativeTurnError(RuntimeError):
     """Failure while executing or resuming a durable native turn."""
-
-
-@dataclass(frozen=True, slots=True)
-class DurableTurnPreparation:
-    """Committed resolution evidence awaiting an adapter-generated narrative."""
-
-    resolution_id: int | None
-    lifecycle_state: str
-    player_input: str
-    committed_resolution: str
-    clarification_question: str | None = None
-    pending_clarification_id: str | None = None
-    legacy_replay: bool = False
-    pending_roll_id: str | None = None
-    pending_roll: dict | None = None
 
 
 class DurableNativeTurnService:
@@ -1326,63 +1315,13 @@ class DurableNativeTurnService:
             return submit()
     @staticmethod
     def _committed_resolution_json(record: TurnResolutionRecord) -> str:
-        return json.dumps(
-            {
-                "resolution_id": record.id,
-                "lifecycle_state": record.lifecycle_state,
-                "context_revision": record.context_revision,
-                "resulting_revision": record.resulting_revision,
-                "operations": json.loads(
-                    record.proposal_json or '{"operations":[]}'
-                )["operations"],
-                "operation_results": json.loads(
-                    record.operation_results_json or "[]"
-                ),
-                "mechanics": json.loads(record.mechanics_json)
-                if record.mechanics_json else None,
-            },
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
+        return DurableTurnPreparationMapper.committed_resolution_json(record)
 
     def _preparation_from_record(
         self,
         record: TurnResolutionRecord,
     ) -> DurableTurnPreparation:
-        question = None
-        clarification = None
-        pending_roll_id = None
-        pending_roll = None
-        if record.lifecycle_state == "awaiting_input":
-            pending = json.loads(record.adjudication_json or "{}")
-            manual_roll = pending.get("manual_roll")
-            if isinstance(manual_roll, dict):
-                pending_roll_id = str(record.id) + ":" + manual_roll["challenge_id"]
-                pending_roll = {
-                    key: value for key, value in manual_roll.items()
-                    if key not in {"challenge_id", "decision", "submitted_rolls"}
-                }
-            clarification = pending.get("clarification")
-            question = (
-                clarification.get("question")
-                if isinstance(clarification, dict)
-                else pending.get("clarification_question")
-            )
-        return DurableTurnPreparation(
-            resolution_id=record.id,
-            lifecycle_state=record.lifecycle_state,
-            player_input=record.player_input,
-            committed_resolution=self._committed_resolution_json(record),
-            clarification_question=question,
-            pending_clarification_id=(
-                str(record.id) + ":" + clarification["challenge_id"]
-                if isinstance(clarification, dict)
-                else None
-            ),
-            pending_roll_id=pending_roll_id,
-            pending_roll=pending_roll,
-        )
+        return DurableTurnPreparationMapper.from_record(record)
 
     def complete_external_narration(
         self,
