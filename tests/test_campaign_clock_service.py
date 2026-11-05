@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import pytest
 
 from repositories.campaign_repository import CampaignRepository
-from services.campaign_clock_service import CampaignClockService
+from services.campaign.campaign_clock_service import CampaignClockService
 
 
 def test_campaign_clock_starts_at_zero_and_persists(isolated_database):
@@ -66,7 +66,7 @@ def test_campaign_clock_get_uses_immediate_transaction_for_lazy_initialization(
             yield conn
 
     monkeypatch.setattr(
-        "services.campaign_clock_service.transaction",
+        "services.campaign.campaign_clock_service.transaction",
         tracked_transaction,
     )
 
