@@ -94,8 +94,8 @@ def play_turn(
         raise api_error_for_exception(
             exc,
             fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
+            fallback_code="conflict",
+            fallback_detail=str(exc),
         ) from exc
 
     return _turn_result_payload(result)
@@ -113,8 +113,8 @@ def submit_manual_roll(data: ManualRollIn):
         raise api_error_for_exception(
             exc,
             fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
+            fallback_code="conflict",
+            fallback_detail=str(exc),
         ) from exc
 
     return _turn_result_payload(result)
@@ -137,8 +137,8 @@ def submit_clarification(data: ClarificationIn):
         raise api_error_for_exception(
             exc,
             fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
+            fallback_code="conflict",
+            fallback_detail=str(exc),
         ) from exc
 
     return _turn_result_payload(result)
