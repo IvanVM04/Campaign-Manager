@@ -106,8 +106,6 @@ class CombatAttackService:
                     raise ValueError("the active combatant has already used its action")
             if attacker is None or attacker.entity_id is None:
                 raise ValueError("attacker must be a persisted campaign entity")
-            if not attacker.is_player_character and not opportunity_attack:
-                raise ValueError("NPCs can only make opportunity attacks in this release")
             if attacker.defeated or not attacker.conscious or attacker.conditions.is_incapacitated:
                 raise ValueError("an unconscious, defeated or incapacitated combatant cannot attack")
             target = encounter.combatants.get(target_combatant_id)
@@ -162,7 +160,7 @@ class CombatAttackService:
             weapon = None
             if attacker.is_player_character:
                 if npc_attack_weapon_key is not None or npc_natural_attack_key is not None:
-                    raise ValueError("NPC attack selection is only valid for NPC opportunity attacks")
+                    raise ValueError("NPC attack selection cannot be used by player characters")
                 character = self.character_repository.get_character(
                     attacker.entity_id, campaign_id=campaign_id, conn=conn
                 )
@@ -260,7 +258,7 @@ class CombatAttackService:
                     if npc_natural_attack_key is not None:
                         raise ValueError("selected NPC natural attack is not configured for this creature")
                     if not npc_attacks:
-                        raise ValueError("NPC opportunity attacker requires a configured melee weapon profile or natural attack profile")
+                        raise ValueError("NPC attacker requires a configured melee weapon profile or natural attack profile")
                     if any(
                         not isinstance(item, dict)
                         or not isinstance(item.get("weapon_key"), str)
