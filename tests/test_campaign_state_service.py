@@ -6,10 +6,12 @@ from models.world_state import WorldState
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
+from repositories.persistent_effect_repository import PersistentEffectRepository
 from services.campaign_state_service import (
     CampaignStateService,
     CampaignStateServiceError,
 )
+from services.effective_condition_service import EffectiveConditionService
 from services.world_service import WorldService
 
 
@@ -361,3 +363,21 @@ def test_campaign_state_service_accepts_structural_world_state_port(
     )
 
     assert isinstance(service.get_world(), WorldState)
+
+
+
+def test_campaign_state_service_uses_injected_effective_condition_service(
+    isolated_database,
+):
+    repository = PersistentEffectRepository()
+    effective_condition_service = EffectiveConditionService(repository)
+
+    service = CampaignStateService(
+        campaign_repository=CampaignRepository(),
+        character_repository=CharacterRepository(),
+        entity_repository=EntityRepository(),
+        world_service=WorldService(),
+        effective_condition_service=effective_condition_service,
+    )
+
+    assert service.effective_condition_service is effective_condition_service
