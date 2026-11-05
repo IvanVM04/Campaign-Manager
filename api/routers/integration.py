@@ -148,8 +148,8 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         raise api_error_for_exception(
             exc,
             fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
+            fallback_code="conflict",
+            fallback_detail=str(exc),
         ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -203,8 +203,8 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
         raise api_error_for_exception(
             exc,
             fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
+            fallback_code="conflict",
+            fallback_detail=str(exc),
         ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -242,8 +242,8 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
         raise api_error_for_exception(
             exc,
             fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
+            fallback_code="conflict",
+            fallback_detail=str(exc),
         ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
