@@ -5,14 +5,18 @@ from collections.abc import Callable
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
 from operations.turn_operations import TurnOperation
-from services.llm_extraction_errors import LLMExtractionError
 from services.llm_world_prompt_builder import LLMWorldPromptBuilder
 from services.llm_world_proposal_prompt_builder import LLMWorldProposalPromptBuilder
 from services.llm_world_proposal_validator import LLMWorldProposalValidator
 from services.llm_world_response_parser import LLMWorldResponseParser
 
 
-__all__ = ["LLMExtractionError", "LLMWorldExtractor"]
+def __getattr__(name: str):
+    if name == "LLMExtractionError":
+        from services.llm_extraction_errors import LLMExtractionError
+
+        return LLMExtractionError
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class LLMWorldExtractor:
