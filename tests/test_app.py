@@ -741,8 +741,6 @@ def test_world_entity_bootstrap_rejects_duplicate_names_in_request(client):
 
     assert response.status_code == 422
 
-
-
 def test_character_creation_routes_refresh_runtime_world_cache(client):
     from app import runtime_factory
     from services.campaign_runtime import CampaignRuntimeFactory
@@ -756,7 +754,10 @@ def test_character_creation_routes_refresh_runtime_world_cache(client):
     created_id = created.json()["character"]["entity_id"]
 
     assert created_id in runtime.world_service.get_world().entities
-    assert runtime.world_service.get_world().entities[created_id].name == "Cache Hero"
+    assert (
+        runtime.world_service.get_world().entities[created_id].name
+        == "Cache Hero"
+    )
 
     bootstrapped = client.post(
         "/campaign/bootstrap",
