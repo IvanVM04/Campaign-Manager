@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, Mapping
+from typing import Literal
 from urllib.parse import urlsplit
 
 from services.ollama_provider import OllamaProvider
@@ -30,7 +31,7 @@ class LLMSettings:
         normalized_url = self.base_url.strip().rstrip("/")
         try:
             parsed_url = urlsplit(normalized_url)
-            parsed_url.port
+            _ = parsed_url.port
         except ValueError as exc:
             raise ValueError("LLM base_url must be a valid absolute HTTP(S) URL") from exc
         if (
