@@ -379,7 +379,10 @@ class SillyTavernIntegrationService:
         external_turn_id: str | None = None,
         turn_version: int = 1,
     ) -> TurnResolutionResult:
-        """Process a legacy narrative-first turn; new clients use durable resolve/complete."""
+        """Process a legacy narrative-first turn.
+
+        New clients use the durable resolve/complete workflow.
+        """
         with self.turn_execution_lock.acquire():
             return self._process_turn_locked(
                 player_input=player_input,
