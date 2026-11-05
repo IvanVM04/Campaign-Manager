@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.campaign_scope import CampaignScope
+from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from repositories.campaign_state_version_repository import (
