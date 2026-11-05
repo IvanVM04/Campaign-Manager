@@ -202,6 +202,16 @@ class CombatEncounterService:
                         campaign_id=campaign_id,
                         conn=conn,
                     )
+                if participant.npc_natural_attacks is not None:
+                    metadata = dict(creature.metadata)
+                    metadata["npc_natural_attacks"] = [
+                        profile.model_dump() for profile in participant.npc_natural_attacks
+                    ]
+                    creature = self.creature_repository.save_creature(
+                        replace(creature, metadata=metadata),
+                        campaign_id=campaign_id,
+                        conn=conn,
+                    )
                 combatants.append(CombatantState(
                     combatant_id=f"creature-{entity.id}",
                     name=entity.name,
