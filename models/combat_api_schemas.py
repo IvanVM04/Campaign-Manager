@@ -139,6 +139,8 @@ class EncounterAttackIn(BaseModel):
     target_within_5_feet: bool = False
     versatile_two_handed: bool = False
     finesse_ability: Literal["strength", "dexterity"] | None = None
+    npc_attack_weapon_key: str | None = Field(default=None, min_length=1, max_length=60)
+    npc_natural_attack_key: str | None = Field(default=None, min_length=1, max_length=60)
 
     @model_validator(mode="after")
     def validate_dice_mode(self):
@@ -147,6 +149,8 @@ class EncounterAttackIn(BaseModel):
                 raise ValueError("manual dice cannot be supplied in automatic mode")
         elif self.manual_attack_rolls is None or self.manual_damage_rolls is None:
             raise ValueError("manual mode requires attack rolls and damage rolls (use [] on a miss)")
+        if self.npc_attack_weapon_key is not None and self.npc_natural_attack_key is not None:
+            raise ValueError("select an NPC weapon or natural attack, not both")
         if not isinstance(self.target_within_5_feet, bool) or not isinstance(self.versatile_two_handed, bool):
             raise TypeError("attack options must be booleans")
         if self.manual_attack_rolls is not None and any(not 1 <= value <= 20 for value in self.manual_attack_rolls):
