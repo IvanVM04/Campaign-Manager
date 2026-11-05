@@ -1,4 +1,6 @@
-from bootstrap.campaign_runtime import CampaignRuntimeFactory as BootstrapCampaignRuntimeFactory
+from bootstrap.campaign_runtime import (
+    CampaignRuntimeFactory as BootstrapCampaignRuntimeFactory,
+)
 from repositories.campaign_repository import CampaignRepository
 from services.campaign_runtime import CampaignRuntimeFactory
 from services.llm_settings import LLMSettings
