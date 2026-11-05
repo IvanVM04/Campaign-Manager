@@ -21,6 +21,7 @@ from operations.world_operations import (
     UpdateRelationOperation,
     WorldOperation,
 )
+
 from .world_entity_applier import WorldEntityApplier
 from .world_item_applier import WorldItemApplier
 from .world_relation_applier import WorldRelationApplier
