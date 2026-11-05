@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from api.runtime_context import get_current_runtime, turn_execution_lock
+from api.runtime_context import get_current_runtime
 from models.campaign_clock_api_schemas import CampaignClockAdvanceIn
 from services.campaign_clock_service import CampaignClockService
 
@@ -22,10 +22,12 @@ def _campaign_clock_payload(clock):
 
 @router.get("/campaign/clock")
 def get_campaign_clock():
+    runtime = get_current_runtime()
     try:
-        clock = CampaignClockService(
-            campaign_id=get_current_runtime().campaign_id
-        ).get()
+        with runtime.turn_execution_lock.acquire():
+            clock = CampaignClockService(
+                campaign_id=runtime.campaign_id
+            ).get()
         return _campaign_clock_payload(clock)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -34,9 +36,10 @@ def get_campaign_clock():
 @router.post("/campaign/clock/advance")
 def advance_campaign_clock(data: CampaignClockAdvanceIn):
     try:
-        with turn_execution_lock.acquire():
+        runtime = get_current_runtime()
+        with runtime.turn_execution_lock.acquire():
             clock = CampaignClockService(
-                campaign_id=get_current_runtime().campaign_id
+                campaign_id=runtime.campaign_id
             ).advance(
                 minutes=data.minutes,
                 expected_elapsed_minutes=data.expected_elapsed_minutes,
