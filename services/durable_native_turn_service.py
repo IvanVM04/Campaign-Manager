@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import secrets
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from database import transaction
@@ -23,7 +23,10 @@ from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.llm_world_extractor import LLMExtractionError
 from services.turn_resolution_codec import TurnResolutionCodec
-from services.durable_turn_preparation_mapper import DurableTurnPreparationMapper
+from services.durable_turn_preparation_mapper import (
+    DurableTurnPreparation,
+    DurableTurnPreparationMapper,
+)
 from services.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
@@ -36,21 +39,6 @@ logger = logging.getLogger(__name__)
 
 class DurableNativeTurnError(RuntimeError):
     """Failure while executing or resuming a durable native turn."""
-
-
-@dataclass(frozen=True, slots=True)
-class DurableTurnPreparation:
-    """Committed resolution evidence awaiting an adapter-generated narrative."""
-
-    resolution_id: int | None
-    lifecycle_state: str
-    player_input: str
-    committed_resolution: str
-    clarification_question: str | None = None
-    pending_clarification_id: str | None = None
-    legacy_replay: bool = False
-    pending_roll_id: str | None = None
-    pending_roll: dict | None = None
 
 
 class DurableNativeTurnService:
