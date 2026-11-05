@@ -685,7 +685,7 @@ def test_apply_turn_operations_rolls_back_when_character_operation_fails(
             return False
 
     monkeypatch.setattr(
-        "services.world_service.get_conn",
+        "services.world.world_service.get_conn",
         lambda: ConnectionContext(),
     )
 
@@ -751,7 +751,7 @@ def test_apply_turn_operations_rolls_back_when_world_operation_fails(
             return False
 
     monkeypatch.setattr(
-        "services.world_service.get_conn",
+        "services.world.world_service.get_conn",
         lambda: ConnectionContext(),
     )
 
