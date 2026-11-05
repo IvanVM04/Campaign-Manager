@@ -1,10 +1,23 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 
 from models.turn_resolution_record import TurnResolutionRecord
 
-from services.durable_native_turn_service import DurableTurnPreparation
+@dataclass(frozen=True, slots=True)
+class DurableTurnPreparation:
+    """Committed resolution evidence awaiting an adapter-generated narrative."""
+
+    resolution_id: int | None
+    lifecycle_state: str
+    player_input: str
+    committed_resolution: str
+    clarification_question: str | None = None
+    pending_clarification_id: str | None = None
+    legacy_replay: bool = False
+    pending_roll_id: str | None = None
+    pending_roll: dict | None = None
 
 
 class DurableTurnPreparationMapper:
