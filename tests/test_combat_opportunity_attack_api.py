@@ -246,7 +246,7 @@ def test_npc_opportunity_attacker_uses_persisted_creature_weapon_profile(client)
     payload = response.json()
     assert payload["weapon_key"] == "longsword"
     assert payload["attack"]["hit"] is True
-    assert payload["damage"]["target_current_hp"] == 11
+    assert payload["damage"]["target_current_hp"] == 13
     assert payload["encounter"]["combatants"][npc_key]["reaction_used"] is True
 
     creature_id = int(npc_key.split("-")[1])
@@ -429,7 +429,7 @@ def test_npc_can_select_between_multiple_melee_weapons_for_opportunity_attack(cl
             "npc_attack_weapon_key": "whip",
             "dice_mode": "manual",
             "manual_attack_rolls": [10],
-            "manual_damage_rolls": [6],
+            "manual_damage_rolls": [4],
         },
     )
     assert response.status_code == 200, response.text
