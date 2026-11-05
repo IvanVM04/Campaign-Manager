@@ -3,14 +3,18 @@
 ## Current ownership
 
 - `WorldApplier` remains the compatibility facade used by `WorldService`.
-- `WorldRelationApplier` owns validation and in-memory mutation for create, update, and remove relation operations.
-- The relation collaborator has no repository, SQLite, provider, or API dependencies.
-- `WorldApplier` delegates relation operations and retains its private relation methods as compatibility delegates while callers migrate.
+- `WorldRelationApplier` owns create, update, and remove relation validation and in-memory mutation.
+- `WorldItemApplier` owns item definitions and inventory-instance operations: create item, create instance, transfer instance, and update instance.
+- Both collaborators operate only on `WorldState`; neither owns persistence, repositories, API concerns, or transaction boundaries.
+- The facade delegates operation families and retains private delegates for compatibility with existing internal callers and tests.
 
-## Preserved contract
+## Item-specific invariants
 
-The extraction does not change operation types, result statuses/messages, relation identifiers, active/inactive semantics, world-state ownership, or persistence. `WorldService` continues to decide when the in-memory world is persisted. Existing facade-level relation tests remain the integration contract; focused collaborator tests cover its direct behavior.
+- Item and instance IDs continue to be allocated from the current in-memory collections.
+- Item equipment, weapon, and armor validation remains in the item application boundary.
+- Owner/location reference checks, duplicate instance checks, partial-update `_UNSET` semantics, and inactive-state behavior remain unchanged.
+- `WorldService` remains responsible for persistence after successful application.
 
 ## Follow-up
 
-Extract another operation family only after auditing its shared helpers and tests. Do not turn the facade into a second domain implementation, and do not move persistence into operation appliers.
+Extract another operation family only after auditing shared helpers and tests. Do not move persistence into operation appliers or turn the facade into a second domain implementation.
