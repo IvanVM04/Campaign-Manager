@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from database import get_conn
+from database import get_conn, transaction
 from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
 from models.turn_resolution_result import TurnResolutionResult
@@ -177,6 +177,7 @@ class SillyTavernIntegrationService:
             world_snapshot_repository=self.world_snapshot_repository,
             error_type=SillyTavernIntegrationServiceError,
             conflict_error_type=SillyTavernIntegrationServiceConflictError,
+            transaction_context=lambda mode: transaction(mode),
         )
 
 
