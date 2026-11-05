@@ -2,7 +2,6 @@ import math
 
 from models.entity import Entity
 from models.event import Event
-from models.item import Item, ItemInstance
 from models.operation_result import (
     OperationResult,
     OperationStatus,
@@ -10,24 +9,18 @@ from models.operation_result import (
 from models.resource import Resource, ResourceBalance
 from models.world_state import WorldState
 from operations.world_operations import (
-    _UNSET,
     CreateEntityOperation,
     CreateEventOperation,
-    CreateItemInstanceOperation,
-    CreateItemOperation,
     CreateRelationOperation,
     CreateResourceOperation,
     GainResourceOperation,
     RemoveRelationOperation,
     SpendResourceOperation,
-    TransferItemOperation,
     TransferResourceOperation,
     UpdateEntityOperation,
-    UpdateItemInstanceOperation,
     UpdateRelationOperation,
     WorldOperation,
 )
-from rules_engine.dnd5e_2014.armor.catalog import get_armor
 from services.world_relation_applier import WorldRelationApplier
 from services.world_item_applier import WorldItemApplier
 
@@ -90,10 +83,8 @@ class WorldApplier:
         if isinstance(operation, CreateEventOperation):
             return self._apply_create_event(world, operation)
 
-
         if isinstance(operation, CreateResourceOperation):
             return self._apply_create_resource(world, operation)
-
 
         return OperationResult(
             status=OperationStatus.UNSUPPORTED,
@@ -241,10 +232,6 @@ class WorldApplier:
                 "entity_id": operation.entity_id,
             },
         )
-
-    # ============================================================
-    # ITEMS
-    # ============================================================
 
     # ============================================================
     # ITEMS (compatibility delegates)
