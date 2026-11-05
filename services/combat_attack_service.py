@@ -4,6 +4,7 @@ import re
 from dataclasses import replace
 
 from database import transaction
+from models.character_state import CharacterState
 from models.combat_encounter_state import EncounterStatus
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
@@ -25,7 +26,7 @@ _DAMAGE_DICE = re.compile(r"^(\d+)d(\d+)$")
 
 
 class CombatAttackService:
-    """Resolve an equipped PC weapon attack and persist both HP snapshots atomically."""
+    """Resolve a supported weapon attack and persist both HP snapshots atomically."""
 
     def __init__(
         self,
@@ -100,8 +101,10 @@ class CombatAttackService:
                 attacker = encounter.active_combatant
                 if attacker is None or attacker.action_used:
                     raise ValueError("the active combatant has already used its action")
-            if attacker is None or attacker.entity_id is None or not attacker.is_player_character:
-                raise ValueError("only a persisted player character can attack in this release")
+            if attacker is None or attacker.entity_id is None:
+                raise ValueError("attacker must be a persisted campaign entity")
+            if not attacker.is_player_character and not opportunity_attack:
+                raise ValueError("NPCs can only make opportunity attacks in this release")
             if attacker.defeated or not attacker.conscious or attacker.conditions.is_incapacitated:
                 raise ValueError("an unconscious, defeated or incapacitated combatant cannot attack")
             target = encounter.combatants.get(target_combatant_id)
@@ -151,22 +154,53 @@ class CombatAttackService:
             ):
                 raise ValueError("manual mode requires attack and damage rolls")
 
-            character = self.character_repository.get_character(
-                attacker.entity_id, campaign_id=campaign_id, conn=conn
-            )
-            if character is None:
-                raise LookupError("attacking character does not exist in this campaign")
-            if character.current_hp != attacker.current_hp:
-                raise RuntimeError("character hit points and encounter snapshot differ; reload encounter")
-
-            equipped = self.weapon_repository.get_equipped(
-                campaign_id=campaign_id,
-                character_entity_id=attacker.entity_id,
-                conn=conn,
-            )
-            if equipped is None or equipped["weapon_key"] is None:
-                raise ValueError("attacking character has no equipped weapon")
-            weapon = get_weapon(equipped["weapon_key"])
+            if attacker.is_player_character:
+                character = self.character_repository.get_character(
+                    attacker.entity_id, campaign_id=campaign_id, conn=conn
+                )
+                if character is None:
+                    raise LookupError("attacking character does not exist in this campaign")
+                if character.current_hp != attacker.current_hp:
+                    raise RuntimeError("character hit points and encounter snapshot differ; reload encounter")
+                equipped = self.weapon_repository.get_equipped(
+                    campaign_id=campaign_id,
+                    character_entity_id=attacker.entity_id,
+                    conn=conn,
+                )
+                if equipped is None or equipped["weapon_key"] is None:
+                    raise ValueError("attacking character has no equipped weapon")
+                weapon = get_weapon(equipped["weapon_key"])
+            else:
+                creature = self.creature_repository.get_creature(
+                    attacker.entity_id, campaign_id=campaign_id, conn=conn
+                )
+                if creature is None:
+                    raise LookupError("attacking creature does not exist in this campaign")
+                if creature.current_hp != attacker.current_hp:
+                    raise RuntimeError("creature hit points and encounter snapshot differ; reload encounter")
+                npc_attack = creature.metadata.get("npc_melee_attack")
+                if not isinstance(npc_attack, dict) or not isinstance(npc_attack.get("weapon_key"), str):
+                    raise ValueError("NPC opportunity attacker requires a configured melee weapon profile")
+                weapon = get_weapon(npc_attack["weapon_key"])
+                proficient = npc_attack.get("proficient", True)
+                if not isinstance(proficient, bool):
+                    raise ValueError("NPC melee proficiency configuration is invalid")
+                character = CharacterState(
+                    entity_id=creature.entity_id,
+                    current_hp=creature.current_hp,
+                    max_hp=creature.max_hp,
+                    armor_class=creature.armor_class,
+                    strength=creature.strength,
+                    dexterity=creature.dexterity,
+                    constitution=creature.constitution,
+                    intelligence=creature.intelligence,
+                    wisdom=creature.wisdom,
+                    charisma=creature.charisma,
+                    proficiency_bonus=creature.proficiency_bonus,
+                    weapon_proficiencies=(
+                        frozenset({weapon.category.value}) if proficient else frozenset()
+                    ),
+                )
             if opportunity_attack:
                 if weapon.is_ranged:
                     raise ValueError("opportunity attacks require a melee weapon")
@@ -213,7 +247,8 @@ class CombatAttackService:
             )
             armor_training_penalty = False
             if (
-                self.equipment_service is not None
+                attacker.is_player_character
+                and self.equipment_service is not None
                 and profile.attack_ability in {"strength", "dexterity"}
             ):
                 armor_training = self.equipment_service.armor_proficiency(

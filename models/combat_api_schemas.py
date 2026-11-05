@@ -23,6 +23,8 @@ class EncounterParticipantIn(BaseModel):
     position_x: StrictInt | None = Field(default=None, ge=-10000, le=10000)
     position_y: StrictInt | None = Field(default=None, ge=-10000, le=10000)
     speed_feet: StrictInt = Field(default=30, ge=0, le=1000)
+    npc_melee_weapon_key: str | None = Field(default=None, min_length=1, max_length=60)
+    npc_melee_proficient: bool = True
 
     @model_validator(mode="after")
     def validate_source(self):
@@ -30,6 +32,10 @@ class EncounterParticipantIn(BaseModel):
             raise ValueError("position_x and position_y must be supplied together")
         if self.character_id is not None and self.creature_id is not None:
             raise ValueError("participant cannot reference both a character and a creature")
+        if self.character_id is not None and self.npc_melee_weapon_key is not None:
+            raise ValueError("player characters use their equipped weapon, not an NPC attack profile")
+        if self.npc_melee_weapon_key is not None and not isinstance(self.npc_melee_proficient, bool):
+            raise TypeError("npc_melee_proficient must be a boolean")
         if self.character_id is not None or self.creature_id is not None:
             if any(value is not None for value in (
                 self.name, self.max_hp, self.current_hp,
@@ -38,6 +44,8 @@ class EncounterParticipantIn(BaseModel):
                 raise ValueError("entity references cannot be combined with manual combatant stats")
             if self.creature_id is not None and self.is_player_character:
                 raise ValueError("creatures cannot be marked as player characters")
+            if self.creature_id is not None and self.npc_melee_weapon_key is not None:
+                return self
             return self
         required = {
             "name": self.name,

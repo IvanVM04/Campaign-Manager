@@ -106,6 +106,17 @@ class CombatEncounterService:
                         raise ValueError(
                             f"creature {participant.creature_id} does not exist in this campaign"
                         )
+                    if participant.npc_melee_weapon_key is not None:
+                        metadata = dict(creature.metadata)
+                        metadata["npc_melee_attack"] = {
+                            "weapon_key": participant.npc_melee_weapon_key,
+                            "proficient": participant.npc_melee_proficient,
+                        }
+                        creature = self.creature_repository.save_creature(
+                            replace(creature, metadata=metadata),
+                            campaign_id=campaign_id,
+                            conn=conn,
+                        )
                 else:
                     current_hp = (
                         participant.current_hp
@@ -135,6 +146,15 @@ class CombatEncounterService:
                             wisdom=participant.wisdom,
                             charisma=participant.charisma,
                             proficiency_bonus=participant.proficiency_bonus,
+                            metadata=(
+                                {
+                                    "npc_melee_attack": {
+                                        "weapon_key": participant.npc_melee_weapon_key,
+                                        "proficient": participant.npc_melee_proficient,
+                                    }
+                                }
+                                if participant.npc_melee_weapon_key is not None else {}
+                            ),
                         ),
                         campaign_id=campaign_id,
                         conn=conn,
