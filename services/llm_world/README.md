@@ -3,23 +3,24 @@
 ## Responsibility
 Construct world-extraction prompts, project world context, coordinate extraction, validate proposed operations and parse structured responses. Model output is always a proposal, never an authorized database mutation.
 
-## Current modules (still in services/)
-- llm_world_extractor.py — extraction workflow/provider coordination.
-- llm_world_prompt_builder.py — extraction prompt.
-- llm_world_context_renderer.py — dynamic context projection.
-- llm_world_proposal_prompt_builder.py — player-intent proposal prompt.
-- llm_world_proposal_validator.py — proposal validation and repair.
-- llm_world_response_parser.py — structured response decoding.
-- llm_extraction_errors.py — extraction errors.
+## Modules
+- `llm_world_extractor.py` — extraction workflow and provider coordination.
+- `llm_world_prompt_builder.py` — legacy narrative-extraction prompt.
+- `llm_world_context_renderer.py` — dynamic world-context projection.
+- `llm_world_proposal_prompt_builder.py` — player-intent proposal prompt.
+- `llm_world_proposal_validator.py` — proposal validation and one bounded repair.
+- `llm_world_response_parser.py` — structured response decoding and typed-operation checks.
+- `llm_extraction_errors.py` — package error type.
 
 ## Dependency rules
-- Depend on the provider port, not a concrete provider.
+- Depend on the provider callable/port supplied by the composition root, not a concrete provider.
 - Never write directly to SQLite or bypass typed operation validation.
 - Keep prompt construction, parsing, validation and provider invocation distinct.
 - Treat model output as untrusted input and fail closed on malformed/unsupported operations.
+- Keep world mutation in the world application boundary.
 
 ## Pending work
-- [ ] Audit remaining responsibilities and size of LLMWorldExtractor; assess provider invocation/retry as a separate boundary.
+- [ ] Audit remaining responsibilities and size of `LLMWorldExtractor`; assess provider invocation/retry as a separate boundary.
 - [ ] Specify and test retry, timeout and repair limits; retries must not duplicate side effects.
 - [ ] Review shared prompt contracts without introducing a generic prompt framework.
 - [ ] Test malformed output, unsupported operations, partial responses and provider failures.
@@ -27,4 +28,4 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - [ ] Remove compatibility shims only after all callers migrate.
 
 ## Migration status
-This is a documented target boundary only. Source modules and imports remain in services/ until a separate migration preserves compatibility.
+All seven modules now live in `services/llm_world/`. The previous `services.llm_world_*` and `services.llm_extraction_errors` paths remain as compatibility re-exports; migrate consumers separately before removing them.
