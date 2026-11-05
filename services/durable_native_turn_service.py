@@ -25,6 +25,9 @@ from services.durable_turn_result_mapper import DurableTurnResultMapper
 from services.durable_turn_challenge_state_service import (
     DurableTurnChallengeStateService,
 )
+from services.durable_turn_prepared_commit_service import (
+    DurableTurnPreparedCommitService,
+)
 from services.llm_world_extractor import LLMExtractionError
 from services.turn_resolution_codec import TurnResolutionCodec
 from services.turn_resolution_service import (
@@ -67,6 +70,15 @@ class DurableNativeTurnService:
             scope=scope,
             turn_repository=self.turn_repository,
             resolution_repository=self.resolution_repository,
+            error_type=DurableNativeTurnError,
+        )
+        self.prepared_commit_service = DurableTurnPreparedCommitService(
+            scope=scope,
+            resolver=resolver,
+            revision_repository=self.revision_repository,
+            resolution_repository=self.resolution_repository,
+            context_loader=lambda conn: self._context_and_history(conn),
+            operation_results_serializer=self._operation_results_json,
             error_type=DurableNativeTurnError,
         )
 
@@ -471,48 +483,19 @@ class DurableNativeTurnService:
                         conn=conn,
                     )
 
-            with transaction("IMMEDIATE") as conn:
-                current_revision = self.revision_repository.get_revision(
-                    self.scope.campaign_id, conn=conn
-                )
-                if current_revision != revision:
-                    raise DurableNativeTurnError(
-                        "campaign state changed while the turn was being prepared; retry"
-                    )
-                current_context, current_recent = self._context_and_history(conn)
-                if current_context != context or current_recent != recent:
-                    raise DurableNativeTurnError(
-                        "campaign context changed while the turn was being prepared; retry"
-                    )
-                result = self.resolver.apply_plan(
-                    current_context, plan, conn=conn
-                )
-                if not result.all_operations_succeeded:
-                    raise DurableNativeTurnError(
-                        "one or more proposed consequences failed validation"
-                    )
-                resulting_revision = self.revision_repository.get_revision(
-                    self.scope.campaign_id, conn=conn
-                )
-                self.resolution_repository.transition(
-                    record.id,
-                    "committed",
-                    scope=self.scope,
-                    expected_state="prepared",
-                    updates={
-                        "resulting_revision": resulting_revision,
-                        "operation_results_json": self._operation_results_json(result),
-                        "committed_at": datetime.now(UTC).isoformat(),
-                    },
-                    conn=conn,
-                )
-                self.resolution_repository.transition(
-                    record.id,
-                    "narration_pending",
-                    scope=self.scope,
-                    expected_state="committed",
-                    conn=conn,
-                )
+            self.prepared_commit_service.commit_prepared_plan(
+                record,
+                plan,
+                context=context,
+                recent=recent,
+                revision=revision,
+                revision_error_message=(
+                    "campaign state changed while the turn was being prepared; retry"
+                ),
+                context_error_message=(
+                    "campaign context changed while the turn was being prepared; retry"
+                ),
+            )
             committed_record = self.resolution_repository.get(
                 record.id, scope=self.scope
             )
@@ -882,48 +865,19 @@ class DurableNativeTurnService:
                         conn=conn,
                     )
 
-                with transaction("IMMEDIATE") as conn:
-                    current_revision = self.revision_repository.get_revision(
-                        self.scope.campaign_id, conn=conn
-                    )
-                    current_context, current_recent = self._context_and_history(conn)
-                    if (
-                        current_revision != revision
-                        or current_context != context
-                        or current_recent != recent
-                    ):
-                        raise DurableNativeTurnError(
-                            "campaign context changed while clarification was being resolved"
-                        )
-                    result = self.resolver.apply_plan(
-                        current_context, plan, conn=conn
-                    )
-                    if not result.all_operations_succeeded:
-                        raise DurableNativeTurnError(
-                            "one or more proposed consequences failed validation"
-                        )
-                    resulting_revision = self.revision_repository.get_revision(
-                        self.scope.campaign_id, conn=conn
-                    )
-                    self.resolution_repository.transition(
-                        record.id,
-                        "committed",
-                        scope=self.scope,
-                        expected_state="prepared",
-                        updates={
-                            "resulting_revision": resulting_revision,
-                            "operation_results_json": self._operation_results_json(result),
-                            "committed_at": datetime.now(UTC).isoformat(),
-                        },
-                        conn=conn,
-                    )
-                    self.resolution_repository.transition(
-                        record.id,
-                        "narration_pending",
-                        scope=self.scope,
-                        expected_state="committed",
-                        conn=conn,
-                    )
+                self.prepared_commit_service.commit_prepared_plan(
+                    record,
+                    plan,
+                    context=context,
+                    recent=recent,
+                    revision=revision,
+                    revision_error_message=(
+                        "campaign context changed while clarification was being resolved"
+                    ),
+                    context_error_message=(
+                        "campaign context changed while clarification was being resolved"
+                    ),
+                )
                 saved = self.resolution_repository.get(record.id, scope=self.scope)
                 return (
                     self._preparation_from_record(saved)
@@ -980,48 +934,19 @@ class DurableNativeTurnService:
 
         plan = self._plan_from_record(record)
         try:
-            with transaction("IMMEDIATE") as conn:
-                current_context, current_recent = self._context_and_history(conn)
-                current_revision = self.revision_repository.get_revision(
-                    self.scope.campaign_id, conn=conn
-                )
-                if (
-                    current_revision != revision
-                    or current_context != context
-                    or current_recent != recent
-                ):
-                    raise DurableNativeTurnError(
-                        "campaign context changed while recovering clarification"
-                    )
-                result = self.resolver.apply_plan(
-                    current_context, plan, conn=conn
-                )
-                if not result.all_operations_succeeded:
-                    raise DurableNativeTurnError(
-                        "one or more proposed consequences failed validation"
-                    )
-                resulting_revision = self.revision_repository.get_revision(
-                    self.scope.campaign_id, conn=conn
-                )
-                self.resolution_repository.transition(
-                    record.id,
-                    "committed",
-                    scope=self.scope,
-                    expected_state="prepared",
-                    updates={
-                        "resulting_revision": resulting_revision,
-                        "operation_results_json": self._operation_results_json(result),
-                        "committed_at": datetime.now(UTC).isoformat(),
-                    },
-                    conn=conn,
-                )
-                self.resolution_repository.transition(
-                    record.id,
-                    "narration_pending",
-                    scope=self.scope,
-                    expected_state="committed",
-                    conn=conn,
-                )
+            self.prepared_commit_service.commit_prepared_plan(
+                record,
+                plan,
+                context=context,
+                recent=recent,
+                revision=revision,
+                revision_error_message=(
+                    "campaign state changed while recovering clarification"
+                ),
+                context_error_message=(
+                    "campaign context changed while recovering clarification"
+                ),
+            )
         except Exception as exc:
             current = self.resolution_repository.get(record.id, scope=self.scope)
             if current is not None and current.lifecycle_state == "prepared":
@@ -1136,17 +1061,19 @@ class DurableNativeTurnService:
                     if revision != record.context_revision:
                         raise DurableNativeTurnError("prepared manual roll became stale before commit")
                     plan = self._plan_from_record(record)
-                    with transaction("IMMEDIATE") as conn:
-                        current_context, current_recent = self._context_and_history(conn)
-                        current_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
-                        if current_revision != revision or current_context != context or current_recent != recent:
-                            raise DurableNativeTurnError("campaign context changed while recovering the manual roll")
-                        result = self.resolver.apply_plan(current_context, plan, conn=conn)
-                        if not result.all_operations_succeeded:
-                            raise DurableNativeTurnError("one or more proposed consequences failed validation")
-                        resulting_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
-                        self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
-                        self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
+                    self.prepared_commit_service.commit_prepared_plan(
+                        record,
+                        plan,
+                        context=context,
+                        recent=recent,
+                        revision=revision,
+                        revision_error_message=(
+                            "prepared manual roll became stale before commit"
+                        ),
+                        context_error_message=(
+                            "campaign context changed while recovering the manual roll"
+                        ),
+                    )
                     saved = self.resolution_repository.get(record.id, scope=self.scope)
                     return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=True)
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
@@ -1197,17 +1124,19 @@ class DurableNativeTurnService:
                 pending["submitted_external_turn_id"] = answer_external_turn_id
             with transaction("IMMEDIATE") as conn:
                 self.resolution_repository.transition(record.id, "prepared", scope=self.scope, expected_state="planning", expected_lease_token=token, updates={"proposal_json": self._serialize_operations(plan), "mechanics_json": self._mechanics_to_json(plan.mechanics_result), "adjudication_json": json.dumps({"manual_roll": pending}, separators=(",", ":"), sort_keys=True), "lease_token": None, "lease_expires_at": None}, conn=conn)
-            with transaction("IMMEDIATE") as conn:
-                current_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
-                current_context, current_recent = self._context_and_history(conn)
-                if current_revision != revision or current_context != context or current_recent != recent:
-                    raise DurableNativeTurnError("campaign context changed while resolving the manual roll")
-                result = self.resolver.apply_plan(current_context, plan, conn=conn)
-                if not result.all_operations_succeeded:
-                    raise DurableNativeTurnError("one or more proposed consequences failed validation")
-                resulting_revision = self.revision_repository.get_revision(self.scope.campaign_id, conn=conn)
-                self.resolution_repository.transition(record.id, "committed", scope=self.scope, expected_state="prepared", updates={"resulting_revision": resulting_revision, "operation_results_json": self._operation_results_json(result), "committed_at": datetime.now(UTC).isoformat()}, conn=conn)
-                self.resolution_repository.transition(record.id, "narration_pending", scope=self.scope, expected_state="committed", conn=conn)
+            self.prepared_commit_service.commit_prepared_plan(
+                record,
+                plan,
+                context=context,
+                recent=recent,
+                revision=revision,
+                revision_error_message=(
+                    "campaign context changed while resolving the manual roll"
+                ),
+                context_error_message=(
+                    "campaign context changed while resolving the manual roll"
+                ),
+            )
             saved = self.resolution_repository.get(record.id, scope=self.scope)
             return self._preparation_from_record(saved) if defer_narration else self._resume_narration(saved, already_processed=False)
         if self.turn_execution_lock is None:
