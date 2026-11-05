@@ -24,18 +24,15 @@ class ContextBuilder:
     ContextExpander amplía los resultados siguiendo las
     relaciones del WorldState.
     ContextRanker calcula la relevancia de los candidatos.
-    ContextBuilder coordina el pipeline y construye la
-    representación textual final.
+    ContextRenderer convierte los datos estructurados e historial
+    en texto limitado por presupuestos independientes.
+    ContextBuilder valida la entrada y coordina el pipeline.
 
     Responsabilidades:
 
     - Validar la entrada.
-    - Coordinar la búsqueda de memoria.
-    - Delegar la expansión de contexto.
-    - Crear candidatos de contexto.
-    - Aplicar relevancia y prioridad.
-    - Aplicar un presupuesto máximo de contexto.
-    - Construir la representación textual para el LLM.
+    - Coordinar búsqueda, expansión y renderizado.
+    - Mantener el contrato público del resultado.
     - No modificar WorldState.
     - No acceder directamente a SQLite.
     """
@@ -48,27 +45,13 @@ class ContextBuilder:
     # CONTEXT CANDIDATE SCORING
     # ============================================================
 
-    CATEGORY_BASE_SCORES: ClassVar[dict[str, float]] = {
-        "entities": 1.00,
-        "relations": 0.80,
-        "events": 0.70,
-        "items": 0.60,
-        "item_instances": 0.50,
-        "resources": 0.40,
-        "resource_balances": 0.30,
-        "recent_turns": 0.90,
-    }
+    CATEGORY_BASE_SCORES: ClassVar[dict[str, float]] = (
+        ContextRenderer.CATEGORY_BASE_SCORES
+    )
 
-    CATEGORY_PRIORITY: ClassVar[dict[str, int]] = {
-        "entities": 0,
-        "relations": 1,
-        "events": 2,
-        "items": 3,
-        "item_instances": 4,
-        "resources": 5,
-        "resource_balances": 6,
-        "recent_turns": 0,
-    }
+    CATEGORY_PRIORITY: ClassVar[dict[str, int]] = (
+        ContextRenderer.CATEGORY_PRIORITY
+    )
 
     # ============================================================
     # INITIALIZATION
