@@ -405,3 +405,39 @@ test("findManualRollOrigin recovers a completed manual roll only for the origina
     );
     assert.equal(unrelatedReply, null);
 });
+
+
+test("summarizeConnectionReadiness confirms a complete playable setup", () => {
+    const result = summarizeConnectionReadiness({
+        campaign: { id: 7, name: "Puenteviejo" },
+        session: { id: 3, title: "Las campanas" },
+        active_character: { entity_id: 12, class_name: "Fighter", level: 1 },
+        context: { context: "Mara espera junto a la barra." },
+    });
+
+    assert.deepEqual(result, {
+        ready: true,
+        message: "Ready: Puenteviejo · Las campanas · Fighter level 1",
+    });
+});
+
+test("summarizeConnectionReadiness reports missing playable setup components", () => {
+    const result = summarizeConnectionReadiness({
+        campaign: { id: 7, name: "Puenteviejo" },
+        session: null,
+        active_character: null,
+        context: { context: " " },
+    });
+
+    assert.equal(result.ready, false);
+    assert.match(result.message, /no active session/);
+    assert.match(result.message, /no active character/);
+    assert.match(result.message, /campaign context is empty/);
+});
+
+test("summarizeConnectionReadiness rejects a malformed response", () => {
+    assert.deepEqual(summarizeConnectionReadiness(null), {
+        ready: false,
+        message: "Invalid backend response.",
+    });
+});
