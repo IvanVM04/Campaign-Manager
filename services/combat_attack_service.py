@@ -167,6 +167,12 @@ class CombatAttackService:
             if equipped is None or equipped["weapon_key"] is None:
                 raise ValueError("attacking character has no equipped weapon")
             weapon = get_weapon(equipped["weapon_key"])
+            if opportunity_attack:
+                if weapon.is_ranged:
+                    raise ValueError("opportunity attacks require a melee weapon")
+                expected_reach = 10 if WeaponProperty.REACH in weapon.properties else 5
+                if reach_feet != expected_reach:
+                    raise ValueError("reach_feet must match the equipped weapon's reach")
             if WeaponProperty.SPECIAL in weapon.properties:
                 raise ValueError("this weapon requires a special attack resolver")
             if WeaponProperty.AMMUNITION in weapon.properties:
