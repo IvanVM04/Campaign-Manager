@@ -111,7 +111,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the comprehensive architecture and reliability audit](docs/architecture/comprehensive-architecture-audit-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
+See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [the comprehensive architecture and reliability audit](docs/architecture/comprehensive-architecture-audit-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
 
 ---
 
@@ -167,7 +167,7 @@ SillyTavern identifies a player action with a stable `external_turn_id`. The dur
 - Re-delivery of the same completed version is idempotent; conflicting content or invalid version sequencing is rejected.
 - Clarification and manual-roll replies remain attached to the original external turn.
 
-The older compatibility endpoint `POST /integration/turn` retains the historical snapshot-reconciliation behavior for legacy clients. It is not the normal workflow for the current extension. See [the durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
+The older compatibility endpoint `POST /integration/turn` retains the historical snapshot-reconciliation behavior for legacy clients. It is marked deprecated in OpenAPI and logs usage, but has no removal date until supported clients have migrated. `CampaignTurnService` is also retained only for older in-process callers; the native HTTP route does not use it. See the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md) and [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
 
 ---
 
