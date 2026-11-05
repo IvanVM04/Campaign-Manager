@@ -51,8 +51,6 @@ def test_campaign_clock_rejects_invalid_advances(isolated_database):
     with pytest.raises(ValueError):
         service.advance(minutes=True, expected_elapsed_minutes=0)
 
-
-
 def test_campaign_clock_get_uses_immediate_transaction_for_lazy_initialization(
     isolated_database,
     monkeypatch,
