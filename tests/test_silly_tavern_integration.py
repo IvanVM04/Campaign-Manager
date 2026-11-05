@@ -458,6 +458,58 @@ def test_integration_turn_endpoint_returns_409_on_durable_conflict(
     }
 
 
+def test_legacy_integration_turn_is_deprecated_in_openapi(client):
+    operation = client.get("/openapi.json").json()["paths"]["/integration/turn"]["post"]
+
+    assert operation["deprecated"] is True
+
+
+def test_legacy_integration_turn_logs_compatibility_usage(
+    client,
+    monkeypatch,
+    caplog,
+):
+    from types import SimpleNamespace
+
+    runtime = __import__("app").runtime_factory.get_runtime(1)
+    result = SimpleNamespace(
+        narrative="La puerta se abre.",
+        player_input="Abro la puerta.",
+        operation_count=0,
+        successful_operation_count=0,
+        failed_operation_count=0,
+        all_operations_succeeded=True,
+        world_changed=False,
+        operations=(),
+        character_operations=(),
+        operation_results=(),
+    )
+
+    monkeypatch.setattr(
+        runtime.silly_tavern_integration_service,
+        "process_turn",
+        lambda **kwargs: result,
+    )
+
+    response = client.post(
+        "/integration/turn",
+        json={
+            "player_input": "Abro la puerta.",
+            "narrative": "La puerta se abre.",
+            "external_turn_id": "legacy-test-turn",
+        },
+    )
+
+    assert response.status_code == 200
+    warning = next(
+        record
+        for record in caplog.records
+        if "Deprecated legacy SillyTavern turn endpoint" in record.message
+    )
+    assert warning.campaign_id == 1
+    assert warning.external_turn_id == "legacy-test-turn"
+
+
 # ============================================================
 # SERVICE HELPERS
 # ============================================================
