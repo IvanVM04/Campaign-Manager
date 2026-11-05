@@ -9,7 +9,6 @@ from urllib.parse import urlsplit
 
 from services.ollama_provider import OllamaProvider
 
-
 LLMRole = Literal["narrative", "extraction", "mechanics"]
 
 
