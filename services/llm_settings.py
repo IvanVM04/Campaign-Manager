@@ -28,15 +28,21 @@ class LLMSettings:
         if not isinstance(self.base_url, str):
             raise TypeError("LLM base_url must be a string")
         normalized_url = self.base_url.strip().rstrip("/")
-        parsed_url = urlsplit(normalized_url)
+        try:
+            parsed_url = urlsplit(normalized_url)
+            parsed_url.port
+        except ValueError as exc:
+            raise ValueError("LLM base_url must be a valid absolute HTTP(S) URL") from exc
         if (
             not normalized_url
             or parsed_url.scheme not in {"http", "https"}
             or not parsed_url.hostname
+            or parsed_url.username
+            or parsed_url.password
             or parsed_url.query
             or parsed_url.fragment
         ):
-            raise ValueError("LLM base_url must be an absolute HTTP(S) URL without query or fragment")
+            raise ValueError("LLM base_url must be an absolute HTTP(S) URL without credentials, query or fragment")
         object.__setattr__(self, "base_url", normalized_url)
 
         for field_name in (
