@@ -14,6 +14,7 @@ from services.llm_world_extractor import (
     LLMExtractionError,
     LLMWorldExtractor,
 )
+from services.llm_world_prompt_builder import LLMWorldPromptBuilder
 from services.operation_parser import OperationParser
 
 
@@ -93,6 +94,21 @@ def make_context(
         active_character_entity=active_character_entity,
     )
 
+
+
+def test_extractor_prompt_facade_delegates_to_dedicated_builder():
+    context = make_context()
+    prompt = LLMWorldPromptBuilder.build_prompt(
+        "Aldric entra en la taberna.",
+        context,
+    )
+
+    assert LLMWorldExtractor._build_prompt(
+        "Aldric entra en la taberna.",
+        context,
+    ) == prompt
+    assert "NARRATIVA A ANALIZAR" in prompt
+    assert "Aldric entra en la taberna." in prompt
 
 def test_valid_response_returns_operations():
     operation = FakeOperation()
