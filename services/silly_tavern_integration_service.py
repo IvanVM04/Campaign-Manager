@@ -9,6 +9,7 @@ from repositories.campaign_state_version_repository import (
     CampaignStateVersionRepository,
 )
 from repositories.turn_repository import TurnRepository
+from repositories.world_snapshot_repository import WorldSnapshotRepository
 from services.campaign_state_service import (
     CampaignStateService,
     CampaignStateServiceError,
