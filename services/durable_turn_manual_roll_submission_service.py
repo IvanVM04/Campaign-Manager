@@ -155,4 +155,3 @@ class DurableTurnManualRollSubmissionService:
             return submit()
         with service.turn_execution_lock.acquire():
             return submit()
-        service = self.turn_service
