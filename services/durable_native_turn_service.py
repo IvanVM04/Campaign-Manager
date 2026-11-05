@@ -6,6 +6,7 @@ import secrets
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+import logging
 
 from database import transaction
 from models.campaign_scope import CampaignScope
@@ -27,6 +28,9 @@ from services.turn_resolution_service import (
     TurnResolutionService,
 )
 from services.world_service import WorldService
+
+
+logger = logging.getLogger(__name__)
 
 
 class DurableNativeTurnError(RuntimeError):
@@ -777,6 +781,16 @@ class DurableNativeTurnService:
                         )
             if isinstance(exc, DurableNativeTurnError):
                 raise
+            logger.exception(
+                "Unexpected native turn execution failure "
+                "(campaign_id=%s, resolution_id=%s, adapter_namespace=%s, "
+                "lifecycle_state=%s, dice_mode=%s)",
+                self.scope.campaign_id,
+                record.id,
+                adapter_namespace,
+                record.lifecycle_state,
+                dice_mode,
+            )
             raise DurableNativeTurnError("native turn execution failed") from exc
 
     @staticmethod
