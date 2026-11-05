@@ -8,6 +8,7 @@ from api.runtime_context import (
 from models.combat_api_schemas import (
     DeathSavingThrowIn,
     EncounterAttackIn,
+    EncounterOpportunityAttackIn,
     EncounterCreateIn,
     EncounterMoveIn,
     EncounterReactionIn,
@@ -293,6 +294,76 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+
+
+
+@router.post("/encounters/{encounter_id}/opportunity-attack")
+def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAttackIn):
+    from rules_engine.dnd5e_2014.combat.movement import GridPosition
+
+    try:
+        with turn_execution_lock.acquire():
+            result = get_current_runtime().combat_attack_service.attack(
+                campaign_id=get_current_runtime().campaign_id,
+                encounter_id=encounter_id,
+                target_combatant_id=data.target_combatant_id,
+                expected_round=data.expected_round,
+                expected_turn_index=data.expected_turn_index,
+                dice_mode=data.dice_mode,
+                manual_attack_rolls=(
+                    tuple(data.manual_attack_rolls)
+                    if data.manual_attack_rolls is not None else None
+                ),
+                manual_damage_rolls=(
+                    tuple(data.manual_damage_rolls)
+                    if data.manual_damage_rolls is not None else None
+                ),
+                target_within_5_feet=data.target_within_5_feet,
+                versatile_two_handed=data.versatile_two_handed,
+                finesse_ability=data.finesse_ability,
+                opportunity_attack=True,
+                attacker_combatant_id=data.attacker_combatant_id,
+                mover_previous_position=GridPosition(
+                    data.mover_previous_position.x, data.mover_previous_position.y
+                ),
+                reach_feet=data.reach_feet,
+                voluntary=data.voluntary,
+                disengaging=data.disengaging,
+            )
+        attack = result["result"]
+        damage_roll = attack.damage_roll
+        return {
+            "encounter": _encounter_payload(result["encounter"]),
+            "attacker_combatant_id": result["attacker_combatant_id"],
+            "target_combatant_id": result["target_combatant_id"],
+            "weapon_key": result["weapon_key"],
+            "attack_ability": result["attack_ability"],
+            "attack_bonus": result["attack_bonus"],
+            "proficient": result["proficient"],
+            "advantage": result["advantage"],
+            "disadvantage": result["disadvantage"],
+            "armor_training_penalty": result["armor_training_penalty"],
+            "opportunity_attack": result["opportunity_attack"],
+            "attack": {
+                "rolls": list(attack.attack_roll.rolls),
+                "selected": attack.attack_roll.selected,
+                "total": attack.attack_roll.total,
+                "target_ac": attack.target_ac,
+                "hit": attack.hit,
+                "critical": attack.critical,
+            },
+            "damage": {
+                "type": attack.damage_type.value,
+                "rolls": list(damage_roll.rolls) if damage_roll else [],
+                "raw": attack.raw_damage,
+                "after_defenses": attack.damage_after_defenses,
+                "target_current_hp": result["target_current_hp"],
+            },
+        }
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 @router.post("/encounters/{encounter_id}/reaction")
 def use_combat_reaction(encounter_id: str, data: EncounterReactionIn):
