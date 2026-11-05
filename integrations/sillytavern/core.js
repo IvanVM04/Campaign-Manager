@@ -1,3 +1,45 @@
+export function summarizeConnectionReadiness(payload) {
+    if (!payload || typeof payload !== "object") {
+        return { ready: false, message: "Invalid backend response." };
+    }
+
+    const issues = [];
+    const campaign = payload.campaign;
+    const session = payload.session;
+    const character = payload.active_character;
+    const context = payload.context;
+
+    if (!campaign || !Number.isInteger(campaign.id) || !campaign.name) {
+        issues.push("campaign is not configured");
+    }
+    if (!session || !Number.isInteger(session.id) || !session.title) {
+        issues.push("no active session");
+    }
+    if (!character || !Number.isInteger(character.entity_id)) {
+        issues.push("no active character");
+    }
+    if (!context || typeof context.context !== "string" || !context.context.trim()) {
+        issues.push("campaign context is empty");
+    }
+
+    if (issues.length) {
+        return {
+            ready: false,
+            message: `Backend connected, but setup is incomplete: ${issues.join(", ")}.`,
+        };
+    }
+
+    const characterLabel = [
+        character.class_name || "Character",
+        `level ${character.level ?? "?"}`,
+    ].join(" ");
+
+    return {
+        ready: true,
+        message: `Ready: ${campaign.name} · ${session.title} · ${characterLabel}`,
+    };
+}
+
 export function buildRetrievalQuery(
     configuredQuery,
     playerInput,
