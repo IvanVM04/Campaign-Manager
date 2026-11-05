@@ -973,7 +973,7 @@ def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries(
     assert record.lifecycle_state == "accepted"
     assert record.lease_token is None
     assert record.lease_expires_at is None
-    assert record.last_error_code == "planning_failed"
+    assert record.last_error_code == "invalid_llm_proposal"
     assert len(proposal_calls) == 2
 
     recovered = service.play_turn(
