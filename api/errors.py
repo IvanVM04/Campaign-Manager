@@ -49,29 +49,37 @@ def api_error_for_exception(
     from services.mechanics_adjudicator import MechanicsAdjudicatorError
     from services.turn_resolution_service import TurnResolutionServiceError
 
+    chain: list[BaseException] = []
     current: BaseException | None = exc
     seen: set[int] = set()
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if isinstance(current, LLMProviderError):
-            return APIError(
-                status_code=503,
-                code="llm_provider_unavailable",
-                detail="The language model provider is temporarily unavailable.",
-            )
-        if isinstance(current, (LLMExtractionError, MechanicsAdjudicatorError)):
-            return APIError(
-                status_code=502,
-                code="invalid_llm_response",
-                detail="The language model returned a response that could not be safely processed.",
-            )
-        if isinstance(current, TurnResolutionServiceError):
-            return APIError(
-                status_code=500,
-                code="turn_resolution_failed",
-                detail="The turn could not be resolved because of an internal error.",
-            )
+        chain.append(current)
         current = current.__cause__ or current.__context__
+
+    # Provider outages take precedence over wrappers such as
+    # TurnResolutionServiceError and DurableNativeTurnError.
+    if any(isinstance(item, LLMProviderError) for item in chain):
+        return APIError(
+            status_code=503,
+            code="llm_provider_unavailable",
+            detail="The language model provider is temporarily unavailable.",
+        )
+    if any(
+        isinstance(item, (LLMExtractionError, MechanicsAdjudicatorError))
+        for item in chain
+    ):
+        return APIError(
+            status_code=502,
+            code="invalid_llm_response",
+            detail="The language model returned a response that could not be safely processed.",
+        )
+    if any(isinstance(item, TurnResolutionServiceError) for item in chain):
+        return APIError(
+            status_code=500,
+            code="turn_resolution_failed",
+            detail="The turn could not be resolved because of an internal error.",
+        )
 
     return APIError(
         status_code=fallback_status,
