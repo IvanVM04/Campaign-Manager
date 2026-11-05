@@ -119,7 +119,7 @@ def test_opportunity_attack_uses_reaction_and_resolves_normal_weapon_attack(clie
     assert hp == 11
 
 
-def test_opportunity_attack_rejects_movement_that_did_not_leave_reach(client):
+def test_opportunity_attack_rejects_disengaging_movement(client):
     _mover_id, _attacker_id, mover_key, attacker_key = _prepare_opportunity_attack(client)
     _move_mover_out_of_reach(client, mover_key)
     response = client.post(
@@ -130,7 +130,7 @@ def test_opportunity_attack_rejects_movement_that_did_not_leave_reach(client):
             "expected_round": 1,
             "expected_turn_index": 0,
             "mover_previous_position": {"x": 1, "y": 0},
-            "disengaging": true,
+            "disengaging": True,
             "dice_mode": "manual",
             "manual_attack_rolls": [15],
             "manual_damage_rolls": [6],
