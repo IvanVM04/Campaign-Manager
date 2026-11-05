@@ -804,6 +804,12 @@ def test_character_equipment_and_clock_routes_use_campaign_lock(
     assert created.status_code == 200, created.text
     character_id = created.json()["character"]["entity_id"]
 
+    bootstrapped = client.post(
+        "/campaign/bootstrap",
+        json={"name": "Lock Bootstrap Hero", "max_hp": 8, "current_hp": 8},
+    )
+    assert bootstrapped.status_code == 200, bootstrapped.text
+
     with get_conn() as conn:
         item_id = conn.execute(
             """
@@ -837,4 +843,4 @@ def test_character_equipment_and_clock_routes_use_campaign_lock(
     clock = client.get("/campaign/clock")
     assert clock.status_code == 200, clock.text
 
-    assert lock.calls == 5
+    assert lock.calls == 6
