@@ -459,7 +459,8 @@ def test_integration_turn_endpoint_returns_409_on_durable_conflict(
 
 
 def test_legacy_integration_turn_is_deprecated_in_openapi(client):
-    operation = client.get("/openapi.json").json()["paths"]["/integration/turn"]["post"]
+    openapi = client.get("/openapi.json").json()
+    operation = openapi["paths"]["/integration/turn"]["post"]
 
     assert operation["deprecated"] is True
 
