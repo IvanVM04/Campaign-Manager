@@ -289,6 +289,11 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
                 "rolls": list(damage_roll.rolls) if damage_roll else [],
                 "raw": attack.raw_damage,
                 "after_defenses": attack.damage_after_defenses,
+                "defenses": {
+                    "immune": result["damage_adjustment"].immune,
+                    "resistant": result["damage_adjustment"].resistant,
+                    "vulnerable": result["damage_adjustment"].vulnerable,
+                },
                 "target_current_hp": result["target_current_hp"],
             },
         }
