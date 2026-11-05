@@ -208,6 +208,8 @@ class CombatAttackService:
                     selected_natural = natural_attacks[0]
 
                 if selected_natural is not None:
+                    if not isinstance(selected_natural, dict):
+                        raise ValueError("NPC natural attack configuration is invalid")
                     required = ("key", "name", "ability", "damage_dice", "damage_type", "reach_feet", "proficient")
                     if any(field not in selected_natural for field in required):
                         raise ValueError("NPC natural attack configuration is invalid")
