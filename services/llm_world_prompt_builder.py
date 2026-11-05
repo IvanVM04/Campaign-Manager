@@ -2138,37 +2138,37 @@ CONTEXTO ACTUAL DEL MUNDO
 
 PERSONAJE ACTIVO:
 
-{context_blocks["character_block"]}
+{context_blocks['character_block']}
 
 
 ENTIDADES CONOCIDAS:
 
-{context_blocks["known_entities"]}
+{context_blocks['known_entities']}
 
 
 ITEMS CONOCIDOS:
 
-{context_blocks["known_items"]}
+{context_blocks['known_items']}
 
 
 INSTANCIAS DE OBJETOS CONOCIDAS:
 
-{context_blocks["known_item_instances"]}
+{context_blocks['known_item_instances']}
 
 
 RECURSOS CONOCIDOS:
 
-{context_blocks["known_resources"]}
+{context_blocks['known_resources']}
 
 
 RELACIONES CONOCIDAS:
 
-{context_blocks["known_relations"]}
+{context_blocks['known_relations']}
 
 
 EVENTOS CONOCIDOS:
 
-{context_blocks["known_events"]}
+{context_blocks['known_events']}
 
 
 ============================================================
