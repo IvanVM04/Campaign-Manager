@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
-from typing import Any
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
-from operations.character_operations import CharacterOperation
 from operations.turn_operations import TurnOperation
-from operations.world_operations import WorldOperation
 from services.llm_extraction_errors import LLMExtractionError
 from services.llm_world_prompt_builder import LLMWorldPromptBuilder
 from services.llm_world_proposal_validator import LLMWorldProposalValidator
+from services.llm_world_response_parser import LLMWorldResponseParser
 
 
 class LLMWorldExtractor:
@@ -47,6 +44,7 @@ class LLMWorldExtractor:
 
         self.provider = provider
         self.operation_parser = operation_parser
+        self.response_parser = LLMWorldResponseParser(operation_parser)
         self.proposal_validator = LLMWorldProposalValidator(
             provider=self._provide,
             operation_parser=operation_parser,
@@ -191,113 +189,10 @@ class LLMWorldExtractor:
     # ============================================================
 
     @staticmethod
-    def _parse_response(
-        raw_response: Any,
-    ) -> dict[str, Any]:
-        if not isinstance(
-            raw_response,
-            str,
-        ):
-            raise LLMExtractionError(
-                "LLM response must be a string"
-            )
+    def _parse_response(raw_response):
+        """Compatibility facade for response decoding."""
+        return LLMWorldResponseParser.parse_response(raw_response)
 
-        response = raw_response.strip()
-
-        if not response:
-            raise LLMExtractionError(
-                "LLM returned an empty response"
-            )
-
-        if response.startswith("```"):
-            lines = response.splitlines()
-
-            if (
-                len(lines) >= 2
-                and lines[-1].strip() == "```"
-            ):
-                response = "\n".join(
-                    lines[1:-1]
-                ).strip()
-
-        try:
-            payload = json.loads(
-                response
-            )
-
-        except json.JSONDecodeError as exc:
-            raise LLMExtractionError(
-                "LLM response is not valid JSON"
-            ) from exc
-
-        if not isinstance(
-            payload,
-            dict,
-        ):
-            raise LLMExtractionError(
-                "LLM response must be a JSON object"
-            )
-
-        operations = payload.get(
-            "operations"
-        )
-
-        if operations is None:
-            raise LLMExtractionError(
-                "Missing 'operations' field"
-            )
-
-        if not isinstance(
-            operations,
-            list,
-        ):
-            raise LLMExtractionError(
-                "'operations' must be a list"
-            )
-
-        return payload
-
-    # ============================================================
-    # OPERATION PARSING
-    # ============================================================
-
-    def _parse_operations(
-        self,
-        payload: dict[str, Any],
-    ) -> list[TurnOperation]:
-        try:
-            operations = self.operation_parser.parse(
-                payload
-            )
-
-        except Exception as exc:
-            raise LLMExtractionError(
-                "Failed to parse operations"
-            ) from exc
-
-        if not isinstance(
-            operations,
-            list,
-        ):
-            raise LLMExtractionError(
-                "Operation parser returned "
-                "an invalid result"
-            )
-
-        for index, operation in enumerate(
-            operations
-        ):
-            if isinstance(operation, CharacterOperation):
-                raise LLMExtractionError(
-                    "Character-state operations require verified "
-                    "rules-engine resolution and cannot be extracted "
-                    f"from narrative (operation index {index})"
-                )
-
-            if not isinstance(operation, WorldOperation):
-                raise LLMExtractionError(
-                    "Operation parser returned "
-                    f"invalid operation at index {index}"
-                )
-
-        return operations
+    def _parse_operations(self, payload: dict) -> list[TurnOperation]:
+        """Compatibility facade for typed operation validation."""
+        return self.response_parser.parse_operations(payload)
