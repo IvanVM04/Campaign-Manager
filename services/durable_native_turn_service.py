@@ -107,6 +107,7 @@ class DurableNativeTurnService:
             resolution_repository=self.resolution_repository,
             turn_execution_lock=turn_execution_lock,
             context_loader=self._context_and_history,
+            error_type=DurableNativeTurnError,
         )
 
     @staticmethod
