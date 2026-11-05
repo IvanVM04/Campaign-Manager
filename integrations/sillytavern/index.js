@@ -11,7 +11,7 @@ import {
 } from '../../../script.js';
 
 import {
-    buildRetrievalQuery,
+    buildRetrievalQuery,\n    summarizeConnectionReadiness,
     buildStableTurnIdentityInput,
     findClarificationOrigin,
     findManualRollOrigin,
@@ -1000,29 +1000,12 @@ async function testConnection() {
             );
         }
 
-        if (
-            !responseBody?.context ||
-            typeof responseBody.context !== 'object'
-        ) {
-            throw new Error(
-                'Campaign Manager response does not contain a context object.',
-            );
+        const readiness = summarizeConnectionReadiness(responseBody);
+        statusElement.textContent = readiness.message;
+        statusElement.dataset.state = readiness.ready ? 'ready' : 'incomplete';
+        if (!readiness.ready) {
+            throw new Error(readiness.message);
         }
-
-        if (
-            typeof responseBody.context.context !== 'string'
-        ) {
-            throw new Error(
-                'Campaign Manager context object does not contain a context string.',
-            );
-        }
-
-        const campaignName =
-            responseBody?.campaign?.name ??
-            'Unknown campaign';
-
-        statusElement.textContent =
-            `Connected: ${campaignName}`;
 
         log(
             'Context received:',
