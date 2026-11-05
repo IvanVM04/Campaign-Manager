@@ -115,6 +115,24 @@ See [the current architecture snapshot](docs/architecture/current-architecture-2
 
 ---
 
+
+### Service package boundaries
+
+The application services are being organized by capability rather than leaving every workflow in one flat package. The following package guides document each target boundary, its dependency rules and known follow-up work:
+
+| Package guide | Responsibility |
+|---|---|
+| [campaign](services/campaign/README.md) | Campaign state, clock and runtime composition |
+| [characters](services/characters/README.md) | Character creation and state use cases |
+| [combat](services/combat/README.md) | Combat application workflows; mechanics stay in the rules engine |
+| [context](services/context/README.md) | Context expansion, ranking, selection and rendering |
+| [llm_world](services/llm_world/README.md) | World extraction prompts, parsing and proposal validation |
+| [providers](services/providers/README.md) | LLM provider contracts, adapters and settings |
+| [turns](services/turns/README.md) | Durable turn lifecycle and legacy compatibility |
+| [world](services/world/README.md) | Validated world-operation application and serialization |
+
+These documents describe the **intended boundaries**, not a completed source-code move. Existing modules and imports remain in the flat `services/` package for now. Moving them is a separate, incremental migration that must preserve public imports and pass the full test/lint/CI suite. Each package README records outstanding architecture work so the documentation remains an actionable refactoring plan, not just a directory index.
+
 ## Turn Processing
 
 The current native and SillyTavern flows use the durable turn coordinator:
