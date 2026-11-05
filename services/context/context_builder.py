@@ -256,7 +256,7 @@ class ContextBuilder:
         return result
 
     # ============================================================
-    # TEXT CONTEXT (compatibility delegates)
+    # RENDERER DELEGATES
     # ============================================================
 
     def _build_text_context(self, result: dict[str, Any]) -> str:
@@ -302,7 +302,3 @@ class ContextBuilder:
                 "Sin información relevante."
             ),
         }
-
-    # ============================================================
-    # INTERNAL FIELD CLEANUP
-    # ============================================================
