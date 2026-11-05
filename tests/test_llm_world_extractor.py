@@ -999,6 +999,32 @@ def test_propose_uses_player_intent_not_generated_narrative():
     assert "Las operaciones son propuestas, no hechos confirmados." in prompt
 
 
+def test_propose_separates_confirmed_mechanics_with_real_newlines():
+    from types import SimpleNamespace
+
+    provider = FakeProvider(json.dumps({"operations": []}))
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=FakeParser(),
+    )
+    mechanics_result = SimpleNamespace(
+        to_prompt_text=lambda: "Resultado: éxito en la prueba de percepción."
+    )
+
+    extractor.propose(
+        "Busco huellas en el barro.",
+        make_context(),
+        mechanics_result=mechanics_result,
+    )
+
+    prompt = provider.calls[0]
+    assert (
+        "\n\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\n"
+        "Resultado: éxito en la prueba de percepción."
+    ) in prompt
+    assert r"\n\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\n" not in prompt
+
+
 def test_propose_empty_intent_does_not_call_provider():
     provider = FakeProvider(json.dumps({"operations": []}))
     extractor = LLMWorldExtractor(

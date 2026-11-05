@@ -159,7 +159,7 @@ class LLMWorldExtractor:
             + dynamic_marker
             + dynamic_context
             + (
-                "\\n\\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\\n"
+                "\n\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\n"
                 + mechanics_result.to_prompt_text()
                 if mechanics_result is not None
                 else ""
