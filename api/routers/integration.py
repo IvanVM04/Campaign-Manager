@@ -146,7 +146,12 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
                 exclude_external_turn_id=data.external_turn_id,
             )
     except DurableNativeTurnError as exc:
-        raise api_error_for_exception(\n            exc,\n            fallback_status=409,\n            fallback_code="turn_conflict",\n            fallback_detail="The turn conflicts with the current campaign state.",\n        ) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
@@ -196,7 +201,12 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
             )
             context_result = runtime.silly_tavern_integration_service.get_context(data.query)
     except DurableNativeTurnError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
@@ -230,7 +240,12 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
                 data.query,
             )
     except DurableNativeTurnError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
@@ -269,7 +284,12 @@ def process_silly_tavern_turn(data: SillyTavernTurnIn):
             turn_version=data.turn_version,
         )
     except SillyTavernIntegrationServiceConflictError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -311,7 +331,12 @@ def complete_silly_tavern_turn(data: SillyTavernTurnIn):
             turn_version=data.turn_version,
         )
     except DurableNativeTurnError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=500,
