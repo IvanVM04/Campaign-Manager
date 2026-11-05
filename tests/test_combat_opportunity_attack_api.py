@@ -517,3 +517,200 @@ def test_npc_cannot_select_an_unconfigured_opportunity_weapon(client):
         "npc-unconfigured-weapon-test", campaign_id=1
     )
     assert encounter.combatants[npc_key].reaction_used is False
+
+
+def test_npc_natural_attack_resolves_damage_and_consumes_reaction(client):
+    mover_response = client.post(
+        "/characters",
+        json={
+            "name": "Retreating hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    assert mover_response.status_code == 200, mover_response.text
+    mover_id = mover_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-natural-attack-test",
+            "participants": [
+                {"character_id": mover_id, "position_x": 2, "position_y": 0},
+                {
+                    "name": "Cave beast", "max_hp": 18, "current_hp": 18,
+                    "armor_class": 13, "strength": 16, "dexterity": 12,
+                    "proficiency_bonus": 2, "position_x": 0, "position_y": 0,
+                    "npc_natural_attacks": [
+                        {
+                            "key": "bite", "name": "Bite", "ability": "strength",
+                            "damage_dice": "1d6", "damage_type": "piercing",
+                            "reach_feet": 10, "proficient": True,
+                        },
+                        {
+                            "key": "claw", "name": "Claw", "ability": "strength",
+                            "damage_dice": "1d4", "damage_type": "slashing",
+                            "reach_feet": 5, "proficient": True,
+                        },
+                    ],
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    mover_key = f"character-{mover_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-natural-attack-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {mover_key: 18, npc_key: 10},
+            "initiative_order": [mover_key, npc_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+    moved = client.post(
+        "/encounters/npc-natural-attack-test/move",
+        json={
+            "combatant_id": mover_key, "expected_round": 1,
+            "expected_turn_index": 0,
+            "path": [{"x": 2, "y": 0}, {"x": 3, "y": 0}],
+        },
+    )
+    assert moved.status_code == 200, moved.text
+
+    response = client.post(
+        "/encounters/npc-natural-attack-test/opportunity-attack",
+        json={
+            "attacker_combatant_id": npc_key,
+            "target_combatant_id": mover_key,
+            "expected_round": 1, "expected_turn_index": 0,
+            "mover_previous_position": {"x": 2, "y": 0},
+            "reach_feet": 10,
+            "npc_natural_attack_key": "bite",
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [4],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["weapon_key"] is None
+    assert payload["natural_attack_key"] == "bite"
+    assert payload["attack_ability"] == "strength"
+    assert payload["attack_bonus"] == 5
+    assert payload["attack"]["hit"] is True
+    assert payload["damage"]["type"] == "piercing"
+    assert payload["damage"]["after_defenses"] == 7
+    assert payload["damage"]["target_current_hp"] == 13
+    assert payload["encounter"]["combatants"][npc_key]["reaction_used"] is True
+
+
+def test_npc_natural_attack_rejects_unconfigured_profile_without_spending_reaction(client):
+    mover_response = client.post(
+        "/characters",
+        json={
+            "name": "Retreating hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    mover_id = mover_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-natural-invalid-selection-test",
+            "participants": [
+                {"character_id": mover_id, "position_x": 1, "position_y": 0},
+                {
+                    "name": "Claw beast", "max_hp": 12, "armor_class": 12,
+                    "dexterity": 10, "position_x": 0, "position_y": 0,
+                    "npc_natural_attacks": [
+                        {
+                            "key": "claw", "name": "Claw", "ability": "strength",
+                            "damage_dice": "1d4", "damage_type": "slashing",
+                            "reach_feet": 5, "proficient": True,
+                        }
+                    ],
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    mover_key = f"character-{mover_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-natural-invalid-selection-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {mover_key: 18, npc_key: 10},
+            "initiative_order": [mover_key, npc_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+    moved = client.post(
+        "/encounters/npc-natural-invalid-selection-test/move",
+        json={
+            "combatant_id": mover_key, "expected_round": 1,
+            "expected_turn_index": 0,
+            "path": [{"x": 1, "y": 0}, {"x": 2, "y": 0}],
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    response = client.post(
+        "/encounters/npc-natural-invalid-selection-test/opportunity-attack",
+        json={
+            "attacker_combatant_id": npc_key,
+            "target_combatant_id": mover_key,
+            "expected_round": 1, "expected_turn_index": 0,
+            "mover_previous_position": {"x": 1, "y": 0},
+            "npc_natural_attack_key": "bite",
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [4],
+        },
+    )
+    assert response.status_code == 409
+    assert "not configured" in response.json()["detail"]
+    encounter = CombatEncounterRepository().get(
+        "npc-natural-invalid-selection-test", campaign_id=1
+    )
+    assert encounter.combatants[npc_key].reaction_used is False
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        {
+            "key": "bite", "name": "Bite", "ability": "strength",
+            "damage_dice": "0d6", "damage_type": "piercing",
+            "reach_feet": 5, "proficient": True,
+        },
+        {
+            "key": "bite", "name": "Bite", "ability": "charisma",
+            "damage_dice": "1d6", "damage_type": "piercing",
+            "reach_feet": 5, "proficient": True,
+        },
+        {
+            "key": "bite", "name": "Bite", "ability": "strength",
+            "damage_dice": "1d6", "damage_type": "invalid",
+            "reach_feet": 5, "proficient": True,
+        },
+    ],
+)
+def test_encounter_rejects_invalid_npc_natural_attack_profiles(client, profile):
+    response = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "invalid-natural-profile-test",
+            "participants": [
+                {
+                    "name": "Invalid beast", "max_hp": 12,
+                    "armor_class": 12, "dexterity": 10,
+                    "npc_natural_attacks": [profile],
+                }
+            ],
+        },
+    )
+    assert response.status_code == 422
