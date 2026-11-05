@@ -2,6 +2,7 @@ from scripts.bootstrap_demo import (
     DEMO_CAMPAIGN_SUMMARY,
     DEMO_SESSION_NOTES,
     DEMO_SESSION_SUMMARY,
+    DEMO_WORLD_ENTITIES,
     build_demo_payloads,
 )
 
@@ -61,3 +62,18 @@ def test_demo_campaign_contains_a_playable_open_ended_adventure():
     assert session["summary"] == DEMO_SESSION_SUMMARY
     assert session["notes"] == DEMO_SESSION_NOTES
     assert "pistas" in DEMO_SESSION_NOTES.lower()
+
+
+def test_demo_payloads_seed_npcs_and_locations():
+    world = build_demo_payloads("Test", "Hero", "")["world"]
+
+    assert world["entities"] == DEMO_WORLD_ENTITIES
+    assert {entity["name"] for entity in world["entities"]} >= {
+        "Mara",
+        "Bram",
+        "Nilo",
+        "Posada del Camino",
+        "Puenteviejo",
+        "Viejo puente",
+    }
+    assert all(entity["entity_type"] in {"npc", "location"} for entity in world["entities"])

@@ -678,3 +678,54 @@ def test_serialize_mechanics_result_exposes_dice_audit_data():
         "success": True,
         "reason": "Evitar al guardia",
     }
+
+
+def test_world_entity_bootstrap_is_atomic_and_idempotent(client):
+    payload = {
+        "entities": [
+            {
+                "name": "Mara",
+                "entity_type": "npc",
+                "description": "Posadera de la posada.",
+                "notes": "Vio salir a Nilo.",
+            },
+            {
+                "name": "Viejo puente",
+                "entity_type": "location",
+                "description": "Puente de piedra.",
+            },
+        ]
+    }
+
+    first = client.post("/world/entities/bootstrap", json=payload)
+    assert first.status_code == 200
+    first_data = first.json()
+    assert len(first_data["created"]) == 2
+    assert [entity["name"] for entity in first_data["entities"]] == [
+        "Mara",
+        "Viejo puente",
+    ]
+
+    second = client.post("/world/entities/bootstrap", json=payload)
+    assert second.status_code == 200
+    second_data = second.json()
+    assert second_data["created"] == []
+    assert second_data["entities"] == first_data["entities"]
+
+    world = client.get("/world")
+    assert world.status_code == 200
+    assert len(world.json()["entities"]) == 2
+
+
+def test_world_entity_bootstrap_rejects_duplicate_names_in_request(client):
+    response = client.post(
+        "/world/entities/bootstrap",
+        json={
+            "entities": [
+                {"name": "Mara", "entity_type": "npc"},
+                {"name": " mara ", "entity_type": "npc"},
+            ]
+        },
+    )
+
+    assert response.status_code == 422

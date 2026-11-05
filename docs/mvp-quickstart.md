@@ -39,7 +39,7 @@ Opcionalmente, personaliza los nombres:
 python scripts/bootstrap_demo.py --campaign-name "Mi primera aventura" --character-name "Kael"
 ```
 
-El script crea una campaña D&D 5e 2014, la sesión **Las campanas de Puenteviejo** y un personaje de prueba de nivel 1. Selecciona automáticamente la sesión y el personaje como activos e imprime los identificadores.
+El script crea una campaña D&D 5e 2014, la sesión **Las campanas de Puenteviejo**, un personaje de prueba de nivel 1 y seis entidades iniciales persistentes (Mara, Bram, Nilo y tres localizaciones). Selecciona automáticamente la sesión y el personaje como activos e imprime los identificadores. La creación de entidades es idempotente: repetir la petición no duplica los nombres existentes.
 
 La aventura comienza en la Posada del Camino. El correo Nilo ha desaparecido; la posadera Mara y el carretero Bram pueden aportar información. Hay pistas que conducen al viejo puente y a una cámara de mantenimiento. La aventura admite conversación, investigación, pruebas y soluciones improvisadas; no exige entrar en combate.
 
@@ -69,7 +69,8 @@ No tienes que seguir este orden ni usar estas soluciones. Puedes negociar con lo
 
 ### Comprobaciones durante la partida
 
-- Después de hablar con un PNJ, consulta `GET /world` y comprueba si se ha registrado una entidad o un evento relevante.
+- Consulta `GET /world` al iniciar: deben existir Mara, Bram, Nilo, Posada del Camino, Puenteviejo y Viejo puente como entidades persistentes.
+- Después de hablar con un PNJ, consulta `GET /world` y comprueba si se ha registrado un evento relevante.
 - Después de descubrir una pista, comprueba que el hecho no contradice lo ya establecido y que queda reflejado en el contexto de turnos posteriores.
 - Repite una consulta sobre algo descubierto y comprueba que el DM conserva la continuidad.
 - Reinicia SillyTavern o vuelve a abrir el chat y verifica que se recupera el estado desde el backend.
