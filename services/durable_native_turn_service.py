@@ -106,7 +106,7 @@ class DurableNativeTurnService:
             turn_repository=self.turn_repository,
             resolution_repository=self.resolution_repository,
             turn_execution_lock=turn_execution_lock,
-            context_loader=self._context_and_history,
+            context_loader=lambda conn: self._context_and_history(conn),
             error_type=DurableNativeTurnError,
         )
 
@@ -747,3 +747,7 @@ class DurableNativeTurnService:
             record,
             already_processed=already_processed,
         )
+
+    @staticmethod
+    def _resolved_player_input(record: TurnResolutionRecord) -> str:
+        return DurableTurnNarrationService._resolved_player_input(record)
