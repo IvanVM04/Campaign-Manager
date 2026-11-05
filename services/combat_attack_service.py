@@ -65,6 +65,7 @@ class CombatAttackService:
         attacker_combatant_id: str | None = None,
         mover_previous_position: GridPosition | None = None,
         reach_feet: int = 5,
+        npc_attack_weapon_key: str | None = None,
         voluntary: bool = True,
         disengaging: bool = False,
     ) -> dict:
@@ -178,11 +179,30 @@ class CombatAttackService:
                     raise LookupError("attacking creature does not exist in this campaign")
                 if creature.current_hp != attacker.current_hp:
                     raise RuntimeError("creature hit points and encounter snapshot differ; reload encounter")
-                npc_attack = creature.metadata.get("npc_melee_attack")
-                if not isinstance(npc_attack, dict) or not isinstance(npc_attack.get("weapon_key"), str):
+                npc_attacks = creature.metadata.get("npc_melee_attacks")
+                if not isinstance(npc_attacks, list) or not npc_attacks:
+                    legacy_profile = creature.metadata.get("npc_melee_attack")
+                    npc_attacks = [legacy_profile] if isinstance(legacy_profile, dict) else []
+                if not npc_attacks:
                     raise ValueError("NPC opportunity attacker requires a configured melee weapon profile")
-                weapon = get_weapon(npc_attack["weapon_key"])
-                proficient = npc_attack.get("proficient", True)
+                if any(
+                    not isinstance(profile, dict)
+                    or not isinstance(profile.get("weapon_key"), str)
+                    for profile in npc_attacks
+                ):
+                    raise ValueError("NPC melee weapon configuration is invalid")
+                selected_profile = (
+                    next(
+                        (profile for profile in npc_attacks
+                         if profile["weapon_key"] == npc_attack_weapon_key),
+                        None,
+                    )
+                    if npc_attack_weapon_key is not None else npc_attacks[0]
+                )
+                if selected_profile is None:
+                    raise ValueError("selected NPC weapon is not configured for this creature")
+                weapon = get_weapon(selected_profile["weapon_key"])
+                proficient = selected_profile.get("proficient", True)
                 if not isinstance(proficient, bool):
                     raise ValueError("NPC melee proficiency configuration is invalid")
                 character = CharacterState(
