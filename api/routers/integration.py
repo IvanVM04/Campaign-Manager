@@ -284,12 +284,7 @@ def process_silly_tavern_turn(data: SillyTavernTurnIn):
             turn_version=data.turn_version,
         )
     except SillyTavernIntegrationServiceConflictError as exc:
-        raise api_error_for_exception(
-            exc,
-            fallback_status=409,
-            fallback_code="turn_conflict",
-            fallback_detail="The turn conflicts with the current campaign state.",
-        ) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
