@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from operations.character_operations import CharacterOperation
 from services.llm_extraction_errors import LLMExtractionError
 
 
@@ -40,6 +41,7 @@ class LLMWorldProposalValidator:
                 for operation_type, builder in builders.items()
                 if operation_type != "change_character_hp"
                 and isinstance(builder, type)
+                and not issubclass(builder, CharacterOperation)
             )
             repair_prompt = (
                 prompt
