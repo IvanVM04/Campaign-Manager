@@ -171,6 +171,8 @@ class CombatAttackService:
                 if equipped is None or equipped["weapon_key"] is None:
                     raise ValueError("attacking character has no equipped weapon")
                 weapon = get_weapon(equipped["weapon_key"])
+                if npc_attack_weapon_key is not None:
+                    raise ValueError("NPC weapon selection is only valid for NPC opportunity attacks")
             else:
                 creature = self.creature_repository.get_creature(
                     attacker.entity_id, campaign_id=campaign_id, conn=conn
