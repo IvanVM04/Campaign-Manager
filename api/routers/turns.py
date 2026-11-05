@@ -92,7 +92,12 @@ def play_turn(
                 idempotency_key=idempotency_key,
             )
     except DurableNativeTurnError as exc:
-        raise api_error_for_exception(\n            exc,\n            fallback_status=409,\n            fallback_code="turn_conflict",\n            fallback_detail="The turn conflicts with the current campaign state.",\n        ) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
 
     return _turn_result_payload(result)
 
@@ -106,7 +111,12 @@ def submit_manual_roll(data: ManualRollIn):
             data.pending_roll_id, tuple(data.rolls)
         )
     except (DurableNativeTurnError, TypeError, ValueError) as exc:
-        raise api_error_for_exception(\n            exc,\n            fallback_status=409,\n            fallback_code="turn_conflict",\n            fallback_detail="The turn conflicts with the current campaign state.",\n        ) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
 
     return _turn_result_payload(result)
 
@@ -125,7 +135,12 @@ def submit_clarification(data: ClarificationIn):
             )
         )
     except (DurableNativeTurnError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(
+            exc,
+            fallback_status=409,
+            fallback_code="turn_conflict",
+            fallback_detail="The turn conflicts with the current campaign state.",
+        ) from exc
 
     return _turn_result_payload(result)
 
