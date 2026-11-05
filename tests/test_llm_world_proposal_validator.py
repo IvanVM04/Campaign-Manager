@@ -1,4 +1,5 @@
 import json
+from typing import ClassVar
 
 import pytest
 
@@ -9,7 +10,7 @@ from services.llm_world_proposal_validator import LLMWorldProposalValidator
 
 
 class FakeParser:
-    _BUILDERS = {
+    _BUILDERS: ClassVar[dict[str, type]] = {
         "create_entity": CreateEntityOperation,
         "change_character_hp": ChangeCharacterHpOperation,
     }
