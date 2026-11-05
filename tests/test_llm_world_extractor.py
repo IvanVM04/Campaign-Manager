@@ -1076,11 +1076,6 @@ def test_propose_repairs_an_unsupported_operation_once():
         '{"operations": [{"type": "start_interaction", "entity_id": 2}]}',
         '{"operations": []}',
     ])
-    provider = FakeProvider(None)
-    provider.response = None
-    provider.__call__ = lambda prompt: next(responses)
-    # Instance-level special methods are resolved on the class, so use a
-    # callable closure to retain and inspect every prompt.
     prompts = []
 
     def sequenced_provider(prompt):
