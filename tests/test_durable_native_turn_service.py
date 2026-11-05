@@ -1029,7 +1029,7 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     assert record.lifecycle_state == "narration_pending"
     assert record.resulting_revision is not None
     committed_world = service.world_service.repository.load_world(campaign_id=1)
-    assert "Aldric" in committed_world.entities
+    assert any(entity.name == "Aldric" for entity in committed_world.entities.values())
     assert len(proposal_calls) == 1
 
     recovered = service.play_turn(
@@ -1040,4 +1040,4 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     assert recovered.narrative == "El personaje observa su entorno."
     assert len(proposal_calls) == 1
     recovered_world = service.world_service.repository.load_world(campaign_id=1)
-    assert "Aldric" in recovered_world.entities
+    assert any(entity.name == "Aldric" for entity in recovered_world.entities.values())
