@@ -760,6 +760,14 @@ class DurableNativeTurnService:
                             updates={"last_error_code": "character_operation_not_allowed"},
                             conn=conn,
                         )
+            cause = exc
+            invalid_llm_proposal = False
+            while cause is not None:
+                if isinstance(cause, LLMExtractionError):
+                    invalid_llm_proposal = True
+                    break
+                cause = cause.__cause__
+
             # A failure before the prepared/commit boundary must not strand
             # the idempotent request in planning until its lease expires.
             # Requeue only while this attempt still owns the lease; the token
@@ -784,7 +792,7 @@ class DurableNativeTurnService:
                             "lease_expires_at": None,
                             "last_error_code": (
                                 "invalid_llm_proposal"
-                                if isinstance(exc, LLMExtractionError)
+                                if invalid_llm_proposal
                                 else "planning_failed"
                             ),
                         },
