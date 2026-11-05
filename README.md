@@ -390,11 +390,31 @@ http://127.0.0.1:8765/docs
 
 ## Ollama
 
-The application uses an `OllamaProvider` as the local LLM provider.
+The application uses `OllamaProvider` as its local LLM adapter. Ollama must be running and the configured models must be available.
 
-Ollama must therefore be running locally with a compatible model available.
+Provider settings are read from environment variables when the backend starts. Defaults preserve the existing setup: `http://localhost:11434`, model `gemma4:26b` for all three responsibilities, and a 120-second timeout per request.
 
-The exact model is intentionally not hard-coded into the project documentation so that the backend can be used with different local models depending on available hardware and desired performance.
+| Variable | Default | Purpose |
+|---|---|---|
+| `CAMPAIGN_MANAGER_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama HTTP base URL |
+| `CAMPAIGN_MANAGER_LLM_NARRATIVE_MODEL` | `gemma4:26b` | Model used for DM narration |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_MODEL` | `gemma4:26b` | Model used to propose structured world operations |
+| `CAMPAIGN_MANAGER_LLM_MECHANICS_MODEL` | `gemma4:26b` | Model used for mechanics adjudication |
+| `CAMPAIGN_MANAGER_LLM_NARRATIVE_TIMEOUT_SECONDS` | `120` | Narration request timeout |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS` | `120` | Extraction request timeout |
+| `CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS` | `120` | Mechanics request timeout |
+
+Example (PowerShell):
+
+```powershell
+$env:CAMPAIGN_MANAGER_LLM_NARRATIVE_MODEL = "gemma4:26b"
+$env:CAMPAIGN_MANAGER_LLM_EXTRACTION_MODEL = "qwen2.5:14b"
+$env:CAMPAIGN_MANAGER_LLM_MECHANICS_MODEL = "qwen2.5:14b"
+$env:CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS = "90"
+uvicorn app:app --reload
+```
+
+The settings are validated at startup. Invalid URLs, empty model names, and non-positive/non-finite timeouts prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. Restart the backend after changing environment variables.
 
 ---
 
