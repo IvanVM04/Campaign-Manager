@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from models.world_state import WorldState
-from .context_ranker import ContextRanker
 from services.world_serializer import WorldSerializer
+
+from .context_ranker import ContextRanker
 
 
 class ContextExpander:

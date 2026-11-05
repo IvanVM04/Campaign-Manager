@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from models.turn_record import TurnRecord
+
 from .context_ranker import ContextRanker
 
 
