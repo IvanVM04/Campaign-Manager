@@ -34,6 +34,7 @@ class LegacySillyTavernTurnService:
         world_snapshot_repository,
         error_type=RuntimeError,
         conflict_error_type=RuntimeError,
+        transaction_context=transaction,
     ) -> None:
         self.campaign_scope = campaign_scope
         self.campaign_state_service = campaign_state_service
@@ -45,6 +46,7 @@ class LegacySillyTavernTurnService:
         self.world_snapshot_repository = world_snapshot_repository
         self.error_type = error_type
         self.conflict_error_type = conflict_error_type
+        self.transaction_context = transaction_context
 
     def process_turn(
         self,
@@ -231,7 +233,7 @@ class LegacySillyTavernTurnService:
         previous_world_snapshot = copy.deepcopy(previous_world)
 
         try:
-            with transaction("DEFERRED") as read_conn:
+            with self.transaction_context("DEFERRED") as read_conn:
                 state_revision = self.state_version_repository.get_revision(
                     self.campaign_scope.campaign_id,
                     conn=read_conn,
@@ -485,7 +487,7 @@ class LegacySillyTavernTurnService:
         # --------------------------------------------------------
 
         try:
-            with transaction("IMMEDIATE") as conn:
+            with self.transaction_context("IMMEDIATE") as conn:
 
                 # ------------------------------------------------
                 # COMPROBACIÓN AUTORITATIVA DE IDEMPOTENCIA
