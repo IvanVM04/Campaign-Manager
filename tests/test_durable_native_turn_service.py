@@ -904,3 +904,40 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     assert len(next_proposal_calls) == 1
     assert event_title in next_proposal_calls[0]
     assert "La ausencia de la campana queda como pista conocida." in next_proposal_calls[0]
+
+
+def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
+    service, _, _ = _service_with_fake_models()
+
+    def fail_during_preparation(*args, **kwargs):
+        raise RuntimeError("simulated provider failure")
+
+    service.resolver.prepare_turn = fail_during_preparation
+
+    with (
+        caplog.at_level(
+            "ERROR",
+            logger="services.durable_native_turn_service",
+        ),
+        pytest.raises(
+            DurableNativeTurnError,
+            match="native turn execution failed",
+        ),
+    ):
+        service.play_turn(
+            "Investigo el campanario.",
+            idempotency_key="native-test-unexpected-error-001",
+        )
+
+    entries = [
+        record
+        for record in caplog.records
+        if "Unexpected native turn execution failure" in record.getMessage()
+    ]
+    assert len(entries) == 1
+    assert entries[0].exc_info is not None
+    assert isinstance(entries[0].exc_info[1], RuntimeError)
+    assert str(entries[0].exc_info[1]) == "simulated provider failure"
+    assert "campaign_id=1" in entries[0].getMessage()
+    assert "adapter_namespace=native" in entries[0].getMessage()
+    assert "lifecycle_state=planning" in entries[0].getMessage()
