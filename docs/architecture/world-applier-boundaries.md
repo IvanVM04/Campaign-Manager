@@ -3,6 +3,7 @@
 ## Current ownership
 
 - `WorldApplier` remains the compatibility facade used by `WorldService`.
+- `WorldEntityApplier` owns entity creation and updates, including name uniqueness and entity ID allocation.
 - `WorldRelationApplier` owns create, update, and remove relation validation and in-memory mutation.
 - `WorldItemApplier` owns item definitions and inventory-instance operations: create item, create instance, transfer instance, and update instance.
 - `WorldResourceApplier` owns resource definitions and balance operations: create resource, gain, spend, and transfer.
@@ -11,6 +12,8 @@
 
 ## Preserved invariants
 
+- Entity IDs continue to be allocated from the current in-memory collection; name uniqueness remains case-insensitive and whitespace-trimmed.
+- Entity updates retain partial-update behavior, duplicate-name protection, and `NO_CHANGE` results when requested values already match.
 - Item and instance IDs continue to be allocated from the current in-memory collections.
 - Item equipment, weapon, and armor validation remains in the item application boundary.
 - Item owner/location reference checks, duplicate instance checks, partial-update `_UNSET` semantics, and inactive-state behavior remain unchanged.
