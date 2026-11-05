@@ -59,6 +59,45 @@ exploración, investigación, pruebas y consecuencias persistentes.
 """
 
 
+DEMO_WORLD_ENTITIES = [
+    {
+        "name": "Mara",
+        "entity_type": "npc",
+        "description": "Posadera práctica y hospitalaria de la Posada del Camino.",
+        "notes": "Vio a Nilo salir hacia el puente con una bolsa de cuero. Está preocupada, pero no quiere alarmar al pueblo.",
+    },
+    {
+        "name": "Bram",
+        "entity_type": "npc",
+        "description": "Carretero nervioso que suele parar en la Posada del Camino.",
+        "notes": "Afirma haber visto una luz azul junto al río, pero no vio quién la llevaba.",
+    },
+    {
+        "name": "Nilo",
+        "entity_type": "npc",
+        "description": "Correo local desaparecido; curioso y algo imprudente.",
+        "notes": "Conoce un acceso de mantenimiento bajo el puente. Su destino actual no debe revelarse sin descubrirlo.",
+    },
+    {
+        "name": "Posada del Camino",
+        "entity_type": "location",
+        "description": "Posada acogedora en el pueblo de Puenteviejo, refugio de viajeros.",
+        "notes": "Punto de partida de la aventura. Mara trabaja aquí; quedó una bolsa de viaje de Nilo.",
+    },
+    {
+        "name": "Puenteviejo",
+        "entity_type": "location",
+        "description": "Pequeño pueblo atravesado por un río y un viejo puente de piedra.",
+        "notes": "Desde hace tres noches se oye una campana bajo el puente.",
+    },
+    {
+        "name": "Viejo puente",
+        "entity_type": "location",
+        "description": "Puente de piedra húmedo sobre el río, en las afueras de Puenteviejo.",
+        "notes": "Hay huellas embarradas y un acceso de mantenimiento oculto bajo la estructura.",
+    },
+]
+
 DEMO_SESSION_SUMMARY = """Objetivo de esta sesión: averiguar qué ocurrió con Nilo, el correo,
 y regresar con él o descubrir su destino.
 
@@ -96,6 +135,7 @@ def build_demo_payloads(campaign_name: str, character_name: str, tone: str):
             "end_location": "",
             "notes": DEMO_SESSION_NOTES,
         },
+        "world": {"entities": DEMO_WORLD_ENTITIES},
         "character": {
             "name": character_name,
             "class_name": "Fighter",
@@ -183,6 +223,13 @@ def bootstrap(base_url: str, campaign_name: str, character_name: str, tone: str)
         payload={"session_id": session_id},
         campaign_id=campaign_id,
     )
+    world_result = request_json(
+        base_url,
+        "/world/entities/bootstrap",
+        method="POST",
+        payload=payloads["world"],
+        campaign_id=campaign_id,
+    )
     character_result = request_json(
         base_url,
         "/campaign/bootstrap",
@@ -198,6 +245,7 @@ def bootstrap(base_url: str, campaign_name: str, character_name: str, tone: str)
         "campaign_id": campaign_id,
         "session_id": session_id,
         "character_id": character_id,
+        "world_entities": world_result["entities"],
     }
 
 
@@ -226,6 +274,7 @@ def main() -> int:
     print(f"Campaign ID: {result['campaign_id']}")
     print(f"Session ID:  {result['session_id']}")
     print(f"Character ID: {result['character_id']}")
+    print(f"World entities: {len(result['world_entities'])} seeded")
     print()
     print("Configure the SillyTavern extension with this Campaign ID.")
     print("Your first adventure is 'Las campanas de Puenteviejo'.")
