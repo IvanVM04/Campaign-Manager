@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-    buildRetrievalQuery,\n    summarizeConnectionReadiness,
+    buildRetrievalQuery,
+    summarizeConnectionReadiness,
     findClarificationOrigin,
     findManualRollOrigin,
     parseManualRollResults,
