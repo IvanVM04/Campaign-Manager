@@ -453,5 +453,5 @@ test("describeTurnFailure gives actionable guidance for stable backend error cod
     assert.match(describeTurnFailure(502, "invalid_llm_response").message, /misma acción/);
     assert.match(describeTurnFailure(500, "turn_resolution_failed").message, /logs del backend/);
     assert.match(describeTurnFailure(409, "conflict").message, /no regeneres repetidamente/);
-    assert.match(describeTurnFailure(null, null).message, /backend esté iniciado/);
+    assert.match(describeTurnFailure(null, null).message, /Campaign Manager esté iniciado/);
 });
