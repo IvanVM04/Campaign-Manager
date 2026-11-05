@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from database import get_conn
 from models.campaign_scope import CampaignScope
 from models.turn_context import TurnContext
