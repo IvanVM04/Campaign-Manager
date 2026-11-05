@@ -983,3 +983,61 @@ def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries(
 
     assert recovered.narrative == "El personaje observa su entorno."
     assert len(proposal_calls) == 3
+
+
+
+def test_context_failure_after_commit_is_recoverable_without_reapplying_operations(monkeypatch):
+    service, proposal_calls, _ = _service_with_fake_models()
+    proposal_payload = json.dumps({
+        "operations": [{
+            "type": "create_entity",
+            "name": "Aldric",
+            "entity_type": "npc",
+            "description": "Tabernero.",
+            "notes": "",
+            "active": True,
+        }]
+    })
+    service.resolver.extractor.provider = lambda prompt: (
+        proposal_calls.append(prompt) or proposal_payload
+    )
+
+    original_context_and_history = service._context_and_history
+    context_calls = {"count": 0}
+
+    def fail_once_after_commit(conn):
+        context_calls["count"] += 1
+        # Calls 1 and 2 build/validate the plan; call 3 is the context
+        # reload for narration, after the consequences have been committed.
+        if context_calls["count"] == 3:
+            raise RuntimeError("temporary context read failure")
+        return original_context_and_history(conn)
+
+    monkeypatch.setattr(service, "_context_and_history", fail_once_after_commit)
+
+    with pytest.raises(DurableNativeTurnError):
+        service.play_turn(
+            "Miro alrededor.",
+            idempotency_key="native-context-failure-after-commit",
+        )
+
+    record = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-context-failure-after-commit",
+        scope=service.scope,
+    )
+    assert record.lifecycle_state == "narration_pending"
+    assert record.resulting_revision is not None
+    committed_world = service.world_service.repository.load_world(campaign_id=1)
+    assert "Aldric" in committed_world.entities
+    assert len(proposal_calls) == 1
+
+    recovered = service.play_turn(
+        "Miro alrededor.",
+        idempotency_key="native-context-failure-after-commit",
+    )
+
+    assert recovered.narrative == "El personaje observa su entorno."
+    assert len(proposal_calls) == 1
+    recovered_world = service.world_service.repository.load_world(campaign_id=1)
+    assert "Aldric" in recovered_world.entities
