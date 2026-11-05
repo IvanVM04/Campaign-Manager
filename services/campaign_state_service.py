@@ -68,6 +68,7 @@ class CampaignStateService:
         world_service: WorldStatePort,
         campaign_id: int | None = None,
         persistent_effect_repository: PersistentEffectRepository | None = None,
+        effective_condition_service: EffectiveConditionService | None = None,
     ) -> None:
 
         if not isinstance(
@@ -106,7 +107,23 @@ class CampaignStateService:
         self.character_repository = character_repository
         self.world_service = world_service
         self.entity_repository = entity_repository
-        self.effective_condition_service = EffectiveConditionService(persistent_effect_repository or PersistentEffectRepository())
+        if effective_condition_service is not None and not isinstance(
+            effective_condition_service,
+            EffectiveConditionService,
+        ):
+            raise TypeError(
+                "effective_condition_service must be an EffectiveConditionService"
+            )
+
+        self.effective_condition_service = (
+            effective_condition_service
+            if effective_condition_service is not None
+            else EffectiveConditionService(
+                persistent_effect_repository
+                if persistent_effect_repository is not None
+                else PersistentEffectRepository()
+            )
+        )
         self.campaign_id = (
             world_service.campaign_id
             if campaign_id is None
