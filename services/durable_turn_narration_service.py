@@ -10,6 +10,7 @@ from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from services.durable_turn_result_mapper import DurableTurnResultMapper
+from services.turn_resolution_codec import TurnResolutionCodec
 
 
 class DurableTurnNarrationService:
@@ -24,6 +25,7 @@ class DurableTurnNarrationService:
         resolution_repository,
         turn_execution_lock=None,
         context_loader,
+        error_type=RuntimeError,
     ) -> None:
         self.scope = scope
         self.resolver = resolver
@@ -31,6 +33,7 @@ class DurableTurnNarrationService:
         self.resolution_repository = resolution_repository
         self.turn_execution_lock = turn_execution_lock
         self.context_loader = context_loader
+        self.error_type = error_type
 
     def complete_external_narration(
         self,
@@ -41,13 +44,13 @@ class DurableTurnNarrationService:
         turn_version: int,
     ) -> TurnResolutionResult:
         if not isinstance(external_turn_id, str) or not external_turn_id.strip():
-            raise DurableNativeTurnError("external_turn_id must not be empty")
+            raise self.error_type("external_turn_id must not be empty")
         if not isinstance(player_input, str) or not player_input.strip():
-            raise DurableNativeTurnError("player_input must not be empty")
+            raise self.error_type("player_input must not be empty")
         if not isinstance(narrative, str) or not narrative.strip():
-            raise DurableNativeTurnError("narrative must not be empty")
+            raise self.error_type("narrative must not be empty")
         if not isinstance(turn_version, int) or isinstance(turn_version, bool) or turn_version < 1:
-            raise DurableNativeTurnError("turn_version must be a positive integer")
+            raise self.error_type("turn_version must be a positive integer")
 
         def complete():
             return self._complete_external_narration_locked(
@@ -78,12 +81,12 @@ class DurableTurnNarrationService:
         )
 
         if record is not None and record.player_input != player_input:
-            raise DurableNativeTurnError(
+            raise self.error_type(
                 "external turn identity was reused with different player input"
             )
 
         if record is not None and record.lifecycle_state == "awaiting_input":
-            raise DurableNativeTurnError(
+            raise self.error_type(
                 "turn is awaiting player clarification and cannot be completed as narration"
             )
 
@@ -91,7 +94,7 @@ class DurableTurnNarrationService:
             "narration_pending",
             "completed",
         }:
-            raise DurableNativeTurnError(
+            raise self.error_type(
                 f"turn is not ready for narration: {record.lifecycle_state}"
             )
 
@@ -111,12 +114,12 @@ class DurableTurnNarrationService:
 
         if previous_turn is not None:
             if previous_turn.player_input != player_input:
-                raise DurableNativeTurnError(
+                raise self.error_type(
                     "external turn identity was reused with different player input"
                 )
             if turn_version == previous_turn.version:
                 if previous_turn.narrative != narrative:
-                    raise DurableNativeTurnError(
+                    raise self.error_type(
                         "external turn version already exists with different content"
                     )
                 if record is not None and record.lifecycle_state == "completed":
@@ -125,15 +128,15 @@ class DurableTurnNarrationService:
                     )
                 return TurnResolutionResult.from_persisted_turn(previous_turn)
             if turn_version < previous_turn.version:
-                raise DurableNativeTurnError("external turn version is older than the active version")
+                raise self.error_type("external turn version is older than the active version")
 
         if turn_version != latest_version + 1:
-            raise DurableNativeTurnError(
+            raise self.error_type(
                 f"external turn version must be {latest_version + 1}"
             )
 
         if record is None and previous_turn is None:
-            raise DurableNativeTurnError(
+            raise self.error_type(
                 "no durable resolution exists for this external turn"
             )
 
@@ -200,11 +203,11 @@ class DurableTurnNarrationService:
                             current_record, current_active, already_processed=True
                         )
                     return TurnResolutionResult.from_persisted_turn(current_active)
-                raise DurableNativeTurnError(
+                raise self.error_type(
                     "external turn version changed while narration was being saved"
                 )
             if turn_version != current_latest_version + 1:
-                raise DurableNativeTurnError(
+                raise self.error_type(
                     f"external turn version must be {current_latest_version + 1}"
                 )
             if current_active is not None:
@@ -280,11 +283,11 @@ class DurableTurnNarrationService:
                     conn=conn,
                 )
         if record.lifecycle_state != "narration_pending":
-            raise DurableNativeTurnError("resolution is not awaiting narration")
+            raise self.error_type("resolution is not awaiting narration")
 
         with transaction("DEFERRED") as conn:
             context, recent = self.context_loader(conn)
-        mechanics_result = self._mechanics_from_json(record.mechanics_json)
+        mechanics_result = TurnResolutionCodec.mechanics_from_json(record.mechanics_json)
         resolved_player_input = self._resolved_player_input(record)
         committed_resolution = json.dumps(
             {
@@ -309,7 +312,7 @@ class DurableTurnNarrationService:
             committed_resolution=committed_resolution,
         )
         if not narrative:
-            raise DurableNativeTurnError("DMService returned an empty narrative")
+            raise self.error_type("DMService returned an empty narrative")
 
         with transaction("IMMEDIATE") as conn:
             turn = self.turn_repository.save_turn(
