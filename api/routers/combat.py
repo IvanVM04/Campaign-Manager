@@ -259,6 +259,8 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
                 target_within_5_feet=data.target_within_5_feet,
                 versatile_two_handed=data.versatile_two_handed,
                 finesse_ability=data.finesse_ability,
+                npc_attack_weapon_key=data.npc_attack_weapon_key,
+                npc_natural_attack_key=data.npc_natural_attack_key,
             )
         attack = result["result"]
         damage_roll = attack.damage_roll
@@ -267,6 +269,7 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
             "attacker_combatant_id": result["attacker_combatant_id"],
             "target_combatant_id": result["target_combatant_id"],
             "weapon_key": result["weapon_key"],
+            "natural_attack_key": result["natural_attack_key"],
             "attack_ability": result["attack_ability"],
             "attack_bonus": result["attack_bonus"],
             "proficient": result["proficient"],
