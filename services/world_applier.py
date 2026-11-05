@@ -1,4 +1,3 @@
-from models.entity import Entity
 from models.event import Event
 from models.operation_result import (
     OperationResult,
@@ -6,7 +5,6 @@ from models.operation_result import (
 )
 from models.world_state import WorldState
 from operations.world_operations import (
-    CreateEntityOperation,
     CreateEventOperation,
     CreateItemInstanceOperation,
     CreateItemOperation,
@@ -17,11 +15,11 @@ from operations.world_operations import (
     SpendResourceOperation,
     TransferItemOperation,
     TransferResourceOperation,
-    UpdateEntityOperation,
     UpdateItemInstanceOperation,
     UpdateRelationOperation,
     WorldOperation,
 )
+from services.world_entity_applier import WorldEntityApplier
 from services.world_item_applier import WorldItemApplier
 from services.world_relation_applier import WorldRelationApplier
 from services.world_resource_applier import WorldResourceApplier
@@ -45,10 +43,12 @@ class WorldApplier:
         relation_applier=None,
         item_applier=None,
         resource_applier=None,
+        entity_applier=None,
     ) -> None:
         self._relation_applier = relation_applier or WorldRelationApplier()
         self._item_applier = item_applier or WorldItemApplier()
         self._resource_applier = resource_applier or WorldResourceApplier()
+        self._entity_applier = entity_applier or WorldEntityApplier()
 
     def apply(
         self,
@@ -56,11 +56,8 @@ class WorldApplier:
         operation: WorldOperation,
     ) -> OperationResult:
 
-        if isinstance(operation, CreateEntityOperation):
-            return self._apply_create_entity(world, operation)
-
-        if isinstance(operation, UpdateEntityOperation):
-            return self._apply_update_entity(world, operation)
+        if isinstance(operation, (CreateEntityOperation, UpdateEntityOperation)):
+            return self._entity_applier.apply(world, operation)
 
         if isinstance(
             operation,
@@ -103,142 +100,14 @@ class WorldApplier:
         )
 
     # ============================================================
-    # ENTITIES
+    # ENTITIES (compatibility delegates)
     # ============================================================
 
-    def _apply_create_entity(
-        self,
-        world: WorldState,
-        operation: CreateEntityOperation,
-    ) -> OperationResult:
+    def _apply_create_entity(self, world, operation):
+        return self._entity_applier._apply_create_entity(world, operation)
 
-        name = operation.name.strip()
-
-        if not name:
-            return OperationResult(
-                status=OperationStatus.INVALID,
-                message="Entity name cannot be empty.",
-                operation=operation,
-            )
-
-        # Evitar duplicados por nombre.
-        for entity in world.entities.values():
-            if entity.name.strip().lower() == name.lower():
-                return OperationResult(
-                    status=OperationStatus.DUPLICATE,
-                    message=f"Entity '{name}' already exists.",
-                    operation=operation,
-                )
-
-        entity_id = self._next_entity_id(world)
-
-        entity = Entity(
-            id=entity_id,
-            name=name,
-            entity_type=operation.entity_type,
-            description=operation.description,
-            notes=operation.notes,
-            active=operation.active,
-        )
-
-        world.entities[entity_id] = entity
-
-        return OperationResult(
-            status=OperationStatus.SUCCESS,
-            message=f"Entity '{entity.name}' created.",
-            operation=operation,
-            data={
-                "entity_id": entity_id,
-            },
-        )
-
-    def _apply_update_entity(
-        self,
-        world: WorldState,
-        operation: UpdateEntityOperation,
-    ) -> OperationResult:
-
-        entity = world.entities.get(operation.entity_id)
-
-        if entity is None:
-            return OperationResult(
-                status=OperationStatus.NOT_FOUND,
-                message=(
-                    f"Entity '{operation.entity_id}' "
-                    f"does not exist."
-                ),
-                operation=operation,
-            )
-
-        changed = False
-
-        if operation.name is not None:
-
-            name = operation.name.strip()
-
-            if not name:
-                return OperationResult(
-                    status=OperationStatus.INVALID,
-                    message="Entity name cannot be empty.",
-                    operation=operation,
-                )
-
-            for entity_id, other in world.entities.items():
-
-                if entity_id == operation.entity_id:
-                    continue
-
-                if other.name.strip().lower() == name.lower():
-                    return OperationResult(
-                        status=OperationStatus.DUPLICATE,
-                        message=(
-                            f"Entity named '{name}' "
-                            f"already exists."
-                        ),
-                        operation=operation,
-                    )
-
-            if entity.name != name:
-                entity.name = name
-                changed = True
-
-        if (
-            operation.entity_type is not None
-            and entity.entity_type != operation.entity_type
-        ):
-            entity.entity_type = operation.entity_type
-            changed = True
-
-        if (
-            operation.description is not None
-            and entity.description != operation.description
-        ):
-            entity.description = operation.description
-            changed = True
-
-        if operation.notes is not None and entity.notes != operation.notes:
-            entity.notes = operation.notes
-            changed = True
-
-        if operation.active is not None and entity.active != operation.active:
-            entity.active = operation.active
-            changed = True
-
-        if not changed:
-            return OperationResult(
-                status=OperationStatus.NO_CHANGE,
-                message="Entity already had the requested state.",
-                operation=operation,
-            )
-
-        return OperationResult(
-            status=OperationStatus.SUCCESS,
-            message=f"Entity '{entity.name}' updated.",
-            operation=operation,
-            data={
-                "entity_id": operation.entity_id,
-            },
-        )
+    def _apply_update_entity(self, world, operation):
+        return self._entity_applier._apply_update_entity(world, operation)
 
     # ============================================================
     # ITEMS (compatibility delegates)
@@ -354,18 +223,8 @@ class WorldApplier:
     # ============================================================
 
     @staticmethod
-    def _next_entity_id(
-        world: WorldState,
-    ) -> int:
-
-        numeric_ids = [
-            entity_id
-            for entity_id in world.entities
-            if isinstance(entity_id, int)
-            and not isinstance(entity_id, bool)
-        ]
-
-        return max(numeric_ids, default=0) + 1
+    def _next_entity_id(world):
+        return WorldEntityApplier._next_entity_id(world)
 
     @staticmethod
     def _valid_amount(amount: float) -> bool:
