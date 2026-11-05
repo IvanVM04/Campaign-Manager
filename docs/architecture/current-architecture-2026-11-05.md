@@ -50,6 +50,23 @@ Keep this deployment shape. The current runtime cache, in-memory world and lock 
 | `migrations.py` | Ordered schema evolution (current migration 028) |
 | `tests/` | Python service/API/rules/integration tests and JavaScript extension tests |
 
+## 2.1 Service package organization (target boundaries)
+
+The service layer is currently flat. Capability package guides have been added under services/ to document the intended ownership boundaries before moving source modules:
+
+| Target package | Responsibility | Guide |
+|---|---|---|
+| campaign | Campaign state, clock and runtime composition | [README](../../services/campaign/README.md) |
+| characters | Character creation and state use cases | [README](../../services/characters/README.md) |
+| combat | Combat application workflows | [README](../../services/combat/README.md) |
+| context | Context expansion, ranking and rendering | [README](../../services/context/README.md) |
+| llm_world | World extraction prompts, parsing and validation | [README](../../services/llm_world/README.md) |
+| providers | LLM provider contracts, adapters and settings | [README](../../services/providers/README.md) |
+| turns | Durable turn lifecycle and legacy compatibility | [README](../../services/turns/README.md) |
+| world | Validated world-operation application | [README](../../services/world/README.md) |
+
+These are documentation-first boundaries: implementation modules and imports still live in the existing flat services/ package. Source moves are intentionally deferred to smaller migration changes after import dependencies and compatibility callers are mapped. Each package guide lists its current candidate modules, dependency rules and outstanding work.
+
 ## 3. Request and runtime composition
 
 `app.py` mounts capability routers and middleware. Every campaign-scoped request supplies `X-Campaign-Id`; middleware resolves a `CampaignRuntime` and binds it through a `ContextVar`. Campaign listing/creation and health/docs endpoints are exempt.
