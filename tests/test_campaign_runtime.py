@@ -1,5 +1,6 @@
 from repositories.campaign_repository import CampaignRepository
 from services.campaign_runtime import CampaignRuntimeFactory
+from services.llm_settings import LLMSettings
 
 
 def test_runtime_factory_builds_independent_runtime_per_campaign(
@@ -48,3 +49,33 @@ def test_runtime_factory_invalidate_rebuilds_campaign_runtime(
 
     assert second is not first
     assert second.campaign_id == 1
+
+
+
+def test_runtime_factory_uses_role_specific_llm_settings(isolated_database):
+    settings = LLMSettings(
+        narrative_model="narrator",
+        extraction_model="extractor",
+        mechanics_model="adjudicator",
+        narrative_timeout_seconds=90,
+        extraction_timeout_seconds=45,
+        mechanics_timeout_seconds=30,
+    )
+    runtime = CampaignRuntimeFactory(llm_settings=settings).get_runtime(1)
+    resolver = runtime.durable_native_turn_service.resolver
+
+    assert resolver.dm_service.provider.model == "narrator"
+    assert resolver.extractor.provider.model == "extractor"
+    assert resolver.mechanics_adjudicator.provider.model == "adjudicator"
+    assert resolver.dm_service.provider.timeout == 90.0
+    assert resolver.extractor.provider.timeout == 45.0
+    assert resolver.mechanics_adjudicator.provider.timeout == 30.0
+
+
+def test_runtime_factory_rejects_invalid_llm_settings(isolated_database):
+    try:
+        CampaignRuntimeFactory(llm_settings="invalid")
+    except TypeError as exc:
+        assert "LLMSettings" in str(exc)
+    else:
+        raise AssertionError("invalid LLM settings should be rejected")

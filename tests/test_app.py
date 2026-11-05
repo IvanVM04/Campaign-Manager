@@ -8,6 +8,7 @@ from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
 from services.campaign_state_service import CampaignStateService
 from services.context_builder import ContextBuilder
+from services.llm_settings import LLMSettings
 from services.memory_search_service import MemorySearchService
 from services.turn_execution_lock import TurnExecutionLock
 from services.world_service import WorldService
@@ -35,11 +36,17 @@ def test_create_campaign_turn_service_uses_provided_context_builder():
 
     turn_execution_lock = TurnExecutionLock()
 
+    settings = LLMSettings(
+        narrative_model="narrator",
+        extraction_model="extractor",
+        mechanics_model="adjudicator",
+    )
     service = create_campaign_turn_service(
         world_service=world_service,
         context_builder=context_builder,
         campaign_state_service=campaign_state_service,
         turn_execution_lock=turn_execution_lock,
+        llm_settings=settings,
     )
 
     assert service.turn_resolution_service is not None
@@ -48,6 +55,9 @@ def test_create_campaign_turn_service_uses_provided_context_builder():
     dm_service = service.turn_resolution_service.dm_service
 
     assert dm_service.context_builder is context_builder
+    assert dm_service.provider.model == "narrator"
+    assert service.turn_resolution_service.extractor.provider.model == "extractor"
+    assert service.turn_resolution_service.mechanics_adjudicator.provider.model == "adjudicator"
 
 
 def test_create_campaign_turn_service_rejects_invalid_context_builder():

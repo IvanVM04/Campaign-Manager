@@ -104,7 +104,7 @@ It remains a **partial** 2014 rules implementation. Character creation/progressi
 - SillyTavern is the current player-facing interface; no standalone web UI exists.
 - The app is single-player/local-first and defaults to loopback. `X-Campaign-Id` is a campaign selector, not authentication.
 - One process/worker is the supported deployment. In-process locks and world caches are not distributed.
-- Ollama is currently constructed directly in runtime composition with provider defaults; validated settings/model-role configuration is future work.
+- Ollama providers are composed from validated startup settings. Narrative, extraction and mechanics roles may use separate models and timeouts; all default to the existing `gemma4:26b` / 120-second configuration. The per-campaign runtime cache remains process-local and has manual invalidation only.
 - `/health` is liveness; `/ready` checks SQLite readiness.
 
 ## 8. Known architectural debt
