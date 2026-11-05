@@ -365,7 +365,6 @@ def test_campaign_state_service_accepts_structural_world_state_port(
     assert isinstance(service.get_world(), WorldState)
 
 
-
 def test_campaign_state_service_uses_injected_effective_condition_service(
     isolated_database,
 ):
