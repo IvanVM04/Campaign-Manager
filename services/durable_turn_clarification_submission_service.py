@@ -37,7 +37,7 @@ class DurableTurnClarificationSubmissionService:
             or not answer_external_turn_id.strip()
             or len(answer_external_turn_id.strip()) > 500
         ):
-            raise service.error_type(
+            raise self.error_type(
                 "answer_external_turn_id must contain 1-500 characters"
             )
         if answer_external_turn_id is not None:
@@ -46,22 +46,22 @@ class DurableTurnClarificationSubmissionService:
             not isinstance(pending_clarification_id, str)
             or ":" not in pending_clarification_id
         ):
-            raise service.error_type("pending_clarification_id is invalid")
+            raise self.error_type("pending_clarification_id is invalid")
         if not isinstance(answer, str) or not answer.strip():
-            raise service.error_type("clarification answer must not be empty")
+            raise self.error_type("clarification answer must not be empty")
         answer = answer.strip()
         if len(answer) > 5000:
-            raise service.error_type("clarification answer must not exceed 5000 characters")
+            raise self.error_type("clarification answer must not exceed 5000 characters")
         raw_id, challenge_id = pending_clarification_id.split(":", 1)
         if not raw_id.isdigit() or not challenge_id:
-            raise service.error_type("pending_clarification_id is invalid")
+            raise self.error_type("pending_clarification_id is invalid")
 
         def submit():
             record = service.resolution_repository.get(int(raw_id), scope=service.scope)
             if record is None:
-                raise service.error_type("clarification request was not found")
+                raise self.error_type("clarification request was not found")
             if record.adapter_namespace != adapter_namespace:
-                raise service.error_type(
+                raise self.error_type(
                     "clarification challenge belongs to a different adapter"
                 )
             pending_state = json.loads(record.adjudication_json or "{}")
@@ -107,19 +107,19 @@ class DurableTurnClarificationSubmissionService:
                         record.turn_id, scope=service.scope
                     )
                     if turn is None:
-                        raise service.error_type(
+                        raise self.error_type(
                             "completed clarification has no transcript"
                         )
                     return service._result_from_completed_record(
                         record, turn, already_processed=True
                     )
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
-                raise service.error_type("clarification request is no longer pending")
+                raise self.error_type("clarification request is no longer pending")
             pending = pending_state.get("clarification")
             if not isinstance(pending, dict) or not secrets.compare_digest(
                 str(pending.get("challenge_id", "")), challenge_id
             ):
-                raise service.error_type("clarification challenge is invalid or expired")
+                raise self.error_type("clarification challenge is invalid or expired")
 
             token = secrets.token_urlsafe(24)
             now = datetime.now(UTC)
@@ -134,7 +134,7 @@ class DurableTurnClarificationSubmissionService:
                         conn=conn,
                     )
             except ValueError as exc:
-                raise service.error_type(
+                raise self.error_type(
                     "clarification is already being processed; retry"
                 ) from exc
 
@@ -158,7 +158,7 @@ class DurableTurnClarificationSubmissionService:
                             updates={"last_error_code": "stale_clarification"},
                             conn=conn,
                         )
-                    raise service.error_type(
+                    raise self.error_type(
                         "campaign state changed while waiting for clarification"
                     )
 
@@ -314,9 +314,9 @@ class DurableTurnClarificationSubmissionService:
                             updates={"last_error_code": "clarification_resolution_failed"},
                             conn=conn,
                         )
-                if isinstance(exc, service.error_type):
+                if isinstance(exc, self.error_type):
                     raise
-                raise service.error_type(
+                raise self.error_type(
                     "clarification resolution failed"
                 ) from exc
 
@@ -347,7 +347,7 @@ class DurableTurnClarificationSubmissionService:
                     updates={"last_error_code": "stale_clarification"},
                     conn=conn,
                 )
-            raise service.error_type(
+            raise self.error_type(
                 "campaign state changed while recovering clarification"
             )
 
@@ -378,9 +378,9 @@ class DurableTurnClarificationSubmissionService:
                         updates={"last_error_code": "clarification_recovery_failed"},
                         conn=conn,
                     )
-            if isinstance(exc, service.error_type):
+            if isinstance(exc, self.error_type):
                 raise
-            raise service.error_type(
+            raise self.error_type(
                 "prepared clarification recovery failed"
             ) from exc
 
