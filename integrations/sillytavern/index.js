@@ -1004,7 +1004,7 @@ async function testConnection() {
         statusElement.textContent = readiness.message;
         statusElement.dataset.state = readiness.ready ? 'ready' : 'incomplete';
         if (!readiness.ready) {
-            throw new Error(readiness.message);
+            return;
         }
 
         log(
