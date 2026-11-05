@@ -511,7 +511,6 @@ class CombatAttackService:
                 "armor_training_penalty": armor_training_penalty,
                 "result": result,
                 "target_current_hp": new_target_hp,
-                "damage_adjustment": damage_adjustment,
                 "target_armor_class": target_armor_class,
                 "damage_adjustment": damage_adjustment,
                 "opportunity_attack": opportunity_attack,
