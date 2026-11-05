@@ -268,15 +268,15 @@ The observed failure logged `resolution_id=4` and `lifecycle_state=planning`, wh
 
 **Recommendation:** maintain a supported/partial/unsupported capability matrix. Every new mechanic needs deterministic rules, canonical state ownership, transaction behavior, API and regression tests. Persuasive narration is not proof that a rule was resolved.
 
-### F-13 — Complete writer/lock/cache-coherence audit is still required
+### F-13 — Complete writer/lock/cache-coherence audit
 
-**Priority:** P1 guardrail · **Status:** not fully verified; not a confirmed bug.
+**Priority:** P1 guardrail · **Status:** audited; identified gaps corrected in PR #78.
 
-**Evidence:** each `CampaignRuntime` owns a loaded in-memory `WorldService`; selected services use `TurnExecutionLock`; critical turn application uses explicit SQLite transactions and revision checks. This audit did not exhaustively trace every world/character/effect/combat route to prove that every mutation shares the same lock and in-memory coherence contract.
+**Evidence:** the route-to-writer matrix is recorded in [writer/lock/cache audit](writer-lock-cache-audit.md). The audit found missing campaign-lock acquisition on character creation/bootstrap and equipment mutation routes, an unlocked multi-query equipment projection, and a write-capable campaign-clock GET using a DEFERRED transaction. Character creation also committed an entity row without refreshing the current runtime's `WorldService` cache.
 
-**Risk:** a mutation route that bypasses the campaign lock or updates SQLite without refreshing the runtime's in-memory world could produce stale context or lost updates.
+**Changes:** PR #78 places those character/equipment/clock paths under the campaign lock, refreshes the world cache after successful character creation/bootstrap, and uses `BEGIN IMMEDIATE` for lazy clock initialization. Regression tests cover cache visibility in the current runtime and after runtime reload, lock acquisition across the affected routes, and clock transaction mode.
 
-**Recommendation:** build a route-to-writer matrix recording lock, transaction owner, canonical state, revision trigger and in-memory refresh/rollback behavior. Add multi-route tests that mutate through one endpoint and read through another, both in the same runtime and after runtime reload. Do not call this a confirmed defect until that verification exists.
+**Remaining boundary:** the lock is process-local. Multi-worker/multi-process cache coherence is not supported and remains explicitly out of scope; SQLite revision triggers and optimistic turn checks are persistence safeguards, not distributed locks.
 
 ---
 
