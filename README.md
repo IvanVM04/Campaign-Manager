@@ -80,9 +80,9 @@ This is the target architecture, not a description of completed modules. Existin
 * **Memory and context retrieval** for supplying relevant campaign information to the LLM.
 * **Turn persistence** with operation and world-change metadata.
 * **Turn versioning** using `external_turn_id` and `turn_version`.
-* **Swipe / regeneration reconciliation**, restoring the previous world snapshot before applying a regenerated turn.
+* **Durable turn resolution**, committing consequences once before narration and keeping transcript versions separate.
 * **Idempotency and conflict detection** for externally identified turns.
-* **World snapshots** used to reconcile different versions of the same turn.
+* **Legacy world snapshots** retained for compatibility with the older integration path; the current durable adapter does not restore snapshots or replay consequences on a swipe.
 * **Database migrations** for controlled schema evolution.
 * **Automated tests** covering services, repositories, API behaviour and turn reconciliation.
 
@@ -111,7 +111,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
+See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the comprehensive architecture and reliability audit](docs/architecture/comprehensive-architecture-audit-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
 
 ---
 
@@ -171,44 +171,11 @@ The older compatibility endpoint `POST /integration/turn` retains the historical
 
 ---
 
-## World Snapshots
+## Legacy World Snapshots
 
-Snapshots are used to reconcile different versions of a turn.
+World snapshots remain in the codebase for the older compatibility integration path. They are **not** the source of truth for the current durable native/SillyTavern workflow.
 
-A snapshot contains the persistent world tables required to restore campaign state, including:
-
-* entities;
-* items;
-* item instances;
-* resources;
-* resource balances;
-* relations;
-* world events;
-* character states.
-
-The snapshot mechanism allows the application to move from:
-
-```text
-World before Turn 42
-        ↓
-Turn 42 / Version 1
-        ↓
-World after Version 1
-```
-
-back to:
-
-```text
-World before Turn 42
-```
-
-and then apply:
-
-```text
-Turn 42 / Version 2
-```
-
-This is particularly useful for LLM-driven interfaces where users can regenerate previously generated responses.
+In the current flow, a player action has one durable resolution. SillyTavern swipes create new narrative versions against that same committed resolution; they do not restore a previous snapshot, rerun mechanics or reapply world consequences. See the [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
 
 ---
 
