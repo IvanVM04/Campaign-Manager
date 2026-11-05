@@ -1068,3 +1068,50 @@ def test_extractor_does_not_receive_secret_world_events():
     assert "La campana rota" in prompt
     assert "Nilo está retenido en la cantera" not in prompt
     assert "El mensajero está encerrado por los contrabandistas" not in prompt
+
+
+
+def test_propose_repairs_an_unsupported_operation_once():
+    responses = iter([
+        '{"operations": [{"type": "start_interaction", "entity_id": 2}]}',
+        '{"operations": []}',
+    ])
+    prompts = []
+
+    def sequenced_provider(prompt):
+        prompts.append(prompt)
+        return next(responses)
+
+    extractor = LLMWorldExtractor(
+        provider=sequenced_provider,
+        operation_parser=OperationParser(),
+    )
+
+    result = extractor.propose("Hablo con Mara.", make_context())
+
+    assert result == []
+    assert len(prompts) == 2
+    assert "start_interaction" in prompts[1]
+    assert "create_entity" in prompts[1]
+    assert "No inventes operaciones" in prompts[1]
+
+
+def test_propose_stops_after_one_failed_repair_attempt():
+    prompts = []
+
+    def invalid_provider(prompt):
+        prompts.append(prompt)
+        return '{"operations": [{"type": "start_interaction"}]}'
+
+    extractor = LLMWorldExtractor(
+        provider=invalid_provider,
+        operation_parser=OperationParser(),
+    )
+
+    with pytest.raises(
+        LLMExtractionError,
+        match="after one repair attempt",
+    ):
+        extractor.propose("Hablo con Mara.", make_context())
+
+    assert len(prompts) == 2

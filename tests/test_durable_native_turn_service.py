@@ -941,3 +941,45 @@ def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
     assert "campaign_id=1" in entries[0].getMessage()
     assert "adapter_namespace=native" in entries[0].getMessage()
     assert "lifecycle_state=planning" in entries[0].getMessage()
+
+
+
+def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries():
+    service, _, _ = _service_with_fake_models()
+    responses = iter([
+        '{"operations": [{"type": "start_interaction"}]}',
+        '{"operations": [{"type": "start_interaction"}]}',
+        '{"operations": []}',
+    ])
+    proposal_calls = []
+
+    def proposal_provider(prompt):
+        proposal_calls.append(prompt)
+        return next(responses)
+
+    service.resolver.extractor.provider = proposal_provider
+
+    with pytest.raises(DurableNativeTurnError):
+        service.play_turn(
+            "Hablo con Mara.",
+            idempotency_key="native-invalid-proposal-retry",
+        )
+
+    record = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-invalid-proposal-retry",
+        scope=service.scope,
+    )
+    assert record.lifecycle_state == "accepted"
+    assert record.lease_token is None
+    assert record.lease_expires_at is None
+    assert record.last_error_code == "invalid_llm_proposal"
+    assert len(proposal_calls) == 2
+
+    recovered = service.play_turn(
+        "Hablo con Mara.",
+        idempotency_key="native-invalid-proposal-retry",
+    )
+
+    assert recovered.narrative == "El personaje observa su entorno."
+    assert len(proposal_calls) == 3
