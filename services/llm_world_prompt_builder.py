@@ -7,7 +7,7 @@ class LLMWorldPromptBuilder:
     """Build the legacy world-extraction prompt from a turn context."""
 
     @staticmethod
-    def _build_prompt(
+    def build_prompt(
         text: str,
         context: TurnContext,
     ) -> str:
