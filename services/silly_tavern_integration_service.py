@@ -51,7 +51,8 @@ class SillyTavernIntegrationService:
     Compatibility adapter and shared context provider for SillyTavern.
 
     The active extension uses DurableNativeTurnService for turn resolution
-    and this service only for context/history reads. process_turn() remains
+    and this service for context/history and legacy transcript-state reads.
+    process_turn() remains
     solely for pre-PR31 clients and retains the older narrative-first,
     snapshot-reconciliation contract. Do not add new gameplay behavior to
     that legacy method.
