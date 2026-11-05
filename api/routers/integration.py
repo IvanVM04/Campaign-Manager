@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
+from api.errors import api_error_for_exception
+
 from api.runtime_context import (
     get_current_runtime,
     silly_tavern_integration_service,
@@ -144,7 +146,7 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
                 exclude_external_turn_id=data.external_turn_id,
             )
     except DurableNativeTurnError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise api_error_for_exception(\n            exc,\n            fallback_status=409,\n            fallback_code="turn_conflict",\n            fallback_detail="The turn conflicts with the current campaign state.",\n        ) from exc
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
