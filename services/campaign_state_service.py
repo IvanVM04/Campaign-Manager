@@ -13,7 +13,7 @@ from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from rules_engine.dnd5e_2014.combat.conditions import ConditionSet
 from services.effective_condition_service import EffectiveConditionService
-from services.world_service import WorldService
+from services.world_state_port import WorldStatePort
 
 
 class CampaignStateServiceError(RuntimeError):
@@ -40,7 +40,7 @@ class CampaignStateService:
                     v
               active character
 
-        WorldService
+        WorldStatePort
               |
               v
           WorldState
@@ -65,7 +65,7 @@ class CampaignStateService:
         campaign_repository: CampaignRepository,
         character_repository: CharacterRepository,
         entity_repository: EntityRepository,
-        world_service: WorldService,
+        world_service: WorldStatePort,
         campaign_id: int | None = None,
         persistent_effect_repository: PersistentEffectRepository | None = None,
     ) -> None:
@@ -88,10 +88,10 @@ class CampaignStateService:
 
         if not isinstance(
             world_service,
-            WorldService,
+            WorldStatePort,
         ):
             raise TypeError(
-                "world_service must be a WorldService"
+                "world_service must implement WorldStatePort"
             )
 
         if not isinstance(
