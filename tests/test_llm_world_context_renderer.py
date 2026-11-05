@@ -50,7 +50,14 @@ def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
                 owner_id=1,
             ),
         },
-        resources={5: Resource(id=5, name="Oro", resource_type="currency", unit="moedas")},
+        resources={
+            5: Resource(
+                id=5,
+                name="Oro",
+                resource_type="currency",
+                unit="moedas",
+            ),
+        },
         relations={
             "r1": Relation(
                 id="r1",
