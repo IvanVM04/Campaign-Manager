@@ -15,6 +15,7 @@ from services.llm_world_extractor import (
     LLMWorldExtractor,
 )
 from services.llm_world_prompt_builder import LLMWorldPromptBuilder
+from services.llm_world_response_parser import LLMWorldResponseParser
 from services.operation_parser import OperationParser
 
 
@@ -109,6 +110,23 @@ def test_extractor_prompt_facade_delegates_to_dedicated_builder():
     ) == prompt
     assert "NARRATIVA A ANALIZAR" in prompt
     assert "Aldric entra en la taberna." in prompt
+
+def test_extractor_response_facades_delegate_to_dedicated_parser():
+    payload = {"operations": []}
+    encoded = json.dumps(payload)
+
+    assert LLMWorldExtractor._parse_response(encoded) == (
+        LLMWorldResponseParser.parse_response(encoded)
+    )
+
+    extractor = LLMWorldExtractor(
+        provider=FakeProvider(encoded),
+        operation_parser=FakeParser(),
+    )
+    assert extractor._parse_operations(payload) == (
+        extractor.response_parser.parse_operations(payload)
+    )
+
 
 def test_valid_response_returns_operations():
     operation = FakeOperation()
