@@ -335,6 +335,8 @@ class LLMWorldExtractor:
         event_lines = []
 
         for event_id, event in world.events.items():
+            if event.secret:
+                continue
             event_lines.append(
                 f"- ID {event_id}: "
                 f"type={event.event_type}, "

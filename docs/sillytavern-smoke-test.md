@@ -76,6 +76,14 @@ It is a manual integration check and is not replaced by the automated JavaScript
     - Submit different results for an already accepted challenge and confirm the backend rejects them.
     - Switch back to Automatic rolls and confirm the default automatic flow works again.
 
+
+13. **Persistent world continuity**
+    - In a disposable campaign, investigate a concrete clue that should become a public world event.
+    - Confirm the event appears in the persisted world through GET /world after the turn is processed.
+    - Deliver the same external turn again and confirm the event is not duplicated.
+    - Restart the backend (or invalidate/recreate its campaign runtime), then send a different player action that refers to the clue.
+    - Confirm the next turn's context includes the previously discovered clue and the DM maintains continuity.
+
 ## Acceptance criteria
 
 - Each distinct regeneration is processed at most once.
@@ -84,6 +92,7 @@ It is a manual integration check and is not replaced by the automated JavaScript
 - Clarification answers resume the original action, including across reloads and multiple clarification rounds.
 - Manual dice challenges recover across reloads, accept only the required number of valid d20 results, and commit the original turn at most once.
 - A subsequent ordinary action receives a new external turn identity.
+- Public discoveries persist across turns and backend runtime reloads, and duplicate delivery does not duplicate them.
 - Switching chats clears local turn-version, narrative, processing, failure, and clarification-link state.
 - The backend remains authoritative when local state is reset.
 

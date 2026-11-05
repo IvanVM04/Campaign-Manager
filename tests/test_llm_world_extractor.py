@@ -5,6 +5,7 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
+from models.event import Event
 from models.item import Item, ItemInstance
 from models.turn_context import TurnContext
 from models.world_state import WorldState
@@ -1034,3 +1035,36 @@ def test_propose_empty_intent_does_not_call_provider():
 
     assert extractor.propose("   ", make_context()) == []
     assert provider.calls == []
+
+
+
+def test_extractor_does_not_receive_secret_world_events():
+    world = WorldState(events={
+        "public-discovery": Event(
+            id="public-discovery",
+            event_type="discovery",
+            title="La campana rota",
+            description="Falta la campana del campanario.",
+            secret=False,
+        ),
+        "gm-secret": Event(
+            id="gm-secret",
+            event_type="secret",
+            title="Nilo está retenido en la cantera",
+            description="El mensajero está encerrado por los contrabandistas.",
+            consequences="El grupo todavía no conoce esta verdad.",
+            secret=True,
+        ),
+    })
+    provider = FakeProvider(json.dumps({"operations": []}))
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=FakeParser(),
+    )
+
+    extractor.extract("El grupo examina el campanario.", make_context(world=world))
+
+    prompt = provider.calls[0]
+    assert "La campana rota" in prompt
+    assert "Nilo está retenido en la cantera" not in prompt
+    assert "El mensajero está encerrado por los contrabandistas" not in prompt

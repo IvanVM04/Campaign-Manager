@@ -832,3 +832,75 @@ def test_silly_tavern_turn_retry_uses_persisted_manual_dice_mode(monkeypatch):
     )
 
     assert captured["dice_mode"] == "manual"
+
+
+def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload():
+    from services.campaign_runtime import CampaignRuntimeFactory
+
+    factory = CampaignRuntimeFactory()
+    service = factory.get_runtime(1).durable_native_turn_service
+    event_id = "bridge-bell-discovery"
+    event_title = "La campana rota de Puenteviejo"
+    proposal_payload = json.dumps({
+        "operations": [{
+            "type": "create_event",
+            "event_id": event_id,
+            "event_type": "discovery",
+            "title": event_title,
+            "description": "El grupo descubre que la campana fue arrancada de su soporte.",
+            "consequences": "La ausencia de la campana queda como pista conocida.",
+            "session_id": None,
+            "secret": False,
+            "metadata": {"location": "Puenteviejo"},
+        }]
+    })
+    proposal_calls = []
+    service.resolver.extractor.provider = lambda prompt: (
+        proposal_calls.append(prompt) or proposal_payload
+    )
+
+    prepared = service.prepare_external_turn(
+        "Investigo el campanario.",
+        external_turn_id="st-world-continuity-001",
+    )
+    assert prepared.lifecycle_state == "narration_pending"
+    assert len(proposal_calls) == 1
+
+    duplicate = service.prepare_external_turn(
+        "Investigo el campanario.",
+        external_turn_id="st-world-continuity-001",
+    )
+    assert duplicate.resolution_id == prepared.resolution_id
+    assert len(proposal_calls) == 1
+
+    persisted_world = service.world_service.repository.load_world(campaign_id=1)
+    assert event_id in persisted_world.events
+    assert persisted_world.events[event_id].title == event_title
+
+    service.complete_external_narration(
+        external_turn_id="st-world-continuity-001",
+        player_input="Investigo el campanario.",
+        narrative="Encuentras marcas recientes donde antes colgaba la campana.",
+        turn_version=1,
+    )
+
+    # Simulate a backend runtime restart: the next turn must rebuild its
+    # context from persisted campaign state, not an in-memory world snapshot.
+    factory.invalidate(1)
+    reloaded_service = factory.get_runtime(1).durable_native_turn_service
+    reloaded_world = reloaded_service.world_service.repository.load_world(campaign_id=1)
+    assert event_id in reloaded_world.events
+
+    next_proposal_calls = []
+    reloaded_service.resolver.extractor.provider = lambda prompt: (
+        next_proposal_calls.append(prompt) or '{"operations": []}'
+    )
+    next_preparation = reloaded_service.prepare_external_turn(
+        "Le pregunto a Mara si sabe algo de la campana.",
+        external_turn_id="st-world-continuity-002",
+    )
+
+    assert next_preparation.lifecycle_state == "narration_pending"
+    assert len(next_proposal_calls) == 1
+    assert event_title in next_proposal_calls[0]
+    assert "La ausencia de la campana queda como pista conocida." in next_proposal_calls[0]
