@@ -914,18 +914,20 @@ def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
 
     service.resolver.prepare_turn = fail_during_preparation
 
-    with caplog.at_level(
-        "ERROR",
-        logger="services.durable_native_turn_service",
-    ):
-        with pytest.raises(
+    with (
+        caplog.at_level(
+            "ERROR",
+            logger="services.durable_native_turn_service",
+        ),
+        pytest.raises(
             DurableNativeTurnError,
             match="native turn execution failed",
-        ):
-            service.play_turn(
-                "Investigo el campanario.",
-                idempotency_key="native-test-unexpected-error-001",
-            )
+        ),
+    ):
+        service.play_turn(
+            "Investigo el campanario.",
+            idempotency_key="native-test-unexpected-error-001",
+        )
 
     entries = [
         record
