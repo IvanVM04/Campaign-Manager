@@ -1,3 +1,4 @@
+from bootstrap.campaign_runtime import CampaignRuntimeFactory as BootstrapCampaignRuntimeFactory
 from repositories.campaign_repository import CampaignRepository
 from services.campaign_runtime import CampaignRuntimeFactory
 from services.llm_settings import LLMSettings
@@ -79,3 +80,7 @@ def test_runtime_factory_rejects_invalid_llm_settings(isolated_database):
         assert "LLMSettings" in str(exc)
     else:
         raise AssertionError("invalid LLM settings should be rejected")
+
+
+def test_legacy_runtime_import_is_compatible_with_bootstrap():
+    assert CampaignRuntimeFactory is BootstrapCampaignRuntimeFactory
