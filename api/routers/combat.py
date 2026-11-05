@@ -327,6 +327,7 @@ def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAtta
                     data.mover_previous_position.x, data.mover_previous_position.y
                 ),
                 reach_feet=data.reach_feet,
+                npc_attack_weapon_key=data.npc_attack_weapon_key,
                 voluntary=data.voluntary,
                 disengaging=data.disengaging,
             )

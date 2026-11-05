@@ -51,21 +51,23 @@ class CombatEncounterService:
         if not participants:
             raise ValueError("an encounter requires at least one participant")
         for participant in participants:
-            weapon_key = participant.npc_melee_weapon_key
-            if weapon_key is None:
-                continue
-            try:
-                weapon = get_weapon(weapon_key)
-            except LookupError as exc:
-                raise ValueError(f"unknown NPC melee weapon profile: {weapon_key}") from exc
-            if (
-                weapon.is_ranged
-                or WeaponProperty.SPECIAL in weapon.properties
-                or WeaponProperty.AMMUNITION in weapon.properties
-            ):
-                raise ValueError(
-                    "NPC opportunity profiles must use supported melee weapons"
-                )
+            weapon_keys = participant.npc_melee_weapon_keys or (
+                [participant.npc_melee_weapon_key]
+                if participant.npc_melee_weapon_key is not None else []
+            )
+            for weapon_key in weapon_keys:
+                try:
+                    weapon = get_weapon(weapon_key)
+                except LookupError as exc:
+                    raise ValueError(f"unknown NPC melee weapon profile: {weapon_key}") from exc
+                if (
+                    weapon.is_ranged
+                    or WeaponProperty.SPECIAL in weapon.properties
+                    or WeaponProperty.AMMUNITION in weapon.properties
+                ):
+                    raise ValueError(
+                        "NPC opportunity profiles must use supported melee weapons"
+                    )
         encounter_id = encounter_id or uuid4().hex
         created_creature = False
         with transaction("IMMEDIATE") as conn:
@@ -123,12 +125,18 @@ class CombatEncounterService:
                         raise ValueError(
                             f"creature {participant.creature_id} does not exist in this campaign"
                         )
-                    if participant.npc_melee_weapon_key is not None:
+                    weapon_keys = participant.npc_melee_weapon_keys or (
+                        [participant.npc_melee_weapon_key]
+                        if participant.npc_melee_weapon_key is not None else []
+                    )
+                    if weapon_keys:
                         metadata = dict(creature.metadata)
-                        metadata["npc_melee_attack"] = {
-                            "weapon_key": participant.npc_melee_weapon_key,
-                            "proficient": participant.npc_melee_proficient,
-                        }
+                        profiles = [
+                            {"weapon_key": key, "proficient": participant.npc_melee_proficient}
+                            for key in weapon_keys
+                        ]
+                        metadata["npc_melee_attacks"] = profiles
+                        metadata["npc_melee_attack"] = profiles[0]
                         creature = self.creature_repository.save_creature(
                             replace(creature, metadata=metadata),
                             campaign_id=campaign_id,
@@ -165,12 +173,30 @@ class CombatEncounterService:
                             proficiency_bonus=participant.proficiency_bonus,
                             metadata=(
                                 {
+                                    "npc_melee_attacks": [
+                                        {
+                                            "weapon_key": key,
+                                            "proficient": participant.npc_melee_proficient,
+                                        }
+                                        for key in (
+                                            participant.npc_melee_weapon_keys or
+                                            ([participant.npc_melee_weapon_key]
+                                             if participant.npc_melee_weapon_key is not None else [])
+                                        )
+                                    ],
                                     "npc_melee_attack": {
-                                        "weapon_key": participant.npc_melee_weapon_key,
+                                        "weapon_key": (
+                                            participant.npc_melee_weapon_keys[0]
+                                            if participant.npc_melee_weapon_keys
+                                            else participant.npc_melee_weapon_key
+                                        ),
                                         "proficient": participant.npc_melee_proficient,
-                                    }
+                                    },
                                 }
-                                if participant.npc_melee_weapon_key is not None else {}
+                                if (
+                                    participant.npc_melee_weapon_key is not None
+                                    or participant.npc_melee_weapon_keys is not None
+                                ) else {}
                             ),
                         ),
                         campaign_id=campaign_id,

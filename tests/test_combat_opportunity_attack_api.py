@@ -354,3 +354,166 @@ def test_encounter_rejects_unsupported_npc_opportunity_profiles(
 
     assert response.status_code == 422
     assert detail in response.json()["detail"]
+
+
+
+def test_npc_can_select_between_multiple_melee_weapons_for_opportunity_attack(client):
+    mover_response = client.post(
+        "/characters",
+        json={
+            "name": "Retreating hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    assert mover_response.status_code == 200, mover_response.text
+    mover_id = mover_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-multiple-weapons-test",
+            "participants": [
+                {
+                    "character_id": mover_id,
+                    "position_x": 2,
+                    "position_y": 0,
+                },
+                {
+                    "name": "Whip sentinel",
+                    "max_hp": 18,
+                    "current_hp": 18,
+                    "armor_class": 14,
+                    "strength": 16,
+                    "dexterity": 10,
+                    "proficiency_bonus": 2,
+                    "position_x": 0,
+                    "position_y": 0,
+                    "npc_melee_weapon_keys": ["longsword", "whip"],
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    mover_key = f"character-{mover_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-multiple-weapons-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {mover_key: 18, npc_key: 10},
+            "initiative_order": [mover_key, npc_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+    moved = client.post(
+        "/encounters/npc-multiple-weapons-test/move",
+        json={
+            "combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "path": [{"x": 2, "y": 0}, {"x": 3, "y": 0}],
+        },
+    )
+    assert moved.status_code == 200, moved.text
+
+    response = client.post(
+        "/encounters/npc-multiple-weapons-test/opportunity-attack",
+        json={
+            "attacker_combatant_id": npc_key,
+            "target_combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "mover_previous_position": {"x": 2, "y": 0},
+            "reach_feet": 10,
+            "npc_attack_weapon_key": "whip",
+            "dice_mode": "manual",
+            "manual_attack_rolls": [10],
+            "manual_damage_rolls": [4],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["weapon_key"] == "whip"
+    assert payload["attack"]["hit"] is True
+    assert payload["damage"]["target_current_hp"] == 13
+    assert payload["encounter"]["combatants"][npc_key]["reaction_used"] is True
+
+    creature_id = int(npc_key.split("-")[1])
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT metadata FROM creature_states WHERE entity_id = ? AND campaign_id = 1",
+            (creature_id,),
+        ).fetchone()
+    metadata = json.loads(row["metadata"])
+    assert [profile["weapon_key"] for profile in metadata["npc_melee_attacks"]] == [
+        "longsword", "whip"
+    ]
+
+
+def test_npc_cannot_select_an_unconfigured_opportunity_weapon(client):
+    mover_response = client.post(
+        "/characters",
+        json={
+            "name": "Retreating hero", "max_hp": 20, "current_hp": 20,
+            "armor_class": 10, "strength": 10, "dexterity": 12,
+        },
+    )
+    mover_id = mover_response.json()["character"]["entity_id"]
+    created = client.post(
+        "/encounters",
+        json={
+            "encounter_id": "npc-unconfigured-weapon-test",
+            "participants": [
+                {"character_id": mover_id, "position_x": 1, "position_y": 0},
+                {
+                    "name": "Guard", "max_hp": 15, "armor_class": 12,
+                    "strength": 14, "dexterity": 10, "position_x": 0,
+                    "position_y": 0, "npc_melee_weapon_keys": ["longsword"],
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    mover_key = f"character-{mover_id}"
+    npc_key = next(
+        key for key in created.json()["combatants"] if key.startswith("creature-")
+    )
+    started = client.post(
+        "/encounters/npc-unconfigured-weapon-test/start",
+        json={
+            "dice_mode": "manual",
+            "manual_rolls": {mover_key: 18, npc_key: 10},
+            "initiative_order": [mover_key, npc_key],
+        },
+    )
+    assert started.status_code == 200, started.text
+    moved = client.post(
+        "/encounters/npc-unconfigured-weapon-test/move",
+        json={
+            "combatant_id": mover_key, "expected_round": 1,
+            "expected_turn_index": 0,
+            "path": [{"x": 1, "y": 0}, {"x": 2, "y": 0}],
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    response = client.post(
+        "/encounters/npc-unconfigured-weapon-test/opportunity-attack",
+        json={
+            "attacker_combatant_id": npc_key,
+            "target_combatant_id": mover_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "mover_previous_position": {"x": 1, "y": 0},
+            "npc_attack_weapon_key": "whip",
+            "dice_mode": "manual",
+            "manual_attack_rolls": [10],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 409
+    assert "not configured" in response.json()["detail"]
+    encounter = CombatEncounterRepository().get(
+        "npc-unconfigured-weapon-test", campaign_id=1
+    )
+    assert encounter.combatants[npc_key].reaction_used is False
