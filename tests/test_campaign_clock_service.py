@@ -1,5 +1,6 @@
-import pytest
 from contextlib import contextmanager
+
+import pytest
 
 from repositories.campaign_repository import CampaignRepository
 from services.campaign_clock_service import CampaignClockService
