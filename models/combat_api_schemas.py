@@ -137,3 +137,21 @@ class GridPositionIn(BaseModel):
 class EncounterMoveIn(EncounterTurnIn):
     combatant_id: str = Field(..., min_length=1, max_length=120)
     path: list[GridPositionIn] = Field(..., min_length=2, max_length=200)
+
+
+class EncounterOpportunityAttackIn(EncounterAttackIn):
+    """Reaction attack made when the active combatant leaves an attacker's reach."""
+
+    attacker_combatant_id: str = Field(..., min_length=1, max_length=120)
+    mover_previous_position: GridPositionIn
+    reach_feet: StrictInt = Field(default=5, ge=5, le=30)
+    voluntary: bool = True
+    disengaging: bool = False
+
+    @model_validator(mode="after")
+    def validate_opportunity_context(self):
+        if self.reach_feet % 5:
+            raise ValueError("reach_feet must be a multiple of 5")
+        if not isinstance(self.voluntary, bool) or not isinstance(self.disengaging, bool):
+            raise TypeError("movement flags must be booleans")
+        return self

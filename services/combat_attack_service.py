@@ -12,6 +12,11 @@ from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from rules_engine.dnd5e_2014.combat.attack import resolve_attack
 from rules_engine.dnd5e_2014.combat.conditions import attack_roll_advantage_state
 from rules_engine.dnd5e_2014.combat.damage import DamageType, apply_hit_point_damage
+from rules_engine.dnd5e_2014.combat.movement import (
+    GridPosition,
+    grid_distance_feet,
+    provokes_opportunity_attack,
+)
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.weapons.attack_profile import derive_attack_profile
 from rules_engine.dnd5e_2014.weapons.catalog import WeaponProperty, get_weapon
@@ -55,6 +60,12 @@ class CombatAttackService:
         target_within_5_feet: bool = False,
         versatile_two_handed: bool = False,
         finesse_ability: str | None = None,
+        opportunity_attack: bool = False,
+        attacker_combatant_id: str | None = None,
+        mover_previous_position: GridPosition | None = None,
+        reach_feet: int = 5,
+        voluntary: bool = True,
+        disengaging: bool = False,
     ) -> dict:
         with transaction("IMMEDIATE") as conn:
             # Acquire the SQLite write lock before reading the encounter so a
@@ -71,11 +82,26 @@ class CombatAttackService:
             ):
                 raise RuntimeError("encounter turn changed; reload the encounter")
 
-            attacker = encounter.active_combatant
+            if not isinstance(opportunity_attack, bool):
+                raise TypeError("opportunity_attack must be a boolean")
+            if opportunity_attack:
+                if not attacker_combatant_id or mover_previous_position is None:
+                    raise ValueError("opportunity attacks require an attacker and previous mover position")
+                attacker = encounter.combatants.get(attacker_combatant_id)
+                if attacker is None:
+                    raise ValueError("opportunity attacker is not part of this encounter")
+                if attacker.combatant_id == encounter.active_combatant.combatant_id:
+                    raise ValueError("the active combatant cannot make an opportunity attack against itself")
+                if attacker.reaction_used:
+                    raise ValueError("this combatant has already used its reaction")
+            else:
+                if attacker_combatant_id is not None or mover_previous_position is not None:
+                    raise ValueError("movement context is only valid for an opportunity attack")
+                attacker = encounter.active_combatant
+                if attacker is None or attacker.action_used:
+                    raise ValueError("the active combatant has already used its action")
             if attacker is None or attacker.entity_id is None or not attacker.is_player_character:
                 raise ValueError("only a persisted player character can attack in this release")
-            if attacker.action_used:
-                raise ValueError("the active combatant has already used its action")
             if attacker.defeated or not attacker.conscious or attacker.conditions.is_incapacitated:
                 raise ValueError("an unconscious, defeated or incapacitated combatant cannot attack")
             target = encounter.combatants.get(target_combatant_id)
@@ -85,6 +111,35 @@ class CombatAttackService:
                 raise ValueError("a combatant cannot target itself")
             if target.dead:
                 raise ValueError("cannot attack a dead target")
+            if opportunity_attack:
+                active = encounter.active_combatant
+                if active is None or target.combatant_id != active.combatant_id:
+                    raise ValueError("opportunity attacks can only target the combatant currently moving")
+                if target.position_x is None or target.position_y is None:
+                    raise ValueError("moving combatant has no persisted tactical position")
+                if attacker.position_x is None or attacker.position_y is None:
+                    raise ValueError("opportunity attacker has no persisted tactical position")
+                mover_next_position = GridPosition(target.position_x, target.position_y)
+                if grid_distance_feet(mover_previous_position, mover_next_position) != 5:
+                    raise ValueError("opportunity attack movement must be one adjacent square")
+                if not provokes_opportunity_attack(
+                    attacker_position=GridPosition(attacker.position_x, attacker.position_y),
+                    mover_previous_position=mover_previous_position,
+                    mover_next_position=mover_next_position,
+                    reach_feet=reach_feet,
+                    voluntary=voluntary,
+                    disengaging=disengaging,
+                    attacker_incapacitated=attacker.conditions.is_incapacitated,
+                    attacker_dead=attacker.dead,
+                    attacker_reaction_available=not attacker.reaction_used,
+                ):
+                    raise ValueError("this movement does not provoke an opportunity attack")
+                target_within_5_feet = (
+                    grid_distance_feet(
+                        GridPosition(attacker.position_x, attacker.position_y),
+                        mover_previous_position,
+                    ) <= 5
+                )
             if dice_mode not in ("automatic", "manual"):
                 raise ValueError("dice_mode must be automatic or manual")
             if dice_mode == "automatic" and (
@@ -112,6 +167,12 @@ class CombatAttackService:
             if equipped is None or equipped["weapon_key"] is None:
                 raise ValueError("attacking character has no equipped weapon")
             weapon = get_weapon(equipped["weapon_key"])
+            if opportunity_attack:
+                if weapon.is_ranged:
+                    raise ValueError("opportunity attacks require a melee weapon")
+                expected_reach = 10 if WeaponProperty.REACH in weapon.properties else 5
+                if reach_feet != expected_reach:
+                    raise ValueError("reach_feet must match the equipped weapon's reach")
             if WeaponProperty.SPECIAL in weapon.properties:
                 raise ValueError("this weapon requires a special attack resolver")
             if WeaponProperty.AMMUNITION in weapon.properties:
@@ -226,7 +287,11 @@ class CombatAttackService:
                     new_target_hp = 0
                     conscious = False
             updated_combatants = dict(encounter.combatants)
-            updated_combatants[attacker.combatant_id] = replace(attacker, action_used=True)
+            updated_combatants[attacker.combatant_id] = (
+                replace(attacker, reaction_used=True)
+                if opportunity_attack
+                else replace(attacker, action_used=True)
+            )
             updated_combatants[target.combatant_id] = replace(
                 target,
                 current_hp=new_target_hp,
@@ -283,4 +348,5 @@ class CombatAttackService:
                 "result": result,
                 "target_current_hp": new_target_hp,
                 "target_armor_class": target_armor_class,
+                "opportunity_attack": opportunity_attack,
             }
