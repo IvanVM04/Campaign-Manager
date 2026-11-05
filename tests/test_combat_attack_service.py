@@ -1,12 +1,15 @@
 import json
 from dataclasses import replace
 
+import pytest
+
 from database import get_conn
 from repositories.combat_encounter_repository import CombatEncounterRepository
+from repositories.creature_repository import CreatureRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 
 
-def _prepare_encounter(client, *, target_is_character=True):
+def _prepare_encounter(client, *, target_is_character=True, target_defenses=None):
     attacker_response = client.post(
         "/characters",
         json={
@@ -44,6 +47,7 @@ def _prepare_encounter(client, *, target_is_character=True):
             "current_hp": 7,
             "armor_class": 10,
             "dexterity": 10,
+            **(target_defenses or {}),
         }
         target_id = None
         target_combatant_id = None
@@ -540,3 +544,55 @@ def test_massive_damage_kills_character_when_excess_reaches_max_hp(client):
     assert combatant["dead"] is True
     assert combatant["conscious"] is False
     assert combatant["death_save_failures"] == 3
+
+
+@pytest.mark.parametrize(
+    ("defenses", "expected_damage", "expected_hp", "expected_flags"),
+    [
+        ({"damage_resistances": ["slashing"]}, 4, 3, (False, True, False)),
+        ({"damage_vulnerabilities": ["slashing"]}, 18, 0, (False, False, True)),
+        ({"damage_immunities": ["slashing"]}, 0, 7, (True, False, False)),
+        (
+            {
+                "damage_resistances": ["slashing"],
+                "damage_vulnerabilities": ["slashing"],
+            },
+            9,
+            0,
+            (False, True, True),
+        ),
+    ],
+)
+def test_npc_damage_defenses_are_persisted_and_applied_to_weapon_attacks(
+    client, defenses, expected_damage, expected_hp, expected_flags
+):
+    _attacker_id, _target_id, _attacker_key, target_key = _prepare_encounter(
+        client, target_is_character=False, target_defenses=defenses
+    )
+    encounter = CombatEncounterRepository().get("attack-test", campaign_id=1)
+    target_entity_id = encounter.combatants[target_key].entity_id
+    creature = CreatureRepository().get_creature(target_entity_id, campaign_id=1)
+    for field_name, values in defenses.items():
+        assert creature.metadata[field_name] == values
+
+    response = client.post(
+        "/encounters/attack-test/attack",
+        json={
+            "target_combatant_id": target_key,
+            "expected_round": 1,
+            "expected_turn_index": 0,
+            "dice_mode": "manual",
+            "manual_attack_rolls": [15],
+            "manual_damage_rolls": [6],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["damage"]["raw"] == 9
+    assert payload["damage"]["after_defenses"] == expected_damage
+    assert payload["damage"]["target_current_hp"] == expected_hp
+    assert (
+        payload["damage"]["defenses"]["immune"],
+        payload["damage"]["defenses"]["resistant"],
+        payload["damage"]["defenses"]["vulnerable"],
+    ) == expected_flags
