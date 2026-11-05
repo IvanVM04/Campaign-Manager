@@ -5,6 +5,7 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
+from models.event import Event
 from models.item import Item, ItemInstance
 from models.turn_context import TurnContext
 from models.world_state import WorldState
