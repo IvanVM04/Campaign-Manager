@@ -11,6 +11,7 @@ import {
 } from '../../../script.js';
 
 import {
+    describeTurnFailure,
     buildRetrievalQuery,
     summarizeConnectionReadiness,
     buildStableTurnIdentityInput,
@@ -151,9 +152,12 @@ async function getCampaignManagerGenerationContext(
                     "Unknown backend error";
             }
 
-            throw new Error(
+            const backendError = new Error(
                 `HTTP ${response.status}: ${errorMessage}`,
             );
+            backendError.status = response.status;
+            backendError.code = responseBody?.code ?? null;
+            throw backendError;
         }
 
         if (
@@ -259,10 +263,30 @@ async function getCampaignManagerGenerationContext(
 
     } catch (error) {
         resolvedTurnStates.delete(externalTurnId);
+        const guidance = describeTurnFailure(
+            Number.isInteger(error?.status) ? error.status : null,
+            typeof error?.code === 'string' ? error.code : null,
+        );
         console.warn(
             "[Campaign Manager] Failed to obtain generation context:",
-            error,
+            {
+                external_turn_id: externalTurnId,
+                status: error?.status ?? null,
+                code: error?.code ?? null,
+                error,
+            },
         );
+        if (typeof globalThis.toastr?.error === 'function') {
+            globalThis.toastr.error(
+                guidance.message,
+                guidance.title,
+                { timeOut: 10000 },
+            );
+        } else {
+            console.warn(
+                "[Campaign Manager] " + guidance.title + ": " + guidance.message,
+            );
+        }
 
         return "";
     }

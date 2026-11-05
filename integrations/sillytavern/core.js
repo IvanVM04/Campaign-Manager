@@ -1,3 +1,46 @@
+export function describeTurnFailure(status, code) {
+    if (code === 'llm_provider_unavailable' || status === 503) {
+        return {
+            title: 'Campaign Manager: proveedor no disponible',
+            message: 'No se ha podido contactar con el proveedor del modelo. Comprueba que Ollama esté funcionando y vuelve a intentarlo con el mismo mensaje.',
+        };
+    }
+    if (code === 'invalid_llm_response' || status === 502) {
+        return {
+            title: 'Campaign Manager: respuesta no válida',
+            message: 'El modelo no ha devuelto una resolución que se pueda aplicar con seguridad. Puedes reintentar la misma acción; no se han autorizado consecuencias nuevas.',
+        };
+    }
+    if (code === 'turn_resolution_failed' || code === 'internal_error' || (Number.isInteger(status) && status >= 500)) {
+        return {
+            title: 'Campaign Manager: error interno',
+            message: 'No se ha podido resolver el turno por un error interno. La generación se ha detenido para proteger el estado de la campaña. Revisa los logs del backend antes de reintentarlo.',
+        };
+    }
+    if (code === 'conflict' || status === 409) {
+        return {
+            title: 'Campaign Manager: conflicto de turno',
+            message: 'El estado del turno ha cambiado o existe otra operación en curso. Espera a que termine y vuelve a intentarlo; no regeneres repetidamente el mismo turno.',
+        };
+    }
+    if (code === 'validation_error' || code === 'bad_request' || status === 422 || status === 400) {
+        return {
+            title: 'Campaign Manager: petición no válida',
+            message: 'El backend no ha podido validar la acción enviada. Comprueba el mensaje y la configuración de campaña antes de intentarlo de nuevo.',
+        };
+    }
+    if (status === null || status === undefined) {
+        return {
+            title: 'Campaign Manager: backend inaccesible',
+            message: 'No se ha podido conectar con el backend. Comprueba que Campaign Manager esté iniciado y que la URL configurada sea correcta.',
+        };
+    }
+    return {
+        title: 'Campaign Manager: no se pudo resolver el turno',
+        message: 'La generación se ha detenido porque Campaign Manager no pudo confirmar la resolución. Consulta los logs del backend y vuelve a intentarlo cuando el problema esté resuelto.',
+    };
+}
+
 export function summarizeConnectionReadiness(payload) {
     if (!payload || typeof payload !== "object") {
         return { ready: false, message: "Invalid backend response." };
