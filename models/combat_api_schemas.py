@@ -5,6 +5,30 @@ from typing import Literal
 from pydantic import BaseModel, Field, StrictInt, model_validator
 
 
+class NpcNaturalAttackIn(BaseModel):
+    """A self-contained NPC natural weapon profile."""
+
+    key: str = Field(..., min_length=1, max_length=60, pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    name: str = Field(..., min_length=1, max_length=80)
+    ability: Literal["strength", "dexterity"] = "strength"
+    damage_dice: str = Field(..., min_length=3, max_length=12, pattern=r"^[1-9][0-9]*d(4|6|8|10|12|20)$")
+    damage_type: Literal[
+        "acid", "bludgeoning", "cold", "fire", "force", "lightning",
+        "necrotic", "piercing", "poison", "psychic", "radiant",
+        "slashing", "thunder",
+    ]
+    reach_feet: StrictInt = Field(default=5, ge=5, le=30)
+    proficient: bool = True
+
+    @model_validator(mode="after")
+    def validate_profile(self):
+        if self.reach_feet % 5:
+            raise ValueError("natural attack reach_feet must be a multiple of 5")
+        if not isinstance(self.proficient, bool):
+            raise TypeError("natural attack proficient must be a boolean")
+        return self
+
+
 class EncounterParticipantIn(BaseModel):
     character_id: int | None = Field(default=None, ge=1)
     creature_id: int | None = Field(default=None, ge=1)
@@ -26,6 +50,7 @@ class EncounterParticipantIn(BaseModel):
     npc_melee_weapon_key: str | None = Field(default=None, min_length=1, max_length=60)
     npc_melee_weapon_keys: list[str] | None = Field(default=None, min_length=1, max_length=10)
     npc_melee_proficient: bool = True
+    npc_natural_attacks: list[NpcNaturalAttackIn] | None = Field(default=None, min_length=1, max_length=10)
 
     @model_validator(mode="after")
     def validate_source(self):
@@ -33,6 +58,10 @@ class EncounterParticipantIn(BaseModel):
             raise ValueError("position_x and position_y must be supplied together")
         if self.character_id is not None and self.creature_id is not None:
             raise ValueError("participant cannot reference both a character and a creature")
+        if self.npc_natural_attacks is not None:
+            natural_keys = [profile.key for profile in self.npc_natural_attacks]
+            if len(set(natural_keys)) != len(natural_keys):
+                raise ValueError("NPC natural attack keys must be unique")
         if self.npc_melee_weapon_key is not None and self.npc_melee_weapon_keys is not None:
             raise ValueError("supply npc_melee_weapon_key or npc_melee_weapon_keys, not both")
         if self.npc_melee_weapon_keys is not None and (
@@ -42,6 +71,7 @@ class EncounterParticipantIn(BaseModel):
             raise ValueError("NPC melee weapon keys must be non-empty and unique")
         if self.character_id is not None and (
             self.npc_melee_weapon_key is not None or self.npc_melee_weapon_keys is not None
+            or self.npc_natural_attacks is not None
         ):
             raise ValueError("player characters use their equipped weapon, not an NPC attack profile")
         if self.npc_melee_weapon_key is not None and not isinstance(self.npc_melee_proficient, bool):
@@ -166,6 +196,7 @@ class EncounterOpportunityAttackIn(EncounterAttackIn):
     mover_previous_position: GridPositionIn
     reach_feet: StrictInt = Field(default=5, ge=5, le=30)
     npc_attack_weapon_key: str | None = Field(default=None, min_length=1, max_length=60)
+    npc_natural_attack_key: str | None = Field(default=None, min_length=1, max_length=60)
     voluntary: bool = True
     disengaging: bool = False
 
@@ -173,6 +204,8 @@ class EncounterOpportunityAttackIn(EncounterAttackIn):
     def validate_opportunity_context(self):
         if self.reach_feet % 5:
             raise ValueError("reach_feet must be a multiple of 5")
+        if self.npc_attack_weapon_key is not None and self.npc_natural_attack_key is not None:
+            raise ValueError("select an NPC weapon or natural attack, not both")
         if not isinstance(self.voluntary, bool) or not isinstance(self.disengaging, bool):
             raise TypeError("movement flags must be booleans")
         return self
