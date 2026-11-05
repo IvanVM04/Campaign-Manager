@@ -13,6 +13,9 @@ from models.operation_result import OperationResult, OperationStatus
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
+from operations.character_operations import CharacterOperation
+from operations.referenced_operation import ReferencedOperation
+from operations.world_operations import WorldOperation
 from repositories.campaign_state_version_repository import (
     CampaignStateVersionRepository,
 )
