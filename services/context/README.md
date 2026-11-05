@@ -3,7 +3,7 @@
 ## Responsibility
 Retrieve, expand, rank, select and render campaign context for application and LLM workflows. This package does not own campaign state.
 
-## Current modules (still in services/)
+## Modules (migrated into this package)
 - context_builder.py — orchestration facade.
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
@@ -25,4 +25,4 @@ The LLM-specific world-context projection is currently llm_world_context_rendere
 - [ ] Keep rendering independent from transport response formatting.
 
 ## Migration status
-This is a documented target boundary only. Source modules and imports remain in services/ until a separate migration preserves compatibility.
+The four context modules now live in this package. The former `services.context_*` module paths remain as compatibility re-exports; new code should import from `services.context`.
