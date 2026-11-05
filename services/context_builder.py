@@ -5,8 +5,8 @@ from typing import Any, ClassVar
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
 from services.context_expander import ContextExpander
-from services.context_renderer import ContextRenderer
 from services.context_ranker import ContextRanker
+from services.context_renderer import ContextRenderer
 from services.memory_search_service import MemorySearchService
 
 
