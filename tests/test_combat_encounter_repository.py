@@ -127,3 +127,35 @@ def test_repository_round_trips_consumed_reaction():
 
     assert loaded.combatants["hero"].reaction_used is True
     assert loaded.combatants["goblin"].reaction_used is False
+
+
+def test_position_and_movement_budget_round_trip_and_legacy_defaults():
+    import json
+
+    repository = CombatEncounterRepository()
+    encounter = CombatEncounterState.prepare(
+        "movement-round-trip",
+        (CombatantState(
+            "hero", "Hero", 10, 10, 10, 12,
+            position_x=-2, position_y=3, speed_feet=25, movement_used_feet=10,
+        ),),
+    )
+    repository.save(encounter, campaign_id=1)
+    loaded = repository.get("movement-round-trip", campaign_id=1)
+    assert loaded.combatants["hero"].position_x == -2
+    assert loaded.combatants["hero"].position_y == 3
+    assert loaded.combatants["hero"].speed_feet == 25
+    assert loaded.combatants["hero"].movement_used_feet == 10
+
+    legacy = {
+        "encounter_id": "legacy-movement", "status": "preparing",
+        "round_number": 0, "turn_index": 0, "initiative_order": "[]",
+        "combatants": json.dumps({"hero": {
+            "name": "Hero", "initiative": 0, "current_hp": 10,
+            "max_hp": 10, "armor_class": 12,
+        }}),
+    }
+    old = CombatEncounterRepository._deserialize(legacy).combatants["hero"]
+    assert old.position_x is None and old.position_y is None
+    assert old.speed_feet == 30
+    assert old.movement_used_feet == 0
