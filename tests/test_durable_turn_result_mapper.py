@@ -74,3 +74,32 @@ def test_mapper_defaults_missing_persisted_operation_results_to_empty():
     assert result.operation_results == ()
     assert result.already_processed is False
     assert result.persisted_world_changed is False
+
+
+def test_mapper_builds_pending_manual_roll_result():
+    record = SimpleNamespace(id=42, player_input="Abro la puerta.")
+    pending = {
+        "challenge_id": "roll-1",
+        "decision": {"internal": True},
+        "submitted_rolls": [15],
+        "modifier": 3,
+        "dc": 14,
+    }
+
+    result = DurableTurnResultMapper.manual_roll_result(record, pending)
+
+    assert result.player_input == "Abro la puerta."
+    assert result.narrative == ""
+    assert result.pending_roll_id == "42:roll-1"
+    assert result.pending_roll == {"submitted_rolls": [15], "modifier": 3, "dc": 14}
+
+
+def test_mapper_builds_pending_clarification_result():
+    record = SimpleNamespace(id=7, player_input="Abro una puerta.")
+    pending = {"challenge_id": "clarify-2", "question": "¿Cuál de ellas?"}
+
+    result = DurableTurnResultMapper.clarification_result(record, pending)
+
+    assert result.player_input == "Abro una puerta."
+    assert result.narrative == "¿Cuál de ellas?"
+    assert result.pending_clarification_id == "7:clarify-2"

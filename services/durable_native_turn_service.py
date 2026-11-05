@@ -673,21 +673,11 @@ class DurableNativeTurnService:
 
     @staticmethod
     def _manual_roll_result(record, pending):
-        return TurnResolutionResult(
-            player_input=record.player_input, narrative="",
-            pending_roll_id=str(record.id) + ":" + pending["challenge_id"],
-            pending_roll={key: value for key, value in pending.items() if key not in {"challenge_id", "decision"}},
-        )
+        return DurableTurnResultMapper.manual_roll_result(record, pending)
 
     @staticmethod
     def _clarification_result(record, pending):
-        return TurnResolutionResult(
-            player_input=record.player_input,
-            narrative=pending["question"],
-            pending_clarification_id=(
-                str(record.id) + ":" + pending["challenge_id"]
-            ),
-        )
+        return DurableTurnResultMapper.clarification_result(record, pending)
 
     def submit_clarification(
         self,
