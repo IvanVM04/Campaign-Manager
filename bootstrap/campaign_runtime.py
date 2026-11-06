@@ -37,7 +37,7 @@ from services.persistent_effect_service import PersistentEffectService
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
 )
-from services.turn_resolution_service import TurnResolutionService
+from services.turns.turn_resolution_service import TurnResolutionService
 from services.turns import TurnExecutionLock
 from services.turns.durable_native_turn_service import DurableNativeTurnService
 from services.world import WorldService
