@@ -75,7 +75,7 @@ class WorldEventRead(BaseModel):
 class WorldCollectionPage(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    items: tuple[dict, ...]
+    items: tuple[BaseModel, ...]
     total: int
     limit: int
     offset: int
