@@ -13,6 +13,7 @@ This inventory separates confirmed dead code from compatibility code that still 
 - Additional confirmed re-export shims `services/durable_native_turn_service.py`, `services/turn_resolution_service.py`, `services/world_applier.py`, `services/llm_world_prompt_builder.py`, and `services/llm_world_response_parser.py`: consumers now import from `services.turns`, `services.world`, and `services.llm_world`; compatibility-only tests were removed while canonical package export coverage remains.
 - Seven more flat re-export shims removed after migrating production and test imports: `services/context_ranker.py`, `services/context_expander.py`, `services/context_renderer.py`, `services/world_serializer.py`, `services/world_item_applier.py`, `services/world_entity_applier.py`, and `services/llm_extraction_errors.py`. Their implementations remain in `services/context/`, `services/world/`, and `services/llm_world/` respectively.
 - Three combat re-export shims removed after migrating the remaining test imports to `services.combat`: `services/combat_encounter_service.py`, `services/combat_attack_service.py`, and `services/weapon_equipment_service.py`. The runtime already consumed the canonical package; service implementations and combat behavior are unchanged.
+- The LLM provider boundary is now a real package: `llm_provider.py`, `ollama_provider.py`, `fake_llm_provider.py`, and `llm_settings.py` moved into `services/providers/`. Production and test imports now use `services.providers`; the old flat modules were removed without changing provider behavior.
 
 ## Still legacy, but not dead
 
@@ -23,7 +24,7 @@ This inventory separates confirmed dead code from compatibility code that still 
 | `POST /integration/turn` and `LegacySillyTavernTurnService` | Deprecated route still dispatches to the legacy service | Observe zero usage for an agreed window and confirm supported extension clients have migrated |
 | `WorldSnapshotRepository` and snapshot tables | Used by legacy SillyTavern transcript reconciliation and covered by tests | Retire the legacy route first; preserve existing user data and provide a deliberate migration before dropping tables |
 | Remaining runtime proxies and legacy app exports | Other historical service proxies remain exposed for routers/tests | Migrate each consumer to explicit request/runtime dependencies, then remove the proxy and exports with regression coverage |
-| Flat combat/provider modules | Their target package directories are documentation-only; source has not yet migrated | Map public contracts and dependencies before moving code; do not delete or relocate by naming convention |
+| Flat combat/provider modules | Combat and provider implementations have been moved into their capability packages; their former flat import paths are retired | Keep canonical import-boundary tests and avoid reintroducing flat compatibility paths |
 
 ## Cleanup rules
 

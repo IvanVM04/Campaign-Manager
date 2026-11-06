@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.llm_provider import (
+from .llm_provider import (
     LLMProvider,
     LLMProviderError,
 )

@@ -44,7 +44,7 @@ def api_error_for_exception(
     The exception chain is inspected from the outermost error inward so
     orchestration wrappers do not hide provider or model-response failures.
     """
-    from services.llm_provider import LLMProviderError
+    from services.providers import LLMProviderError
     from services.llm_world import LLMExtractionError
     from services.mechanics_adjudicator import MechanicsAdjudicatorError
     from services.turns.turn_resolution_service import TurnResolutionServiceError

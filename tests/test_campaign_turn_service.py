@@ -2467,7 +2467,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
     import services.campaign_turn_service as campaign_turn_module
     from repositories.campaign_repository import CampaignRepository
     from services.context import ContextBuilder
-    from services.fake_llm_provider import FakeLLMProvider
+    from services.providers import FakeLLMProvider
 
     campaign = CampaignRepository().create_campaign(
         name="Turn transaction test"
@@ -2543,7 +2543,7 @@ def test_planned_turn_rejects_state_changed_during_dm_generation():
     from database import transaction
     from repositories.campaign_repository import CampaignRepository
     from services.context import ContextBuilder
-    from services.fake_llm_provider import FakeLLMProvider
+    from services.providers import FakeLLMProvider
 
     campaign = CampaignRepository().create_campaign(
         name="Stale plan test"

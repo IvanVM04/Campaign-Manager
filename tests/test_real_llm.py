@@ -5,8 +5,8 @@ from models.turn_context import TurnContext
 from models.world_state import WorldState
 from operations.character_operations import ChangeCharacterHpOperation
 from services.llm_world import LLMWorldExtractor
-from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
+from services.providers import OllamaProvider
 from services.turns import (
     TurnExecutionLock,
 )
@@ -73,7 +73,7 @@ def test_real_ollama_full_turn_persists_world_change():
     from services.campaign import CampaignStateService
     from services.context import ContextBuilder
     from services.llm_world import LLMWorldExtractor
-    from services.ollama_provider import OllamaProvider
+    from services.providers import OllamaProvider
     from services.operation_parser import OperationParser
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationService,
@@ -170,7 +170,7 @@ def test_real_ollama_regeneration_restores_previous_snapshot():
     from services.campaign import CampaignStateService
     from services.context import ContextBuilder
     from services.llm_world import LLMWorldExtractor
-    from services.ollama_provider import OllamaProvider
+    from services.providers import OllamaProvider
     from services.operation_parser import OperationParser
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationService,

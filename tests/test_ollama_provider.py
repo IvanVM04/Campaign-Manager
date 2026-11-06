@@ -4,13 +4,7 @@ import json
 
 import pytest
 
-from services.llm_provider import (
-    LLMProvider,
-    LLMProviderError,
-)
-from services.ollama_provider import (
-    OllamaProvider,
-)
+from services.providers import LLMProvider, LLMProviderError, OllamaProvider
 
 # ============================================================
 # CONSTRUCTION
@@ -216,7 +210,7 @@ def test_ollama_provider_builds_expected_request(
         return FakeResponse()
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         fake_urlopen,
     )
 
@@ -287,7 +281,7 @@ def test_ollama_provider_strips_prompt():
     monkeypatch = pytest.MonkeyPatch()
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         fake_urlopen,
     )
 
@@ -413,7 +407,7 @@ def test_ollama_provider_rejects_invalid_json(
             return b"not-json"
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         lambda request, timeout: FakeResponse(),
     )
 
@@ -449,7 +443,7 @@ def test_ollama_provider_rejects_non_object_json(
             return b"[]"
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         lambda request, timeout: FakeResponse(),
     )
 
@@ -484,7 +478,7 @@ def test_ollama_provider_converts_connection_error(
         )
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         fake_urlopen,
     )
 
@@ -512,7 +506,7 @@ def test_ollama_provider_converts_timeout(
         )
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         fake_urlopen,
     )
 
@@ -555,7 +549,7 @@ def test_ollama_provider_is_callable(
             )
 
     monkeypatch.setattr(
-        "services.ollama_provider.urlopen",
+        "services.providers.ollama_provider.urlopen",
         lambda request, timeout: FakeResponse(),
     )
 

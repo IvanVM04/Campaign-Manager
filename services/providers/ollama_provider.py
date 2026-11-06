@@ -5,7 +5,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from services.llm_provider import (
+from .llm_provider import (
     LLMProvider,
     LLMProviderError,
 )

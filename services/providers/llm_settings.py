@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import urlsplit
 
-from services.ollama_provider import OllamaProvider
+from .ollama_provider import OllamaProvider
 
 LLMRole = Literal["narrative", "extraction", "mechanics"]
 

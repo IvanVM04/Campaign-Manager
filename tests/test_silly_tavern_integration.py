@@ -3995,7 +3995,7 @@ def test_integration_resolve_maps_wrapped_provider_failure_to_503(
     client,
     monkeypatch,
 ):
-    from services.llm_provider import LLMProviderError
+    from services.providers import LLMProviderError
     from services.turns.durable_native_turn_service import DurableNativeTurnError
     from services.turns.turn_resolution_service import TurnResolutionServiceError
 
