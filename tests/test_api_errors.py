@@ -99,8 +99,8 @@ def test_application_server_error_does_not_expose_internal_detail(error_client):
 def test_wrapped_llm_provider_failure_maps_to_service_unavailable():
     from api.errors import api_error_for_exception
     from services.llm_provider import LLMProviderError
-    from services.turns.turn_resolution_service import TurnResolutionServiceError
     from services.turns.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
 
     try:
         try:
