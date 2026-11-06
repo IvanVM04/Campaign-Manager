@@ -53,12 +53,12 @@ def test_migrated_production_modules_do_not_use_flat_service_imports():
         legacy = sorted(
             imported
             for imported in imports
-            if imported in LEGACY_IMPORTS
+            if any(\n                imported == legacy or imported.startswith(legacy + ".")\n                for legacy in LEGACY_IMPORTS\n            )
         )
         if legacy:
             violations.append(f"{relative_path}: {', '.join(legacy)}")
 
     assert not violations, (
         "Migrated production modules must use canonical capability packages; "
-        "legacy imports found:\\n" + "\\n".join(violations)
+        "legacy imports found:\n" + "\n".join(violations)
     )
