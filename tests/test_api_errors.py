@@ -14,6 +14,14 @@ def error_client():
     def http_error():
         raise HTTPException(status_code=404, detail="resource not found")
 
+    @app.get("/http-internal-error")
+    def http_internal_error():
+        raise HTTPException(status_code=500, detail="private database path")
+
+    @app.get("/http-bad-gateway")
+    def http_bad_gateway():
+        raise HTTPException(status_code=502, detail="provider token leaked")
+
     @app.get("/application-error")
     def application_error():
         raise APIError(
@@ -144,3 +152,22 @@ def test_wrapped_invalid_llm_response_maps_to_bad_gateway():
 
     assert error.status_code == 502
     assert error.code == "invalid_llm_response"
+
+
+
+def test_http_server_errors_do_not_expose_internal_details(error_client):
+    internal = error_client.get("/http-internal-error")
+    upstream = error_client.get("/http-bad-gateway")
+
+    assert internal.status_code == 500
+    assert internal.json() == {
+        "detail": "Internal server error",
+        "code": "internal_error",
+    }
+    assert upstream.status_code == 502
+    assert upstream.json() == {
+        "detail": "Bad gateway",
+        "code": "upstream_invalid_response",
+    }
+    assert "private database path" not in internal.text
+    assert "provider token leaked" not in upstream.text
