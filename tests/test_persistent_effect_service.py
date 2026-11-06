@@ -201,7 +201,7 @@ def test_database_rejects_exhaustion_without_level(isolated_database):
 
 
 def test_campaign_time_effect_expires_at_exact_deadline_and_is_retained(isolated_database):
-    from services.campaign_clock_service import CampaignClockService
+    from services.campaign import CampaignClockService
 
     service, entities = build_service()
     entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
@@ -235,7 +235,7 @@ def test_campaign_time_effect_expires_at_exact_deadline_and_is_retained(isolated
 
 
 def test_suspended_campaign_time_effect_still_expires(isolated_database):
-    from services.campaign_clock_service import CampaignClockService
+    from services.campaign import CampaignClockService
 
     service, entities = build_service()
     entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
@@ -260,7 +260,7 @@ def test_suspended_campaign_time_effect_still_expires(isolated_database):
 def test_campaign_time_effect_expiration_rolls_back_with_clock_on_failure(isolated_database, monkeypatch):
     from database import get_conn
     from repositories.persistent_effect_repository import PersistentEffectRepository
-    from services.campaign_clock_service import CampaignClockService
+    from services.campaign import CampaignClockService
 
     service, entities = build_service()
     entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
@@ -395,7 +395,7 @@ def test_encounter_turn_and_round_effects_expire_atomically_with_progression(iso
     assert one_round.expires_at_round == 2
 
     # Encounter timers must not be consumed by campaign-clock advancement.
-    from services.campaign_clock_service import CampaignClockService
+    from services.campaign import CampaignClockService
     CampaignClockService(campaign_id=1).advance(
         minutes=1, expected_elapsed_minutes=0
     )
