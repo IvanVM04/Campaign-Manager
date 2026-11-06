@@ -4,13 +4,7 @@ import json
 
 import pytest
 
-from services.providers import (
-    LLMProvider,
-    LLMProviderError,
-)
-from services.providers import (
-    OllamaProvider,
-)
+from services.providers import LLMProvider, LLMProviderError, OllamaProvider
 
 # ============================================================
 # CONSTRUCTION
