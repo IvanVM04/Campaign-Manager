@@ -7,12 +7,12 @@ from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
-from services.campaign_state_service import (
+from services.campaign import (
     CampaignStateService,
     CampaignStateServiceError,
 )
 from services.effective_condition_service import EffectiveConditionService
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 def create_campaign(repository):
