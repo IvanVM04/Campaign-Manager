@@ -49,3 +49,27 @@ def test_world_entity_read_api_rejects_invalid_pagination(client):
     assert client.get("/world/entities?limit=0").status_code == 422
     assert client.get("/world/entities?limit=101").status_code == 422
     assert client.get("/world/entities?offset=-1").status_code == 422
+
+
+def test_world_collection_read_endpoints_return_paginated_pages(client):
+    for path in (
+        "/world/items",
+        "/world/item-instances",
+        "/world/resources",
+        "/world/resource-balances",
+        "/world/relations",
+        "/world/events",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+        assert data["limit"] == 50
+        assert data["offset"] == 0
+
+
+def test_world_collection_read_endpoints_validate_pagination(client):
+    assert client.get("/world/items?limit=0").status_code == 422
+    assert client.get("/world/events?limit=101").status_code == 422
+    assert client.get("/world/resources?offset=-1").status_code == 422
