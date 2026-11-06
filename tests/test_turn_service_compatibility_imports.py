@@ -16,6 +16,8 @@ def test_durable_turn_collaborators_reexport_canonical_package_classes():
     )
     from services.durable_turn_preparation_mapper import (
         DurableTurnPreparation as LegacyPreparation,
+    )
+    from services.durable_turn_preparation_mapper import (
         DurableTurnPreparationMapper as LegacyPreparationMapper,
     )
     from services.durable_turn_prepared_commit_service import (
