@@ -4,7 +4,7 @@ import pytest
 
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.campaign_runtime import CampaignRuntimeFactory
-from services.durable_native_turn_service import DurableNativeTurnError
+from services.turns.durable_native_turn_service import DurableNativeTurnError
 
 
 def _service_with_fake_models():
@@ -402,7 +402,7 @@ def test_manual_roll_challenge_is_server_computed_and_hides_internal_decision():
 
 
 def test_manual_roll_submission_rejects_malformed_challenge_and_die_results():
-    from services.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
 
     service, _, _ = _service_with_fake_models()
 

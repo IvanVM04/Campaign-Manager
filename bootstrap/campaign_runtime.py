@@ -27,7 +27,6 @@ from services.combat import (
 )
 from services.context import ContextBuilder
 from services.dm_service import DMService
-from services.durable_native_turn_service import DurableNativeTurnService
 from services.effective_condition_service import EffectiveConditionService
 from services.llm_settings import LLMSettings
 from services.llm_world import LLMWorldExtractor
@@ -40,6 +39,7 @@ from services.silly_tavern_integration_service import (
 )
 from services.turn_resolution_service import TurnResolutionService
 from services.turns import TurnExecutionLock
+from services.turns.durable_native_turn_service import DurableNativeTurnService
 from services.world import WorldService
 
 

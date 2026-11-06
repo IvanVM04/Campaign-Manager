@@ -14,7 +14,7 @@ MIGRATED_PRODUCTION_MODULES = (
     "bootstrap/campaign_runtime.py",
     "services/campaign_turn_service.py",
     "services/dm_service.py",
-    "services/durable_native_turn_service.py",
+    "services/turns/durable_native_turn_service.py",
     "services/legacy_silly_tavern_turn_service.py",
     "services/mechanics_adjudicator.py",
     "services/silly_tavern_integration_service.py",
