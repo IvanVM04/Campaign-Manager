@@ -14,8 +14,8 @@ from services.llm_world import (
     LLMExtractionError,
     LLMWorldExtractor,
 )
-from services.llm_world_prompt_builder import LLMWorldPromptBuilder
-from services.llm_world_response_parser import LLMWorldResponseParser
+from services.llm_world import LLMWorldPromptBuilder
+from services.llm_world import LLMWorldResponseParser
 from services.operation_parser import OperationParser
 
 
