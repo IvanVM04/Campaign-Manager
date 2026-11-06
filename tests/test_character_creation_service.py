@@ -4,7 +4,7 @@ from models.schemas import CharacterCreate
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.character_creation_service import CharacterCreationService
+from services.characters import CharacterCreationService
 
 
 def create_campaign():
