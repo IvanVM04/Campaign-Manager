@@ -27,7 +27,7 @@ from services.combat import (
 from services.context import ContextBuilder
 from services.dm_service import DMService
 from services.effective_condition_service import EffectiveConditionService
-from services.llm_settings import LLMSettings
+from services.providers import LLMSettings
 from services.llm_world import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
