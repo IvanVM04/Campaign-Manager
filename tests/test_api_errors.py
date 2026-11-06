@@ -123,9 +123,9 @@ def test_wrapped_llm_provider_failure_maps_to_service_unavailable():
 
 def test_wrapped_invalid_llm_response_maps_to_bad_gateway():
     from api.errors import api_error_for_exception
-    from services.turns.durable_native_turn_service import DurableNativeTurnError
     from services.llm_world_extractor import LLMExtractionError
     from services.turn_resolution_service import TurnResolutionServiceError
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
 
     try:
         try:
