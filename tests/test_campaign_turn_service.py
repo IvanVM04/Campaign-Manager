@@ -3,6 +3,7 @@ import time
 
 import pytest
 
+from models.campaign_state import CampaignState
 from models.campaign_scope import CampaignScope
 from models.operation_result import OperationResult, OperationStatus
 from models.turn_context import TurnContext
@@ -13,8 +14,7 @@ from models.turn_resolution_result import (
 from models.world_state import WorldState
 from operations.world_operations import CreateEntityOperation
 from repositories.turn_repository import TurnRepository
-from services.campaign_state_service import (
-    CampaignState,
+from services.campaign import (
     CampaignStateService,
     CampaignStateServiceError,
 )
@@ -23,13 +23,13 @@ from services.campaign_turn_service import (
     CampaignTurnServiceError,
 )
 from services.dm_service import DMService
-from services.llm_world_extractor import LLMWorldExtractor
-from services.turn_execution_lock import TurnExecutionLock
+from services.llm_world import LLMWorldExtractor
+from services.turns import TurnExecutionLock
 from services.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,
 )
-from services.world_service import WorldService
+from services.world import WorldService
 
 # ============================================================
 # FAKES
@@ -2422,8 +2422,8 @@ def _build_planned_turn_service(campaign_id, dm_service):
     from repositories.campaign_repository import CampaignRepository
     from repositories.character_repository import CharacterRepository
     from repositories.entity_repository import EntityRepository
-    from services.campaign_state_service import CampaignStateService
-    from services.llm_world_extractor import LLMWorldExtractor
+    from services.campaign import CampaignStateService
+    from services.llm_world import LLMWorldExtractor
     from services.operation_parser import OperationParser
 
     campaign_repository = CampaignRepository()
@@ -2466,7 +2466,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
     import database
     import services.campaign_turn_service as campaign_turn_module
     from repositories.campaign_repository import CampaignRepository
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
     from services.fake_llm_provider import FakeLLMProvider
 
     campaign = CampaignRepository().create_campaign(
@@ -2542,7 +2542,7 @@ def test_planned_turn_releases_read_connection_before_dm_generation(
 def test_planned_turn_rejects_state_changed_during_dm_generation():
     from database import transaction
     from repositories.campaign_repository import CampaignRepository
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
     from services.fake_llm_provider import FakeLLMProvider
 
     campaign = CampaignRepository().create_campaign(
