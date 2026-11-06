@@ -2,7 +2,7 @@ from models.entity import Entity
 from models.operation_result import OperationStatus
 from models.world_state import WorldState
 from operations.world_operations import CreateEntityOperation, UpdateEntityOperation
-from services.world_entity_applier import WorldEntityApplier
+from services.world.world_entity_applier import WorldEntityApplier
 
 
 def build_world():
