@@ -1,6 +1,6 @@
 # Legacy cleanup inventory
 
-**Baseline:** `main` at `e06c70447260dbc2e190b4f828d1ac04b31bc75e` (2026-11-06)
+**Baseline:** `main` at `20e7d49939c87249e7ad905abd11c135a892f207` (2026-11-06)
 
 This inventory separates confirmed dead code from compatibility code that still has consumers. Age or a legacy name alone is not a deletion criterion.
 
