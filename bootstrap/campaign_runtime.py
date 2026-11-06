@@ -27,7 +27,7 @@ from services.combat import (
 )
 from services.context import ContextBuilder
 from services.dm_service import DMService
-from services.durable_native_turn_service import DurableNativeTurnService
+from services.turns.durable_native_turn_service import DurableNativeTurnService
 from services.effective_condition_service import EffectiveConditionService
 from services.llm_settings import LLMSettings
 from services.llm_world import LLMWorldExtractor
