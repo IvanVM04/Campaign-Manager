@@ -9,7 +9,7 @@ from models.schemas import (
     SessionIn,
 )
 from repositories.campaign_repository import CampaignRepository
-from services.campaign_state_service import CampaignStateServiceError
+from services.campaign import CampaignStateServiceError
 
 router = APIRouter()
 
