@@ -25,3 +25,12 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 - [ ] Decide whether the currently unreferenced identity_service.py should be removed or promoted to a documented shared text utility; do not move it into campaign without a real campaign use case.
 - [ ] Add focused lifecycle and invalidation tests.
 - [ ] Migrate remaining consumers from compatibility imports and remove shims when safe.
+
+
+## Session and conversation read API
+- `GET /sessions?limit=50&offset=0` returns a campaign-scoped page with session metadata, turn count and last-turn timestamp.
+- `GET /sessions/{session_id}` returns the same summary or 404 if the session is not part of the selected campaign.
+- `GET /turns?session_id={id}&limit=50&offset=0` returns a stable, oldest-first transcript page. Omitting session_id lists campaign-wide turns.
+- Transcript records expose version and status so the UI can distinguish active and superseded versions. Internal snapshots are never returned.
+- Session notes are deliberately omitted from the read DTO; a separate GM-only policy is required before exposing them.
+- All queries are campaign-scoped and do not mutate campaign state.
