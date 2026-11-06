@@ -2,7 +2,7 @@
 
 from .fake_llm_provider import FakeLLMProvider
 from .llm_provider import LLMProvider, LLMProviderError
-from .llm_settings import LLMSettings, LLMRole
+from .llm_settings import LLMRole, LLMSettings
 from .ollama_provider import OllamaProvider
 
 __all__ = [

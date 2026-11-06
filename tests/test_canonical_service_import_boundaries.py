@@ -49,6 +49,8 @@ LEGACY_IMPORTS = {
     "services.turn_resolution_service",
     "services.world_applier",
     "services.world_service",
+    "services.world_relation_applier",
+    "services.world_resource_applier",
 }
 
 
