@@ -11,8 +11,7 @@ from services.operation_parser import (
     OperationParseError,
     OperationParser,
 )
-from services.world import WorldApplier
-from services.world import WorldService
+from services.world import WorldApplier, WorldService
 
 
 class InMemoryRepository:
