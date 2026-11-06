@@ -255,6 +255,14 @@ POST /turn/clarification
 GET  /turns
 ```
 
+### Dice tray
+
+```text
+POST /dice/roll
+```
+
+The standalone dice tray accepts `count`, `sides` and `modifier`. A single d20 also supports `advantage` or `disadvantage`. It returns each die result and the final total without creating a turn or changing campaign state.
+
 ### Memory
 
 ```text
