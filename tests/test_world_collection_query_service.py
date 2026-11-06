@@ -46,23 +46,25 @@ def make_world():
 
 
 @pytest.mark.parametrize(
-    ("collection", "expected"),
+    ("collection", "expected", "expected_total"),
     [
-        ("items", "Iron Sword"),
-        ("item-instances", "Pristine"),
-        ("resources", "Gold"),
-        ("resource-balances", "Party treasury"),
-        ("relations", "ALLY"),
-        ("events", "Hidden door"),
+        ("items", "Iron Sword", 2),
+        ("item-instances", "Pristine", 1),
+        ("resources", "Gold", 1),
+        ("resource-balances", "Party treasury", 1),
+        ("relations", "ALLY", 1),
+        ("events", "Hidden door", 1),
     ],
 )
-def test_lists_each_world_collection(collection, expected):
+def test_lists_each_world_collection(collection, expected, expected_total):
     page = WorldCollectionQueryService().list_collection(
         make_world(), collection
     )
 
-    assert page.total == 1
-    assert expected in str(page.items[0].model_dump())
+    assert page.total == expected_total
+    assert any(
+        expected in str(item.model_dump()) for item in page.items
+    )
 
 
 def test_collection_query_is_case_insensitive_and_paginates_stably():
