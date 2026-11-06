@@ -1,7 +1,7 @@
 # ruff: noqa: I001
 """Character-aware ability checks for D&D 5e (2014)."""
 
-from models.character_state import CharacterState
+from rules_engine.dnd5e_2014.character import CharacterRulesInput
 from rules_engine.dnd5e_2014.checks import (
     CheckResult,
     ability_check,
@@ -25,15 +25,13 @@ ABILITY_FIELDS: dict[Ability, str] = {
 
 def ability_check_modifier_for_character(
     *,
-    character: CharacterState,
+    character: CharacterRulesInput,
     ability: Ability,
     proficient: bool = False,
     expertise: bool = False,
     situational_modifier: int = 0,
 ) -> int:
     """Return the complete modifier for a character ability check/save."""
-    if not isinstance(character, CharacterState):
-        raise TypeError("character must be a CharacterState")
     if not isinstance(ability, Ability):
         raise TypeError("ability must be an Ability")
     if not isinstance(proficient, bool) or not isinstance(expertise, bool):
