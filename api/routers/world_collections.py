@@ -7,7 +7,13 @@ router = APIRouter()
 _query_service = WorldCollectionQueryService()
 
 
-def _list(collection: str, q: str | None, active: bool | None, limit: int, offset: int):
+def _list(
+    collection: str,
+    q: str | None,
+    active: bool | None,
+    limit: int,
+    offset: int,
+):
     runtime = get_current_runtime()
     with runtime.turn_execution_lock.acquire():
         return _query_service.list_collection(
@@ -18,15 +24,6 @@ def _list(collection: str, q: str | None, active: bool | None, limit: int, offse
             limit=limit,
             offset=offset,
         )
-
-
-def _params(
-    q: str | None = Query(default=None, max_length=200),
-    active: bool | None = None,
-    limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-):
-    return q, active, limit, offset
 
 
 @router.get("/world/items")
