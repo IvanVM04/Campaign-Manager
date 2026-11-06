@@ -38,4 +38,4 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - [ ] Remove compatibility shims only after all callers migrate.
 
 ## Migration status
-All eight modules now live in `services/world/`. The former `services.world_*` and `services.world_state_port` paths remain compatibility re-exports until consumers migrate separately.
+All eight modules now live in `services/world/`. The flat `services.world_serializer`, `services.world_item_applier` and `services.world_entity_applier` compatibility modules have been removed. Remaining flat world paths are tracked for separate consumer migration.
