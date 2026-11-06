@@ -35,7 +35,7 @@ from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from database import init_db
 from repositories.campaign_repository import CampaignRepository
 from services.context import ContextBuilder
-from services.llm_settings import LLMSettings
+from services.providers import LLMSettings
 from services.memory_search_service import MemorySearchService
 from services.world import WorldService
 
