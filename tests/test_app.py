@@ -528,8 +528,8 @@ def test_campaign_header_rejects_unknown_campaign(client):
 def test_runtime_factory_builds_isolated_services_for_each_campaign(
     isolated_database,
 ):
-    from database import execute
     from bootstrap.campaign_runtime import CampaignRuntimeFactory
+    from database import execute
 
     execute(
         "INSERT INTO campaign (id, name, system) VALUES (?, ?, ?)",
