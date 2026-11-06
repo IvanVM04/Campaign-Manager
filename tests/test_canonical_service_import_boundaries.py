@@ -63,5 +63,5 @@ def test_migrated_production_modules_do_not_use_flat_service_imports():
 
     assert not violations, (
         "Migrated production modules must use canonical capability packages; "
-        "legacy imports found:\\n" + "\\n".join(violations)
+        "legacy imports found:\n" + "\n".join(violations)
     )
