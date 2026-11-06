@@ -1,13 +1,7 @@
-from services.durable_native_turn_service import (
-    DurableNativeTurnError as LegacyDurableNativeTurnError,
-    DurableNativeTurnService as LegacyDurableNativeTurnService,
-)
-from services.turns.durable_native_turn_service import (
-    DurableNativeTurnError,
-    DurableNativeTurnService,
-)
+import services.durable_native_turn_service as legacy_module
+import services.turns.durable_native_turn_service as canonical_module
 
 
 def test_legacy_coordinator_imports_reexport_canonical_objects():
-    assert LegacyDurableNativeTurnError is DurableNativeTurnError
-    assert LegacyDurableNativeTurnService is DurableNativeTurnService
+    assert legacy_module.DurableNativeTurnError is canonical_module.DurableNativeTurnError
+    assert legacy_module.DurableNativeTurnService is canonical_module.DurableNativeTurnService
