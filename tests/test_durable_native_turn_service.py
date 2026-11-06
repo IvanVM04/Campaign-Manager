@@ -415,7 +415,7 @@ def test_manual_roll_submission_rejects_malformed_challenge_and_die_results():
 
 
 def test_native_clarification_survives_and_resumes_durably(monkeypatch):
-    from services.turn_resolution_service import TurnResolutionPlan
+    from services.turns.turn_resolution_service import TurnResolutionPlan
 
     service, _, narrative_calls = _service_with_fake_models()
     plans = [
@@ -510,7 +510,7 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
 
 
 def test_native_clarification_rotates_challenge_when_more_detail_is_needed(monkeypatch):
-    from services.turn_resolution_service import TurnResolutionPlan
+    from services.turns.turn_resolution_service import TurnResolutionPlan
 
     service, _, _ = _service_with_fake_models()
     questions = iter([
@@ -553,7 +553,7 @@ def test_native_clarification_rotates_challenge_when_more_detail_is_needed(monke
 
 
 def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch):
-    from services.turn_resolution_service import TurnResolutionPlan
+    from services.turns.turn_resolution_service import TurnResolutionPlan
 
     service, _, narrative_calls = _service_with_fake_models()
     plans = [
