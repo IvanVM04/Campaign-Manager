@@ -25,7 +25,7 @@ from services.campaign_turn_service import (
 from services.dm_service import DMService
 from services.llm_world import LLMWorldExtractor
 from services.turns import TurnExecutionLock
-from services.turn_resolution_service import (
+from services.turns.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,
 )
@@ -2052,7 +2052,7 @@ def test_play_turn_releases_lock_after_resolution_failure():
     from models.turn_resolution_result import (
         TurnResolutionResult,
     )
-    from services.turn_resolution_service import (
+    from services.turns.turn_resolution_service import (
         TurnResolutionServiceError,
     )
 
