@@ -19,10 +19,8 @@ from repositories.character_repository import (
 from repositories.world_repository import (
     WorldRepository,
 )
-from services.character_applier import (
+from services.characters import (
     CharacterApplier,
-)
-from services.character_service import (
     CharacterService,
 )
 
