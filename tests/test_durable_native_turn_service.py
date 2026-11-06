@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from repositories.turn_resolution_repository import TurnResolutionRepository
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
+from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turns.durable_native_turn_service import DurableNativeTurnError
 
 
