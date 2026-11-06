@@ -15,9 +15,10 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - durable_turn_preparation_mapper.py — adapter-facing preparation projection.
 - durable_turn_result_mapper.py — durable record to public result mapping.
 - durable_turn_narration_service.py — native and external narration completion.
+- durable_native_turn_service.py — public durable turn coordinator and lifecycle facade.
 
 ## Remaining modules (still in services/)
-- durable_native_turn_service.py — durable coordinator/facade.
+
 - turn_resolution_service.py — non-persistent turn planning and plan application.
 - campaign_turn_service.py — compatibility surface.
 - legacy_silly_tavern_turn_service.py and silly_tavern_integration_service.py — legacy workflow.
@@ -38,4 +39,4 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-The turns boundary has been decomposed internally. `services.turns` owns the execution lock, durable resolution codec, challenge projections/submissions, prepared commit, preparation/result mapping, and narration lifecycle. Their former `services.durable_turn_*` module paths remain compatibility re-exports. `DurableNativeTurnService` remains the public coordinator, while `TurnResolutionService` remains responsible for non-persistent planning and plan application. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.
+The turns boundary has been decomposed internally. `services.turns` owns the execution lock, durable resolution codec, durable coordinator, challenge projections/submissions, prepared commit, preparation/result mapping, and narration lifecycle. Former `services.durable_turn_*` and `services.durable_native_turn_service` module paths remain compatibility re-exports. `TurnResolutionService` remains responsible for non-persistent planning and plan application. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.
