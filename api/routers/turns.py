@@ -76,7 +76,7 @@ def play_turn(
     data: TurnIn,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
-    from services.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
 
     try:
         if data.dice_mode == "manual":
@@ -103,7 +103,7 @@ def play_turn(
 
 @router.post("/turn/roll")
 def submit_manual_roll(data: ManualRollIn):
-    from services.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
 
     try:
         result = get_current_runtime().durable_native_turn_service.submit_manual_roll(
@@ -122,7 +122,7 @@ def submit_manual_roll(data: ManualRollIn):
 
 @router.post("/turn/clarification")
 def submit_clarification(data: ClarificationIn):
-    from services.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
 
     try:
         result = (
