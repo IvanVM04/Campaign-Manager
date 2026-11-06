@@ -16,7 +16,7 @@ from services.campaign import (
 from services.context import ContextBuilder
 from services.legacy_silly_tavern_turn_service import LegacySillyTavernTurnService
 from services.llm_world import LLMWorldExtractor
-from services.turn_execution_lock import TurnExecutionLock
+from services.turns import TurnExecutionLock
 from services.world import WorldService
 
 
