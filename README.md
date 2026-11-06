@@ -131,7 +131,7 @@ The application services are being organized by capability rather than leaving e
 | [turns](services/turns/README.md) | Durable turn lifecycle and legacy compatibility |
 | [world](services/world/README.md) | Validated world-operation application and serialization |
 
-Five capability groups have source modules moved into packages: campaign, characters, context, llm_world and world. Their former flat `services.*` paths remain compatibility re-exports, and some production imports still use those paths; the migration is therefore not complete. The combat, providers and turns directories are target-boundary guides only, with source modules still under `services/`. New code should use canonical package paths. Migrate imports and retire shims incrementally, only after the full test/lint/CI suite passes.
+Five capability groups have source modules moved into packages: campaign, characters, context, llm_world and world. Their former flat `services.*` paths remain compatibility re-exports. The application composition roots and core turn/narrative services now use canonical imports; a regression test (`tests/test_canonical_service_import_boundaries.py`) protects those migrated modules. Some production and test imports still use compatibility paths, so the migration is not complete. The combat, providers and turns directories remain target-boundary guides; their source modules have not yet been migrated as packages. New code should use canonical package paths. Retire shims only after repository-wide consumer checks and full CI.
 
 ## Turn Processing
 
