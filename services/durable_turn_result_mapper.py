@@ -9,7 +9,7 @@ from models.turn_resolution_result import TurnResolutionResult
 from operations.character_operations import CharacterOperation
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import WorldOperation
-from services.turn_resolution_codec import TurnResolutionCodec
+from services.turns import TurnResolutionCodec
 
 
 class DurableTurnResultMapper:
