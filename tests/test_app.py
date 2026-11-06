@@ -6,8 +6,6 @@ import pytest
 from repositories.campaign_repository import CampaignRepository
 
 
-
-
 def test_get_turns_accepts_limit(client):
     response = client.get(
         "/turns?limit=5"
