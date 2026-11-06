@@ -10,7 +10,7 @@ from services.dm_service import DMService
 from services.fake_llm_provider import FakeLLMProvider
 from services.llm_world_extractor import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
-from services.turn_resolution_service import TurnResolutionService
+from services.turns.turn_resolution_service import TurnResolutionService
 from services.world_applier import WorldApplier
 from services.world_service import WorldService
 
