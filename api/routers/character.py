@@ -90,7 +90,15 @@ def get_character_sheet(character_entity_id: int):
                 status_code=404,
                 detail="character does not exist",
             )
-        return sheet
+        character = runtime.character_repository.get_character(
+            character_entity_id,
+            campaign_id=runtime.campaign_id,
+        )
+        armor = runtime.weapon_equipment_service.armor_class(
+            character,
+            campaign_id=runtime.campaign_id,
+        )
+        return sheet.model_copy(update={"armor_class": armor.armor_class})
 
 
 @router.get("/characters/{character_entity_id}/inventory")
