@@ -10,7 +10,7 @@ from models.resource import Resource, ResourceBalance
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
 from services.context import ContextBuilder
-from services.context_ranker import ContextRanker
+from services.context.context_ranker import ContextRanker
 from services.memory_search_service import MemorySearchService
 
 
