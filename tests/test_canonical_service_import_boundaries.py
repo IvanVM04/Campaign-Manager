@@ -61,6 +61,10 @@ LEGACY_IMPORTS = {
     "services.durable_turn_prepared_commit_service",
     "services.durable_turn_result_mapper",
     "services.turn_resolution_codec",
+    "services.llm_world_context_renderer",
+    "services.llm_world_proposal_prompt_builder",
+    "services.llm_world_proposal_validator",
+    "services.world_state_port",
 }
 
 
