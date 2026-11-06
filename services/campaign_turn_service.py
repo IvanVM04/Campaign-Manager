@@ -27,7 +27,7 @@ from services.campaign import (
     CampaignStateServiceError,
 )
 from services.turns import TurnExecutionLock
-from services.turn_resolution_service import (
+from services.turns.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,
 )
