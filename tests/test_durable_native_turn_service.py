@@ -3,7 +3,7 @@ import json
 import pytest
 
 from repositories.turn_resolution_repository import TurnResolutionRepository
-from services.campaign_runtime import CampaignRuntimeFactory
+from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from services.turns.durable_native_turn_service import DurableNativeTurnError
 
 
@@ -835,7 +835,7 @@ def test_silly_tavern_turn_retry_uses_persisted_manual_dice_mode(monkeypatch):
 
 
 def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload():
-    from services.campaign_runtime import CampaignRuntimeFactory
+    from bootstrap.campaign_runtime import CampaignRuntimeFactory
 
     factory = CampaignRuntimeFactory()
     service = factory.get_runtime(1).durable_native_turn_service
