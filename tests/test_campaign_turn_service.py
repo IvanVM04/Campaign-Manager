@@ -3,8 +3,8 @@ import time
 
 import pytest
 
-from models.campaign_state import CampaignState
 from models.campaign_scope import CampaignScope
+from models.campaign_state import CampaignState
 from models.operation_result import OperationResult, OperationStatus
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
