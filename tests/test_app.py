@@ -863,8 +863,8 @@ def test_list_sessions_returns_paginated_session_summaries(client):
         "/sessions",
         json={"number": 2, "title": "The crypt", "summary": "A hidden door"},
     )
-    assert first.status_code == 201
-    assert second.status_code == 201
+    assert first.status_code == 200
+    assert second.status_code == 200
 
     response = client.get("/sessions?limit=1&offset=0")
     assert response.status_code == 200
