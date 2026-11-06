@@ -163,10 +163,17 @@ def register_error_handlers(app: object) -> None:
         request: Request,
         exc: StarletteHTTPException,
     ) -> JSONResponse:
+        detail = exc.detail
+        if exc.status_code >= 500 and exc.status_code != 503:
+            detail = (
+                "Bad gateway"
+                if exc.status_code == 502
+                else "Internal server error"
+            )
         return error_response(
             status_code=exc.status_code,
             code=_code_for_status(exc.status_code),
-            detail=exc.detail,
+            detail=detail,
             headers=exc.headers,
         )
 
