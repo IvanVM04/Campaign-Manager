@@ -17,6 +17,7 @@ from repositories.campaign_state_version_repository import (
 )
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
+from services.llm_world import LLMExtractionError
 from services.turns import (
     DurableTurnChallengeStateService,
     DurableTurnClarificationSubmissionService,
