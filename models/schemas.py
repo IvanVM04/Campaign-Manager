@@ -157,6 +157,26 @@ class ManualRollIn(BaseModel):
         return values
 
 
+class DiceRollIn(BaseModel):
+    """Validated input for a standalone dice-tray roll."""
+
+    count: int = Field(default=1, ge=1, le=100)
+    sides: int = Field(default=20, ge=2, le=1000)
+    modifier: int = Field(default=0, ge=-10000, le=10000)
+    advantage: bool = False
+    disadvantage: bool = False
+
+    @model_validator(mode="after")
+    def validate_d20_modes(self):
+        if (self.advantage or self.disadvantage) and (
+            self.sides != 20 or self.count != 1
+        ):
+            raise ValueError(
+                "advantage and disadvantage require exactly one d20"
+            )
+        return self
+
+
 class ClarificationIn(BaseModel):
     pending_clarification_id: str = Field(..., min_length=20, max_length=200)
     answer: str = Field(..., min_length=1, max_length=5000)
