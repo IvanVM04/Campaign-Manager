@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from services.durable_turn_preparation_mapper import DurableTurnPreparationMapper
+from services.turns import DurableTurnPreparationMapper
 
 
 def test_mapper_builds_committed_resolution_payload():

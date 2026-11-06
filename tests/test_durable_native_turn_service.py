@@ -1048,8 +1048,8 @@ def test_prepared_commit_service_advances_resolution_atomically(monkeypatch):
     from contextlib import nullcontext
     from types import SimpleNamespace
 
-    from services import durable_turn_prepared_commit_service as commit_module
-    from services.durable_turn_prepared_commit_service import (
+    from services.turns import durable_turn_prepared_commit_service as commit_module
+    from services.turns.durable_turn_prepared_commit_service import (
         DurableTurnPreparedCommitService,
     )
 
@@ -1117,8 +1117,8 @@ def test_prepared_commit_service_rejects_stale_revision_before_applying(monkeypa
     from contextlib import nullcontext
     from types import SimpleNamespace
 
-    from services import durable_turn_prepared_commit_service as commit_module
-    from services.durable_turn_prepared_commit_service import (
+    from services.turns import durable_turn_prepared_commit_service as commit_module
+    from services.turns.durable_turn_prepared_commit_service import (
         DurableTurnPreparedCommitService,
     )
 
@@ -1172,8 +1172,8 @@ def test_prepared_commit_service_does_not_advance_failed_consequences(monkeypatc
     from contextlib import nullcontext
     from types import SimpleNamespace
 
-    from services import durable_turn_prepared_commit_service as commit_module
-    from services.durable_turn_prepared_commit_service import (
+    from services.turns import durable_turn_prepared_commit_service as commit_module
+    from services.turns.durable_turn_prepared_commit_service import (
         DurableTurnPreparedCommitService,
     )
 

@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from models.operation_result import OperationStatus
-from services.durable_turn_result_mapper import DurableTurnResultMapper
+from services.turns import DurableTurnResultMapper
 
 
 class EmptyOperationParser:
