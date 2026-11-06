@@ -51,7 +51,8 @@ La aventura comienza en la Posada del Camino. El correo Nilo ha desaparecido; la
 2. Activa Campaign Manager en los ajustes de la extensión.
 3. Configura el backend como `http://127.0.0.1:8765`.
 4. Introduce el **Campaign ID** que imprimió el script.
-5. Mantén inicialmente el modo de dados automático; puedes probar el modo manual después.\n6. Pulsa **Test connection**: el estado debe mostrar `Ready` junto al nombre de campaña, sesión y clase/nivel del personaje. Si aparece `setup is incomplete`, revisa la campaña activa, la sesión seleccionada y el personaje activo.
+5. Mantén inicialmente el modo de dados automático; puedes probar el modo manual después.
+6. Pulsa **Test connection**: el estado debe mostrar `Ready` junto al nombre de campaña, sesión y clase/nivel del personaje. Si aparece `setup is incomplete`, revisa la campaña activa, la sesión seleccionada y el personaje activo.
 
 La extensión solicita al backend la resolución de la acción antes de que SillyTavern genere la narración. Si el backend solicita una aclaración o una tirada manual, sigue la indicación del modelo y responde en el chat.
 
@@ -86,6 +87,7 @@ El resultado narrativo depende del modelo configurado en SillyTavern/Ollama. Las
 - El escenario se entrega como contexto de campaña y sesión; los PNJ y pistas se incorporan al estado persistente a medida que se descubren y registran durante el juego.
 - No todas las acciones, clases, conjuros, condiciones ni consecuencias de D&D 5e 2014 están implementadas.
 - La aplicación está diseñada para un único proceso local y una sola persona.
-- El script no configura Ollama, el modelo narrativo ni SillyTavern.\n- La prueba de conexión valida que exista una campaña, sesión y personaje activos, además de contexto recuperable; que el servidor responda por sí solo no significa que la partida esté lista.
+- El script no configura Ollama, el modelo narrativo ni SillyTavern.
+- La prueba de conexión valida que exista una campaña, sesión y personaje activos, además de contexto recuperable; que el servidor responda por sí solo no significa que la partida esté lista.
 
 Para incidencias, registra los identificadores de campaña/sesión, el mensaje enviado y el resultado observado. Usa una campaña desechable para las pruebas que cambien el mundo.

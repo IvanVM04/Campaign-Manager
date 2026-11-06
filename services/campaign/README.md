@@ -20,8 +20,8 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 
 ## Pending work
 - [ ] Define runtime invalidation on campaign deletion and configuration changes.
-- [ ] Specify shutdown behavior and assess whether the unbounded runtime cache needs safe eviction.
-- [ ] Make provider construction and role-specific settings explicit at the composition root.
-- [ ] Decide whether identity_service belongs here or in a separate identity capability.
+- [ ] Specify shutdown behavior and assess whether the unbounded runtime cache needs safe eviction. Runtime state is process-local; the supported deployment remains one process/worker.
+- [ ] Formalize provider/runtime construction behind typed composition contracts where substitution is needed; narrative, extraction and mechanics roles already have explicit model and timeout settings in LLMSettings.
+- [ ] Decide whether the currently unreferenced identity_service.py should be removed or promoted to a documented shared text utility; do not move it into campaign without a real campaign use case.
 - [ ] Add focused lifecycle and invalidation tests.
 - [ ] Migrate remaining consumers from compatibility imports and remove shims when safe.

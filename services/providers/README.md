@@ -15,13 +15,17 @@ Define and implement external LLM provider boundaries: provider contracts, setti
 - Validate settings at startup/composition boundaries.
 - Test doubles implement the same contract as production adapters.
 
+## Current implementation
+- LLMSettings validates provider URL, model names and finite positive timeouts at startup.
+- Narrative, extraction and mechanics roles are constructed explicitly and can use separate model and timeout settings.
+- OllamaProvider is the concrete HTTP adapter; FakeLLMProvider is used by tests.
+- LLMProvider is currently a small generate(prompt) abstraction, not a structured-output or streaming capability contract.
+
 ## Pending work
-- [ ] Verify narrative, extraction and mechanics roles receive intended models and timeouts.
-- [ ] Make provider construction/configuration explicit in runtime composition.
-- [ ] Define behavior for unavailability, timeouts, malformed responses and cancellation.
-- [ ] Add provider contract tests for fake and production adapter boundaries.
-- [ ] Document supported capabilities and Ollama-specific assumptions.
-- [ ] Decide retry ownership and avoid hidden duplicate retry layers.
+- [ ] Add provider contract tests covering success, timeout, unavailable provider and malformed response behavior.
+- [ ] Document Ollama-specific assumptions and the error contract seen by application services.
+- [ ] Decide retry ownership and avoid hidden duplicate retry layers; preserve the bounded proposal-repair policy in llm_world.
+- [ ] Add structured-output/cancellation capabilities only when an actual provider or gameplay use case requires them.
 
 ## Migration status
-This is a documented target boundary only. Source modules and imports remain in services/ until a separate migration preserves compatibility.
+This remains a documented target boundary only. Provider source modules and imports remain under services/; move them into this package after import consumers and test doubles have been mapped.

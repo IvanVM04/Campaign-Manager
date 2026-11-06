@@ -26,12 +26,12 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - Routers remain transport adapters, not lifecycle authorities.
 
 ## Pending work
-- [ ] Continue auditing DurableNativeTurnService; extract only distinct responsibilities while preserving its facade.
-- [ ] Define legacy SillyTavern compatibility contract and removal criteria.
-- [ ] Review lease expiry/recovery and stale-plan behavior under concurrency and process restart.
-- [ ] Strengthen idempotency, duplicate-delivery, narrative-version and narration-retry tests.
-- [ ] Document transaction ownership and lifecycle transitions.
-- [ ] Retain and document the single-process constraint while locks/runtime are process-local.
+- [x] Extract challenge projections/submissions, prepared commit, narration and result mapping while preserving DurableNativeTurnService as the public coordinator.
+- [ ] Replace exception-message matching for lifecycle/error codes with typed errors and explicit transition reasons.
+- [ ] Add focused recovery tests for expired planning leases and restart/concurrency boundaries.
+- [ ] Split the large SillyTavern integration tests by durable API, adapter behavior and legacy compatibility without reducing coverage.
+- [ ] Keep the deprecated narrative-first route and CampaignTurnService gated by observed usage and downstream compatibility checks.
+- [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-This is a documented target boundary only. Source modules and imports remain in services/ until a separate migration preserves compatibility.
+The turns boundary has already been decomposed internally, but its source modules remain under services/ and this directory is still a target guide. Move them as a package migration only after imports are mapped. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.

@@ -111,7 +111,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-See [the current architecture snapshot](docs/architecture/current-architecture-2026-11-05.md), [the turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [the writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), [the comprehensive architecture and reliability audit](docs/architecture/comprehensive-architecture-audit-2026-11-05.md), [the audit and refactoring plan](docs/architecture/audit-and-refactor-plan-2026-11-05.md), and [the SillyTavern smoke test](docs/sillytavern-smoke-test.md) for the active contracts and next steps.
+For the current baseline and ordered roadmap, see [the architecture audit — 2026-11-06](docs/architecture/architecture-audit-2026-11-06.md) and the [architecture documentation index](docs/architecture/README.md). The dated 2026-11-05 and 2026-11-03 audits are retained as historical snapshots. Active contracts remain documented in the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), and [SillyTavern smoke test](docs/sillytavern-smoke-test.md).
 
 ---
 
@@ -131,7 +131,7 @@ The application services are being organized by capability rather than leaving e
 | [turns](services/turns/README.md) | Durable turn lifecycle and legacy compatibility |
 | [world](services/world/README.md) | Validated world-operation application and serialization |
 
-These documents describe the **intended boundaries**, not a completed source-code move. Existing modules and imports remain in the flat `services/` package for now. Moving them is a separate, incremental migration that must preserve public imports and pass the full test/lint/CI suite. Each package README records outstanding architecture work so the documentation remains an actionable refactoring plan, not just a directory index.
+Five capability groups have source modules moved into packages: campaign, characters, context, llm_world and world. Their former flat `services.*` paths remain compatibility re-exports, and some production imports still use those paths; the migration is therefore not complete. The combat, providers and turns directories are target-boundary guides only, with source modules still under `services/`. New code should use canonical package paths. Migrate imports and retire shims incrementally, only after the full test/lint/CI suite passes.
 
 ## Turn Processing
 
@@ -323,7 +323,7 @@ Development and testing tools include:
 Clone the repository:
 
 ```bash
-git clone https://github.com/ivin04/Campaign-Manager.git
+git clone https://github.com/IvanVM04/Campaign-Manager.git
 cd Campaign-Manager
 ```
 
