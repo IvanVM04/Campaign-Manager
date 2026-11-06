@@ -3,7 +3,7 @@ from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import CreateEntityOperation, UpdateEntityOperation
 from services.world_applier import WorldApplier
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 def test_create_entity():
