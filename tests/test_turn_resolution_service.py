@@ -24,7 +24,7 @@ from services.turns.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,
 )
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 from services.world import WorldService
 
 
