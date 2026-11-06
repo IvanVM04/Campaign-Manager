@@ -5,7 +5,8 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 
 ## Modules
 - `world_service.py` — campaign-scoped world facade and transaction coordination.
-- `world_query_service.py` — immutable, filtered and paginated world read models for API consumers.
+- `world_query_service.py` — immutable, filtered and paginated entity read models.
+- `world_collection_query_service.py` — detached read projections for items, instances, resources, balances, relations and events.
 - `world_applier.py` — typed operation dispatch.
 - `world_entity_applier.py`, `world_item_applier.py`, `world_relation_applier.py`, `world_resource_applier.py` — operation-family application.
 - `world_serializer.py` — domain dataclass serialization.
@@ -15,17 +16,17 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - Apply typed operations; never accept arbitrary model-generated database writes.
 - Keep persistence behind repositories and preserve caller-owned transaction semantics.
 - Keep entity, item, relation and resource application boundaries explicit.
+- API read models must be detached from mutable domain state; metadata is serialized as JSON text.
 - Avoid coupling world mutation to HTTP or concrete LLM providers.
 - Model-generated proposals must pass parsing and validation before reaching this package.
 
 ## Pending work
-- [ ] Audit operation dispatch so each supported operation has explicit validation and a clear owner.
-- [ ] Review atomicity when one proposal changes multiple world aggregates.
+- [ ] Add relation/event visibility policy before exposing secret campaign data to non-GM clients.
+- [ ] Add entity-name joins for owner, location, subject and target IDs when the UI needs display-ready labels.
+- [ ] Audit operation dispatch and multi-aggregate atomicity.
 - [ ] Verify campaign scoping and stale-context/revision checks at the application boundary.
 - [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
-- [ ] Ensure unsupported operations fail without partial inconsistent application.
 - [ ] Review serializer consumers before changing its output contract.
-- [ ] Extend read models to items, instances, resources, relations and events without exposing mutable `WorldState` objects.
 - [ ] Remove compatibility shims only after all callers migrate.
 
 ## Migration status
