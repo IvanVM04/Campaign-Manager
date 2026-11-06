@@ -6,7 +6,7 @@ from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.llm_world.llm_extraction_errors import LLMExtractionError
-from services.llm_world_proposal_prompt_builder import (
+from services.llm_world.llm_world_proposal_prompt_builder import (
     LLMWorldProposalPromptBuilder,
 )
 

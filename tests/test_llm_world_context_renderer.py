@@ -7,7 +7,7 @@ from models.relation import Relation
 from models.resource import Resource
 from models.turn_context import TurnContext
 from models.world_state import WorldState
-from services.llm_world_context_renderer import LLMWorldContextRenderer
+from services.llm_world.llm_world_context_renderer import LLMWorldContextRenderer
 
 
 def make_context(world=None, active_character=None):
