@@ -1,4 +1,5 @@
 from collections import deque
+from types import SimpleNamespace
 
 from models.character_state import CharacterState
 from rules_engine.dnd5e_2014.character_checks import (
@@ -108,3 +109,23 @@ def test_skill_check_can_use_dm_selected_ability():
     assert result.ability_modifier == 3
     assert result.proficiency_applied == 2
     assert result.total == 15
+
+
+
+def test_character_check_accepts_ruleset_input_without_application_model():
+    character = SimpleNamespace(
+        level=5,
+        dexterity=16,
+        skill_proficiencies=frozenset({Skill.STEALTH}),
+        skill_expertise=frozenset(),
+        saving_throw_proficiencies=frozenset(),
+    )
+    result = ability_check_for_character(
+        character=character,
+        roller=DiceRoller(SequenceRandom([10])),
+        skill=Skill.STEALTH,
+        dc=16,
+    )
+
+    assert result.total == 16
+    assert result.success is True
