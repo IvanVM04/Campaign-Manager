@@ -364,6 +364,7 @@ def test_application_services_share_same_turn_execution_lock():
     from app import runtime_factory
 
     runtime = runtime_factory.get_runtime(1)
+    assert not hasattr(runtime, "campaign_turn_service")
     assert (
         runtime.silly_tavern_integration_service.turn_execution_lock
         is runtime.turn_execution_lock
