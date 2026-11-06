@@ -1,7 +1,7 @@
 """Server-derived attack profiles from character state and equipped weapons."""
 from dataclasses import dataclass
 
-from models.character_state import CharacterState
+from rules_engine.dnd5e_2014.character import CharacterRulesInput
 from rules_engine.dnd5e_2014.weapons.catalog import WeaponDefinition, WeaponProperty
 
 
@@ -18,7 +18,7 @@ class AttackProfile:
 
 
 def derive_attack_profile(
-    character: CharacterState,
+    character: CharacterRulesInput,
     weapon: WeaponDefinition,
     *,
     versatile_two_handed: bool = False,
@@ -29,8 +29,6 @@ def derive_attack_profile(
     Finesse attackers may choose Strength or Dexterity; other weapon types
     constrain the ability according to the 2014 rules.
     """
-    if not isinstance(character, CharacterState):
-        raise TypeError("character must be a CharacterState")
     if not isinstance(weapon, WeaponDefinition):
         raise TypeError("weapon must be a WeaponDefinition")
     if not isinstance(versatile_two_handed, bool):
