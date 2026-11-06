@@ -11,7 +11,7 @@ from services.operation_parser import (
     OperationParseError,
     OperationParser,
 )
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 from services.world import WorldService
 
 
