@@ -4,7 +4,7 @@ from models.entity import Entity
 from models.event import Event
 from models.relation import Relation
 from models.world_state import WorldState
-from services.context_expander import ContextExpander
+from services.context.context_expander import ContextExpander
 
 
 def build_world() -> WorldState:
@@ -231,7 +231,7 @@ def test_expand_entities_follows_active_relations_in_both_directions(
 ):
     from models.entity import Entity
     from models.relation import Relation
-    from services.context_expander import ContextExpander
+    from services.context.context_expander import ContextExpander
 
     aldric = Entity(
         id=1,
@@ -293,7 +293,7 @@ def test_expand_entities_respects_max_depth(
 ):
     from models.entity import Entity
     from models.relation import Relation
-    from services.context_expander import ContextExpander
+    from services.context.context_expander import ContextExpander
 
     empty_world.entities[1] = Entity(
         id=1,
@@ -387,7 +387,7 @@ def test_expand_entities_ignores_inactive_relations(
 ):
     from models.entity import Entity
     from models.relation import Relation
-    from services.context_expander import ContextExpander
+    from services.context.context_expander import ContextExpander
 
     empty_world.entities[1] = Entity(
         id=1,
@@ -443,7 +443,7 @@ def test_expand_entities_ignores_inactive_entities(
 ):
     from models.entity import Entity
     from models.relation import Relation
-    from services.context_expander import ContextExpander
+    from services.context.context_expander import ContextExpander
 
     empty_world.entities[1] = Entity(
         id=1,
@@ -499,7 +499,7 @@ def test_expand_entities_does_not_modify_world(
 ):
     from models.entity import Entity
     from models.relation import Relation
-    from services.context_expander import ContextExpander
+    from services.context.context_expander import ContextExpander
 
     empty_world.entities[1] = Entity(
         id=1,
