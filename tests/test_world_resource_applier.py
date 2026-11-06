@@ -8,7 +8,7 @@ from operations.world_operations import (
     SpendResourceOperation,
     TransferResourceOperation,
 )
-from services.world_resource_applier import WorldResourceApplier
+from services.world import WorldResourceApplier
 
 
 def build_world():
