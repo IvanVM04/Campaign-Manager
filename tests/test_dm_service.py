@@ -14,8 +14,7 @@ from services.dm_service import (
     DMService,
     DMServiceError,
 )
-from services.providers import FakeLLMProvider
-from services.providers import LLMProvider
+from services.providers import FakeLLMProvider, LLMProvider
 
 # ============================================================
 # HELPERS
