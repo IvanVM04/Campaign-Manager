@@ -85,7 +85,6 @@ def test_d20_roll_supports_normal_advantage_and_disadvantage(
 @pytest.mark.parametrize(
     "payload",
     [
-        {},
         {"count": 0, "sides": 6},
         {"count": 101, "sides": 6},
         {"count": 1, "sides": 1},
@@ -98,6 +97,18 @@ def test_dice_roll_rejects_invalid_input(client, payload):
     response = client.post("/dice/roll", json=payload)
 
     assert response.status_code == 422
+
+
+def test_dice_roll_uses_defaults_when_payload_is_empty(client):
+    response = client.post("/dice/roll", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert body["sides"] == 20
+    assert len(body["rolls"]) == 1
+    assert 1 <= body["rolls"][0] <= 20
+    assert body["total"] == body["rolls"][0]
 
 
 def test_dice_roll_requires_campaign_header():
