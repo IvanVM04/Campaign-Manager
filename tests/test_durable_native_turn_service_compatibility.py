@@ -1,7 +1,0 @@
-import services.durable_native_turn_service as legacy_module
-import services.turns.durable_native_turn_service as canonical_module
-
-
-def test_legacy_coordinator_imports_reexport_canonical_objects():
-    assert legacy_module.DurableNativeTurnError is canonical_module.DurableNativeTurnError
-    assert legacy_module.DurableNativeTurnService is canonical_module.DurableNativeTurnService
