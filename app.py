@@ -44,7 +44,7 @@ from services.llm_world import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
 from services.operation_parser import OperationParser
-from services.turn_execution_lock import TurnExecutionLock
+from services.turns import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
 from services.world import WorldService
 
