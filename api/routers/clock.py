@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from api.runtime_context import get_current_runtime
 from models.campaign_clock_api_schemas import CampaignClockAdvanceIn
-from services.campaign_clock_service import CampaignClockService
+from services.campaign import CampaignClockService
 
 router = APIRouter()
 
