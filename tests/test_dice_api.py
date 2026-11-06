@@ -100,10 +100,15 @@ def test_dice_roll_rejects_invalid_input(client, payload):
     assert response.status_code == 422
 
 
-def test_dice_roll_requires_campaign_header(client_without_campaign):
-    response = client_without_campaign.post(
+def test_dice_roll_requires_campaign_header():
+    from fastapi.testclient import TestClient
+
+    from app import app
+
+    response = TestClient(app).post(
         "/dice/roll",
         json={"count": 1, "sides": 20},
     )
 
     assert response.status_code == 400
+    assert response.json()["code"] == "bad_request"
