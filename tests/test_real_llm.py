@@ -4,10 +4,10 @@ from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from operations.character_operations import ChangeCharacterHpOperation
-from services.llm_world_extractor import LLMWorldExtractor
+from services.llm_world import LLMWorldExtractor
 from services.ollama_provider import OllamaProvider
 from services.operation_parser import OperationParser
-from services.turn_execution_lock import (
+from services.turns import (
     TurnExecutionLock,
 )
 
@@ -70,15 +70,15 @@ def test_real_ollama_full_turn_persists_world_change():
     from repositories.character_repository import CharacterRepository
     from repositories.entity_repository import EntityRepository
     from repositories.turn_repository import TurnRepository
-    from services.campaign_state_service import CampaignStateService
-    from services.context_builder import ContextBuilder
-    from services.llm_world_extractor import LLMWorldExtractor
+    from services.campaign import CampaignStateService
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
     from services.ollama_provider import OllamaProvider
     from services.operation_parser import OperationParser
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationService,
     )
-    from services.world_service import WorldService
+    from services.world import WorldService
 
     world_service = WorldService()
     world_service.load()
@@ -167,15 +167,15 @@ def test_real_ollama_regeneration_restores_previous_snapshot():
     from repositories.character_repository import CharacterRepository
     from repositories.entity_repository import EntityRepository
     from repositories.turn_repository import TurnRepository
-    from services.campaign_state_service import CampaignStateService
-    from services.context_builder import ContextBuilder
-    from services.llm_world_extractor import LLMWorldExtractor
+    from services.campaign import CampaignStateService
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
     from services.ollama_provider import OllamaProvider
     from services.operation_parser import OperationParser
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationService,
     )
-    from services.world_service import WorldService
+    from services.world import WorldService
 
     world_service = WorldService()
 
