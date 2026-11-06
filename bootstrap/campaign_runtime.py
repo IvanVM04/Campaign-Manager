@@ -13,15 +13,19 @@ from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
-from services.campaign_state_service import CampaignStateService
+from services.campaign import CampaignStateService
 from services.campaign_turn_service import CampaignTurnService
-from services.character_applier import CharacterApplier
-from services.character_creation_service import CharacterCreationService
-from services.character_service import CharacterService
-from services.combat.combat_attack_service import CombatAttackService
-from services.combat.combat_encounter_service import CombatEncounterService
-from services.combat.weapon_equipment_service import WeaponEquipmentService
-from services.context_builder import ContextBuilder
+from services.characters import (
+    CharacterApplier,
+    CharacterCreationService,
+    CharacterService,
+)
+from services.combat import (
+    CombatAttackService,
+    CombatEncounterService,
+    WeaponEquipmentService,
+)
+from services.context import ContextBuilder
 from services.dm_service import DMService
 from services.durable_native_turn_service import DurableNativeTurnService
 from services.effective_condition_service import EffectiveConditionService
@@ -36,7 +40,7 @@ from services.silly_tavern_integration_service import (
 )
 from services.turn_execution_lock import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 @dataclass(slots=True)
