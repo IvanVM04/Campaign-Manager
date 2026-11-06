@@ -195,6 +195,91 @@ class CampaignRepository:
             conn=conn,
         )
 
+    @staticmethod
+    def _session_overview_query() -> str:
+        return """
+            SELECT
+                s.id,
+                s.number,
+                s.title,
+                s.summary,
+                s.start_location,
+                s.end_location,
+                COUNT(t.id) AS turn_count,
+                MAX(t.created_at) AS last_turn_at
+            FROM sessions AS s
+            LEFT JOIN turns AS t
+                ON t.session_id = s.id
+                AND t.campaign_id = s.campaign_id
+            WHERE s.campaign_id = ?
+        """
+
+    @staticmethod
+    def _validate_session_pagination(
+        campaign_id: int,
+        limit: int,
+        offset: int,
+    ) -> None:
+        if not isinstance(campaign_id, int) or isinstance(campaign_id, bool):
+            raise TypeError("campaign_id must be an integer")
+        if campaign_id < 1:
+            raise ValueError("campaign_id must be greater than zero")
+        if not isinstance(limit, int) or isinstance(limit, bool):
+            raise TypeError("limit must be an integer")
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        if not isinstance(offset, int) or isinstance(offset, bool):
+            raise TypeError("offset must be an integer")
+        if offset < 0:
+            raise ValueError("offset must not be negative")
+
+    def list_sessions(
+        self,
+        *,
+        campaign_id: int,
+        limit: int = 50,
+        offset: int = 0,
+        conn=None,
+    ):
+        self._validate_session_pagination(campaign_id, limit, offset)
+        query = self._session_overview_query()
+        query += (
+            " GROUP BY s.id"
+            " ORDER BY s.number DESC, s.id DESC"
+            " LIMIT ? OFFSET ?"
+        )
+        params = (campaign_id, limit, offset)
+        if conn is None:
+            return rows(query, params)
+        return rows_in_conn(conn, query, params)
+
+    def count_sessions(self, *, campaign_id: int, conn=None) -> int:
+        query = "SELECT COUNT(*) AS total FROM sessions WHERE campaign_id=?"
+        result = (
+            one(query, (campaign_id,))
+            if conn is None
+            else one_in_conn(conn, query, (campaign_id,))
+        )
+        return int(result["total"]) if result is not None else 0
+
+    def get_session_overview(
+        self,
+        session_id: int,
+        *,
+        campaign_id: int,
+        conn=None,
+    ):
+        if not isinstance(session_id, int) or isinstance(session_id, bool):
+            raise TypeError("session_id must be an integer")
+        if session_id < 1:
+            raise ValueError("session_id must be greater than zero")
+        query = self._session_overview_query()
+        query += " AND s.id=? GROUP BY s.id"
+        params = (campaign_id, session_id)
+        if conn is None:
+            return one(query, params)
+        return one_in_conn(conn, query, params)
+
     def get_session(
         self,
         session_id: int,
