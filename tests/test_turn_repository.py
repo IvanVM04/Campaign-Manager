@@ -1388,3 +1388,32 @@ def test_supersede_turn_cannot_change_another_campaign(
     )
     assert unchanged is not None
     assert unchanged.status == "active"
+
+
+
+def test_list_turns_supports_offset_without_changing_order(isolated_database):
+    repository = TurnRepository()
+    scope = CampaignScope(1)
+    saved = []
+    for index in range(3):
+        saved.append(
+            repository.save_turn(
+                TurnRecord(
+                    player_input=f"Action {index}",
+                    narrative=f"Narrative {index}",
+                ),
+                scope=scope,
+            )
+        )
+
+    page = repository.list_turns(scope=scope, limit=2, offset=1)
+
+    assert [turn.id for turn in page] == [saved[1].id, saved[2].id]
+
+
+def test_list_turns_rejects_invalid_offset(isolated_database):
+    repository = TurnRepository()
+    with pytest.raises(ValueError, match="offset must not be negative"):
+        repository.list_turns(scope=CampaignScope(1), offset=-1)
+    with pytest.raises(TypeError, match="offset must be an integer"):
+        repository.list_turns(scope=CampaignScope(1), offset=True)
