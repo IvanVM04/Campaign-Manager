@@ -3996,8 +3996,8 @@ def test_integration_resolve_maps_wrapped_provider_failure_to_503(
     monkeypatch,
 ):
     from services.llm_provider import LLMProviderError
-    from services.turn_resolution_service import TurnResolutionServiceError
     from services.turns.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
 
     runtime = __import__("app").runtime_factory.get_runtime(1)
 
@@ -4037,8 +4037,8 @@ def test_integration_resolve_maps_invalid_model_response_to_502(
     monkeypatch,
 ):
     from services.llm_world_extractor import LLMExtractionError
-    from services.turn_resolution_service import TurnResolutionServiceError
     from services.turns.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
 
     runtime = __import__("app").runtime_factory.get_runtime(1)
 

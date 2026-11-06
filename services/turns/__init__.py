@@ -20,6 +20,11 @@ from services.turns.durable_turn_prepared_commit_service import (
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
 from services.turns.turn_execution_lock import TurnExecutionLock
 from services.turns.turn_resolution_codec import TurnResolutionCodec
+from services.turns.turn_resolution_service import (
+    TurnResolutionPlan,
+    TurnResolutionService,
+    TurnResolutionServiceError,
+)
 
 __all__ = [
     "DurableTurnChallengeStateService",
@@ -32,4 +37,7 @@ __all__ = [
     "DurableTurnResultMapper",
     "TurnExecutionLock",
     "TurnResolutionCodec",
+    "TurnResolutionPlan",
+    "TurnResolutionService",
+    "TurnResolutionServiceError",
 ]

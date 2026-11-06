@@ -47,7 +47,7 @@ def api_error_for_exception(
     from services.llm_provider import LLMProviderError
     from services.llm_world import LLMExtractionError
     from services.mechanics_adjudicator import MechanicsAdjudicatorError
-    from services.turn_resolution_service import TurnResolutionServiceError
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
 
     chain: list[BaseException] = []
     current: BaseException | None = exc

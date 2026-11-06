@@ -17,7 +17,7 @@ from operations.character_operations import CharacterOperation
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import WorldOperation
-from services.turn_resolution_service import TurnResolutionPlan
+from services.turns.turn_resolution_service import TurnResolutionPlan
 
 
 class TurnResolutionCodec:

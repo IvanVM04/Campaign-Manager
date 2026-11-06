@@ -7,8 +7,8 @@ from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import CreateEntityOperation
 from services.operation_parser import OperationParser
-from services.turn_resolution_service import TurnResolutionPlan
 from services.turns import TurnResolutionCodec
+from services.turns.turn_resolution_service import TurnResolutionPlan
 
 
 def test_operation_codec_preserves_references_and_reconstructs_plan():

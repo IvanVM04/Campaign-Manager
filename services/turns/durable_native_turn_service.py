@@ -29,7 +29,7 @@ from services.turns import (
     DurableTurnResultMapper,
     TurnResolutionCodec,
 )
-from services.turn_resolution_service import (
+from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
 )
