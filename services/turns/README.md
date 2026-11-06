@@ -5,7 +5,10 @@ Coordinate the turn lifecycle: preparation, adjudication orchestration, durable 
 
 The durable resolution record is authoritative for in-flight state. Narrative/transcript versions are a separate projection and must never replay committed consequences.
 
-## Current modules (still in services/)
+## Package modules
+- turn_execution_lock.py — canonical process-local lock shared by turn coordinators.
+
+## Remaining modules (still in services/)
 - durable_native_turn_service.py — durable coordinator/facade.
 - turn_resolution_service.py and turn_resolution_codec.py — preparation and serialization.
 - durable_turn_challenge_state_service.py
@@ -16,7 +19,6 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - durable_turn_narration_service.py
 - campaign_turn_service.py — compatibility surface.
 - legacy_silly_tavern_turn_service.py and silly_tavern_integration_service.py — legacy workflow.
-- turn_execution_lock.py
 
 ## Dependency rules
 - Preserve idempotency, lease fencing, campaign revision checks and atomic commit.
@@ -34,4 +36,4 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-The turns boundary has already been decomposed internally, but its source modules remain under services/ and this directory is still a target guide. Move them as a package migration only after imports are mapped. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.
+The turns boundary has been decomposed internally. `services.turns` is now an importable package and owns the canonical turn execution lock; the former `services.turn_execution_lock` module remains a compatibility re-export. Other turn lifecycle modules remain under `services/` and should move only after their imports and test patch points are mapped. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.
