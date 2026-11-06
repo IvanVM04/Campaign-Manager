@@ -9,15 +9,15 @@ from repositories.campaign_state_version_repository import (
 )
 from repositories.turn_repository import TurnRepository
 from repositories.world_snapshot_repository import WorldSnapshotRepository
-from services.campaign_state_service import (
+from services.campaign import (
     CampaignStateService,
     CampaignStateServiceError,
 )
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.legacy_silly_tavern_turn_service import LegacySillyTavernTurnService
-from services.llm_world_extractor import LLMWorldExtractor
+from services.llm_world import LLMWorldExtractor
 from services.turn_execution_lock import TurnExecutionLock
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 class SillyTavernIntegrationServiceError(RuntimeError):
