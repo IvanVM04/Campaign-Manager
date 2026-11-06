@@ -162,29 +162,52 @@ class TurnRepository:
         row = one(query, params) if conn is None else one_in_conn(conn, query, params)
         return self._row_to_model(row) if row is not None else None
 
+    @staticmethod
+    def _validate_offset(offset: int) -> None:
+        if not isinstance(offset, int) or isinstance(offset, bool):
+            raise TypeError("offset must be an integer")
+        if offset < 0:
+            raise ValueError("offset must not be negative")
+
     def list_turns(
         self,
         *,
         scope: CampaignScope,
         session_id: int | None = None,
         limit: int | None = None,
+        offset: int = 0,
         conn=None,
     ) -> list[TurnRecord]:
         self._validate_scope(scope)
         self._validate_optional_positive_int(session_id, "session_id")
         self._validate_limit(limit, optional=True)
+        self._validate_offset(offset)
 
         clauses = ["campaign_id=?"]
         params: list[int] = [scope.campaign_id]
         if session_id is not None:
             clauses.append("session_id=?")
             params.append(session_id)
-        query = f"SELECT {self._SELECT_FIELDS} FROM turns WHERE " + " AND ".join(clauses)
+        query = (
+            f"SELECT {self._SELECT_FIELDS} FROM turns WHERE "
+            + " AND ".join(clauses)
+        )
         query += " ORDER BY id ASC"
         if limit is not None:
             query += " LIMIT ?"
             params.append(limit)
-        result = rows(query, tuple(params)) if conn is None else rows_in_conn(conn, query, tuple(params))
+            if offset:
+                query += " OFFSET ?"
+                params.append(offset)
+        elif offset:
+            query += " LIMIT -1 OFFSET ?"
+            params.append(offset)
+
+        result = (
+            rows(query, tuple(params))
+            if conn is None
+            else rows_in_conn(conn, query, tuple(params))
+        )
         return [self._row_to_model(row) for row in result]
 
     def list_recent_turns(
