@@ -22,7 +22,7 @@ from operations.world_operations import (
     UpdateEntityOperation,
 )
 from repositories.world_repository import WorldRepository
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 class FakeRepository:
@@ -655,7 +655,7 @@ def test_apply_turn_operations_saves_world_operation_from_ordered_operations(
 def test_apply_turn_operations_rolls_back_when_character_operation_fails(
     monkeypatch,
 ):
-    from services.character_applier import (
+    from services.characters import (
         CharacterApplierError,
     )
 
@@ -799,7 +799,7 @@ def test_apply_turn_operations_rolls_back_when_character_operation_returns_failu
     from operations.character_operations import (
         ChangeCharacterHpOperation,
     )
-    from services.world_service import (
+    from services.world import (
         WorldService,
     )
 
