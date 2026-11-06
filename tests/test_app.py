@@ -277,7 +277,7 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
         *,
         idempotency_key=None,
     ):
-        from services.durable_native_turn_service import DurableNativeTurnError
+        from services.turns.durable_native_turn_service import DurableNativeTurnError
         raise DurableNativeTurnError(
             "Turn resolution failed."
         )
