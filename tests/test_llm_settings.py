@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from services.llm_settings import LLMSettings
+from services.providers import LLMSettings
 
 
 def test_llm_settings_preserve_current_defaults():
