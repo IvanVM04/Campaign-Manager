@@ -2,13 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.providers import (
-    FakeLLMProvider,
-)
-from services.providers import (
-    LLMProvider,
-    LLMProviderError,
-)
+from services.providers import FakeLLMProvider, LLMProvider, LLMProviderError
 
 # ============================================================
 # LLMProvider
