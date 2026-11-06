@@ -38,8 +38,8 @@ from services.persistent_effect_service import PersistentEffectService
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
 )
-from services.turns import TurnExecutionLock
 from services.turn_resolution_service import TurnResolutionService
+from services.turns import TurnExecutionLock
 from services.world import WorldService
 
 

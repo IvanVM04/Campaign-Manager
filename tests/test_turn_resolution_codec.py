@@ -7,7 +7,7 @@ from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import CreateEntityOperation
 from services.operation_parser import OperationParser
-from services.turn_resolution_codec import TurnResolutionCodec
+from services.turns import TurnResolutionCodec
 from services.turn_resolution_service import TurnResolutionPlan
 
 
@@ -46,3 +46,12 @@ def test_operation_codec_rejects_unregistered_operation_types():
     )
     with pytest.raises(ValueError, match="unsupported operation type"):
         TurnResolutionCodec.serialize_operations(plan)
+
+
+
+def test_legacy_codec_import_reexports_canonical_implementation():
+    from services.turn_resolution_codec import (
+        TurnResolutionCodec as LegacyTurnResolutionCodec,
+    )
+
+    assert LegacyTurnResolutionCodec is TurnResolutionCodec

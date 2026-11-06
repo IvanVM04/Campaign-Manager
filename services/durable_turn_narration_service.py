@@ -10,7 +10,7 @@ from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from services.durable_turn_result_mapper import DurableTurnResultMapper
-from services.turn_resolution_codec import TurnResolutionCodec
+from services.turns import TurnResolutionCodec
 
 
 class DurableTurnNarrationService:
