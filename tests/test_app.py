@@ -529,7 +529,7 @@ def test_runtime_factory_builds_isolated_services_for_each_campaign(
     isolated_database,
 ):
     from database import execute
-    from services.campaign_runtime import CampaignRuntimeFactory
+    from bootstrap.campaign_runtime import CampaignRuntimeFactory
 
     execute(
         "INSERT INTO campaign (id, name, system) VALUES (?, ?, ?)",
@@ -749,7 +749,7 @@ def test_world_entity_bootstrap_rejects_duplicate_names_in_request(client):
 
 def test_character_creation_routes_refresh_runtime_world_cache(client):
     from app import runtime_factory
-    from services.campaign_runtime import CampaignRuntimeFactory
+    from bootstrap.campaign_runtime import CampaignRuntimeFactory
 
     runtime = runtime_factory.get_runtime(1)
     created = client.post(

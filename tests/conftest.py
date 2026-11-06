@@ -35,7 +35,7 @@ def isolated_database(tmp_path, monkeypatch):
     database.init_db()
 
     import app
-    from services.campaign_runtime import CampaignRuntimeFactory
+    from bootstrap.campaign_runtime import CampaignRuntimeFactory
 
     monkeypatch.setattr(
         app,
