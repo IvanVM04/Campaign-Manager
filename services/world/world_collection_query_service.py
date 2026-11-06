@@ -28,6 +28,34 @@ class WorldCollectionQueryService:
         "events": ("events", WorldEventRead, ("event_type", "title", "description", "consequences")),
     }
 
+    @staticmethod
+    def _entity_name(world: WorldState, entity_id: int | None) -> str | None:
+        if entity_id is None:
+            return None
+        entity = world.entities.get(entity_id)
+        return entity.name if entity is not None else None
+
+    def _related_names(self, world: WorldState, collection: str, value) -> dict[str, str | None]:
+        if collection == "item-instances":
+            item = world.items.get(value.item_id)
+            return {
+                "item_name": item.name if item is not None else None,
+                "owner_name": self._entity_name(world, value.owner_id),
+                "location_name": self._entity_name(world, value.location_id),
+            }
+        if collection == "resource-balances":
+            resource = world.resources.get(value.resource_id)
+            return {
+                "resource_name": resource.name if resource is not None else None,
+                "owner_name": self._entity_name(world, value.owner_id),
+            }
+        if collection == "relations":
+            return {
+                "subject_name": self._entity_name(world, value.subject_id),
+                "target_name": self._entity_name(world, value.target_id),
+            }
+        return {}
+
     def list_collection(
         self,
         world: WorldState,
@@ -58,12 +86,15 @@ class WorldCollectionQueryService:
         for value in ordered:
             if active is not None and hasattr(value, "active") and value.active is not active:
                 continue
+            related_names = self._related_names(world, collection, value)
             searchable = " ".join(
                 str(getattr(value, field, "")) for field in search_fields
             )
+            searchable = f"{searchable} {' '.join(name or '' for name in related_names.values())}"
             if needle and needle not in searchable.casefold():
                 continue
             data = asdict(value) if is_dataclass(value) else dict(vars(value))
+            data.update(related_names)
             if collection in {"relations", "events"}:
                 metadata = data.pop("metadata", None)
                 data["metadata_json"] = (

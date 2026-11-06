@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from models.entity import Entity
 from models.event import Event
 from models.item import Item, ItemInstance
 from models.relation import Relation
@@ -11,6 +12,10 @@ from services.world import WorldCollectionQueryService
 
 def make_world():
     return WorldState(
+        entities={
+            7: Entity(id=7, name="Aldric", entity_type="character"),
+            8: Entity(id=8, name="Crypt", entity_type="location"),
+        },
         items={
             2: Item(id=2, name="Silver Key", description="Opens the crypt"),
             1: Item(id=1, name="Iron Sword", weapon_key="longsword"),
@@ -18,7 +23,7 @@ def make_world():
         item_instances={
             1: ItemInstance(
                 id=1, item_id=2, instance_number=1,
-                owner_id=7, condition="Pristine",
+                owner_id=7, location_id=8, condition="Pristine",
             ),
         },
         resources={
@@ -67,13 +72,64 @@ def test_lists_each_world_collection(collection, expected, expected_total):
     )
 
 
-def test_collection_query_is_case_insensitive_and_paginates_stably():
+def test_item_instances_include_item_owner_and_location_names():
     page = WorldCollectionQueryService().list_collection(
-        make_world(), "items", query="SILVER", limit=1
+        make_world(), "item-instances"
+    )
+
+    instance = page.items[0]
+    assert instance.item_id == 2
+    assert instance.item_name == "Silver Key"
+    assert instance.owner_id == 7
+    assert instance.owner_name == "Aldric"
+    assert instance.location_id == 8
+    assert instance.location_name == "Crypt"
+
+
+def test_resource_balances_include_resource_and_owner_names():
+    page = WorldCollectionQueryService().list_collection(
+        make_world(), "resource-balances"
+    )
+
+    balance = page.items[0]
+    assert balance.resource_name == "Gold"
+    assert balance.owner_name == "Aldric"
+
+
+def test_relations_include_subject_and_target_names():
+    page = WorldCollectionQueryService().list_collection(
+        make_world(), "relations"
+    )
+
+    relation = page.items[0]
+    assert relation.subject_name == "Aldric"
+    assert relation.target_name == "Crypt"
+
+
+def test_search_matches_related_entity_names():
+    page = WorldCollectionQueryService().list_collection(
+        make_world(), "item-instances", query="aldric"
     )
 
     assert page.total == 1
-    assert page.items[0].name == "Silver Key"
+    assert page.items[0].owner_name == "Aldric"
+
+
+def test_missing_related_records_keep_ids_and_return_null_names():
+    world = make_world()
+    world.entities.clear()
+    world.items.clear()
+
+    instance = WorldCollectionQueryService().list_collection(
+        world, "item-instances"
+    ).items[0]
+
+    assert instance.item_id == 2
+    assert instance.item_name is None
+    assert instance.owner_id == 7
+    assert instance.owner_name is None
+    assert instance.location_id == 8
+    assert instance.location_name is None
 
 
 def test_relation_and_event_metadata_are_detached_json():
