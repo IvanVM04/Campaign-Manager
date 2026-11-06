@@ -3,6 +3,11 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 
+from models.character_sheet_read_models import CharacterSheetRead
+from services.characters.character_sheet_query_service import (
+    CharacterSheetQueryService,
+)
+
 from api.runtime_context import get_current_runtime
 from models.equipment_api_schemas import EquipItemIn, EquipmentSlot
 from models.schemas import CharacterCreate
@@ -63,6 +68,37 @@ def bootstrap_campaign(
             detail=str(exc),
         )
 
+
+
+@router.get(
+    "/characters/{character_entity_id}/sheet",
+    response_model=CharacterSheetRead,
+)
+def get_character_sheet(character_entity_id: int):
+    """Return a detached D&D 5e character sheet for this campaign."""
+    runtime = get_current_runtime()
+    with runtime.turn_execution_lock.acquire():
+        sheet = CharacterSheetQueryService(
+            runtime.character_repository,
+            runtime.entity_repository,
+        ).get_sheet(
+            character_entity_id,
+            campaign_id=runtime.campaign_id,
+        )
+        if sheet is None:
+            raise HTTPException(
+                status_code=404,
+                detail="character does not exist",
+            )
+        character = runtime.character_repository.get_character(
+            character_entity_id,
+            campaign_id=runtime.campaign_id,
+        )
+        armor = runtime.weapon_equipment_service.armor_class(
+            character,
+            campaign_id=runtime.campaign_id,
+        )
+        return sheet.model_copy(update={"armor_class": armor.armor_class})
 
 
 @router.get("/characters/{character_entity_id}/inventory")
