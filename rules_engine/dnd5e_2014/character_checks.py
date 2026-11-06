@@ -52,7 +52,7 @@ def ability_check_modifier_for_character(
 
 def ability_check_for_character(
     *,
-    character: CharacterState,
+    character: CharacterRulesInput,
     roller: DiceRoller,
     skill: Skill,
     dc: int,
@@ -67,8 +67,6 @@ def ability_check_for_character(
     The DM may request a non-standard governing ability (for example,
     Strength (Intimidation)); this changes the ability only, not proficiency.
     """
-    if not isinstance(character, CharacterState):
-        raise TypeError("character must be a CharacterState")
     if not isinstance(skill, Skill):
         raise TypeError("skill must be a Skill")
     if ability_override is not None and not isinstance(ability_override, Ability):
@@ -96,7 +94,7 @@ def ability_check_for_character(
 
 def saving_throw_for_character(
     *,
-    character: CharacterState,
+    character: CharacterRulesInput,
     roller: DiceRoller,
     ability: Ability,
     dc: int,
@@ -106,8 +104,6 @@ def saving_throw_for_character(
     manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     """Resolve a saving throw from a character's saving-throw proficiencies."""
-    if not isinstance(character, CharacterState):
-        raise TypeError("character must be a CharacterState")
     if not isinstance(ability, Ability):
         raise TypeError("ability must be an Ability")
 
@@ -127,7 +123,7 @@ def saving_throw_for_character(
 
 def raw_ability_check_for_character(
     *,
-    character: CharacterState,
+    character: CharacterRulesInput,
     roller: DiceRoller,
     ability: Ability,
     dc: int,
@@ -137,8 +133,6 @@ def raw_ability_check_for_character(
     manual_rolls: tuple[int, ...] | None = None,
 ) -> CheckResult:
     """Resolve an unskilled ability check using the character's ability score."""
-    if not isinstance(character, CharacterState):
-        raise TypeError("character must be a CharacterState")
     if not isinstance(ability, Ability):
         raise TypeError("ability must be an Ability")
 
