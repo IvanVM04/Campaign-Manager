@@ -7,7 +7,7 @@ from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.dm_service import DMService
-from services.fake_llm_provider import FakeLLMProvider
+from services.providers import FakeLLMProvider
 from services.llm_world import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.turns.turn_resolution_service import TurnResolutionService
