@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BOUNDARIES = {
     "models": {"api", "services"},
     "operations": {"api", "services", "repositories"},
-    "rules_engine": {"api", "services", "repositories"},
+    "rules_engine": {"api", "models", "services", "repositories"},
     "repositories": {"api", "services"},
     "services": {"api"},
 }
