@@ -1,7 +1,7 @@
 from models.character_state import CharacterState
+from models.entity import Entity
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from models.entity import Entity
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.characters.character_sheet_query_service import (
     CharacterSheetQueryService,
