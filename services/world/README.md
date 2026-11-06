@@ -5,6 +5,7 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 
 ## Modules
 - `world_service.py` — campaign-scoped world facade and transaction coordination.
+- `world_query_service.py` — immutable, filtered and paginated world read models for API consumers.
 - `world_applier.py` — typed operation dispatch.
 - `world_entity_applier.py`, `world_item_applier.py`, `world_relation_applier.py`, `world_resource_applier.py` — operation-family application.
 - `world_serializer.py` — domain dataclass serialization.
@@ -24,6 +25,7 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
 - [ ] Ensure unsupported operations fail without partial inconsistent application.
 - [ ] Review serializer consumers before changing its output contract.
+- [ ] Extend read models to items, instances, resources, relations and events without exposing mutable `WorldState` objects.
 - [ ] Remove compatibility shims only after all callers migrate.
 
 ## Migration status

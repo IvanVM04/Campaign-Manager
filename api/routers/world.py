@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from api.runtime_context import (
     get_current_runtime,
@@ -7,7 +7,9 @@ from api.runtime_context import (
     world_service,
 )
 from models.schemas import WorldBootstrapIn
+from models.world_read_models import WorldEntityPage
 from operations.world_operations import CreateEntityOperation
+from services.world import WorldQueryService
 
 router = APIRouter()
 
@@ -46,6 +48,28 @@ def get_world():
                 world.events.values()
             ),
         }
+
+
+@router.get("/world/entities", response_model=WorldEntityPage)
+def list_world_entities(
+    q: str | None = Query(default=None, max_length=200),
+    entity_type: str | None = Query(default=None, max_length=50),
+    active: bool | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    """Return a stable, immutable and paginated entity read model."""
+    runtime = get_current_runtime()
+
+    with runtime.turn_execution_lock.acquire():
+        return WorldQueryService().list_entities(
+            runtime.world_service.get_world(),
+            query=q,
+            entity_type=entity_type,
+            active=active,
+            limit=limit,
+            offset=offset,
+        )
 
 
 @router.post("/world/entities/bootstrap")
