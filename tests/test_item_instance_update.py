@@ -14,7 +14,7 @@ from services.operation_parser import (
     OperationParseError,
     OperationParser,
 )
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 
 
 def build_world():

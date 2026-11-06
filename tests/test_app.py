@@ -7,12 +7,12 @@ from app import create_campaign_turn_service
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.campaign_state_service import CampaignStateService
-from services.context_builder import ContextBuilder
+from services.campaign import CampaignStateService
+from services.context import ContextBuilder
 from services.llm_settings import LLMSettings
 from services.memory_search_service import MemorySearchService
-from services.turn_execution_lock import TurnExecutionLock
-from services.world_service import WorldService
+from services.turns import TurnExecutionLock
+from services.world import WorldService
 
 
 def test_create_campaign_turn_service_uses_provided_context_builder():
@@ -528,8 +528,8 @@ def test_campaign_header_rejects_unknown_campaign(client):
 def test_runtime_factory_builds_isolated_services_for_each_campaign(
     isolated_database,
 ):
-    from database import execute
     from bootstrap.campaign_runtime import CampaignRuntimeFactory
+    from database import execute
 
     execute(
         "INSERT INTO campaign (id, name, system) VALUES (?, ?, ?)",

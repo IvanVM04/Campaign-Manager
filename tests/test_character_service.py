@@ -1,5 +1,5 @@
 from models.character_state import CharacterState
-from services.character_service import (
+from services.characters import (
     CharacterService,
     CharacterServiceError,
 )

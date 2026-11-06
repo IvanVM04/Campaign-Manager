@@ -2,7 +2,7 @@ from models.entity import Entity
 from models.resource import Resource, ResourceBalance
 from models.world_state import WorldState
 from operations.world_operations import SpendResourceOperation
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 
 
 def build_world():

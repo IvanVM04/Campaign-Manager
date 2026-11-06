@@ -9,8 +9,7 @@ from operations.world_operations import (
     CreateItemOperation,
     TransferItemOperation,
 )
-from services.world_applier import WorldApplier
-from services.world_service import WorldService
+from services.world import WorldApplier, WorldService
 
 
 def build_world():

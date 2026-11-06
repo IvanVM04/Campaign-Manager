@@ -5,14 +5,13 @@ from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.dm_service import DMService
 from services.fake_llm_provider import FakeLLMProvider
-from services.llm_world_extractor import LLMWorldExtractor
+from services.llm_world import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.turns.turn_resolution_service import TurnResolutionService
-from services.world_applier import WorldApplier
-from services.world_service import WorldService
+from services.world import WorldApplier, WorldService
 
 
 class FixedRandom:

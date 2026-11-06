@@ -6,7 +6,7 @@ from models.operation_result import (
 from operations.character_operations import (
     ChangeCharacterHpOperation,
 )
-from services.character_applier import (
+from services.characters import (
     CharacterApplier,
     CharacterApplierError,
     CharacterServiceError,
@@ -142,7 +142,7 @@ def test_apply_change_character_hp_passes_connection():
     from operations.character_operations import (
         ChangeCharacterHpOperation,
     )
-    from services.character_applier import (
+    from services.characters import (
         CharacterApplier,
     )
 
@@ -224,12 +224,7 @@ def test_apply_returns_failure_when_character_service_fails():
     from operations.character_operations import (
         ChangeCharacterHpOperation,
     )
-    from services.character_applier import (
-        CharacterApplier,
-    )
-    from services.character_service import (
-        CharacterServiceError,
-    )
+    from services.characters import CharacterApplier, CharacterServiceError
 
     class FakeCharacterService:
         def change_hp(self, **kwargs):
@@ -261,12 +256,7 @@ def test_apply_returns_failure_when_character_service_fails_with_connection():
     from operations.character_operations import (
         ChangeCharacterHpOperation,
     )
-    from services.character_applier import (
-        CharacterApplier,
-    )
-    from services.character_service import (
-        CharacterServiceError,
-    )
+    from services.characters import CharacterApplier, CharacterServiceError
 
     class FakeCharacterService:
         def change_hp(self, **kwargs):

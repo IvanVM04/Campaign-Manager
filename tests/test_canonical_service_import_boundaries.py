@@ -22,11 +22,18 @@ MIGRATED_PRODUCTION_MODULES = (
 )
 
 LEGACY_IMPORTS = {
+    "services.campaign_runtime",
     "services.campaign_state_service",
     "services.character_applier",
     "services.character_service",
     "services.context_builder",
+    "services.durable_native_turn_service",
     "services.llm_world_extractor",
+    "services.llm_world_prompt_builder",
+    "services.llm_world_response_parser",
+    "services.turn_execution_lock",
+    "services.turn_resolution_service",
+    "services.world_applier",
     "services.world_service",
 }
 

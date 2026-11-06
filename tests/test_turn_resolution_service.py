@@ -16,16 +16,15 @@ from operations.world_operations import (
     UpdateEntityOperation,
     WorldOperation,
 )
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.dm_service import DMService
 from services.fake_llm_provider import FakeLLMProvider
-from services.llm_world_extractor import LLMWorldExtractor
+from services.llm_world import LLMWorldExtractor
 from services.turns.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,
 )
-from services.world_applier import WorldApplier
-from services.world_service import WorldService
+from services.world import WorldApplier, WorldService
 
 
 class RecordingDMService(DMService):
@@ -945,7 +944,7 @@ def test_turn_resolution_separates_world_and_character_operations(
     from operations.world_operations import (
         WorldOperation,
     )
-    from services.llm_world_extractor import (
+    from services.llm_world import (
         LLMWorldExtractor,
     )
 

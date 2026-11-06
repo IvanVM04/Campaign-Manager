@@ -1,6 +1,6 @@
 # Legacy cleanup inventory
 
-**Baseline:** `main` at `aa4239e22750e6e75ab915440c3107f02aaca75e` (2026-11-06)
+**Baseline:** `main` at `e06c70447260dbc2e190b4f828d1ac04b31bc75e` (2026-11-06)
 
 This inventory separates confirmed dead code from compatibility code that still has consumers. Age or a legacy name alone is not a deletion criterion.
 
@@ -8,17 +8,19 @@ This inventory separates confirmed dead code from compatibility code that still 
 
 - `services/identity_service.py`: its text-normalization and name-matching helpers have no source-code callers in the repository. No dynamic import or plugin registration references were found in the source search.
 - `data/database.py`: tracked zero-byte artefact with no imports. The actual SQLite implementation remains `database.py`.
+- `services/campaign_runtime.py`: its test consumers now import `CampaignRuntimeFactory` from `bootstrap.campaign_runtime`.
+- Flat compatibility shims `services/campaign_state_service.py`, `services/character_applier.py`, `services/character_service.py`, `services/context_builder.py`, `services/llm_world_extractor.py`, `services/world_service.py`, and `services/turn_execution_lock.py`: all test consumers were migrated to the canonical `services.campaign`, `services.characters`, `services.context`, `services.llm_world`, `services.world`, and `services.turns` packages before deletion.
+- Additional confirmed re-export shims `services/durable_native_turn_service.py`, `services/turn_resolution_service.py`, `services/world_applier.py`, `services/llm_world_prompt_builder.py`, and `services/llm_world_response_parser.py`: consumers now import from `services.turns`, `services.world`, and `services.llm_world`; compatibility-only tests were removed while canonical package export coverage remains.
 
 ## Still legacy, but not dead
 
 | Area | Why it remains | Deletion gate |
 |---|---|---|
-| Flat service re-export modules | Existing tests and some production modules still import them | Migrate every production and test import to the canonical package; verify repository-wide references and CI; then remove shims |
+| Remaining flat service re-export modules | A smaller set of compatibility modules still exists; not all have been migrated | Repeat the consumer audit per module, migrate production and test imports, verify repository-wide references and CI, then remove each shim |
 | `CampaignTurnService` | Still constructed by the app/runtime composition and used by compatibility tests | Remove its runtime wiring and compatibility factory after all consumers are migrated |
 | `POST /integration/turn` and `LegacySillyTavernTurnService` | Deprecated route still dispatches to the legacy service | Observe zero usage for an agreed window and confirm supported extension clients have migrated |
 | `WorldSnapshotRepository` and snapshot tables | Used by legacy SillyTavern transcript reconciliation and covered by tests | Retire the legacy route first; preserve existing user data and provide a deliberate migration before dropping tables |
 | Runtime proxy and legacy app exports | Compatibility surface used by older routers/tests | Move consumers to explicit runtime/request dependencies and remove the exports with regression coverage |
-| `services/campaign_runtime.py` | Compatibility import used by test setup | Migrate its remaining imports before deletion |
 | Flat combat/provider modules | Their target package directories are documentation-only; source has not yet migrated | Map public contracts and dependencies before moving code; do not delete or relocate by naming convention |
 
 ## Cleanup rules

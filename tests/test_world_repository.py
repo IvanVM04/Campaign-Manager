@@ -1263,7 +1263,7 @@ def test_save_world_does_not_mutate_world_when_persistence_fails(monkeypatch):
 def test_next_entity_id_does_not_reuse_deleted_ids():
     from models.entity import Entity
     from models.world_state import WorldState
-    from services.world_applier import WorldApplier
+    from services.world import WorldApplier
 
     world = WorldState(
         entities={

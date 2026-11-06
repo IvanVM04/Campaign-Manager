@@ -10,12 +10,12 @@ from models.item import Item, ItemInstance
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from operations.world_operations import CreateEntityOperation, WorldOperation
-from services.llm_world_extractor import (
+from services.llm_world import (
     LLMExtractionError,
     LLMWorldExtractor,
+    LLMWorldPromptBuilder,
+    LLMWorldResponseParser,
 )
-from services.llm_world_prompt_builder import LLMWorldPromptBuilder
-from services.llm_world_response_parser import LLMWorldResponseParser
 from services.operation_parser import OperationParser
 
 

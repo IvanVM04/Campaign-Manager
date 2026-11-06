@@ -23,8 +23,8 @@ from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
 )
-from services.turn_execution_lock import TurnExecutionLock
-from services.world_service import WorldService
+from services.turns import TurnExecutionLock
+from services.world import WorldService
 
 # ============================================================
 # SCHEMAS
@@ -529,22 +529,22 @@ def _build_service():
     from repositories.turn_repository import (
         TurnRepository,
     )
-    from services.campaign_state_service import (
+    from services.campaign import (
         CampaignStateService,
     )
-    from services.context_builder import (
+    from services.context import (
         ContextBuilder,
     )
-    from services.llm_world_extractor import (
+    from services.llm_world import (
         LLMWorldExtractor,
     )
     from services.operation_parser import (
         OperationParser,
     )
-    from services.turn_execution_lock import (
+    from services.turns import (
         TurnExecutionLock,
     )
-    from services.world_service import (
+    from services.world import (
         WorldService,
     )
 
@@ -1841,19 +1841,19 @@ def test_e2e_silly_tavern_turn_persists_world_change(
     from repositories.turn_repository import (
         TurnRepository,
     )
-    from services.campaign_state_service import (
+    from services.campaign import (
         CampaignStateService,
     )
-    from services.context_builder import (
+    from services.context import (
         ContextBuilder,
     )
-    from services.llm_world_extractor import (
+    from services.llm_world import (
         LLMWorldExtractor,
     )
     from services.operation_parser import (
         OperationParser,
     )
-    from services.world_service import (
+    from services.world import (
         WorldService,
     )
 
@@ -2120,19 +2120,19 @@ def test_e2e_silly_tavern_turn_persists_character_hp_change(
     from repositories.turn_repository import (
         TurnRepository,
     )
-    from services.campaign_state_service import (
+    from services.campaign import (
         CampaignStateService,
     )
-    from services.context_builder import (
+    from services.context import (
         ContextBuilder,
     )
-    from services.llm_world_extractor import (
+    from services.llm_world import (
         LLMWorldExtractor,
     )
     from services.operation_parser import (
         OperationParser,
     )
-    from services.world_service import (
+    from services.world import (
         WorldService,
     )
 
@@ -2390,13 +2390,13 @@ def test_e2e_turn_rolls_back_world_and_turn_when_operation_fails(
     from repositories.turn_repository import (
         TurnRepository,
     )
-    from services.campaign_state_service import (
+    from services.campaign import (
         CampaignStateService,
     )
-    from services.context_builder import (
+    from services.context import (
         ContextBuilder,
     )
-    from services.llm_world_extractor import (
+    from services.llm_world import (
         LLMWorldExtractor,
     )
     from services.operation_parser import (
@@ -2405,7 +2405,7 @@ def test_e2e_turn_rolls_back_world_and_turn_when_operation_fails(
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationServiceError,
     )
-    from services.world_service import (
+    from services.world import (
         WorldService,
     )
 
@@ -4036,7 +4036,7 @@ def test_integration_resolve_maps_invalid_model_response_to_502(
     client,
     monkeypatch,
 ):
-    from services.llm_world_extractor import LLMExtractionError
+    from services.llm_world import LLMExtractionError
     from services.turns.durable_native_turn_service import DurableNativeTurnError
     from services.turns.turn_resolution_service import TurnResolutionServiceError
 

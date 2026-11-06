@@ -6,7 +6,7 @@ from operations.world_operations import (
     RemoveRelationOperation,
     UpdateRelationOperation,
 )
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 
 
 def build_world():
