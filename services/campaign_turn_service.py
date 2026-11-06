@@ -22,7 +22,7 @@ from rules_engine.dnd5e_2014.character_checks import (
     ability_check_modifier_for_character,
 )
 from rules_engine.dnd5e_2014.core.skills import ability_for_skill
-from services.campaign_state_service import (
+from services.campaign import (
     CampaignStateService,
     CampaignStateServiceError,
 )
@@ -31,7 +31,7 @@ from services.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,
 )
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 logger = logging.getLogger(__name__)

@@ -35,13 +35,13 @@ from services.durable_turn_narration_service import DurableTurnNarrationService
 from services.durable_turn_prepared_commit_service import (
     DurableTurnPreparedCommitService,
 )
-from services.llm_world_extractor import LLMExtractionError
+from services.llm_world import LLMExtractionError
 from services.turn_resolution_codec import TurnResolutionCodec
 from services.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
 )
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 logger = logging.getLogger(__name__)

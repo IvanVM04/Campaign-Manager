@@ -4,7 +4,7 @@ from typing import Any
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.llm_provider import LLMProvider
 
 

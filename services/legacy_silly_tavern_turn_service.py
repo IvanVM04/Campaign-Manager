@@ -14,8 +14,8 @@ from database import get_conn, transaction
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
-from services.campaign_state_service import CampaignStateServiceError
-from services.llm_world_extractor import LLMExtractionError
+from services.campaign import CampaignStateServiceError
+from services.llm_world import LLMExtractionError
 
 
 class LegacySillyTavernTurnService:
