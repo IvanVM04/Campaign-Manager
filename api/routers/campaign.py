@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from api.runtime_context import get_current_runtime
-from models.session_read_models import SessionPage, SessionRead
 from models.schemas import (
     ActiveCharacterUpdate,
     CampaignCreate,
@@ -9,6 +8,7 @@ from models.schemas import (
     CampaignUpdate,
     SessionIn,
 )
+from models.session_read_models import SessionPage, SessionRead
 from repositories.campaign_repository import CampaignRepository
 from services.campaign import CampaignStateServiceError
 
