@@ -8,8 +8,8 @@ from api.runtime_context import (
 )
 from models.schemas import WorldBootstrapIn
 from models.world_read_models import WorldEntityPage
-from services.world import WorldQueryService
 from operations.world_operations import CreateEntityOperation
+from services.world import WorldQueryService
 
 router = APIRouter()
 

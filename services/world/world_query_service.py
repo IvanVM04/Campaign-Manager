@@ -37,9 +37,10 @@ class WorldQueryService:
 
         filtered = []
         for entity in entities:
-            if normalized_query and normalized_query not in " ".join(
-                (entity.name, entity.description, entity.notes)
-            ).casefold():
+            searchable_text = (
+                f"{entity.name} {entity.description} {entity.notes}"
+            ).casefold()
+            if normalized_query and normalized_query not in searchable_text:
                 continue
             if normalized_type and entity.entity_type.casefold() != normalized_type:
                 continue
