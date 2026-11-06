@@ -148,11 +148,13 @@ def submit_clarification(data: ClarificationIn):
 def get_turns(
     session_id: int | None = Query(default=None, ge=1),
     limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     runtime = get_current_runtime()
     turns = turn_repository.list_turns(
         session_id=session_id,
         limit=limit,
+        offset=offset,
         scope=runtime.scope,
     )
 
@@ -168,6 +170,9 @@ def get_turns(
             "all_operations_succeeded": turn.all_operations_succeeded,
             "world_changed": turn.world_changed,
             "created_at": turn.created_at,
+            "external_turn_id": turn.external_turn_id,
+            "version": turn.version,
+            "status": turn.status,
         }
         for turn in turns
     ]
