@@ -1482,7 +1482,7 @@ def test_apply_turn_operations_rolls_back_character_database_changes_on_failure(
     from repositories.entity_repository import (
         EntityRepository,
     )
-    from services.character_creation_service import (
+    from services.characters import (
         CharacterCreationService,
     )
 
