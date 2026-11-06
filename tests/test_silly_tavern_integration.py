@@ -268,7 +268,7 @@ def test_integration_context_endpoint_returns_500_on_service_error(
     assert response.status_code == 500
 
     assert response.json() == {
-        "detail": "context failed",
+        "detail": "Internal server error",
         "code": "internal_error",
     }
 
