@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path, Query
 
 from api.runtime_context import get_current_runtime
+from models.session_read_models import SessionPage, SessionRead
 from models.schemas import (
     ActiveCharacterUpdate,
     CampaignCreate,
@@ -91,6 +92,51 @@ def update_campaign_session(data: CampaignSessionUpdate):
         "campaign_id": state.campaign_id,
         "current_session_id": state.current_session_id,
     }
+
+
+def _session_read(row) -> SessionRead:
+    return SessionRead(
+        id=row["id"],
+        number=row["number"],
+        title=row["title"] or "",
+        summary=row["summary"] or "",
+        start_location=row["start_location"] or "",
+        end_location=row["end_location"] or "",
+        turn_count=row["turn_count"],
+        last_turn_at=row["last_turn_at"],
+    )
+
+
+@router.get("/sessions")
+def list_sessions(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    runtime = get_current_runtime()
+    repository = runtime.campaign_repository
+    session_rows = repository.list_sessions(
+        campaign_id=runtime.campaign_id,
+        limit=limit,
+        offset=offset,
+    )
+    return SessionPage(
+        items=tuple(_session_read(row) for row in session_rows),
+        total=repository.count_sessions(campaign_id=runtime.campaign_id),
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/sessions/{session_id}")
+def get_session(session_id: int = Path(ge=1)):
+    runtime = get_current_runtime()
+    row = runtime.campaign_repository.get_session_overview(
+        session_id,
+        campaign_id=runtime.campaign_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    return _session_read(row)
 
 
 @router.post("/sessions")
