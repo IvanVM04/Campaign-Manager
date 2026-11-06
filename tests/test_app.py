@@ -125,12 +125,14 @@ def test_get_turns_filters_by_session_and_limit(
         *,
         session_id=None,
         limit=None,
+        offset=0,
         scope=None,
     ):
         calls.append(
             {
                 "session_id": session_id,
                 "limit": limit,
+                "offset": offset,
             }
         )
 
@@ -152,6 +154,7 @@ def test_get_turns_filters_by_session_and_limit(
         {
             "session_id": 7,
             "limit": 5,
+            "offset": 0,
         }
     ]
 
@@ -166,12 +169,14 @@ def test_get_turns_uses_default_limit(
         *,
         session_id=None,
         limit=None,
+        offset=0,
         scope=None,
     ):
         calls.append(
             {
                 "session_id": session_id,
                 "limit": limit,
+                "offset": offset,
             }
         )
 
@@ -192,6 +197,7 @@ def test_get_turns_uses_default_limit(
         {
             "session_id": None,
             "limit": 50,
+            "offset": 0,
         }
     ]
 
@@ -845,3 +851,74 @@ def test_character_equipment_and_clock_routes_use_campaign_lock(
     assert clock.status_code == 200, clock.text
 
     assert lock.calls == 6
+
+
+
+def test_list_sessions_returns_paginated_session_summaries(client):
+    first = client.post(
+        "/sessions",
+        json={"number": 1, "title": "Opening", "summary": "At the village"},
+    )
+    second = client.post(
+        "/sessions",
+        json={"number": 2, "title": "The crypt", "summary": "A hidden door"},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    response = client.get("/sessions?limit=1&offset=0")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert data["limit"] == 1
+    assert data["offset"] == 0
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "The crypt"
+    assert data["items"][0]["turn_count"] == 0
+    assert "notes" not in data["items"][0]
+
+
+def test_get_session_returns_404_for_another_campaign_or_missing_id(client):
+    response = client.get("/sessions/999999")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "session not found"
+
+
+def test_session_endpoints_validate_pagination(client):
+    assert client.get("/sessions?limit=0").status_code == 422
+    assert client.get("/sessions?offset=-1").status_code == 422
+    assert client.get("/sessions/0").status_code == 422
+
+
+def test_turn_history_accepts_offset_and_exposes_version_status(client, monkeypatch):
+    calls = []
+
+    def fake_list_turns(*, session_id=None, limit=None, offset=0, scope=None):
+        calls.append((session_id, limit, offset, scope.campaign_id))
+        from models.turn_record import TurnRecord
+        return [
+            TurnRecord(
+                id=12,
+                session_id=4,
+                player_input="Open the door",
+                narrative="The door opens.",
+                created_at="2026-11-06T12:00:00",
+                external_turn_id="external-4",
+                version=2,
+                status="active",
+            )
+        ]
+
+    monkeypatch.setattr("app.turn_repository.list_turns", fake_list_turns)
+    response = client.get("/turns?session_id=4&limit=10&offset=20")
+
+    assert response.status_code == 200
+    assert calls == [(4, 10, 20, 1)]
+    assert response.json()[0]["version"] == 2
+    assert response.json()[0]["status"] == "active"
+    assert response.json()[0]["external_turn_id"] == "external-4"
+    assert "snapshot" not in response.json()[0]
+
+
+def test_turn_history_rejects_negative_offset(client):
+    assert client.get("/turns?offset=-1").status_code == 422
