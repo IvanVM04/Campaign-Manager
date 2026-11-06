@@ -10,7 +10,7 @@ from models.item import Item, ItemInstance
 from models.relation import Relation
 from models.resource import Resource, ResourceBalance
 from models.world_state import WorldState
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 
 # ============================================================
 # HELPERS
