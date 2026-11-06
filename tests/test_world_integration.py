@@ -12,7 +12,7 @@ from services.operation_parser import (
     OperationParser,
 )
 from services.world_applier import WorldApplier
-from services.world_service import WorldService
+from services.world import WorldService
 
 
 class InMemoryRepository:
