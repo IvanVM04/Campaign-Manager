@@ -5,7 +5,7 @@ import pytest
 
 from operations.character_operations import ChangeCharacterHpOperation
 from operations.world_operations import CreateEntityOperation
-from services.llm_extraction_errors import LLMExtractionError
+from services.llm_world.llm_extraction_errors import LLMExtractionError
 from services.llm_world_proposal_validator import LLMWorldProposalValidator
 
 
