@@ -1,5 +1,5 @@
-import threading
 from contextlib import contextmanager
+import threading
 
 import pytest
 

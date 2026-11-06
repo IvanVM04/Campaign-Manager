@@ -1,4 +1,4 @@
-from services.world_serializer import WorldSerializer
+from services.world.world_serializer import WorldSerializer
 
 
 def test_world_serializer_serializes_dataclass():

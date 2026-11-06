@@ -1,6 +1,6 @@
 from models.turn_record import TurnRecord
-from services.context_ranker import ContextRanker
-from services.context_renderer import ContextRenderer
+from services.context.context_ranker import ContextRanker
+from services.context.context_renderer import ContextRenderer
 
 
 def build_renderer(max_context_chars=6000, max_recent_turns_chars=2000):

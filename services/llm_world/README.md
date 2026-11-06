@@ -28,4 +28,4 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - [ ] Remove compatibility shims only after all callers migrate.
 
 ## Migration status
-All seven modules now live in `services/llm_world/`. The previous `services.llm_world_*` and `services.llm_extraction_errors` paths remain as compatibility re-exports; migrate consumers separately before removing them.
+All seven modules now live in `services/llm_world/`. The `services.llm_extraction_errors` compatibility module has been removed; remaining flat `services.llm_world_*` paths are tracked for separate consumer migration.
