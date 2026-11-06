@@ -14,7 +14,6 @@ from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from services.campaign import CampaignStateService
-from services.campaign_turn_service import CampaignTurnService
 from services.characters import (
     CharacterApplier,
     CharacterCreationService,
@@ -62,7 +61,6 @@ class CampaignRuntime:
     combat_attack_service: CombatAttackService
     weapon_equipment_service: WeaponEquipmentService
     persistent_effect_service: PersistentEffectService
-    campaign_turn_service: CampaignTurnService
     durable_native_turn_service: DurableNativeTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
@@ -161,14 +159,6 @@ class CampaignRuntimeFactory:
             mechanics_adjudicator=mechanics_adjudicator,
         )
 
-        campaign_turn_service = CampaignTurnService(
-            turn_resolution_service=turn_resolution_service,
-            world_service=world_service,
-            campaign_state_service=campaign_state_service,
-            turn_repository=turn_repository,
-            turn_execution_lock=turn_execution_lock,
-        )
-
         durable_native_turn_service = DurableNativeTurnService(
             scope=scope,
             resolver=turn_resolution_service,
@@ -236,7 +226,6 @@ class CampaignRuntimeFactory:
             combat_attack_service=combat_attack_service,
             weapon_equipment_service=weapon_equipment_service,
             persistent_effect_service=persistent_effect_service,
-            campaign_turn_service=campaign_turn_service,
             durable_native_turn_service=durable_native_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )
