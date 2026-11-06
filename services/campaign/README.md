@@ -9,7 +9,6 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 
 ## Related modules outside this package
 - `bootstrap/campaign_runtime.py` — runtime composition root and cache.
-- `services/campaign_turn_service.py` — compatibility-only native turn workflow; belongs to the turns boundary.
 - `services/identity_service.py` — ownership still needs review.
 
 ## Dependency rules

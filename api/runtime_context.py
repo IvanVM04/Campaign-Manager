@@ -46,7 +46,6 @@ context_builder = RuntimeProxy("context_builder")
 turn_execution_lock = RuntimeProxy("turn_execution_lock")
 character_creation_service = RuntimeProxy("character_creation_service")
 combat_encounter_service = RuntimeProxy("combat_encounter_service")
-campaign_turn_service = RuntimeProxy("campaign_turn_service")
 silly_tavern_integration_service = RuntimeProxy(
     "silly_tavern_integration_service"
 )

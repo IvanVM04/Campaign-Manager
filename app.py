@@ -20,7 +20,6 @@ from api.runtime_context import (
     _current_runtime,
     campaign_repository,
     campaign_state_service,
-    campaign_turn_service,
     character_creation_service,
     character_repository,
     combat_encounter_service,
@@ -35,18 +34,9 @@ from api.runtime_context import (
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from database import init_db
 from repositories.campaign_repository import CampaignRepository
-from repositories.turn_repository import TurnRepository
-from services.campaign import CampaignStateService
-from services.campaign_turn_service import CampaignTurnService
 from services.context import ContextBuilder
-from services.dm_service import DMService
 from services.llm_settings import LLMSettings
-from services.llm_world import LLMWorldExtractor
-from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.memory_search_service import MemorySearchService
-from services.operation_parser import OperationParser
-from services.turns import TurnExecutionLock
-from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldService
 
 app = FastAPI(
@@ -90,67 +80,6 @@ def create_context_builder(
         memory_search_service=memory_search_service,
     )
 
-
-def create_campaign_turn_service(
-    world_service: WorldService,
-    context_builder: ContextBuilder,
-    campaign_state_service: CampaignStateService,
-    turn_repository: TurnRepository | None = None,
-    *,
-    turn_execution_lock: TurnExecutionLock,
-    llm_settings: LLMSettings | None = None,
-) -> CampaignTurnService:
-    """Build the campaign turn-resolution service graph."""
-    if not isinstance(world_service, WorldService):
-        raise TypeError("world_service must be a WorldService")
-
-    if not isinstance(context_builder, ContextBuilder):
-        raise TypeError("context_builder must be a ContextBuilder")
-
-    if not isinstance(campaign_state_service, CampaignStateService):
-        raise TypeError(
-            "campaign_state_service must be a CampaignStateService"
-        )
-
-    if turn_repository is not None and not isinstance(
-        turn_repository,
-        TurnRepository,
-    ):
-        raise TypeError("turn_repository must be a TurnRepository")
-
-    if llm_settings is not None and not isinstance(llm_settings, LLMSettings):
-        raise TypeError("llm_settings must be an LLMSettings instance or None")
-
-    settings = llm_settings or DEFAULT_LLM_SETTINGS
-    narrative_provider = settings.create_provider("narrative")
-    extraction_provider = settings.create_provider("extraction")
-    mechanics_provider = settings.create_provider("mechanics")
-    operation_parser = OperationParser()
-    dm_service = DMService(
-        provider=narrative_provider,
-        context_builder=context_builder,
-    )
-    extractor = LLMWorldExtractor(
-        provider=extraction_provider,
-        operation_parser=operation_parser,
-    )
-    turn_resolution_service = TurnResolutionService(
-        dm_service=dm_service,
-        world_service=world_service,
-        extractor=extractor,
-        mechanics_adjudicator=MechanicsAdjudicator(
-            mechanics_provider,
-            context_builder,
-        ),
-    )
-
-    return CampaignTurnService(
-        turn_resolution_service=turn_resolution_service,
-        world_service=world_service,
-        campaign_state_service=campaign_state_service,
-        turn_repository=turn_repository,
-        turn_execution_lock=turn_execution_lock,
-    )
 
 
 runtime_factory = CampaignRuntimeFactory(llm_settings=DEFAULT_LLM_SETTINGS)
@@ -223,12 +152,10 @@ __all__ = [
     "app",
     "campaign_repository",
     "campaign_state_service",
-    "campaign_turn_service",
     "character_creation_service",
     "character_repository",
     "combat_encounter_service",
     "context_builder",
-    "create_campaign_turn_service",
     "create_context_builder",
     "create_world_service",
     "entity_repository",
