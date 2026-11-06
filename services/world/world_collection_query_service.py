@@ -1,5 +1,6 @@
 import json
 from dataclasses import asdict, is_dataclass
+from typing import ClassVar
 
 from pydantic import BaseModel
 
@@ -18,7 +19,7 @@ from models.world_state import WorldState
 class WorldCollectionQueryService:
     """Create detached projections for every browsable world collection."""
 
-    _COLLECTIONS = {
+    _COLLECTIONS: ClassVar = {
         "items": ("items", WorldItemRead, ("name", "description", "significance", "notes")),
         "item-instances": ("item_instances", WorldItemInstanceRead, ("condition", "notes", "item_id", "owner_id", "location_id")),
         "resources": ("resources", WorldResourceRead, ("name", "resource_type", "unit", "notes")),
