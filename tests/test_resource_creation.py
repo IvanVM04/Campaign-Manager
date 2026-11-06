@@ -1,7 +1,7 @@
 from models.entity import Entity
 from models.world_state import WorldState
 from operations.world_operations import CreateResourceOperation
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 
 
 def build_world():
