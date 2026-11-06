@@ -73,8 +73,8 @@ def test_real_ollama_full_turn_persists_world_change():
     from services.campaign import CampaignStateService
     from services.context import ContextBuilder
     from services.llm_world import LLMWorldExtractor
-    from services.providers import OllamaProvider
     from services.operation_parser import OperationParser
+    from services.providers import OllamaProvider
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationService,
     )
