@@ -2,7 +2,7 @@ from models.world_state import WorldState
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import CreateEntityOperation, UpdateEntityOperation
-from services.world_applier import WorldApplier
+from services.world import WorldApplier
 from services.world import WorldService
 
 
