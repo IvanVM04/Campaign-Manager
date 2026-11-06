@@ -7,6 +7,7 @@ from .world_relation_applier import WorldRelationApplier
 from .world_resource_applier import WorldResourceApplier
 from .world_serializer import WorldSerializer
 from .world_service import WorldService
+from .world_query_service import WorldQueryService
 from .world_state_port import WorldStatePort
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "WorldResourceApplier",
     "WorldSerializer",
     "WorldService",
+    "WorldQueryService",
     "WorldStatePort",
 ]
