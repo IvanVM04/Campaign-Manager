@@ -256,12 +256,7 @@ def test_apply_returns_failure_when_character_service_fails_with_connection():
     from operations.character_operations import (
         ChangeCharacterHpOperation,
     )
-    from services.characters import (
-        CharacterApplier,
-    )
-    from services.characters import (
-        CharacterServiceError,
-    )
+    from services.characters import CharacterApplier, CharacterServiceError
 
     class FakeCharacterService:
         def change_hp(self, **kwargs):
