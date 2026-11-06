@@ -8,16 +8,17 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 ## Package modules
 - turn_execution_lock.py — canonical process-local lock shared by turn coordinators.
 - turn_resolution_codec.py — canonical JSON codec for durable turn-resolution records.
+- durable_turn_challenge_state_service.py — read-only challenge-state projections.
+- durable_turn_clarification_submission_service.py — clarification submission and recovery.
+- durable_turn_manual_roll_submission_service.py — manual-roll submission and recovery.
+- durable_turn_prepared_commit_service.py — atomic prepared-resolution commit boundary.
+- durable_turn_preparation_mapper.py — adapter-facing preparation projection.
+- durable_turn_result_mapper.py — durable record to public result mapping.
+- durable_turn_narration_service.py — native and external narration completion.
 
 ## Remaining modules (still in services/)
 - durable_native_turn_service.py — durable coordinator/facade.
-- turn_resolution_service.py and turn_resolution_codec.py — preparation and serialization.
-- durable_turn_challenge_state_service.py
-- durable_turn_clarification_submission_service.py
-- durable_turn_manual_roll_submission_service.py
-- durable_turn_prepared_commit_service.py
-- durable_turn_preparation_mapper.py and durable_turn_result_mapper.py
-- durable_turn_narration_service.py
+- turn_resolution_service.py — non-persistent turn planning and plan application.
 - campaign_turn_service.py — compatibility surface.
 - legacy_silly_tavern_turn_service.py and silly_tavern_integration_service.py — legacy workflow.
 
@@ -37,4 +38,4 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-The turns boundary has been decomposed internally. `services.turns` is now an importable package and owns the canonical turn execution lock; the former `services.turn_execution_lock` and `services.turn_resolution_codec` modules remain compatibility re-exports. The durable turn-resolution codec now also lives in the package, while its old module path remains supported. Other turn lifecycle modules remain under `services/` and should move only after their imports and test patch points are mapped. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.
+The turns boundary has been decomposed internally. `services.turns` owns the execution lock, durable resolution codec, challenge projections/submissions, prepared commit, preparation/result mapping, and narration lifecycle. Their former `services.durable_turn_*` module paths remain compatibility re-exports. `DurableNativeTurnService` remains the public coordinator, while `TurnResolutionService` remains responsible for non-persistent planning and plan application. The old CampaignTurnService is compatibility-only; the legacy SillyTavern turn service is used by the deprecated POST /integration/turn route. SillyTavernIntegrationService itself remains active for context and external transcript-state reads.
