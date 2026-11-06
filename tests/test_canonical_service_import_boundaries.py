@@ -53,6 +53,14 @@ LEGACY_IMPORTS = {
     "services.world_resource_applier",
     "services.character_creation_service",
     "services.campaign_clock_service",
+    "services.durable_turn_challenge_state_service",
+    "services.durable_turn_clarification_submission_service",
+    "services.durable_turn_manual_roll_submission_service",
+    "services.durable_turn_narration_service",
+    "services.durable_turn_preparation_mapper",
+    "services.durable_turn_prepared_commit_service",
+    "services.durable_turn_result_mapper",
+    "services.turn_resolution_codec",
 }
 
 

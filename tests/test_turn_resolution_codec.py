@@ -47,10 +47,3 @@ def test_operation_codec_rejects_unregistered_operation_types():
     with pytest.raises(ValueError, match="unsupported operation type"):
         TurnResolutionCodec.serialize_operations(plan)
 
-
-def test_legacy_codec_import_reexports_canonical_implementation():
-    from services.turn_resolution_codec import (
-        TurnResolutionCodec as LegacyTurnResolutionCodec,
-    )
-
-    assert LegacyTurnResolutionCodec is TurnResolutionCodec
