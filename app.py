@@ -9,6 +9,7 @@ from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
 from api.routers.combat import router as combat_router
 from api.routers.effects import router as effects_router
+from api.routers.dice import router as dice_router
 from api.routers.integration import router as integration_router
 from api.routers.memory import router as memory_router
 from api.routers.system import router as system_router
@@ -204,6 +205,7 @@ async def bind_campaign_runtime(request: Request, call_next):
 app.include_router(system_router)
 app.include_router(campaign_router)
 app.include_router(turns_router)
+app.include_router(dice_router)
 app.include_router(memory_router)
 app.include_router(integration_router)
 app.include_router(world_router)
