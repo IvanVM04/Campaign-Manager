@@ -1,10 +1,11 @@
+from typing import ClassVar
+
 from models.character_sheet_read_models import (
     AbilityScoreRead,
     CharacterSheetRead,
     SavingThrowRead,
     SkillRead,
 )
-from models.character_state import CharacterState
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
 from rules_engine.dnd5e_2014.core.abilities import Ability, ability_modifier
@@ -18,7 +19,7 @@ from rules_engine.dnd5e_2014.core.skills import (
 class CharacterSheetQueryService:
     """Build detached D&D 5e character-sheet projections."""
 
-    _ABILITY_FIELDS = {
+    _ABILITY_FIELDS: ClassVar[dict[Ability, str]] = {
         Ability.STRENGTH: "strength",
         Ability.DEXTERITY: "dexterity",
         Ability.CONSTITUTION: "constitution",
