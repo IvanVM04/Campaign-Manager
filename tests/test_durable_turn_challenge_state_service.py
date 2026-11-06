@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.durable_native_turn_service import DurableNativeTurnError
+from services.turns.durable_native_turn_service import DurableNativeTurnError
 from services.turns import (
     DurableTurnChallengeStateService,
 )
