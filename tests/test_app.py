@@ -233,7 +233,7 @@ def test_play_turn_returns_turn_result(
         return FakeResult()
 
     monkeypatch.setattr(
-        "services.durable_native_turn_service.DurableNativeTurnService.play_turn",
+        "services.turns.durable_native_turn_service.DurableNativeTurnService.play_turn",
         fake_play_turn,
     )
 
@@ -283,7 +283,7 @@ def test_play_turn_returns_400_when_campaign_turn_service_fails(
         )
 
     monkeypatch.setattr(
-        "services.durable_native_turn_service.DurableNativeTurnService.play_turn",
+        "services.turns.durable_native_turn_service.DurableNativeTurnService.play_turn",
         fake_play_turn,
     )
 
@@ -419,7 +419,7 @@ def test_play_turn_accepts_player_input_at_maximum_length(
         )
 
     monkeypatch.setattr(
-        "services.durable_native_turn_service.DurableNativeTurnService.play_turn",
+        "services.turns.durable_native_turn_service.DurableNativeTurnService.play_turn",
         fake_play_turn,
     )
 
