@@ -1,4 +1,4 @@
-from services.context_ranker import ContextRanker
+from services.context.context_ranker import ContextRanker
 
 
 def test_unknown_relation_uses_default_weight():
@@ -268,7 +268,7 @@ def test_context_ranker_empty_query_keeps_base_score():
     assert score == 1.0
 
 def test_relation_relevance_prefers_strong_relationships():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -283,7 +283,7 @@ def test_relation_relevance_prefers_strong_relationships():
     )
 
 def test_relation_relevance_is_case_insensitive():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -298,7 +298,7 @@ def test_relation_relevance_is_case_insensitive():
     )
 
 def test_unknown_relation_uses_default_relevance():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -310,7 +310,7 @@ def test_unknown_relation_uses_default_relevance():
     )
 
 def test_entity_context_score_preserves_relation_relevance():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -328,7 +328,7 @@ def test_entity_context_score_preserves_relation_relevance():
     assert score == 0.65
 
 def test_entity_context_score_adds_direct_match_bonus():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -349,7 +349,7 @@ def test_entity_context_score_adds_direct_match_bonus():
     )
 
 def test_direct_entity_has_higher_score_than_unrelated_entity():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -378,7 +378,7 @@ def test_direct_entity_has_higher_score_than_unrelated_entity():
     assert direct_score > related_score
 
 def test_score_context_candidate_rewards_matching_words():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
@@ -396,7 +396,7 @@ def test_score_context_candidate_rewards_matching_words():
     )
 
 def test_score_context_candidate_does_not_change_empty_query():
-    from services.context_ranker import ContextRanker
+    from services.context.context_ranker import ContextRanker
 
     ranker = ContextRanker()
 
