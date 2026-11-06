@@ -6,7 +6,7 @@ from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.turn_context import TurnContext
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.llm_provider import LLMProvider
 
 
