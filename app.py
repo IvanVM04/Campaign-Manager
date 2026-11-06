@@ -8,8 +8,8 @@ from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
 from api.routers.combat import router as combat_router
-from api.routers.effects import router as effects_router
 from api.routers.dice import router as dice_router
+from api.routers.effects import router as effects_router
 from api.routers.integration import router as integration_router
 from api.routers.memory import router as memory_router
 from api.routers.system import router as system_router
