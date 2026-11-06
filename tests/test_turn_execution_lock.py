@@ -43,3 +43,12 @@ def test_turn_execution_lock_serializes_concurrent_execution():
             future.result()
 
     assert max_active_turns == 1
+
+
+def test_legacy_import_reexports_canonical_turn_execution_lock():
+    from services.turn_execution_lock import (
+        TurnExecutionLock as LegacyTurnExecutionLock,
+    )
+    from services.turns import TurnExecutionLock as CanonicalTurnExecutionLock
+
+    assert LegacyTurnExecutionLock is CanonicalTurnExecutionLock
