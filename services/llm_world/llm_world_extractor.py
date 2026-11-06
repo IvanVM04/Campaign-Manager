@@ -14,7 +14,7 @@ from .llm_world_response_parser import LLMWorldResponseParser
 
 def __getattr__(name: str):
     if name == "LLMExtractionError":
-        from services.llm_extraction_errors import LLMExtractionError
+        from .llm_extraction_errors import LLMExtractionError
 
         return LLMExtractionError
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
