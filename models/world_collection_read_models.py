@@ -20,9 +20,12 @@ class WorldItemInstanceRead(BaseModel):
 
     id: int | None
     item_id: int
+    item_name: str | None
     instance_number: int
     owner_id: int | None
+    owner_name: str | None
     location_id: int | None
+    location_name: str | None
     condition: str
     notes: str
     active: bool
@@ -43,7 +46,9 @@ class WorldResourceBalanceRead(BaseModel):
 
     id: int | None
     resource_id: int
+    resource_name: str | None
     owner_id: int
+    owner_name: str | None
     amount: float
     notes: str
 
@@ -53,8 +58,10 @@ class WorldRelationRead(BaseModel):
 
     id: str
     subject_id: int
+    subject_name: str | None
     relation_type: str
     target_id: int
+    target_name: str | None
     metadata_json: str | None
     active: bool
 
