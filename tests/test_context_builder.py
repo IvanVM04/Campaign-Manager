@@ -9,7 +9,7 @@ from models.relation import Relation
 from models.resource import Resource, ResourceBalance
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.context_ranker import ContextRanker
 from services.memory_search_service import MemorySearchService
 
@@ -934,7 +934,7 @@ def test_context_builder_preserves_recent_turns_in_text_context(
     empty_world,
 ):
     from models.turn_record import TurnRecord
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     turn = TurnRecord(
         player_input="Pregunto por Aldric.",
@@ -959,7 +959,7 @@ def test_context_builder_does_not_mutate_recent_turns(
     empty_world,
 ):
     from models.turn_record import TurnRecord
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     turn = TurnRecord(
         player_input="Pregunto por Aldric.",
@@ -984,7 +984,7 @@ def test_context_builder_enforces_context_budget_with_recent_turns(
     empty_world,
 ):
     from models.turn_record import TurnRecord
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     turn = TurnRecord(
         player_input="A" * 500,
@@ -1016,7 +1016,7 @@ def test_context_builder_enforces_context_budget_with_recent_turns(
 def test_context_builder_rejects_invalid_recent_turns_item(
     empty_world,
 ):
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     builder = ContextBuilder()
 
@@ -1040,7 +1040,7 @@ def test_context_builder_uses_separate_budget_for_recent_turns(
     empty_world,
 ):
     from models.turn_record import TurnRecord
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     turn = TurnRecord(
         player_input="A" * 500,
@@ -1068,7 +1068,7 @@ def test_context_builder_structured_budget_is_independent_from_history(
 ):
     from models.entity import Entity
     from models.turn_record import TurnRecord
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     empty_world.entities[1] = Entity(
         id=1,
@@ -1103,7 +1103,7 @@ def test_context_builder_structured_budget_is_independent_from_history(
 def test_context_builder_validates_recent_turn_budget(
     empty_world,
 ):
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     try:
         ContextBuilder(
@@ -1121,7 +1121,7 @@ def test_context_builder_validates_recent_turn_budget(
 
 
 def test_context_builder_rejects_non_integer_recent_turn_budget():
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     try:
         ContextBuilder(
@@ -1142,7 +1142,7 @@ def test_context_builder_includes_related_entity_from_world_graph(
 ):
     from models.entity import Entity
     from models.relation import Relation
-    from services.context_builder import ContextBuilder
+    from services.context import ContextBuilder
 
     empty_world.entities[1] = Entity(
         id=1,
