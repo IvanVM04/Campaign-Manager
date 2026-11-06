@@ -8,7 +8,7 @@ from models.item import Item
 from models.relation import Relation
 from models.resource import Resource
 from models.world_state import WorldState
-from services.context_builder import ContextBuilder
+from services.context import ContextBuilder
 from services.memory_search_service import MemorySearchService
 
 
