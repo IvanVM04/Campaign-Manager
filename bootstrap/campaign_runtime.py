@@ -15,9 +15,11 @@ from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from services.campaign import CampaignStateService
 from services.campaign_turn_service import CampaignTurnService
-from services.characters import CharacterApplier
-from services.characters import CharacterCreationService
-from services.characters import CharacterService
+from services.characters import (
+    CharacterApplier,
+    CharacterCreationService,
+    CharacterService,
+)
 from services.combat import (
     CombatAttackService,
     CombatEncounterService,
