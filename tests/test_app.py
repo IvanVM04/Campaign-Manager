@@ -1,11 +1,9 @@
-from contextlib import contextmanager
 import threading
+from contextlib import contextmanager
 
 import pytest
 
 from repositories.campaign_repository import CampaignRepository
-
-
 
 
 def test_get_turns_accepts_limit(client):

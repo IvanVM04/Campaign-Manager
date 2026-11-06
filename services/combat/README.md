@@ -26,4 +26,4 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - [ ] Retire compatibility shims only after external and test consumers have migrated.
 
 ## Migration status
-The three service modules now live in this package. The old `services.combat_*_service` and `services.weapon_equipment_service` paths re-export the canonical implementations.
+The three service modules live in this package. The flat `services.combat_encounter_service`, `services.combat_attack_service` and `services.weapon_equipment_service` compatibility shims have been removed after migrating the remaining test consumers.

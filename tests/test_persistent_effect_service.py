@@ -343,7 +343,7 @@ def test_encounter_turn_and_round_effects_expire_atomically_with_progression(iso
     from models.combatant_state import CombatantState
     from repositories.character_repository import CharacterRepository
     from repositories.combat_encounter_repository import CombatEncounterRepository
-    from services.combat_encounter_service import CombatEncounterService
+    from services.combat import CombatEncounterService
 
     entities = EntityRepository()
     target = entities.save_entity(Entity(name="Mira", entity_type="player_character"), campaign_id=1)
