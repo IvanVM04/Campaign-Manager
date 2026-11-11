@@ -277,3 +277,21 @@ def test_proposal_context_never_selects_secret_events_from_search_hits():
     )
 
     assert set(projection.world.events) == {"public"}
+
+
+def test_proposal_context_orders_selected_records_numerically_and_stably():
+    world = WorldState(
+        entities={
+            10: Entity(id=10, name="Entidad diez", entity_type="npc"),
+            2: Entity(id=2, name="Entidad dos", entity_type="npc"),
+            1: Entity(id=1, name="Entidad uno", entity_type="npc"),
+        }
+    )
+
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Entidad",
+        max_estimated_tokens=2000,
+    )
+
+    assert list(projection.world.entities) == [1, 2, 10]
