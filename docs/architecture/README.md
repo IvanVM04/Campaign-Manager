@@ -2,7 +2,8 @@
 
 ## Current baseline
 
-- [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): current audited baseline, findings, legacy inventory, documentation corrections, recommended sequence and effort estimates.
+- [Architecture and modularity audit — 2026-11-11](architecture-audit-2026-11-11.md): verified package inventory, current runtime/legacy boundaries, prompt pipeline findings, test strategy and the ordered cleanup roadmap.
+- [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): previous detailed audit. Retained as a dated snapshot; several migration-status statements were superseded by subsequent changes.
 - [Turn pipeline compatibility boundaries](turn-pipeline-compatibility.md): active durable native/SillyTavern flow and explicit deprecation gates.
 - [Durable SillyTavern adapter contract](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete and retry semantics.
 - [Writer, lock and cache audit](writer-lock-cache-audit.md): current single-process synchronization assumptions and mutation ownership.
@@ -12,7 +13,7 @@
 
 ## Historical snapshots
 
-The following documents are retained as decision and audit history. Their findings describe the repository at their recorded baseline and must not be treated as current without checking the 2026-11-06 audit.
+The following documents are retained as decision and audit history. Their findings describe the repository at their recorded baseline and must not be treated as current without checking the 2026-11-11 audit.
 
 - [Current architecture snapshot — 2026-11-05](current-architecture-2026-11-05.md)
 - [Comprehensive architecture audit — 2026-11-05](comprehensive-architecture-audit-2026-11-05.md)
