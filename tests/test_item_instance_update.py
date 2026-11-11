@@ -10,7 +10,7 @@ from operations.world_operations import (
     CreateItemInstanceOperation,
     UpdateItemInstanceOperation,
 )
-from services.operation_parser import (
+from services.llm_world.operation_parser import (
     OperationParseError,
     OperationParser,
 )
