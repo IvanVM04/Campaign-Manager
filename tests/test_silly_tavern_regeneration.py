@@ -35,11 +35,9 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
     monkeypatch,
 ):
     from database import get_conn
-    from models.entity import Entity
     from operations.world_operations import (
         CreateItemInstanceOperation,
     )
-    from repositories.entity_repository import EntityRepository
 
     external_turn_id = "test-external-turn"
 
