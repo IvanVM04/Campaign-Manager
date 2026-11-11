@@ -4077,3 +4077,13 @@ def test_integration_resolve_maps_invalid_model_response_to_502(
         "detail": "Internal server error",
         "code": "invalid_llm_response",
     }
+
+def test_adapter_does_not_expose_legacy_private_helpers():
+    assert not hasattr(
+        integration_module.SillyTavernIntegrationService,
+        "_process_turn_locked",
+    )
+    assert not hasattr(
+        integration_module.SillyTavernIntegrationService,
+        "_restore_world_state",
+    )
