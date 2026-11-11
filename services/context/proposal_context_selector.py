@@ -10,8 +10,6 @@ from models.world_context_projection import (
     estimate_tokens,
 )
 from models.world_state import WorldState
-from services.world.world_serializer import WorldSerializer
-
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
 from .context_renderer import ContextRenderer
@@ -137,7 +135,7 @@ class ProposalContextSelector:
             def add(target_category: str, target_id: Any) -> None:
                 if target_id is None or isinstance(target_id, bool):
                     return
-                if (target_category, target_id) in record_lookup.get(target_category, {}):
+                if target_id in record_lookup[target_category]:
                     dependencies.append((target_category, target_id))
 
             if category == "relations":
@@ -237,7 +235,15 @@ class ProposalContextSelector:
             if original is not None:
                 selected_maps[category][record_id] = deepcopy(original)
 
-        projected_world = WorldState(**selected_maps)
+        projected_world = WorldState(
+            entities=selected_maps["entities"],
+            items=selected_maps["items"],
+            item_instances=selected_maps["item_instances"],
+            resources=selected_maps["resources"],
+            resource_balances=selected_maps["resource_balances"],
+            relations=selected_maps["relations"],
+            events=selected_maps["events"],
+        )
         available_counts = tuple(
             (category, len(record_lookup[category]))
             for category in _RECORD_CATEGORIES
