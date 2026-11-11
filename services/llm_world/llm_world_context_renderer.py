@@ -255,6 +255,16 @@ class LLMWorldContextRenderer:
         # PERSONAJE ACTIVO
         # ------------------------------------------------------------
 
+        conditions = context.active_character_conditions
+        active_conditions = sorted(
+            condition.value for condition in conditions.conditions
+        )
+        conditions_block = (
+            "Condiciones: "
+            + (", ".join(active_conditions) if active_conditions else "ninguna")
+            + f"\nAgotamiento: {conditions.exhaustion_level}"
+        )
+
         active_character = context.active_character
 
         if active_character is None:
@@ -280,6 +290,7 @@ class LLMWorldContextRenderer:
             "campaign_block": campaign_block,
             "session_block": session_block,
             "character_block": character_block,
+            "conditions_block": conditions_block,
             "known_entities": known_entities,
             "known_items": known_items,
             "known_item_instances": known_item_instances,
