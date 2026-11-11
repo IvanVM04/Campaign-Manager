@@ -31,6 +31,7 @@ def test_context_renderer_returns_empty_section_fallbacks():
         ),
         "session_block": "No hay sesión activa.",
         "character_block": "No hay personaje activo.",
+        "conditions_block": "Condiciones: ninguna\nAgotamiento: 0",
         "known_entities": "- Ninguna",
         "known_items": "- Ninguno",
         "known_item_instances": "- Ninguna",
@@ -189,3 +190,24 @@ def test_context_renderer_includes_current_campaign_location_and_session():
     assert "El grupo llega al mercado." in rendered["session_block"]
     assert "Mercado de Piedra (location) [UBICACIÓN ACTUAL]" in rendered["known_entities"]
 
+
+
+def test_context_renderer_includes_active_character_conditions_and_exhaustion():
+    from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
+
+    context = TurnContext(
+        campaign=CampaignState(),
+        current_session=None,
+        active_character=CharacterState(entity_id=7),
+        world=WorldState(),
+        active_character_conditions=ConditionSet(
+            conditions=frozenset({Condition.POISONED, Condition.PRONE}),
+            exhaustion_level=2,
+        ),
+    )
+
+    rendered = LLMWorldContextRenderer.build_context(context)
+
+    assert rendered["conditions_block"] == (
+        "Condiciones: poisoned, prone\\nAgotamiento: 2"
+    )
