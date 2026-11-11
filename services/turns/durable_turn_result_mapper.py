@@ -23,13 +23,6 @@ class DurableTurnResultMapper:
     def _unwrap(raw: TurnOperation | ReferencedOperation) -> TurnOperation:
         return raw.operation if isinstance(raw, ReferencedOperation) else raw
 
-    @classmethod
-    def _character_operation(
-        cls, raw: TurnOperation | ReferencedOperation
-    ) -> CharacterOperation | None:
-        operation = cls._unwrap(raw)
-        return operation if isinstance(operation, CharacterOperation) else None
-
     def from_completed_record(
         self,
         record: TurnResolutionRecord,
@@ -45,11 +38,11 @@ class DurableTurnResultMapper:
             for raw in parsed
             if isinstance((operation := self._unwrap(raw)), WorldOperation)
         )
-        character_operations = tuple(
-            operation
-            for raw in parsed
-            if (operation := self._character_operation(raw)) is not None
-        )
+        character_operations: list[CharacterOperation] = []
+        for raw in parsed:
+            operation = self._unwrap(raw)
+            if isinstance(operation, CharacterOperation):
+                character_operations.append(operation)
         stored_results = json.loads(record.operation_results_json or "[]")
         operation_results = tuple(
             OperationResult(
@@ -65,7 +58,7 @@ class DurableTurnResultMapper:
             player_input=turn.player_input,
             narrative=turn.narrative,
             operations=world_operations,
-            character_operations=character_operations,
+            character_operations=tuple(character_operations),
             operation_results=operation_results,
             mechanics_result=TurnResolutionCodec.mechanics_from_json(
                 record.mechanics_json
@@ -100,4 +93,3 @@ class DurableTurnResultMapper:
                 str(record.id) + ":" + pending["challenge_id"]
             ),
         )
-
