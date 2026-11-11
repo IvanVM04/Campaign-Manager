@@ -1,12 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from api.routers.world_collections import router as world_collections_router
-from api.runtime_context import (
-    get_current_runtime,
-    memory_search_service,
-    turn_execution_lock,
-    world_service,
-)
+from api.runtime_context import get_current_runtime
 from models.schemas import WorldBootstrapIn
 from models.world_read_models import WorldEntityPage
 from operations.world_operations import CreateEntityOperation
@@ -22,9 +17,9 @@ router = APIRouter()
 @router.get("/world")
 def get_world():
 
-    with turn_execution_lock.acquire():
+    with get_current_runtime().turn_execution_lock.acquire():
 
-        world = world_service.get_world()
+        world = get_current_runtime().world_service.get_world()
 
         return {
             "entities": list(
@@ -146,9 +141,9 @@ def export_memory():
     es responsable de aplicar las reglas de visibilidad y
     construir la representación estructurada exportable.
     """
-    with turn_execution_lock.acquire():
-        world = world_service.get_world()
-        return memory_search_service.export(world)
+    with get_current_runtime().turn_execution_lock.acquire():
+        world = get_current_runtime().world_service.get_world()
+        return get_current_runtime().memory_search_service.export(world)
 
 
 router.include_router(world_collections_router)
