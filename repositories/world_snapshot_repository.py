@@ -1,5 +1,12 @@
 import json
 
+
+def _required_snapshot_id(row: dict, table: str) -> int:
+    value = row.get("id")
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError(f"Snapshot row in '{table}' must contain an integer id")
+    return value
+
 from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -368,8 +375,9 @@ class WorldSnapshotRepository:
                     "Snapshot row in 'entities' must contain an object"
                 )
 
+            entity_id = _required_snapshot_id(row, "entities")
             entity = Entity(
-                id=row["id"],
+                id=entity_id,
                 name=row["name"],
                 entity_type=row["entity_type"],
                 description=row["description"],
@@ -377,7 +385,7 @@ class WorldSnapshotRepository:
                 active=bool(row["active"]),
             )
 
-            world.entities[entity.id] = entity
+            world.entities[entity_id] = entity
 
         # --------------------------------------------------------
         # ITEMS
@@ -389,8 +397,9 @@ class WorldSnapshotRepository:
                     "Snapshot row in 'items' must contain an object"
                 )
 
+            item_id = _required_snapshot_id(row, "items")
             item = Item(
-                id=row["id"],
+                id=item_id,
                 name=row["name"],
                 description=row["description"],
                 significance=row["significance"],
@@ -398,7 +407,7 @@ class WorldSnapshotRepository:
                 notes=row["notes"],
             )
 
-            world.items[item.id] = item
+            world.items[item_id] = item
 
         # --------------------------------------------------------
         # ITEM INSTANCES
@@ -411,8 +420,9 @@ class WorldSnapshotRepository:
                     "must contain an object"
                 )
 
+            instance_id = _required_snapshot_id(row, "item_instances")
             instance = ItemInstance(
-                id=row["id"],
+                id=instance_id,
                 item_id=row["item_id"],
                 instance_number=row["instance_number"],
                 owner_id=row["owner_id"],
@@ -422,7 +432,7 @@ class WorldSnapshotRepository:
                 active=bool(row["active"]),
             )
 
-            world.item_instances[instance.id] = instance
+            world.item_instances[instance_id] = instance
 
         # --------------------------------------------------------
         # RESOURCES
@@ -434,15 +444,16 @@ class WorldSnapshotRepository:
                     "Snapshot row in 'resources' must contain an object"
                 )
 
+            resource_id = _required_snapshot_id(row, "resources")
             resource = Resource(
-                id=row["id"],
+                id=resource_id,
                 name=row["name"],
                 resource_type=row["resource_type"],
                 unit=row["unit"],
                 notes=row["notes"],
             )
 
-            world.resources[resource.id] = resource
+            world.resources[resource_id] = resource
 
         # --------------------------------------------------------
         # RESOURCE BALANCES
@@ -455,15 +466,16 @@ class WorldSnapshotRepository:
                     "must contain an object"
                 )
 
+            balance_id = _required_snapshot_id(row, "resource_balances")
             balance = ResourceBalance(
-                id=row["id"],
+                id=balance_id,
                 resource_id=row["resource_id"],
                 owner_id=row["owner_id"],
                 amount=row["amount"],
                 notes=row["notes"],
             )
 
-            world.resource_balances[balance.id] = balance
+            world.resource_balances[balance_id] = balance
 
         # --------------------------------------------------------
         # RELATIONS
