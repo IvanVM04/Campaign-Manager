@@ -5,14 +5,14 @@
 The following deterministic checks remain required for every pull request:
 
 - Ruff lint.
-- Python tests, excluding the `real_llm` marker (live Ollama dependency).
+- Python tests, excluding the real_llm marker (live Ollama dependency).
 - JavaScript integration tests.
 
 A green deterministic pipeline does not replace the manual SillyTavern smoke test or live-provider validation.
 
 ## Coverage baseline
 
-The Python test job now collects line and branch coverage and publishes `coverage.xml` as a short-lived workflow artifact.
+The Python test job collects line and branch coverage and publishes coverage.xml as a short-lived workflow artifact.
 
 Coverage is report-only at this stage:
 
@@ -21,12 +21,24 @@ Coverage is report-only at this stage:
 - Do not lower test assertions or remove tests to improve the percentage.
 - Establish a stable baseline before proposing a threshold. Any future threshold should prevent newly introduced coverage debt rather than require an immediate repository-wide cleanup.
 
+## Pyright baseline
+
+Pyright runs in an informational CI job against first-party application code (API, bootstrap, models, operations, repositories, rules engine and services).
+
+- The version is pinned in the development dependency group.
+- Diagnostics are collected as JSON and published as a short-lived workflow artifact.
+- Existing type errors do not block pull requests while the baseline is being assessed.
+- Tool/configuration failures remain visible in the job result.
+- Do not suppress diagnostics globally or change runtime behavior merely to make the initial report smaller.
+
+The next step is to review the report, classify findings by package and error category, and select a small clean scope for gradual enforcement. Do not introduce a repository-wide strict mode until the current typing baseline and dependency stubs are understood.
+
 ## Planned static-quality rollout
 
-1. **Coverage baseline** — collect reproducible line and branch coverage (current step).
-2. **Pyright** — establish a baseline, classify existing findings, then gradually enforce clean scopes.
-3. **CodeQL** — add repository security analysis and review alerts before introducing blocking policy.
-4. **SonarQube (optional)** — evaluate only if it adds actionable signal beyond Ruff, Pyright, tests, coverage and CodeQL.
+1. Coverage baseline — collect reproducible line and branch coverage (implemented).
+2. Pyright baseline — collect and classify existing type diagnostics (current step).
+3. CodeQL — add repository security analysis and review alerts before introducing blocking policy.
+4. SonarQube (optional) — evaluate only if it adds actionable signal beyond Ruff, Pyright, tests, coverage and CodeQL.
 
 New quality checks should initially be informational where the repository has inherited findings. Promote them to required checks only after the baseline is understood and the workflow is stable.
 
