@@ -273,7 +273,12 @@ def test_reclaimed_planning_lease_fences_out_late_worker(isolated_database):
         prepared = repository.transition(
             created.id, "prepared", scope=CampaignScope(1),
             expected_state="planning", expected_lease_token="worker-b",
-            updates={"context_revision": 1, "lease_token": None, "lease_expires_at": None},
+            updates={
+                "context_revision": 1,
+                "proposal_json": '{"operations":[]}',
+                "lease_token": None,
+                "lease_expires_at": None,
+            },
             conn=conn,
         )
 
