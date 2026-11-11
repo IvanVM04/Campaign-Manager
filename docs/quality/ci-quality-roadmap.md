@@ -1,8 +1,10 @@
 # CI quality roadmap
 
-## Required pull-request checks
+## Workflow checks vs merge enforcement
 
-The following deterministic checks remain required for every pull request:
+The workflows contain blocking jobs, but the current default-branch ruleset has an empty `required_status_checks` list. This means these results are not yet mandatory GitHub merge conditions. See [the CI audit](ci-audit-2026-11-11.md) and configure the ruleset in repository settings.
+
+The following checks are expected to pass on every implementation pull request and should be configured as required status checks:
 
 - Ruff lint.
 - Python tests, excluding the real_llm marker (live Ollama dependency).
@@ -29,9 +31,9 @@ Pyright runs in two scopes:
 - **Required:** `pyright models rules_engine bootstrap operations`. These scopes currently have no baseline diagnostics and are checked together as the first blocking type-checking boundary.
 - **Informational:** repository-wide first-party application scope (API, bootstrap, models, operations, repositories, rules engine and services). Diagnostics are collected as JSON and published as a short-lived workflow artifact.
 
-The version is pinned in the development dependency group. Do not suppress diagnostics globally or change runtime behavior merely to make reports smaller. Expand the required scope package by package only after fixing its existing diagnostics and validating the same command in CI.
+Pyright 1.1.414 is pinned in the development dependency group. Do not suppress diagnostics globally or change runtime behavior merely to make reports smaller. Expand the required scope package by package only after fixing its existing diagnostics and validating the same command in CI.
 
-The original repository-wide report is classified in [pyright-baseline-2026-11-11.md](pyright-baseline-2026-11-11.md): 98 errors across 27 files. It is a historical snapshot, not a current count. Do not introduce repository-wide strict mode until the current typing baseline and dependency stubs are understood.
+The original repository-wide report is classified in [pyright-baseline-2026-11-11.md](pyright-baseline-2026-11-11.md): 98 errors across 27 files. The latest observed run on 2026-11-11 reports 91 errors; see [the CI audit](ci-audit-2026-11-11.md). The original report is a historical snapshot, not a current count. Do not introduce repository-wide strict mode until the current typing baseline and dependency stubs are understood.
 
 ## Security analysis and dependency maintenance
 
@@ -54,6 +56,6 @@ New quality checks should initially be informational where the repository has in
 ## CI constraints
 
 - CI must not require a running Ollama instance.
-- Keep Ruff, deterministic Python tests, JavaScript tests and clean scoped Pyright checks required.
-- Fix regressions on the same PR branch; do not merge with failing required checks.
+- After the repository ruleset is updated, keep Ruff, deterministic Python tests, JavaScript tests, clean scoped Pyright and CodeQL checks required.
+- Fix regressions on the same PR branch; do not merge with failing, pending or cancelled applicable checks.
 - Keep quality-tool adoption incremental and avoid unrelated application changes.
