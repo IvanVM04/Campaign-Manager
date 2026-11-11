@@ -23,11 +23,20 @@ def test_context_renderer_returns_empty_section_fallbacks():
     rendered = LLMWorldContextRenderer.build_context(make_context())
 
     assert rendered == {
+        "campaign_block": (
+            "Nombre: Sin nombre\n"
+            "Sistema: D&D 5e 2014\n"
+            "Tono: No definido\n"
+            "Ubicación actual (entity ID): None"
+        ),
+        "session_block": "No hay sesión activa.",
         "character_block": "No hay personaje activo.",
+        "conditions_block": "Condiciones: ninguna\nAgotamiento: 0",
         "known_entities": "- Ninguna",
         "known_items": "- Ninguno",
         "known_item_instances": "- Ninguna",
         "known_resources": "- Ninguno",
+        "known_resource_balances": "- Ninguno",
         "known_relations": "- Ninguna",
         "known_events": "- Ninguno",
     }
@@ -99,7 +108,106 @@ def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
     assert "Espada" in rendered["known_items"]
     assert "instance_number=1" in rendered["known_item_instances"]
     assert "Oro" in rendered["known_resources"]
+    assert rendered["known_resource_balances"] == "- Ninguno"
     assert "aliado_de" in rendered["known_relations"]
     assert "Puerta abierta" in rendered["known_events"]
     assert "Identidad oculta" not in rendered["known_events"]
     assert repr(world) == before
+
+
+def test_context_renderer_formats_resource_balances_from_selected_world():
+    from models.resource import ResourceBalance
+    from models.world_context_projection import (
+        ContextProjectionDiagnostics,
+        WorldContextProjection,
+    )
+
+    world = WorldState(
+        entities={1: Entity(id=1, name="Fungoso", entity_type="character")},
+        resources={20: Resource(id=20, name="Oro", unit="mo")},
+        resource_balances={
+            200: ResourceBalance(
+                id=200,
+                resource_id=20,
+                owner_id=1,
+                amount=75,
+            )
+        },
+    )
+    projection = WorldContextProjection(
+        world=world,
+        diagnostics=ContextProjectionDiagnostics(
+            estimated_tokens=20,
+            budget_tokens=100,
+            available_counts=(),
+            candidate_counts=(),
+            selected_counts=(),
+        ),
+    )
+
+    rendered = LLMWorldContextRenderer.build_context(
+        make_context(),
+        projection=projection,
+    )
+
+    assert "75 mo de Oro" in rendered["known_resource_balances"]
+    assert "Fungoso" in rendered["known_resource_balances"]
+
+
+def test_context_renderer_includes_current_campaign_location_and_session():
+    from models.session_state import SessionState
+
+    world = WorldState(
+        entities={
+            44: Entity(id=44, name="Mercado de Piedra", entity_type="location"),
+        }
+    )
+    context = TurnContext(
+        campaign=CampaignState(
+            name="La mina",
+            system="D&D 5e 2014",
+            tone="fantasía oscura",
+            current_location_id=44,
+            summary="Una campaña en las tierras del norte.",
+        ),
+        current_session=SessionState(
+            session_id=7,
+            number=3,
+            title="El mercado",
+            summary="El grupo llega al mercado.",
+            start_location="Puerta norte",
+            end_location="Mercado de Piedra",
+        ),
+        active_character=None,
+        world=world,
+    )
+
+    rendered = LLMWorldContextRenderer.build_context(context)
+
+    assert "La mina" in rendered["campaign_block"]
+    assert "Ubicación actual (entity ID): 44" in rendered["campaign_block"]
+    assert "Número: 3" in rendered["session_block"]
+    assert "El grupo llega al mercado." in rendered["session_block"]
+    assert "Mercado de Piedra (location) [UBICACIÓN ACTUAL]" in rendered["known_entities"]
+
+
+
+def test_context_renderer_includes_active_character_conditions_and_exhaustion():
+    from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
+
+    context = TurnContext(
+        campaign=CampaignState(),
+        current_session=None,
+        active_character=CharacterState(entity_id=7),
+        world=WorldState(),
+        active_character_conditions=ConditionSet(
+            conditions=frozenset({Condition.POISONED, Condition.PRONE}),
+            exhaustion_level=2,
+        ),
+    )
+
+    rendered = LLMWorldContextRenderer.build_context(context)
+
+    assert rendered["conditions_block"] == (
+        "Condiciones: poisoned, prone\nAgotamiento: 2"
+    )

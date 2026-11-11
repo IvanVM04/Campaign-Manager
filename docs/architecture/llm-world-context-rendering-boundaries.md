@@ -2,18 +2,24 @@
 
 ## Ownership
 
-- `LLMWorldContextRenderer` projects a `TurnContext` world snapshot into prompt-ready sections.
-- `LLMWorldPromptBuilder` owns the long static instructions and assembles the legacy narrative-extraction prompt.
-- `LLMWorldProposalPromptBuilder` reuses the typed renderer output for player-intent proposals; it no longer parses or rewrites the legacy prompt (PR #161).
-- `LLMWorldExtractor` coordinates provider invocation, response decoding, operation parsing and proposal validation.
+- `ContextBuilder` and `ProposalContextSelector` own deterministic retrieval, graph expansion, relevance ranking and bounded selection for the active structured proposal.
+- `models/world_context_projection.py` defines the shared detached projection and diagnostics contract; it depends only on domain models.
+- `LLMWorldContextRenderer` renders a `TurnContext` or a selected `WorldContextProjection` into localized prompt sections.
+- `LLMWorldPromptBuilder` owns the long static instructions for the legacy narrative-extraction path.
+- `LLMWorldProposalPromptBuilder` renders the active player-intent proposal prompt from a selected projection; it does not parse or rewrite the legacy prompt (PR #161).
+- `TurnResolutionService` owns orchestration between the generic context pipeline and LLM proposal generation.
 
 ## Contracts and invariants
 
-- The renderer is read-only: it does not mutate `WorldState` or its records.
+- The selector reads a supplied `WorldState`; it does not query SQLite or mutate canonical state.
+- The selected records are deep-copied into a detached subset.
+- Direct search results and one-hop related entities/relations/events are deterministically ranked. Item instances carry their item definition and relevant owner/location entities; resource balances carry resource definitions and owners; relations and events carry referenced entities.
+- The active character entity and `CampaignState.current_location_id` entity are mandatory and expanded before optional candidates are considered.
+- Campaign identity/system/tone/summary, current session title/summary/locations, and active-character conditions/exhaustion are rendered as prompt blocks. GM-only session notes are deliberately not projected.
 - Secret events are excluded from model-facing context.
-- Missing collections retain their existing localized fallback labels.
-- Active-character markers and field formatting remain deterministic.
-- The renderer currently includes all known records in its supported collections; it does not rank by player intent or enforce a token/character budget.
-- The active proposal path therefore needs a relevance-ranked, bounded projection supplied at the turn/application boundary.
-- The narrative DM and mechanics-adjudication paths use `ContextBuilder` and its character budgets; this does not currently bound the structured proposal renderer.
-- Do not introduce a direct `services.llm_world` -> `services.context` dependency; keep ownership and dependency direction explicit.
+- Resource balances are rendered explicitly; resource definitions alone are not sufficient to represent inventory/economy state.
+- The selector has its own context upper bound. The complete prompt, including static instructions, player intent and confirmed mechanics, is checked against the total prompt upper bound.
+- The estimator counts UTF-8 bytes as a conservative upper bound in the absence of a provider tokenizer; diagnostics label values as estimated tokens and never claim an exact model token count.
+- The renderer retains deterministic ordering and localized empty fallbacks.
+- Do not introduce a direct `services.llm_world` -> `services.context` dependency.
+- The legacy extraction path still uses the full-world renderer and is separate from the bounded durable proposal path.

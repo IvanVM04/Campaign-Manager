@@ -148,6 +148,9 @@ class CampaignRuntimeFactory:
         extractor = LLMWorldExtractor(
             provider=extraction_provider,
             operation_parser=operation_parser,
+            max_prompt_tokens=self._llm_settings.extraction_prompt_max_tokens,
+            max_response_chars=self._llm_settings.extraction_max_response_chars,
+            max_repair_prompt_tokens=self._llm_settings.extraction_repair_max_tokens,
         )
         mechanics_adjudicator = MechanicsAdjudicator(mechanics_provider, context_builder)
         turn_resolution_service = TurnResolutionService(
@@ -155,6 +158,8 @@ class CampaignRuntimeFactory:
             world_service=world_service,
             extractor=extractor,
             mechanics_adjudicator=mechanics_adjudicator,
+            context_builder=context_builder,
+            proposal_context_max_tokens=self._llm_settings.extraction_context_max_tokens,
         )
 
         durable_native_turn_service = DurableNativeTurnService(

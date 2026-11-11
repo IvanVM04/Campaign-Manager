@@ -1,15 +1,24 @@
-"""Render the current world snapshot for LLM extraction prompts."""
+"""Render a selected world projection for LLM extraction prompts."""
 
 from models.turn_context import TurnContext
+from models.world_context_projection import WorldContextProjection
 
 
 class LLMWorldContextRenderer:
-    """Convert the current turn context into prompt-ready world sections."""
+    """Convert a turn context or bounded projection into prompt-ready sections."""
 
     @staticmethod
-    def build_context(context: TurnContext) -> dict[str, str]:
+    def build_context(
+        context: TurnContext,
+        projection: WorldContextProjection | None = None,
+    ) -> dict[str, str]:
         """Render known world records without changing the source snapshot."""
-        world = context.world
+        if projection is not None and not isinstance(
+            projection,
+            WorldContextProjection,
+        ):
+            raise TypeError("projection must be a WorldContextProjection or None")
+        world = projection.world if projection is not None else context.world
 
         # ------------------------------------------------------------
         # ENTIDADES CONOCIDAS
@@ -25,6 +34,11 @@ class LLMWorldContextRenderer:
                 and entity_id == context.active_character.entity_id
             ):
                 marker = " [PERSONAJE ACTIVO]"
+            if (
+                context.campaign.current_location_id is not None
+                and entity_id == context.campaign.current_location_id
+            ):
+                marker += " [UBICACIÓN ACTUAL]"
 
             entity_lines.append(
                 f"- ID {entity_id}: "
@@ -112,25 +126,53 @@ class LLMWorldContextRenderer:
         )
 
         # ------------------------------------------------------------
+        # SALDOS DE RECURSOS
+        # ------------------------------------------------------------
+
+        resource_balance_lines = []
+
+        for balance_id, balance in world.resource_balances.items():
+            resource = world.resources.get(balance.resource_id)
+            owner = world.entities.get(balance.owner_id)
+            resource_name = (
+                resource.name
+                if resource is not None
+                else f"Recurso {balance.resource_id}"
+            )
+            owner_name = (
+                owner.name
+                if owner is not None
+                else f"Entidad {balance.owner_id}"
+            )
+            unit = resource.unit if resource is not None else ""
+            resource_balance_lines.append(
+                f"- ID {balance_id}: "
+                f"{balance.amount} {unit} de {resource_name} "
+                f"(resource_id={balance.resource_id}, "
+                f"owner_id={balance.owner_id}, owner={owner_name})"
+            )
+
+        known_resource_balances = (
+            "\n".join(resource_balance_lines)
+            if resource_balance_lines
+            else "- Ninguno"
+        )
+
+        # ------------------------------------------------------------
         # RELACIONES CONOCIDAS
         # ------------------------------------------------------------
 
         relation_lines = []
 
         for relation_id, relation in world.relations.items():
-            subject = world.entities.get(
-                relation.subject_id
-            )
-            target = world.entities.get(
-                relation.target_id
-            )
+            subject = world.entities.get(relation.subject_id)
+            target = world.entities.get(relation.target_id)
 
             subject_name = (
                 subject.name
                 if subject is not None
                 else f"Entidad {relation.subject_id}"
             )
-
             target_name = (
                 target.name
                 if target is not None
@@ -181,51 +223,79 @@ class LLMWorldContextRenderer:
         )
 
         # ------------------------------------------------------------
+        # CAMPAÑA Y SESIÓN ACTUALES
+        # ------------------------------------------------------------
+
+        campaign = context.campaign
+        campaign_lines = [
+            f"Nombre: {campaign.name or 'Sin nombre'}",
+            f"Sistema: {campaign.system}",
+            f"Tono: {campaign.tone or 'No definido'}",
+            f"Ubicación actual (entity ID): {campaign.current_location_id}",
+        ]
+        if campaign.summary:
+            campaign_lines.append(f"Resumen: {campaign.summary}")
+        campaign_block = "\n".join(campaign_lines)
+
+        session = context.current_session
+        if session is None:
+            session_block = "No hay sesión activa."
+        else:
+            session_lines = [
+                f"Número: {session.number}",
+                f"Título: {session.title or 'Sin título'}",
+                f"Ubicación inicial: {session.start_location or 'No definida'}",
+                f"Ubicación final registrada: {session.end_location or 'No definida'}",
+            ]
+            if session.summary:
+                session_lines.append(f"Resumen: {session.summary}")
+            session_block = "\n".join(session_lines)
+
+        # ------------------------------------------------------------
         # PERSONAJE ACTIVO
         # ------------------------------------------------------------
+
+        conditions = context.active_character_conditions
+        active_conditions = sorted(
+            condition.value for condition in conditions.conditions
+        )
+        conditions_block = (
+            "Condiciones: "
+            + (", ".join(active_conditions) if active_conditions else "ninguna")
+            + f"\nAgotamiento: {conditions.exhaustion_level}"
+        )
 
         active_character = context.active_character
 
         if active_character is None:
-            character_block = (
-                "No hay personaje activo."
-            )
+            character_block = "No hay personaje activo."
         else:
             character_block = (
-                f"ID de entidad: "
-                f"{active_character.entity_id}\n"
-                f"Nivel: "
-                f"{active_character.level}\n"
-                f"Clase: "
-                f"{active_character.class_name}\n"
-                f"HP actual: "
-                f"{active_character.current_hp}\n"
-                f"HP máximo: "
-                f"{active_character.max_hp}\n"
-                f"CA: "
-                f"{active_character.armor_class}\n"
-                f"FUE: "
-                f"{active_character.strength}\n"
-                f"DES: "
-                f"{active_character.dexterity}\n"
-                f"CON: "
-                f"{active_character.constitution}\n"
-                f"INT: "
-                f"{active_character.intelligence}\n"
-                f"SAB: "
-                f"{active_character.wisdom}\n"
-                f"CAR: "
-                f"{active_character.charisma}\n"
-                f"Competencia: "
-                f"{active_character.proficiency_bonus}"
+                f"ID de entidad: {active_character.entity_id}\n"
+                f"Nivel: {active_character.level}\n"
+                f"Clase: {active_character.class_name}\n"
+                f"HP actual: {active_character.current_hp}\n"
+                f"HP máximo: {active_character.max_hp}\n"
+                f"CA: {active_character.armor_class}\n"
+                f"FUE: {active_character.strength}\n"
+                f"DES: {active_character.dexterity}\n"
+                f"CON: {active_character.constitution}\n"
+                f"INT: {active_character.intelligence}\n"
+                f"SAB: {active_character.wisdom}\n"
+                f"CAR: {active_character.charisma}\n"
+                f"Competencia: {active_character.proficiency_bonus}"
             )
 
         return {
+            "campaign_block": campaign_block,
+            "session_block": session_block,
             "character_block": character_block,
+            "conditions_block": conditions_block,
             "known_entities": known_entities,
             "known_items": known_items,
             "known_item_instances": known_item_instances,
             "known_resources": known_resources,
+            "known_resource_balances": known_resource_balances,
             "known_relations": known_relations,
             "known_events": known_events,
         }

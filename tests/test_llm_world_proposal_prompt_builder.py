@@ -20,11 +20,15 @@ def make_context():
 
 def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     projection = {
+        "campaign_block": "Campaña: La mina",
+        "session_block": "Sesión: Entrada al mercado",
         "character_block": "Personaje activo: Fungoso",
+        "conditions_block": "Condiciones: poisoned",
         "known_entities": "- ID 7: Aldric (npc)",
         "known_items": "- ID 3: Espada",
         "known_item_instances": "- ID 9: Espada (owner_id=1)",
         "known_resources": "- ID 2: Oro",
+        "known_resource_balances": "- ID 10: 80 mo de Oro",
         "known_relations": "- Aldric pertenece a la guardia",
         "known_events": "- ID 4: Llegada a la ciudad",
     }
@@ -40,6 +44,9 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     )
 
     assert "CONTEXTO ACTUAL DEL MUNDO" in prompt
+    assert "Campaña: La mina" in prompt
+    assert "Sesión: Entrada al mercado" in prompt
+    assert "Condiciones: poisoned" in prompt
     assert "INTENCIÓN DEL JUGADOR:\nQuiero hablar con Aldric." in prompt
     for section in projection.values():
         assert section in prompt
@@ -64,3 +71,29 @@ def test_proposal_prompt_builder_appends_confirmed_mechanics():
         "\n\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\n"
         "Resultado: éxito en percepción."
     ) in prompt
+
+
+def test_proposal_prompt_builder_lists_only_model_proposable_operations():
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Busco una bolsa.",
+        make_context(),
+        allowed_operation_types=("create_entity", "create_item_instance"),
+    )
+
+    assert "TIPOS DE OPERACIÓN PERMITIDOS" in prompt
+    assert "create_entity" in prompt
+    assert "create_item_instance" in prompt
+    assert "change_character_hp" not in prompt
+
+
+def test_proposal_prompt_builder_rejects_prompts_over_estimated_token_budget():
+    import pytest
+
+    from services.llm_world.llm_extraction_errors import LLMExtractionError
+
+    with pytest.raises(LLMExtractionError, match="exceeds the configured"):
+        LLMWorldProposalPromptBuilder.build_prompt(
+            "Quiero explorar. " * 1000,
+            make_context(),
+            max_prompt_tokens=100,
+        )

@@ -70,6 +70,14 @@ def test_runtime_factory_uses_role_specific_llm_settings(isolated_database):
     assert resolver.dm_service.provider.timeout == 90.0
     assert resolver.extractor.provider.timeout == 45.0
     assert resolver.mechanics_adjudicator.provider.timeout == 30.0
+    assert resolver.context_builder is runtime.context_builder
+    assert resolver.proposal_context_max_tokens == settings.extraction_context_max_tokens
+    assert resolver.extractor.max_prompt_tokens == settings.extraction_prompt_max_tokens
+    assert resolver.extractor.max_response_chars == settings.extraction_max_response_chars
+    assert (
+        resolver.extractor.proposal_validator.max_repair_prompt_tokens
+        == settings.extraction_repair_max_tokens
+    )
 
 
 def test_runtime_factory_rejects_invalid_llm_settings(isolated_database):
