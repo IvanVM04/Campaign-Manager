@@ -17,6 +17,7 @@ class RandomSource(Protocol):
 
     def randint(self, a: int, b: int) -> int:
         """Return an integer N such that a <= N <= b."""
+        ...
 
 
 class RollMode(str, Enum):

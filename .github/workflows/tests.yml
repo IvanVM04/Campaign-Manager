@@ -62,6 +62,29 @@ jobs:
         run: |
           ruff check .
 
+  pyright-rules-engine:
+    name: Pyright (rules_engine)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install application dependencies and Pyright
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "pyright==1.1.414"
+
+      - name: Check rules_engine types
+        run: pyright rules_engine
+
   pyright-baseline:
     runs-on: ubuntu-latest
     continue-on-error: true

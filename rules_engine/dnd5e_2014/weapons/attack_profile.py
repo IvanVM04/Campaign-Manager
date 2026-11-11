@@ -33,8 +33,6 @@ def derive_attack_profile(
         raise TypeError("weapon must be a WeaponDefinition")
     if not isinstance(versatile_two_handed, bool):
         raise TypeError("versatile_two_handed must be a boolean")
-    if versatile_two_handed and weapon.versatile_damage_dice is None:
-        raise ValueError("weapon does not have the versatile property")
     if weapon.damage_dice == "0":
         raise ValueError("weapon does not resolve through the ordinary damage-roll profile")
 
@@ -58,7 +56,14 @@ def derive_attack_profile(
         or weapon.key in character.weapon_proficiencies
     )
     bonus = modifier + (character.proficiency_bonus if proficient else 0)
-    dice = weapon.versatile_damage_dice if versatile_two_handed else weapon.damage_dice
+
+    if versatile_two_handed:
+        dice = weapon.versatile_damage_dice
+        if dice is None:
+            raise ValueError("weapon does not have the versatile property")
+    else:
+        dice = weapon.damage_dice
+
     return AttackProfile(
         weapon_key=weapon.key, attack_ability=ability, attack_bonus=bonus,
         damage_dice=dice, damage_bonus=modifier, damage_type=weapon.damage_type,
