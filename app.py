@@ -19,8 +19,7 @@ from api.routers.world import router as world_router
 from api.runtime_context import bind_current_runtime
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from database import init_db
-from services.context import ContextBuilder
-from services.memory_search_service import MemorySearchService
+from services.context import ContextBuilder, MemorySearchService
 from services.providers import LLMSettings
 from services.world import WorldService
 
