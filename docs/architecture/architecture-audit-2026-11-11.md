@@ -42,7 +42,6 @@ The current `services/` tree still contains application-level services outside t
 - `dm_service.py` — narrative generation/orchestration; its boundary relative to turn narration and context needs an explicit review.
 - `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
 - `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
-- `operation_parser.py` — now owned by `services/llm_world`; it normalizes untrusted structured payloads into typed operations, while world semantic validation remains separate.
 - `persistent_effect_service.py` and `effective_condition_service.py` — related effect/condition application and projection responsibilities; review together before moving either.
 - `legacy_silly_tavern_turn_service.py` — compatibility implementation for the deprecated narrative-first route.
 - `silly_tavern_integration_service.py` — still active for integration context and external transcript-state reads, and delegates the legacy route.
