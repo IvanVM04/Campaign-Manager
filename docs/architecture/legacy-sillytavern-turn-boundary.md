@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-`LegacySillyTavernTurnService` owns only the deprecated `POST /integration/turn`
+`services/turns/legacy_silly_tavern_turn_service.py` (`LegacySillyTavernTurnService`) owns only the deprecated `POST /integration/turn`
 narrative-first workflow. It preserves the compatibility behavior required by
 pre-durable clients:
 
@@ -24,7 +24,7 @@ context/history construction and external transcript-state reads. Its public
 the existing route and in-process API while isolating the deprecated mutation
 workflow.
 
-The legacy collaborator receives the campaign scope, state/context service,
+The legacy collaborator is located in `services/turns` because it owns a turn-execution lifecycle, but it remains quarantined from the active durable coordinator. It receives the campaign scope, state/context service,
 extractor, world service, turn repository, shared campaign lock, revision
 repository, snapshot repository, and the existing error types explicitly. It
 does not receive the adapter or the durable turn service.
