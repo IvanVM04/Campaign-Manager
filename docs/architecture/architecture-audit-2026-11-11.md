@@ -40,7 +40,7 @@ The current `services/` tree still contains application-level services outside t
 
 - `campaign_turn_service.py` — 983-line compatibility implementation, no longer part of the native durable runtime path.
 - `dm_service.py` — narrative generation/orchestration; its boundary relative to turn narration and context needs an explicit review.
-- `mechanics_adjudicator.py` — mechanics orchestration used by turn planning.
+- `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
 - `memory_search_service.py` — retrieval service whose ownership relative to `services/context` should be decided.
 - `operation_parser.py` — typed operation parsing; candidate for a dedicated operation-contract boundary if that reduces duplication.
 - `persistent_effect_service.py` and `effective_condition_service.py` — related effect/condition application and projection responsibilities; review together before moving either.
