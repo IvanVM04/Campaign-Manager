@@ -2,6 +2,12 @@
 
 ## Current baseline
 
+- [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
+- [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, observed CI results and merge-enforcement gap.
+- [Test-suite audit — 2026-11-11](../quality/test-suite-audit-2026-11-11.md): suite structure, protected contracts and reorganization plan.
+- [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
+- [LLM context rendering boundary](llm-world-context-rendering-boundaries.md): typed projection ownership and context-budget gap.
+
 - [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
 
 - [Architecture and modularity audit — 2026-11-11](architecture-audit-2026-11-11.md): verified package inventory, current runtime/legacy boundaries, prompt pipeline findings, test strategy and the ordered cleanup roadmap.
