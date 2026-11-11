@@ -19,7 +19,7 @@ The rules engine remains independent of API, database, repositories, LLM provide
 
 | Package | Allowed cross-package service dependencies | Forbidden dependencies enforced by tests |
 |---|---|---|
-| `campaign` | `services.world` state port; root effect/condition service | API, bootstrap, characters, combat, context, llm_world, providers, turns |
+| `campaign` | `services.world` state port | API, bootstrap, characters, combat, context, llm_world, providers, turns |
 | `characters` | None | API, bootstrap and all other capability packages |
 | `combat` | Character mechanics remain accessed through shared models/repositories/rules | API, bootstrap, campaign, context, llm_world, providers, turns, world |
 | `context` | `services.world` serialization/projection | API, bootstrap, campaign, characters, combat, llm_world, providers, turns |
@@ -34,7 +34,8 @@ The matrix is a set of enforced prohibitions, not a claim that every allowed edg
 
 - `bootstrap/campaign_runtime.py` is the composition root and may wire capability packages together.
 - `api/routers/` obtains the request-scoped runtime and translates HTTP input/output; it does not compose services.
-- Root-level application services such as `DMService`, effect services and SillyTavern adapters remain outside the eight-package matrix until their ownership is decided.
+- Root-level application services such as `DMService` and SillyTavern adapters remain outside the eight-package matrix until their ownership is decided.
+- `PersistentEffectService` and `EffectiveConditionService` belong to `services/campaign`; the first owns persisted campaign-effect lifecycle and the second derives effective D&D conditions without storing duplicate state.
 - `OperationParser` belongs to `services/llm_world`; it performs structural decoding only. LLM-specific allowlisting remains in the proposal validator, while semantic validation and mutation remain in `services/world`.
 - `MechanicsAdjudicator` belongs to `services/turns`; it proposes and validates structured mechanics decisions but leaves dice rolls and consequences to deterministic turn/rules services.
 - `MemorySearchService` belongs to `services/context`; it performs deterministic retrieval/export over a supplied `WorldState` and does not own persistence or campaign state.
