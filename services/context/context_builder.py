@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from models.turn_record import TurnRecord
+from models.world_context_projection import WorldContextProjection
 from models.world_state import WorldState
 
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
 from .context_renderer import ContextRenderer
 from .memory_search_service import MemorySearchService
+from .proposal_context_selector import ProposalContextSelector
 
 
 class ContextBuilder:
@@ -122,6 +124,11 @@ class ContextBuilder:
             max_context_chars=self.max_context_chars,
             max_recent_turns_chars=self.max_recent_turns_chars,
         )
+        self.proposal_context_selector = ProposalContextSelector(
+            memory_search_service=self.memory_search_service,
+            context_expander=self.context_expander,
+            ranker=self.ranker,
+        )
 
     # ============================================================
     # PUBLIC API
@@ -167,6 +174,25 @@ class ContextBuilder:
 
         return result
 
+    def build_proposal_context(
+        self,
+        world: WorldState,
+        query: str,
+        *,
+        max_estimated_tokens: int,
+        mandatory_entity_ids: tuple[int, ...] | list[int] = (),
+    ) -> WorldContextProjection:
+        """Build a bounded typed projection for structured consequence proposals.
+
+        This is deliberately separate from build(): narrative context and
+        proposal context have different contracts and token budgets.
+        """
+        return self.proposal_context_selector.build(
+            world,
+            query,
+            max_estimated_tokens=max_estimated_tokens,
+            mandatory_entity_ids=mandatory_entity_ids,
+        )
     # ============================================================
     # VALIDATION
     # ============================================================
