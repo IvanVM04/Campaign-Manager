@@ -1,10 +1,7 @@
 from fastapi import APIRouter, Header, Query
 
 from api.errors import api_error_for_exception
-from api.runtime_context import (
-    get_current_runtime,
-    turn_repository,
-)
+from api.runtime_context import get_current_runtime
 from models.schemas import ClarificationIn, ManualRollIn, TurnIn
 
 router = APIRouter()
@@ -151,7 +148,7 @@ def get_turns(
     offset: int = Query(default=0, ge=0),
 ):
     runtime = get_current_runtime()
-    turns = turn_repository.list_turns(
+    turns = get_current_runtime().turn_repository.list_turns(
         session_id=session_id,
         limit=limit,
         offset=offset,
