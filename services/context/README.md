@@ -26,4 +26,4 @@ The LLM-specific world-context projection now lives in services/llm_world/llm_wo
 - [ ] Keep rendering independent from transport response formatting.
 
 ## Migration status
-The five context modules now live in this package. The former flat `services.context_*` compatibility modules have been removed; import from this package's canonical modules.
+All five context modules now live in this package. The former flat `services.memory_search_service` import path has been removed; import from this package's canonical modules.
