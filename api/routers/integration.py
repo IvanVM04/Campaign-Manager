@@ -3,11 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from api.errors import api_error_for_exception
-from api.runtime_context import (
-    get_current_runtime,
-    silly_tavern_integration_service,
-    turn_execution_lock,
-)
+from api.runtime_context import get_current_runtime
 from api.serializers import serialize_operation_result
 from models.schemas import (
     SillyTavernClarificationIn,
@@ -40,13 +36,11 @@ def get_silly_tavern_context(
     SillyTavern genere la siguiente respuesta narrativa.
     """
 
+    runtime = get_current_runtime()
     try:
-        with turn_execution_lock.acquire():
-            result = (
-                silly_tavern_integration_service
-                .get_context(
-                    data.query
-                )
+        with runtime.turn_execution_lock.acquire():
+            result = runtime.silly_tavern_integration_service.get_context(
+                data.query
             )
 
     except SillyTavernIntegrationServiceError as exc:
@@ -78,13 +72,11 @@ def get_silly_tavern_turn_state(
     de chat.
     """
 
+    runtime = get_current_runtime()
     try:
-        with turn_execution_lock.acquire():
-            result = (
-                silly_tavern_integration_service
-                .get_external_turn_state(
-                    external_turn_id
-                )
+        with runtime.turn_execution_lock.acquire():
+            result = runtime.silly_tavern_integration_service.get_external_turn_state(
+                external_turn_id
             )
 
     except (
