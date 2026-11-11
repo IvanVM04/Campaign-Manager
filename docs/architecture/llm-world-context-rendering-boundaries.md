@@ -14,7 +14,8 @@
 - The selector reads a supplied `WorldState`; it does not query SQLite or mutate canonical state.
 - The selected records are deep-copied into a detached subset.
 - Direct search results and one-hop related entities/relations/events are deterministically ranked. Item instances carry their item definition and relevant owner/location entities; resource balances carry resource definitions and owners; relations and events carry referenced entities.
-- The active character entity is mandatory and is expanded before optional candidates are considered.
+- The active character entity and `CampaignState.current_location_id` entity are mandatory and expanded before optional candidates are considered.
+- Campaign identity/system/tone/summary, current session title/summary/locations, and active-character conditions/exhaustion are rendered as prompt blocks. GM-only session notes are deliberately not projected.
 - Secret events are excluded from model-facing context.
 - Resource balances are rendered explicitly; resource definitions alone are not sufficient to represent inventory/economy state.
 - The selector has its own context upper bound. The complete prompt, including static instructions, player intent and confirmed mechanics, is checked against the total prompt upper bound.
