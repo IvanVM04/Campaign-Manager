@@ -58,8 +58,11 @@ def test_get_turns_filters_by_session_and_limit(
 
         return []
 
+    import app
+
     monkeypatch.setattr(
-        "app.turn_repository.list_turns",
+        app.runtime_factory.get_runtime(1).turn_repository,
+        "list_turns",
         fake_list_turns,
     )
 
@@ -826,7 +829,13 @@ def test_turn_history_accepts_offset_and_exposes_version_status(client, monkeypa
             )
         ]
 
-    monkeypatch.setattr("app.turn_repository.list_turns", fake_list_turns)
+    import app
+
+    monkeypatch.setattr(
+        app.runtime_factory.get_runtime(1).turn_repository,
+        "list_turns",
+        fake_list_turns,
+    )
     response = client.get("/turns?session_id=4&limit=10&offset=20")
 
     assert response.status_code == 200
