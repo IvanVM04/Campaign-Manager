@@ -88,7 +88,7 @@ class LLMWorldProposalPromptBuilder:
                 "\n\nTIPOS DE OPERACIÓN PERMITIDOS\n"
                 + (
                     operation_registry.render_prompt_contract(
-                        allowed_operation_types or None
+                        allowed_operation_types
                     )
                     if operation_registry is not None
                     else ", ".join(allowed_operation_types)

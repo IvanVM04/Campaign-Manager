@@ -88,3 +88,12 @@ def test_default_prompt_contract_is_compact_enough_to_leave_room_for_world_conte
 
     assert len(contract) <= 3500
     assert len(DEFAULT_OPERATION_REGISTRY.model_proposable_operation_types()) == 14
+
+
+def test_empty_proposal_allowlist_renders_empty_contract_without_fallback():
+    contract = json.loads(
+        DEFAULT_OPERATION_REGISTRY.render_prompt_contract(())
+    )
+
+    assert contract["operations"] == {}
+    assert contract["examples"] == {}
