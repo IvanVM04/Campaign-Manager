@@ -104,3 +104,7 @@ def test_migrated_production_modules_do_not_use_flat_service_imports():
         "Migrated production modules must use canonical capability packages; "
         "legacy imports found:\n" + "\n".join(violations)
     )
+
+
+def test_removed_mechanics_adjudicator_compatibility_module_is_absent():
+    assert not (ROOT / "services" / "mechanics_adjudicator.py").exists()
