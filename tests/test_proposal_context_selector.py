@@ -204,3 +204,11 @@ def test_proposal_context_is_deterministic_for_same_world_and_query():
     assert list(first.world.entities) == list(second.world.entities)
     assert list(first.world.events) == list(second.world.events)
     assert first.diagnostics == second.diagnostics
+
+
+def test_estimated_token_budget_uses_a_conservative_utf8_byte_upper_bound():
+    from models.world_context_projection import estimate_tokens
+
+    assert estimate_tokens("abc") == 3
+    assert estimate_tokens("áé") == len("áé".encode("utf-8"))
+    assert estimate_tokens("") == 0
