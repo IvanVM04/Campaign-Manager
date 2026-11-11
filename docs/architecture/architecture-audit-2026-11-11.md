@@ -209,7 +209,7 @@ The selector preserves active-character and current-location entity records as m
 
 The provider contract has no model tokenizer. The current estimator uses one token per UTF-8 byte as a deliberately pessimistic upper bound. The final prompt, provider output size and one compact repair request are each bounded separately. Repair does not resend the original world prompt; it receives the allowlisted operation names, a bounded validation error and a byte-bounded excerpt of the invalid response.
 
-The parser now exposes `model_proposable_operation_types()` rather than requiring the validator to read its private `_BUILDERS` dictionary. This centralizes the public allowlist, but a richer operation metadata registry containing descriptions/examples/schema metadata remains a possible later improvement. The current domain does not expose a separate permission object; do not imply that prompt filtering provides authorization.
+The operation contract is centralized in `services/llm_world/operation_registry.py`. The immutable typed registry explicitly marks each parser-supported operation as model-proposable or internal-only, derives JSON Schema properties and required fields from operation dataclasses, records reference fields used for ID normalization, and supplies operation/field descriptions plus examples. The parser uses the registry for builders and reference metadata; the proposal prompt renders its schema; the response parser rejects operations not marked model-proposable before object construction. Domain existence, permission and mutation checks remain outside the LLM package. The current domain still has no separate typed permission object; do not imply that prompt filtering provides authorization.
 
 ### 8.3 Current test navigation state
 

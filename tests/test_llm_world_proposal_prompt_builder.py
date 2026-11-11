@@ -97,3 +97,21 @@ def test_proposal_prompt_builder_rejects_prompts_over_estimated_token_budget():
             make_context(),
             max_prompt_tokens=100,
         )
+
+
+def test_proposal_prompt_builder_renders_the_shared_operation_schema():
+    from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
+
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Quiero recoger la llave.",
+        make_context(),
+        allowed_operation_types=("create_item_instance",),
+        operation_registry=DEFAULT_OPERATION_REGISTRY,
+    )
+
+    assert "TIPOS DE OPERACIÓN PERMITIDOS" in prompt
+    assert '"const":"create_item_instance"' in prompt
+    assert '"required":["type","item_id"]' in prompt
+    assert "ID de la definición del objeto." in prompt
+    assert '"type":"create_item_instance"' in prompt
+    assert "change_character_hp" not in prompt
