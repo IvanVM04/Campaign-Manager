@@ -6,11 +6,11 @@ Construct world-extraction prompts, project world context, coordinate extraction
 ## Modules
 - `llm_world_extractor.py` — extraction workflow and provider coordination.
 - `llm_world_prompt_builder.py` — legacy narrative-extraction prompt.
-- `llm_world_context_renderer.py` — dynamic world-context projection.
+- `llm_world_context_renderer.py` — renders the complete legacy snapshot or a typed selected projection; includes resource balances.
 - `llm_world_proposal_prompt_builder.py` — player-intent proposal prompt.
-- `llm_world_proposal_validator.py` — proposal validation and one bounded repair.
+- `llm_world_proposal_validator.py` — proposal validation, response-size enforcement and one compact budgeted repair.
 - `llm_world_response_parser.py` — provider-response decoding and LLM-specific operation trust checks.
-- `operation_parser.py` — canonical structural parser that normalizes untrusted operation payloads into typed operations; domain existence and permission checks remain in `WorldService` / `WorldApplier`.
+- `operation_parser.py` — canonical structural parser plus the public `model_proposable_operation_types()` allowlist; domain existence and permission checks remain in `WorldService` / `WorldApplier`.
 - `llm_extraction_errors.py` — package error type.
 
 ## Dependency rules
@@ -20,22 +20,47 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - Treat model output as untrusted input and fail closed on malformed/unsupported operations.
 - Keep world mutation in the world application boundary.
 
-## Verified prompt-size findings
+## Active structured proposal pipeline
 
-- The active durable proposal path calls `LLMWorldProposalPromptBuilder`, which renders every supported world record through `LLMWorldContextRenderer`; it does not rank records by player intent or enforce a prompt/token budget.
-- `ContextBuilder` already provides deterministic retrieval, relation expansion, ranking and 6,000/2,000-character budgets for world/recent-turn context. Those character budgets are not token budgets and are not applied to the active proposal path.
-- The legacy `LLMWorldPromptBuilder` is 2,193 lines / 46,851 characters and remains behind `LLMWorldExtractor.extract()` for the deprecated narrative-first route. It is not used by the active durable structured proposal path.
-- `LLMWorldProposalValidator.parse_with_repair()` makes one retry, but the repair prompt repeats the full original prompt, validation error and full invalid provider response. Retry count is bounded; repair input size is not.
-- The validator reads the parser's private `_BUILDERS` mapping to determine allowed operation types.
+The durable/native path no longer sends the full campaign world to the proposal model by default.
 
-## Pending work — ordered by risk
-- [ ] **P0 — Context selection:** typed, read-only, intent-relevant projection at the turn/application boundary; preserve mandatory character, scene, permissions and confirmed mechanics; deterministic ordering; estimated-token budget and provider safety margin. Do not add a direct `llm_world` -> `context` dependency or truncate arbitrary strings.
-- [ ] **P0 — Repair bounds:** cap provider response size and define a separate repair prompt budget; send a bounded validation summary rather than an unbounded invalid response; retain exactly one repair and fail closed.
-- [ ] **P1 — Diagnostics:** selected/excluded counts, rendered characters, estimated tokens and budget utilization without logging campaign text.
-- [ ] **P1 — Operation metadata:** public typed metadata distinguishing model-proposable from internal-only operations, schemas and prompt descriptions.
-- [ ] **P2 — Regression coverage:** small/medium/large campaigns, mandatory-fact retention, stable ordering, secret-event exclusion, output/repair limits and budget overflow.
-- [ ] **P2 — Provider contract:** document timeout/retry ownership and prove retries cannot duplicate side effects.
-- [ ] Document the trust boundary from model proposal to deterministic validation/application.
+1. `TurnResolutionService` asks the injected `ContextBuilder` for a typed `WorldContextProjection`.
+2. `ContextBuilder` delegates to `ProposalContextSelector`, which reuses deterministic memory search, one-hop graph expansion and the existing context ranker.
+3. The selector preserves mandatory active-character entities, filters secret events through the existing search/export rules, and admits related records with their required entity/item/resource dependencies.
+4. The projection contains deep-copied domain records, not references to the mutable runtime world.
+5. `LLMWorldProposalPromptBuilder` renders the selected records, active-character sheet, resource balances, allowed operation types and confirmed mechanics.
+6. The completed prompt is checked against its total estimated-token budget before provider invocation.
+
+`services/llm_world` depends only on shared model contracts and never imports `services.context`. The application/turn boundary owns context retrieval and passes the typed projection inward.
+
+## Budgets and configuration
+
+| Environment variable | Default | Meaning |
+|---|---:|---|
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS` | 8192 | Upper bound for the complete structured proposal prompt |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS` | 4096 | Budget for selected world records |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS` | 16000 | Maximum provider response size for extraction/proposal responses |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS` | 2048 | Independent maximum for the one repair request |
+
+The current provider contract does not expose a model tokenizer. `estimate_tokens()` therefore uses one token per UTF-8 byte as a deliberately pessimistic upper bound. This is not an exact count of Gemma/Qwen tokens, but it prevents a short character-based estimate from silently accepting an oversized request. The complete rendered prompt is checked separately from the structured-record budget.
+
+The selector reports available, candidate, selected and excluded record counts and the projection's estimated budget use. The extractor logs prompt characters, estimated size, budget utilization and selection counts at debug level. Campaign text is never included in these diagnostic fields.
+
+## Response and repair safety
+
+- The first model response is capped before parsing.
+- Invalid proposals receive at most one repair request.
+- Repair does not repeat the full original prompt or world snapshot.
+- The repair request contains a bounded validation error, the public model-proposable operation list and a byte-bounded excerpt of the invalid output.
+- The repair request has its own upper-bound budget and is rejected if its safety header cannot fit.
+- Character-state operations remain excluded from the model-proposable allowlist; deterministic mechanics/application code remains authoritative.
+
+## Remaining work
+
+- [ ] Expand the operation allowlist into a richer public metadata registry only when schema descriptions/examples need a single maintained source. The current public method centralizes the model-proposable type list; parser schemas and domain validation remain separate.
+- [ ] Add tokenizer-aware accounting if a selected provider exposes an explicit, reliable token-count API; keep the byte upper bound as a safe fallback.
+- [ ] Add representative large-campaign quality probes with real Ollama models; deterministic CI remains provider-independent.
+- [ ] Continue to split the legacy narrative extraction prompt only when its compatibility consumers and behavior-preserving test boundaries are clear.
 
 ## Migration status
-All implementation modules live in `services/llm_world/`. PR #161 separated `LLMWorldProposalPromptBuilder` from the legacy narrative prompt: it now renders from `LLMWorldContextRenderer` directly. The legacy `LLMWorldPromptBuilder` remains for callers of `LLMWorldExtractor.extract()`; it is not used to construct the active durable player-intent proposal prompt. The structured proposal renderer still projects the full world without a relevance filter or size budget; this is the next prompt-pipeline improvement. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
+All implementation modules live in `services/llm_world/`. PR #161 separated `LLMWorldProposalPromptBuilder` from the legacy narrative prompt: it now renders from `LLMWorldContextRenderer` directly. The legacy `LLMWorldPromptBuilder` remains for callers of `LLMWorldExtractor.extract()`; it is not used to construct the active durable player-intent proposal prompt. The active structured proposal path now uses a typed relevant projection and independent prompt/response/repair budgets. The legacy `LLMWorldPromptBuilder` still renders its complete snapshot for compatibility callers of `extract()`; do not confuse that legacy path with the durable proposal pipeline. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
