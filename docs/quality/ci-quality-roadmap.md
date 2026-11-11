@@ -31,12 +31,12 @@ Pyright runs in an informational CI job against first-party application code (AP
 - Tool/configuration failures remain visible in the job result.
 - Do not suppress diagnostics globally or change runtime behavior merely to make the initial report smaller.
 
-The next step is to review the report, classify findings by package and error category, and select a small clean scope for gradual enforcement. Do not introduce a repository-wide strict mode until the current typing baseline and dependency stubs are understood.
+The first report has been classified in [pyright-baseline-2026-11-11.md](pyright-baseline-2026-11-11.md): 98 errors across 27 files, concentrated in services and repositories. The next step is to fix and verify a small clean package scope before making any Pyright diagnostics blocking. Do not introduce a repository-wide strict mode until the current typing baseline and dependency stubs are understood.
 
 ## Planned static-quality rollout
 
 1. Coverage baseline — collect reproducible line and branch coverage (implemented).
-2. Pyright baseline — collect and classify existing type diagnostics (current step).
+2. Pyright baseline — collect and classify existing type diagnostics (implemented; see the dated report).
 3. CodeQL — add repository security analysis and review alerts before introducing blocking policy.
 4. SonarQube (optional) — evaluate only if it adds actionable signal beyond Ruff, Pyright, tests, coverage and CodeQL.
 
