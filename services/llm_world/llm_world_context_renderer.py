@@ -1,15 +1,24 @@
-"""Render the current world snapshot for LLM extraction prompts."""
+"""Render a selected world projection for LLM extraction prompts."""
 
 from models.turn_context import TurnContext
+from models.world_context_projection import WorldContextProjection
 
 
 class LLMWorldContextRenderer:
-    """Convert the current turn context into prompt-ready world sections."""
+    """Convert a turn context or bounded projection into prompt-ready sections."""
 
     @staticmethod
-    def build_context(context: TurnContext) -> dict[str, str]:
+    def build_context(
+        context: TurnContext,
+        projection: WorldContextProjection | None = None,
+    ) -> dict[str, str]:
         """Render known world records without changing the source snapshot."""
-        world = context.world
+        if projection is not None and not isinstance(
+            projection,
+            WorldContextProjection,
+        ):
+            raise TypeError("projection must be a WorldContextProjection or None")
+        world = projection.world if projection is not None else context.world
 
         # ------------------------------------------------------------
         # ENTIDADES CONOCIDAS
@@ -118,19 +127,14 @@ class LLMWorldContextRenderer:
         relation_lines = []
 
         for relation_id, relation in world.relations.items():
-            subject = world.entities.get(
-                relation.subject_id
-            )
-            target = world.entities.get(
-                relation.target_id
-            )
+            subject = world.entities.get(relation.subject_id)
+            target = world.entities.get(relation.target_id)
 
             subject_name = (
                 subject.name
                 if subject is not None
                 else f"Entidad {relation.subject_id}"
             )
-
             target_name = (
                 target.name
                 if target is not None
@@ -187,37 +191,22 @@ class LLMWorldContextRenderer:
         active_character = context.active_character
 
         if active_character is None:
-            character_block = (
-                "No hay personaje activo."
-            )
+            character_block = "No hay personaje activo."
         else:
             character_block = (
-                f"ID de entidad: "
-                f"{active_character.entity_id}\n"
-                f"Nivel: "
-                f"{active_character.level}\n"
-                f"Clase: "
-                f"{active_character.class_name}\n"
-                f"HP actual: "
-                f"{active_character.current_hp}\n"
-                f"HP máximo: "
-                f"{active_character.max_hp}\n"
-                f"CA: "
-                f"{active_character.armor_class}\n"
-                f"FUE: "
-                f"{active_character.strength}\n"
-                f"DES: "
-                f"{active_character.dexterity}\n"
-                f"CON: "
-                f"{active_character.constitution}\n"
-                f"INT: "
-                f"{active_character.intelligence}\n"
-                f"SAB: "
-                f"{active_character.wisdom}\n"
-                f"CAR: "
-                f"{active_character.charisma}\n"
-                f"Competencia: "
-                f"{active_character.proficiency_bonus}"
+                f"ID de entidad: {active_character.entity_id}\n"
+                f"Nivel: {active_character.level}\n"
+                f"Clase: {active_character.class_name}\n"
+                f"HP actual: {active_character.current_hp}\n"
+                f"HP máximo: {active_character.max_hp}\n"
+                f"CA: {active_character.armor_class}\n"
+                f"FUE: {active_character.strength}\n"
+                f"DES: {active_character.dexterity}\n"
+                f"CON: {active_character.constitution}\n"
+                f"INT: {active_character.intelligence}\n"
+                f"SAB: {active_character.wisdom}\n"
+                f"CAR: {active_character.charisma}\n"
+                f"Competencia: {active_character.proficiency_bonus}"
             )
 
         return {
