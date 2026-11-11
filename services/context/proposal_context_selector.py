@@ -9,6 +9,11 @@ from models.world_context_projection import (
     WorldContextProjection,
     estimate_tokens,
 )
+from models.entity import Entity
+from models.event import Event
+from models.item import Item, ItemInstance
+from models.relation import Relation
+from models.resource import Resource, ResourceBalance
 from models.world_state import WorldState
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
@@ -238,25 +243,39 @@ class ProposalContextSelector:
             selected.update(bundle)
             estimated_tokens += cost
 
-        selected_maps: dict[str, dict[int | str, Any]] = {
-            category: {} for category in _RECORD_CATEGORIES
-        }
-        for category, record_id in sorted(
-            selected,
-            key=lambda item: (category_order[item[0]], str(item[1])),
-        ):
+        selected_entities: dict[int, Entity] = {}
+        selected_items: dict[int, Item] = {}
+        selected_item_instances: dict[int, ItemInstance] = {}
+        selected_resources: dict[int, Resource] = {}
+        selected_resource_balances: dict[int, ResourceBalance] = {}
+        selected_relations: dict[str, Relation] = {}
+        selected_events: dict[str, Event] = {}
+
+        for category, record_id in selected:
             original = object_lookup[category].get(record_id)
-            if original is not None:
-                selected_maps[category][record_id] = deepcopy(original)
+            if category == "entities" and isinstance(record_id, int) and isinstance(original, Entity):
+                selected_entities[record_id] = deepcopy(original)
+            elif category == "items" and isinstance(record_id, int) and isinstance(original, Item):
+                selected_items[record_id] = deepcopy(original)
+            elif category == "item_instances" and isinstance(record_id, int) and isinstance(original, ItemInstance):
+                selected_item_instances[record_id] = deepcopy(original)
+            elif category == "resources" and isinstance(record_id, int) and isinstance(original, Resource):
+                selected_resources[record_id] = deepcopy(original)
+            elif category == "resource_balances" and isinstance(record_id, int) and isinstance(original, ResourceBalance):
+                selected_resource_balances[record_id] = deepcopy(original)
+            elif category == "relations" and isinstance(record_id, str) and isinstance(original, Relation):
+                selected_relations[record_id] = deepcopy(original)
+            elif category == "events" and isinstance(record_id, str) and isinstance(original, Event):
+                selected_events[record_id] = deepcopy(original)
 
         projected_world = WorldState(
-            entities=selected_maps["entities"],
-            items=selected_maps["items"],
-            item_instances=selected_maps["item_instances"],
-            resources=selected_maps["resources"],
-            resource_balances=selected_maps["resource_balances"],
-            relations=selected_maps["relations"],
-            events=selected_maps["events"],
+            entities=selected_entities,
+            items=selected_items,
+            item_instances=selected_item_instances,
+            resources=selected_resources,
+            resource_balances=selected_resource_balances,
+            relations=selected_relations,
+            events=selected_events,
         )
         available_counts = tuple(
             (category, len(record_lookup[category]))
@@ -272,7 +291,7 @@ class ProposalContextSelector:
         selected_counts = tuple(
             (
                 category,
-                len(selected_maps[category]),
+                len({ "entities": selected_entities, "items": selected_items, "item_instances": selected_item_instances, "resources": selected_resources, "resource_balances": selected_resource_balances, "relations": selected_relations, "events": selected_events }[category]),
             )
             for category in _RECORD_CATEGORIES
         )
