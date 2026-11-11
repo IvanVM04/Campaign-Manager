@@ -7,6 +7,7 @@ from models.mechanics import MechanicsDecision, MechanicsDecisionType, Mechanics
 from models.turn_context import TurnContext
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
+from services.context import ContextBuilder
 from operations.character_operations import (
     CharacterOperation,
 )
@@ -94,6 +95,8 @@ class TurnResolutionService:
         world_service: WorldService,
         mechanics_adjudicator: MechanicsAdjudicator | None = None,
         dice_roller: DiceRoller | None = None,
+        context_builder: ContextBuilder | None = None,
+        proposal_context_max_tokens: int = 4096,
     ) -> None:
 
         if not isinstance(
@@ -126,12 +129,22 @@ class TurnResolutionService:
             raise TypeError("mechanics_adjudicator must be a MechanicsAdjudicator or None")
         if dice_roller is not None and not isinstance(dice_roller, DiceRoller):
             raise TypeError("dice_roller must be a DiceRoller or None")
+        if context_builder is not None and not isinstance(context_builder, ContextBuilder):
+            raise TypeError("context_builder must be a ContextBuilder or None")
+        if (
+            isinstance(proposal_context_max_tokens, bool)
+            or not isinstance(proposal_context_max_tokens, int)
+            or proposal_context_max_tokens <= 0
+        ):
+            raise ValueError("proposal_context_max_tokens must be a positive integer")
 
         self.dm_service = dm_service
         self.extractor = extractor
         self.world_service = world_service
         self.mechanics_adjudicator = mechanics_adjudicator
         self.dice_roller = dice_roller or DiceRoller()
+        self.context_builder = context_builder
+        self.proposal_context_max_tokens = proposal_context_max_tokens
 
     # ============================================================
     # PUBLIC API
@@ -297,10 +310,44 @@ class TurnResolutionService:
             raise TypeError("proposal_from_intent must be a boolean")
 
         if proposal_from_intent:
+            context_projection = None
+            if self.context_builder is not None:
+                mandatory_entity_ids: list[int] = []
+                if context.active_character is not None:
+                    entity_id = context.active_character.entity_id
+                    if isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                        mandatory_entity_ids.append(entity_id)
+                if context.active_character_entity is not None:
+                    entity_id = context.active_character_entity.id
+                    if isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                        if entity_id not in mandatory_entity_ids:
+                            mandatory_entity_ids.append(entity_id)
+                try:
+                    context_projection = self.context_builder.build_proposal_context(
+                        context.world,
+                        normalized_input,
+                        max_estimated_tokens=self.proposal_context_max_tokens,
+                        mandatory_entity_ids=mandatory_entity_ids,
+                    )
+                except Exception as exc:
+                    raise TurnResolutionServiceError(
+                        "proposal context selection failed"
+                    ) from exc
+
             try:
-                operations = self.extractor.propose(
-                    normalized_input, context, mechanics_result=mechanics_result
-                )
+                if context_projection is None:
+                    operations = self.extractor.propose(
+                        normalized_input,
+                        context,
+                        mechanics_result=mechanics_result,
+                    )
+                else:
+                    operations = self.extractor.propose(
+                        normalized_input,
+                        context,
+                        mechanics_result=mechanics_result,
+                        context_projection=context_projection,
+                    )
             except Exception as exc:
                 raise TurnResolutionServiceError(
                     "LLMWorldExtractor failed to propose consequences"
