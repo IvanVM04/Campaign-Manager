@@ -26,7 +26,6 @@ This inventory separates confirmed dead code from compatibility code that still 
 | Area | Why it remains | Deletion gate |
 |---|---|---|
 | Remaining flat service re-export modules | A smaller set of compatibility modules still exists; not all have been migrated | Repeat the consumer audit per module, migrate production and test imports, verify repository-wide references and CI, then remove each shim |
-| `CampaignTurnService` | No longer constructed by the app/runtime composition or exposed through app proxies; retained only as an isolated compatibility implementation with direct unit tests | Confirm no external in-process consumers, then remove the implementation and its dedicated tests |
 | `POST /integration/turn` and `LegacySillyTavernTurnService` | Deprecated route still dispatches to the legacy service | Observe zero usage for an agreed window and confirm supported extension clients have migrated |
 | `WorldSnapshotRepository` and snapshot tables | Used by legacy SillyTavern transcript reconciliation and covered by tests | Retire the legacy route first; preserve existing user data and provide a deliberate migration before dropping tables |
 | Remaining runtime proxies and legacy app exports | Other historical service proxies remain exposed for routers/tests | Migrate each consumer to explicit request/runtime dependencies, then remove the proxy and exports with regression coverage |
