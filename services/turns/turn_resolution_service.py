@@ -322,6 +322,13 @@ class TurnResolutionService:
                     if isinstance(entity_id, int) and not isinstance(entity_id, bool):
                         if entity_id not in mandatory_entity_ids:
                             mandatory_entity_ids.append(entity_id)
+                current_location_id = context.campaign.current_location_id
+                if (
+                    isinstance(current_location_id, int)
+                    and not isinstance(current_location_id, bool)
+                    and current_location_id not in mandatory_entity_ids
+                ):
+                    mandatory_entity_ids.append(current_location_id)
                 try:
                     context_projection = self.context_builder.build_proposal_context(
                         context.world,
