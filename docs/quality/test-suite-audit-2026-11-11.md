@@ -102,11 +102,3 @@ Never delete tests to increase a coverage percentage or simply reduce file count
 4. Consider responsibility-based splits for turn resolution, world persistence/application and turn repository tests.
 5. Use package/branch coverage to identify missing critical-path guarantees; keep percentage thresholds report-only until a no-regression policy is justified.
 6. Reassess tiny tests only after their protected contracts are clearly mapped; move/rename rather than delete when still valid.
-
-
-1. Establish CI merge enforcement (see [CI audit](ci-audit-2026-11-11.md)).
-2. Split the SillyTavern integration tests without changing assertions.
-3. Split legacy extraction and active structured proposal tests.
-4. Reorganize context tests around pipeline responsibilities.
-5. Review package-level coverage gaps and add only tests that protect uncovered risk.
-6. Reassess tiny tests after the above reorganizations; move rather than delete when the contract remains valid.
