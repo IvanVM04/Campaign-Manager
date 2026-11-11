@@ -65,6 +65,15 @@ class WorldEntityApplier:
         world: WorldState,
         operation: UpdateEntityOperation,
     ) -> OperationResult:
+        if not isinstance(operation.entity_id, int) or isinstance(
+            operation.entity_id, bool
+        ):
+            return OperationResult(
+                status=OperationStatus.INVALID,
+                message="Entity reference must be resolved before applying the update.",
+                operation=operation,
+            )
+
         entity = world.entities.get(operation.entity_id)
 
         if entity is None:
