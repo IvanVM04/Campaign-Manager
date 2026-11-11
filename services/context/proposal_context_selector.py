@@ -4,16 +4,16 @@ import json
 from copy import deepcopy
 from typing import Any
 
-from models.world_context_projection import (
-    ContextProjectionDiagnostics,
-    WorldContextProjection,
-    estimate_tokens,
-)
 from models.entity import Entity
 from models.event import Event
 from models.item import Item, ItemInstance
 from models.relation import Relation
 from models.resource import Resource, ResourceBalance
+from models.world_context_projection import (
+    ContextProjectionDiagnostics,
+    WorldContextProjection,
+    estimate_tokens,
+)
 from models.world_state import WorldState
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
@@ -201,7 +201,7 @@ class ProposalContextSelector:
                 )
                 # The fixed allowance covers category labels and prompt line
                 # syntax that are not present in the serialized record.
-                total += estimate_tokens(payload) + 6
+                total += estimate_tokens(payload) + 16
             return total
 
         # The active player entity is mandatory context. It is admitted before
@@ -288,11 +288,17 @@ class ProposalContextSelector:
             )
             for category in _RECORD_CATEGORIES
         )
+        selected_lookup = {
+            "entities": selected_entities,
+            "items": selected_items,
+            "item_instances": selected_item_instances,
+            "resources": selected_resources,
+            "resource_balances": selected_resource_balances,
+            "relations": selected_relations,
+            "events": selected_events,
+        }
         selected_counts = tuple(
-            (
-                category,
-                len({ "entities": selected_entities, "items": selected_items, "item_instances": selected_item_instances, "resources": selected_resources, "resource_balances": selected_resource_balances, "relations": selected_relations, "events": selected_events }[category]),
-            )
+            (category, len(selected_lookup[category]))
             for category in _RECORD_CATEGORIES
         )
         diagnostics = ContextProjectionDiagnostics(
