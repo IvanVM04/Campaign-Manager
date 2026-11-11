@@ -40,4 +40,4 @@ The byte-based budget is an upper bound rather than a model-specific token count
 - [x] Keep rendering independent from transport response formatting.
 
 ## Migration status
-All five context modules now live in this package. The former flat `services.memory_search_service` import path has been removed; import from this package's canonical modules.
+The five generic context modules plus `proposal_context_selector.py` live in this package. The former flat `services.memory_search_service` import path has been removed; import from this package's canonical modules.
