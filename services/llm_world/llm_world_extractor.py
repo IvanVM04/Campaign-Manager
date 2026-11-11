@@ -171,11 +171,22 @@ class LLMWorldExtractor:
             "model_proposable_operation_types",
             None,
         )
-        allowed_operation_types = (
-            allowed_getter()
-            if callable(allowed_getter)
-            else ()
-        )
+        allowed_operation_types: tuple[str, ...] = ()
+        if callable(allowed_getter):
+            raw_operation_types = allowed_getter()
+            if not isinstance(raw_operation_types, (tuple, list)):
+                raise LLMExtractionError(
+                    "operation parser returned an invalid model operation allowlist"
+                )
+            if any(not isinstance(value, str) for value in raw_operation_types):
+                raise LLMExtractionError(
+                    "operation parser returned a non-string model operation type"
+                )
+            allowed_operation_types = tuple(
+                value
+                for value in raw_operation_types
+                if isinstance(value, str)
+            )
         prompt = self.proposal_prompt_builder.build_prompt(
             intent,
             context,
