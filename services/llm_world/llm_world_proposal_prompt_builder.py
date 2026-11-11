@@ -47,6 +47,8 @@ class LLMWorldProposalPromptBuilder:
             + context_blocks["session_block"]
             + "\n\nPERSONAJE ACTIVO:\n"
             + context_blocks["character_block"]
+            + "\n\nCONDICIONES DEL PERSONAJE ACTIVO:\n"
+            + context_blocks["conditions_block"]
             + "\n\nENTIDADES CONOCIDAS:\n"
             + context_blocks["known_entities"]
             + "\n\nITEMS CONOCIDOS:\n"
