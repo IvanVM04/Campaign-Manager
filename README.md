@@ -111,7 +111,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-For the current baseline and ordered roadmap, see [the architecture audit — 2026-11-06](docs/architecture/architecture-audit-2026-11-06.md) and the [architecture documentation index](docs/architecture/README.md). The dated 2026-11-05 and 2026-11-03 audits are retained as historical snapshots. Active contracts remain documented in the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), and [SillyTavern smoke test](docs/sillytavern-smoke-test.md).
+For the current baseline and ordered roadmap, see [the architecture audit — 2026-11-11](docs/architecture/architecture-audit-2026-11-11.md) and the [architecture documentation index](docs/architecture/README.md). The 2026-11-06, 2026-11-05 and 2026-11-03 audits are retained as dated snapshots. Active contracts remain documented in the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), and [SillyTavern smoke test](docs/sillytavern-smoke-test.md).
 
 ---
 
@@ -131,7 +131,7 @@ The application services are being organized by capability rather than leaving e
 | [turns](services/turns/README.md) | Durable turn lifecycle and legacy compatibility |
 | [world](services/world/README.md) | Validated world-operation application and serialization |
 
-Five capability groups have source modules moved into packages: campaign, characters, context, llm_world and world. Their former flat `services.*` paths remain compatibility re-exports. The application composition roots and core turn/narrative services now use canonical imports; a regression test (`tests/test_canonical_service_import_boundaries.py`) protects those migrated modules. Some production and test imports still use compatibility paths, so the migration is not complete. The combat, providers and turns directories remain target-boundary guides; their source modules have not yet been migrated as packages. New code should use canonical package paths. Retire shims only after repository-wide consumer checks and full CI.
+All eight capability packages now contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. Their package guides document responsibilities and pending boundary work. Some root-level services and compatibility surfaces remain outside those packages; their ownership and consumers are tracked in the [current architecture audit](docs/architecture/architecture-audit-2026-11-11.md). New code should use canonical package paths. Retire remaining shims only after repository-wide consumer checks, downstream compatibility review and full CI.
 
 ## Turn Processing
 

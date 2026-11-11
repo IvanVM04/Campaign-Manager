@@ -20,12 +20,13 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - Keep world mutation in the world application boundary.
 
 ## Pending work
+- [ ] Remove the proposal builder's dependency on the legacy prompt builder and its marker-based text extraction; share a typed context projection instead.
+- [ ] Introduce relevance-based context selection and an explicit token budget for structured proposals.
+- [ ] Centralize operation metadata/LLM allowlisting without exposing internal-only operations.
 - [ ] Audit remaining responsibilities and size of `LLMWorldExtractor`; assess provider invocation/retry as a separate boundary.
 - [ ] Specify and test retry, timeout and repair limits; retries must not duplicate side effects.
-- [ ] Review shared prompt contracts without introducing a generic prompt framework.
 - [ ] Test malformed output, unsupported operations, partial responses and provider failures.
 - [ ] Document the trust boundary from model proposal to deterministic validation/application.
-- [ ] Remove compatibility shims only after all callers migrate.
 
 ## Migration status
-All seven modules now live in `services/llm_world/`. The `services.llm_extraction_errors` compatibility module has been removed; remaining flat `services.llm_world_*` paths are tracked for separate consumer migration.
+All seven implementation modules live in `services/llm_world/`. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
