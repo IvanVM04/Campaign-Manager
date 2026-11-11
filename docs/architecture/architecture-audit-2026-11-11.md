@@ -67,7 +67,7 @@ Preserve these invariants during future refactors:
 - retries and regeneration never reapply already committed consequences;
 - idempotency, lease fencing and recovery semantics remain covered.
 
-The deprecated `POST /integration/turn` route still requires the legacy service and snapshot reconciliation. Do not remove the route, service or historical snapshot tables until supported-client usage and migration gates are satisfied.
+The deprecated `POST /integration/turn` route still requires `services/turns/LegacySillyTavernTurnService` and snapshot reconciliation. The collaborator has been moved into the turn package but remains quarantined from the active durable workflow. Do not remove the route, collaborator or historical snapshot tables until supported-client usage and migration gates are satisfied.
 
 ## 3. LLM prompt and operation-contract findings
 

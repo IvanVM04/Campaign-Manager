@@ -110,7 +110,7 @@ class LegacySillyTavernTurnService:
             raise ValueError(
                 "turn_version must be >= 1"
             )
-        
+
         normalized_input = self._validate_text(
             player_input,
             "player_input",
@@ -224,7 +224,7 @@ class LegacySillyTavernTurnService:
                             f"{existing_turn.version}"
                         )
                     )
-                
+
         # --------------------------------------------------------
         # CONTEXTO
         # --------------------------------------------------------

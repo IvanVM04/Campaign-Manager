@@ -14,9 +14,8 @@ from services.campaign import (
     CampaignStateServiceError,
 )
 from services.context import ContextBuilder
-from services.legacy_silly_tavern_turn_service import LegacySillyTavernTurnService
 from services.llm_world import LLMWorldExtractor
-from services.turns import TurnExecutionLock
+from services.turns import LegacySillyTavernTurnService, TurnExecutionLock
 from services.world import WorldService
 
 
