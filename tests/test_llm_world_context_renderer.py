@@ -23,6 +23,13 @@ def test_context_renderer_returns_empty_section_fallbacks():
     rendered = LLMWorldContextRenderer.build_context(make_context())
 
     assert rendered == {
+        "campaign_block": (
+            "Nombre: Sin nombre\n"
+            "Sistema: D&D 5e 2014\n"
+            "Tono: No definido\n"
+            "Ubicación actual (entity ID): None"
+        ),
+        "session_block": "No hay sesión activa.",
         "character_block": "No hay personaje activo.",
         "known_entities": "- Ninguna",
         "known_items": "- Ninguno",
@@ -144,3 +151,41 @@ def test_context_renderer_formats_resource_balances_from_selected_world():
 
     assert "75 mo de Oro" in rendered["known_resource_balances"]
     assert "Fungoso" in rendered["known_resource_balances"]
+
+
+def test_context_renderer_includes_current_campaign_location_and_session():
+    from models.session_state import SessionState
+
+    world = WorldState(
+        entities={
+            44: Entity(id=44, name="Mercado de Piedra", entity_type="location"),
+        }
+    )
+    context = TurnContext(
+        campaign=CampaignState(
+            name="La mina",
+            system="D&D 5e 2014",
+            tone="fantasía oscura",
+            current_location_id=44,
+            summary="Una campaña en las tierras del norte.",
+        ),
+        current_session=SessionState(
+            session_id=7,
+            number=3,
+            title="El mercado",
+            summary="El grupo llega al mercado.",
+            start_location="Puerta norte",
+            end_location="Mercado de Piedra",
+        ),
+        active_character=None,
+        world=world,
+    )
+
+    rendered = LLMWorldContextRenderer.build_context(context)
+
+    assert "La mina" in rendered["campaign_block"]
+    assert "Ubicación actual (entity ID): 44" in rendered["campaign_block"]
+    assert "Número: 3" in rendered["session_block"]
+    assert "El grupo llega al mercado." in rendered["session_block"]
+    assert "Mercado de Piedra (location) [UBICACIÓN ACTUAL]" in rendered["known_entities"]
+
