@@ -12,6 +12,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-cov",
     "httpx2>=2.5",
 ]
 
@@ -21,3 +22,12 @@ markers = [
     "real_llm: tests that require a running Ollama instance",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["."]
+omit = [
+    "tests/*",
+    "*/tests/*",
+    "scripts/*",
+    "*/__pycache__/*",
+]
