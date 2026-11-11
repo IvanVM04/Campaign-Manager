@@ -107,6 +107,7 @@ class LLMSettings:
                 raise ValueError(f"{name} must be a number") from exc
 
         defaults = cls()
+
         def integer_value(name: str, default: int) -> int:
             raw_value = values.get(name)
             if raw_value is None:
