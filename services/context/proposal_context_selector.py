@@ -267,7 +267,18 @@ class ProposalContextSelector:
         selected_relations: dict[str, Relation] = {}
         selected_events: dict[str, Event] = {}
 
-        for category, record_id in selected:
+        def selected_record_sort_key(
+            record_key: RecordKey,
+        ) -> tuple[int, int, int | str]:
+            category, record_id = record_key
+            if isinstance(record_id, int):
+                return category_order[category], 0, record_id
+            return category_order[category], 1, str(record_id)
+
+        for category, record_id in sorted(
+            selected,
+            key=selected_record_sort_key,
+        ):
             original = object_lookup[category].get(record_id)
             if category == "entities" and isinstance(record_id, int) and isinstance(original, Entity):
                 selected_entities[record_id] = deepcopy(original)
