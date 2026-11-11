@@ -21,13 +21,13 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - Keep world mutation in the world application boundary.
 
 ## Pending work
-- [ ] Remove the proposal builder's dependency on the legacy prompt builder and its marker-based text extraction; share a typed context projection instead.
-- [ ] Introduce relevance-based context selection and an explicit token budget for structured proposals.
+- [x] Decouple the proposal prompt builder from the legacy narrative-extraction prompt and remove marker-based text extraction (PR #161).
+- [ ] Replace the proposal path's full-world projection with a typed, relevance-ranked context projection and an explicit estimated-token budget. Orchestration must preserve the package dependency matrix; `llm_world` must not import `services.context` directly.
 - [ ] Centralize operation metadata/LLM allowlisting without exposing internal-only operations.
-- [ ] Audit remaining responsibilities and size of `LLMWorldExtractor`; assess provider invocation/retry as a separate boundary.
+- [ ] Add prompt-size diagnostics and bounded repair context; assess provider invocation/retry as a separate boundary.
 - [ ] Specify and test retry, timeout and repair limits; retries must not duplicate side effects.
-- [ ] Test malformed output, unsupported operations, partial responses and provider failures.
+- [ ] Test malformed output, unsupported operations, partial responses, provider failures and context-budget behavior with small/large campaign fixtures.
 - [ ] Document the trust boundary from model proposal to deterministic validation/application.
 
 ## Migration status
-All eight implementation modules live in `services/llm_world/`. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
+All implementation modules live in `services/llm_world/`. PR #161 separated `LLMWorldProposalPromptBuilder` from the legacy narrative prompt: it now renders from `LLMWorldContextRenderer` directly. The legacy `LLMWorldPromptBuilder` remains for callers of `LLMWorldExtractor.extract()`; it is not used to construct the active durable player-intent proposal prompt. The structured proposal renderer still projects the full world without a relevance filter or size budget; this is the next prompt-pipeline improvement. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
