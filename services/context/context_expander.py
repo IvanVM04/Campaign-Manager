@@ -202,11 +202,14 @@ class ContextExpander:
 
                 # SUBJECT -> TARGET
 
-                if subject_id in current_ids:
-
-                    target = world.entities.get(
-                        target_id
-                    )
+                if (
+                    isinstance(subject_id, int)
+                    and not isinstance(subject_id, bool)
+                    and subject_id in current_ids
+                ):
+                    if not isinstance(target_id, int) or isinstance(target_id, bool):
+                        continue
+                    target = world.entities.get(target_id)
 
                     if (
                         target is not None
@@ -231,11 +234,14 @@ class ContextExpander:
 
                 # TARGET -> SUBJECT
 
-                if target_id in current_ids:
-
-                    subject = world.entities.get(
-                        subject_id
-                    )
+                if (
+                    isinstance(target_id, int)
+                    and not isinstance(target_id, bool)
+                    and target_id in current_ids
+                ):
+                    if not isinstance(subject_id, int) or isinstance(subject_id, bool):
+                        continue
+                    subject = world.entities.get(subject_id)
 
                     if (
                         subject is not None
