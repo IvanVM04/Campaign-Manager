@@ -95,6 +95,16 @@ class ProposalContextSelector:
             object_lookup[category] = dict(getattr(world, category))
 
         search_result = self.memory_search_service.search(world, normalized_query)
+        searched_entity_ids = {
+            record.get("id")
+            for record in search_result.get("entities", [])
+            if isinstance(record, dict)
+        }
+        for entity_id in mandatory_ids:
+            mandatory_record = record_lookup["entities"].get(entity_id)
+            if mandatory_record is not None and entity_id not in searched_entity_ids:
+                search_result.setdefault("entities", []).append(mandatory_record)
+
         expanded = self.context_expander.expand(
             world,
             search_result,
@@ -133,7 +143,11 @@ class ProposalContextSelector:
             dependencies: list[RecordKey] = []
 
             def add(target_category: str, target_id: Any) -> None:
-                if target_id is None or isinstance(target_id, bool):
+                if (
+                    target_id is None
+                    or isinstance(target_id, bool)
+                    or not isinstance(target_id, (int, str))
+                ):
                     return
                 if target_id in record_lookup[target_category]:
                     dependencies.append((target_category, target_id))
