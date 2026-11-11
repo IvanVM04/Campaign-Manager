@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
-from models.world_context_projection import WorldContextProjection
+from models.world_context_projection import WorldContextProjection, estimate_tokens
 from operations.turn_operations import TurnOperation
 
 from .llm_world_prompt_builder import LLMWorldPromptBuilder
@@ -184,20 +184,30 @@ class LLMWorldExtractor:
             allowed_operation_types=allowed_operation_types,
             max_prompt_tokens=self.max_prompt_tokens,
         )
+        prompt_estimated_tokens = estimate_tokens(prompt)
+        log_fields = {
+            "prompt_chars": len(prompt),
+            "prompt_estimated_tokens": prompt_estimated_tokens,
+            "prompt_budget_tokens": self.max_prompt_tokens,
+            "prompt_budget_utilization": (
+                prompt_estimated_tokens / self.max_prompt_tokens
+            ),
+        }
         if context_projection is not None:
             diagnostics = context_projection.diagnostics
-            logger.debug(
-                "Prepared bounded LLM proposal context",
-                extra={
-                    "estimated_tokens": diagnostics.estimated_tokens,
-                    "budget_tokens": diagnostics.budget_tokens,
-                    "available_records": diagnostics.available_records,
-                    "candidate_records": diagnostics.candidate_records,
-                    "selected_records": diagnostics.selected_records,
-                    "excluded_records": diagnostics.excluded_records,
-                    "selected_counts": dict(diagnostics.selected_counts),
-                },
-            )
+            log_fields.update({
+                "context_estimated_tokens": diagnostics.estimated_tokens,
+                "context_budget_tokens": diagnostics.budget_tokens,
+                "available_records": diagnostics.available_records,
+                "candidate_records": diagnostics.candidate_records,
+                "selected_records": diagnostics.selected_records,
+                "excluded_records": diagnostics.excluded_records,
+                "selected_counts": dict(diagnostics.selected_counts),
+            })
+        logger.debug(
+            "Prepared bounded LLM proposal prompt",
+            extra=log_fields,
+        )
         raw_response = self.provider(prompt)
         return self.proposal_validator.parse_with_repair(prompt, raw_response)
 
