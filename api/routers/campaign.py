@@ -44,6 +44,8 @@ def update_campaign(data: CampaignUpdate):
         current = runtime.campaign_repository.get_campaign(
             runtime.campaign_id
         )
+        if current is None:
+            raise HTTPException(status_code=404, detail="campaign not found")
 
         values = {
             "name": (
