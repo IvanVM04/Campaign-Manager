@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `1d882a6343d0968d568bc1faef26de8831aff22e` (after merge of PR #148).  
+**Audited baseline:** `main` at `fc3c9a677eb531fee4480d5022a27713f754bbd9` (after merge of PR #151).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -24,7 +24,7 @@ All eight service capability packages contain implementation modules in the curr
 | `services/campaign` | Campaign/session state and campaign clock |
 | `services/characters` | Character creation, character use cases, sheet projection and typed character application |
 | `services/combat` | Encounter, attack and weapon/equipment workflows; deterministic mechanics remain in rules_engine |
-| `services/context` | Context orchestration, expansion, ranking and rendering |
+| `services/context` | Context retrieval, orchestration, expansion, ranking and rendering |
 | `services/llm_world` | Prompt construction, world-context projection, extraction, response parsing and proposal validation |
 | `services/providers` | LLM provider port, Ollama adapter, settings and fake provider |
 | `services/turns` | Durable turn lifecycle, planning, challenge continuation, commit and narration |
@@ -40,8 +40,8 @@ The current `services/` tree still contains application-level services outside t
 
 - `campaign_turn_service.py` — 983-line compatibility implementation, no longer part of the native durable runtime path.
 - `dm_service.py` — narrative generation/orchestration; its boundary relative to turn narration and context needs an explicit review.
-- `mechanics_adjudicator.py` — mechanics orchestration used by turn planning.
-- `memory_search_service.py` — retrieval service whose ownership relative to `services/context` should be decided.
+- `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
+- `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
 - `operation_parser.py` — typed operation parsing; candidate for a dedicated operation-contract boundary if that reduces duplication.
 - `persistent_effect_service.py` and `effective_condition_service.py` — related effect/condition application and projection responsibilities; review together before moving either.
 - `legacy_silly_tavern_turn_service.py` — compatibility implementation for the deprecated narrative-first route.

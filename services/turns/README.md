@@ -3,11 +3,14 @@
 ## Responsibility
 Coordinate the turn lifecycle: preparation, adjudication orchestration, durable commit, challenge continuation, narration and legacy compatibility.
 
+The turn package owns the mechanics adjudicator used by native turn planning; its provider and context collaborators are injected by the composition root.
+
 The durable resolution record is authoritative for in-flight state. Narrative/transcript versions are a separate projection and must never replay committed consequences.
 
 ## Package modules
 - `turn_execution_lock.py` — canonical process-local lock shared by turn coordinators.
 - `turn_resolution_codec.py` — canonical JSON codec for durable turn-resolution records.
+- `mechanics_adjudicator.py` — structured mechanics proposals with strict response validation; it never rolls dice or applies consequences.
 - `turn_resolution_service.py` — non-persistent turn planning, mechanics orchestration and plan application.
 - `durable_turn_challenge_state_service.py` — read-only challenge-state projections.
 - `durable_turn_clarification_submission_service.py` — clarification submission and recovery.

@@ -8,8 +8,8 @@ from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.dm_service import DMService
 from services.llm_world import LLMWorldExtractor
-from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.providers import FakeLLMProvider
+from services.turns import MechanicsAdjudicator
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldApplier, WorldService
 

@@ -28,14 +28,13 @@ from services.context import ContextBuilder, MemorySearchService
 from services.dm_service import DMService
 from services.effective_condition_service import EffectiveConditionService
 from services.llm_world import LLMWorldExtractor
-from services.mechanics_adjudicator import MechanicsAdjudicator
 from services.operation_parser import OperationParser
 from services.persistent_effect_service import PersistentEffectService
 from services.providers import LLMSettings
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
 )
-from services.turns import TurnExecutionLock
+from services.turns import MechanicsAdjudicator, TurnExecutionLock
 from services.turns.durable_native_turn_service import DurableNativeTurnService
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldService

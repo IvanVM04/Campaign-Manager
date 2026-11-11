@@ -18,6 +18,10 @@ from services.turns.durable_turn_prepared_commit_service import (
     DurableTurnPreparedCommitService,
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
+from services.turns.mechanics_adjudicator import (
+    MechanicsAdjudicator,
+    MechanicsAdjudicatorError,
+)
 from services.turns.turn_execution_lock import TurnExecutionLock
 from services.turns.turn_resolution_codec import TurnResolutionCodec
 from services.turns.turn_resolution_service import (
@@ -35,6 +39,8 @@ __all__ = [
     "DurableTurnPreparationMapper",
     "DurableTurnPreparedCommitService",
     "DurableTurnResultMapper",
+    "MechanicsAdjudicator",
+    "MechanicsAdjudicatorError",
     "TurnExecutionLock",
     "TurnResolutionCodec",
     "TurnResolutionPlan",
