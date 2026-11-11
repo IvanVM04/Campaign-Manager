@@ -1,5 +1,7 @@
 """In-memory application of item definition and inventory operations."""
 
+from typing import cast
+
 from models.item import Item, ItemInstance
 from models.operation_result import OperationResult, OperationStatus
 from models.world_state import WorldState
@@ -140,7 +142,7 @@ class WorldItemApplier:
 
         if (
             operation.owner_id is not None
-            and operation.owner_id not in world.entities
+            and cast(int, operation.owner_id) not in world.entities
         ):
             return OperationResult(
                     status=OperationStatus.NOT_FOUND,
@@ -153,7 +155,7 @@ class WorldItemApplier:
 
         if (
             operation.location_id is not None
-            and operation.location_id not in world.entities
+            and cast(int, operation.location_id) not in world.entities
         ):
             return OperationResult(
                     status=OperationStatus.NOT_FOUND,
@@ -192,10 +194,10 @@ class WorldItemApplier:
 
         instance = ItemInstance(
             id=instance_id,
-            item_id=operation.item_id,
+            item_id=cast(int, operation.item_id),
             instance_number=operation.instance_number,
-            owner_id=operation.owner_id,
-            location_id=operation.location_id,
+            owner_id=cast(int | None, operation.owner_id),
+            location_id=cast(int | None, operation.location_id),
             condition=operation.condition,
             notes=operation.notes,
             active=operation.active,
@@ -221,7 +223,7 @@ class WorldItemApplier:
     ) -> OperationResult:
 
         instance = world.item_instances.get(
-            operation.instance_id
+            cast(int, operation.instance_id)
         )
 
         if instance is None:
@@ -234,7 +236,7 @@ class WorldItemApplier:
                 operation=operation,
             )
 
-        if operation.new_owner_id not in world.entities:
+        if cast(int, operation.new_owner_id) not in world.entities:
             return OperationResult(
                 status=OperationStatus.NOT_FOUND,
                 message=(
@@ -244,7 +246,7 @@ class WorldItemApplier:
                 operation=operation,
             )
 
-        if instance.owner_id == operation.new_owner_id:
+        if instance.owner_id == cast(int, operation.new_owner_id):
             return OperationResult(
                 status=OperationStatus.NO_CHANGE,
                 message=(
@@ -254,7 +256,7 @@ class WorldItemApplier:
                 operation=operation,
             )
 
-        instance.owner_id = operation.new_owner_id
+        instance.owner_id = cast(int, operation.new_owner_id)
 
         return OperationResult(
             status=OperationStatus.SUCCESS,
@@ -271,7 +273,7 @@ class WorldItemApplier:
         operation: UpdateItemInstanceOperation,
     ) -> OperationResult:
         instance = world.item_instances.get(
-            operation.instance_id
+            cast(int, operation.instance_id)
         )
 
         if instance is None:
@@ -335,7 +337,7 @@ class WorldItemApplier:
             operation.owner_id is not _UNSET
             and instance.owner_id != operation.owner_id
         ):
-            instance.owner_id = operation.owner_id
+            instance.owner_id = cast(int | None, operation.owner_id)
             changed = True
 
         # ------------------------------------------------------------
@@ -348,7 +350,7 @@ class WorldItemApplier:
             operation.location_id is not _UNSET
             and instance.location_id != operation.location_id
         ):
-            instance.location_id = operation.location_id
+            instance.location_id = cast(int | None, operation.location_id)
             changed = True
 
         # ------------------------------------------------------------
@@ -363,7 +365,7 @@ class WorldItemApplier:
         ):
             instance.condition = (
                 "" if operation.condition is None
-                else operation.condition
+                else cast(str, operation.condition)
             )
             changed = True
 
@@ -379,7 +381,7 @@ class WorldItemApplier:
         ):
             instance.notes = (
                 "" if operation.notes is None
-                else operation.notes
+                else cast(str, operation.notes)
             )
             changed = True
 
@@ -400,7 +402,7 @@ class WorldItemApplier:
                 )
 
             if instance.active != operation.active:
-                instance.active = operation.active
+                instance.active = cast(bool, operation.active)
                 changed = True
 
         if not changed:

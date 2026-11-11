@@ -1,6 +1,7 @@
 """In-memory application of resource definitions and balances."""
 
 import math
+from typing import cast
 
 from models.operation_result import OperationResult, OperationStatus
 from models.resource import Resource, ResourceBalance
@@ -113,8 +114,8 @@ class WorldResourceApplier:
 
         balance = self._find_balance(
             world,
-            operation.resource_id,
-            operation.owner_id,
+            cast(int, operation.resource_id),
+            cast(int, operation.owner_id),
         )
 
         if balance is not None:
@@ -134,8 +135,8 @@ class WorldResourceApplier:
 
         world.resource_balances[balance_id] = ResourceBalance(
             id=balance_id,
-            resource_id=operation.resource_id,
-            owner_id=operation.owner_id,
+            resource_id=cast(int, operation.resource_id),
+            owner_id=cast(int, operation.owner_id),
             amount=operation.amount,
         )
 
@@ -187,8 +188,8 @@ class WorldResourceApplier:
 
         balance = self._find_balance(
             world,
-            operation.resource_id,
-            operation.owner_id,
+            cast(int, operation.resource_id),
+            cast(int, operation.owner_id),
         )
 
         if balance is None:
@@ -280,8 +281,8 @@ class WorldResourceApplier:
 
         source_balance = self._find_balance(
             world,
-            operation.resource_id,
-            operation.subject_id,
+            cast(int, operation.resource_id),
+            cast(int, operation.subject_id),
         )
 
         if source_balance is None:
@@ -308,8 +309,8 @@ class WorldResourceApplier:
 
         target_balance = self._find_balance(
             world,
-            operation.resource_id,
-            operation.target_id,
+            cast(int, operation.resource_id),
+            cast(int, operation.target_id),
         )
 
         if target_balance is None:
@@ -318,8 +319,8 @@ class WorldResourceApplier:
 
             target_balance = ResourceBalance(
                 id=balance_id,
-                resource_id=operation.resource_id,
-                owner_id=operation.target_id,
+                resource_id=cast(int, operation.resource_id),
+                owner_id=cast(int, operation.target_id),
                 amount=0,
             )
 
