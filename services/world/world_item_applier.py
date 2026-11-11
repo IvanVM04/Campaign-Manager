@@ -273,7 +273,7 @@ class WorldItemApplier:
         operation: UpdateItemInstanceOperation,
     ) -> OperationResult:
         instance = world.item_instances.get(
-            operation.instance_id
+            cast(int, operation.instance_id)
         )
 
         if instance is None:
