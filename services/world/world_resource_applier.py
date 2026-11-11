@@ -319,8 +319,8 @@ class WorldResourceApplier:
 
             target_balance = ResourceBalance(
                 id=balance_id,
-                resource_id=operation.resource_id,
-                owner_id=operation.target_id,
+                resource_id=cast(int, operation.resource_id),
+                owner_id=cast(int, operation.target_id),
                 amount=0,
             )
 
