@@ -16,7 +16,7 @@ from services.llm_world import (
     LLMWorldPromptBuilder,
     LLMWorldResponseParser,
 )
-from services.operation_parser import OperationParser
+from services.llm_world.operation_parser import OperationParser
 
 
 class FakeOperation(WorldOperation):
