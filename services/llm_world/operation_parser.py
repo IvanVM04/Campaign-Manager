@@ -5,8 +5,8 @@ from dataclasses import MISSING
 from typing import Any, ClassVar
 
 from operations.character_operations import (
-    CharacterOperation,
     ChangeCharacterHpOperation,
+    CharacterOperation,
 )
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
