@@ -341,6 +341,10 @@ class DurableNativeTurnService:
                 if record.lifecycle_state == "completed":
                     if defer_narration:
                         return self._preparation_from_record(record)
+                    if record.turn_id is None:
+                        raise DurableNativeTurnError(
+                            "completed resolution has no transcript identifier"
+                        )
                     turn = self.turn_repository.get_turn(
                         record.turn_id, scope=self.scope, conn=conn
                     )
@@ -398,7 +402,7 @@ class DurableNativeTurnService:
             try:
                 with transaction("IMMEDIATE") as conn:
                     record = self.resolution_repository.claim_for_planning(
-                        record.id,
+                        self._required_resolution_id(record),
                         scope=self.scope,
                         lease_token=lease_token,
                         lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
@@ -415,7 +419,7 @@ class DurableNativeTurnService:
                 if record.context_revision != revision:
                     with transaction("IMMEDIATE") as conn:
                         self.resolution_repository.transition(
-                            record.id,
+                            self._required_resolution_id(record),
                             "rejected",
                             scope=self.scope,
                             expected_state="prepared",
@@ -436,7 +440,7 @@ class DurableNativeTurnService:
                     pending = self._build_manual_roll_request(record, plan.mechanics_decision, context, revision)
                     with transaction("IMMEDIATE") as conn:
                         self.resolution_repository.transition(
-                            record.id, "awaiting_input", scope=self.scope,
+                            self._required_resolution_id(record), "awaiting_input", scope=self.scope,
                             expected_state="planning", expected_lease_token=lease_token,
                             updates={
                                 "context_revision": revision,
@@ -444,7 +448,11 @@ class DurableNativeTurnService:
                                 "lease_token": None, "lease_expires_at": None,
                             }, conn=conn,
                         )
-                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    saved = self._require_resolution_record(
+                        self.resolution_repository.get(
+                            self._required_resolution_id(record), scope=self.scope
+                        )
+                    )
                     return self._manual_roll_result(saved, pending)
                 if plan.clarification_question is not None:
                     pending = {
@@ -455,7 +463,7 @@ class DurableNativeTurnService:
                     }
                     with transaction("IMMEDIATE") as conn:
                         self.resolution_repository.transition(
-                            record.id,
+                            self._required_resolution_id(record),
                             "awaiting_input",
                             scope=self.scope,
                             expected_state="planning",
@@ -473,14 +481,18 @@ class DurableNativeTurnService:
                             },
                             conn=conn,
                         )
-                    saved = self.resolution_repository.get(record.id, scope=self.scope)
+                    saved = self._require_resolution_record(
+                        self.resolution_repository.get(
+                            self._required_resolution_id(record), scope=self.scope
+                        )
+                    )
                     return self._clarification_result(saved, pending)
                 proposal_json = self._serialize_operations(plan)
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 
                 with transaction("IMMEDIATE") as conn:
                     self.resolution_repository.transition(
-                        record.id,
+                        self._required_resolution_id(record),
                         "prepared",
                         scope=self.scope,
                         expected_state="planning",
@@ -516,8 +528,10 @@ class DurableNativeTurnService:
                     "campaign context changed while the turn was being prepared; retry"
                 ),
             )
-            committed_record = self.resolution_repository.get(
-                record.id, scope=self.scope
+            committed_record = self._require_resolution_record(
+                self.resolution_repository.get(
+                    self._required_resolution_id(record), scope=self.scope
+                )
             )
             if defer_narration:
                 return self._preparation_from_record(committed_record)
@@ -532,11 +546,11 @@ class DurableNativeTurnService:
             ):
                 with transaction("IMMEDIATE") as conn:
                     current = self.resolution_repository.get(
-                        record.id, scope=self.scope, conn=conn
+                        self._required_resolution_id(record), scope=self.scope, conn=conn
                     )
                     if current is not None and current.lifecycle_state == "planning":
                         self.resolution_repository.transition(
-                            record.id,
+                            self._required_resolution_id(record),
                             "rejected",
                             scope=self.scope,
                             expected_state="planning",
@@ -558,7 +572,7 @@ class DurableNativeTurnService:
             # check fences off stale workers and preserves committed work.
             with transaction("IMMEDIATE") as conn:
                 current = self.resolution_repository.get(
-                    record.id, scope=self.scope, conn=conn
+                    self._required_resolution_id(record), scope=self.scope, conn=conn
                 )
                 if (
                     current is not None
@@ -566,7 +580,7 @@ class DurableNativeTurnService:
                     and current.lease_token == lease_token
                 ):
                     self.resolution_repository.transition(
-                        record.id,
+                        self._required_resolution_id(record),
                         "accepted",
                         scope=self.scope,
                         expected_state="planning",
@@ -592,11 +606,11 @@ class DurableNativeTurnService:
             if rejection_code is not None:
                 with transaction("IMMEDIATE") as conn:
                     current = self.resolution_repository.get(
-                        record.id, scope=self.scope, conn=conn
+                        self._required_resolution_id(record), scope=self.scope, conn=conn
                     )
                     if current is not None and current.lifecycle_state == "prepared":
                         self.resolution_repository.transition(
-                            record.id,
+                            self._required_resolution_id(record),
                             "rejected",
                             scope=self.scope,
                             expected_state="prepared",
@@ -610,12 +624,30 @@ class DurableNativeTurnService:
                 "(campaign_id=%s, resolution_id=%s, adapter_namespace=%s, "
                 "lifecycle_state=%s, dice_mode=%s)",
                 self.scope.campaign_id,
-                record.id,
+                self._required_resolution_id(record),
                 adapter_namespace,
                 record.lifecycle_state,
                 dice_mode,
             )
             raise DurableNativeTurnError("native turn execution failed") from exc
+
+    @staticmethod
+    def _required_resolution_id(record: TurnResolutionRecord) -> int:
+        if record.id is None:
+            raise DurableNativeTurnError(
+                "persisted turn resolution has no database identifier"
+            )
+        return record.id
+
+    @staticmethod
+    def _require_resolution_record(
+        record: TurnResolutionRecord | None,
+    ) -> TurnResolutionRecord:
+        if record is None:
+            raise DurableNativeTurnError(
+                "turn resolution disappeared after a successful persistence operation"
+            )
+        return record
 
     @staticmethod
     def _manual_roll_result(record, pending):
