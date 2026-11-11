@@ -213,8 +213,11 @@ def test_integration_context_endpoint_returns_context(
             },
         }
 
+    import app
+
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.get_context",
+        app.runtime_factory.get_runtime(1).silly_tavern_integration_service,
+        "get_context",
         fake_get_context,
     )
 
@@ -253,8 +256,11 @@ def test_integration_context_endpoint_returns_500_on_service_error(
             "context failed"
         )
 
+    import app
+
     monkeypatch.setattr(
-        "app.silly_tavern_integration_service.get_context",
+        app.runtime_factory.get_runtime(1).silly_tavern_integration_service,
+        "get_context",
         fake_get_context,
     )
 
@@ -3326,11 +3332,11 @@ def test_integration_turn_state_endpoint_returns_missing_turn(
             "narrative": None,
         }
 
+    import app
+
     monkeypatch.setattr(
-        (
-            "app.silly_tavern_integration_service."
-            "get_external_turn_state"
-        ),
+        app.runtime_factory.get_runtime(1).silly_tavern_integration_service,
+        "get_external_turn_state",
         fake_get_external_turn_state,
     )
 
@@ -3368,11 +3374,11 @@ def test_integration_turn_state_endpoint_returns_active_version(
                 "La puerta se abre.",
         }
 
+    import app
+
     monkeypatch.setattr(
-        (
-            "app.silly_tavern_integration_service."
-            "get_external_turn_state"
-        ),
+        app.runtime_factory.get_runtime(1).silly_tavern_integration_service,
+        "get_external_turn_state",
         fake_get_external_turn_state,
     )
 

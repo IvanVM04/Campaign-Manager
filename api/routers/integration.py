@@ -36,13 +36,11 @@ def get_silly_tavern_context(
     SillyTavern genere la siguiente respuesta narrativa.
     """
 
+    runtime = get_current_runtime()
     try:
-        with get_current_runtime().turn_execution_lock.acquire():
-            result = (
-                silly_tavern_integration_service
-                .get_context(
-                    data.query
-                )
+        with runtime.turn_execution_lock.acquire():
+            result = runtime.silly_tavern_integration_service.get_context(
+                data.query
             )
 
     except SillyTavernIntegrationServiceError as exc:
@@ -74,13 +72,11 @@ def get_silly_tavern_turn_state(
     de chat.
     """
 
+    runtime = get_current_runtime()
     try:
-        with get_current_runtime().turn_execution_lock.acquire():
-            result = (
-                silly_tavern_integration_service
-                .get_external_turn_state(
-                    external_turn_id
-                )
+        with runtime.turn_execution_lock.acquire():
+            result = runtime.silly_tavern_integration_service.get_external_turn_state(
+                external_turn_id
             )
 
     except (

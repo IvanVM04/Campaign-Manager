@@ -148,7 +148,7 @@ def get_turns(
     offset: int = Query(default=0, ge=0),
 ):
     runtime = get_current_runtime()
-    turns = get_current_runtime().turn_repository.list_turns(
+    turns = runtime.turn_repository.list_turns(
         session_id=session_id,
         limit=limit,
         offset=offset,
