@@ -22,7 +22,8 @@ added here.
 context/history construction and external transcript-state reads. Its public
 `process_turn()` method delegates to `LegacySillyTavernTurnService` to preserve
 the existing route and in-process API while isolating the deprecated mutation
-workflow.
+workflow. Private transaction and rollback helpers remain encapsulated by the
+legacy collaborator and are not re-exported through the adapter.
 
 The legacy collaborator is located in `services/turns` because it owns a turn-execution lifecycle, but it remains quarantined from the active durable coordinator. It receives the campaign scope, state/context service,
 extractor, world service, turn repository, shared campaign lock, revision
