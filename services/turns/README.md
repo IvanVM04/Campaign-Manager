@@ -39,9 +39,9 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [ ] Replace exception-message matching for lifecycle/error codes with typed errors and explicit transition reasons.
 - [ ] Add focused recovery tests for expired planning leases and restart/concurrency boundaries.
 - [ ] Split the large SillyTavern integration tests by durable API, adapter behavior and legacy compatibility without reducing coverage.
-- [x] Remove CampaignTurnService from runtime composition; its compatibility implementation remains isolated pending consumer and deletion-gate review.
+- [x] Remove CampaignTurnService from runtime composition and delete the isolated compatibility implementation after confirming no production consumers remain.
 - [ ] Keep the deprecated narrative-first route gated by observed usage and downstream compatibility checks.
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-The turns boundary has been decomposed internally. The canonical package owns narrative generation, the mechanics adjudicator, the execution lock, non-persistent planner, durable resolution codec and coordinator, challenge projections/submissions, prepared commit, preparation/result mapping and narration lifecycle. The old `CampaignTurnService` implementation remains outside the package as compatibility-only code; the legacy SillyTavern turn service remains active only through the deprecated `POST /integration/turn` route. `SillyTavernIntegrationService` remains active for context and external transcript-state reads.
+The turns boundary has been decomposed internally. The canonical package owns narrative generation, the mechanics adjudicator, the execution lock, non-persistent planner, durable resolution codec and coordinator, challenge projections/submissions, prepared commit, preparation/result mapping and narration lifecycle. The old `CampaignTurnService` compatibility implementation and its dedicated tests have been removed; the legacy SillyTavern turn service remains active only through the deprecated `POST /integration/turn` route. `SillyTavernIntegrationService` remains active for context and external transcript-state reads.
