@@ -64,10 +64,22 @@ class LLMWorldResponseParser:
                     f"Invalid operation at index {index}: expected an object"
                 )
             operation_type = raw_operation.get("type")
-            if (
-                not isinstance(operation_type, str)
-                or not self.operation_registry.is_model_proposable(operation_type)
-            ):
+            metadata = (
+                self.operation_registry.get(operation_type)
+                if isinstance(operation_type, str)
+                else None
+            )
+            if metadata is None:
+                raise LLMExtractionError(
+                    f"Operation type {operation_type!r} is not permitted in model proposals"
+                )
+            if not metadata.model_proposable:
+                if issubclass(metadata.operation_class, CharacterOperation):
+                    raise LLMExtractionError(
+                        "Character-state operations require verified "
+                        "rules-engine resolution and cannot be extracted "
+                        f"from narrative (operation index {index})"
+                    )
                 raise LLMExtractionError(
                     f"Operation type {operation_type!r} is not permitted in model proposals"
                 )

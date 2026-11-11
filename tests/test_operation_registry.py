@@ -75,7 +75,9 @@ def test_response_parser_rejects_internal_operation_before_parser_invocation():
 
     response_parser = LLMWorldResponseParser(ParserThatMustNotRun())
 
-    with pytest.raises(LLMExtractionError, match="not permitted"):
+    with pytest.raises(
+        LLMExtractionError, match="require verified rules-engine resolution"
+    ):
         response_parser.parse_operations(
             {"operations": [{
                 "type": "change_character_hp", "entity_id": 12, "amount": -4,
