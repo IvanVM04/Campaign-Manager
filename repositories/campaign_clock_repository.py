@@ -42,4 +42,7 @@ class CampaignClockRepository:
         )
         if cursor.rowcount != 1:
             raise RuntimeError("campaign clock changed; reload before advancing time")
-        return self.get(campaign_id, conn=conn)
+        clock = self.get(campaign_id, conn=conn)
+        if clock is None:
+            raise RuntimeError("campaign clock disappeared after advancing time")
+        return clock
