@@ -8,7 +8,7 @@ pre-durable clients:
 
 - external-turn idempotency and transcript version checks;
 - narrative extraction into typed world/character operations;
-- snapshot-based regeneration reconciliation;
+- snapshot-based regeneration reconciliation using a JSON snapshot stored in `turns.snapshot` (not separate snapshot tables);
 - atomic world mutation and turn persistence;
 - restoration of the shared in-memory world after rollback.
 
@@ -44,13 +44,17 @@ does not receive the adapter or the durable turn service.
   turn record behavior.
 - Rollback restores the original shared `WorldState` object's collections,
   preserving object identity for existing context references.
-- No endpoint payload, persisted JSON, database schema, or active durable
+- No endpoint payload, persisted JSON shape, database schema, or active durable
   lifecycle behavior changes.
 
 ## Retirement policy
 
 This extraction is quarantine, not deletion. Keep the deprecated route and its
 snapshot dependencies until downstream clients have been checked and structured
-usage telemetry shows zero use for an agreed migration window. Retire the route,
-collaborator, snapshot repository usage, and legacy tests in a separate change
-after explicit compatibility sign-off.
+usage telemetry shows zero use for an agreed migration window. Snapshot data is
+stored inline as JSON in the nullable `turns.snapshot` column; `WorldSnapshotRepository`
+reads/writes the campaign's world tables to create or restore that payload, but
+there are no dedicated snapshot tables. Retire the route, collaborator, snapshot
+repository usage and legacy tests in a separate change after explicit compatibility
+sign-off. Handle the `turns.snapshot` column and existing payloads in a separate,
+explicit data-retention migration.
