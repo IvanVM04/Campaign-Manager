@@ -35,17 +35,16 @@ def test_bind_current_runtime_restores_binding_after_exception():
     second = cast(CampaignRuntime, object())
 
     with bind_current_runtime(first):
-        with pytest.raises(ValueError, match="stop"):
-            with bind_current_runtime(second):
-                assert get_current_runtime() is second
-                raise ValueError("stop")
+        with pytest.raises(ValueError, match="stop"), bind_current_runtime(second):
+            assert get_current_runtime() is second
+            raise ValueError("stop")
 
         assert get_current_runtime() is first
 
 
 def test_runtime_proxy_compatibility_exports_are_removed():
     import app
-    import api.runtime_context as runtime_context
+    from api import runtime_context
 
     legacy_names = (
         "campaign_repository",
