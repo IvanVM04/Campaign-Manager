@@ -125,7 +125,8 @@ def test_encounter_api_scopes_encounters_to_campaign(client):
     )
     assert created.status_code == 201
 
-    from app import CampaignRepository
+    from repositories.campaign_repository import CampaignRepository
+
     campaign = CampaignRepository().create_campaign(name="Other campaign")
 
     from fastapi.testclient import TestClient
@@ -228,7 +229,8 @@ def test_encounter_rejects_creature_reference_from_another_campaign(client):
 
     from fastapi.testclient import TestClient
 
-    from app import CampaignRepository, app
+    from app import app
+    from repositories.campaign_repository import CampaignRepository
 
     other_campaign = CampaignRepository().create_campaign(name="NPC isolation")
     other_client = TestClient(app, headers={"X-Campaign-Id": str(other_campaign["id"])})
