@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parents[1] / "scripts" / "ci"))
-
-from coverage_summary import render_markdown, summarize_coverage
+from scripts.ci.coverage_summary import render_markdown, summarize_coverage
 
 
 def test_summarize_coverage_groups_files_by_top_level_package(tmp_path: Path) -> None:
