@@ -53,9 +53,6 @@ def test_e2e_silly_tavern_turn_persists_world_change(
     """
 
     from database import get_conn
-    from operations.world_operations import (
-        CreateEntityOperation,
-    )
     from repositories.campaign_repository import (
         CampaignRepository,
     )
@@ -1180,7 +1177,6 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     import copy
 
     import app
-    from operations.world_operations import CreateEntityOperation
     from services.silly_tavern_integration_service import (
         SillyTavernIntegrationServiceError,
     )
