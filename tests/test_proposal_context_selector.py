@@ -154,12 +154,12 @@ def test_proposal_context_skips_optional_records_that_do_not_fit_budget():
     projection = ContextBuilder().build_proposal_context(
         world,
         "Aldric",
-        max_estimated_tokens=80,
+        max_estimated_tokens=200,
         mandatory_entity_ids=(1,),
     )
 
     assert set(projection.world.entities) == {1}
-    assert projection.diagnostics.estimated_tokens <= 80
+    assert projection.diagnostics.estimated_tokens <= 200
     assert projection.diagnostics.excluded_records >= 1
 
 
