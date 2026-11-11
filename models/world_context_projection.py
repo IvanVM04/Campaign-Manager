@@ -6,18 +6,16 @@ from models.world_state import WorldState
 
 
 def estimate_tokens(text: str) -> int:
-    """Return a conservative, provider-independent token estimate.
+    """Return a conservative upper bound for model tokens.
 
-    Ollama providers do not expose a tokenizer contract through the current
-    provider port. Three UTF-8 bytes per token intentionally errs on the safe
-    side for Spanish and structured JSON. This is a budget estimate, not an
-    exact model-token count.
+    The provider port does not expose the selected model's tokenizer. Counting
+    one token per UTF-8 byte is intentionally pessimistic: a tokenizer may
+    combine bytes into larger tokens, but it cannot require more tokens than
+    input bytes. The value is a budget upper bound, not an exact token count.
     """
     if not isinstance(text, str):
         raise TypeError("text must be a string")
-    if not text:
-        return 0
-    return (len(text.encode("utf-8")) + 2) // 3
+    return len(text.encode("utf-8"))
 
 
 @dataclass(frozen=True, slots=True)
