@@ -270,13 +270,10 @@ class OperationMetadataRegistry:
             "item_id",
             "owner_id",
             "location_id",
-            "new_owner_id",
             "resource_id",
             "subject_id",
             "target_id",
-            "relation_id",
             "amount",
-            "session_id",
         }
 
         for name in selected_names:
@@ -299,14 +296,13 @@ class OperationMetadataRegistry:
             ]
             description = metadata.description.split(". ", maxsplit=1)[0]
             operations[name] = {
-                "description": description[:72],
+                "description": description[:32],
                 "required": ";".join(required),
                 "optional": ";".join(optional),
             }
             if name in {
                 "create_entity",
                 "create_item_instance",
-                "transfer_resource",
                 "create_relation",
                 "create_event",
             }:
