@@ -120,11 +120,26 @@ class ProposalContextSelector:
         candidates: dict[RecordKey, tuple[float, dict[str, Any]]] = {}
         for category in _RECORD_CATEGORIES:
             base_score = ContextRenderer.CATEGORY_BASE_SCORES[category]
-            for record in expanded.get(category, []):
+            # ContextExpander replaces some collections with graph-related
+            # records. Retain direct search hits as well, especially events
+            # and relations whose own text matched but which have no selected
+            # entity edge.
+            category_records = [
+                *search_result.get(category, []),
+                *expanded.get(category, []),
+            ]
+            for record in category_records:
                 if not isinstance(record, dict):
                     continue
                 record_id = record.get("id")
-                if record_id is None or record_id not in record_lookup[category]:
+                if (
+                    record_id is None
+                    or isinstance(record_id, bool)
+                    or not isinstance(record_id, (int, str))
+                    or record_id not in record_lookup[category]
+                ):
+                    continue
+                if category == "events" and record.get("secret") is True:
                     continue
                 key = (category, record_id)
                 score = self.ranker.score_candidate(
