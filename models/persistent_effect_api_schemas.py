@@ -39,10 +39,10 @@ class PersistentEffectCreateIn(BaseModel):
     effect_key: str = Field(..., min_length=1, max_length=80)
     name: str = Field(..., min_length=1, max_length=120)
     description: str = Field(default="", max_length=2000)
-    source_type: EffectSourceInput = "unknown"
+    source_type: EffectSourceInput = EffectSourceInput.UNKNOWN
     source_entity_id: StrictInt | None = Field(default=None, ge=1)
     source_reference: str | None = Field(default=None, min_length=1, max_length=240)
-    duration_type: EffectDurationInput = "permanent"
+    duration_type: EffectDurationInput = EffectDurationInput.PERMANENT
     duration_condition: str | None = Field(default=None, min_length=1, max_length=500)
     duration_minutes: StrictInt | None = Field(default=None, ge=1, le=525600)
     encounter_id: str | None = Field(default=None, min_length=1, max_length=120)

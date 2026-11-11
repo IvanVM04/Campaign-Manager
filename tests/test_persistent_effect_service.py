@@ -422,3 +422,21 @@ def test_encounter_turn_and_round_effects_expire_atomically_with_progression(iso
     round_effect = next(item for item in after_round if item.id == one_round.id)
     assert round_effect.status.value == "expired"
     assert round_effect.expired_at_round == 2
+
+
+def test_persistent_effect_api_schema_uses_enum_defaults():
+    from models.persistent_effect_api_schemas import (
+        EffectDurationInput,
+        EffectSourceInput,
+        EffectTypeInput,
+        PersistentEffectCreateIn,
+    )
+
+    effect = PersistentEffectCreateIn(
+        effect_type=EffectTypeInput.NARRATIVE,
+        effect_key="marked",
+        name="Marcada",
+    )
+
+    assert effect.source_type is EffectSourceInput.UNKNOWN
+    assert effect.duration_type is EffectDurationInput.PERMANENT

@@ -63,7 +63,7 @@ jobs:
           ruff check .
 
   pyright-rules-engine:
-    name: Pyright (rules_engine, bootstrap, operations)
+    name: Pyright (models, rules_engine, bootstrap, operations)
     runs-on: ubuntu-latest
 
     steps:
@@ -83,7 +83,7 @@ jobs:
           pip install "pyright==1.1.414"
 
       - name: Check clean package scopes
-        run: pyright rules_engine bootstrap operations
+        run: pyright models rules_engine bootstrap operations
 
   pyright-baseline:
     runs-on: ubuntu-latest
