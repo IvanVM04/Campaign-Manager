@@ -1105,9 +1105,6 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     recovered_world = service.world_service.repository.load_world(campaign_id=1)
     assert any(entity.name == "Aldric" for entity in recovered_world.entities.values())
 
-
-
-
 def test_native_idempotency_key_rejects_different_player_input():
     service, proposal_calls, narrative_calls = _service_with_fake_models()
     service.play_turn(
