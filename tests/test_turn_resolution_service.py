@@ -1407,9 +1407,11 @@ def test_prepare_turn_builds_bounded_context_for_structured_proposal():
             20: Entity(id=20, name="Fungoso", entity_type="character"),
             21: Entity(id=21, name="Mara", entity_type="npc"),
             22: Entity(id=22, name="Aldric", entity_type="npc"),
+            23: Entity(id=23, name="Mercado", entity_type="location"),
         }
     )
     context = make_turn_context(world=world)
+    context.campaign.current_location_id = 23
     service, _dm, extractor, _applier = make_service(
         context_builder=ContextBuilder(),
         proposal_context_max_tokens=500,
@@ -1423,5 +1425,5 @@ def test_prepare_turn_builds_bounded_context_for_structured_proposal():
 
     projection = extractor.received_projection
     assert projection is not None
-    assert set(projection.world.entities) == {20, 21}
+    assert set(projection.world.entities) == {20, 21, 23}
     assert projection.diagnostics.estimated_tokens <= 500
