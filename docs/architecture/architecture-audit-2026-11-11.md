@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `e07af3d9335cda2b620650f0459c42346143e8f6` (after merge of PR #153).  
+**Audited baseline:** `main` at `5fb9639b9bacb55235a13aece57d6dd6014d8cbc` (after merge of PR #154).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -39,7 +39,7 @@ The package structure is not the same as complete architectural isolation. A num
 The current `services/` tree still contains application-level services outside the eight packages, including:
 
 - `campaign_turn_service.py` — 983-line compatibility implementation, no longer part of the native durable runtime path.
-- `dm_service.py` — narrative generation/orchestration; its boundary relative to turn narration and context needs an explicit review.
+- `DMService` now belongs to `services/turns`; it generates turn narration from injected context and provider collaborators and does not mutate world state.
 - `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
 - `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
 - `PersistentEffectService` and `EffectiveConditionService` now belong to `services/campaign`; persistent effect lifecycle and derived D&D condition projection are kept together without duplicating state.
@@ -58,7 +58,7 @@ PR #149 removes the `RuntimeProxy` class, all module-level service proxies, and 
 
 ### 2.4 Turn lifecycle
 
-The canonical `services/turns` package contains the durable coordinator and extracted collaborators for planning, challenge state/submission, prepared commit, mapping, narration and locking.
+The canonical `services/turns` package contains the durable coordinator and extracted collaborators for planning, challenge state/submission, prepared commit, mapping, narration and locking. `DMService` is now part of this package and owns narrative generation.
 
 Preserve these invariants during future refactors:
 - campaign revision/context checks occur before applying proposed consequences;
@@ -123,7 +123,7 @@ No tests are marked for deletion by this audit alone. A test is removable only w
 The 2026-11-06 audit and root README contain migration statements that no longer match the source tree. This PR corrects the most consequential ones:
 - all eight service packages now contain source modules;
 - the former flat compatibility modules for characters and LLM-world have been removed;
-- the turns package owns the durable lifecycle collaborators; legacy turn services remain outside it;
+- the turns package owns the durable lifecycle collaborators and `DMService`; legacy turn services remain outside it;
 - the proposal builder's dependency on the old prompt builder is still pending, not a completed extraction;
 - the campaign package guide should not refer to an `identity_service.py` module that is absent from the current tree.
 
