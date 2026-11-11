@@ -139,6 +139,8 @@ class DurableTurnNarrationService:
             raise self.error_type(
                 "no durable resolution exists for this external turn"
             )
+        if record is None and previous_turn is None:
+            raise RuntimeError("previous turn is required without a durable resolution")
 
         operation_results = (
             json.loads(record.operation_results_json or "[]")
