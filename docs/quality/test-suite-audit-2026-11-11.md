@@ -102,3 +102,21 @@ Never delete tests to increase a coverage percentage or simply reduce file count
 4. Consider responsibility-based splits for turn resolution, world persistence/application and turn repository tests.
 5. Use package/branch coverage to identify missing critical-path guarantees; keep percentage thresholds report-only until a no-regression policy is justified.
 6. Reassess tiny tests only after their protected contracts are clearly mapped; move/rename rather than delete when still valid.
+
+
+## Revalidation after PR #193 — 2026-11-12
+
+PR #193 reorganizes test navigation only; it does not change runtime behavior or delete coverage.
+
+- The former `tests/test_llm_world_extractor.py` is split into:
+  - `test_llm_world_legacy_extraction.py`: 30 tests for the legacy narrative-first extraction contract, prompt rendering, response parsing and operation parsing.
+  - `test_llm_world_proposals.py`: 6 tests for player-intent proposals, confirmed mechanics formatting, secret-event exclusion and bounded repair.
+- The former `tests/test_silly_tavern_lifecycle.py` is split into:
+  - `test_silly_tavern_regeneration.py`: 3 tests for snapshot regeneration and previous-version state.
+  - `test_silly_tavern_retry_idempotency.py`: 5 tests for exact retries, version conflicts, concurrent retries and initial version rules.
+  - `test_silly_tavern_transactional_lifecycle.py`: 8 tests for state persistence, rollback, restart and context integration.
+- All 52 original test functions are retained; shared imports/fixtures remain unchanged in each new module. No assertion is intentionally removed.
+- Repository search found no imports of either old test module from other source/test modules. Pytest discovers the new modules by their `test_*.py` names.
+- The split creates stable regression boundaries for a later behavior-preserving decomposition of the 46,851-character legacy prompt. That prompt source is deliberately unchanged in this PR.
+
+**Validation note:** source-level inventory confirms 36 extractor tests plus 16 lifecycle tests were carried forward. CI must verify collection, Ruff/import hygiene, deterministic tests, Pyright and CodeQL before merge. This structural change has not been represented as locally executed test coverage.
