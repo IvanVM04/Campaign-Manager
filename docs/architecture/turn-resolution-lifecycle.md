@@ -136,5 +136,5 @@ Each implementation PR must include failure-injection tests for its boundary and
 - No new generic workflow engine, message broker, event-sourcing framework, or distributed lock.
 - No multi-worker deployment enablement.
 - No VTT/UI work.
-- No wholesale rewrite of `CampaignTurnService`, `TurnResolutionService`, or SillyTavern integration.
+- No wholesale rewrite of `TurnResolutionService` or SillyTavern integration.
 - No silent change to external turn identity, regeneration semantics, or historical turn records.
