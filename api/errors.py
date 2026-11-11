@@ -45,7 +45,7 @@ def api_error_for_exception(
     orchestration wrappers do not hide provider or model-response failures.
     """
     from services.llm_world import LLMExtractionError
-    from services.mechanics_adjudicator import MechanicsAdjudicatorError
+    from services.turns.mechanics_adjudicator import MechanicsAdjudicatorError
     from services.providers import LLMProviderError
     from services.turns.turn_resolution_service import TurnResolutionServiceError
 
