@@ -3,11 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from api.errors import api_error_for_exception
-from api.runtime_context import (
-    get_current_runtime,
-    silly_tavern_integration_service,
-    turn_execution_lock,
-)
+from api.runtime_context import get_current_runtime
 from api.serializers import serialize_operation_result
 from models.schemas import (
     SillyTavernClarificationIn,
@@ -41,7 +37,7 @@ def get_silly_tavern_context(
     """
 
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             result = (
                 silly_tavern_integration_service
                 .get_context(
@@ -79,7 +75,7 @@ def get_silly_tavern_turn_state(
     """
 
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             result = (
                 silly_tavern_integration_service
                 .get_external_turn_state(
@@ -143,7 +139,7 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
                 external_turn_id=data.external_turn_id,
                 dice_mode=data.dice_mode,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
+            context_result = runtime.get_current_runtime().silly_tavern_integration_service.get_context(
                 data.query,
                 exclude_external_turn_id=data.external_turn_id,
             )
@@ -201,7 +197,7 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
                 adapter_namespace="sillytavern", defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(data.query)
+            context_result = runtime.get_current_runtime().silly_tavern_integration_service.get_context(data.query)
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
@@ -238,7 +234,7 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
                 defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
+            context_result = runtime.get_current_runtime().silly_tavern_integration_service.get_context(
                 data.query,
             )
     except DurableNativeTurnError as exc:
@@ -289,7 +285,7 @@ def process_silly_tavern_turn(data: SillyTavernTurnIn):
         },
     )
     try:
-        result = runtime.silly_tavern_integration_service.process_turn(
+        result = runtime.get_current_runtime().silly_tavern_integration_service.process_turn(
             player_input=data.player_input,
             narrative=data.narrative,
             external_turn_id=data.external_turn_id,
