@@ -16,7 +16,6 @@ This document is the source of truth for which turn pipeline owns each entry poi
 | `GET /integration/turn/{external_turn_id}/clarification` and `/manual-roll` | `DurableNativeTurnService` | Active | Reads durable challenge state |
 | `POST /integration/context` | `SillyTavernIntegrationService.get_context()` | Active | Builds campaign context/history for the external client |
 | `POST /integration/turn` | `SillyTavernIntegrationService.process_turn()` | Deprecated compatibility | Legacy narrative-first extraction and snapshot reconciliation; weaker guarantees and a separate mutation path |
-| In-process `CampaignTurnService.play_turn()` / `submit_manual_roll()` | `CampaignTurnService` | Compatibility-only | Not used by the native HTTP route; retained for older in-process callers and regression coverage |
 
 ## Active SillyTavern contract
 
@@ -27,7 +26,6 @@ The current extension calls `/integration/turn/resolve` before generation and `/
 ## Compatibility and deprecation policy
 
 - `POST /integration/turn` is marked deprecated in OpenAPI and emits a structured warning for each request, including campaign ID and external turn ID. This is usage telemetry, not a hard cutoff.
-- `CampaignTurnService` remains in the runtime graph for compatibility, but its public turn-execution methods emit structured warnings. No new gameplay behavior should be implemented there.
 - No removal date is set. Do not remove either compatibility surface until downstream/in-process callers have been checked and observed usage is zero for an agreed migration window.
 - Keep the old snapshot repository and legacy reconciliation code while the legacy endpoint remains supported. Do not route the active durable flow through snapshot restoration.
 - The compatibility endpoint must not be presented as equivalent to the durable flow. Its successful response does not prove that it has the same commit-before-narration, challenge-recovery or no-replay guarantees.
@@ -42,13 +40,12 @@ The current extension calls `/integration/turn/resolve` before generation and `/
 
 ## Removal prerequisites
 
-Before deleting `POST /integration/turn`, `SillyTavernIntegrationService.process_turn()`, `CampaignTurnService` or snapshot reconciliation:
+Before deleting `POST /integration/turn`, `SillyTavernIntegrationService.process_turn()` or snapshot reconciliation:
 
 - inspect release/deployment notes and any external extension forks or scripts;
 - inspect structured warning logs over a documented migration window;
 - confirm the current extension and any supported clients use only the durable endpoints;
-- identify and migrate any in-process imports of `CampaignTurnService` and its compatibility proxy;
 - preserve existing campaign history; do not run a destructive data migration as part of endpoint retirement;
 - remove code and tests in a separate PR after explicit compatibility sign-off.
 
-This PR does not remove legacy data, snapshots, routes or services. It makes the active and compatibility boundaries explicit and observable first.
+The `CampaignTurnService` compatibility implementation has since been removed after a repository-wide consumer audit. This document now tracks only the still-supported SillyTavern compatibility route and snapshot reconciliation.

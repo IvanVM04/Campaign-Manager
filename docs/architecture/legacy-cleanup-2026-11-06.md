@@ -19,13 +19,13 @@ This inventory separates confirmed dead code from compatibility code that still 
 - The LLM provider boundary is now a real package: `llm_provider.py`, `ollama_provider.py`, `fake_llm_provider.py`, and `llm_settings.py` moved into `services/providers/`. Production and test imports now use `services.providers`; the old flat modules were removed without changing provider behavior.
 - `PersistentEffectService` and `EffectiveConditionService` moved into `services/campaign/`; all runtime and test imports use the canonical package. The old flat modules were removed after checking their in-repository consumers; effect persistence and condition projection behavior are unchanged.
 - `DMService` moved into `services/turns/`; runtime and tests now use the canonical turn package. The old `services/dm_service.py` module was removed after migrating all in-repository consumers; narrative generation behavior is unchanged.
+- `CampaignTurnService` and `tests/test_campaign_turn_service.py` were removed together after repository-wide search confirmed no production or runtime-composition consumers. Its compatibility-only turn path had already been superseded by `DurableNativeTurnService`; the runtime assertion that no `campaign_turn_service` is exposed remains covered in `tests/test_app.py`.
 
 ## Still legacy, but not dead
 
 | Area | Why it remains | Deletion gate |
 |---|---|---|
 | Remaining flat service re-export modules | A smaller set of compatibility modules still exists; not all have been migrated | Repeat the consumer audit per module, migrate production and test imports, verify repository-wide references and CI, then remove each shim |
-| `CampaignTurnService` | No longer constructed by the app/runtime composition or exposed through app proxies; retained only as an isolated compatibility implementation with direct unit tests | Confirm no external in-process consumers, then remove the implementation and its dedicated tests |
 | `POST /integration/turn` and `LegacySillyTavernTurnService` | Deprecated route still dispatches to the legacy service | Observe zero usage for an agreed window and confirm supported extension clients have migrated |
 | `WorldSnapshotRepository` and snapshot tables | Used by legacy SillyTavern transcript reconciliation and covered by tests | Retire the legacy route first; preserve existing user data and provide a deliberate migration before dropping tables |
 | Remaining runtime proxies and legacy app exports | Other historical service proxies remain exposed for routers/tests | Migrate each consumer to explicit request/runtime dependencies, then remove the proxy and exports with regression coverage |

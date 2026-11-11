@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `5fb9639b9bacb55235a13aece57d6dd6014d8cbc` (after merge of PR #154).  
+**Audited baseline:** `main` at `248925293b46d37c97e29a32b8cd97f12443a676` (after merge of PR #155).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -38,7 +38,6 @@ The package structure is not the same as complete architectural isolation. A num
 
 The current `services/` tree still contains application-level services outside the eight packages, including:
 
-- `campaign_turn_service.py` — 983-line compatibility implementation, no longer part of the native durable runtime path.
 - `DMService` now belongs to `services/turns`; it generates turn narration from injected context and provider collaborators and does not mutate world state.
 - `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
 - `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
@@ -54,7 +53,7 @@ The request-scoped runtime is now exposed only through `get_current_runtime()`. 
 
 PR #149 removes the `RuntimeProxy` class, all module-level service proxies, and their re-exports from `app.py`. The routers already use request-bound runtime access; repository code search found no remaining direct consumers of the proxy names. Tests now cover unbound access, nested bindings and restoration after exceptions. Runtime composition remains in `bootstrap/campaign_runtime.py` and `app.py`; routers must not construct runtimes.
 
-`CampaignTurnService` has been removed from active runtime composition but its implementation remains in the repository. Treat its removal as a separate compatibility decision, not part of deleting RuntimeProxy.
+`CampaignTurnService` and its dedicated tests have now been removed. Repository-wide source search found no production consumers; the active native workflow remains `DurableNativeTurnService`.
 
 ### 2.4 Turn lifecycle
 

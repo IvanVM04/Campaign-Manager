@@ -17,7 +17,6 @@ MIGRATED_PRODUCTION_MODULES = (
     "services/llm_world/operation_parser.py",
     "services/campaign/persistent_effect_service.py",
     "services/campaign/effective_condition_service.py",
-    "services/campaign_turn_service.py",
     "services/turns/durable_native_turn_service.py",
     "services/legacy_silly_tavern_turn_service.py",
     "services/silly_tavern_integration_service.py",
@@ -26,6 +25,7 @@ MIGRATED_PRODUCTION_MODULES = (
 
 LEGACY_IMPORTS = {
     "services.campaign_runtime",
+    "services.campaign_turn_service",
     "services.campaign_state_service",
     "services.character_applier",
     "services.character_service",
@@ -128,3 +128,7 @@ def test_removed_effect_service_compatibility_modules_are_absent():
 
 def test_removed_dm_service_compatibility_module_is_absent():
     assert not (ROOT / "services" / "dm_service.py").exists()
+
+
+def test_removed_campaign_turn_service_module_is_absent():
+    assert not (ROOT / "services" / "campaign_turn_service.py").exists()
