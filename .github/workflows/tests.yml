@@ -62,6 +62,68 @@ jobs:
         run: |
           ruff check .
 
+  pyright-baseline:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install application dependencies and Pyright
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "pyright==1.1.414"
+
+      - name: Collect Pyright baseline
+        run: |
+          set +e
+          pyright --outputjson > pyright-report.json
+          status=$?
+          set -e
+          if [ "$status" -gt 1 ]; then
+            cat pyright-report.json
+            exit "$status"
+          fi
+          python - <<'PY'
+          import json
+          import os
+          from collections import Counter
+
+          with open("pyright-report.json", encoding="utf-8") as report_file:
+              report = json.load(report_file)
+
+          diagnostics = report.get("generalDiagnostics", [])
+          counts = Counter(item.get("severity", "unknown") for item in diagnostics)
+          summary = (
+              "## Pyright baseline (informational)\n\n"
+              f"- Diagnostics: {len(diagnostics)}\n"
+              f"- Errors: {counts.get('error', 0)}\n"
+              f"- Warnings: {counts.get('warning', 0)}\n"
+              f"- Information: {counts.get('information', 0)}\n"
+              "\nFull diagnostics are available in the pyright-baseline artifact.\n"
+          )
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+              output.write(summary)
+          print(summary)
+          PY
+
+      - name: Upload Pyright baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyright-baseline
+          path: pyright-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   test-js:
     runs-on: ubuntu-latest
 
