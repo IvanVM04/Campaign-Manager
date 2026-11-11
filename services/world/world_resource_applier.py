@@ -188,8 +188,8 @@ class WorldResourceApplier:
 
         balance = self._find_balance(
             world,
-            operation.resource_id,
-            operation.owner_id,
+            cast(int, operation.resource_id),
+            cast(int, operation.owner_id),
         )
 
         if balance is None:
