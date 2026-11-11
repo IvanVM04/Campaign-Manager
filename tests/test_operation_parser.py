@@ -10,7 +10,7 @@ from operations.world_operations import (
     UpdateEntityOperation,
     UpdateRelationOperation,
 )
-from services.operation_parser import OperationParseError, OperationParser
+from services.llm_world.operation_parser import OperationParseError, OperationParser
 
 
 def test_operation_parser_normalizes_update_entity_id_from_string():
