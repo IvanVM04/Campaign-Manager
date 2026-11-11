@@ -5,7 +5,7 @@ from models.persistent_effect import EffectStatus, EffectType
 from repositories.campaign_repository import CampaignRepository
 from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
-from services.persistent_effect_service import PersistentEffectService
+from services.campaign import PersistentEffectService
 
 
 def build_service(campaign_id=1):
