@@ -8,6 +8,11 @@ from .llm_world_proposal_prompt_builder import LLMWorldProposalPromptBuilder
 from .llm_world_proposal_validator import LLMWorldProposalValidator
 from .llm_world_response_parser import LLMWorldResponseParser
 from .operation_parser import OperationParseError, OperationParser
+from .operation_registry import (
+    DEFAULT_OPERATION_REGISTRY,
+    OperationMetadata,
+    OperationMetadataRegistry,
+)
 
 __all__ = [
     "LLMExtractionError",
@@ -19,4 +24,7 @@ __all__ = [
     "LLMWorldResponseParser",
     "OperationParseError",
     "OperationParser",
+    "OperationMetadata",
+    "OperationMetadataRegistry",
+    "DEFAULT_OPERATION_REGISTRY",
 ]

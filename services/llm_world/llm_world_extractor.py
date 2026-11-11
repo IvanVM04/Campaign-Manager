@@ -62,6 +62,7 @@ class LLMWorldExtractor:
 
         self.provider = provider
         self.operation_parser = operation_parser
+        self.operation_registry = getattr(operation_parser, "registry", None)
         if isinstance(max_prompt_tokens, bool) or not isinstance(max_prompt_tokens, int) or max_prompt_tokens <= 0:
             raise ValueError("max_prompt_tokens must be a positive integer")
         self.max_prompt_tokens = max_prompt_tokens
@@ -75,6 +76,7 @@ class LLMWorldExtractor:
             parse_operations=self._parse_operations,
             max_response_chars=max_response_chars,
             max_repair_prompt_tokens=max_repair_prompt_tokens,
+            operation_registry=self.operation_registry,
         )
 
     def _provide(self, prompt: str) -> str:
@@ -192,6 +194,7 @@ class LLMWorldExtractor:
             mechanics_result=mechanics_result,
             projection=context_projection,
             allowed_operation_types=allowed_operation_types,
+            operation_registry=self.operation_registry,
             max_prompt_tokens=self.max_prompt_tokens,
         )
         prompt_estimated_tokens = estimate_tokens(prompt)

@@ -7,6 +7,7 @@ from models.world_context_projection import WorldContextProjection, estimate_tok
 
 from .llm_extraction_errors import LLMExtractionError
 from .llm_world_context_renderer import LLMWorldContextRenderer
+from .operation_registry import OperationMetadataRegistry
 
 
 class LLMWorldProposalPromptBuilder:
@@ -22,6 +23,7 @@ class LLMWorldProposalPromptBuilder:
         mechanics_result: Any = None,
         projection: WorldContextProjection | None = None,
         allowed_operation_types: tuple[str, ...] = (),
+        operation_registry: OperationMetadataRegistry | None = None,
         max_prompt_tokens: int = DEFAULT_MAX_PROMPT_TOKENS,
     ) -> str:
         """Build a bounded proposal prompt without invoking provider or parser."""
@@ -84,8 +86,14 @@ class LLMWorldProposalPromptBuilder:
             + dynamic_context
             + (
                 "\n\nTIPOS DE OPERACIÓN PERMITIDOS\n"
-                + ", ".join(allowed_operation_types)
-                if allowed_operation_types
+                + (
+                    operation_registry.render_prompt_contract(
+                        allowed_operation_types or None
+                    )
+                    if operation_registry is not None
+                    else ", ".join(allowed_operation_types)
+                )
+                if operation_registry is not None or allowed_operation_types
                 else ""
             )
             + (
