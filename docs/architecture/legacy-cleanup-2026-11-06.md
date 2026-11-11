@@ -19,6 +19,7 @@ This inventory separates confirmed dead code from compatibility code that still 
 - The LLM provider boundary is now a real package: `llm_provider.py`, `ollama_provider.py`, `fake_llm_provider.py`, and `llm_settings.py` moved into `services/providers/`. Production and test imports now use `services.providers`; the old flat modules were removed without changing provider behavior.
 - `PersistentEffectService` and `EffectiveConditionService` moved into `services/campaign/`; all runtime and test imports use the canonical package. The old flat modules were removed after checking their in-repository consumers; effect persistence and condition projection behavior are unchanged.
 - `DMService` moved into `services/turns/`; runtime and tests now use the canonical turn package. The old `services/dm_service.py` module was removed after migrating all in-repository consumers; narrative generation behavior is unchanged.
+- `CampaignTurnService` and `tests/test_campaign_turn_service.py` were removed together after repository-wide search confirmed no production or runtime-composition consumers. Its compatibility-only turn path had already been superseded by `DurableNativeTurnService`; the runtime assertion that no `campaign_turn_service` is exposed remains covered in `tests/test_app.py`.
 
 ## Still legacy, but not dead
 
