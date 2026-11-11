@@ -2,19 +2,24 @@
 
 ## Ownership
 
-- `LLMWorldProposalPromptBuilder` renders player-intent proposal instructions from `LLMWorldContextRenderer` output.
-- `LLMWorldExtractor.propose()` validates input, invokes the provider and coordinates proposal parsing/validation.
-- `LLMWorldProposalValidator` validates proposed operations and performs at most one schema-aware repair.
-- `LLMWorldResponseParser` decodes provider JSON and validates typed world-operation results.
-- `TurnResolutionService` selects the proposal path for durable turns and remains the orchestration boundary for future context projection.
+- `TurnResolutionService` selects the structured proposal path for durable turns and owns orchestration of the context projection.
+- `ContextBuilder.build_proposal_context()` uses the generic context search/expansion/ranking pipeline and returns a typed `models.world_context_projection.WorldContextProjection`.
+- `LLMWorldProposalPromptBuilder` renders static proposal instructions with the selected projection, allowed operation types and confirmed mechanics.
+- `LLMWorldExtractor.propose()` validates input, invokes the provider, records size/selection diagnostics and coordinates parsing/validation.
+- `OperationParser.model_proposable_operation_types()` exposes the public sorted allowlist. The parser still performs structural normalization; domain and permission validation remain in the world application layer.
+- `LLMWorldProposalValidator` caps output size and performs at most one compact bounded repair.
 
 ## Contracts and invariants
 
 - Prompt construction does not invoke the provider or parse operations.
-- PR #161 removed the proposal builder's dependency on the legacy prompt builder and its marker-based text extraction.
-- The active durable turn path uses `proposal_from_intent=True`; player intent is untrusted input, not confirmed narrative.
+- PR #161 removed the proposal builder's dependency on the legacy narrative-extraction prompt and marker-based text extraction.
+- The active durable turn path passes `proposal_from_intent=True`; player intent is untrusted input, not confirmed narrative.
+- The active path selects world records by intent and expands them through relevant relationships. Required entity/item/resource dependencies travel with their parent records.
+- The active character entity is mandatory. If mandatory facts cannot fit the context budget, planning fails closed rather than silently dropping them.
+- Secret events remain excluded. The selected projection is detached from the runtime world; it never mutates canonical state.
+- The shared estimator is a pessimistic one-UTF-8-byte-per-token upper bound because the provider contract has no tokenizer method. The complete rendered prompt has a separate upper bound.
 - Confirmed mechanics are included only when supplied by the deterministic engine.
-- Model output remains an untrusted proposal; parsing and semantic application are separate authorities.
-- The proposal path currently renders all known world collections through `LLMWorldContextRenderer` and does not yet apply relevance ranking or a size budget.
-- Do not import `services.context` from `services.llm_world`; pass a typed projection from the turn/application boundary to preserve the dependency matrix.
-- Proposal validation and its single repair attempt remain owned by `LLMWorldProposalValidator`.
+- The model-proposable type list excludes character-state operations; the deterministic rules/application pipeline remains authoritative.
+- Model output remains an untrusted proposal. Parsing, semantic validation and mutation are separate authorities.
+- The repair request never resends the full world prompt. It includes a bounded error and bounded invalid-response excerpt and is limited to one attempt.
+- Do not import `services.context` from `services.llm_world`; the turn/application boundary passes the shared typed projection.
