@@ -1,5 +1,7 @@
 """Regression tests for the legacy narrative prompt decomposition."""
 
+from __future__ import annotations  # noqa: I001
+
 import hashlib
 from unittest.mock import patch
 
