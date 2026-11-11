@@ -16,24 +16,9 @@ from api.routers.system import router as system_router
 from api.routers.turns import _serialize_mechanics_result
 from api.routers.turns import router as turns_router
 from api.routers.world import router as world_router
-from api.runtime_context import (
-    _current_runtime,
-    campaign_repository,
-    campaign_state_service,
-    character_creation_service,
-    character_repository,
-    combat_encounter_service,
-    context_builder,
-    entity_repository,
-    memory_search_service,
-    silly_tavern_integration_service,
-    turn_execution_lock,
-    turn_repository,
-    world_service,
-)
+from api.runtime_context import bind_current_runtime
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from database import init_db
-from repositories.campaign_repository import CampaignRepository
 from services.context import ContextBuilder
 from services.memory_search_service import MemorySearchService
 from services.providers import LLMSettings
@@ -81,7 +66,6 @@ def create_context_builder(
     )
 
 
-
 runtime_factory = CampaignRuntimeFactory(llm_settings=DEFAULT_LLM_SETTINGS)
 
 
@@ -124,11 +108,8 @@ async def bind_campaign_runtime(request: Request, call_next):
             detail="campaign does not exist",
         )
 
-    token = _current_runtime.set(runtime)
-    try:
+    with bind_current_runtime(runtime):
         return await call_next(request)
-    finally:
-        _current_runtime.reset(token)
 
 
 app.include_router(system_router)
@@ -144,25 +125,10 @@ app.include_router(effects_router)
 app.include_router(clock_router)
 
 
-# Keep these names available while downstream tests and integrations migrate
-# from the historical app-module service proxies to request-scoped access.
 __all__ = [
-    "CampaignRepository",
     "_serialize_mechanics_result",
     "app",
-    "campaign_repository",
-    "campaign_state_service",
-    "character_creation_service",
-    "character_repository",
-    "combat_encounter_service",
-    "context_builder",
     "create_context_builder",
     "create_world_service",
-    "entity_repository",
-    "memory_search_service",
     "runtime_factory",
-    "silly_tavern_integration_service",
-    "turn_execution_lock",
-    "turn_repository",
-    "world_service",
 ]
