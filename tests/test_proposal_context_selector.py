@@ -212,3 +212,68 @@ def test_estimated_token_budget_uses_a_conservative_utf8_byte_upper_bound():
     assert estimate_tokens("abc") == 3
     assert estimate_tokens("áé") == len("áé".encode())
     assert estimate_tokens("") == 0
+
+
+def test_proposal_context_keeps_direct_event_and_relation_search_hits():
+    world = WorldState(
+        entities={
+            40: Entity(id=40, name="Reina", entity_type="npc"),
+            41: Entity(id=41, name="Embajador", entity_type="npc"),
+        },
+        relations={
+            "crown-treaty": Relation(
+                id="crown-treaty",
+                subject_id=40,
+                relation_type="Tratado de la Corona",
+                target_id=41,
+                active=True,
+            )
+        },
+        events={
+            "glass-festival": Event(
+                id="glass-festival",
+                event_type="festival",
+                title="Festival del Cristal",
+                description="Una celebración en la ciudad.",
+                metadata={},
+            )
+        },
+    )
+
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Festival del Cristal y Tratado de la Corona",
+        max_estimated_tokens=2000,
+    )
+
+    assert "glass-festival" in projection.world.events
+    assert "crown-treaty" in projection.world.relations
+    assert set(projection.world.entities) == {40, 41}
+
+
+def test_proposal_context_never_selects_secret_events_from_search_hits():
+    world = WorldState(
+        events={
+            "public": Event(
+                id="public",
+                event_type="rumor",
+                title="Rumor del puerto",
+                description="Se habla de barcos.",
+            ),
+            "secret": Event(
+                id="secret",
+                event_type="secret",
+                title="Rumor del puerto",
+                description="La flota está aliada con el culto.",
+                secret=True,
+            ),
+        }
+    )
+
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Rumor del puerto",
+        max_estimated_tokens=2000,
+    )
+
+    assert set(projection.world.events) == {"public"}
