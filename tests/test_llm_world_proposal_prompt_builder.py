@@ -25,6 +25,7 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
         "known_items": "- ID 3: Espada",
         "known_item_instances": "- ID 9: Espada (owner_id=1)",
         "known_resources": "- ID 2: Oro",
+        "known_resource_balances": "- ID 10: 80 mo de Oro",
         "known_relations": "- Aldric pertenece a la guardia",
         "known_events": "- ID 4: Llegada a la ciudad",
     }
