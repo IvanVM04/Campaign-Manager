@@ -98,10 +98,16 @@ class CombatAttackService:
                 attacker = encounter.combatants.get(attacker_combatant_id)
                 if attacker is None:
                     raise ValueError("opportunity attacker is not part of this encounter")
-                if attacker.combatant_id == encounter.active_combatant.combatant_id:
+                active_combatant = encounter.active_combatant
+                if active_combatant is None:
+                    raise ValueError("opportunity attack requires an active combatant")
+                if attacker.combatant_id == active_combatant.combatant_id:
                     raise ValueError("the active combatant cannot make an opportunity attack against itself")
                 if attacker.reaction_used:
                     raise ValueError("this combatant has already used its reaction")
+                previous_position = mover_previous_position
+                if previous_position is None:
+                    raise ValueError("opportunity attacks require the mover's previous position")
             else:
                 if attacker_combatant_id is not None or mover_previous_position is not None:
                     raise ValueError("movement context is only valid for an opportunity attack")
@@ -128,11 +134,11 @@ class CombatAttackService:
                 if attacker.position_x is None or attacker.position_y is None:
                     raise ValueError("opportunity attacker has no persisted tactical position")
                 mover_next_position = GridPosition(target.position_x, target.position_y)
-                if grid_distance_feet(mover_previous_position, mover_next_position) != 5:
+                if grid_distance_feet(previous_position, mover_next_position) != 5:
                     raise ValueError("opportunity attack movement must be one adjacent square")
                 if not provokes_opportunity_attack(
                     attacker_position=GridPosition(attacker.position_x, attacker.position_y),
-                    mover_previous_position=mover_previous_position,
+                    mover_previous_position=previous_position,
                     mover_next_position=mover_next_position,
                     reach_feet=reach_feet,
                     voluntary=voluntary,
@@ -145,7 +151,7 @@ class CombatAttackService:
                 target_within_5_feet = (
                     grid_distance_feet(
                         GridPosition(attacker.position_x, attacker.position_y),
-                        mover_previous_position,
+                        previous_position,
                     ) <= 5
                 )
             if dice_mode not in ("automatic", "manual"):
@@ -305,6 +311,8 @@ class CombatAttackService:
                         raise ValueError("opportunity attacks require a melee weapon or natural attack")
                     expected_reach = 10 if WeaponProperty.REACH in weapon.properties else 5
                 else:
+                    if profile is None:
+                        raise RuntimeError("natural attack profile is missing")
                     expected_reach = profile.reach_feet
                 if reach_feet != expected_reach:
                     raise ValueError("reach_feet must match the selected attack profile's reach")
@@ -316,6 +324,8 @@ class CombatAttackService:
                 raise ValueError("weapon does not have the versatile property")
 
             if profile is None:
+                if weapon is None:
+                    raise RuntimeError("weapon attack profile cannot be derived without a weapon")
                 profile = derive_attack_profile(
                     character,
                     weapon,
