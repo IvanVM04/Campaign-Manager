@@ -29,13 +29,12 @@ from services.combat import (
     WeaponEquipmentService,
 )
 from services.context import ContextBuilder, MemorySearchService
-from services.dm_service import DMService
 from services.llm_world import LLMWorldExtractor, OperationParser
 from services.providers import LLMSettings
 from services.silly_tavern_integration_service import (
     SillyTavernIntegrationService,
 )
-from services.turns import MechanicsAdjudicator, TurnExecutionLock
+from services.turns import DMService, MechanicsAdjudicator, TurnExecutionLock
 from services.turns.durable_native_turn_service import DurableNativeTurnService
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldService

@@ -22,9 +22,8 @@ from services.campaign_turn_service import (
     CampaignTurnService,
     CampaignTurnServiceError,
 )
-from services.dm_service import DMService
 from services.llm_world import LLMWorldExtractor
-from services.turns import TurnExecutionLock
+from services.turns import DMService, TurnExecutionLock
 from services.turns.turn_resolution_service import (
     TurnResolutionService,
     TurnResolutionServiceError,

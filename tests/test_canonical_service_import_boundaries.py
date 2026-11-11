@@ -12,7 +12,7 @@ MIGRATED_PRODUCTION_MODULES = (
     "app.py",
     "api/errors.py",
     "bootstrap/campaign_runtime.py",
-    "services/dm_service.py",
+    "services/turns/dm_service.py",
     "services/turns/mechanics_adjudicator.py",
     "services/llm_world/operation_parser.py",
     "services/campaign/persistent_effect_service.py",
@@ -39,6 +39,7 @@ LEGACY_IMPORTS = {
     "services.context_renderer",
     "services.memory_search_service",
     "services.mechanics_adjudicator",
+    "services.dm_service",
     "services.operation_parser",
     "services.persistent_effect_service",
     "services.effective_condition_service",
@@ -123,3 +124,7 @@ def test_removed_operation_parser_compatibility_module_is_absent():
 def test_removed_effect_service_compatibility_modules_are_absent():
     assert not (ROOT / "services" / "persistent_effect_service.py").exists()
     assert not (ROOT / "services" / "effective_condition_service.py").exists()
+
+
+def test_removed_dm_service_compatibility_module_is_absent():
+    assert not (ROOT / "services" / "dm_service.py").exists()

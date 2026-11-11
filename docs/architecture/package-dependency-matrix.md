@@ -25,7 +25,7 @@ The rules engine remains independent of API, database, repositories, LLM provide
 | `context` | `services.world` serialization/projection | API, bootstrap, campaign, characters, combat, llm_world, providers, turns |
 | `llm_world` | None; provider invocation is injected at its application boundary | API, bootstrap, database, repositories, campaign, characters, combat, context, providers, turns, world |
 | `providers` | None; this is an adapter/port boundary | API, bootstrap, database, models, operations, repositories, rules_engine and service packages |
-| `turns` | `services.world`, `services.llm_world`, `services.context` and `services.providers` for planning/adjudication; root `DMService` remains injected at the turn-resolution boundary | API and bootstrap |
+| `turns` | `services.world`, `services.llm_world`, `services.context` and `services.providers` for planning, adjudication and narration | API and bootstrap |
 | `world` | `services.characters` for typed character application | API, bootstrap, campaign, combat, context, llm_world, providers, turns |
 
 The matrix is a set of enforced prohibitions, not a claim that every allowed edge is currently used. In particular, a package's permission to import a shared layer does not authorize bypassing its public contracts or transaction ownership.
@@ -34,7 +34,8 @@ The matrix is a set of enforced prohibitions, not a claim that every allowed edg
 
 - `bootstrap/campaign_runtime.py` is the composition root and may wire capability packages together.
 - `api/routers/` obtains the request-scoped runtime and translates HTTP input/output; it does not compose services.
-- Root-level application services such as `DMService` and SillyTavern adapters remain outside the eight-package matrix until their ownership is decided.
+- `DMService` belongs to `services/turns`; it owns narrative generation for a turn and consumes context/provider collaborators without applying world mutations.
+- SillyTavern adapters remain outside the eight-package matrix because they bridge the external transcript protocol and legacy route.
 - `PersistentEffectService` and `EffectiveConditionService` belong to `services/campaign`; the first owns persisted campaign-effect lifecycle and the second derives effective D&D conditions without storing duplicate state.
 - `OperationParser` belongs to `services/llm_world`; it performs structural decoding only. LLM-specific allowlisting remains in the proposal validator, while semantic validation and mutation remain in `services/world`.
 - `MechanicsAdjudicator` belongs to `services/turns`; it proposes and validates structured mechanics decisions but leaves dice rolls and consequences to deterministic turn/rules services.
