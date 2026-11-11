@@ -93,10 +93,12 @@ def render_markdown(stats: list[CoverageStats]) -> str:
     )
     lines.extend(
         [
-            f"| **Total** | **{total_lines_covered}/{total_lines_valid}** "
-            f"| **{total_line_percent:.1f}%** "
-            f"| **{total_branches_covered}/{total_branches_valid}** "
-            f"| **{total_branch_percent}** |",
+            (
+                f"| **Total** | **{total_lines_covered}/{total_lines_valid}** "
+                f"| **{total_line_percent:.1f}%** "
+                f"| **{total_branches_covered}/{total_branches_valid}** "
+                f"| **{total_branch_percent}** |"
+            ),
             "",
             "_Report only: these figures do not impose a coverage threshold._",
         ]
