@@ -38,7 +38,7 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [x] Move non-persistent turn planning and plan application into the canonical turns package, retaining the legacy import path only where a verified caller remains.
 - [ ] Replace exception-message matching for lifecycle/error codes with typed errors and explicit transition reasons.
 - [x] Add focused recovery tests for expired planning leases, late-worker fencing, and retry after an unexpected planning failure across a fresh runtime.
-- [ ] Split the large SillyTavern integration tests by durable API, adapter behavior and legacy compatibility without reducing coverage.
+- [x] Split the former monolithic SillyTavern integration test module into schema, API, service, lifecycle and regeneration-failure modules without reducing assertions (PR #186). The remaining lifecycle module is still large; its next split is tracked in the test-suite audit.
 - [x] Remove CampaignTurnService from runtime composition and delete the isolated compatibility implementation after confirming no production consumers remain.
 - [ ] Keep the deprecated narrative-first route gated by observed usage and downstream compatibility checks.
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
