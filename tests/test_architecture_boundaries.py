@@ -85,6 +85,7 @@ PACKAGE_FORBIDDEN_IMPORTS = {
         "services.campaign",
         "services.characters",
         "services.combat",
+        "services.memory_search_service",
         "services.llm_world",
         "services.providers",
         "services.turns",
