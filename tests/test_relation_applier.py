@@ -7,7 +7,7 @@ from operations.world_operations import (
     CreateRelationOperation,
     UpdateRelationOperation,
 )
-from services.operation_parser import OperationParseError, OperationParser
+from services.llm_world.operation_parser import OperationParseError, OperationParser
 from services.world import WorldApplier
 
 

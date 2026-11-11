@@ -5,7 +5,7 @@ from operations.world_operations import (
     CreateItemInstanceOperation,
     CreateItemOperation,
 )
-from services.operation_parser import OperationParser
+from services.llm_world.operation_parser import OperationParser
 from services.world import WorldApplier
 
 

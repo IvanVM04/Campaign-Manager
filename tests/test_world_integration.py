@@ -7,7 +7,7 @@ from operations.world_operations import (
     CreateEntityOperation,
     UpdateEntityOperation,
 )
-from services.operation_parser import (
+from services.llm_world.operation_parser import (
     OperationParseError,
     OperationParser,
 )

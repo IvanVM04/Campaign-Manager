@@ -56,7 +56,7 @@ class TurnResolutionCodec:
 
     @classmethod
     def serialize_operations(cls, plan: TurnResolutionPlan) -> str:
-        from services.operation_parser import OperationParser
+        from services.llm_world.operation_parser import OperationParser
 
         type_names = {
             operation_class: operation_name

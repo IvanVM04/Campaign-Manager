@@ -7,6 +7,7 @@ from .llm_world_prompt_builder import LLMWorldPromptBuilder
 from .llm_world_proposal_prompt_builder import LLMWorldProposalPromptBuilder
 from .llm_world_proposal_validator import LLMWorldProposalValidator
 from .llm_world_response_parser import LLMWorldResponseParser
+from .operation_parser import OperationParseError, OperationParser
 
 __all__ = [
     "LLMExtractionError",
@@ -16,4 +17,6 @@ __all__ = [
     "LLMWorldProposalPromptBuilder",
     "LLMWorldProposalValidator",
     "LLMWorldResponseParser",
+    "OperationParseError",
+    "OperationParser",
 ]

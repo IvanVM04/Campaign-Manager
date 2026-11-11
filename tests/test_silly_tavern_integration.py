@@ -544,7 +544,7 @@ def _build_service():
     from services.llm_world import (
         LLMWorldExtractor,
     )
-    from services.operation_parser import (
+    from services.llm_world.operation_parser import (
         OperationParser,
     )
     from services.turns import (
@@ -1856,7 +1856,7 @@ def test_e2e_silly_tavern_turn_persists_world_change(
     from services.llm_world import (
         LLMWorldExtractor,
     )
-    from services.operation_parser import (
+    from services.llm_world.operation_parser import (
         OperationParser,
     )
     from services.world import (
@@ -2135,7 +2135,7 @@ def test_e2e_silly_tavern_turn_persists_character_hp_change(
     from services.llm_world import (
         LLMWorldExtractor,
     )
-    from services.operation_parser import (
+    from services.llm_world.operation_parser import (
         OperationParser,
     )
     from services.world import (
@@ -2405,7 +2405,7 @@ def test_e2e_turn_rolls_back_world_and_turn_when_operation_fails(
     from services.llm_world import (
         LLMWorldExtractor,
     )
-    from services.operation_parser import (
+    from services.llm_world.operation_parser import (
         OperationParser,
     )
     from services.silly_tavern_integration_service import (

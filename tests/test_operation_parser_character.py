@@ -1,7 +1,7 @@
 from operations.character_operations import (
     ChangeCharacterHpOperation,
 )
-from services.operation_parser import (
+from services.llm_world.operation_parser import (
     OperationParser,
 )
 
@@ -60,7 +60,7 @@ def test_parser_normalizes_character_entity_id():
 
 import pytest
 
-from services.operation_parser import (
+from services.llm_world.operation_parser import (
     OperationParseError,
 )
 

@@ -14,6 +14,7 @@ MIGRATED_PRODUCTION_MODULES = (
     "bootstrap/campaign_runtime.py",
     "services/dm_service.py",
     "services/turns/mechanics_adjudicator.py",
+    "services/llm_world/operation_parser.py",
     "services/campaign_turn_service.py",
     "services/turns/durable_native_turn_service.py",
     "services/legacy_silly_tavern_turn_service.py",
@@ -36,6 +37,7 @@ LEGACY_IMPORTS = {
     "services.context_renderer",
     "services.memory_search_service",
     "services.mechanics_adjudicator",
+    "services.operation_parser",
     "services.world_serializer",
     "services.world_item_applier",
     "services.world_entity_applier",
@@ -108,3 +110,7 @@ def test_migrated_production_modules_do_not_use_flat_service_imports():
 
 def test_removed_mechanics_adjudicator_compatibility_module_is_absent():
     assert not (ROOT / "services" / "mechanics_adjudicator.py").exists()
+
+
+def test_removed_operation_parser_compatibility_module_is_absent():
+    assert not (ROOT / "services" / "operation_parser.py").exists()
