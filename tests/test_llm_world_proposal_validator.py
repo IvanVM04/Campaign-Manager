@@ -1,19 +1,15 @@
 import json
-from typing import ClassVar
-
 import pytest
 
-from operations.character_operations import ChangeCharacterHpOperation
 from operations.world_operations import CreateEntityOperation
 from services.llm_world.llm_extraction_errors import LLMExtractionError
 from services.llm_world.llm_world_proposal_validator import LLMWorldProposalValidator
 
 
 class FakeParser:
-    _BUILDERS: ClassVar[dict[str, type]] = {
-        "create_entity": CreateEntityOperation,
-        "change_character_hp": ChangeCharacterHpOperation,
-    }
+    @staticmethod
+    def model_proposable_operation_types():
+        return ("create_entity",)
 
 
 def parse_response(raw):
@@ -87,3 +83,45 @@ def test_invalid_repair_raises_after_exactly_one_retry():
         )
 
     assert len(calls) == 1
+
+
+def test_oversized_proposal_response_fails_without_repair():
+    validator, calls = make_validator(iter(['{"operations": []}']))
+    validator.max_response_chars = 8
+
+    with pytest.raises(LLMExtractionError, match="size limit"):
+        validator.parse_with_repair("prompt", '{"operations": []}')
+
+    assert calls == []
+
+
+def test_repair_prompt_is_compact_and_does_not_repeat_full_world_prompt():
+    validator, calls = make_validator(
+        iter(['{"operations": []}'])
+    )
+    long_prompt = "WORLD CONTEXT " * 5000
+
+    assert validator.parse_with_repair(
+        long_prompt,
+        '{"operations": [{"type": "unknown"}]}',
+    ) == []
+    assert len(calls) == 1
+    assert "WORLD CONTEXT" not in calls[0]
+    assert "PROPUESTA INVÁLIDA ANTERIOR" in calls[0]
+    assert len(calls[0]) < 7000
+
+
+def test_repair_prompt_respects_configured_estimated_token_budget():
+    validator, calls = make_validator(
+        iter(['{"operations": []}'])
+    )
+    validator.max_repair_prompt_tokens = 300
+
+    validator.parse_with_repair(
+        "prompt",
+        '{"operations": [{"type": "unknown"}]}',
+    )
+
+    from models.world_context_projection import estimate_tokens
+
+    assert estimate_tokens(calls[0]) <= 300
