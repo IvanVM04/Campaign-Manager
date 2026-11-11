@@ -337,7 +337,7 @@ def test_search_can_find_event_by_metadata(service, world):
 def test_search_matches_entity_from_natural_language_query():
     from models.entity import Entity
     from models.world_state import WorldState
-    from services.memory_search_service import (
+    from services.context import (
         MemorySearchService,
     )
 
@@ -368,7 +368,7 @@ def test_search_matches_entity_from_natural_language_query():
 def test_search_matches_entity_when_name_is_only_part_of_query():
     from models.entity import Entity
     from models.world_state import WorldState
-    from services.memory_search_service import (
+    from services.context import (
         MemorySearchService,
     )
 
