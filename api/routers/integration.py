@@ -22,6 +22,11 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_for_log(value: object) -> str:
+    text = "" if value is None else str(value)
+    return text.replace("\r", "").replace("\n", "")
+
+
 # ============================================================
 # SILLYTAVERN INTEGRATION
 # ============================================================
@@ -277,7 +282,7 @@ def process_silly_tavern_turn(data: SillyTavernTurnIn):
         "/integration/turn/resolve and /integration/turn/complete",
         extra={
             "campaign_id": runtime.campaign_id,
-            "external_turn_id": data.external_turn_id,
+            "external_turn_id": _sanitize_for_log(data.external_turn_id),
         },
     )
     try:
