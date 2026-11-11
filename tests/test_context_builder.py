@@ -9,9 +9,8 @@ from models.relation import Relation
 from models.resource import Resource, ResourceBalance
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
-from services.context import ContextBuilder
+from services.context import ContextBuilder, MemorySearchService
 from services.context.context_ranker import ContextRanker
-from services.context import MemorySearchService
 
 
 def build_world() -> WorldState:
