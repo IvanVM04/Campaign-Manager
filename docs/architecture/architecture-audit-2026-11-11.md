@@ -38,7 +38,6 @@ The package structure is not the same as complete architectural isolation. A num
 
 The current `services/` tree still contains application-level services outside the eight packages, including:
 
-- `campaign_turn_service.py` — 983-line compatibility implementation, no longer part of the native durable runtime path.
 - `DMService` now belongs to `services/turns`; it generates turn narration from injected context and provider collaborators and does not mutate world state.
 - `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
 - `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
