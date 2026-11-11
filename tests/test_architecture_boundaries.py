@@ -162,6 +162,6 @@ def test_capability_packages_respect_dependency_matrix():
                 )
 
     assert not violations, (
-        "Capability-package dependency matrix was violated:\\n"
+        "Capability-package dependency matrix was violated:\n"
         + "\\n".join(violations)
     )
