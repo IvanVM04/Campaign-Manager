@@ -5,6 +5,7 @@ from dataclasses import MISSING
 from typing import Any, ClassVar
 
 from operations.character_operations import (
+    CharacterOperation,
     ChangeCharacterHpOperation,
 )
 from operations.operation_reference import OperationReference
@@ -67,6 +68,21 @@ class OperationParser:
 
         "change_character_hp": ChangeCharacterHpOperation,
     }
+
+    @classmethod
+    def model_proposable_operation_types(cls) -> tuple[str, ...]:
+        """Return parser-supported operation types safe for model proposals.
+
+        Character-state operations are intentionally excluded: mechanical
+        character changes must be produced by deterministic application code.
+        """
+        return tuple(
+            sorted(
+                operation_type
+                for operation_type, builder in cls._BUILDERS.items()
+                if not issubclass(builder, CharacterOperation)
+            )
+        )
 
     def parse(
         self,
