@@ -54,7 +54,10 @@ class PersistentEffectRepository:
                     effect.duration_turns, effect.expires_at_turn,
                 ),
             )
-        return self.get(effect.id, campaign_id=effect.campaign_id, conn=conn)
+        created = self.get(effect.id, campaign_id=effect.campaign_id, conn=conn)
+        if created is None:
+            raise RuntimeError(f"persistent effect {effect.id} could not be retrieved after creation")
+        return created
 
     def get(
         self,

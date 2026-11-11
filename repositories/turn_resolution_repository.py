@@ -35,6 +35,12 @@ class TurnResolutionRepository:
     def _row_to_model(row: dict) -> TurnResolutionRecord:
         return TurnResolutionRecord(**row)
 
+    @staticmethod
+    def _require_record(record: TurnResolutionRecord | None) -> TurnResolutionRecord:
+        if record is None:
+            raise RuntimeError("turn resolution disappeared after a successful update")
+        return record
+
     def create(
         self,
         record: TurnResolutionRecord,
@@ -172,7 +178,7 @@ class TurnResolutionRepository:
             **updates,
         )
         assignments = ["lifecycle_state=?", "updated_at=CURRENT_TIMESTAMP"]
-        params = [target_state]
+        params: list[object] = [target_state]
         for field_name in updates:
             assignments.append(f"{field_name}=?")
             params.append(getattr(candidate, field_name))
@@ -180,6 +186,7 @@ class TurnResolutionRepository:
         where = " WHERE id=? AND campaign_id=? AND lifecycle_state=?"
         if expected_state == "planning":
             where += " AND lease_token=?"
+            assert isinstance(expected_lease_token, str)
             params.append(expected_lease_token)
         cursor = conn.execute(
             "UPDATE turn_resolutions SET "
@@ -189,7 +196,7 @@ class TurnResolutionRepository:
         )
         if cursor.rowcount != 1:
             raise ValueError("turn resolution state changed during transition")
-        return self.get(resolution_id, scope=scope, conn=conn)
+        return self._require_record(self.get(resolution_id, scope=scope, conn=conn))
 
     def update_completed_projection(
         self,

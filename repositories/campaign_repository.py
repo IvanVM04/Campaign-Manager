@@ -33,6 +33,8 @@ class CampaignRepository:
             """,
             (name, system, tone, summary),
         )
+        if campaign_id is None:
+            raise RuntimeError("failed to retrieve id of created campaign")
         return self.get_campaign(campaign_id)
 
     def get_campaign(
@@ -190,6 +192,8 @@ class CampaignRepository:
                 params,
             )
 
+        if session_id is None:
+            raise RuntimeError("failed to retrieve id of created session")
         return self.get_session(
             session_id,
             campaign_id=campaign_id,
