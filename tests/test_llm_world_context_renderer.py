@@ -28,6 +28,7 @@ def test_context_renderer_returns_empty_section_fallbacks():
         "known_items": "- Ninguno",
         "known_item_instances": "- Ninguna",
         "known_resources": "- Ninguno",
+        "known_resource_balances": "- Ninguno",
         "known_relations": "- Ninguna",
         "known_events": "- Ninguno",
     }
