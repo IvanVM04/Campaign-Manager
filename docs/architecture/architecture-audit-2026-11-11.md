@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `6aab67a58ff063ca1fa3f293628c3ddc6ab6b2b7` (after merge of PR #157).  
+**Audited baseline:** `main` at `bbcb7a0fda401c4d82d6ecff5119d6a0ec5eaec4` (after merge of PR #169).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -36,16 +36,13 @@ The package structure is not the same as complete architectural isolation. A num
 
 ### 2.2 Remaining service modules outside capability packages
 
-The current `services/` tree still contains application-level services outside the eight packages, including:
+The current `services/` root has one application adapter outside the eight capability packages:
 
-- `DMService` now belongs to `services/turns`; it generates turn narration from injected context and provider collaborators and does not mutate world state.
-- `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
-- `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
-- `PersistentEffectService` and `EffectiveConditionService` now belong to `services/campaign`; persistent effect lifecycle and derived D&D condition projection are kept together without duplicating state.
-- `legacy_silly_tavern_turn_service.py` — compatibility implementation for the deprecated narrative-first route.
-- `silly_tavern_integration_service.py` — still active for integration context and external transcript-state reads, and delegates the legacy route.
+- `silly_tavern_integration_service.py` — active external-integration adapter for context and external transcript-state reads. It also delegates the deprecated narrative-first endpoint to the quarantined turn collaborator.
 
-These are not automatically dead code. Each needs consumer mapping, ownership decision and focused tests before relocation or deletion. Avoid moving a file merely to make the root directory look smaller.
+The former root-level `DMService`, mechanics adjudicator, memory search, effect services, parser and compatibility shims now have canonical package owners. `LegacySillyTavernTurnService` lives in `services/turns`; its legacy status does not make it a dead module while the deprecated route remains supported.
+
+The integration adapter is a candidate for a dedicated integration-owned package, but relocation should follow a consumer/dependency audit. Do not move it merely to make the `services/` root look smaller. Preserve its active context/transcript methods independently of the deprecated mutation route.
 
 ### 2.3 Runtime compatibility
 
@@ -71,25 +68,34 @@ The deprecated `POST /integration/turn` route still requires `services/turns/Leg
 
 ## 3. LLM prompt and operation-contract findings
 
-### 3.1 Proposal prompt depends on the legacy prompt builder
+### 3.1 Proposal prompt decoupling
 
-The current `LLMWorldProposalPromptBuilder` is small (79 lines), but its context construction depends on the legacy `LLMWorldPromptBuilder` output and marker-based extraction/replacement. This couples the structured proposal path to the wording and layout of a legacy narrative-extraction prompt.
+PR #161 completed the separation that was still pending in the previous audit. `LLMWorldProposalPromptBuilder` now obtains prompt sections directly from `LLMWorldContextRenderer`; it no longer parses the rendered legacy prompt or depends on marker-based extraction/replacement.
 
-**Action:** extract a typed world-context projection and let each prompt builder render its own instructions from that projection. Do not parse one rendered prompt to construct another.
+The active durable turn path passes `proposal_from_intent=True` from `DurableNativeTurnService` into `TurnResolutionService`, which calls `LLMWorldExtractor.propose()`. The 2,193-line legacy `LLMWorldPromptBuilder` remains behind the narrative-extraction `extract()` path and must be retained while verified legacy callers still depend on it.
 
-### 3.2 Context selection needs an explicit budget
+**Status:** prompt-builder decoupling is complete. The outstanding problem is not the old marker coupling; it is the size and relevance of the world projection used by the structured proposal path.
 
-`LLMWorldContextRenderer` currently projects broad world collections (entities, items, item instances, resources, relations and events). The structured proposal path needs a deliberate policy for relevance and size, rather than relying on the full world projection.
+### 3.2 Context selection and prompt-size budget
+
+The active structured proposal path calls `LLMWorldContextRenderer.build_context(context)` directly. That renderer projects all known entities, items, item instances, resources, relations and non-secret events. It does not apply query relevance ranking or a size budget.
+
+This differs from the narrative and mechanics paths:
+- `DMService` uses `ContextBuilder` for its world context and recent history.
+- `MechanicsAdjudicator` also uses `ContextBuilder` for relevant world context.
+- `ContextBuilder` currently defaults to 6,000 characters for structured world context and 2,000 characters for recent turns. These are character budgets, not model-token budgets.
 
 **Action:**
-- identify the active character, scene/location, player intent and recent committed events;
-- select directly relevant records and bounded relationship expansion;
-- preserve mandatory facts and permissions;
+- have turn orchestration construct a typed, read-only context projection for the player intent;
+- identify the active character, current scene/location, intent, confirmed mechanics and relevant recent events;
+- select directly related records and bounded relationship expansion;
+- preserve mandatory facts, permissions and authoritative state;
 - apply deterministic ranking and stable ordering;
-- enforce a configurable model-token budget with a safety margin;
-- expose diagnostics for included/excluded records and estimated/actual prompt size.
+- enforce a configurable estimated-token budget with a model/provider safety margin;
+- expose prompt diagnostics: selected/excluded record counts, rendered characters, estimated tokens and budget usage;
+- bound repair context and invalid model output so a failed proposal cannot expand the follow-up prompt without limit.
 
-Do not silently truncate arbitrary strings or discard facts required for safety and rules resolution. Measure quality on representative small and large campaign fixtures.
+Keep the dependency matrix intact: `services/llm_world` must not import `services.context` directly. Put projection orchestration at the turn/application boundary and pass a typed contract into the prompt builder. Do not silently truncate arbitrary strings or discard facts required for rules resolution. Measure behavior on representative small, medium and large campaign fixtures.
 
 ### 3.3 Operation metadata is duplicated
 
@@ -105,43 +111,57 @@ Parsing and validation remain deterministic. The registry must not turn model ou
 
 ## 4. Test-suite strategy
 
-The suite is broad and protects important domain and durability invariants. Large test files are a navigation and maintenance problem, not proof of redundant coverage.
+The latest verified deterministic CI run collected 1,302 Python cases: 1,295 passed and 7 live-LLM cases were deselected. The branch-enabled coverage report showed 83% overall coverage. The repository contains a broad suite of focused test modules plus several oversized integration modules.
 
-Priorities:
-1. Produce a reproducible coverage baseline with `pytest-cov`, including branch coverage where practical.
-2. Group tests by observable contract: domain/rules, repositories/transactions, durable lifecycle, HTTP/API, context retrieval, provider behavior and legacy compatibility.
-3. Split oversized integration files without reducing assertions or weakening fixtures.
-4. Retire tests for a legacy implementation only in the same change that removes that implementation and after consumer verification.
-5. Add architecture tests for package dependency direction and prohibited compatibility imports.
-6. Keep live-provider tests separately marked; deterministic CI must not require Ollama.
+Largest navigation hotspots include:
+- `test_silly_tavern_integration.py`: 4,090 lines / 53 tests; mixes schema validation, HTTP routes, durable lifecycle, retries, snapshots and legacy compatibility.
+- `test_world_repository.py`: 1,817 lines / 24 tests; persistence, transaction and snapshot invariants.
+- `test_turn_repository.py`: 1,420 lines / 38 tests; persistence, campaign isolation, connection ownership and validation.
+- `test_turn_resolution_service.py`: 1,388 lines / 34 tests; legacy narrative-first and structured proposal planning contracts.
+- `test_durable_native_turn_service.py`: 1,226 lines / 24 tests; durable commit, retries, narration, manual rolls and recovery.
+- `test_context_builder.py`: 1,181 lines / 47 tests; relevance, expansion and character-budget behavior.
+- `test_llm_world_extractor.py`: 1,152 lines / 35 tests; legacy extraction, structured proposals, parsing and repair.
 
-No tests are marked for deletion by this audit alone. A test is removable only when its behavior is obsolete or demonstrably duplicated and the surviving contract remains covered.
+**Disposition:** no test is approved for deletion by this audit. Tiny tests often protect narrow migration, serialization or public-contract invariants and should not be removed just because they contain one assertion. In particular, `test_architecture_boundaries.py` and `test_canonical_service_import_boundaries.py` protect different constraints and are not duplicates.
+
+**Reorganization priorities:**
+1. Split the SillyTavern integration tests by HTTP contract, durable lifecycle, adapter/context behavior and deprecated compatibility, preserving every assertion.
+2. Separate legacy narrative extraction tests from player-intent proposal tests.
+3. Split context tests by retrieval/expansion, ranking/budget and rendering/history where that improves navigation.
+4. Keep migration tests tied to schema/data guarantees; do not delete historical migration coverage.
+5. Keep `test_real_llm.py` as a separately marked suite; deterministic CI must remain independent of Ollama.
+6. Revisit `test_turn_resolution_service_compatibility.py`: its single test checks canonical package exports, not a retired compatibility shim. Move/rename the assertion into the package-contract group rather than deleting it.
+
+See [the test-suite audit](../quality/test-suite-audit-2026-11-11.md) for the full inventory and proposed sequence.
 
 ## 5. Documentation corrections identified
 
-The 2026-11-06 audit and root README contain migration statements that no longer match the source tree. This PR corrects the most consequential ones:
-- all eight service packages now contain source modules;
-- the former flat compatibility modules for characters and LLM-world have been removed;
-- the turns package owns the durable lifecycle collaborators, `DMService` and the quarantined `LegacySillyTavernTurnService`;
-- the proposal builder's dependency on the old prompt builder is still pending, not a completed extraction;
-- the campaign package guide should not refer to an `identity_service.py` module that is absent from the current tree.
+The 2026-11-06 audit and several package guides contain migration statements superseded by PRs #149–#169. The current documentation must reflect that:
+- all eight capability packages contain implementation modules;
+- the runtime proxy and old flat service shims have been removed;
+- package dependency boundaries are enforced by architecture tests;
+- the former `CampaignTurnService` has been removed;
+- the legacy SillyTavern turn collaborator is inside `services/turns`, while the integration adapter remains active outside the capability packages;
+- PR #161 completed proposal-prompt decoupling; relevance selection and a budget for structured proposals remain pending;
+- coverage, Pyright baseline, CodeQL and Dependabot are present, but current GitHub rules do not yet list required status checks for `main`.
 
-The dated 2026-11-03, 2026-11-05 and 2026-11-06 audits are retained as historical snapshots. Do not rewrite historical findings as if they had been true at the current baseline.
+Historical 2026-11-03, 2026-11-05 and 2026-11-06 documents remain immutable snapshots. Current status belongs in this audit, the CI/test audits and package READMEs.
 
 ## 6. Ordered implementation roadmap
 
-This is the agreed cleanup sequence. Keep one active implementation branch and one open PR at a time. Each PR must start from the latest integrated `main`, run the applicable checks, and be fixed in place until green.
+Keep one active implementation branch and one open PR at a time. Each PR starts from the latest integrated `main`, remains open until every applicable check is green, and is corrected on that same branch.
 
 | Order | Work package | Acceptance gate |
 |---:|---|---|
-| 0 | PR #147 runtime/router migration | Merged; follow-up main CI green |
-| 1 | Refresh architecture inventory and package documentation | Current docs match source tree; no runtime behavior changed |
-| 2 | Remove `RuntimeProxy` and old runtime exports | No production/test consumers; request-bound runtime tests pass |
-| 3 | Define and enforce package dependency boundaries | Explicit allowlist plus negative import tests |
-| 4 | Migrate/rehome remaining cross-cutting services | One responsibility per package; no circular dependencies; tests unchanged in behavior |
-| 5 | Refactor LLM context/prompt and operation registry | No marker extraction from legacy prompt; bounded relevant context; proposal validation regressions pass |
-| 6 | Audit and reorganize tests | Coverage baseline recorded; legacy tests removed only with their implementation |
-| 7 | Add static quality tooling progressively | Pyright baseline, coverage reporting, CodeQL and optional SonarQube gates are documented and stable |
+| 0 | Enforce CI status checks on the default-branch ruleset | Required check names configured; a failing required check blocks merge. This includes a one-time repository-settings action by the maintainer. |
+| 1 | CI hygiene and progressive static quality | Pin/configure Ruff and test tooling; make baseline-job infrastructure failures visible; align action versions; expand Pyright only after each scope is clean. |
+| 2 | Structured proposal context and prompt budget | Typed relevant projection, deterministic ranking, bounded estimated-token budget, diagnostics and large-campaign regression tests. |
+| 3 | Operation metadata contract | One public typed registry for model-allowed operations, internal-only operations, schemas and prompt descriptions; no weakening of validation. |
+| 4 | Test-suite reorganization | Split oversized mixed-responsibility modules without reducing assertions; classify any genuinely duplicate tests before removal. |
+| 5 | Integration adapter ownership | Decide whether `SillyTavernIntegrationService` belongs in a dedicated integration package; preserve active read/context behavior. |
+| 6 | Retire legacy SillyTavern mutation path only when safe | Agreed zero-usage observation window, supported-client sign-off, consumer search and explicit snapshot-data migration/retention decision. |
+
+The CI findings and current check inventory are tracked in [the CI audit](../quality/ci-audit-2026-11-11.md).
 
 ### Non-goals for this phase
 
@@ -157,7 +177,7 @@ Every implementation PR must:
 - have one narrow architectural objective;
 - be based on the latest `main`;
 - include or update tests for the changed contract;
-- pass Ruff, Python tests excluding `real_llm`, and JavaScript tests;
+- pass Ruff, Python tests excluding `real_llm`, JavaScript tests, the clean Pyright scope and CodeQL analysis;
 - include any newly applicable architecture/static checks;
 - update package documentation when ownership or dependencies change;
 - contain no unrelated formatting or feature changes.
