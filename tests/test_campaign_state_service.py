@@ -11,7 +11,7 @@ from services.campaign import (
     CampaignStateService,
     CampaignStateServiceError,
 )
-from services.effective_condition_service import EffectiveConditionService
+from services.campaign import EffectiveConditionService
 from services.world import WorldService
 
 
