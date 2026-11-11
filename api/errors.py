@@ -97,7 +97,7 @@ def error_response(
     status_code: int,
     code: str,
     detail: object,
-    headers: dict[str, str] | None = None,
+    headers: Mapping[str, str] | None = None,
 ):
     """Build the backwards-compatible, machine-readable API error body."""
     from fastapi.encoders import jsonable_encoder

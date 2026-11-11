@@ -222,7 +222,7 @@ class TurnResolutionRepository:
         )
         if cursor.rowcount != 1:
             raise ValueError("completed resolution projection could not be updated")
-        return self.get(resolution_id, scope=scope, conn=conn)
+        return self._require_record(self.get(resolution_id, scope=scope, conn=conn))
 
     def claim_for_planning(
         self,
@@ -260,4 +260,4 @@ class TurnResolutionRepository:
         )
         if cursor.rowcount != 1:
             raise ValueError("turn resolution is not claimable")
-        return self.get(resolution_id, scope=scope, conn=conn)
+        return self._require_record(self.get(resolution_id, scope=scope, conn=conn))
