@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -68,10 +72,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: "pip"
@@ -87,7 +91,6 @@ jobs:
 
   pyright-baseline:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -161,3 +164,44 @@ jobs:
 
       - name: Run JavaScript tests
         run: npm run test:js
+
+  ci-summary:
+    name: CI summary
+    if: always()
+    needs:
+      - test
+      - lint
+      - pyright-rules-engine
+      - pyright-baseline
+      - test-js
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Publish check summary
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          PYRIGHT_REQUIRED_RESULT: ${{ needs.pyright-rules-engine.result }}
+          PYRIGHT_BASELINE_RESULT: ${{ needs.pyright-baseline.result }}
+          JS_RESULT: ${{ needs.test-js.result }}
+        run: |
+          {
+            echo "## CI check summary"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Python deterministic tests | $TEST_RESULT |"
+            echo "| Ruff | $LINT_RESULT |"
+            echo "| Required Pyright scope | $PYRIGHT_REQUIRED_RESULT |"
+            echo "| Repository Pyright baseline | $PYRIGHT_BASELINE_RESULT |"
+            echo "| JavaScript tests | $JS_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$TEST_RESULT" != "success" ] ||
+             [ "$LINT_RESULT" != "success" ] ||
+             [ "$PYRIGHT_REQUIRED_RESULT" != "success" ] ||
+             [ "$PYRIGHT_BASELINE_RESULT" != "success" ] ||
+             [ "$JS_RESULT" != "success" ]; then
+            echo "One or more CI jobs did not succeed."
+            exit 1
+          fi
