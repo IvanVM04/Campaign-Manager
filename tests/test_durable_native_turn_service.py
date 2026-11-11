@@ -1134,11 +1134,15 @@ def test_external_narration_rejects_conflicting_content_for_existing_version():
         "Miro la habitación.",
         external_turn_id="st-narrative-version-conflict",
     )
-    first = service.complete_external_narration(
+    service.complete_external_narration(
         external_turn_id="st-narrative-version-conflict",
         player_input="Miro la habitación.",
         narrative="Hay una mesa.",
         turn_version=1,
+    )
+    first_record = service.turn_repository.get_active_by_external_turn_id(
+        "st-narrative-version-conflict",
+        scope=service.scope,
     )
 
     with pytest.raises(
@@ -1156,7 +1160,7 @@ def test_external_narration_rejects_conflicting_content_for_existing_version():
         "st-narrative-version-conflict",
         scope=service.scope,
     )
-    assert active.id == first.turn_id
+    assert active.id == first_record.id
     assert active.version == 1
     assert active.narrative == "Hay una mesa."
     assert len(proposal_calls) == 1
