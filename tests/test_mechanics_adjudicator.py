@@ -8,7 +8,7 @@ from models.turn_context import TurnContext
 from models.world_state import WorldState
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
-from services.mechanics_adjudicator import (
+from services.turns import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
 )
