@@ -1,5 +1,6 @@
 """Turn lifecycle services and shared coordination primitives."""
 
+from services.turns.dm_service import DMService, DMServiceError
 from services.turns.durable_turn_challenge_state_service import (
     DurableTurnChallengeStateService,
 )
@@ -31,6 +32,8 @@ from services.turns.turn_resolution_service import (
 )
 
 __all__ = [
+    "DMService",
+    "DMServiceError",
     "DurableTurnChallengeStateService",
     "DurableTurnClarificationSubmissionService",
     "DurableTurnManualRollSubmissionService",
