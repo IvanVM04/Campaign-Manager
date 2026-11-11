@@ -36,5 +36,6 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
 - [ ] Review serializer consumers before changing its output contract.
 - [x] Remove former flat world compatibility shims after caller migration; canonical imports remain under `services.world`.
+
 ## Migration status
 All eight modules now live in `services/world/`. The former flat world compatibility modules have been removed. The current `services/` root contains only the active SillyTavern integration adapter; no flat world shim remains.
