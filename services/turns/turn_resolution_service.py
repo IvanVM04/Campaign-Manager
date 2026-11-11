@@ -319,9 +319,12 @@ class TurnResolutionService:
                         mandatory_entity_ids.append(entity_id)
                 if context.active_character_entity is not None:
                     entity_id = context.active_character_entity.id
-                    if isinstance(entity_id, int) and not isinstance(entity_id, bool):
-                        if entity_id not in mandatory_entity_ids:
-                            mandatory_entity_ids.append(entity_id)
+                    if (
+                        isinstance(entity_id, int)
+                        and not isinstance(entity_id, bool)
+                        and entity_id not in mandatory_entity_ids
+                    ):
+                        mandatory_entity_ids.append(entity_id)
                 current_location_id = context.campaign.current_location_id
                 if (
                     isinstance(current_location_id, int)
