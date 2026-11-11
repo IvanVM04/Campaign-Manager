@@ -44,6 +44,8 @@ class PersistentEffectService:
         duration_turns: int | None = None,
         level: int | None = None,
     ) -> PersistentEffect:
+        source_type = EffectSourceType(source_type)
+        duration_type = EffectDurationType(duration_type)
         effect = PersistentEffect(
             campaign_id=self.campaign_id,
             entity_id=entity_id,
