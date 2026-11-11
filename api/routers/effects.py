@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from api.runtime_context import get_current_runtime, turn_execution_lock
+from api.runtime_context import get_current_runtime
 from models.persistent_effect_api_schemas import (
     PersistentEffectCreateIn,
     PersistentEffectStatusIn,
@@ -64,7 +64,7 @@ def list_entity_effects(
 @router.post("/entities/{entity_id}/effects", status_code=201)
 def create_entity_effect(entity_id: int, data: PersistentEffectCreateIn):
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             effect = get_current_runtime().persistent_effect_service.create(
                 entity_id=entity_id,
                 effect_type=data.effect_type,
@@ -95,7 +95,7 @@ def update_persistent_effect_status(
     data: PersistentEffectStatusIn,
 ):
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             effect = get_current_runtime().persistent_effect_service.set_status(
                 effect_id,
                 data.status,
@@ -110,7 +110,7 @@ def update_persistent_effect_status(
 @router.delete("/effects/{effect_id}")
 def remove_persistent_effect(effect_id: str):
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             effect = get_current_runtime().persistent_effect_service.remove(
                 effect_id
             )
