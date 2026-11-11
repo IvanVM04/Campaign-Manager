@@ -8,8 +8,7 @@ from models.item import Item
 from models.relation import Relation
 from models.resource import Resource
 from models.world_state import WorldState
-from services.context import ContextBuilder
-from services.context import MemorySearchService
+from services.context import ContextBuilder, MemorySearchService
 
 
 @pytest.fixture
