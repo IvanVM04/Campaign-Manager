@@ -1,3 +1,4 @@
+# ruff: noqa: F401
 import json
 
 import pytest
@@ -95,8 +96,6 @@ def make_context(
         active_character_entity=active_character_entity,
     )
 
-
-
 def test_extractor_prompt_facade_delegates_to_dedicated_builder():
     context = make_context()
     prompt = LLMWorldPromptBuilder.build_prompt(
@@ -126,7 +125,6 @@ def test_extractor_response_facades_delegate_to_dedicated_parser():
     assert extractor._parse_operations(payload) == (
         extractor.response_parser.parse_operations(payload)
     )
-
 
 def test_valid_response_returns_operations():
     operation = FakeOperation()
@@ -169,7 +167,6 @@ def test_valid_response_returns_operations():
         }
     ]
 
-
 def test_empty_text_does_not_call_provider():
     called = False
 
@@ -193,7 +190,6 @@ def test_empty_text_does_not_call_provider():
     assert result == []
     assert called is False
 
-
 def test_invalid_provider_response_type_fails():
     def provider(prompt):
         return None
@@ -213,7 +209,6 @@ def test_invalid_provider_response_type_fails():
             "algo ocurrió",
             make_context(),
         )
-
 
 def test_empty_provider_response_fails():
     def provider(prompt):
@@ -235,7 +230,6 @@ def test_empty_provider_response_fails():
             make_context(),
         )
 
-
 def test_invalid_json_fails():
     def provider(prompt):
         return "esto no es json"
@@ -256,7 +250,6 @@ def test_invalid_json_fails():
             make_context(),
         )
 
-
 def test_json_array_fails():
     def provider(prompt):
         return "[]"
@@ -276,7 +269,6 @@ def test_json_array_fails():
             "algo ocurrió",
             make_context(),
         )
-
 
 def test_missing_operations_fails():
     def provider(prompt):
@@ -302,7 +294,6 @@ def test_missing_operations_fails():
             make_context(),
         )
 
-
 def test_operations_must_be_list():
     def provider(prompt):
         return json.dumps(
@@ -326,7 +317,6 @@ def test_operations_must_be_list():
             "algo ocurrió",
             make_context(),
         )
-
 
 def test_parser_rejects_invalid_operation():
     class FailingParser:
@@ -357,7 +347,6 @@ def test_parser_rejects_invalid_operation():
             "algo ocurrió",
             make_context(),
         )
-
 
 def test_parser_failure_becomes_extraction_error():
     class FailingParser:
@@ -391,7 +380,6 @@ def test_parser_failure_becomes_extraction_error():
             make_context(),
         )
 
-
 def test_parser_result_must_be_world_operation():
     class BadParser:
         def parse(self, data):
@@ -423,7 +411,6 @@ def test_parser_result_must_be_world_operation():
             make_context(),
         )
 
-
 def test_extractor_does_not_modify_world():
     operation = FakeOperation()
 
@@ -454,7 +441,6 @@ def test_extractor_does_not_modify_world():
     after = repr(world)
 
     assert after == before
-
 
 def test_callable_interface_matches_extractor():
     operation = FakeOperation()
@@ -720,7 +706,6 @@ def test_extractor_prompt_includes_active_character():
     assert "HP máximo: 20" in prompt
     assert "CA: 16" in prompt
 
-
 def test_extractor_prompt_handles_missing_active_character():
     provider = FakeProvider(
         '{"operations": []}'
@@ -852,7 +837,6 @@ def test_prompt_explains_existing_item_instance_pickup():
     assert "owner_id=None" in prompt
     assert "location_id=None" in prompt
 
-
 def test_prompt_requires_existing_instance_to_be_updated_instead_of_created():
     provider = FakeProvider(
         '{"operations": []}'
@@ -964,7 +948,6 @@ def test_prompt_documents_all_supported_operations():
     for operation_type in expected_operations:
         assert operation_type in prompt
 
-
 def test_extractor_rejects_character_hp_operations_from_narrative():
     provider = FakeProvider(
         json.dumps(
@@ -993,7 +976,6 @@ def test_extractor_rejects_character_hp_operations_from_narrative():
             make_context(),
         )
 
-
 def test_extractor_prompt_disallows_mechanical_character_updates():
     provider = FakeProvider('{"operations": []}')
     extractor = LLMWorldExtractor(
@@ -1010,147 +992,6 @@ def test_extractor_prompt_disallows_mechanical_character_updates():
     assert "La operación change_character_hp NO está habilitada" in prompt
     assert "NO generes operaciones para modificar" in prompt
     assert "No hay operaciones de personaje habilitadas" in prompt
-
-
-def test_propose_uses_player_intent_not_generated_narrative():
-    operation = FakeOperation()
-    provider = FakeProvider(
-        json.dumps({"operations": [{"type": "create_entity", "name": "Aldric"}]})
-    )
-    parser = FakeParser(operations=[operation])
-    extractor = LLMWorldExtractor(provider=provider, operation_parser=parser)
-
-    result = extractor.propose(
-        "Quiero buscar al tabernero llamado Aldric.",
-        make_context(),
-    )
-
-    assert result == [operation]
-    assert len(provider.calls) == 1
-    prompt = provider.calls[0]
-    assert "Quiero buscar al tabernero llamado Aldric." in prompt
-    assert "INTENCIÓN DEL JUGADOR" in prompt
-    assert "NARRATIVA A ANALIZAR" not in prompt
-    assert "narrativa ya generada" not in prompt
-    assert "Las operaciones son propuestas, no hechos confirmados." in prompt
-
-
-def test_propose_separates_confirmed_mechanics_with_real_newlines():
-    from types import SimpleNamespace
-
-    provider = FakeProvider(json.dumps({"operations": []}))
-    extractor = LLMWorldExtractor(
-        provider=provider,
-        operation_parser=FakeParser(),
-    )
-    mechanics_result = SimpleNamespace(
-        to_prompt_text=lambda: "Resultado: éxito en la prueba de percepción."
-    )
-
-    extractor.propose(
-        "Busco huellas en el barro.",
-        make_context(),
-        mechanics_result=mechanics_result,
-    )
-
-    prompt = provider.calls[0]
-    assert (
-        "\n\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\n"
-        "Resultado: éxito en la prueba de percepción."
-    ) in prompt
-    assert r"\n\nRESULTADO MECÁNICO CONFIRMADO POR EL MOTOR\n" not in prompt
-
-
-def test_propose_empty_intent_does_not_call_provider():
-    provider = FakeProvider(json.dumps({"operations": []}))
-    extractor = LLMWorldExtractor(
-        provider=provider,
-        operation_parser=FakeParser(),
-    )
-
-    assert extractor.propose("   ", make_context()) == []
-    assert provider.calls == []
-
-
-
-def test_extractor_does_not_receive_secret_world_events():
-    world = WorldState(events={
-        "public-discovery": Event(
-            id="public-discovery",
-            event_type="discovery",
-            title="La campana rota",
-            description="Falta la campana del campanario.",
-            secret=False,
-        ),
-        "gm-secret": Event(
-            id="gm-secret",
-            event_type="secret",
-            title="Nilo está retenido en la cantera",
-            description="El mensajero está encerrado por los contrabandistas.",
-            consequences="El grupo todavía no conoce esta verdad.",
-            secret=True,
-        ),
-    })
-    provider = FakeProvider(json.dumps({"operations": []}))
-    extractor = LLMWorldExtractor(
-        provider=provider,
-        operation_parser=FakeParser(),
-    )
-
-    extractor.extract("El grupo examina el campanario.", make_context(world=world))
-
-    prompt = provider.calls[0]
-    assert "La campana rota" in prompt
-    assert "Nilo está retenido en la cantera" not in prompt
-    assert "El mensajero está encerrado por los contrabandistas" not in prompt
-
-
-
-def test_propose_repairs_an_unsupported_operation_once():
-    responses = iter([
-        '{"operations": [{"type": "start_interaction", "entity_id": 2}]}',
-        '{"operations": []}',
-    ])
-    prompts = []
-
-    def sequenced_provider(prompt):
-        prompts.append(prompt)
-        return next(responses)
-
-    extractor = LLMWorldExtractor(
-        provider=sequenced_provider,
-        operation_parser=OperationParser(),
-    )
-
-    result = extractor.propose("Hablo con Mara.", make_context())
-
-    assert result == []
-    assert len(prompts) == 2
-    assert "start_interaction" in prompts[1]
-    assert "create_entity" in prompts[1]
-    assert "No inventes operaciones" in prompts[1]
-
-
-def test_propose_stops_after_one_failed_repair_attempt():
-    prompts = []
-
-    def invalid_provider(prompt):
-        prompts.append(prompt)
-        return '{"operations": [{"type": "start_interaction"}]}'
-
-    extractor = LLMWorldExtractor(
-        provider=invalid_provider,
-        operation_parser=OperationParser(),
-    )
-
-    with pytest.raises(
-        LLMExtractionError,
-        match="after one repair attempt",
-    ):
-        extractor.propose("Hablo con Mara.", make_context())
-
-    assert len(prompts) == 2
-
 
 def test_extractor_rejects_oversized_legacy_response_before_parsing():
     provider = FakeProvider("too-large")
