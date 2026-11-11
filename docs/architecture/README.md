@@ -2,6 +2,8 @@
 
 ## Current baseline
 
+- [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
+
 - [Architecture and modularity audit — 2026-11-11](architecture-audit-2026-11-11.md): verified package inventory, current runtime/legacy boundaries, prompt pipeline findings, test strategy and the ordered cleanup roadmap.
 - [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): previous detailed audit. Retained as a dated snapshot; several migration-status statements were superseded by subsequent changes.
 - [Turn pipeline compatibility boundaries](turn-pipeline-compatibility.md): active durable native/SillyTavern flow and explicit deprecation gates.
