@@ -15,6 +15,8 @@ MIGRATED_PRODUCTION_MODULES = (
     "services/dm_service.py",
     "services/turns/mechanics_adjudicator.py",
     "services/llm_world/operation_parser.py",
+    "services/campaign/persistent_effect_service.py",
+    "services/campaign/effective_condition_service.py",
     "services/campaign_turn_service.py",
     "services/turns/durable_native_turn_service.py",
     "services/legacy_silly_tavern_turn_service.py",
@@ -38,6 +40,8 @@ LEGACY_IMPORTS = {
     "services.memory_search_service",
     "services.mechanics_adjudicator",
     "services.operation_parser",
+    "services.persistent_effect_service",
+    "services.effective_condition_service",
     "services.world_serializer",
     "services.world_item_applier",
     "services.world_entity_applier",
@@ -114,3 +118,8 @@ def test_removed_mechanics_adjudicator_compatibility_module_is_absent():
 
 def test_removed_operation_parser_compatibility_module_is_absent():
     assert not (ROOT / "services" / "operation_parser.py").exists()
+
+
+def test_removed_effect_service_compatibility_modules_are_absent():
+    assert not (ROOT / "services" / "persistent_effect_service.py").exists()
+    assert not (ROOT / "services" / "effective_condition_service.py").exists()
