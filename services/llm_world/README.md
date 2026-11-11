@@ -9,7 +9,8 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - `llm_world_context_renderer.py` — dynamic world-context projection.
 - `llm_world_proposal_prompt_builder.py` — player-intent proposal prompt.
 - `llm_world_proposal_validator.py` — proposal validation and one bounded repair.
-- `llm_world_response_parser.py` — structured response decoding and typed-operation checks.
+- `llm_world_response_parser.py` — provider-response decoding and LLM-specific operation trust checks.
+- `operation_parser.py` — canonical structural parser that normalizes untrusted operation payloads into typed operations; domain existence and permission checks remain in `WorldService` / `WorldApplier.
 - `llm_extraction_errors.py` — package error type.
 
 ## Dependency rules
