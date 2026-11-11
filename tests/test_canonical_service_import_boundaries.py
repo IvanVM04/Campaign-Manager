@@ -1,6 +1,7 @@
 """Regression checks for migrated capability-package import boundaries."""
 
 import ast
+import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,3 +138,15 @@ def test_removed_campaign_turn_service_module_is_absent():
 
 def test_removed_legacy_silly_tavern_turn_service_compatibility_module_is_absent():
     assert not (ROOT / "services" / "legacy_silly_tavern_turn_service.py").exists()
+
+def test_retired_flat_service_import_paths_are_absent():
+    remaining = [
+        module
+        for module in sorted(LEGACY_IMPORTS)
+        if importlib.util.find_spec(module) is not None
+    ]
+
+    assert not remaining, (
+        "Retired flat service import paths must not be reintroduced:\\n"
+        + "\\n".join(remaining)
+    )
