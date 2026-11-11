@@ -209,5 +209,5 @@ def test_context_renderer_includes_active_character_conditions_and_exhaustion():
     rendered = LLMWorldContextRenderer.build_context(context)
 
     assert rendered["conditions_block"] == (
-        "Condiciones: poisoned, prone\\nAgotamiento: 2"
+        "Condiciones: poisoned, prone\nAgotamiento: 2"
     )
