@@ -1,6 +1,7 @@
 import pytest
 
 from models.campaign_state import CampaignState
+from models.entity import Entity
 from models.character_state import CharacterState
 from models.operation_result import (
     OperationStatus,
@@ -66,6 +67,7 @@ class RecordingExtractor(LLMWorldExtractor):
         self.operations = operations or []
         self.received_text = None
         self.received_context = None
+        self.received_projection = None
         self.calls = []
 
     def extract(self, text, context):
@@ -76,9 +78,17 @@ class RecordingExtractor(LLMWorldExtractor):
         )
         return self.operations
 
-    def propose(self, player_intent, context, *, mechanics_result=None):
+    def propose(
+        self,
+        player_intent,
+        context,
+        *,
+        mechanics_result=None,
+        context_projection=None,
+    ):
         self.received_text = player_intent
         self.received_context = context
+        self.received_projection = context_projection
         self.calls.append(("propose", player_intent))
         return self.operations
 
@@ -108,7 +118,7 @@ def make_world():
 
     return WorldState()
 
-def make_turn_context():
+def make_turn_context(world=None):
     return TurnContext(
         campaign=CampaignState(
             campaign_id=1,
@@ -126,7 +136,7 @@ def make_turn_context():
         active_character=CharacterState(
             entity_id=20,
         ),
-        world=WorldState(),
+        world=world if world is not None else WorldState(),
     )
 
 def make_service(
@@ -134,6 +144,8 @@ def make_service(
     dm_service=None,
     extractor=None,
     applier=None,
+    context_builder=None,
+    proposal_context_max_tokens=4096,
 ):
     dm_service = (
         dm_service
@@ -159,6 +171,8 @@ def make_service(
             dm_service=dm_service,
             extractor=extractor,
             world_service=world_service,
+            context_builder=context_builder,
+            proposal_context_max_tokens=proposal_context_max_tokens,
         ),
         dm_service,
         extractor,
@@ -1385,3 +1399,29 @@ def test_intent_proposals_cannot_change_character_hp_directly():
             "Ataco al goblin.",
             proposal_from_intent=True,
         )
+
+
+def test_prepare_turn_builds_bounded_context_for_structured_proposal():
+    world = WorldState(
+        entities={
+            20: Entity(id=20, name="Fungoso", entity_type="character"),
+            21: Entity(id=21, name="Mara", entity_type="npc"),
+            22: Entity(id=22, name="Aldric", entity_type="npc"),
+        }
+    )
+    context = make_turn_context(world=world)
+    service, _dm, extractor, _applier = make_service(
+        context_builder=ContextBuilder(),
+        proposal_context_max_tokens=500,
+    )
+
+    service.prepare_turn(
+        context,
+        "Quiero hablar con Mara.",
+        proposal_from_intent=True,
+    )
+
+    projection = extractor.received_projection
+    assert projection is not None
+    assert set(projection.world.entities) == {20, 21}
+    assert projection.diagnostics.estimated_tokens <= 500
