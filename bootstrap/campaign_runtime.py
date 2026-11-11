@@ -27,8 +27,7 @@ from services.combat import (
 from services.context import ContextBuilder, MemorySearchService
 from services.dm_service import DMService
 from services.effective_condition_service import EffectiveConditionService
-from services.llm_world import LLMWorldExtractor
-from services.llm_world.operation_parser import OperationParser
+from services.llm_world import LLMWorldExtractor, OperationParser
 from services.persistent_effect_service import PersistentEffectService
 from services.providers import LLMSettings
 from services.silly_tavern_integration_service import (
