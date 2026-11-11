@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict, is_dataclass
-from typing import ClassVar
+from typing import Any, ClassVar, cast
 
 from pydantic import BaseModel
 
@@ -93,7 +93,11 @@ class WorldCollectionQueryService:
             searchable = f"{searchable} {' '.join(name or '' for name in related_names.values())}"
             if needle and needle not in searchable.casefold():
                 continue
-            data = asdict(value) if is_dataclass(value) else dict(vars(value))
+            data = (
+                asdict(cast(Any, value))
+                if is_dataclass(value) and not isinstance(value, type)
+                else dict(vars(value))
+            )
             data.update(related_names)
             if collection in {"relations", "events"}:
                 metadata = data.pop("metadata", None)

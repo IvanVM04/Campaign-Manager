@@ -188,9 +188,12 @@ class TurnResolutionService:
         if decision is not None or self.mechanics_adjudicator is not None:
             try:
                 if decision is None:
-                    decision = self.mechanics_adjudicator.adjudicate(
-                        context, normalized_input
-                    )
+                    adjudicator = self.mechanics_adjudicator
+                    if adjudicator is None:
+                        raise TurnResolutionServiceError(
+                            "mechanics adjudicator is required to produce a decision"
+                        )
+                    decision = adjudicator.adjudicate(context, normalized_input)
             except MechanicsAdjudicatorError as exc:
                 raise TurnResolutionServiceError(
                     "mechanics adjudication failed"

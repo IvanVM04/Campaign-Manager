@@ -6,7 +6,12 @@ import sqlite3
 from dataclasses import replace
 
 from database import transaction
-from models.persistent_effect import EffectDurationType, EffectStatus, PersistentEffect
+from models.persistent_effect import (
+    EffectDurationType,
+    EffectSourceType,
+    EffectStatus,
+    PersistentEffect,
+)
 from repositories.campaign_clock_repository import CampaignClockRepository
 
 
@@ -28,10 +33,10 @@ class PersistentEffectService:
         effect_key: str,
         name: str,
         description: str = "",
-        source_type="unknown",
+        source_type: EffectSourceType | str = EffectSourceType.UNKNOWN,
         source_entity_id: int | None = None,
         source_reference: str | None = None,
-        duration_type="permanent",
+        duration_type: EffectDurationType | str = EffectDurationType.PERMANENT,
         duration_condition: str | None = None,
         duration_minutes: int | None = None,
         encounter_id: str | None = None,
@@ -72,7 +77,13 @@ class PersistentEffectService:
             try:
                 if effect.duration_type is EffectDurationType.CAMPAIGN_TIME:
                     clock = self.clock_repository.ensure(self.campaign_id, conn=conn)
-                    effect = replace(effect, expires_at_minute=clock.elapsed_minutes + effect.duration_minutes)
+                    duration_minutes = effect.duration_minutes
+                    if duration_minutes is None:
+                        raise ValueError("campaign-time effects require duration_minutes")
+                    effect = replace(
+                        effect,
+                        expires_at_minute=clock.elapsed_minutes + duration_minutes,
+                    )
                 elif effect.duration_type in (EffectDurationType.ENCOUNTER_ROUNDS, EffectDurationType.ENCOUNTER_TURNS):
                     if self.encounter_repository is None:
                         raise ValueError("encounter-scoped durations are unavailable")

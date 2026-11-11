@@ -8,6 +8,7 @@ from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from operations.character_operations import CharacterOperation
 from operations.referenced_operation import ReferencedOperation
+from operations.turn_operations import TurnOperation
 from operations.world_operations import WorldOperation
 from services.turns.turn_resolution_codec import TurnResolutionCodec
 
@@ -19,7 +20,7 @@ class DurableTurnResultMapper:
         self.operation_parser = operation_parser
 
     @staticmethod
-    def _unwrap(raw):
+    def _unwrap(raw: TurnOperation | ReferencedOperation) -> TurnOperation:
         return raw.operation if isinstance(raw, ReferencedOperation) else raw
 
     def from_completed_record(
