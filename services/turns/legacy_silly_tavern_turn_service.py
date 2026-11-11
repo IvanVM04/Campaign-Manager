@@ -293,6 +293,8 @@ class LegacySillyTavernTurnService:
         )
 
         if is_regeneration:
+            if existing_turn is None:
+                raise self.error_type("regeneration requires an existing turn")
             if existing_turn.snapshot is None:
                 raise self.error_type(
                     "cannot reconcile turn because the active "
