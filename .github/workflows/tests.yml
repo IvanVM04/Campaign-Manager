@@ -103,12 +103,12 @@ jobs:
           diagnostics = report.get("generalDiagnostics", [])
           counts = Counter(item.get("severity", "unknown") for item in diagnostics)
           summary = (
-              "## Pyright baseline (informational)\\n\\n"
-              f"- Diagnostics: {len(diagnostics)}\\n"
-              f"- Errors: {counts.get('error', 0)}\\n"
-              f"- Warnings: {counts.get('warning', 0)}\\n"
-              f"- Information: {counts.get('information', 0)}\\n"
-              "\\nFull diagnostics are available in the pyright-baseline artifact.\\n"
+              "## Pyright baseline (informational)\n\n"
+              f"- Diagnostics: {len(diagnostics)}\n"
+              f"- Errors: {counts.get('error', 0)}\n"
+              f"- Warnings: {counts.get('warning', 0)}\n"
+              f"- Information: {counts.get('information', 0)}\n"
+              "\nFull diagnostics are available in the pyright-baseline artifact.\n"
           )
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
               output.write(summary)
