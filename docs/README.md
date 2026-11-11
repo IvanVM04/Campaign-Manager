@@ -13,6 +13,8 @@ This is the starting point for maintainers and coding agents. Prefer current ind
 
 ## Active architectural contracts
 
+- [Legacy narrative prompt decomposition](architecture/legacy-prompt-decomposition-2026-11-12.md) — static instruction ownership and byte-for-byte compatibility baseline.
+
 - [Turn pipeline compatibility](architecture/turn-pipeline-compatibility.md) — active durable path vs deprecated narrative-first integration.
 - [Durable SillyTavern adapter](architecture/sillytavern-durable-turn-adapter.md) — external turn identity, resolve/complete and retry semantics.
 - [Turn resolution lifecycle](architecture/turn-resolution-lifecycle.md) — durable state transitions and commit boundaries.
