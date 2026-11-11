@@ -20,6 +20,8 @@ def make_context():
 
 def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     projection = {
+        "campaign_block": "Campaña: La mina",
+        "session_block": "Sesión: Entrada al mercado",
         "character_block": "Personaje activo: Fungoso",
         "known_entities": "- ID 7: Aldric (npc)",
         "known_items": "- ID 3: Espada",
@@ -41,6 +43,8 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     )
 
     assert "CONTEXTO ACTUAL DEL MUNDO" in prompt
+    assert "Campaña: La mina" in prompt
+    assert "Sesión: Entrada al mercado" in prompt
     assert "INTENCIÓN DEL JUGADOR:\nQuiero hablar con Aldric." in prompt
     for section in projection.values():
         assert section in prompt
