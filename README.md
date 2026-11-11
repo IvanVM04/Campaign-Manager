@@ -421,7 +421,7 @@ http://127.0.0.1:8765/docs
 
 The application uses `OllamaProvider` as its local LLM adapter. Ollama must be running and the configured models must be available.
 
-Provider settings are read from environment variables when the backend starts. Defaults preserve the existing setup: `http://localhost:11434`, model `gemma4:26b` for all three responsibilities, and a 120-second timeout per request.
+Provider settings are read from environment variables when the backend starts. Defaults preserve the existing setup: `http://localhost:11434`, model `gemma4:26b` for all three responsibilities, and a 120-second timeout per request. Structured extraction also has conservative context, total-prompt, output-size and repair-request budgets.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -432,6 +432,10 @@ Provider settings are read from environment variables when the backend starts. D
 | `CAMPAIGN_MANAGER_LLM_NARRATIVE_TIMEOUT_SECONDS` | `120` | Narration request timeout |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS` | `120` | Extraction request timeout |
 | `CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS` | `120` | Mechanics request timeout |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS` | `8192` | Upper bound for the complete structured proposal prompt |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS` | `4096` | Upper bound for selected world context; cannot exceed the complete prompt budget |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS` | `16000` | Maximum provider response size for extraction/proposal output |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS` | `2048` | Independent upper bound for the single proposal repair request |
 
 Example (PowerShell):
 
@@ -443,7 +447,7 @@ $env:CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS = "90"
 uvicorn app:app --reload
 ```
 
-The settings are validated at startup. Invalid URLs, empty model names, and non-positive/non-finite timeouts prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. Restart the backend after changing environment variables.
+The settings are validated at startup. Invalid URLs, empty model names, non-positive/non-finite timeouts or invalid extraction budgets prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. The token limits use a pessimistic one-UTF-8-byte-per-token upper bound because the current provider port does not expose an exact tokenizer count. Restart the backend after changing environment variables.
 
 ---
 
@@ -519,7 +523,7 @@ The current workflows provide:
 
 The real-LLM tests are intentionally excluded from deterministic CI because they require a running Ollama service and compatible model. CodeQL runs as a separate workflow.
 
-**Important merge-protection note:** the current default-branch ruleset requires pull requests but does not yet list required status checks. The project process is to wait for every applicable workflow to finish and fix any failure before merge; repository settings still need to be configured to make GitHub enforce that policy automatically. See the [CI audit](docs/quality/ci-audit-2026-11-11.md).
+**Merge protection:** the active default-branch ruleset requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. The aggregate check blocks merges when Ruff, deterministic tests, scoped/repository-wide Pyright or JavaScript tests fail. Inspect the complete PR checks before merging. See the [CI audit](docs/quality/ci-audit-2026-11-11.md).
 
 ---
 
