@@ -23,6 +23,10 @@ class LLMSettings:
     narrative_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     extraction_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     mechanics_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
+    extraction_prompt_max_tokens: int = 8192
+    extraction_context_max_tokens: int = 4096
+    extraction_max_response_chars: int = 16000
+    extraction_repair_max_tokens: int = 2048
 
     def __post_init__(self) -> None:
         if not isinstance(self.base_url, str):
@@ -70,6 +74,23 @@ class LLMSettings:
                 raise ValueError(f"{field_name} must be a finite number greater than zero")
             object.__setattr__(self, field_name, float(value))
 
+        for field_name in (
+            "extraction_prompt_max_tokens",
+            "extraction_context_max_tokens",
+            "extraction_max_response_chars",
+            "extraction_repair_max_tokens",
+        ):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{field_name} must be an integer")
+            if value <= 0:
+                raise ValueError(f"{field_name} must be greater than zero")
+
+        if self.extraction_context_max_tokens > self.extraction_prompt_max_tokens:
+            raise ValueError(
+                "extraction_context_max_tokens cannot exceed extraction_prompt_max_tokens"
+            )
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> LLMSettings:
         """Read validated settings from environment variables."""
@@ -86,6 +107,15 @@ class LLMSettings:
                 raise ValueError(f"{name} must be a number") from exc
 
         defaults = cls()
+        def integer_value(name: str, default: int) -> int:
+            raw_value = values.get(name)
+            if raw_value is None:
+                return default
+            try:
+                return int(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"{name} must be an integer") from exc
+
         return cls(
             base_url=values.get("CAMPAIGN_MANAGER_OLLAMA_BASE_URL", defaults.base_url),
             narrative_model=values.get(
@@ -111,6 +141,22 @@ class LLMSettings:
             mechanics_timeout_seconds=timeout_value(
                 "CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS",
                 defaults.mechanics_timeout_seconds,
+            ),
+            extraction_prompt_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                defaults.extraction_prompt_max_tokens,
+            ),
+            extraction_context_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                defaults.extraction_context_max_tokens,
+            ),
+            extraction_max_response_chars=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS",
+                defaults.extraction_max_response_chars,
+            ),
+            extraction_repair_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                defaults.extraction_repair_max_tokens,
             ),
         )
 
