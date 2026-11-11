@@ -19,7 +19,7 @@ _PRE_DECOMPOSITION_PROMPT_BLOB_SHA = "d1b3a5e3fbd93180cc05a9e8deb77389c9e6a4cc"
 
 def _git_blob_sha(content: str) -> str:
     encoded = content.encode("utf-8")
-    header = f"blob {len(encoded)}\\0".encode("ascii")
+    header = f"blob {len(encoded)}\0".encode("ascii")
     return hashlib.sha1(header + encoded).hexdigest()
 
 
