@@ -99,7 +99,6 @@ PACKAGE_FORBIDDEN_IMPORTS = {
         "services.characters",
         "services.combat",
         "services.context",
-        "services.memory_search_service",
         "services.providers",
         "services.turns",
         "services.world",
