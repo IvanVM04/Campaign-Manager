@@ -94,6 +94,7 @@ jobs:
         run: pyright models rules_engine bootstrap operations
 
   pyright-baseline:
+    name: Pyright (repository-wide)
     runs-on: ubuntu-latest
 
     steps:
@@ -132,10 +133,11 @@ jobs:
 
           diagnostics = report.get("generalDiagnostics", [])
           counts = Counter(item.get("severity", "unknown") for item in diagnostics)
+          errors = counts.get("error", 0)
           summary = (
-              "## Pyright baseline (informational)\n\n"
+              "## Repository-wide Pyright\n\n"
               f"- Diagnostics: {len(diagnostics)}\n"
-              f"- Errors: {counts.get('error', 0)}\n"
+              f"- Errors: {errors}\n"
               f"- Warnings: {counts.get('warning', 0)}\n"
               f"- Information: {counts.get('information', 0)}\n"
               "\nFull diagnostics are available in the pyright-baseline artifact.\n"
@@ -143,6 +145,8 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
               output.write(summary)
           print(summary)
+          if errors:
+              raise SystemExit(f"Repository-wide Pyright found {errors} errors.")
           PY
 
       - name: Upload Pyright baseline
@@ -197,7 +201,7 @@ jobs:
             echo "| Python deterministic tests | $TEST_RESULT |"
             echo "| Ruff | $LINT_RESULT |"
             echo "| Required Pyright scope | $PYRIGHT_REQUIRED_RESULT |"
-            echo "| Repository Pyright baseline | $PYRIGHT_BASELINE_RESULT |"
+            echo "| Repository-wide Pyright | $PYRIGHT_BASELINE_RESULT |"
             echo "| JavaScript tests | $JS_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
 

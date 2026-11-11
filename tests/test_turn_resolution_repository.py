@@ -237,3 +237,50 @@ def test_resolution_is_campaign_scoped(isolated_database):
     assert repository.get_by_idempotency_key(
         "native", "request-001", scope=CampaignScope(2)
     ) is None
+
+def test_reclaimed_planning_lease_fences_out_late_worker(isolated_database):
+    repository = TurnResolutionRepository()
+    created = repository.create(make_record(), scope=CampaignScope(1))
+
+    with transaction("IMMEDIATE") as conn:
+        first = repository.claim_for_planning(
+            created.id, scope=CampaignScope(1), lease_token="worker-a",
+            lease_expires_at="2026-11-04T10:00:00Z",
+            now="2026-11-04T09:59:00Z", conn=conn,
+        )
+
+    with transaction("IMMEDIATE") as conn:
+        reclaimed = repository.claim_for_planning(
+            created.id, scope=CampaignScope(1), lease_token="worker-b",
+            lease_expires_at="2026-11-04T10:03:00Z",
+            now="2026-11-04T10:01:00Z", conn=conn,
+        )
+
+    assert first.lease_token == "worker-a"
+    assert reclaimed.lease_token == "worker-b"
+    assert reclaimed.attempt_count == 2
+
+    with transaction("IMMEDIATE") as conn, pytest.raises(
+        ValueError, match="planning lease was superseded"
+    ):
+        repository.transition(
+            created.id, "prepared", scope=CampaignScope(1),
+            expected_state="planning", expected_lease_token="worker-a",
+            updates={"context_revision": 1}, conn=conn,
+        )
+
+    with transaction("IMMEDIATE") as conn:
+        prepared = repository.transition(
+            created.id, "prepared", scope=CampaignScope(1),
+            expected_state="planning", expected_lease_token="worker-b",
+            updates={
+                "context_revision": 1,
+                "proposal_json": '{"operations":[]}',
+                "lease_token": None,
+                "lease_expires_at": None,
+            },
+            conn=conn,
+        )
+
+    assert prepared.lifecycle_state == "prepared"
+    assert prepared.lease_token is None
