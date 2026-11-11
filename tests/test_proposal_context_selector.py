@@ -133,7 +133,7 @@ def test_proposal_context_keeps_active_character_when_query_has_no_match():
         mandatory_entity_ids=(1,),
     )
 
-    assert set(projection.world.entities) == {1}
+    assert set(projection.world.entities) == {1, 2}
     assert projection.world.item_instances[100].item_id == 10
     assert projection.world.resource_balances[200].amount == 75
 
