@@ -1149,3 +1149,25 @@ def test_propose_stops_after_one_failed_repair_attempt():
         extractor.propose("Hablo con Mara.", make_context())
 
     assert len(prompts) == 2
+
+
+def test_extractor_rejects_oversized_legacy_response_before_parsing():
+    provider = FakeProvider("too-large")
+    parser = FakeParser()
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=parser,
+        max_response_chars=3,
+    )
+
+    with pytest.raises(
+        LLMExtractionError,
+        match="response exceeds the configured size limit",
+    ):
+        extractor.extract(
+            "El grupo entra en la taberna.",
+            make_context(),
+        )
+
+    assert provider.calls
+    assert parser.calls == []
