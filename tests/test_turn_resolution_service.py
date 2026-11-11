@@ -1,8 +1,8 @@
 import pytest
 
 from models.campaign_state import CampaignState
-from models.entity import Entity
 from models.character_state import CharacterState
+from models.entity import Entity
 from models.operation_result import (
     OperationStatus,
 )
