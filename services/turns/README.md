@@ -21,10 +21,10 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - `durable_turn_result_mapper.py` — durable record to public result mapping.
 - `durable_turn_narration_service.py` — native and external narration completion.
 - `durable_native_turn_service.py` — public durable turn coordinator and lifecycle facade.
+- `legacy_silly_tavern_turn_service.py` — quarantined narrative-first snapshot reconciliation for the deprecated `POST /integration/turn` compatibility route; no new gameplay behavior belongs here.
 
-## Remaining modules outside this package
-- `services/legacy_silly_tavern_turn_service.py` — compatibility workflow used by the deprecated narrative-first route.
-- `services/silly_tavern_integration_service.py` — active context and external transcript-state adapter; also delegates the deprecated route.
+## Integration adapter outside this package
+- `services/silly_tavern_integration_service.py` — active context and external transcript-state adapter; delegates the deprecated route to the isolated legacy collaborator in this package.
 
 ## Dependency rules
 - Preserve idempotency, lease fencing, campaign revision checks and atomic commit.
