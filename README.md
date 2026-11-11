@@ -185,7 +185,7 @@ SillyTavern identifies a player action with a stable `external_turn_id`. The dur
 - Re-delivery of the same completed version is idempotent; conflicting content or invalid version sequencing is rejected.
 - Clarification and manual-roll replies remain attached to the original external turn.
 
-The older compatibility endpoint `POST /integration/turn` retains the historical snapshot-reconciliation behavior for legacy clients. It is marked deprecated in OpenAPI and logs usage, but has no removal date until supported clients have migrated. `CampaignTurnService` is also retained only for older in-process callers; the native HTTP route does not use it. See the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md) and [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
+The older compatibility endpoint `POST /integration/turn` retains the historical snapshot-reconciliation behavior for legacy clients. It is marked deprecated in OpenAPI and logs usage, but has no removal date until supported clients have migrated. See the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md) and [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
 
 ---
 
