@@ -23,6 +23,13 @@ class DurableTurnResultMapper:
     def _unwrap(raw: TurnOperation | ReferencedOperation) -> TurnOperation:
         return raw.operation if isinstance(raw, ReferencedOperation) else raw
 
+    @classmethod
+    def _character_operation(
+        cls, raw: TurnOperation | ReferencedOperation
+    ) -> CharacterOperation | None:
+        operation = cls._unwrap(raw)
+        return operation if isinstance(operation, CharacterOperation) else None
+
     def from_completed_record(
         self,
         record: TurnResolutionRecord,
@@ -41,7 +48,7 @@ class DurableTurnResultMapper:
         character_operations = tuple(
             operation
             for raw in parsed
-            if isinstance((operation := self._unwrap(raw)), CharacterOperation)
+            if (operation := self._character_operation(raw)) is not None
         )
         stored_results = json.loads(record.operation_results_json or "[]")
         operation_results = tuple(
