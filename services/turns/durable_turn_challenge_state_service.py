@@ -20,7 +20,7 @@ class DurableTurnChallengeStateService:
         scope,
         turn_repository,
         resolution_repository,
-        error_type=ValueError,
+        error_type: type[Exception] = ValueError,
     ) -> None:
         self.scope = scope
         self.turn_repository = turn_repository
