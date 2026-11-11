@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `248925293b46d37c97e29a32b8cd97f12443a676` (after merge of PR #155).  
+**Audited baseline:** `main` at `6aab67a58ff063ca1fa3f293628c3ddc6ab6b2b7` (after merge of PR #157).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -67,7 +67,7 @@ Preserve these invariants during future refactors:
 - retries and regeneration never reapply already committed consequences;
 - idempotency, lease fencing and recovery semantics remain covered.
 
-The deprecated `POST /integration/turn` route still requires `services/turns/LegacySillyTavernTurnService` and snapshot reconciliation. The collaborator has been moved into the turn package but remains quarantined from the active durable workflow. Do not remove the route, collaborator or historical snapshot tables until supported-client usage and migration gates are satisfied.
+The deprecated `POST /integration/turn` route still requires `services/turns/LegacySillyTavernTurnService` and snapshot reconciliation. The collaborator has been moved into the turn package but remains quarantined from the active durable workflow. Its snapshot payload is JSON stored in the nullable `turns.snapshot` column; there are no dedicated snapshot tables. Do not remove the route, collaborator or snapshot data until supported-client usage and migration gates are satisfied.
 
 ## 3. LLM prompt and operation-contract findings
 
@@ -122,7 +122,7 @@ No tests are marked for deletion by this audit alone. A test is removable only w
 The 2026-11-06 audit and root README contain migration statements that no longer match the source tree. This PR corrects the most consequential ones:
 - all eight service packages now contain source modules;
 - the former flat compatibility modules for characters and LLM-world have been removed;
-- the turns package owns the durable lifecycle collaborators and `DMService`; legacy turn services remain outside it;
+- the turns package owns the durable lifecycle collaborators, `DMService` and the quarantined `LegacySillyTavernTurnService`;
 - the proposal builder's dependency on the old prompt builder is still pending, not a completed extraction;
 - the campaign package guide should not refer to an `identity_service.py` module that is absent from the current tree.
 
