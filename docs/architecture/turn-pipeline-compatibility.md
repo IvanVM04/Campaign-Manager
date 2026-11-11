@@ -42,7 +42,7 @@ The current extension calls `/integration/turn/resolve` before generation and `/
 
 ## Removal prerequisites
 
-Before deleting `POST /integration/turn`, `SillyTavernIntegrationService.process_turn()`, `CampaignTurnService` or snapshot reconciliation:
+Before deleting `POST /integration/turn`, `SillyTavernIntegrationService.process_turn()` or snapshot reconciliation:
 
 - inspect release/deployment notes and any external extension forks or scripts;
 - inspect structured warning logs over a documented migration window;
@@ -51,4 +51,4 @@ Before deleting `POST /integration/turn`, `SillyTavernIntegrationService.process
 - preserve existing campaign history; do not run a destructive data migration as part of endpoint retirement;
 - remove code and tests in a separate PR after explicit compatibility sign-off.
 
-This PR does not remove legacy data, snapshots, routes or services. It makes the active and compatibility boundaries explicit and observable first.
+The `CampaignTurnService` compatibility implementation has since been removed after a repository-wide consumer audit. This document now tracks only the still-supported SillyTavern compatibility route and snapshot reconciliation.
