@@ -35,7 +35,7 @@ The matrix is a set of enforced prohibitions, not a claim that every allowed edg
 - `bootstrap/campaign_runtime.py` is the composition root and may wire capability packages together.
 - `api/routers/` obtains the request-scoped runtime and translates HTTP input/output; it does not compose services.
 - `DMService` belongs to `services/turns`; it owns narrative generation for a turn and consumes context/provider collaborators without applying world mutations.
-- SillyTavern adapters remain outside the eight-package matrix because they bridge the external transcript protocol and legacy route.
+- `SillyTavernIntegrationService` remains outside the capability packages as the external transcript/context adapter. The deprecated narrative-first turn collaborator lives in `services/turns` but is quarantined from the active durable lifecycle; its legacy status does not authorize new dependencies or gameplay behavior.
 - `PersistentEffectService` and `EffectiveConditionService` belong to `services/campaign`; the first owns persisted campaign-effect lifecycle and the second derives effective D&D conditions without storing duplicate state.
 - `OperationParser` belongs to `services/llm_world`; it performs structural decoding only. LLM-specific allowlisting remains in the proposal validator, while semantic validation and mutation remain in `services/world`.
 - `MechanicsAdjudicator` belongs to `services/turns`; it proposes and validates structured mechanics decisions but leaves dice rolls and consequences to deterministic turn/rules services.
