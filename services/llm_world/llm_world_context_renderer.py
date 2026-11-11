@@ -34,6 +34,11 @@ class LLMWorldContextRenderer:
                 and entity_id == context.active_character.entity_id
             ):
                 marker = " [PERSONAJE ACTIVO]"
+            if (
+                context.campaign.current_location_id is not None
+                and entity_id == context.campaign.current_location_id
+            ):
+                marker += " [UBICACIÓN ACTUAL]"
 
             entity_lines.append(
                 f"- ID {entity_id}: "
@@ -218,6 +223,35 @@ class LLMWorldContextRenderer:
         )
 
         # ------------------------------------------------------------
+        # CAMPAÑA Y SESIÓN ACTUALES
+        # ------------------------------------------------------------
+
+        campaign = context.campaign
+        campaign_lines = [
+            f"Nombre: {campaign.name or 'Sin nombre'}",
+            f"Sistema: {campaign.system}",
+            f"Tono: {campaign.tone or 'No definido'}",
+            f"Ubicación actual (entity ID): {campaign.current_location_id}",
+        ]
+        if campaign.summary:
+            campaign_lines.append(f"Resumen: {campaign.summary}")
+        campaign_block = "\n".join(campaign_lines)
+
+        session = context.current_session
+        if session is None:
+            session_block = "No hay sesión activa."
+        else:
+            session_lines = [
+                f"Número: {session.number}",
+                f"Título: {session.title or 'Sin título'}",
+                f"Ubicación inicial: {session.start_location or 'No definida'}",
+                f"Ubicación final registrada: {session.end_location or 'No definida'}",
+            ]
+            if session.summary:
+                session_lines.append(f"Resumen: {session.summary}")
+            session_block = "\n".join(session_lines)
+
+        # ------------------------------------------------------------
         # PERSONAJE ACTIVO
         # ------------------------------------------------------------
 
@@ -243,6 +277,8 @@ class LLMWorldContextRenderer:
             )
 
         return {
+            "campaign_block": campaign_block,
+            "session_block": session_block,
             "character_block": character_block,
             "known_entities": known_entities,
             "known_items": known_items,
