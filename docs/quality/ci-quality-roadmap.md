@@ -33,11 +33,18 @@ Pyright runs in an informational CI job against first-party application code (AP
 
 The first report has been classified in [pyright-baseline-2026-11-11.md](pyright-baseline-2026-11-11.md): 98 errors across 27 files, concentrated in services and repositories. The next step is to fix and verify a small clean package scope before making any Pyright diagnostics blocking. Do not introduce a repository-wide strict mode until the current typing baseline and dependency stubs are understood.
 
+## Security analysis and dependency maintenance
+
+- CodeQL analyzes Python and JavaScript/TypeScript on pull requests, pushes to main and a weekly schedule.
+- CodeQL uses the extended security query suite; alerts are reviewed before any blocking security policy is introduced.
+- Dependabot checks GitHub Actions, Python and npm dependencies weekly. Related updates are grouped to avoid excessive PR noise.
+- Dependency updates still require the normal deterministic CI checks and human review.
+
 ## Planned static-quality rollout
 
 1. Coverage baseline — collect reproducible line and branch coverage (implemented).
 2. Pyright baseline — collect and classify existing type diagnostics (implemented; see the dated report).
-3. CodeQL — add repository security analysis and review alerts before introducing blocking policy.
+3. CodeQL — add repository security analysis (workflow added; review alerts before introducing blocking policy).
 4. SonarQube (optional) — evaluate only if it adds actionable signal beyond Ruff, Pyright, tests, coverage and CodeQL.
 
 New quality checks should initially be informational where the repository has inherited findings. Promote them to required checks only after the baseline is understood and the workflow is stable.
