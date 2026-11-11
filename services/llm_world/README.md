@@ -10,7 +10,7 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - `llm_world_proposal_prompt_builder.py` — player-intent proposal prompt.
 - `llm_world_proposal_validator.py` — proposal validation and one bounded repair.
 - `llm_world_response_parser.py` — provider-response decoding and LLM-specific operation trust checks.
-- `operation_parser.py` — canonical structural parser that normalizes untrusted operation payloads into typed operations; domain existence and permission checks remain in `WorldService` / `WorldApplier.
+- `operation_parser.py` — canonical structural parser that normalizes untrusted operation payloads into typed operations; domain existence and permission checks remain in `WorldService` / `WorldApplier`.
 - `llm_extraction_errors.py` — package error type.
 
 ## Dependency rules
@@ -30,4 +30,4 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - [ ] Document the trust boundary from model proposal to deterministic validation/application.
 
 ## Migration status
-All seven implementation modules live in `services/llm_world/`. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
+All eight implementation modules live in `services/llm_world/`. The former flat `services.llm_extraction_errors` and `services.llm_world_*` compatibility modules have been removed. Import from this canonical package.
