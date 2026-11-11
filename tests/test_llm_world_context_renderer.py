@@ -99,7 +99,47 @@ def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
     assert "Espada" in rendered["known_items"]
     assert "instance_number=1" in rendered["known_item_instances"]
     assert "Oro" in rendered["known_resources"]
+    assert rendered["known_resource_balances"] == "- Ninguno"
     assert "aliado_de" in rendered["known_relations"]
     assert "Puerta abierta" in rendered["known_events"]
     assert "Identidad oculta" not in rendered["known_events"]
     assert repr(world) == before
+
+
+def test_context_renderer_formats_resource_balances_from_selected_world():
+    from models.resource import ResourceBalance
+    from models.world_context_projection import (
+        ContextProjectionDiagnostics,
+        WorldContextProjection,
+    )
+
+    world = WorldState(
+        entities={1: Entity(id=1, name="Fungoso", entity_type="character")},
+        resources={20: Resource(id=20, name="Oro", unit="mo")},
+        resource_balances={
+            200: ResourceBalance(
+                id=200,
+                resource_id=20,
+                owner_id=1,
+                amount=75,
+            )
+        },
+    )
+    projection = WorldContextProjection(
+        world=world,
+        diagnostics=ContextProjectionDiagnostics(
+            estimated_tokens=20,
+            budget_tokens=100,
+            available_counts=(),
+            candidate_counts=(),
+            selected_counts=(),
+        ),
+    )
+
+    rendered = LLMWorldContextRenderer.build_context(
+        make_context(),
+        projection=projection,
+    )
+
+    assert "75 mo de Oro" in rendered["known_resource_balances"]
+    assert "Fungoso" in rendered["known_resource_balances"]
