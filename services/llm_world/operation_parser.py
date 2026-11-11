@@ -71,8 +71,8 @@ class OperationParser:
     def parse(
         self,
         payload: str | dict[str, Any],
-    ) -> list[TurnOperation]:
-        """Parse an LLM JSON response into validated operation objects."""
+    ) -> list[TurnOperation | ReferencedOperation]:
+        """Parse operations, retaining explicit references for ordered resolution."""
 
         data = self._decode(payload)
 
