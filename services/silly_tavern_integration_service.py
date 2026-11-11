@@ -391,26 +391,6 @@ class SillyTavernIntegrationService:
             turn_version=turn_version,
         )
 
-    def _process_turn_locked(
-        self,
-        player_input: str,
-        narrative: str,
-        external_turn_id: str | None = None,
-        turn_version: int = 1,
-    ) -> TurnResolutionResult:
-        """Compatibility delegate for callers of the former private method."""
-        return self.legacy_turn_service._process_turn_locked(
-            player_input=player_input,
-            narrative=narrative,
-            external_turn_id=external_turn_id,
-            turn_version=turn_version,
-        )
-
-    @staticmethod
-    def _restore_world_state(target, snapshot) -> None:
-        """Compatibility delegate for the legacy rollback helper."""
-        LegacySillyTavernTurnService._restore_world_state(target, snapshot)
-
     # ============================================================
     # SERIALIZATION
     # ============================================================
