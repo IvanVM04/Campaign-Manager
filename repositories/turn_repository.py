@@ -33,7 +33,7 @@ class TurnRepository:
             cls._validate_positive_int(value, field_name)
 
     @staticmethod
-    def _validate_limit(limit: int, *, optional: bool = False) -> None:
+    def _validate_limit(limit: int | None, *, optional: bool = False) -> None:
         if optional and limit is None:
             return
         if not isinstance(limit, int) or isinstance(limit, bool):
