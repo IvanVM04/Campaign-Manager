@@ -11,17 +11,15 @@ from .role_and_fact_rules import ROLE_AND_FACT_RULES
 
 # This order mirrors the pre-decomposition prompt exactly. Dynamic campaign data
 # remains the responsibility of LLMWorldContextRenderer.
-STATIC_INSTRUCTIONS = "".join(
-    (
-        ROLE_AND_FACT_RULES,
-        ENTITY_RULES,
-        ITEM_RULES,
-        RESOURCE_RULES,
-        RELATION_RULES,
-        EVENT_RULES,
-        CHARACTER_AND_CONSISTENCY_RULES,
-        OUTPUT_CONTRACT_AND_EXAMPLES,
-    )
+STATIC_INSTRUCTIONS = (
+    ROLE_AND_FACT_RULES
+    + ENTITY_RULES
+    + ITEM_RULES
+    + RESOURCE_RULES
+    + RELATION_RULES
+    + EVENT_RULES
+    + CHARACTER_AND_CONSISTENCY_RULES
+    + OUTPUT_CONTRACT_AND_EXAMPLES
 )
 
 __all__ = ["STATIC_INSTRUCTIONS"]
