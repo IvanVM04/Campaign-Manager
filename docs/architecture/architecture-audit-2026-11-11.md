@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `c4ef2bea5e80f69e3239fcb0c5cda1978e038128` (after merge of PR #147).  
+**Audited baseline:** `main` at `1d882a6343d0968d568bc1faef26de8831aff22e` (after merge of PR #148).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -51,13 +51,9 @@ These are not automatically dead code. Each needs consumer mapping, ownership de
 
 ### 2.3 Runtime compatibility
 
-`api/runtime_context.py` still defines `RuntimeProxy` and module-level proxies for campaign-scoped services. The routers migrated by PR #147 now resolve a request-bound `CampaignRuntime` through `get_current_runtime()`, but the proxy layer remains in the module.
+The request-scoped runtime is now exposed only through `get_current_runtime()`. The HTTP middleware binds it with `bind_current_runtime()`, a context manager that restores the previous ContextVar token even when request handling raises. This keeps the ContextVar private to `api/runtime_context.py` and makes the binding lifecycle explicit.
 
-The next runtime cleanup should:
-1. Search every production and test import of each proxy.
-2. Migrate remaining consumers to request-bound runtime access or explicit fixture injection.
-3. Remove the proxy class and individual proxy exports only when no callers remain.
-4. Keep runtime composition in `bootstrap/campaign_runtime.py` and `app.py`; do not make routers construct runtimes.
+PR #149 removes the `RuntimeProxy` class, all module-level service proxies, and their re-exports from `app.py`. The routers already use request-bound runtime access; repository code search found no remaining direct consumers of the proxy names. Tests now cover unbound access, nested bindings and restoration after exceptions. Runtime composition remains in `bootstrap/campaign_runtime.py` and `app.py`; routers must not construct runtimes.
 
 `CampaignTurnService` has been removed from active runtime composition but its implementation remains in the repository. Treat its removal as a separate compatibility decision, not part of deleting RuntimeProxy.
 
