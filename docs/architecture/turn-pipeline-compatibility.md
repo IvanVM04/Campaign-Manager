@@ -27,7 +27,7 @@ The current extension calls `/integration/turn/resolve` before generation and `/
 
 - `POST /integration/turn` is marked deprecated in OpenAPI and emits a structured warning for each request, including campaign ID and external turn ID. This is usage telemetry, not a hard cutoff.
 - No removal date is set. Do not remove either compatibility surface until downstream/in-process callers have been checked and observed usage is zero for an agreed migration window.
-- Keep the old snapshot repository and legacy reconciliation code while the legacy endpoint remains supported. Do not route the active durable flow through snapshot restoration.
+- Keep the old snapshot repository and legacy reconciliation code while the legacy endpoint remains supported. `WorldSnapshotRepository` serializes campaign rows into JSON stored in the nullable `turns.snapshot` column; it does not own separate snapshot tables. Do not route the active durable flow through snapshot restoration.
 - The compatibility endpoint must not be presented as equivalent to the durable flow. Its successful response does not prove that it has the same commit-before-narration, challenge-recovery or no-replay guarantees.
 
 ## Migration for old SillyTavern clients
@@ -45,7 +45,8 @@ Before deleting `POST /integration/turn`, `SillyTavernIntegrationService.process
 - inspect release/deployment notes and any external extension forks or scripts;
 - inspect structured warning logs over a documented migration window;
 - confirm the current extension and any supported clients use only the durable endpoints;
-- preserve existing campaign history; do not run a destructive data migration as part of endpoint retirement;
-- remove code and tests in a separate PR after explicit compatibility sign-off.
+- preserve existing campaign history; snapshot payloads are historical JSON values in `turns.snapshot`, not separate tables; do not drop the column or clear payloads as an incidental part of endpoint retirement;
+- confirm by source search that `create_snapshot`, `restore_snapshot`, `load_snapshot_state` and all `snapshot` field consumers have no remaining production callers;
+- remove code and tests in a separate PR after explicit compatibility sign-off; handle the nullable `turns.snapshot` column in a separate reviewed migration.
 
 The `CampaignTurnService` compatibility implementation has since been removed after a repository-wide consumer audit. This document now tracks only the still-supported SillyTavern compatibility route and snapshot reconciliation.

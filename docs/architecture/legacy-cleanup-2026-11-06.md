@@ -29,7 +29,7 @@ This inventory separates confirmed dead code from compatibility code that still 
 |---|---|---|
 | Remaining flat service re-export modules | A smaller set of compatibility modules still exists; not all have been migrated | Repeat the consumer audit per module, migrate production and test imports, verify repository-wide references and CI, then remove each shim |
 | `POST /integration/turn` and `services/turns/LegacySillyTavernTurnService` | Deprecated route still dispatches to the isolated legacy turn collaborator | Observe zero usage for an agreed window and confirm supported extension clients have migrated; then retire route and collaborator together |
-| `WorldSnapshotRepository` and snapshot tables | Used by legacy SillyTavern transcript reconciliation and covered by tests | Retire the legacy route first; preserve existing user data and provide a deliberate migration before dropping tables |
+| `WorldSnapshotRepository` and `turns.snapshot` | Used by legacy SillyTavern regeneration; the repository serializes world rows into a JSON value stored in the nullable `turns.snapshot` column (there are no dedicated snapshot tables) | Retire the legacy route first; confirm no other production writer/reader remains, decide how to retain or clear historical JSON payloads, then remove the repository/column only through a deliberate migration |
 | Remaining runtime proxies and legacy app exports | Other historical service proxies remain exposed for routers/tests | Migrate each consumer to explicit request/runtime dependencies, then remove the proxy and exports with regression coverage |
 | Flat combat/provider modules | Combat and provider implementations have been moved into their capability packages; their former flat import paths are retired | Keep canonical import-boundary tests and avoid reintroducing flat compatibility paths |
 
@@ -38,5 +38,5 @@ This inventory separates confirmed dead code from compatibility code that still 
 1. Search production code, tests, scripts, and documentation for imports/references before deleting a module.
 2. Migrate callers before deleting compatibility shims; do not keep tests importing a shim merely to prove the shim works.
 3. Keep regression tests for active behavior. Delete tests only when the behavior itself is intentionally retired.
-4. Treat deprecated HTTP routes, persistence tables, and stored data as a coordinated compatibility/data migration, not ordinary dead-code cleanup.
+4. Treat deprecated HTTP routes, persistence columns, and stored data as a coordinated compatibility/data migration, not ordinary dead-code cleanup.
 5. Run Ruff, Python tests, and JavaScript tests in CI for every cleanup PR.
