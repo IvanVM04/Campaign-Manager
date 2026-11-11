@@ -7,7 +7,7 @@ The following deterministic checks remain required for every pull request:
 - Ruff lint.
 - Python tests, excluding the real_llm marker (live Ollama dependency).
 - JavaScript integration tests.
-- Pyright for the `rules_engine` package.
+- Pyright for the clean `rules_engine`, `bootstrap` and `operations` scopes.
 
 A green deterministic pipeline does not replace the manual SillyTavern smoke test or live-provider validation.
 
@@ -26,7 +26,7 @@ Coverage is report-only at this stage:
 
 Pyright runs in two scopes:
 
-- **Required:** `pyright rules_engine`. This package has been made clean and is now the first blocking type-checking boundary.
+- **Required:** `pyright rules_engine bootstrap operations`. These scopes currently have no baseline diagnostics and are checked together as the first blocking type-checking boundary.
 - **Informational:** repository-wide first-party application scope (API, bootstrap, models, operations, repositories, rules engine and services). Diagnostics are collected as JSON and published as a short-lived workflow artifact.
 
 The version is pinned in the development dependency group. Do not suppress diagnostics globally or change runtime behavior merely to make reports smaller. Expand the required scope package by package only after fixing its existing diagnostics and validating the same command in CI.
