@@ -1,4 +1,4 @@
-"""In-memory encounter turn order and round progression."""
+""""In-memory encounter turn order and round progression."""
 
 from __future__ import annotations
 
@@ -127,8 +127,16 @@ class CombatEncounterState:
             self.turn_index = 0
             self.round_number += 1
         active = self.active_combatant
-        self.combatants[active.combatant_id] = replace(active, action_used=False, reaction_used=False, movement_used_feet=0)
-        return self.active_combatant
+        if active is None:
+            raise RuntimeError("active encounter must have an active combatant")
+        refreshed = replace(
+            active,
+            action_used=False,
+            reaction_used=False,
+            movement_used_feet=0,
+        )
+        self.combatants[refreshed.combatant_id] = refreshed
+        return refreshed
 
     def complete(self) -> None:
         if self.status is not EncounterStatus.ACTIVE:
