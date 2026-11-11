@@ -516,7 +516,7 @@ The current workflows provide:
 - deterministic Python tests with coverage (excluding `real_llm`);
 - Ruff lint;
 - required-scope Pyright for `models`, `rules_engine`, `bootstrap` and `operations`;
-- informational repository-wide Pyright diagnostics;
+- blocking repository-wide Pyright (the current baseline is zero diagnostics);
 - JavaScript tests on Node 20;
 - CodeQL analysis for Python and JavaScript/TypeScript;
 - weekly Dependabot updates for GitHub Actions, pip and npm.
