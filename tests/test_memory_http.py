@@ -474,8 +474,11 @@ def test_memory_context_accepts_query(
             "context": "Aldric es un mercader.",
         }
 
+    import app
+
     monkeypatch.setattr(
-        "app.context_builder.build",
+        app.runtime_factory.get_runtime(1).context_builder,
+        "build",
         fake_build,
     )
 
