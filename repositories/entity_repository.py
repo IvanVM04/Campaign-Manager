@@ -118,6 +118,9 @@ class EntityRepository:
 
             entity_id = entity.id
 
+        if entity_id is None:
+            raise RuntimeError("failed to retrieve id of saved entity")
+
         loaded = self.get_entity(
             entity_id,
             campaign_id=campaign_id,
