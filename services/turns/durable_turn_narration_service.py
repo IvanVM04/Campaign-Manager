@@ -142,26 +142,26 @@ class DurableTurnNarrationService:
         if record is None and previous_turn is None:
             raise RuntimeError("previous turn is required without a durable resolution")
 
-        operation_results = (
-            json.loads(record.operation_results_json or "[]")
-            if record is not None
-            else []
-        )
-        operation_count = (
-            len(operation_results) if record is not None else previous_turn.operation_count
-        )
-        successful_count = (
-            sum(1 for item in operation_results if item.get("success", False))
-            if record is not None else previous_turn.successful_operation_count
-        )
+        if record is not None:
+            operation_results = json.loads(record.operation_results_json or "[]")
+            operation_count = len(operation_results)
+            successful_count = sum(
+                1 for item in operation_results if item.get("success", False)
+            )
+            world_changed = any(
+                item.get("changed", False) for item in operation_results
+            )
+            session_id = record.session_id
+        else:
+            if previous_turn is None:
+                raise self.error_type(
+                    "no durable resolution exists for this external turn"
+                )
+            operation_count = previous_turn.operation_count
+            successful_count = previous_turn.successful_operation_count
+            world_changed = previous_turn.world_changed
+            session_id = previous_turn.session_id
         failed_count = operation_count - successful_count
-        world_changed = (
-            any(item.get("changed", False) for item in operation_results)
-            if record is not None else previous_turn.world_changed
-        )
-        session_id = (
-            record.session_id if record is not None else previous_turn.session_id
-        )
         turn = TurnRecord(
             session_id=session_id,
             player_input=player_input,
