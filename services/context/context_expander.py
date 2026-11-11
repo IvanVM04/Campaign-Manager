@@ -205,10 +205,10 @@ class ContextExpander:
                 if (
                     isinstance(subject_id, int)
                     and not isinstance(subject_id, bool)
+                    and isinstance(target_id, int)
+                    and not isinstance(target_id, bool)
                     and subject_id in current_ids
                 ):
-                    if not isinstance(target_id, int) or isinstance(target_id, bool):
-                        continue
                     target = world.entities.get(target_id)
 
                     if (
@@ -237,10 +237,10 @@ class ContextExpander:
                 if (
                     isinstance(target_id, int)
                     and not isinstance(target_id, bool)
+                    and isinstance(subject_id, int)
+                    and not isinstance(subject_id, bool)
                     and target_id in current_ids
                 ):
-                    if not isinstance(subject_id, int) or isinstance(subject_id, bool):
-                        continue
                     subject = world.entities.get(subject_id)
 
                     if (
