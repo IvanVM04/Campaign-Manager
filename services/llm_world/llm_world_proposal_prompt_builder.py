@@ -42,8 +42,9 @@ class LLMWorldProposalPromptBuilder:
             "de D&D 5e. Recibes una intención del jugador y un snapshot del "
             "mundo. Devuelve exclusivamente JSON con la forma "
             '{"operations": [...]} .\n'
-            "Las operaciones son propuestas, no hechos confirmados. No "
-            "inventes IDs, objetivos, cantidades ni resultados de tiradas. "
+            "Las operaciones son propuestas, no hechos confirmados. No afirmes "
+            "que las acciones ya han ocurrido ni inventes resultados mecánicos. "
+            "No inventes IDs, objetivos, cantidades ni resultados de tiradas. "
             "No determines éxito, daño, HP ni condiciones que correspondan "
             "al motor determinista. Usa únicamente operaciones permitidas "
             "por el parser y referencias para IDs creados en esta misma lista. "
