@@ -10,8 +10,8 @@ from repositories.persistent_effect_repository import PersistentEffectRepository
 from services.campaign import (
     CampaignStateService,
     CampaignStateServiceError,
+    EffectiveConditionService,
 )
-from services.campaign import EffectiveConditionService
 from services.world import WorldService
 
 
