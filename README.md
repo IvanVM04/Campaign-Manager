@@ -4,6 +4,8 @@ Campaign Manager is evolving from a persistent campaign-state backend into an **
 
 The current implementation provides campaign state management, a REST API, structured world operations, memory/context retrieval, turn persistence and a SillyTavern integration. It is **not yet a complete D&D rules engine or a standalone AI Dungeon Master**. The product direction below describes the intended evolution; it must not be read as a claim that those future capabilities already exist.
 
+> **Maintainers and coding agents:** start with [AGENTS.md](AGENTS.md) and the [documentation hub](docs/README.md). The current architecture, CI and test audits are indexed there; dated audits are historical snapshots.
+
 ## Product vision
 
 The goal is to let a player describe what their character wants to do in natural language and have an AI Dungeon Master interpret the intent, consult the campaign, adjudicate the situation, apply the relevant game rules, update the world and narrate the outcome.
@@ -356,7 +358,7 @@ pip install -r requirements.txt
 Install the development/test tools:
 
 ```bash
-pip install pytest "httpx2>=2.5" ruff
+pip install pytest pytest-cov "httpx2>=2.5" ruff "pyright==1.1.414"
 ```
 
 The database will be initialized automatically when the application starts.
@@ -503,32 +505,35 @@ The goal is not only to test individual functions, but also to verify that persi
 
 ## Continuous Integration
 
-GitHub Actions runs the automated checks on pushes and pull requests targeting `main`.
+GitHub Actions runs checks on pushes and pull requests targeting `main`.
 
-The CI pipeline currently performs three jobs:
+The current workflows provide:
+- deterministic Python tests with coverage (excluding `real_llm`);
+- Ruff lint;
+- required-scope Pyright for `models`, `rules_engine`, `bootstrap` and `operations`;
+- informational repository-wide Pyright diagnostics;
+- JavaScript tests on Node 20;
+- CodeQL analysis for Python and JavaScript/TypeScript;
+- weekly Dependabot updates for GitHub Actions, pip and npm.
 
-```text
-pytest (excluding real_llm tests)
-        +
-Ruff linting
-        +
-JavaScript tests (Node 20)
-```
+The real-LLM tests are intentionally excluded from deterministic CI because they require a running Ollama service and compatible model. CodeQL runs as a separate workflow.
 
-The real LLM tests are intentionally excluded from CI because they require a locally running Ollama service and model.
-
-Each job reports its own status in the pull request; wait for all three jobs to finish before treating the CI run as complete.
+**Important merge-protection note:** the current default-branch ruleset requires pull requests but does not yet list required status checks. The project process is to wait for every applicable workflow to finish and fix any failure before merge; repository settings still need to be configured to make GitHub enforce that policy automatically. See the [CI audit](docs/quality/ci-audit-2026-11-11.md).
 
 ---
 
-## Architecture documents
+## Engineering documentation
 
-- [Current architecture snapshot (2026-11-05)](docs/architecture/current-architecture-2026-11-05.md)
-- [Writer, lock and cache-coherence audit](docs/architecture/writer-lock-cache-audit.md)
-- [Architecture audit and refactoring plan (2026-11-05)](docs/architecture/audit-and-refactor-plan-2026-11-05.md)
-- [Historical engineering audit (2026-11-03)](docs/architecture/engineering-audit-2026-11-03.md)
-- [Domain boundaries and state ownership](docs/architecture/domain-boundaries-2026-11-03.md)
+- [Documentation hub for maintainers and agents](docs/README.md)
+- [Current architecture and modularity audit](docs/architecture/architecture-audit-2026-11-11.md)
+- [Capability dependency matrix](docs/architecture/package-dependency-matrix.md)
+- [CI and quality-gate audit](docs/quality/ci-audit-2026-11-11.md)
+- [Test-suite audit](docs/quality/test-suite-audit-2026-11-11.md)
+- [CI quality roadmap](docs/quality/ci-quality-roadmap.md)
 - [Durable turn lifecycle](docs/architecture/turn-resolution-lifecycle.md)
+- [Writer, lock and cache-coherence audit](docs/architecture/writer-lock-cache-audit.md)
+
+Older architecture documents remain available from the [architecture index](docs/architecture/README.md) as dated historical snapshots.
 
 ## Design Decisions
 
