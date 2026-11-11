@@ -943,6 +943,69 @@ def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
     assert "lifecycle_state=planning" in entries[0].getMessage()
 
 
+def test_unexpected_planning_failure_releases_lease_and_recovers_after_runtime_restart():
+    service, _, _ = _service_with_fake_models()
+
+    def fail_during_preparation(*args, **kwargs):
+        raise RuntimeError("temporary extraction provider outage")
+
+    service.resolver.prepare_turn = fail_during_preparation
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="native turn execution failed",
+    ):
+        service.play_turn(
+            "Investigo el campanario.",
+            idempotency_key="native-planning-restart-recovery",
+        )
+
+    failed_attempt = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-planning-restart-recovery",
+        scope=service.scope,
+    )
+    assert failed_attempt.lifecycle_state == "accepted"
+    assert failed_attempt.attempt_count == 1
+    assert failed_attempt.lease_token is None
+    assert failed_attempt.lease_expires_at is None
+    assert failed_attempt.last_error_code == "planning_failed"
+
+    # A fresh runtime simulates a process restart: recovery must rely on the
+    # persisted resolution, not the failed service instance or its lock.
+    restarted_service = CampaignRuntimeFactory().get_runtime(
+        service.scope.campaign_id
+    ).durable_native_turn_service
+    restarted_service.resolver.mechanics_adjudicator = None
+    proposal_calls = []
+    restarted_service.resolver.extractor.provider = lambda prompt: (
+        proposal_calls.append(prompt) or '{"operations": []}'
+    )
+    narrative_calls = []
+    restarted_service.resolver.dm_service.provider.generate = lambda prompt: (
+        narrative_calls.append(prompt) or "La campana permanece inmóvil."
+    )
+
+    recovered = restarted_service.play_turn(
+        "Investigo el campanario.",
+        idempotency_key="native-planning-restart-recovery",
+    )
+
+    assert recovered.narrative == "La campana permanece inmóvil."
+    assert len(proposal_calls) == 1
+    assert len(narrative_calls) == 1
+
+    completed = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-planning-restart-recovery",
+        scope=service.scope,
+    )
+    assert completed.lifecycle_state == "completed"
+    assert completed.attempt_count == 2
+    assert completed.lease_token is None
+    assert completed.lease_expires_at is None
+
+
 
 def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries():
     service, _, _ = _service_with_fake_models()
@@ -1041,3 +1104,102 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     assert len(proposal_calls) == 1
     recovered_world = service.world_service.repository.load_world(campaign_id=1)
     assert any(entity.name == "Aldric" for entity in recovered_world.entities.values())
+
+
+def test_native_idempotency_key_rejects_different_player_input():
+    service, proposal_calls, narrative_calls = _service_with_fake_models()
+    service.play_turn(
+        "Miro alrededor.",
+        idempotency_key="native-idempotency-input-conflict",
+    )
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="idempotency key was already used for a different request",
+    ):
+        service.play_turn(
+            "Abro la puerta.",
+            idempotency_key="native-idempotency-input-conflict",
+        )
+
+    assert len(proposal_calls) == 1
+    assert len(narrative_calls) == 1
+
+
+def test_external_narration_rejects_conflicting_content_for_existing_version():
+    from database import get_conn
+
+    service, proposal_calls, _ = _service_with_fake_models()
+    service.prepare_external_turn(
+        "Miro la habitación.",
+        external_turn_id="st-narrative-version-conflict",
+    )
+    service.complete_external_narration(
+        external_turn_id="st-narrative-version-conflict",
+        player_input="Miro la habitación.",
+        narrative="Hay una mesa.",
+        turn_version=1,
+    )
+    first_record = service.turn_repository.get_active_by_external_turn_id(
+        "st-narrative-version-conflict",
+        scope=service.scope,
+    )
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="external turn version already exists with different content",
+    ):
+        service.complete_external_narration(
+            external_turn_id="st-narrative-version-conflict",
+            player_input="Miro la habitación.",
+            narrative="Hay una ventana.",
+            turn_version=1,
+        )
+
+    active = service.turn_repository.get_active_by_external_turn_id(
+        "st-narrative-version-conflict",
+        scope=service.scope,
+    )
+    assert active.id == first_record.id
+    assert active.version == 1
+    assert active.narrative == "Hay una mesa."
+    assert len(proposal_calls) == 1
+    with get_conn() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM turns WHERE external_turn_id=?",
+            ("st-narrative-version-conflict",),
+        ).fetchone()[0]
+    assert count == 1
+
+
+def test_external_narration_rejects_skipped_version_without_writing_transcript():
+    from database import get_conn
+
+    service, proposal_calls, _ = _service_with_fake_models()
+    service.prepare_external_turn(
+        "Miro la habitación.",
+        external_turn_id="st-narrative-version-gap",
+    )
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="external turn version must be 1",
+    ):
+        service.complete_external_narration(
+            external_turn_id="st-narrative-version-gap",
+            player_input="Miro la habitación.",
+            narrative="Hay una mesa.",
+            turn_version=2,
+        )
+
+    assert service.turn_repository.get_active_by_external_turn_id(
+        "st-narrative-version-gap",
+        scope=service.scope,
+    ) is None
+    assert len(proposal_calls) == 1
+    with get_conn() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM turns WHERE external_turn_id=?",
+            ("st-narrative-version-gap",),
+        ).fetchone()[0]
+    assert count == 0
