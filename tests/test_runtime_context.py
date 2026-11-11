@@ -41,3 +41,28 @@ def test_bind_current_runtime_restores_binding_after_exception():
                 raise ValueError("stop")
 
         assert get_current_runtime() is first
+
+
+def test_runtime_proxy_compatibility_exports_are_removed():
+    import app
+    import api.runtime_context as runtime_context
+
+    legacy_names = (
+        "campaign_repository",
+        "character_repository",
+        "entity_repository",
+        "turn_repository",
+        "world_service",
+        "campaign_state_service",
+        "memory_search_service",
+        "context_builder",
+        "turn_execution_lock",
+        "character_creation_service",
+        "combat_encounter_service",
+        "silly_tavern_integration_service",
+    )
+
+    assert not hasattr(runtime_context, "RuntimeProxy")
+    assert not any(hasattr(runtime_context, name) for name in legacy_names)
+    assert not any(hasattr(app, name) for name in legacy_names)
+    assert not any(name in app.__all__ for name in legacy_names)
