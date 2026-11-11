@@ -16,7 +16,7 @@ def search_memory(
 ):
     with turn_execution_lock.acquire():
         world = world_service.get_world()
-        return memory_search_service.search(world, q.strip())
+        return get_current_runtime().memory_search_service.search(world, q.strip())
 
 
 @router.get("/memory/context")
