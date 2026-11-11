@@ -363,3 +363,13 @@ def test_update_entity_accepts_entity_reference():
 
     assert operation.entity_id.name == "npc"
     assert operation.name == "Aldren el Rojo"
+
+def test_model_proposable_operation_registry_excludes_character_mutations():
+    parser = OperationParser()
+
+    allowed = parser.model_proposable_operation_types()
+
+    assert "create_entity" in allowed
+    assert "create_item_instance" in allowed
+    assert "change_character_hp" not in allowed
+    assert allowed == tuple(sorted(set(allowed)))
