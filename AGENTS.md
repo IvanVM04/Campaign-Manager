@@ -23,7 +23,7 @@ Dated audits are historical snapshots. Use the newest current audit and inspect 
 - Do not add gameplay features while the active objective is CI, architecture, legacy cleanup, prompt quality or test maintenance.
 - Do not claim a live Ollama/SillyTavern smoke test passed unless it was actually run.
 
-The repository ruleset currently requires pull requests and thread resolution, but its required-status-check list is empty. This is an administrative merge-protection gap, not a reason to relax the working agreement. See the CI audit.
+The default-branch ruleset `protc1` requires pull requests, review-thread resolution, `CI summary`, and both CodeQL language checks. `CI summary` aggregates Ruff, deterministic tests, scoped and repository-wide Pyright, and JavaScript tests. See the current CI audit.
 
 ## Environment setup
 
@@ -46,9 +46,10 @@ ruff check .
 python -m pytest -m "not real_llm" --cov --cov-report=term-missing --cov-report=xml
 npm run test:js
 pyright models rules_engine bootstrap operations
+pyright
 ```
 
-CodeQL analyzes Python and JavaScript/TypeScript on pull requests, pushes to `main` and its weekly schedule. The repository-wide Pyright report is informational while its baseline is reduced. Live-provider tests are marked `real_llm` and are not part of deterministic CI.
+CodeQL analyzes Python and JavaScript/TypeScript on pull requests, pushes to `main` and its weekly schedule. Repository-wide Pyright is a blocking CI job and currently has a zero-diagnostic baseline. Live-provider tests are marked `real_llm` and are not part of deterministic CI.
 
 A green CI run does not prove that a manual SillyTavern session or live LLM call works. Report those separately.
 
@@ -68,9 +69,11 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 
 - Keep static instructions separate from typed context data.
 - The structured proposal prompt must not be built by parsing or editing the legacy narrative-extraction prompt. PR #161 completed this decoupling.
-- The structured proposal context still needs relevance selection and a bounded model-token budget. Coordinate this at the turn/application boundary; `services/llm_world` must not import `services.context` directly.
-- Preserve mandatory facts, permissions, current character/scene state and confirmed mechanics. Never solve prompt size by arbitrary string truncation.
-- Keep repair attempts bounded and model output strictly validated.
+- `TurnResolutionService` builds the active structured proposal projection through `ContextBuilder.build_proposal_context()` and passes the typed `models.world_context_projection.WorldContextProjection` to `services/llm_world`.
+- Keep the dependency direction: `services/turns` may orchestrate `services.context`; `services/llm_world` must not import `services.context`.
+- Preserve the active character, related records and dependency records. Never solve context overflow by truncating arbitrary campaign facts.
+- The shared token-budget helper is a conservative one-UTF-8-byte-per-token upper bound, not a model-specific tokenizer. The complete prompt and compact one-repair request are independently bounded.
+- Keep provider output size-limited, repair attempts limited to one, and model output strictly validated.
 
 ## Test-suite maintenance
 
