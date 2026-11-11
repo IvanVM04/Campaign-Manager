@@ -1,0 +1,23 @@
+{
+  "include": [
+    "api",
+    "bootstrap",
+    "models",
+    "operations",
+    "repositories",
+    "rules_engine",
+    "services",
+    "app.py",
+    "database.py",
+    "migrations.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/node_modules",
+    "scripts",
+    "tests"
+  ],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic"
+}
