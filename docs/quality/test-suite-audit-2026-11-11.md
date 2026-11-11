@@ -1,8 +1,8 @@
 # Test-suite audit — 2026-11-11
 
 **Repository:** `IvanVM04/Campaign-Manager`  
-**Audited `main`:** `bbcb7a0fda401c4d82d6ecff5119d6a0ec5eaec4`  
-**Observed CI:** 1,302 Python test items collected; 1,295 passed and 7 live-LLM cases were deselected.  
+**Audited `main`:** `a0e2c70bedd8f3e45f40d4c4f39d4fee13f8d4eb` (PR #189)  
+**Observed CI:** 1,313 Python test items collected; 1,306 passed and 7 live-LLM cases were deselected (Tests run #43103128009).  
 **Method:** recursive test-tree inventory, file-size and test-name inspection, workflow marker configuration and selected contract-file review. This is a structural audit, not a claim that every assertion has been mutation-tested or individually executed outside CI.
 
 ## 1. Executive assessment
@@ -22,18 +22,19 @@ The main maintenance problem is navigation and mixed responsibility in several v
 
 ## 3. Largest navigation hotspots
 
-The following file sizes and test counts were observed on the audited commit:
+The former `test_silly_tavern_integration.py` was split by PR #186 into smaller API, lifecycle, service, schema and regeneration-failure modules. The current largest modules are:
 
 | Module | Lines | Test functions | Primary contracts |
 |---|---:|---:|---|
-| `test_silly_tavern_integration.py` | 4,090 | 53 | Request schemas, endpoints, legacy adapter, durable resolve/complete, retries, snapshots and rollback |
+| `test_silly_tavern_lifecycle.py` | 2,441 | 16 | Versioned turn lifecycle, snapshots, retries/idempotency, rollback, restart and state persistence |
 | `test_world_repository.py` | 1,817 | 24 | World persistence, atomic save, connection ownership, campaign isolation and snapshot restore |
-| `test_turn_repository.py` | 1,420 | 38 | Turn persistence, campaign-scoped identities, transaction ownership, ordering and input validation |
-| `test_turn_resolution_service.py` | 1,388 | 34 | Legacy narrative-first planner, structured proposals, deterministic mechanics and plan application |
-| `test_durable_native_turn_service.py` | 1,226 | 24 | Durable commit, idempotency, narration recovery, clarification/manual rolls and failure recovery |
-| `test_migrations.py` | 1,127 | 27 | Historical schema upgrades, data preservation, constraints and durable turn tables |
+| `test_world_service.py` | 1,679 | 38 | World loading/saving, typed operation application, rollback and in-memory/SQLite consistency |
+| `test_turn_repository.py` | 1,420 | 39 | Turn persistence, campaign-scoped identities, transaction ownership, ordering and input validation |
+| `test_turn_resolution_service.py` | 1,388 | 33 | Legacy narrative-first planner, structured proposals, deterministic mechanics and plan application |
+| `test_durable_native_turn_service.py` | 1,206 | 25 | Durable commit, idempotency, narration recovery, clarification/manual rolls and failure recovery |
 | `test_context_builder.py` | 1,181 | 47 | Retrieval, expansion, relevance, text budgets, structured context and recent history |
-| `test_llm_world_extractor.py` | 1,152 | 35 | Legacy extraction, structured proposals, malformed output, parser validation and one repair |
+| `test_llm_world_extractor.py` | 1,152 | 35 | Legacy extraction, structured proposals, malformed output, parser validation and repair |
+| `test_migrations.py` | 1,127 | 27 | Historical schema upgrades, data preservation, constraints and durable turn tables |
 
 Other sizeable but reasonably cohesive modules include combat attack/opportunity workflows, world application, DM service and turn resolution repository contracts. Split them only when the new files reflect distinct externally observable responsibilities.
 
@@ -51,11 +52,12 @@ Other sizeable but reasonably cohesive modules include combat attack/opportunity
 
 ### Reorganize without changing behavior
 
-1. Split `test_silly_tavern_integration.py` into schema/HTTP contract tests, active durable adapter flow, context/transcript reads and legacy snapshot compatibility.
-2. Split `test_llm_world_extractor.py` into legacy narrative extraction and structured player-intent proposal/parser/repair behavior. The old extraction path remains needed by the deprecated route.
+1. PR #186 completed the first split of the former 4,000-line SillyTavern integration module into `test_silly_tavern_schemas.py`, `test_silly_tavern_api.py`, `test_silly_tavern_service.py`, `test_silly_tavern_lifecycle.py` and `test_silly_tavern_regeneration_failure.py`, with shared support in `silly_tavern_integration_support.py`. The next step is to split the remaining 2,441-line lifecycle module by versioning/retry, snapshot compatibility, rollback and persistence contracts.
+2. Split `test_llm_world_extractor.py` into legacy narrative extraction and structured player-intent proposal/parser/repair behavior.
 3. Split `test_context_builder.py` by retrieval/expansion, ranking/structured candidates and text/history rendering budgets.
-4. Consider separating turn-planning behavior from plan-application behavior in `test_turn_resolution_service.py`, preserving the end-to-end transaction tests in their integration owner.
-5. Keep durable recovery tests grouped by state transition rather than simply distributing tests to equalize line counts.
+4. Consider separating turn-planning behavior from plan-application behavior in `test_turn_resolution_service.py`, preserving end-to-end transaction tests in their owning integration modules.
+5. Review `test_world_repository.py`, `test_world_service.py` and `test_turn_repository.py` for cohesive responsibility-based splits; do not create a separate test file per tiny test.
+6. Keep durable recovery/fencing tests grouped by state transition. PRs #187 and #189 already added prepared-context fencing, runtime-restart recovery and idempotency-conflict coverage.
 
 ### Tiny tests and apparent duplicates
 
@@ -66,7 +68,7 @@ Other sizeable but reasonably cohesive modules include combat attack/opportunity
 
 ## 5. Coverage interpretation
 
-The latest observed report shows 83% aggregate coverage with branch collection enabled. This number alone does not indicate test quality. Package-level and branch-level review should prioritize:
+The latest observed report from Tests run #43103128009 shows 85.8% line coverage and 72.6% branch coverage. This number alone does not indicate test quality. Package-level and branch-level review should prioritize:
 
 - transaction rollback after partial failure;
 - concurrent duplicate delivery and idempotency;
@@ -94,9 +96,9 @@ Never delete tests to increase a coverage percentage or simply reduce file count
 
 ## 7. Recommended sequence
 
-1. Establish CI merge enforcement (see [CI audit](ci-audit-2026-11-11.md)).
-2. Split the SillyTavern integration tests without changing assertions.
-3. Split legacy extraction and active structured proposal tests.
-4. Reorganize context tests around pipeline responsibilities.
-5. Review package-level coverage gaps and add only tests that protect uncovered risk.
-6. Reassess tiny tests after the above reorganizations; move rather than delete when the contract remains valid.
+1. Continue with the remaining SillyTavern lifecycle test split, preserving all assertions and fixtures.
+2. Split legacy narrative extraction tests from active structured proposal/parser/repair tests.
+3. Reorganize context tests around retrieval/expansion, ranking and rendering budgets.
+4. Consider responsibility-based splits for turn resolution, world persistence/application and turn repository tests.
+5. Use package/branch coverage to identify missing critical-path guarantees; keep percentage thresholds report-only until a no-regression policy is justified.
+6. Reassess tiny tests only after their protected contracts are clearly mapped; move/rename rather than delete when still valid.

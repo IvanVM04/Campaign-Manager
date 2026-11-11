@@ -24,7 +24,7 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 - [ ] Specify shutdown behavior and assess whether the unbounded runtime cache needs safe eviction. Runtime state is process-local; the supported deployment remains one process/worker.
 - [ ] Formalize typed composition contracts only where a real substitution boundary requires them; narrative, extraction and mechanics roles already have explicit model and timeout settings in LLMSettings.
 - [ ] Add focused lifecycle and invalidation tests.
-- [ ] Migrate any remaining consumers from compatibility imports and remove shims only after repository-wide verification.
+- [x] Migrate consumers to canonical campaign-package imports and retire the former flat compatibility paths.
 
 ## Session and conversation read API
 - `GET /sessions?limit=50&offset=0` returns a campaign-scoped page with session metadata, turn count and last-turn timestamp.

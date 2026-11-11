@@ -32,7 +32,7 @@ Character state and schemas remain in `models/`, persistence in `repositories/`,
 - [ ] Test invariants for active-character switching and campaign scoping.
 - [ ] Review atomic synchronization of character, equipment and encounter projections.
 - [ ] Clarify the boundary between character creation rules and persistence.
-- [ ] Add architecture tests against transport/provider dependencies.
+- [x] Enforce transport/provider/service dependency boundaries in `tests/test_architecture_boundaries.py` and `docs/architecture/package-dependency-matrix.md`.
 - [ ] Revisit CharacterCreationService transaction ownership separately, with explicit caller-connection support and tests if needed.
 
 ## Migration status

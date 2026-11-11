@@ -120,7 +120,7 @@ For the current baseline and ordered roadmap, see [the architecture audit — 20
 
 ### Service package boundaries
 
-The application services are being organized by capability rather than leaving every workflow in one flat package. The following package guides document each target boundary, its dependency rules and known follow-up work:
+The application services are organized into eight implemented capability packages rather than one flat service package. Their guides document current ownership, dependency rules and known follow-up work:
 
 | Package guide | Responsibility |
 |---|---|

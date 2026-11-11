@@ -20,13 +20,21 @@ Construct world-extraction prompts, project world context, coordinate extraction
 - Treat model output as untrusted input and fail closed on malformed/unsupported operations.
 - Keep world mutation in the world application boundary.
 
-## Pending work
-- [x] Decouple the proposal prompt builder from the legacy narrative-extraction prompt and remove marker-based text extraction (PR #161).
-- [ ] Replace the proposal path's full-world projection with a typed, relevance-ranked context projection and an explicit estimated-token budget. Orchestration must preserve the package dependency matrix; `llm_world` must not import `services.context` directly.
-- [ ] Centralize operation metadata/LLM allowlisting without exposing internal-only operations.
-- [ ] Add prompt-size diagnostics and bounded repair context; assess provider invocation/retry as a separate boundary.
-- [ ] Specify and test retry, timeout and repair limits; retries must not duplicate side effects.
-- [ ] Test malformed output, unsupported operations, partial responses, provider failures and context-budget behavior with small/large campaign fixtures.
+## Verified prompt-size findings
+
+- The active durable proposal path calls `LLMWorldProposalPromptBuilder`, which renders every supported world record through `LLMWorldContextRenderer`; it does not rank records by player intent or enforce a prompt/token budget.
+- `ContextBuilder` already provides deterministic retrieval, relation expansion, ranking and 6,000/2,000-character budgets for world/recent-turn context. Those character budgets are not token budgets and are not applied to the active proposal path.
+- The legacy `LLMWorldPromptBuilder` is 2,193 lines / 46,851 characters and remains behind `LLMWorldExtractor.extract()` for the deprecated narrative-first route. It is not used by the active durable structured proposal path.
+- `LLMWorldProposalValidator.parse_with_repair()` makes one retry, but the repair prompt repeats the full original prompt, validation error and full invalid provider response. Retry count is bounded; repair input size is not.
+- The validator reads the parser's private `_BUILDERS` mapping to determine allowed operation types.
+
+## Pending work — ordered by risk
+- [ ] **P0 — Context selection:** typed, read-only, intent-relevant projection at the turn/application boundary; preserve mandatory character, scene, permissions and confirmed mechanics; deterministic ordering; estimated-token budget and provider safety margin. Do not add a direct `llm_world` -> `context` dependency or truncate arbitrary strings.
+- [ ] **P0 — Repair bounds:** cap provider response size and define a separate repair prompt budget; send a bounded validation summary rather than an unbounded invalid response; retain exactly one repair and fail closed.
+- [ ] **P1 — Diagnostics:** selected/excluded counts, rendered characters, estimated tokens and budget utilization without logging campaign text.
+- [ ] **P1 — Operation metadata:** public typed metadata distinguishing model-proposable from internal-only operations, schemas and prompt descriptions.
+- [ ] **P2 — Regression coverage:** small/medium/large campaigns, mandatory-fact retention, stable ordering, secret-event exclusion, output/repair limits and budget overflow.
+- [ ] **P2 — Provider contract:** document timeout/retry ownership and prove retries cannot duplicate side effects.
 - [ ] Document the trust boundary from model proposal to deterministic validation/application.
 
 ## Migration status

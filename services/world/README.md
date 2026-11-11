@@ -35,7 +35,7 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - [ ] Verify campaign scoping and stale-context/revision checks at the application boundary.
 - [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
 - [ ] Review serializer consumers before changing its output contract.
-- [ ] Remove compatibility shims only after all callers migrate.
+- [x] Remove former flat world compatibility shims after caller migration; canonical imports remain under `services.world`.
 
 ## Migration status
-All eight modules now live in `services/world/`. The flat `services.world_serializer`, `services.world_item_applier` and `services.world_entity_applier` compatibility modules have been removed. Remaining flat world paths are tracked for separate consumer migration.
+All eight modules now live in `services/world/`. The former flat world compatibility modules have been removed. The current `services/` root contains only the active SillyTavern integration adapter; no flat world shim remains.

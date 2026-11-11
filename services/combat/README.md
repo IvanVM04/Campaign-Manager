@@ -15,7 +15,7 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - Keep the rules engine independent of FastAPI, SQLite, LLM providers and service orchestration.
 - Treat character state as canonical where encounter data is a projection.
 - Keep encounter, character/creature HP and effect updates within their existing transaction boundaries.
-- Runtime composition imports the canonical `services.combat` package; legacy module paths remain compatibility shims.
+- Runtime composition and tests import the canonical `services.combat` package; former flat combat shims have been retired.
 
 ## Pending work
 - [ ] Audit duplicated mechanics that should be delegated to the rules engine.
@@ -23,7 +23,6 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - [ ] Review synchronization of HP, resources, conditions and encounter projections.
 - [ ] Surface unsupported 2014 rules rather than silently improvising.
 - [ ] Expand coverage for currently partial combat flows as rules are implemented.
-- [ ] Retire compatibility shims only after external and test consumers have migrated.
 
 ## Migration status
 The three service modules live in this package. The flat `services.combat_encounter_service`, `services.combat_attack_service` and `services.weapon_equipment_service` compatibility shims have been removed after migrating the remaining test consumers.
