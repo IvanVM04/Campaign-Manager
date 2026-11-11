@@ -51,6 +51,8 @@ class LLMWorldProposalPromptBuilder:
             + context_blocks["known_item_instances"]
             + "\n\nRECURSOS CONOCIDOS:\n"
             + context_blocks["known_resources"]
+            + "\n\nSALDOS DE RECURSOS CONOCIDOS:\n"
+            + context_blocks["known_resource_balances"]
             + "\n\nRELACIONES CONOCIDAS:\n"
             + context_blocks["known_relations"]
             + "\n\nEVENTOS CONOCIDOS:\n"
