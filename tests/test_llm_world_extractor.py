@@ -351,7 +351,7 @@ def test_parser_rejects_invalid_operation():
 
     with pytest.raises(
         LLMExtractionError,
-        match="Failed to parse operations",
+        match="expected an object",
     ):
         extractor.extract(
             "algo ocurrió",
@@ -384,7 +384,7 @@ def test_parser_failure_becomes_extraction_error():
 
     with pytest.raises(
         LLMExtractionError,
-        match="Failed to parse operations",
+        match="not permitted",
     ):
         extractor.extract(
             "algo ocurrió",
@@ -402,7 +402,8 @@ def test_parser_result_must_be_world_operation():
             {
                 "operations": [
                     {
-                        "type": "something"
+                        "type": "create_entity",
+                        "name": "Validación de prueba",
                     }
                 ]
             }

@@ -69,7 +69,11 @@ def test_prompt_contract_rejects_internal_or_unknown_operation_types():
 
 
 def test_response_parser_rejects_internal_operation_before_parser_invocation():
-    response_parser = LLMWorldResponseParser(OperationParser())
+    class ParserThatMustNotRun:
+        def parse(self, payload):
+            raise AssertionError("internal operation reached the structural parser")
+
+    response_parser = LLMWorldResponseParser(ParserThatMustNotRun())
 
     with pytest.raises(LLMExtractionError, match="not permitted"):
         response_parser.parse_operations(
