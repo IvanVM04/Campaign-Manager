@@ -4,28 +4,13 @@ import json
 from dataclasses import MISSING
 from typing import Any, ClassVar
 
-from operations.character_operations import (
-    ChangeCharacterHpOperation,
-    CharacterOperation,
-)
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
 from operations.turn_operations import TurnOperation
-from operations.world_operations import (
-    CreateEntityOperation,
-    CreateEventOperation,
-    CreateItemInstanceOperation,
-    CreateItemOperation,
-    CreateRelationOperation,
-    CreateResourceOperation,
-    GainResourceOperation,
-    RemoveRelationOperation,
-    SpendResourceOperation,
-    TransferItemOperation,
-    TransferResourceOperation,
-    UpdateEntityOperation,
-    UpdateItemInstanceOperation,
-    UpdateRelationOperation,
+
+from .operation_registry import (
+    DEFAULT_OPERATION_REGISTRY,
+    OperationMetadataRegistry,
 )
 
 
@@ -46,43 +31,17 @@ class OperationParser:
     Semantic validation belongs to WorldApplier / WorldService.
     """
 
-    _BUILDERS: ClassVar = {
-        "create_entity": CreateEntityOperation,
-        "update_entity": UpdateEntityOperation,
+    _BUILDERS: ClassVar = DEFAULT_OPERATION_REGISTRY.builders
 
-        "create_item": CreateItemOperation,
-        "create_item_instance": CreateItemInstanceOperation,
-        "update_item_instance": UpdateItemInstanceOperation,
-        "transfer_item": TransferItemOperation,
+    def __init__(
+        self,
+        registry: OperationMetadataRegistry = DEFAULT_OPERATION_REGISTRY,
+    ) -> None:
+        self.registry = registry
 
-        "create_resource": CreateResourceOperation,
-        "gain_resource": GainResourceOperation,
-        "spend_resource": SpendResourceOperation,
-        "transfer_resource": TransferResourceOperation,
-
-        "create_relation": CreateRelationOperation,
-        "update_relation": UpdateRelationOperation,
-        "remove_relation": RemoveRelationOperation,
-
-        "create_event": CreateEventOperation,
-
-        "change_character_hp": ChangeCharacterHpOperation,
-    }
-
-    @classmethod
-    def model_proposable_operation_types(cls) -> tuple[str, ...]:
-        """Return parser-supported operation types safe for model proposals.
-
-        Character-state operations are intentionally excluded: mechanical
-        character changes must be produced by deterministic application code.
-        """
-        return tuple(
-            sorted(
-                operation_type
-                for operation_type, builder in cls._BUILDERS.items()
-                if not issubclass(builder, CharacterOperation)
-            )
-        )
+    def model_proposable_operation_types(self) -> tuple[str, ...]:
+        """Return the explicitly model-proposable operation types."""
+        return self.registry.model_proposable_operation_types()
 
     def parse(
         self,
@@ -174,19 +133,23 @@ class OperationParser:
                 "Operation requires a non-empty 'type'."
             )
 
-        builder = self._BUILDERS.get(operation_type)
+        metadata = self.registry.get(operation_type)
 
-        if builder is None:
+        if metadata is None:
             raise OperationParseError(
                 f"Unknown operation type: {operation_type!r}."
             )
 
+        builder = metadata.operation_class
         fields = dict(raw)
 
         fields.pop("type", None)
         fields.pop("ref", None)
 
-        expected = builder.__dataclass_fields__
+        expected = {
+            field.name: field
+            for field in metadata.dataclass_fields
+        }
 
         # --------------------------------------------------------------
         # Unknown fields
@@ -273,51 +236,8 @@ class OperationParser:
         Semantic validation belongs to WorldApplier / WorldService.
         """
 
-        id_fields = {
-            "update_entity": {
-                "entity_id",
-            },
-            "create_item_instance": {
-                "item_id",
-                "owner_id",
-                "location_id",
-            },
-            "transfer_item": {
-                "instance_id",
-                "new_owner_id",
-            },
-            "gain_resource": {
-                "resource_id",
-                "owner_id",
-            },
-            "spend_resource": {
-                "resource_id",
-                "owner_id",
-            },
-            "transfer_resource": {
-                "resource_id",
-                "subject_id",
-                "target_id",
-            },
-            "create_relation": {
-                "subject_id",
-                "target_id",
-            },
-            "update_relation": {
-                "target_id",
-            },
-            "create_event": {
-                "session_id",
-            },
-            "change_character_hp": {
-                "entity_id",
-            },
-            "update_item_instance": {
-                "instance_id",
-                "owner_id",
-                "location_id",
-            },
-        }.get(operation_type, set())
+        metadata = self.registry.get(operation_type)
+        id_fields = metadata.reference_fields if metadata is not None else ()
 
         for field_name in id_fields:
             if field_name not in fields:
@@ -394,51 +314,8 @@ class OperationParser:
         fields: dict[str, Any],
     ) -> None:
 
-        integer_fields = {
-            "update_entity": {
-                "entity_id",
-            },
-            "create_item_instance": {
-                "item_id",
-                "owner_id",
-                "location_id",
-            },
-            "transfer_item": {
-                "instance_id",
-                "new_owner_id",
-            },
-            "gain_resource": {
-                "resource_id",
-                "owner_id",
-            },
-            "spend_resource": {
-                "resource_id",
-                "owner_id",
-            },
-            "transfer_resource": {
-                "resource_id",
-                "subject_id",
-                "target_id",
-            },
-            "create_relation": {
-                "subject_id",
-                "target_id",
-            },
-            "update_relation": {
-                "target_id",
-            },
-            "create_event": {
-                "session_id",
-            },
-            "change_character_hp": {
-                "entity_id",
-            },
-            "update_item_instance": {
-                "instance_id",
-                "owner_id",
-                "location_id",
-            },
-        }.get(operation_type, set())
+        metadata = self.registry.get(operation_type)
+        integer_fields = metadata.reference_fields if metadata is not None else ()
 
         for name in integer_fields:
             if name not in fields:

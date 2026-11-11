@@ -8,6 +8,7 @@ from operations.turn_operations import TurnOperation
 from operations.world_operations import WorldOperation
 
 from .llm_extraction_errors import LLMExtractionError
+from .operation_registry import DEFAULT_OPERATION_REGISTRY
 
 
 class LLMWorldResponseParser:
@@ -17,6 +18,10 @@ class LLMWorldResponseParser:
         if operation_parser is None:
             raise TypeError("operation_parser is required")
         self.operation_parser = operation_parser
+        self.operation_registry = (
+            getattr(operation_parser, "registry", None)
+            or DEFAULT_OPERATION_REGISTRY
+        )
 
     @staticmethod
     def parse_response(raw_response: Any) -> dict[str, Any]:
@@ -49,6 +54,36 @@ class LLMWorldResponseParser:
         return payload
 
     def parse_operations(self, payload: dict[str, Any]) -> list[TurnOperation]:
+        raw_operations = payload.get("operations")
+        if not isinstance(raw_operations, list):
+            raise LLMExtractionError("Proposal operations must be a list")
+
+        for index, raw_operation in enumerate(raw_operations):
+            if not isinstance(raw_operation, dict):
+                raise LLMExtractionError(
+                    f"Invalid operation at index {index}: expected an object"
+                )
+            operation_type = raw_operation.get("type")
+            metadata = (
+                self.operation_registry.get(operation_type)
+                if isinstance(operation_type, str)
+                else None
+            )
+            if metadata is None:
+                raise LLMExtractionError(
+                    f"Operation type {operation_type!r} is not permitted in model proposals"
+                )
+            if not metadata.model_proposable:
+                if issubclass(metadata.operation_class, CharacterOperation):
+                    raise LLMExtractionError(
+                        "Character-state operations require verified "
+                        "rules-engine resolution and cannot be extracted "
+                        f"from narrative (operation index {index})"
+                    )
+                raise LLMExtractionError(
+                    f"Operation type {operation_type!r} is not permitted in model proposals"
+                )
+
         try:
             operations = self.operation_parser.parse(payload)
         except Exception as exc:

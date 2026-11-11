@@ -6,7 +6,10 @@
 - `ContextBuilder.build_proposal_context()` uses the generic context search/expansion/ranking pipeline and returns a typed `models.world_context_projection.WorldContextProjection`.
 - `LLMWorldProposalPromptBuilder` renders static proposal instructions with the selected projection, allowed operation types and confirmed mechanics.
 - `LLMWorldExtractor.propose()` validates input, invokes the provider, records size/selection diagnostics and coordinates parsing/validation.
-- `OperationParser.model_proposable_operation_types()` exposes the public sorted allowlist. The parser still performs structural normalization; domain and permission validation remain in the world application layer.
+- `OperationMetadataRegistry` is the single typed catalog for parser-supported operations, explicit model-proposable/internal classification, dataclass-derived JSON Schemas, field descriptions, required fields and examples.
+- `OperationParser` uses that catalog for operation builders and reference-field normalization. Its structural parser remains separate from world-state validation.
+- `LLMWorldProposalPromptBuilder` renders a compact registry-derived typed manifest; `LLMWorldResponseParser` checks the same registry before parsing and rejects internal-only or unknown operation types.
+- Domain existence, permissions, resource constraints and atomic mutation remain in the world application layer; the prompt registry is not an authorization system.
 - `LLMWorldProposalValidator` caps output size and performs at most one compact bounded repair.
 
 ## Contracts and invariants
@@ -19,7 +22,9 @@
 - Secret events remain excluded. The selected projection is detached from the runtime world; it never mutates canonical state.
 - The shared estimator is a pessimistic one-UTF-8-byte-per-token upper bound because the provider contract has no tokenizer method. The complete rendered prompt has a separate upper bound.
 - Confirmed mechanics are included only when supplied by the deterministic engine.
-- The model-proposable type list excludes character-state operations; the deterministic rules/application pipeline remains authoritative. There is no separate typed permission model in the current domain; future authorization policy must be implemented as a domain/application contract, not inferred from prompt wording.
+- The registry marks each operation explicitly as model-proposable or internal-only. Character-state operations are internal-only; the response parser rejects them before object construction. The deterministic rules/application pipeline remains authoritative.
+- Full JSON Schemas are derived from operation dataclass definitions, while the prompt receives a compact typed manifest to preserve room for selected world context. Required fields and declared types stay aligned with constructors. Reference fields are explicitly declared once in registry metadata and drive both prompt rendering and ID normalization.
+- There is no separate typed permission model in the current domain; future authorization policy must be implemented as a domain/application contract, not inferred from prompt wording.
 - Model output remains an untrusted proposal. Parsing, semantic validation and mutation are separate authorities.
 - The repair request never resends the full world prompt. It includes a bounded error and bounded invalid-response excerpt and is limited to one attempt.
 - Do not import `services.context` from `services.llm_world`; the turn/application boundary passes the shared typed projection.

@@ -373,3 +373,33 @@ def test_model_proposable_operation_registry_excludes_character_mutations():
     assert "create_item_instance" in allowed
     assert "change_character_hp" not in allowed
     assert allowed == tuple(sorted(set(allowed)))
+
+
+def test_parser_uses_registry_reference_fields_for_id_normalization():
+    parser = OperationParser()
+    metadata = parser.registry.get("transfer_resource")
+
+    assert metadata is not None
+    assert metadata.reference_fields == (
+        "resource_id",
+        "subject_id",
+        "target_id",
+    )
+
+    operations = parser.parse(
+        {
+            "operations": [
+                {
+                    "type": "transfer_resource",
+                    "resource_id": "$gold",
+                    "subject_id": "12",
+                    "target_id": 14,
+                    "amount": 3,
+                }
+            ]
+        }
+    )
+
+    assert operations[0].resource_id.name == "gold"
+    assert operations[0].subject_id == 12
+    assert operations[0].target_id == 14

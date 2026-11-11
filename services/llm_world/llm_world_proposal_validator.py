@@ -7,6 +7,7 @@ from typing import Any
 from models.world_context_projection import estimate_tokens
 
 from .llm_extraction_errors import LLMExtractionError
+from .operation_registry import OperationMetadataRegistry
 
 
 class LLMWorldProposalValidator:
@@ -25,6 +26,7 @@ class LLMWorldProposalValidator:
         parse_operations: Callable[[dict[str, Any]], list[Any]],
         max_response_chars: int = DEFAULT_MAX_RESPONSE_CHARS,
         max_repair_prompt_tokens: int = DEFAULT_MAX_REPAIR_PROMPT_TOKENS,
+        operation_registry: OperationMetadataRegistry | None = None,
     ) -> None:
         for name, value in (
             ("max_response_chars", max_response_chars),
@@ -39,6 +41,9 @@ class LLMWorldProposalValidator:
         self.parse_operations = parse_operations
         self.max_response_chars = max_response_chars
         self.max_repair_prompt_tokens = max_repair_prompt_tokens
+        self.operation_registry = operation_registry or getattr(
+            operation_parser, "registry", None
+        )
 
     def parse_with_repair(
         self,
@@ -75,6 +80,8 @@ class LLMWorldProposalValidator:
                 ) from second_error
 
     def _allowed_operation_types(self) -> tuple[str, ...]:
+        if self.operation_registry is not None:
+            return self.operation_registry.model_proposable_operation_types()
         getter = getattr(
             self.operation_parser,
             "model_proposable_operation_types",
