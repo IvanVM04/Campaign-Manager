@@ -157,6 +157,37 @@ def _description(operation_class: type[Any]) -> str:
     return " ".join(raw.strip().split("\n\n", maxsplit=1)[0].split())
 
 
+def _compact_type_label(annotation: Any) -> str:
+    """Return a compact, model-readable type label for prompt manifests."""
+    origin = get_origin(annotation)
+    options = get_args(annotation) if origin in (Union, UnionType) else (annotation,)
+    labels: list[str] = []
+    for option in options:
+        if option in (type(None), object):
+            continue
+        if option is Any:
+            label = "any"
+        elif option is OperationReference:
+            label = "$ref"
+        elif option is str:
+            label = "text"
+        elif option is bool:
+            label = "bool"
+        elif option is int:
+            label = "int"
+        elif option is float:
+            label = "number"
+        elif get_origin(option) is dict or option is dict:
+            label = "object"
+        elif get_origin(option) is list or option is list:
+            label = "list"
+        else:
+            label = "any"
+        if label not in labels:
+            labels.append(label)
+    return "|".join(labels) or "any"
+
+
 def _metadata(
     name: str,
     operation_class: type[Any],
@@ -221,35 +252,79 @@ class OperationMetadataRegistry:
         return metadata is not None and metadata.model_proposable
 
     def render_prompt_contract(
-        self, operation_types: tuple[str, ...] | None = None
+        self,
+        operation_types: tuple[str, ...] | None = None,
     ) -> str:
-        """Return a compact JSON Schema with descriptions and examples."""
+        """Render a compact, typed prompt manifest derived from the catalog."""
         selected_names = (
             self.model_proposable_operation_types()
             if operation_types is None
             else tuple(dict.fromkeys(operation_types))
         )
-        selected: list[dict[str, Any]] = []
+        operations: dict[str, dict[str, str]] = {}
+        examples: dict[str, dict[str, Any]] = {}
+        field_notes: dict[str, str] = {}
+        noted_fields = {
+            "entity_id",
+            "instance_id",
+            "item_id",
+            "owner_id",
+            "location_id",
+            "new_owner_id",
+            "resource_id",
+            "subject_id",
+            "target_id",
+            "relation_id",
+            "amount",
+            "session_id",
+        }
+
         for name in selected_names:
             metadata = self.get(name)
             if metadata is None or not metadata.model_proposable:
                 raise ValueError(
                     f"Operation {name!r} is not available for model proposals"
                 )
-            selected.append(metadata.json_schema())
-        schema = {
-            "type": "object",
-            "properties": {
-                "operations": {
-                    "type": "array",
-                    "items": {"oneOf": selected},
-                    "description": "Operaciones propuestas en orden de resolución.",
-                }
-            },
-            "required": ["operations"],
-            "additionalProperties": False,
+
+            hints = get_type_hints(metadata.operation_class)
+            required = [
+                f"{field.name}:{_compact_type_label(hints.get(field.name, Any))}"
+                for field in metadata.dataclass_fields
+                if field.name in metadata.required_fields
+            ]
+            optional = [
+                f"{field.name}:{_compact_type_label(hints.get(field.name, Any))}"
+                for field in metadata.dataclass_fields
+                if field.name not in metadata.required_fields
+            ]
+            description = metadata.description.split(". ", maxsplit=1)[0]
+            operations[name] = {
+                "description": description[:72],
+                "required": ";".join(required),
+                "optional": ";".join(optional),
+            }
+            if name in {
+                "create_entity",
+                "create_item_instance",
+                "transfer_resource",
+                "create_relation",
+                "create_event",
+            }:
+                examples[name] = dict(metadata.example)
+
+            for field_name in noted_fields:
+                if any(
+                    field.name == field_name
+                    for field in metadata.dataclass_fields
+                ):
+                    field_notes[field_name] = _FIELD_DESCRIPTIONS[field_name]
+
+        manifest = {
+            "operations": operations,
+            "field_notes": field_notes,
+            "examples": examples,
         }
-        return json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
+        return json.dumps(manifest, ensure_ascii=False, separators=(",", ":"))
 
 
 DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(

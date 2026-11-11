@@ -49,16 +49,14 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
             ("create_entity", "create_item_instance")
         )
     )
-    variants = parsed["properties"]["operations"]["items"]["oneOf"]
+    operations = parsed["operations"]
+    create_entity = operations["create_entity"]
 
-    assert [variant["properties"]["type"]["const"] for variant in variants] == [
-        "create_entity", "create_item_instance",
-    ]
-    create_entity = variants[0]
-    assert create_entity["required"] == ["type", "name"]
-    assert create_entity["properties"]["name"]["description"]
+    assert create_entity["required"] == "name:text"
+    assert "entity_type:text" in create_entity["optional"]
     assert create_entity["description"]
-    assert create_entity["examples"][0]["name"] == "Guardia del mercado"
+    assert parsed["examples"]["create_entity"]["name"] == "Guardia del mercado"
+    assert "item_id" in parsed["field_notes"]
 
 
 def test_prompt_contract_rejects_internal_or_unknown_operation_types():
@@ -83,3 +81,10 @@ def test_response_parser_rejects_internal_operation_before_parser_invocation():
                 "type": "change_character_hp", "entity_id": 12, "amount": -4,
             }]}
         )
+
+
+def test_default_prompt_contract_is_compact_enough_to_leave_room_for_world_context():
+    contract = DEFAULT_OPERATION_REGISTRY.render_prompt_contract()
+
+    assert len(contract) <= 3500
+    assert len(DEFAULT_OPERATION_REGISTRY.model_proposable_operation_types()) == 14

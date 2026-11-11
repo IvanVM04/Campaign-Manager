@@ -110,8 +110,8 @@ def test_proposal_prompt_builder_renders_the_shared_operation_schema():
     )
 
     assert "TIPOS DE OPERACIÓN PERMITIDOS" in prompt
-    assert '"const":"create_item_instance"' in prompt
-    assert '"required":["type","item_id"]' in prompt
+    assert '"create_item_instance"' in prompt
+    assert '"required":"item_id:int|$ref"' in prompt
     assert "ID de la definición del objeto." in prompt
     assert '"type":"create_item_instance"' in prompt
     assert "change_character_hp" not in prompt
