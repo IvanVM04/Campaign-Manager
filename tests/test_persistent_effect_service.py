@@ -440,3 +440,24 @@ def test_persistent_effect_api_schema_uses_enum_defaults():
 
     assert effect.source_type is EffectSourceInput.UNKNOWN
     assert effect.duration_type is EffectDurationInput.PERMANENT
+
+
+
+def test_effect_service_normalizes_string_source_and_duration_enums(isolated_database):
+    from models.persistent_effect import EffectDurationType, EffectSourceType
+
+    service, entities = build_service()
+    entity = entities.save_entity(Entity(name="Mira"), campaign_id=1)
+
+    effect = service.create(
+        entity_id=entity.id,
+        effect_type="narrative",
+        effect_key="temporary-mark",
+        name="Marca temporal",
+        source_type="spell",
+        duration_type="conditional",
+        duration_condition="Hasta el final del encuentro",
+    )
+
+    assert effect.source_type is EffectSourceType.SPELL
+    assert effect.duration_type is EffectDurationType.CONDITIONAL
