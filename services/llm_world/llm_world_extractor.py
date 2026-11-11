@@ -121,8 +121,15 @@ class LLMWorldExtractor:
             prompt
         )
 
-        if len(raw_response) > self.max_response_chars if isinstance(raw_response, str) else len(repr(raw_response)) > self.max_response_chars:
-            raise LLMExtractionError("LLM extraction response exceeds the configured size limit")
+        response_text = (
+            raw_response
+            if isinstance(raw_response, str)
+            else repr(raw_response)
+        )
+        if len(response_text) > self.max_response_chars:
+            raise LLMExtractionError(
+                "LLM extraction response exceeds the configured size limit"
+            )
 
         payload = self._parse_response(
             raw_response
