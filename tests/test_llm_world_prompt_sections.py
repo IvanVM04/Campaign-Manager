@@ -1,8 +1,7 @@
 """Regression tests for the legacy narrative prompt decomposition."""
 
 import hashlib
-
-import pytest
+from unittest.mock import patch
 
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
@@ -23,9 +22,7 @@ def _git_blob_sha(content: str) -> str:
     return hashlib.sha1(header + encoded).hexdigest()
 
 
-def test_legacy_prompt_matches_pre_decomposition_output_byte_for_byte(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_legacy_prompt_matches_pre_decomposition_output_byte_for_byte() -> None:
     context_blocks = {
         "character_block": "CHARACTER BLOCK FIXTURE",
         "known_entities": "KNOWN ENTITIES FIXTURE",
@@ -39,12 +36,6 @@ def test_legacy_prompt_matches_pre_decomposition_output_byte_for_byte(
     def render_fixture(_context: TurnContext) -> dict[str, str]:
         return context_blocks
 
-    monkeypatch.setattr(
-        LLMWorldContextRenderer,
-        "build_context",
-        staticmethod(render_fixture),
-    )
-
     context = TurnContext(
         campaign=CampaignState(),
         current_session=None,
@@ -52,10 +43,15 @@ def test_legacy_prompt_matches_pre_decomposition_output_byte_for_byte(
         world=WorldState(),
         active_character_entity=None,
     )
-    prompt = LLMWorldPromptBuilder.build_prompt(
-        "Aldric entrega una llave de plata al personaje.",
-        context,
-    )
+    with patch.object(
+        LLMWorldContextRenderer,
+        "build_context",
+        staticmethod(render_fixture),
+    ):
+        prompt = LLMWorldPromptBuilder.build_prompt(
+            "Aldric entrega una llave de plata al personaje.",
+            context,
+        )
 
     assert prompt.startswith(STATIC_INSTRUCTIONS)
     assert _git_blob_sha(prompt) == _PRE_DECOMPOSITION_PROMPT_BLOB_SHA
