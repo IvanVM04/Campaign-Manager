@@ -4,7 +4,7 @@ from typing import Any, ClassVar
 
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
-from services.memory_search_service import MemorySearchService
+from .memory_search_service import MemorySearchService
 
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
