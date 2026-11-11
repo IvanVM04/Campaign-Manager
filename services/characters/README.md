@@ -35,8 +35,5 @@ Character state and schemas remain in `models/`, persistence in `repositories/`,
 - [ ] Add architecture tests against transport/provider dependencies.
 - [ ] Revisit CharacterCreationService transaction ownership separately, with explicit caller-connection support and tests if needed.
 
-## Compatibility
-The former `services.character_*` module paths remain as backward-compatible shims. Consumers can migrate to `services.characters.*` incrementally; do not remove the shims until repository-wide import and test audits show no remaining callers.
-
 ## Migration status
-The three character application modules now live in this package. No business logic, transaction behavior or runtime composition was intentionally changed.
+The character application modules live in this canonical package. The former flat `services.character_*` compatibility modules have been removed; consumers should import from `services.characters`.
