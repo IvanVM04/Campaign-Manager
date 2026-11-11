@@ -3,11 +3,12 @@
 ## Responsibility
 Coordinate the turn lifecycle: preparation, adjudication orchestration, durable commit, challenge continuation, narration and legacy compatibility.
 
-The turn package owns the mechanics adjudicator used by native turn planning; its provider and context collaborators are injected by the composition root.
+The turn package owns the mechanics adjudicator and narrative-generation service used by turn planning. Their provider and context collaborators are injected by the composition root.
 
 The durable resolution record is authoritative for in-flight state. Narrative/transcript versions are a separate projection and must never replay committed consequences.
 
 ## Package modules
+- `dm_service.py` — narrative generation for a turn; builds campaign/world context and delegates prose generation to the injected provider without mutating world state.
 - `turn_execution_lock.py` — canonical process-local lock shared by turn coordinators.
 - `turn_resolution_codec.py` — canonical JSON codec for durable turn-resolution records.
 - `mechanics_adjudicator.py` — structured mechanics proposals with strict response validation; it never rolls dice or applies consequences.
@@ -43,4 +44,4 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-The turns boundary has been decomposed internally. The canonical package owns the execution lock, non-persistent planner, durable resolution codec and coordinator, challenge projections/submissions, prepared commit, preparation/result mapping and narration lifecycle. The old `CampaignTurnService` implementation remains outside the package as compatibility-only code; the legacy SillyTavern turn service remains active only through the deprecated `POST /integration/turn` route. `SillyTavernIntegrationService` remains active for context and external transcript-state reads.
+The turns boundary has been decomposed internally. The canonical package owns narrative generation, the mechanics adjudicator, the execution lock, non-persistent planner, durable resolution codec and coordinator, challenge projections/submissions, prepared commit, preparation/result mapping and narration lifecycle. The old `CampaignTurnService` implementation remains outside the package as compatibility-only code; the legacy SillyTavern turn service remains active only through the deprecated `POST /integration/turn` route. `SillyTavernIntegrationService` remains active for context and external transcript-state reads.
