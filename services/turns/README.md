@@ -3,7 +3,7 @@
 ## Responsibility
 Coordinate the turn lifecycle: preparation, adjudication orchestration, durable commit, challenge continuation, narration and legacy compatibility.
 
-The turn package owns the mechanics adjudicator and narrative-generation service used by turn planning. Their provider and context collaborators are injected by the composition root.
+The turn package owns the mechanics adjudicator and narrative-generation service used by turn planning. Provider and context collaborators are injected by the composition root. For structured player-intent proposals, `TurnResolutionService` orchestrates the context selector and passes a typed projection to the LLM boundary.
 
 The durable resolution record is authoritative for in-flight state. Narrative/transcript versions are a separate projection and must never replay committed consequences.
 
@@ -28,6 +28,7 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 
 ## Dependency rules
 - Preserve idempotency, lease fencing, campaign revision checks and atomic commit.
+- Build proposal context at the turn/application boundary; pass `WorldContextProjection` into `LLMWorldExtractor` rather than coupling `llm_world` to the generic context package.
 - Keep write transactions short; provider calls/narration remain outside them.
 - Narration consumes committed evidence and never applies consequences.
 - Isolate legacy snapshot reconciliation from the active durable workflow.
