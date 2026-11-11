@@ -1,7 +1,8 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `bbcb7a0fda401c4d82d6ecff5119d6a0ec5eaec4` (after merge of PR #169).  
+**Initial audit baseline:** `main` at `bbcb7a0fda401c4d82d6ecff5119d6a0ec5eaec4` (after PR #169).  
+**Latest revalidated baseline:** `main` at `a0e2c70bedd8f3e45f40d4c4f39d4fee13f8d4eb` (PR #189; 2026-11-11 21:26 UTC).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -114,7 +115,7 @@ Parsing and validation remain deterministic. The registry must not turn model ou
 The latest verified deterministic CI run collected 1,302 Python cases: 1,295 passed and 7 live-LLM cases were deselected. The branch-enabled coverage report showed 83% overall coverage. The repository contains a broad suite of focused test modules plus several oversized integration modules.
 
 Largest navigation hotspots include:
-- `test_silly_tavern_integration.py`: 4,090 lines / 53 tests; mixes schema validation, HTTP routes, durable lifecycle, retries, snapshots and legacy compatibility.
+- `test_silly_tavern_lifecycle.py`: 2,441 lines / 16 tests after the initial split in PR #186; versioned lifecycle, snapshot compatibility, retries, rollback and persistence remain mixed.
 - `test_world_repository.py`: 1,817 lines / 24 tests; persistence, transaction and snapshot invariants.
 - `test_turn_repository.py`: 1,420 lines / 38 tests; persistence, campaign isolation, connection ownership and validation.
 - `test_turn_resolution_service.py`: 1,388 lines / 34 tests; legacy narrative-first and structured proposal planning contracts.
@@ -143,7 +144,7 @@ The 2026-11-06 audit and several package guides contain migration statements sup
 - the former `CampaignTurnService` has been removed;
 - the legacy SillyTavern turn collaborator is inside `services/turns`, while the integration adapter remains active outside the capability packages;
 - PR #161 completed proposal-prompt decoupling; relevance selection and a budget for structured proposals remain pending;
-- coverage, Pyright baseline, CodeQL and Dependabot are present, but current GitHub rules do not yet list required status checks for `main`.
+- coverage, repository-wide Pyright, CodeQL and Dependabot are active; the default-branch ruleset now requires aggregate CI and both CodeQL language checks.
 
 Historical 2026-11-03, 2026-11-05 and 2026-11-06 documents remain immutable snapshots. Current status belongs in this audit, the CI/test audits and package READMEs.
 
@@ -153,14 +154,13 @@ Keep one active implementation branch and one open PR at a time. Each PR starts 
 
 | Order | Work package | Acceptance gate |
 |---:|---|---|
-| 0 | Enforce CI status checks on the default-branch ruleset | Required check names configured; a failing required check blocks merge. This includes a one-time repository-settings action by the maintainer. |
-| 1 | CI hygiene and progressive static quality | Pin/configure Ruff and test tooling; make baseline-job infrastructure failures visible; align action versions; expand Pyright only after each scope is clean. |
-| 2 | Structured proposal context and prompt budget | Typed relevant projection, deterministic ranking, bounded estimated-token budget, diagnostics and large-campaign regression tests. |
-| 3 | Operation metadata contract | One public typed registry for model-allowed operations, internal-only operations, schemas and prompt descriptions; no weakening of validation. |
-| 4 | Test-suite reorganization | Split oversized mixed-responsibility modules without reducing assertions; classify any genuinely duplicate tests before removal. |
-| 5 | Integration adapter ownership | Decide whether `SillyTavernIntegrationService` belongs in a dedicated integration package; preserve active read/context behavior. |
-| 6 | Retire legacy SillyTavern mutation path only when safe | Agreed zero-usage observation window, supported-client sign-off, consumer search and explicit snapshot-data migration/retention decision. |
-
+| 0 | Maintain required CI and CodeQL checks | Active ruleset `protc1` requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`; the CI summary aggregates deterministic tests, Ruff, Pyright and JavaScript. |
+| 1 | Bound the active structured proposal context | Typed relevance-ranked projection, deterministic ordering, mandatory-fact preservation, estimated-token budget, provider safety margin and large-campaign regression tests. |
+| 2 | Bound proposal repair and expose diagnostics | Validate/cap model output and repair input; do not resend an unbounded invalid response; report selection, rendered size, estimated tokens and budget usage. |
+| 3 | Centralize operation metadata | Public typed metadata for model-allowed versus internal-only operations, schemas and prompt descriptions; preserve fail-closed validation. |
+| 4 | Finish test navigation improvements | PR #186 completed the first SillyTavern test split; further split the remaining 2,441-line lifecycle module and other large modules without reducing assertions. |
+| 5 | Integration adapter ownership | Decide whether `SillyTavernIntegrationService` needs a dedicated integration-owned package; preserve active context/transcript reads. |
+| 6 | Retire legacy SillyTavern mutation path only when safe | Agreed zero-usage observation window, supported-client sign-off, consumer search and explicit `turns.snapshot` retention/migration decision. |
 The CI findings and current check inventory are tracked in [the CI audit](../quality/ci-audit-2026-11-11.md).
 
 ### Non-goals for this phase
@@ -183,3 +183,40 @@ Every implementation PR must:
 - contain no unrelated formatting or feature changes.
 
 Do not merge with failing checks. Fix failures on the same PR branch. The manual SillyTavern smoke test and live LLM checks must be reported separately; a green deterministic CI run does not certify live integration.
+
+
+## 8. Revalidation against `main` after PR #189
+
+This section supersedes any status or priority above that depended on the PR #169 baseline. The original findings remain useful as history, but the following is the verified repository state at `a0e2c70`.
+
+### 8.1 Package and legacy surface
+
+- All eight capability packages contain implementation code: `campaign`, `characters`, `combat`, `context`, `llm_world`, `providers`, `turns` and `world`.
+- The only module directly under `services/` is `silly_tavern_integration_service.py`. Former flat service shims, runtime proxies and flat combat/provider paths are not outstanding cleanup tasks.
+- `SillyTavernIntegrationService` remains active for context and external transcript-state reads. The deprecated `POST /integration/turn` route and its snapshot-backed collaborator remain compatibility behavior; do not delete them based only on age or naming.
+- PRs #186, #187 and #189 have reorganized integration tests, extracted prepared-commit tests, and added durable retry/idempotency/restart coverage. Do not recreate these tasks.
+
+### 8.2 Current prompt pipeline — highest architectural priority
+
+There are two different prompt-size problems and they must not be conflated:
+
+1. The active durable-turn path calls `LLMWorldExtractor.propose()` and `LLMWorldProposalPromptBuilder`. PR #161 removed the dependency on the legacy narrative-extraction prompt, but the proposal builder still asks `LLMWorldContextRenderer` to render every supported world entity, item, item instance, resource, relation and non-secret event. It applies no intent-based relevance filter and has no prompt/token budget.
+2. The legacy `LLMWorldPromptBuilder` is a 2,193-line / 46,851-character module used by the narrative-first `extract()` path. It is a real maintainability hotspot, but it is not the builder used by the active structured proposal path. Its remaining use is tied to compatibility behavior, so splitting or retiring it must not be confused with fixing the active proposal context.
+
+`ContextBuilder` already has deterministic search, relation expansion, ranking and character-based rendering limits (6,000 characters for world context and 2,000 for recent turns by default). Those limits are not token budgets and are not currently applied to structured proposals. The dependency matrix permits `services/turns` to orchestrate `services/context`, while `services/llm_world` must remain independent of it. The preferred boundary is a typed, read-only projection produced/orchestrated at the turn/application boundary and passed to the proposal prompt builder.
+
+A second unbounded-growth point exists in `LLMWorldProposalValidator.parse_with_repair()`: its single repair prompt repeats the complete original prompt, validation error and complete invalid provider response. The retry count is bounded, but the repair input size is not. Validate/cap provider-response size and set a separate repair budget; do not solve this by arbitrary truncation of mandatory world facts.
+
+The validator also reads the parser's private `OperationParser._BUILDERS` mapping to derive allowed operation types. Alongside repeated operation-field metadata in the parser, this is a candidate for a public typed operation metadata contract, but it is secondary to context selection and repair bounds.
+
+### 8.3 Current test navigation state
+
+The former 4,000-line `test_silly_tavern_integration.py` was split by PR #186 into API, lifecycle, service, schema and regeneration-failure modules plus shared support. The remaining `tests/test_silly_tavern_lifecycle.py` is 2,441 lines / 16 tests and is now the next integration-test navigation hotspot. PR #187 and #189 added focused fencing, recovery and idempotency assertions; preserve them.
+
+See `docs/quality/test-suite-audit-2026-11-11.md` for the updated large-module inventory and split order.
+
+### 8.4 Current validation and merge protection
+
+At the revalidated commit, Tests run #43103128009 and CodeQL run #43103128059 both completed successfully. The deterministic suite collected 1,313 items, passed 1,306 and deselected 7 `real_llm` tests. Coverage reported 85.8% line and 72.6% branch coverage. Repository-wide Pyright reported zero diagnostics.
+
+The active default-branch ruleset `protc1` requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. `CI summary` fails if a constituent deterministic test, Ruff, required scoped Pyright, repository-wide Pyright or JavaScript job does not succeed. Continue to inspect complete PR statuses; do not merge while a required check is failing, pending, cancelled or skipped.
