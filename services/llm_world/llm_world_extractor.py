@@ -136,7 +136,6 @@ class LLMWorldExtractor:
         prompt = self.proposal_prompt_builder.build_prompt(
             intent,
             context,
-            context_prompt_builder=self._build_prompt,
             mechanics_result=mechanics_result,
         )
         raw_response = self.provider(prompt)
