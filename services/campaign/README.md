@@ -6,6 +6,8 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 ## Package modules
 - `campaign_state_service.py` — campaign/session state and turn-context assembly.
 - `campaign_clock_service.py` — campaign clock reads, advancement and time-based effect expiry.
+- `persistent_effect_service.py` — campaign-scoped effect lifecycle, duration deadlines and status transitions.
+- `effective_condition_service.py` — derives D&D condition sets from active persistent effects; conditions are projections, not a second persisted source of truth.
 
 ## Related modules outside this package
 - `bootstrap/campaign_runtime.py` — runtime composition root and cache. This is the composition boundary; the package itself does not own runtime construction.
@@ -15,6 +17,7 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 - Do not depend on FastAPI routers or request objects.
 - Keep runtime construction at the composition boundary.
 - Campaign state may depend on the world state port, but does not own world mutation.
+- Effect lifecycle and condition projection belong to campaign state; combat consumes the derived `ConditionSet` without owning effect persistence.
 
 ## Pending work
 - [ ] Define runtime invalidation on campaign deletion and configuration changes.
