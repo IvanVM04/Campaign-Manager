@@ -1,4 +1,4 @@
-""""In-memory encounter turn order and round progression."""
+"""In-memory encounter turn order and round progression."""
 
 from __future__ import annotations
 
