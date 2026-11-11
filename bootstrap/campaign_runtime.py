@@ -29,7 +29,7 @@ from services.dm_service import DMService
 from services.effective_condition_service import EffectiveConditionService
 from services.llm_world import LLMWorldExtractor
 from services.mechanics_adjudicator import MechanicsAdjudicator
-from services.memory_search_service import MemorySearchService
+from services.context import MemorySearchService
 from services.operation_parser import OperationParser
 from services.persistent_effect_service import PersistentEffectService
 from services.providers import LLMSettings
