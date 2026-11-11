@@ -4,8 +4,7 @@ from models.entity import Entity
 from models.persistent_effect import EffectStatus
 from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
-from services.effective_condition_service import EffectiveConditionService
-from services.persistent_effect_service import PersistentEffectService
+from services.campaign import EffectiveConditionService, PersistentEffectService
 
 
 def test_effect_projection_ignores_suspended_and_removed_records(isolated_database):
