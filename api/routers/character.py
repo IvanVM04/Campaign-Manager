@@ -93,6 +93,8 @@ def get_character_sheet(character_entity_id: int):
             character_entity_id,
             campaign_id=runtime.campaign_id,
         )
+        if character is None:
+            raise HTTPException(status_code=404, detail="character does not exist")
         armor = runtime.weapon_equipment_service.armor_class(
             character,
             campaign_id=runtime.campaign_id,

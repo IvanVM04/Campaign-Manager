@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
+from fastapi import FastAPI
+
 HTTP_ERROR_CODES = {
     400: "bad_request",
     401: "unauthorized",
@@ -23,7 +27,7 @@ class APIError(Exception):
         status_code: int,
         code: str,
         detail: str,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(detail)
         self.status_code = status_code
@@ -117,7 +121,7 @@ def _code_for_status(status_code: int) -> str:
     return "http_error"
 
 
-def register_error_handlers(app: object) -> None:
+def register_error_handlers(app: FastAPI) -> None:
     """Install consistent error responses without exposing internal failures."""
     from fastapi import Request
     from fastapi.exceptions import RequestValidationError
