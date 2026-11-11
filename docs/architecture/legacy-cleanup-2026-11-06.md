@@ -4,6 +4,12 @@
 
 This inventory separates confirmed dead code from compatibility code that still has consumers. Age or a legacy name alone is not a deletion criterion.
 
+## Current status verified after PR #159 (2026-11-11)
+
+The flat service re-export modules listed in the historical removal inventory have been retired. The legacy import names remain in `tests/test_canonical_service_import_boundaries.py` as a denylist, and that test now verifies that none of those modules can be resolved again. The former runtime proxies and flat combat/provider paths are also retired; they are not outstanding cleanup tasks.
+
+The remaining compatibility work is limited to the deprecated SillyTavern narrative-first route and its snapshot-backed implementation. Those surfaces remain intentionally supported until external-client usage and migration gates can be verified; see the dedicated retirement audit.
+
 ## Removed in this cleanup
 
 - `services/identity_service.py`: its text-normalization and name-matching helpers have no source-code callers in the repository. No dynamic import or plugin registration references were found in the source search.
@@ -27,11 +33,8 @@ This inventory separates confirmed dead code from compatibility code that still 
 
 | Area | Why it remains | Deletion gate |
 |---|---|---|
-| Remaining flat service re-export modules | A smaller set of compatibility modules still exists; not all have been migrated | Repeat the consumer audit per module, migrate production and test imports, verify repository-wide references and CI, then remove each shim |
 | `POST /integration/turn` and `services/turns/LegacySillyTavernTurnService` | Deprecated route still dispatches to the isolated legacy turn collaborator | Observe zero usage for an agreed window and confirm supported extension clients have migrated; then retire route and collaborator together |
 | `WorldSnapshotRepository` and `turns.snapshot` | Used by legacy SillyTavern regeneration; the repository serializes world rows into a JSON value stored in the nullable `turns.snapshot` column (there are no dedicated snapshot tables) | Retire the legacy route first; confirm no other production writer/reader remains, decide how to retain or clear historical JSON payloads, then remove the repository/column only through a deliberate migration |
-| Remaining runtime proxies and legacy app exports | Other historical service proxies remain exposed for routers/tests | Migrate each consumer to explicit request/runtime dependencies, then remove the proxy and exports with regression coverage |
-| Flat combat/provider modules | Combat and provider implementations have been moved into their capability packages; their former flat import paths are retired | Keep canonical import-boundary tests and avoid reintroducing flat compatibility paths |
 
 ## Cleanup rules
 
