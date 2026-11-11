@@ -14,7 +14,6 @@ from .llm_world_proposal_prompt_builder import LLMWorldProposalPromptBuilder
 from .llm_world_proposal_validator import LLMWorldProposalValidator
 from .llm_world_response_parser import LLMWorldResponseParser
 
-
 logger = logging.getLogger(__name__)
 
 
