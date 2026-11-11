@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import MISSING, dataclass, fields
 from types import MappingProxyType, UnionType
-from typing import Any, Mapping, Union, get_args, get_origin, get_type_hints
+from typing import Any, Union, get_args, get_origin, get_type_hints
 
 from operations.character_operations import (
     ChangeCharacterHpOperation,
