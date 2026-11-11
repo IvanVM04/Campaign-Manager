@@ -10,11 +10,16 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "pytest-cov",
+test = [
+    "pytest==9.2.0",
+    "pytest-cov==7.1.0",
+    "httpx2==2.16.0",
+]
+lint = [
+    "ruff==0.17.4",
+]
+typing = [
     "pyright==1.1.414",
-    "httpx2>=2.5",
 ]
 
 [tool.pytest.ini_options]

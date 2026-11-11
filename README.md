@@ -322,9 +322,10 @@ The backend itself uses:
 
 Development and testing tools include:
 
-* pytest
-* Ruff
-* httpx2
+* pytest (pinned in the `test` dependency group)
+* Ruff (pinned in the `lint` dependency group)
+* Pyright (pinned in the `typing` dependency group)
+* httpx2 (pinned in the `test` dependency group)
 
 ---
 
@@ -358,7 +359,7 @@ pip install -r requirements.txt
 Install the development/test tools:
 
 ```bash
-pip install pytest pytest-cov "httpx2>=2.5" ruff "pyright==1.1.414"
+pip install --group test --group lint --group typing
 ```
 
 The database will be initialized automatically when the application starts.

@@ -25,6 +25,18 @@ Dated audits are historical snapshots. Use the newest current audit and inspect 
 
 The repository ruleset currently requires pull requests and thread resolution, but its required-status-check list is empty. This is an administrative merge-protection gap, not a reason to relax the working agreement. See the CI audit.
 
+## Environment setup
+
+Install runtime dependencies and the pinned development tools from the canonical PEP 735 dependency groups:
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install --group test --group lint --group typing
+```
+
+The CI workflows install only the relevant group for each job. Update versions in `pyproject.toml`, not ad-hoc workflow commands.
+
 ## Required validation
 
 For implementation and test changes, run the checks applicable to the changed scope:
