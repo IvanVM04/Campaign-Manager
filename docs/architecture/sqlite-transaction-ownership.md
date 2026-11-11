@@ -34,7 +34,6 @@ Use the weakest mode that preserves the invariant. Do not hold an `IMMEDIATE` tr
 - `CampaignClockService.advance`: explicit `IMMEDIATE` transaction covering clock advancement and expiration of due campaign-time effects.
 - `services.campaign.PersistentEffectService.create` and `set_status`: explicit `IMMEDIATE` transaction covering ownership checks, clock deadline calculation and effect mutation.
 - `CombatAttackService.attack`: explicit `IMMEDIATE` transaction covering encounter turn validation, rules resolution, PC HP synchronization and encounter persistence.
-- `CampaignTurnService._play_turn_planned_locked`: explicit `IMMEDIATE` write transaction covering context revalidation, deterministic plan application and turn-record persistence. LLM generation and extraction remain outside the transaction.
 - `SillyTavernIntegrationService._process_turn_locked`: explicit `IMMEDIATE` write transaction covering authoritative idempotency checks, optional snapshot restoration/superseding, world and character operations, and successful turn persistence. Narrative extraction remains outside the transaction. Failed operations roll back this transaction before persisting the failed turn record through its own repository transaction.
 
 These use cases already relied on a caller-supplied shared connection for their atomic writes. This change makes ownership visible and consistent; it does not change their domain rules or transaction scope.
