@@ -34,7 +34,8 @@ The matrix is a set of enforced prohibitions, not a claim that every allowed edg
 
 - `bootstrap/campaign_runtime.py` is the composition root and may wire capability packages together.
 - `api/routers/` obtains the request-scoped runtime and translates HTTP input/output; it does not compose services.
-- Root-level application services such as `DMService`, `OperationParser`, effect services and SillyTavern adapters remain outside the eight-package matrix until their ownership is decided.
+- Root-level application services such as `DMService`, effect services and SillyTavern adapters remain outside the eight-package matrix until their ownership is decided.
+- `OperationParser` belongs to `services/llm_world`; it performs structural decoding only. LLM-specific allowlisting remains in the proposal validator, while semantic validation and mutation remain in `services/world`.
 - `MechanicsAdjudicator` belongs to `services/turns`; it proposes and validates structured mechanics decisions but leaves dice rolls and consequences to deterministic turn/rules services.
 - `MemorySearchService` belongs to `services/context`; it performs deterministic retrieval/export over a supplied `WorldState` and does not own persistence or campaign state.
 - Legacy compatibility code is not a precedent for new dependencies. Do not expand its dependency surface.
