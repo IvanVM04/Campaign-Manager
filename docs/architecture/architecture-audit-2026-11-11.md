@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-11
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Audited baseline:** `main` at `fc3c9a677eb531fee4480d5022a27713f754bbd9` (after merge of PR #151).  
+**Audited baseline:** `main` at `609e76a0249ad6ddf622c55314a655d795deca16` (after merge of PR #152).  
 **Method:** static inspection of the repository tree, current package guides, application composition, runtime context, turn services, prompt builders, CI workflow and prior audits.  
 **Limitations:** no local test suite, live Ollama request, SillyTavern session, database migration replay or manual gameplay smoke test was executed as part of this documentation update. CI status is read from GitHub Actions, not reproduced locally.
 
@@ -42,7 +42,7 @@ The current `services/` tree still contains application-level services outside t
 - `dm_service.py` — narrative generation/orchestration; its boundary relative to turn narration and context needs an explicit review.
 - `mechanics_adjudicator.py` — now owned by `services/turns`; structured proposals are strictly validated before deterministic turn resolution.
 - `memory_search_service.py` — now owned by `services/context`; deterministic retrieval/export over a supplied world snapshot.
-- `operation_parser.py` — typed operation parsing; candidate for a dedicated operation-contract boundary if that reduces duplication.
+- `operation_parser.py` — now owned by `services/llm_world`; it normalizes untrusted structured payloads into typed operations, while world semantic validation remains separate.
 - `persistent_effect_service.py` and `effective_condition_service.py` — related effect/condition application and projection responsibilities; review together before moving either.
 - `legacy_silly_tavern_turn_service.py` — compatibility implementation for the deprecated narrative-first route.
 - `silly_tavern_integration_service.py` — still active for integration context and external transcript-state reads, and delegates the legacy route.
