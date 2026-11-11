@@ -25,7 +25,7 @@ The rules engine remains independent of API, database, repositories, LLM provide
 | `context` | `services.world` serialization/projection | API, bootstrap, campaign, characters, combat, llm_world, providers, turns |
 | `llm_world` | None; provider invocation is injected at its application boundary | API, bootstrap, database, repositories, campaign, characters, combat, context, providers, turns, world |
 | `providers` | None; this is an adapter/port boundary | API, bootstrap, database, models, operations, repositories, rules_engine and service packages |
-| `turns` | World application, LLM-world proposal boundary and mechanics adjudication (using injected context/provider collaborators) | API and bootstrap |
+| `turns` | `services.world`, `services.llm_world`, `services.context` and `services.providers` for planning/adjudication; root `DMService` remains injected at the turn-resolution boundary | API and bootstrap |
 | `world` | `services.characters` for typed character application | API, bootstrap, campaign, combat, context, llm_world, providers, turns |
 
 The matrix is a set of enforced prohibitions, not a claim that every allowed edge is currently used. In particular, a package's permission to import a shared layer does not authorize bypassing its public contracts or transaction ownership.
