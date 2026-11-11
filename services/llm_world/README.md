@@ -26,7 +26,7 @@ The durable/native path no longer sends the full campaign world to the proposal 
 
 1. `TurnResolutionService` asks the injected `ContextBuilder` for a typed `WorldContextProjection`.
 2. `ContextBuilder` delegates to `ProposalContextSelector`, which reuses deterministic memory search, one-hop graph expansion and the existing context ranker.
-3. The selector preserves mandatory active-character entities, filters secret events through the existing search/export rules, and admits related records with their required entity/item/resource dependencies.
+3. The selector preserves the active character and current campaign location as mandatory entities, renders campaign/session summaries and active conditions, filters secret events through existing search/export rules, and admits related records with their required entity/item/resource dependencies.
 4. The projection contains deep-copied domain records, not references to the mutable runtime world.
 5. `LLMWorldProposalPromptBuilder` renders the selected records, active-character sheet, resource balances, allowed operation types and confirmed mechanics.
 6. The completed prompt is checked against its total estimated-token budget before provider invocation.
@@ -53,7 +53,7 @@ The selector reports available, candidate, selected and excluded record counts a
 - Repair does not repeat the full original prompt or world snapshot.
 - The repair request contains a bounded validation error, the public model-proposable operation list and a byte-bounded excerpt of the invalid output.
 - The repair request has its own upper-bound budget and is rejected if its safety header cannot fit.
-- Character-state operations remain excluded from the model-proposable allowlist; deterministic mechanics/application code remains authoritative.
+- Character-state operations remain excluded from the model-proposable allowlist; deterministic mechanics/application code remains authoritative. The current domain has no separate permission object, so do not claim prompt filtering substitutes for a future explicit GM/player permission contract.
 
 ## Remaining work
 
