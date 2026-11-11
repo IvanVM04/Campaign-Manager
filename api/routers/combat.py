@@ -1,10 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from api.runtime_context import (
-    combat_encounter_service,
-    get_current_runtime,
-    turn_execution_lock,
-)
+from api.runtime_context import get_current_runtime
 from models.combat_api_schemas import (
     DeathSavingThrowIn,
     EncounterAttackIn,
@@ -81,7 +77,7 @@ def _encounter_payload(encounter):
 def list_combat_encounters():
     return [
         _encounter_payload(encounter)
-        for encounter in combat_encounter_service.list(
+        for encounter in get_current_runtime().combat_encounter_service.list(
             get_current_runtime().campaign_id
         )
     ]
@@ -90,8 +86,8 @@ def list_combat_encounters():
 @router.post("/encounters", status_code=201)
 def create_combat_encounter(data: EncounterCreateIn):
     try:
-        with turn_execution_lock.acquire():
-            encounter = combat_encounter_service.create(
+        with get_current_runtime().turn_execution_lock.acquire():
+            encounter = get_current_runtime().combat_encounter_service.create(
                 get_current_runtime().campaign_id,
                 data.participants,
                 data.encounter_id,
@@ -104,7 +100,7 @@ def create_combat_encounter(data: EncounterCreateIn):
 @router.get("/encounters/{encounter_id}")
 def get_combat_encounter(encounter_id: str):
     try:
-        encounter = combat_encounter_service.get(
+        encounter = get_current_runtime().combat_encounter_service.get(
             get_current_runtime().campaign_id,
             encounter_id,
         )
@@ -118,8 +114,8 @@ def get_combat_encounter(encounter_id: str):
 @router.post("/encounters/{encounter_id}/start")
 def start_combat_encounter(encounter_id: str, data: EncounterStartIn):
     try:
-        with turn_execution_lock.acquire():
-            result = combat_encounter_service.start_with_events(
+        with get_current_runtime().turn_execution_lock.acquire():
+            result = get_current_runtime().combat_encounter_service.start_with_events(
                 get_current_runtime().campaign_id,
                 encounter_id,
                 dice_mode=data.dice_mode,
@@ -156,8 +152,8 @@ def start_combat_encounter(encounter_id: str, data: EncounterStartIn):
 @router.post("/encounters/{encounter_id}/death-save")
 def resolve_encounter_death_save(encounter_id: str, data: DeathSavingThrowIn):
     try:
-        with turn_execution_lock.acquire():
-            result = combat_encounter_service.death_saving_throw(
+        with get_current_runtime().turn_execution_lock.acquire():
+            result = get_current_runtime().combat_encounter_service.death_saving_throw(
                 get_current_runtime().campaign_id,
                 encounter_id,
                 expected_round=data.expected_round,
@@ -188,8 +184,8 @@ def resolve_encounter_death_save(encounter_id: str, data: DeathSavingThrowIn):
 @router.post("/encounters/{encounter_id}/advance")
 def advance_combat_encounter(encounter_id: str, data: EncounterTurnIn):
     try:
-        with turn_execution_lock.acquire():
-            result = combat_encounter_service.advance_turn_with_events(
+        with get_current_runtime().turn_execution_lock.acquire():
+            result = get_current_runtime().combat_encounter_service.advance_turn_with_events(
                 get_current_runtime().campaign_id,
                 encounter_id,
                 expected_round=data.expected_round,
@@ -221,8 +217,8 @@ def advance_combat_encounter(encounter_id: str, data: EncounterTurnIn):
 @router.post("/encounters/{encounter_id}/complete")
 def complete_combat_encounter(encounter_id: str, data: EncounterTurnIn):
     try:
-        with turn_execution_lock.acquire():
-            encounter = combat_encounter_service.complete(
+        with get_current_runtime().turn_execution_lock.acquire():
+            encounter = get_current_runtime().combat_encounter_service.complete(
                 get_current_runtime().campaign_id,
                 encounter_id,
                 expected_round=data.expected_round,
@@ -240,7 +236,7 @@ def complete_combat_encounter(encounter_id: str, data: EncounterTurnIn):
 @router.post("/encounters/{encounter_id}/attack")
 def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             result = get_current_runtime().combat_attack_service.attack(
                 campaign_id=get_current_runtime().campaign_id,
                 encounter_id=encounter_id,
@@ -310,7 +306,7 @@ def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAtta
     from rules_engine.dnd5e_2014.combat.movement import GridPosition
 
     try:
-        with turn_execution_lock.acquire():
+        with get_current_runtime().turn_execution_lock.acquire():
             result = get_current_runtime().combat_attack_service.attack(
                 campaign_id=get_current_runtime().campaign_id,
                 encounter_id=encounter_id,
@@ -384,8 +380,8 @@ def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAtta
 @router.post("/encounters/{encounter_id}/reaction")
 def use_combat_reaction(encounter_id: str, data: EncounterReactionIn):
     try:
-        with turn_execution_lock.acquire():
-            encounter = combat_encounter_service.use_reaction(
+        with get_current_runtime().turn_execution_lock.acquire():
+            encounter = get_current_runtime().combat_encounter_service.use_reaction(
                 get_current_runtime().campaign_id,
                 encounter_id,
                 combatant_id=data.combatant_id,
@@ -403,8 +399,8 @@ def use_combat_reaction(encounter_id: str, data: EncounterReactionIn):
 def move_combatant(encounter_id: str, data: EncounterMoveIn):
     from rules_engine.dnd5e_2014.combat.movement import GridPosition
     try:
-        with turn_execution_lock.acquire():
-            encounter = combat_encounter_service.move_combatant(
+        with get_current_runtime().turn_execution_lock.acquire():
+            encounter = get_current_runtime().combat_encounter_service.move_combatant(
                 get_current_runtime().campaign_id, encounter_id,
                 combatant_id=data.combatant_id,
                 expected_round=data.expected_round,
