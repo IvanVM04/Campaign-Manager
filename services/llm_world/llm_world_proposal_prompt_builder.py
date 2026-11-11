@@ -41,7 +41,11 @@ class LLMWorldProposalPromptBuilder:
             )
 
         dynamic_context = (
-            "\n\nPERSONAJE ACTIVO:\n"
+            "\n\nCAMPAÑA ACTUAL:\n"
+            + context_blocks["campaign_block"]
+            + "\n\nSESIÓN ACTUAL:\n"
+            + context_blocks["session_block"]
+            + "\n\nPERSONAJE ACTIVO:\n"
             + context_blocks["character_block"]
             + "\n\nENTIDADES CONOCIDAS:\n"
             + context_blocks["known_entities"]
