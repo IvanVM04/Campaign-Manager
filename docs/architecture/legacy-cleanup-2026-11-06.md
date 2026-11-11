@@ -18,6 +18,7 @@ This inventory separates confirmed dead code from compatibility code that still 
 - Four final flat LLM/world re-export shims were removed after migrating three test modules to `services.llm_world` and confirming `services.world_state_port` had no consumers: `services/llm_world_context_renderer.py`, `services/llm_world_proposal_prompt_builder.py`, `services/llm_world_proposal_validator.py`, and `services/world_state_port.py`. Implementations and package exports remain unchanged.
 - The LLM provider boundary is now a real package: `llm_provider.py`, `ollama_provider.py`, `fake_llm_provider.py`, and `llm_settings.py` moved into `services/providers/`. Production and test imports now use `services.providers`; the old flat modules were removed without changing provider behavior.
 - `PersistentEffectService` and `EffectiveConditionService` moved into `services/campaign/`; all runtime and test imports use the canonical package. The old flat modules were removed after checking their in-repository consumers; effect persistence and condition projection behavior are unchanged.
+- `DMService` moved into `services/turns/`; runtime and tests now use the canonical turn package. The old `services/dm_service.py` module was removed after migrating all in-repository consumers; narrative generation behavior is unchanged.
 
 ## Still legacy, but not dead
 
