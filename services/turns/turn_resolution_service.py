@@ -7,7 +7,6 @@ from models.mechanics import MechanicsDecision, MechanicsDecisionType, Mechanics
 from models.turn_context import TurnContext
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
-from services.context import ContextBuilder
 from operations.character_operations import (
     CharacterOperation,
 )
@@ -19,6 +18,7 @@ from rules_engine.dnd5e_2014.character_checks import (
     saving_throw_for_character,
 )
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
+from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
 from services.turns.mechanics_adjudicator import (
