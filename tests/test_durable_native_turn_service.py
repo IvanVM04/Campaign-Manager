@@ -943,6 +943,69 @@ def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
     assert "lifecycle_state=planning" in entries[0].getMessage()
 
 
+def test_unexpected_planning_failure_releases_lease_and_recovers_after_runtime_restart():
+    service, _, _ = _service_with_fake_models()
+
+    def fail_during_preparation(*args, **kwargs):
+        raise RuntimeError("temporary extraction provider outage")
+
+    service.resolver.prepare_turn = fail_during_preparation
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="native turn execution failed",
+    ):
+        service.play_turn(
+            "Investigo el campanario.",
+            idempotency_key="native-planning-restart-recovery",
+        )
+
+    failed_attempt = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-planning-restart-recovery",
+        scope=service.scope,
+    )
+    assert failed_attempt.lifecycle_state == "accepted"
+    assert failed_attempt.attempt_count == 1
+    assert failed_attempt.lease_token is None
+    assert failed_attempt.lease_expires_at is None
+    assert failed_attempt.last_error_code == "planning_failed"
+
+    # A fresh runtime simulates a process restart: recovery must rely on the
+    # persisted resolution, not the failed service instance or its lock.
+    restarted_service = CampaignRuntimeFactory().get_runtime(
+        service.scope.campaign_id
+    ).durable_native_turn_service
+    restarted_service.resolver.mechanics_adjudicator = None
+    proposal_calls = []
+    restarted_service.resolver.extractor.provider = lambda prompt: (
+        proposal_calls.append(prompt) or '{"operations": []}'
+    )
+    narrative_calls = []
+    restarted_service.resolver.dm_service.provider.generate = lambda prompt: (
+        narrative_calls.append(prompt) or "La campana permanece inmóvil."
+    )
+
+    recovered = restarted_service.play_turn(
+        "Investigo el campanario.",
+        idempotency_key="native-planning-restart-recovery",
+    )
+
+    assert recovered.narrative == "La campana permanece inmóvil."
+    assert len(proposal_calls) == 1
+    assert len(narrative_calls) == 1
+
+    completed = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-planning-restart-recovery",
+        scope=service.scope,
+    )
+    assert completed.lifecycle_state == "completed"
+    assert completed.attempt_count == 2
+    assert completed.lease_token is None
+    assert completed.lease_expires_at is None
+
+
 
 def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries():
     service, _, _ = _service_with_fake_models()
