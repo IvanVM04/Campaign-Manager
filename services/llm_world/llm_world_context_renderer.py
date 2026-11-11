@@ -121,6 +121,39 @@ class LLMWorldContextRenderer:
         )
 
         # ------------------------------------------------------------
+        # SALDOS DE RECURSOS
+        # ------------------------------------------------------------
+
+        resource_balance_lines = []
+
+        for balance_id, balance in world.resource_balances.items():
+            resource = world.resources.get(balance.resource_id)
+            owner = world.entities.get(balance.owner_id)
+            resource_name = (
+                resource.name
+                if resource is not None
+                else f"Recurso {balance.resource_id}"
+            )
+            owner_name = (
+                owner.name
+                if owner is not None
+                else f"Entidad {balance.owner_id}"
+            )
+            unit = resource.unit if resource is not None else ""
+            resource_balance_lines.append(
+                f"- ID {balance_id}: "
+                f"{balance.amount} {unit} de {resource_name} "
+                f"(resource_id={balance.resource_id}, "
+                f"owner_id={balance.owner_id}, owner={owner_name})"
+            )
+
+        known_resource_balances = (
+            "\n".join(resource_balance_lines)
+            if resource_balance_lines
+            else "- Ninguno"
+        )
+
+        # ------------------------------------------------------------
         # RELACIONES CONOCIDAS
         # ------------------------------------------------------------
 
@@ -215,6 +248,7 @@ class LLMWorldContextRenderer:
             "known_items": known_items,
             "known_item_instances": known_item_instances,
             "known_resources": known_resources,
+            "known_resource_balances": known_resource_balances,
             "known_relations": known_relations,
             "known_events": known_events,
         }
