@@ -2,7 +2,7 @@
 
 ## Ownership
 
-- `MemorySearchService` finds structured candidates from the world snapshot.
+- `MemorySearchService` (`services/context/memory_search_service.py`) finds structured candidates from the supplied world snapshot and exports its public representation.
 - `ContextExpander` follows active world relations and resolves related records.
 - `ContextRanker` calculates candidate relevance.
 - `ContextRenderer` converts structured records and recent turns into textual candidates, orders them, applies independent character budgets, and renders category sections.

@@ -34,6 +34,7 @@ LEGACY_IMPORTS = {
     "services.context_ranker",
     "services.context_expander",
     "services.context_renderer",
+    "services.memory_search_service",
     "services.world_serializer",
     "services.world_item_applier",
     "services.world_entity_applier",

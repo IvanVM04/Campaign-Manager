@@ -4,6 +4,7 @@
 Retrieve, expand, rank, select and render campaign context for application and LLM workflows. This package does not own campaign state.
 
 ## Modules (migrated into this package)
+- memory_search_service.py — deterministic retrieval and public world-state export.
 - context_builder.py — orchestration facade.
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
@@ -25,4 +26,4 @@ The LLM-specific world-context projection now lives in services/llm_world/llm_wo
 - [ ] Keep rendering independent from transport response formatting.
 
 ## Migration status
-The four context modules now live in this package. The former flat `services.context_*` compatibility modules have been removed; import from this package's canonical modules.
+All five context modules now live in this package. The former flat `services.memory_search_service` import path has been removed; import from this package's canonical modules.
