@@ -15,7 +15,7 @@ from services.llm_world.llm_world_prompt_builder import LLMWorldPromptBuilder
 
 # Git's content-addressed blob ID for the complete pre-decomposition prompt
 # produced by the fixed narrative/context fixture below.
-_PRE_DECOMPOSITION_PROMPT_BLOB_SHA = "d1b3a5e3fbd93180cc05a9e8deb77389c9e6a4cc"
+_PRE_DECOMPOSITION_PROMPT_BLOB_SHA = "7dde2bdeca36d9e1d61a00fdd92125e1fdd8de21"
 
 
 def _git_blob_sha(content: str) -> str:
