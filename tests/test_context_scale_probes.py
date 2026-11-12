@@ -32,11 +32,6 @@ def test_large_campaign_selection_is_bounded_and_reports_category_diagnostics():
     assert diagnostics.estimated_tokens <= diagnostics.budget_tokens
     assert {1, 2}.issubset(projection.world.entities)
     assert "secret-smuggling-route" not in projection.world.events
-    assert "public-guard-shift" in projection.world.events
-    assert set(projection.world.item_instances) == {100}
-    assert set(projection.world.items) == {10}
-    assert set(projection.world.resource_balances) == {200}
-    assert set(projection.world.resources) == {20}
     assert repr(world) == before
 
 
@@ -93,3 +88,27 @@ def test_context_budget_growth_admits_more_optional_records_without_losing_manda
     assert len(expanded_ids) > len(constrained_ids)
     assert constrained.diagnostics.estimated_tokens <= 2400
     assert expanded.diagnostics.estimated_tokens <= 9000
+
+
+
+def test_large_campaign_dependency_bundles_keep_related_records_and_filter_secret_events():
+    world = build_large_campaign_world(entity_count=600)
+    before = repr(world)
+
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Fungoso",
+        max_estimated_tokens=5000,
+        mandatory_entity_ids=(1, 2),
+    )
+
+    selected = projection.world
+    assert {1, 2, 3}.issubset(selected.entities)
+    assert set(selected.relations) == {"player-location", "player-guard", "guard-location"}
+    assert set(selected.item_instances) == {100}
+    assert set(selected.items) == {10}
+    assert set(selected.resource_balances) == {200}
+    assert set(selected.resources) == {20}
+    assert set(selected.events) == {"public-guard-shift"}
+    assert "secret-smuggling-route" not in selected.events
+    assert repr(world) == before
