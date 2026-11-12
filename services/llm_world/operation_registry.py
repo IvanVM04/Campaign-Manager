@@ -32,7 +32,7 @@ from operations.world_operations import (
 
 _FIELD_DESCRIPTIONS: dict[str, str] = {
     "name": "Nombre visible del registro.",
-    "entity_type": "Categoría; npc = persona identificada.",
+    "entity_type": "Usa npc para una persona identificada.",
     "description": (
         "Hechos conocidos y observables. No añadas rasgos, motivos ni "
         "historia que no estén establecidos."
