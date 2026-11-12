@@ -22,6 +22,9 @@ class CharacterRepository:
         wisdom,
         charisma,
         proficiency_bonus,
+        hit_die_sides,
+        hit_dice_used,
+        last_long_rest_elapsed_minutes,
         skill_proficiencies,
         skill_expertise,
         saving_throw_proficiencies,
@@ -85,6 +88,9 @@ class CharacterRepository:
                 wisdom,
                 charisma,
                 proficiency_bonus,
+                hit_die_sides,
+                hit_dice_used,
+                last_long_rest_elapsed_minutes,
                 skill_proficiencies,
                 skill_expertise,
                 saving_throw_proficiencies,
@@ -93,7 +99,7 @@ class CharacterRepository:
                 metadata,
                 campaign_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(entity_id)
             DO UPDATE SET
                 level = excluded.level,
@@ -108,6 +114,9 @@ class CharacterRepository:
                 wisdom = excluded.wisdom,
                 charisma = excluded.charisma,
                 proficiency_bonus = excluded.proficiency_bonus,
+                hit_die_sides = excluded.hit_die_sides,
+                hit_dice_used = excluded.hit_dice_used,
+                last_long_rest_elapsed_minutes = excluded.last_long_rest_elapsed_minutes,
                 skill_proficiencies = excluded.skill_proficiencies,
                 skill_expertise = excluded.skill_expertise,
                 saving_throw_proficiencies = excluded.saving_throw_proficiencies,
@@ -131,6 +140,9 @@ class CharacterRepository:
             character.wisdom,
             character.charisma,
             character.proficiency_bonus,
+            character.hit_die_sides,
+            character.hit_dice_used,
+            character.last_long_rest_elapsed_minutes,
             json.dumps(sorted(skill.value for skill in character.skill_proficiencies)),
             json.dumps(sorted(skill.value for skill in character.skill_expertise)),
             json.dumps(sorted(ability.value for ability in character.saving_throw_proficiencies)),
@@ -168,6 +180,68 @@ class CharacterRepository:
             )
 
         return loaded
+
+    def update_rest_state(
+        self,
+        entity_id: int,
+        *,
+        campaign_id: int,
+        expected_current_hp: int,
+        expected_hit_dice_used: int,
+        expected_last_long_rest_elapsed_minutes: int | None,
+        new_current_hp: int,
+        new_hit_dice_used: int,
+        new_last_long_rest_elapsed_minutes: int | None,
+        conn,
+    ) -> CharacterState:
+        """Compare-and-swap character rest state inside the caller's transaction."""
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in (
+                expected_current_hp,
+                expected_hit_dice_used,
+                new_current_hp,
+                new_hit_dice_used,
+            )
+        ):
+            raise ValueError("rest state values must be non-negative integers")
+        for value in (
+            expected_last_long_rest_elapsed_minutes,
+            new_last_long_rest_elapsed_minutes,
+        ):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value < 0
+            ):
+                raise ValueError("long-rest campaign time must be non-negative or None")
+        cursor = conn.execute(
+            """
+            UPDATE character_states
+            SET current_hp = ?,
+                hit_dice_used = ?,
+                last_long_rest_elapsed_minutes = ?
+            WHERE entity_id = ?
+              AND campaign_id = ?
+              AND current_hp = ?
+              AND hit_dice_used = ?
+              AND last_long_rest_elapsed_minutes IS ?
+            """,
+            (
+                new_current_hp,
+                new_hit_dice_used,
+                new_last_long_rest_elapsed_minutes,
+                entity_id,
+                campaign_id,
+                expected_current_hp,
+                expected_hit_dice_used,
+                expected_last_long_rest_elapsed_minutes,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError("character rest state changed; reload before resting")
+        updated = self.get_character(entity_id, campaign_id=campaign_id, conn=conn)
+        if updated is None:
+            raise RuntimeError("character disappeared while applying rest")
+        return updated
 
     def update_current_hp(
         self,
@@ -254,6 +328,9 @@ class CharacterRepository:
             wisdom=row["wisdom"],
             charisma=row["charisma"],
             proficiency_bonus=row["proficiency_bonus"],
+            hit_die_sides=row["hit_die_sides"],
+            hit_dice_used=row["hit_dice_used"],
+            last_long_rest_elapsed_minutes=row["last_long_rest_elapsed_minutes"],
             skill_proficiencies=json.loads(row["skill_proficiencies"]),
             skill_expertise=json.loads(row["skill_expertise"]),
             saving_throw_proficiencies=json.loads(row["saving_throw_proficiencies"]),
