@@ -31,12 +31,18 @@ class RecordingContextBuilder(ContextBuilder):
         super().__init__()
         self.context = context
         self.calls: list[tuple[WorldState, str]] = []
+        self.perspectives: list[int | None] = []
 
     def build(
         self,
         world: WorldState,
         query: str,
+        recent_turns=None,
+        *,
+        supplemental_queries=(),
+        character_entity_id: int | None = None,
     ) -> dict:
+        self.perspectives.append(character_entity_id)
         self.calls.append(
             (
                 world,
@@ -1012,3 +1018,16 @@ def test_committed_resolution_is_included_as_authoritative_narration_context():
     assert prompt is not None
     assert "RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS" in prompt
     assert "open_door" in prompt
+
+
+def test_generate_retrieves_events_for_the_active_character_perspective():
+    provider = FakeLLMProvider(response="Respuesta narrativa.")
+    context_builder = RecordingContextBuilder()
+    service = DMService(provider, context_builder)
+    context = make_turn_context()
+
+    service.generate(context, "Busco una pista.")
+
+    assert context_builder.perspectives == [20]
+    assert "Los rumores" in service.DEFAULT_SYSTEM_PROMPT
+    assert "históricos/sustituidos" in service.DEFAULT_SYSTEM_PROMPT
