@@ -77,6 +77,13 @@ class WorldEventRead(BaseModel):
     session_id: int | None
     secret: bool
     metadata_json: str
+    epistemic_status: str = "confirmed"
+    provenance_source: str = "gm_authored"
+    visibility_scope: str = "public"
+    known_by_entity_ids: tuple[int, ...] = ()
+    source_entity_id: int | None = None
+    campaign_elapsed_minutes: int | None = None
+    supersedes_event_id: str | None = None
 
 
 WorldCollectionItemRead = (
