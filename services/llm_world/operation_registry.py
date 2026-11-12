@@ -409,7 +409,7 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                   reference_fields=("session_id",),
                   example={"type": "create_event", "event_id": "mercader_amenazado",
                            "event_type": "social", "title": "El mercader fue amenazado"},
-                  model_proposable=False),
+                  model_proposable=True),
         _metadata("change_character_hp", ChangeCharacterHpOperation,
                   reference_fields=("entity_id",),
                   example={"type": "change_character_hp", "entity_id": 12, "amount": -4},
