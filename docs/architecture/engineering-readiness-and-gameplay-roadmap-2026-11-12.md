@@ -16,7 +16,7 @@ The previous structural backlog is substantially closed:
 - PR #204 audited canonical character/combat state, fixed persisted-effect projection for movement/reactions and introduced Hit Dice plus short/long rests in migration 030.
 - PR #205 reorganized the durable-turn and context test suites by observable contract without changing production code or removing their 59 test functions/assertions.
 
-The project is ready to move from architecture-first work to a gameplay-first development phase, subject to local acceptance with Ollama and SillyTavern.
+The architecture is ready for gameplay work, but the implementation order is overridden by the P0 language-understanding priority recorded on 2026-11-13. Shared natural-language interpretation, cross-turn reference resolution and live model validation must be completed before the Character Builder or broad gameplay expansion resumes. This priority override is specified in [the P0 language-understanding plan](../quality/language-understanding-priority-2026-11-13.md).
 
 ## Readiness estimates
 
@@ -82,10 +82,10 @@ Combined with the residual engineering estimate above, the planning range is **4
 
 ## Recommended order
 
-1. Complete and merge the documentation/readiness update.
-2. Run the local Ollama + SillyTavern smoke test and record the outcome.
-3. Review the context/proposal scale probes from PR #207 and fix any demonstrated issue.
-4. Build the typed character-creation vertical slice.
+1. Deliver the P0 shared natural-language understanding and intent-resolution implementation PR, including its deterministic/live evaluation and durable continuation contracts.
+2. Run and record the local Ollama + SillyTavern acceptance gates for the new interpretation pipeline.
+3. Review the context/proposal scale probes from PR #207 and fix any demonstrated issue not already covered by P0.
+4. Resume the typed character-creation vertical slice.
 5. Add one class progression/resource slice that feeds both the sheet and deterministic rules.
 6. Extend combat and equipment only for the mechanics required by that class/adventure.
 7. Deliver the first complete adventure and verify persistence/continuity end to end.
