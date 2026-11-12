@@ -346,7 +346,7 @@ def test_integration_clarification_state_endpoint_returns_durable_state(
         "lifecycle_state": "awaiting_input",
         "player_input": "Abro una puerta.",
         "clarification_question": "¿Qué puerta?",
-        "pending_clarification_id": "42:challenge",
+        "pending_clarification_id": "42:" + "c" * 24,
         "last_pending_clarification_id": None,
         "last_answer": None,
         "resolved_player_input": None,
@@ -913,7 +913,7 @@ def test_integration_manual_roll_endpoint_maps_submission_errors(
     response = client.post(
         "/integration/turn/roll",
         json={
-            "pending_roll_id": "42:challenge",
+            "pending_roll_id": "42:" + "a" * 24,
             "rolls": [12],
             "query": "Estado.",
             "answer_external_turn_id": "st-roll-reply-error",
