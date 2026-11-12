@@ -1,5 +1,3 @@
-from fastapi.testclient import TestClient
-
 def test_character_rest_endpoints_update_sheet_and_campaign_clock(client):
     created = client.post(
         "/characters",
