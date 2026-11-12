@@ -3,8 +3,6 @@ from collections.abc import Iterable
 from dataclasses import asdict, is_dataclass
 from typing import Any, ClassVar, cast
 
-from pydantic import BaseModel
-
 from models.world_collection_read_models import (
     WorldCollectionPage,
     WorldEventRead,
