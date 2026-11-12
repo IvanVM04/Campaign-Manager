@@ -222,3 +222,17 @@ See `docs/quality/test-suite-audit-2026-11-11.md` for the updated large-module i
 At the revalidated commit, Tests run #43103128009 and CodeQL run #43103128059 both completed successfully. The deterministic suite collected 1,313 items, passed 1,306 and deselected 7 `real_llm` tests. Coverage reported 85.8% line and 72.6% branch coverage. Repository-wide Pyright reported zero diagnostics.
 
 The active default-branch ruleset `protc1` requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. `CI summary` fails if a constituent deterministic test, Ruff, required scoped Pyright, repository-wide Pyright or JavaScript job does not succeed. Continue to inspect complete PR statuses; do not merge while a required check is failing, pending, cancelled or skipped.
+
+
+## 9. Revalidation after PR #195 — 2026-11-12
+
+PR #195 moves the external SillyTavern Python adapter out of the capability-service tree and separates active reads from deprecated mutation handling:
+
+- integrations/adapters/silly_tavern/context_adapter.py owns read-only context/history and external transcript-state translation.
+- integrations/adapters/silly_tavern/service.py is a thin façade. It depends on a processor protocol and does not create repositories, snapshots, transactions or LLM providers.
+- bootstrap/campaign_runtime.py independently constructs LegacySillyTavernTurnService, then injects it and the context adapter into the façade. Snapshot and campaign-version repositories are now composed at the application boundary.
+- The deprecated POST /integration/turn route and snapshot reconciliation remain operational. No endpoint, snapshot payload or database column is removed or migrated.
+- Capability services are prohibited from importing external integration adapters; the adapter package is prohibited from importing API routers or bootstrap.
+- The runtime-facing silly_tavern_integration_service property and HTTP response contracts remain stable. The legacy collaborator is explicitly reachable through the façade for compatibility/tests, while active context methods delegate to the read-only adapter.
+
+The former services/silly_tavern_integration_service.py root module is retired. Current ownership and composition rules are documented in sillytavern-adapter-boundary-2026-11-12.md.

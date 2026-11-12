@@ -24,7 +24,7 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - `legacy_silly_tavern_turn_service.py` — quarantined narrative-first snapshot reconciliation for the deprecated `POST /integration/turn` compatibility route; no new gameplay behavior belongs here.
 
 ## Integration adapter outside this package
-- `services/silly_tavern_integration_service.py` — active context and external transcript-state adapter; delegates the deprecated route to the isolated legacy collaborator in this package.
+- `integrations/adapters/silly_tavern/context_adapter.py` — read-only context and external transcript-state adapter. Its legacy turn processor is injected through a small façade; composition belongs to bootstrap.
 
 ## Dependency rules
 - Preserve idempotency, lease fencing, campaign revision checks and atomic commit.
@@ -45,4 +45,4 @@ The durable resolution record is authoritative for in-flight state. Narrative/tr
 - [ ] Retain the documented single-process constraint while locks/runtime are process-local.
 
 ## Migration status
-The turns boundary has been decomposed internally. The canonical package owns narrative generation, the mechanics adjudicator, the execution lock, non-persistent planner, durable resolution codec and coordinator, challenge projections/submissions, prepared commit, preparation/result mapping and narration lifecycle. The old `CampaignTurnService` compatibility implementation and its dedicated tests have been removed; the legacy SillyTavern turn service remains active only through the deprecated `POST /integration/turn` route. `SillyTavernIntegrationService` remains active for context and external transcript-state reads.
+The turns boundary has been decomposed internally. The canonical package owns narrative generation, the mechanics adjudicator, the execution lock, non-persistent planner, durable resolution codec and coordinator, challenge projections/submissions, prepared commit, preparation/result mapping and narration lifecycle. The old `CampaignTurnService` compatibility implementation and its dedicated tests have been removed; the legacy SillyTavern turn service remains active only through the deprecated `POST /integration/turn` route. `SillyTavernContextAdapter` remains active for context and external transcript-state reads; the integration façade delegates the deprecated mutation route to the separately injected `LegacySillyTavernTurnService`.

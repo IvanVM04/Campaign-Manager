@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import services.silly_tavern_integration_service as integration_module
+import integrations.adapters.silly_tavern as integration_module
 from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -21,7 +21,7 @@ from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.silly_tavern_integration_service import (
+from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
 )
@@ -132,7 +132,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
         debug_process_turn,
     )
 
-    service.world_service.load()
+    service.legacy_turn_service.world_service.load()
 
     # =========================================================
     # EXTRACTOR DETERMINISTA
@@ -150,7 +150,7 @@ def test_regenerate_turn_restores_snapshot_and_allows_new_version(
     )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         lambda narrative, context: (
             [create_instance_operation]
@@ -494,7 +494,7 @@ def test_failed_regeneration_rolls_back_snapshot_restore(
     )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         lambda narrative, context: (
             [created_entity_operation]
@@ -614,7 +614,7 @@ def test_failed_regeneration_rolls_back_snapshot_restore(
         )
 
     monkeypatch.setattr(
-        service.world_service,
+        service.legacy_turn_service.world_service,
         "apply_turn_operations",
         fail_after_snapshot_restore,
     )
@@ -772,7 +772,7 @@ def test_regeneration_extracts_against_state_before_previous_version(
         )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         fake_extract,
     )

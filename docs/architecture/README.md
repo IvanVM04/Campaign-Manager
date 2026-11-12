@@ -8,6 +8,7 @@
 - [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
 - [LLM context rendering boundary](llm-world-context-rendering-boundaries.md): typed projection ownership and context-budget gap.
 - [Legacy narrative prompt decomposition — 2026-11-12](legacy-prompt-decomposition-2026-11-12.md): static instruction sections and byte-for-byte compatibility baseline.
+- [SillyTavern adapter boundary — 2026-11-12](sillytavern-adapter-boundary-2026-11-12.md): separated read adapter, legacy processor port and composition-root ownership.
 
 - [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
 

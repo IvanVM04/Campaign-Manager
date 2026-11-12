@@ -30,12 +30,19 @@ The rules engine remains independent of API, database, repositories, LLM provide
 
 The matrix is a set of enforced prohibitions, not a claim that every allowed edge is currently used. In particular, a package's permission to import a shared layer does not authorize bypassing its public contracts or transaction ownership.
 
+## Integration adapters and composition
+
+- integrations/adapters/ is an inbound/outbound adapter layer. It may depend on public application services, repositories and shared models, but must not import api or bootstrap.
+- Capability packages must not import integrations; direction flows inward from adapters to application/domain contracts.
+- integrations/adapters/silly_tavern/context_adapter.py owns read-only context/history and external transcript-state translation. The package façade delegates the deprecated narrative-first call through an injected processor protocol.
+- bootstrap/campaign_runtime.py constructs LegacySillyTavernTurnService, its snapshot/state-version repositories and the context adapter independently, then wires them into the façade. The adapter does not create legacy repositories, transactions or providers.
+
 ## Composition and cross-cutting services
 
 - `bootstrap/campaign_runtime.py` is the composition root and may wire capability packages together.
 - `api/routers/` obtains the request-scoped runtime and translates HTTP input/output; it does not compose services.
 - `DMService` belongs to `services/turns`; it owns narrative generation for a turn and consumes context/provider collaborators without applying world mutations.
-- `SillyTavernIntegrationService` remains outside the capability packages as the external transcript/context adapter. The deprecated narrative-first turn collaborator lives in `services/turns` but is quarantined from the active durable lifecycle; its legacy status does not authorize new dependencies or gameplay behavior.
+- `SillyTavernIntegrationService` is a thin external adapter façade under integrations/adapters/silly_tavern; active context reads are owned by SillyTavernContextAdapter, while the deprecated narrative-first collaborator remains quarantined in services/turns. Its legacy status does not authorize new dependencies or gameplay behavior.
 - `PersistentEffectService` and `EffectiveConditionService` belong to `services/campaign`; the first owns persisted campaign-effect lifecycle and the second derives effective D&D conditions without storing duplicate state.
 - `OperationParser` belongs to `services/llm_world`; it performs structural decoding only. LLM-specific allowlisting remains in the proposal validator, while semantic validation and mutation remain in `services/world`.
 - `MechanicsAdjudicator` belongs to `services/turns`; it proposes and validates structured mechanics decisions but leaves dice rolls and consequences to deterministic turn/rules services.

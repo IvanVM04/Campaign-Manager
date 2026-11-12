@@ -20,7 +20,8 @@ MIGRATED_PRODUCTION_MODULES = (
     "services/campaign/effective_condition_service.py",
     "services/turns/durable_native_turn_service.py",
     "services/turns/legacy_silly_tavern_turn_service.py",
-    "services/silly_tavern_integration_service.py",
+    "integrations/adapters/silly_tavern/context_adapter.py",
+    "integrations/adapters/silly_tavern/service.py",
     "services/turns/turn_resolution_service.py",
 )
 
@@ -76,6 +77,7 @@ LEGACY_IMPORTS = {
     "services.llm_world_proposal_prompt_builder",
     "services.llm_world_proposal_validator",
     "services.world_state_port",
+    "services.silly_tavern_integration_service",
 }
 
 
@@ -150,3 +152,7 @@ def test_retired_flat_service_import_paths_are_absent():
         "Retired flat service import paths must not be reintroduced:\\n"
         + "\\n".join(remaining)
     )
+
+
+def test_removed_root_silly_tavern_adapter_module_is_absent():
+    assert not (ROOT / "services" / "silly_tavern_integration_service.py").exists()

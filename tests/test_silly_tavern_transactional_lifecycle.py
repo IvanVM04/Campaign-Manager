@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import services.silly_tavern_integration_service as integration_module
+import integrations.adapters.silly_tavern as integration_module
 from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -21,14 +21,14 @@ from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.silly_tavern_integration_service import (
+from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
 )
 from services.turns import TurnExecutionLock
 from services.world import WorldService
 
-from tests.silly_tavern_integration_support import _build_service
+from tests.silly_tavern_integration_support import _build_service, _compose_service
 
 def test_e2e_silly_tavern_turn_persists_world_change(
     monkeypatch,
@@ -103,7 +103,7 @@ def test_e2e_silly_tavern_turn_persists_world_change(
 
     turn_repository = TurnRepository()
 
-    service = SillyTavernIntegrationService(
+    service = _compose_service(
         campaign_state_service=campaign_state_service,
         context_builder=context_builder,
         extractor=extractor,
@@ -371,12 +371,13 @@ def test_e2e_silly_tavern_turn_persists_character_hp_change(
         operation_parser=OperationParser(),
     )
 
-    service = SillyTavernIntegrationService(
+    turn_repository = TurnRepository()
+    service = _compose_service(
         campaign_state_service=campaign_state_service,
         context_builder=ContextBuilder(),
         extractor=extractor,
         world_service=world_service,
-        turn_repository=TurnRepository(),
+        turn_repository=turn_repository,
         turn_execution_lock=TurnExecutionLock(),
     )
 
@@ -583,7 +584,7 @@ def test_e2e_turn_rolls_back_world_and_turn_when_operation_fails(
     from services.llm_world.operation_parser import (
         OperationParser,
     )
-    from services.silly_tavern_integration_service import (
+    from integrations.adapters.silly_tavern import (
         SillyTavernIntegrationServiceError,
     )
     from services.world import (
@@ -612,7 +613,7 @@ def test_e2e_turn_rolls_back_world_and_turn_when_operation_fails(
 
     turn_repository = TurnRepository()
 
-    service = SillyTavernIntegrationService(
+    service = _compose_service(
         campaign_state_service=campaign_state_service,
         context_builder=context_builder,
         extractor=extractor,
@@ -748,7 +749,7 @@ def test_turn_persists_after_world_service_restart(
     )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         lambda narrative, context: (
             [created_entity_operation]
@@ -922,7 +923,7 @@ def test_silly_tavern_context_turn_context_e2e(
     )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         lambda narrative, context: (
             [created_entity_operation]
@@ -1120,10 +1121,10 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
     silly_tavern_integration_service = runtime_factory.get_runtime(1).silly_tavern_integration_service
 
     original_extract = (
-        silly_tavern_integration_service.extractor.extract
+        silly_tavern_integration_service.legacy_turn_service.extractor.extract
     )
 
-    silly_tavern_integration_service.extractor.extract = (
+    silly_tavern_integration_service.legacy_turn_service.extractor.extract = (
         fake_extract
     )
 
@@ -1139,7 +1140,7 @@ def test_integration_turn_rolls_back_character_mutation_when_later_operation_fai
 
     finally:
         # Restaurar el extractor para no contaminar otros tests.
-        silly_tavern_integration_service.extractor.extract = (
+        silly_tavern_integration_service.legacy_turn_service.extractor.extract = (
             original_extract
         )
 
@@ -1177,7 +1178,7 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     import copy
 
     import app
-    from services.silly_tavern_integration_service import (
+    from integrations.adapters.silly_tavern import (
         SillyTavernIntegrationServiceError,
     )
 
@@ -1186,10 +1187,11 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
         .silly_tavern_integration_service
     )
 
-    world_service = service.world_service
+    world_service = service.legacy_turn_service.world_service
     world_service.load()
 
-    original_transaction = integration_module.transaction
+    legacy_turn_service = service.legacy_turn_service
+    original_transaction = legacy_turn_service.transaction_context
     transaction_modes = []
 
     @contextmanager
@@ -1199,8 +1201,8 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
             yield conn
 
     monkeypatch.setattr(
-        integration_module,
-        "transaction",
+        legacy_turn_service,
+        "transaction_context",
         tracked_transaction,
     )
 
@@ -1213,7 +1215,7 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
     )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         lambda narrative, context: [operation],
     )
@@ -1222,7 +1224,7 @@ def test_turn_persistence_failure_restores_shared_in_memory_world(
         raise RuntimeError("forced turn persistence failure")
 
     monkeypatch.setattr(
-        service.turn_repository,
+        service.legacy_turn_service.turn_repository,
         "save_turn",
         fail_save_turn,
     )

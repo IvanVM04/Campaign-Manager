@@ -1,5 +1,7 @@
 import pytest
 
+from tests.silly_tavern_integration_support import _compose_service
+
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
 from models.world_state import WorldState
@@ -75,10 +77,7 @@ def test_real_ollama_full_turn_persists_world_change():
     from services.llm_world import LLMWorldExtractor
     from services.llm_world.operation_parser import OperationParser
     from services.providers import OllamaProvider
-    from services.silly_tavern_integration_service import (
-        SillyTavernIntegrationService,
-    )
-    from services.world import WorldService
+        from services.world import WorldService
 
     world_service = WorldService()
     world_service.load()
@@ -99,7 +98,7 @@ def test_real_ollama_full_turn_persists_world_change():
 
     turn_repository = TurnRepository()
 
-    service = SillyTavernIntegrationService(
+    service = _compose_service(
         campaign_state_service=campaign_state_service,
         context_builder=context_builder,
         extractor=extractor,
@@ -172,10 +171,7 @@ def test_real_ollama_regeneration_restores_previous_snapshot():
     from services.llm_world import LLMWorldExtractor
     from services.llm_world.operation_parser import OperationParser
     from services.providers import OllamaProvider
-    from services.silly_tavern_integration_service import (
-        SillyTavernIntegrationService,
-    )
-    from services.world import WorldService
+        from services.world import WorldService
 
     world_service = WorldService()
 
@@ -195,7 +191,7 @@ def test_real_ollama_regeneration_restores_previous_snapshot():
 
     turn_repository = TurnRepository()
 
-    service = SillyTavernIntegrationService(
+    service = _compose_service(
         campaign_state_service=campaign_state_service,
         context_builder=context_builder,
         extractor=extractor,
