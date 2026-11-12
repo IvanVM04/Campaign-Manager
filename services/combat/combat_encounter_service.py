@@ -68,19 +68,29 @@ class CombatEncounterService:
                     raise ValueError(
                         "NPC opportunity profiles must use supported melee weapons"
                     )
+
         encounter_id = encounter_id or uuid4().hex
         created_creature = False
         with transaction("IMMEDIATE") as conn:
-            if self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn) is not None:
+            if self.repository.get(
+                encounter_id,
+                campaign_id=campaign_id,
+                conn=conn,
+            ) is not None:
                 raise ValueError("encounter_id already exists in this campaign")
+
             combatants = []
             for participant in participants:
                 if participant.character_id is not None:
                     character = self.character_repository.get_character(
-                        participant.character_id, campaign_id=campaign_id, conn=conn
+                        participant.character_id,
+                        campaign_id=campaign_id,
+                        conn=conn,
                     )
                     entity = self.entity_repository.get_entity(
-                        participant.character_id, campaign_id=campaign_id, conn=conn
+                        participant.character_id,
+                        campaign_id=campaign_id,
+                        conn=conn,
                     )
                     if character is None or entity is None:
                         raise ValueError(
@@ -89,58 +99,50 @@ class CombatEncounterService:
                     armor_class = character.armor_class
                     if self.equipment_service is not None:
                         armor_class = self.equipment_service.armor_class(
-                            character, campaign_id=campaign_id, conn=conn
+                            character,
+                            campaign_id=campaign_id,
+                            conn=conn,
                         ).armor_class
-                    combatants.append(CombatantState(
-                        combatant_id=f"character-{character.entity_id}",
-                        name=entity.name,
-                        initiative=0,
-                        current_hp=character.current_hp,
-                        max_hp=character.max_hp,
-                        armor_class=armor_class,
-                        entity_id=character.entity_id,
-                        is_player_character=True,
-                        dexterity=character.dexterity,
-                        strength=character.strength,
-                        constitution=character.constitution,
-                        intelligence=character.intelligence,
-                        wisdom=character.wisdom,
-                        charisma=character.charisma,
-                        proficiency_bonus=character.proficiency_bonus,
-                        conscious=character.current_hp > 0,
-                    position_x=participant.position_x,
-                    position_y=participant.position_y,
-                    speed_feet=participant.speed_feet,
-                    ))
+                    combatants.append(
+                        CombatantState(
+                            combatant_id=f"character-{character.entity_id}",
+                            name=entity.name,
+                            initiative=0,
+                            current_hp=character.current_hp,
+                            max_hp=character.max_hp,
+                            armor_class=armor_class,
+                            entity_id=character.entity_id,
+                            is_player_character=True,
+                            dexterity=character.dexterity,
+                            strength=character.strength,
+                            constitution=character.constitution,
+                            intelligence=character.intelligence,
+                            wisdom=character.wisdom,
+                            charisma=character.charisma,
+                            proficiency_bonus=character.proficiency_bonus,
+                            conscious=character.current_hp > 0,
+                            position_x=participant.position_x,
+                            position_y=participant.position_y,
+                            speed_feet=participant.speed_feet,
+                        )
+                    )
                     continue
 
+                new_creature = participant.creature_id is None
                 if participant.creature_id is not None:
                     creature = self.creature_repository.get_creature(
-                        participant.creature_id, campaign_id=campaign_id, conn=conn
+                        participant.creature_id,
+                        campaign_id=campaign_id,
+                        conn=conn,
                     )
                     entity = self.entity_repository.get_entity(
-                        participant.creature_id, campaign_id=campaign_id, conn=conn
+                        participant.creature_id,
+                        campaign_id=campaign_id,
+                        conn=conn,
                     )
                     if creature is None or entity is None:
                         raise ValueError(
                             f"creature {participant.creature_id} does not exist in this campaign"
-                        )
-                    weapon_keys = participant.npc_melee_weapon_keys or (
-                        [participant.npc_melee_weapon_key]
-                        if participant.npc_melee_weapon_key is not None else []
-                    )
-                    if weapon_keys:
-                        metadata = dict(creature.metadata)
-                        profiles = [
-                            {"weapon_key": key, "proficient": participant.npc_melee_proficient}
-                            for key in weapon_keys
-                        ]
-                        metadata["npc_melee_attacks"] = profiles
-                        metadata["npc_melee_attack"] = profiles[0]
-                        creature = self.creature_repository.save_creature(
-                            replace(creature, metadata=metadata),
-                            campaign_id=campaign_id,
-                            conn=conn,
                         )
                 else:
                     current_hp = (
@@ -158,103 +160,117 @@ class CombatEncounterService:
                         conn=conn,
                     )
                     created_creature = True
-                    creature = self.creature_repository.save_creature(
-                        CreatureState(
-                            entity_id=entity.id,
-                            current_hp=current_hp,
-                            max_hp=participant.max_hp,
-                            armor_class=participant.armor_class,
-                            strength=participant.strength,
-                            dexterity=participant.dexterity,
-                            constitution=participant.constitution,
-                            intelligence=participant.intelligence,
-                            wisdom=participant.wisdom,
-                            charisma=participant.charisma,
-                            proficiency_bonus=participant.proficiency_bonus,
-                            metadata=(
-                                {
-                                    "npc_melee_attacks": [
-                                        {
-                                            "weapon_key": key,
-                                            "proficient": participant.npc_melee_proficient,
-                                        }
-                                        for key in (
-                                            participant.npc_melee_weapon_keys or
-                                            ([participant.npc_melee_weapon_key]
-                                             if participant.npc_melee_weapon_key is not None else [])
-                                        )
-                                    ],
-                                    "npc_melee_attack": {
-                                        "weapon_key": (
-                                            participant.npc_melee_weapon_keys[0]
-                                            if participant.npc_melee_weapon_keys
-                                            else participant.npc_melee_weapon_key
-                                        ),
-                                        "proficient": participant.npc_melee_proficient,
-                                    },
-                                }
-                                if (
-                                    participant.npc_melee_weapon_key is not None
-                                    or participant.npc_melee_weapon_keys is not None
-                                ) else {}
-                            ),
-                        ),
-                        campaign_id=campaign_id,
-                        conn=conn,
+                    creature = CreatureState(
+                        entity_id=entity.id,
+                        current_hp=current_hp,
+                        max_hp=participant.max_hp,
+                        armor_class=participant.armor_class,
+                        strength=participant.strength,
+                        dexterity=participant.dexterity,
+                        constitution=participant.constitution,
+                        intelligence=participant.intelligence,
+                        wisdom=participant.wisdom,
+                        charisma=participant.charisma,
+                        proficiency_bonus=participant.proficiency_bonus,
+                        metadata={},
                     )
-                if participant.npc_natural_attacks is not None:
-                    metadata = dict(creature.metadata)
-                    metadata["npc_natural_attacks"] = [
-                        profile.model_dump() for profile in participant.npc_natural_attacks
-                    ]
-                    creature = self.creature_repository.save_creature(
-                        replace(creature, metadata=metadata),
-                        campaign_id=campaign_id,
-                        conn=conn,
-                    )
-                defense_fields = (
-                    "damage_resistances", "damage_vulnerabilities", "damage_immunities"
-                )
-                supplied_defenses = {
-                    field_name: getattr(participant, field_name)
-                    for field_name in defense_fields
-                    if getattr(participant, field_name) is not None
-                }
-                if supplied_defenses:
-                    metadata = dict(creature.metadata)
-                    metadata.update(supplied_defenses)
-                    creature = self.creature_repository.save_creature(
-                        replace(creature, metadata=metadata),
-                        campaign_id=campaign_id,
-                        conn=conn,
-                    )
-                combatants.append(CombatantState(
-                    combatant_id=f"creature-{entity.id}",
-                    name=entity.name,
-                    initiative=0,
-                    current_hp=creature.current_hp,
-                    max_hp=creature.max_hp,
-                    armor_class=creature.armor_class,
-                    entity_id=creature.entity_id,
-                    is_player_character=False,
-                    dexterity=creature.dexterity,
-                    strength=creature.strength,
-                    constitution=creature.constitution,
-                    intelligence=creature.intelligence,
-                    wisdom=creature.wisdom,
-                    charisma=creature.charisma,
-                    proficiency_bonus=creature.proficiency_bonus,
-                    conscious=creature.current_hp > 0,
-                    position_x=participant.position_x,
-                    position_y=participant.position_y,
-                    speed_feet=participant.speed_feet,
-                ))
 
-            encounter = CombatEncounterState.prepare(encounter_id, tuple(combatants))
-            saved_encounter = self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+                creature = self._configure_creature_profiles(
+                    creature,
+                    participant,
+                    campaign_id=campaign_id,
+                    conn=conn,
+                    persist=new_creature,
+                )
+                combatants.append(
+                    CombatantState(
+                        combatant_id=f"creature-{entity.id}",
+                        name=entity.name,
+                        initiative=0,
+                        current_hp=creature.current_hp,
+                        max_hp=creature.max_hp,
+                        armor_class=creature.armor_class,
+                        entity_id=creature.entity_id,
+                        is_player_character=False,
+                        dexterity=creature.dexterity,
+                        strength=creature.strength,
+                        constitution=creature.constitution,
+                        intelligence=creature.intelligence,
+                        wisdom=creature.wisdom,
+                        charisma=creature.charisma,
+                        proficiency_bonus=creature.proficiency_bonus,
+                        conscious=creature.current_hp > 0,
+                        position_x=participant.position_x,
+                        position_y=participant.position_y,
+                        speed_feet=participant.speed_feet,
+                    )
+                )
+
+            encounter = CombatEncounterState.prepare(
+                encounter_id,
+                tuple(combatants),
+            )
+            saved_encounter = self.repository.save(
+                encounter,
+                campaign_id=campaign_id,
+                conn=conn,
+            )
+
         if created_creature and self.world_service is not None:
             self.world_service.load()
         return saved_encounter
+
+    def _configure_creature_profiles(
+        self,
+        creature: CreatureState,
+        participant,
+        *,
+        campaign_id: int,
+        conn,
+        persist: bool = False,
+    ) -> CreatureState:
+        """Merge encounter-supplied NPC metadata in one creature-state write."""
+        metadata = dict(creature.metadata)
+        weapon_keys = participant.npc_melee_weapon_keys or (
+            [participant.npc_melee_weapon_key]
+            if participant.npc_melee_weapon_key is not None
+            else []
+        )
+        if weapon_keys:
+            weapon_profiles = [
+                {
+                    "weapon_key": weapon_key,
+                    "proficient": participant.npc_melee_proficient,
+                }
+                for weapon_key in weapon_keys
+            ]
+            metadata["npc_melee_attacks"] = weapon_profiles
+            # Retain the first-profile field while existing creature records
+            # migrate to the explicit list representation.
+            metadata["npc_melee_attack"] = weapon_profiles[0]
+
+        if participant.npc_natural_attacks is not None:
+            metadata["npc_natural_attacks"] = [
+                profile.model_dump()
+                for profile in participant.npc_natural_attacks
+            ]
+
+        for field_name in (
+            "damage_resistances",
+            "damage_vulnerabilities",
+            "damage_immunities",
+        ):
+            values = getattr(participant, field_name)
+            if values is not None:
+                metadata[field_name] = values
+
+        if metadata == creature.metadata and not persist:
+            return creature
+        return self.creature_repository.save_creature(
+            replace(creature, metadata=metadata),
+            campaign_id=campaign_id,
+            conn=conn,
+        )
 
     def get(self, campaign_id: int, encounter_id: str):
         return self.repository.get(encounter_id, campaign_id=campaign_id)

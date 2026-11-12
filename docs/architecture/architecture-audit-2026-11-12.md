@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Baseline:** PR #198 is integrated and retired the remaining narrative-first extraction and snapshot-reconciliation paths.  
+**Baseline:** PR #199 is integrated. It closes player-facing secret-event exposure; PR #198 had already retired the remaining narrative-first extraction and snapshot-reconciliation paths.  
 **Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.
 
 ## Executive assessment
@@ -63,13 +63,19 @@ The earlier audit found that `GET /world` and `GET /world/events` could expose e
 
 The application remains single-user/local-first. `X-Campaign-Id` is campaign selection, not authentication, and CORS is not an authorization boundary. No unauthenticated GM bypass is provided. A GM read model, multi-user access or remote deployment requires verified identity plus per-campaign authorization before secret data can be exposed. Keep the documented loopback bind and single-process runtime assumptions until that work is implemented.
 
+## Combat profile and NPC metadata boundary
+
+NPC/player attack-profile selection is isolated in `services/combat/attack_profile_resolver.py`. It reads canonical character/equipment or campaign-scoped creature state on the attack transaction connection and returns an immutable `ResolvedCombatAttackProfile`. Weapon and natural-attack numerical bonuses are derived in the pure `rules_engine`; the application resolver does not persist state or roll dice.
+
+Encounter creation merges supplied NPC melee profiles, natural attacks and defenses into one creature-state save inside the existing `IMMEDIATE` transaction. Runtime resolution validates persisted metadata again and fails closed if it is malformed. The legacy single `npc_melee_attack` field remains a read fallback for already-persisted creatures; new data writes the list form plus that first-profile field during migration.
+
 ## Remaining architectural hotspots
 
 | Area | Current finding | Next safe improvement |
 |---|---|---|
 | `DurableNativeTurnService` | Large public coordinator spanning multiple lifecycle operations | Decompose cohesive use cases behind the existing façade; preserve idempotency, lease fencing, challenge continuation and restart recovery. |
-| `CombatAttackService` | Attack profile and NPC metadata resolution still mixed into the use case | Extract a typed player/NPC attack-profile resolver without moving repository ownership into rules code. |
-| `CombatEncounterService` | Encounter lifecycle touches encounter snapshots and canonical character/creature state | Map writes and failure/rollback behavior before splitting by use case. |
+| `CombatAttackService` | Coordinates attack validation, effects, rolls and atomic HP/encounter persistence; profile selection now belongs to `AttackProfileResolver`. | Keep the facade as the transaction owner; add future weapon/action families through typed profile contracts and deterministic rules helpers. |
+| `CombatEncounterService` | Encounter lifecycle touches encounter snapshots and canonical character/creature state; NPC profiles/defenses are merged before one creature save during creation. | Continue transaction failure-injection coverage across create/start/advance/death-save/move/reaction; split lifecycle use cases only after mapping write boundaries. |
 | `WorldService` | Dispatch and transaction coordination share a large service | Identify stable operation families and caller-owned connection boundaries before extracting. |
 | `models/schemas.py` | Broad transport schema module | Split by bounded context while preserving OpenAPI and import contracts. |
 | `migrations.py` | Ordered, data-sensitive migration history through version 029 | Keep history ordered; add an index/replay fixture before considering file-level extraction. |

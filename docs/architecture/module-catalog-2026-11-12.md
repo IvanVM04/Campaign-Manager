@@ -1,6 +1,6 @@
 # Shared-layer module catalogue — 2026-11-12
 
-**Verified against:** `main` at `eb57316d9b060bb3a09b0b6b08c7282e07fce192` plus the in-flight architecture branch for the new hit-point rules module.  
+**Verified against:** `main` at `97e98666b20b455067ca11a7ff26f60e3b82feb9`.  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 
 ## Read this before changing shared layers
@@ -161,7 +161,7 @@ The rules engine owns deterministic D&D 5e (2014) rules and data. Its modules sh
 | `rules_engine/dnd5e_2014/armor/catalog.py` | Immutable armor/shield catalogue. | Keep SRD/rules data separate from owned inventory and persisted item instances. |
 | `rules_engine/dnd5e_2014/armor/armor_class.py` | AC and armor-proficiency derivation. | Add explicit tests for stacking, shield, unarmored defense and proficiency penalties before extending rules. |
 | `rules_engine/dnd5e_2014/weapons/catalog.py` | Immutable SRD weapon definitions and properties. | Keep catalog keys stable because item metadata may reference them; document unsupported special/loading/ammunition behaviors. |
-| `rules_engine/dnd5e_2014/weapons/attack_profile.py` | Derives attack ability, proficiency, bonus and damage dice from trusted character/weapon inputs. | This is the rules-facing profile derivation. Application-side NPC metadata selection still needs extraction from CombatAttackService. |
+| `rules_engine/dnd5e_2014/weapons/attack_profile.py` | Derives weapon and natural-attack ability, proficiency, bonus and damage dice from trusted character inputs. | Keep numerical derivation pure; equipment/creature metadata selection remains in the combat application layer. |
 | `rules_engine/dnd5e_2014/combat/attack.py` | Attack roll, natural 1/20, critical and damage-roll resolution. | Keep it pure and validate dice/manual-roll edge cases independently. |
 | `rules_engine/dnd5e_2014/combat/conditions.py` | Condition set and attack advantage/disadvantage calculation. | Keep conditions typed; avoid applying persistent-effect lifecycle or repository concerns here. |
 | `rules_engine/dnd5e_2014/combat/condition_effects.py` | Derived restrictions such as auto-failed saves and check disadvantages. | Ensure every condition with a mechanical impact is represented in tests; avoid duplicate mappings in services. |
@@ -217,7 +217,7 @@ Use the existing [capability dependency matrix](package-dependency-matrix.md) as
 
 Ordered by expected architectural value, not ease of implementation:
 
-1. **Combat profile resolution:** extract NPC natural/melee profile parsing and player/equipment selection from `CombatAttackService` into a typed application collaborator. Preserve exact validation errors/contracts and add player/NPC profile tests. Do not move creature metadata or repositories into `rules_engine`.
+1. **Combat profile resolution:** keep the selection/metadata boundary in `AttackProfileResolver`, numerical weapon/natural-attack derivation in `rules_engine`, and atomic encounter/HP writes in the use cases. Retain malformed-metadata, NPC selection and HP-synchronization regression coverage.
 2. **Durable turn lifecycle:** keep `DurableNativeTurnService` as public façade, extract clarification/manual-roll/external completion orchestration by durable state boundary. Every extraction must preserve idempotency, lease fencing and commit-before-narration.
 3. **Combat transaction audit:** map every repository write during create/start/advance/death-save/move/reaction/attack and inject failures to verify encounter snapshots never diverge from canonical character/creature HP or persistent effects.
 4. **World application audit:** map `WorldService` dispatch and connection ownership. Existing applier modules already define operation-family candidates; split coordination only after a transaction map exists.
