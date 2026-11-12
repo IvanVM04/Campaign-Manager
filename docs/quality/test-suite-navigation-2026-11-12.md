@@ -52,11 +52,11 @@ All 35 original test functions and their assertions are preserved. The support m
 
 ## Current quality baseline and next gate
 
-The latest main coverage artifact (2026-11-12, after PR #208) reports 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The next target is 85% combined coverage without excluding production modules or weakening assertions.
+The latest main coverage artifact (2026-11-12, after PR #208) reported 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch reaches 88.7% line, 76.0% branch and 85.5% combined coverage, and now enforces `fail_under = 85` with branch coverage enabled.
 
-The highest-return additions in the current quality branch target the SillyTavern context adapter, persistent-effect API/schema validation and the manual-roll submission lifecycle. The manual-roll path must be exercised through a successful challenge and replay, not only malformed-input tests.
+The highest-return additions target the SillyTavern context adapter, persistent-effect API/schema validation and the manual-roll submission lifecycle. Manual rolls are now tested through successful submission, idempotent replay, completion, interrupted prepared-state recovery and stale-context rejection.
 
-After the coverage target is reached and CI confirms it, enforce the threshold while retaining branch coverage. Do not set a threshold against an unverified local estimate.
+Keep the 85% gate; do not exclude production modules or weaken assertions to preserve it.
 
 Next acceptance gates:
 1. **Coverage and prompt contract PR:** reach 85% combined line/branch coverage, document the live prompt corpus and keep all deterministic CI checks green.

@@ -17,12 +17,12 @@ A green deterministic pipeline does not replace the manual SillyTavern smoke tes
 
 The Python test job collects line and branch coverage and publishes coverage.xml as a short-lived workflow artifact.
 
-Coverage remains report-only while the current high-risk test batch is validated. The latest main artifact (2026-11-12, commit `96b0232`) measures 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage.
+Coverage remains report-only while the current high-risk test batch is validated. The latest main artifact (2026-11-12, commit `96b0232`) measured 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch raised this to 88.7% line, 76.0% branch and 85.5% combined coverage across the deterministic suite.
 
-- The immediate engineering target is at least 85% combined line/branch coverage, with branch coverage enabled.
-- Add a hard `fail_under = 85` gate only after the complete suite on this branch proves the target without exclusions or weakened assertions.
+- The 85% combined line/branch target is now enforced by `[tool.coverage.report].fail_under = 85`.
+- Branch coverage remains enabled; the combined figure is the same line-plus-branch metric reported by coverage.py.
 - Do not exclude production modules, lower assertions or remove tests to improve the percentage.
-- Use package and file-level reports to prioritize risk: the current lowest areas are the SillyTavern context adapter, persistent-effect API/schema validation and durable manual-roll submission.
+- Use package and file-level reports to prioritize risk: remaining candidates include API integration edge cases, durable manual-roll recovery branches and rules-engine condition restrictions.
 
 ## Pyright baseline and progressive enforcement
 
@@ -48,7 +48,7 @@ The original repository-wide report is classified in [pyright-baseline-2026-11-1
 2. Pyright baseline — collect and classify existing type diagnostics (implemented).
 3. CodeQL — add repository security analysis (workflow added; review alerts before introducing blocking policy).
 4. Expand blocking Pyright scope incrementally; `models` is now included after resolving its five baseline diagnostics.
-5. Reach 85% combined line/branch coverage with risk-driven tests, then enforce `fail_under = 85` while retaining branch coverage.
+5. **Enforced:** 85% combined line/branch coverage with branch coverage enabled; the CI test job fails below `fail_under = 85`.
 6. SonarQube (optional) — evaluate only if it adds actionable signal beyond Ruff, Pyright, tests, coverage and CodeQL.
 
 New quality checks should initially be informational where the repository has inherited findings. Promote them to required checks only after the baseline is understood and the workflow is stable.

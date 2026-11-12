@@ -266,3 +266,166 @@ def test_manual_roll_submission_rejects_terminal_challenge_state(monkeypatch):
             (12,),
             adapter_namespace="sillytavern",
         )
+
+
+def test_manual_roll_recovers_prepared_resolution_after_commit_interruption(
+    monkeypatch,
+):
+    service, _, _ = service_with_fake_models()
+    _activate_character(service)
+    _install_manual_skill_check(service)
+    pending = service.prepare_external_turn(
+        "Me escondo del guardia.",
+        external_turn_id="st-manual-roll-recovery-001",
+        dice_mode="manual",
+    )
+
+    original_commit = service.prepared_commit_service.commit_prepared_plan
+    calls = 0
+
+    def fail_first_commit(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("simulated process interruption")
+        return original_commit(*args, **kwargs)
+
+    monkeypatch.setattr(
+        service.prepared_commit_service,
+        "commit_prepared_plan",
+        fail_first_commit,
+    )
+    with pytest.raises(RuntimeError, match="simulated process interruption"):
+        service.submit_manual_roll(
+            pending.pending_roll_id,
+            (12,),
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+            answer_external_turn_id="st-manual-roll-recovery-reply",
+        )
+
+    record = service.resolution_repository.get_by_idempotency_key(
+        "sillytavern",
+        "st-manual-roll-recovery-001",
+        scope=service.scope,
+    )
+    assert record.lifecycle_state == "prepared"
+
+    original_get_revision = service.revision_repository.get_revision
+    current_revision = record.context_revision
+    monkeypatch.setattr(
+        service.revision_repository,
+        "get_revision",
+        lambda *args, **kwargs: current_revision + 1,
+    )
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="prepared manual roll became stale before commit",
+    ):
+        service.submit_manual_roll(
+            pending.pending_roll_id,
+            (12,),
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+            answer_external_turn_id="st-manual-roll-recovery-reply",
+        )
+
+    monkeypatch.setattr(
+        service.revision_repository,
+        "get_revision",
+        original_get_revision,
+    )
+    recovered = service.submit_manual_roll(
+        pending.pending_roll_id,
+        (12,),
+        adapter_namespace="sillytavern",
+        defer_narration=True,
+        answer_external_turn_id="st-manual-roll-recovery-reply",
+    )
+
+    assert recovered.lifecycle_state == "narration_pending"
+    assert calls == 2
+
+
+def test_manual_roll_rejects_challenge_after_campaign_context_changes():
+    service, _, _ = service_with_fake_models()
+    _activate_character(service)
+    _install_manual_skill_check(service)
+    pending = service.prepare_external_turn(
+        "Me escondo del guardia.",
+        external_turn_id="st-manual-roll-stale-001",
+        dice_mode="manual",
+    )
+
+    service.context_service.set_active_character(None, campaign_id=1)
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="campaign state changed while waiting for the manual roll",
+    ):
+        service.submit_manual_roll(
+            pending.pending_roll_id,
+            (12,),
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+        )
+
+    record = service.resolution_repository.get_by_idempotency_key(
+        "sillytavern",
+        "st-manual-roll-stale-001",
+        scope=service.scope,
+    )
+    assert record.lifecycle_state == "rejected"
+    assert record.last_error_code == "stale_manual_roll"
+
+
+def test_manual_roll_rejects_a_concurrent_submission_lease(monkeypatch):
+    service, _, _ = service_with_fake_models()
+    _activate_character(service)
+    _install_manual_skill_check(service)
+    pending = service.prepare_external_turn(
+        "Me escondo del guardia.",
+        external_turn_id="st-manual-roll-busy-001",
+        dice_mode="manual",
+    )
+
+    def already_claimed(*args, **kwargs):
+        raise ValueError("planning lease is already held")
+
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "claim_for_planning",
+        already_claimed,
+    )
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="manual roll is already being submitted; retry",
+    ):
+        service.submit_manual_roll(
+            pending.pending_roll_id,
+            (12,),
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+        )
+
+
+def test_manual_roll_rejects_missing_pending_state(monkeypatch):
+    from types import SimpleNamespace
+
+    service, _, _ = service_with_fake_models()
+    record = SimpleNamespace(
+        adapter_namespace="sillytavern",
+        adjudication_json=json.dumps({}),
+    )
+    monkeypatch.setattr(
+        service.resolution_repository,
+        "get",
+        lambda *args, **kwargs: record,
+    )
+
+    with pytest.raises(DurableNativeTurnError, match="invalid or stale"):
+        service.submit_manual_roll(
+            "42:challenge",
+            (12,),
+            adapter_namespace="sillytavern",
+        )
