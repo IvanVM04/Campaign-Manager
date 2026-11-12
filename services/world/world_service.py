@@ -7,6 +7,7 @@ from models.world_application_result import (
 )
 from models.world_state import WorldState
 from operations.operation_reference import OperationReference
+from operations.referenced_operation import ReferencedOperation
 from repositories.character_repository import (
     CharacterRepository,
 )
