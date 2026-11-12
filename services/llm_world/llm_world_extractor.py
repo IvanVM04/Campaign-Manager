@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from time import perf_counter
 from collections.abc import Callable
 
 from models.mechanics import MechanicsResult
@@ -150,11 +151,32 @@ class LLMWorldExtractor:
                 "excluded_records": diagnostics.excluded_records,
                 "selected_counts": dict(diagnostics.selected_counts),
             })
-        logger.debug(
-            "Prepared bounded LLM proposal prompt",
+        logger.info(
+            "llm.proposal.context_prepared",
             extra=log_fields,
         )
-        raw_response = self.provider(prompt)
+        provider_started = perf_counter()
+        try:
+            raw_response = self.provider(prompt)
+        except Exception as exc:
+            logger.warning(
+                "llm.provider.failed",
+                extra={
+                    "provider_role": "extraction",
+                    "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                    "error_type": type(exc).__name__,
+                },
+            )
+            raise
+
+        logger.info(
+            "llm.provider.completed",
+            extra={
+                "provider_role": "extraction",
+                "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                "response_chars": len(raw_response) if isinstance(raw_response, str) else None,
+            },
+        )
         return self.proposal_validator.parse_with_repair(prompt, raw_response)
 
     # ============================================================
