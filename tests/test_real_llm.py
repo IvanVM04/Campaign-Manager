@@ -153,7 +153,7 @@ def test_real_ollama_keeps_existing_locked_door_after_failed_attempt():
     ],
 )
 def test_real_ollama_does_not_persist_negated_hypothetical_or_attributed_content(
-    player_input,
+    player_input: str,
 ):
     world = WorldState(
         entities={
