@@ -81,6 +81,7 @@ class WorldEventRead(BaseModel):
     provenance_source: str = "gm_authored"
     visibility_scope: str = "public"
     source_entity_id: int | None = None
+    source_entity_name: str | None = None
     campaign_elapsed_minutes: int | None = None
     supersedes_event_id: str | None = None
     is_current: bool = True
