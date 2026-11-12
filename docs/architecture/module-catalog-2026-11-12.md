@@ -1,6 +1,6 @@
 # Shared-layer module catalogue — 2026-11-12
 
-**Verified against:** `main` at `95c0066ba60e5cbceff2f5230fcde2cccbec457d` (PR #201), with the bounded-context updates in this branch.  
+**Verified against:** `main` at `1bf805c0c48676ba753bf7b30da24535a6336362` (PR #202 merged).  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 
 ## Read this before changing shared layers
