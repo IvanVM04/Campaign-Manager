@@ -69,11 +69,11 @@ NPC/player attack-profile selection is isolated in `services/combat/attack_profi
 
 Encounter creation merges supplied NPC melee profiles, natural attacks and defenses into one creature-state save inside the existing `IMMEDIATE` transaction. Runtime resolution validates persisted metadata again and fails closed if it is malformed. The legacy single `npc_melee_attack` field remains a read fallback for already-persisted creatures; new data writes the list form plus that first-profile field during migration.
 
-## Remaining architectural hotspots
+## Verified boundaries and remaining structural work
 
 | Area | Current finding | Next safe improvement |
 |---|---|---|
-| `DurableNativeTurnService` | Large public coordinator spanning multiple lifecycle operations | Decompose cohesive use cases behind the existing façade; preserve idempotency, lease fencing, challenge continuation and restart recovery. |
+| `DurableNativeTurnService` | Stable public façade/composition point; request idempotency, planning leases, pre-commit recovery and typed failures are behind dedicated collaborators (PR #201). | Preserve the public API, lease fencing, challenge continuation and restart recovery; decompose only when a new lifecycle boundary owns a distinct invariant. |
 | `CombatAttackService` | Coordinates attack validation, effects, rolls and atomic HP/encounter persistence; profile selection now belongs to `AttackProfileResolver`. | Keep the facade as the transaction owner; add future weapon/action families through typed profile contracts and deterministic rules helpers. |
 | `CombatEncounterService` | Every mutating encounter use case owns one explicit `IMMEDIATE` transaction; `complete()` now uses the shared transaction helper. | Failure-injection tests cover create, death-save HP synchronization, turn/effect expiration, completion, movement and reaction rollback. Keep canonical HP and encounter projections in the same transaction. |
 | `WorldService` | Stable facade for world state and appliers; mixed turn-operation dispatch/transaction coordination extracted to `WorldTurnOperationCoordinator`. | Preserve the facade signature, shared `WorldState` identity, operation ordering, reference resolution and caller-owned connection semantics. |
