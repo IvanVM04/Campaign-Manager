@@ -1,4 +1,5 @@
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, is_dataclass
 from typing import Any, ClassVar, cast
 
@@ -75,7 +76,7 @@ class WorldCollectionQueryService:
             raise ValueError(f"unsupported world collection: {collection}")
 
         attribute, model, search_fields = self._COLLECTIONS[collection]
-        values = getattr(world, attribute).values()
+        values: Iterable[Any] = getattr(world, attribute).values()
         if collection == "events":
             values = WorldVisibilityPolicy.player_visible_events(values)
 

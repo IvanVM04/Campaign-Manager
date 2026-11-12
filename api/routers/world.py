@@ -4,9 +4,9 @@ from api.routers.world_collections import router as world_collections_router
 from api.runtime_context import get_current_runtime
 from models.schemas import WorldBootstrapIn
 from models.world_read_models import WorldEntityPage
+from models.world_visibility_policy import WorldVisibilityPolicy
 from operations.world_operations import CreateEntityOperation
 from services.world import WorldQueryService
-from models.world_visibility_policy import WorldVisibilityPolicy
 
 router = APIRouter()
 
