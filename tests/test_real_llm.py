@@ -1,19 +1,64 @@
 import pytest
 
+from integrations.adapters.silly_tavern import (
+    SillyTavernContextAdapter,
+    SillyTavernIntegrationService,
+    SillyTavernIntegrationServiceConflictError,
+    SillyTavernIntegrationServiceError,
+)
+from models.campaign_scope import CampaignScope
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from operations.character_operations import ChangeCharacterHpOperation
+from repositories.campaign_repository import CampaignRepository
+from repositories.campaign_state_version_repository import CampaignStateVersionRepository
+from repositories.character_repository import CharacterRepository
+from repositories.entity_repository import EntityRepository
+from repositories.turn_repository import TurnRepository
+from repositories.world_snapshot_repository import WorldSnapshotRepository
+from services.campaign import CampaignStateService
+from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
-from services.turns import (
-    TurnExecutionLock,
-)
-from tests.silly_tavern_integration_support import _compose_service
+from services.turns import LegacySillyTavernTurnService, TurnExecutionLock
+from services.world import WorldService
 
 
 pytestmark = pytest.mark.real_llm
+
+
+def _compose_service(
+    *,
+    campaign_state_service,
+    context_builder,
+    extractor,
+    world_service,
+    turn_repository,
+):
+    campaign_scope = CampaignScope(world_service.campaign_id)
+    context_adapter = SillyTavernContextAdapter(
+        campaign_scope=campaign_scope,
+        campaign_state_service=campaign_state_service,
+        context_builder=context_builder,
+        turn_repository=turn_repository,
+    )
+    legacy_turn_service = LegacySillyTavernTurnService(
+        campaign_scope=campaign_scope,
+        campaign_state_service=campaign_state_service,
+        extractor=extractor,
+        world_service=world_service,
+        turn_repository=turn_repository,
+        state_version_repository=CampaignStateVersionRepository(),
+        world_snapshot_repository=WorldSnapshotRepository(),
+        error_type=SillyTavernIntegrationServiceError,
+        conflict_error_type=SillyTavernIntegrationServiceConflictError,
+    )
+    return SillyTavernIntegrationService(
+        context_adapter=context_adapter,
+        legacy_turn_service=legacy_turn_service,
+    )
 
 
 def make_context() -> TurnContext:
@@ -68,16 +113,6 @@ def test_real_ollama_extractor_returns_valid_operations():
 
 def test_real_ollama_full_turn_persists_world_change():
     from database import get_conn
-    from repositories.campaign_repository import CampaignRepository
-    from repositories.character_repository import CharacterRepository
-    from repositories.entity_repository import EntityRepository
-    from repositories.turn_repository import TurnRepository
-    from services.campaign import CampaignStateService
-    from services.context import ContextBuilder
-    from services.llm_world import LLMWorldExtractor
-    from services.llm_world.operation_parser import OperationParser
-    from services.providers import OllamaProvider
-    from services.world import WorldService
 
     world_service = WorldService()
     world_service.load()
