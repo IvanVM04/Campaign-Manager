@@ -11,6 +11,7 @@ from models.item import Item, ItemInstance
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from operations.world_operations import CreateEntityOperation, WorldOperation
+from services.context import ContextBuilder
 from services.llm_world import (
     LLMExtractionError,
     LLMWorldExtractor,
@@ -1012,4 +1013,88 @@ def test_extractor_rejects_oversized_legacy_response_before_parsing():
         )
 
     assert provider.calls
+    assert parser.calls == []
+
+
+
+def test_legacy_extraction_uses_bounded_relevant_world_projection():
+    world = WorldState(
+        entities={
+            1: Entity(
+                id=1,
+                name="Mara",
+                entity_type="npc",
+                description="La comerciante del mercado.",
+            ),
+            2: Entity(
+                id=2,
+                name="Aldric",
+                entity_type="npc",
+                description="Un minero que no aparece en la narrativa.",
+            ),
+        }
+    )
+    provider = FakeProvider('{"operations": []}')
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=FakeParser(),
+        legacy_context_selector=ContextBuilder().build_relevant_world_projection,
+        max_legacy_context_tokens=2000,
+    )
+
+    extractor.extract(
+        "Mara entrega una bolsa al aventurero.",
+        make_context(world=world),
+    )
+
+    prompt = provider.calls[0]
+    assert "- ID 1: Mara (npc)" in prompt
+    assert "Aldric" not in prompt
+
+
+def test_legacy_extraction_rejects_oversized_prompt_before_provider_call():
+    provider = FakeProvider('{"operations": []}')
+    parser = FakeParser()
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=parser,
+        max_legacy_prompt_tokens=10,
+    )
+
+    with pytest.raises(
+        LLMExtractionError,
+        match="legacy extraction prompt exceeds the configured estimated token budget",
+    ):
+        extractor.extract(
+            "El grupo entra en la taberna.",
+            make_context(),
+        )
+
+    assert provider.calls == []
+    assert parser.calls == []
+
+
+def test_legacy_extraction_context_selection_failure_is_fail_closed():
+    provider = FakeProvider('{"operations": []}')
+    parser = FakeParser()
+
+    def failing_selector(context, query, *, max_estimated_tokens):
+        raise ValueError("mandatory world context does not fit")
+
+    extractor = LLMWorldExtractor(
+        provider=provider,
+        operation_parser=parser,
+        legacy_context_selector=failing_selector,
+    )
+
+    with pytest.raises(
+        LLMExtractionError,
+        match="legacy extraction context selection failed",
+    ):
+        extractor.extract(
+            "El grupo entra en la taberna.",
+            make_context(),
+        )
+
+    assert provider.calls == []
     assert parser.calls == []
