@@ -224,8 +224,8 @@ Ordered by expected architectural value, not ease of implementation:
 
 1. **Combat profile resolution:** keep the selection/metadata boundary in `AttackProfileResolver`, numerical weapon/natural-attack derivation in `rules_engine`, and atomic encounter/HP writes in the use cases. Retain malformed-metadata, NPC selection and HP-synchronization regression coverage.
 2. **Durable turn lifecycle:** request acceptance, idempotency, planning leases and pre-commit recovery now live in `DurableTurnExecutionService` behind `DurableNativeTurnService`. Preserve that boundary; extract another lifecycle family only when it owns a distinct invariant and can be tested independently.
-3. **Combat transaction audit:** map every repository write during create/start/advance/death-save/move/reaction/attack and inject failures to verify encounter snapshots never diverge from canonical character/creature HP or persistent effects.
-4. **World application audit:** map `WorldService` dispatch and connection ownership. Existing applier modules already define operation-family candidates; split coordination only after a transaction map exists.
+3. **Combat transaction audit:** implemented on this branch; retain failure-injection tests for encounter creation, death saves, timed-effect progression/completion, movement and reactions.
+4. **World application audit:** implemented on this branch with `WorldTurnOperationCoordinator`; preserve ordered dispatch, reference resolution, shared state identity and caller-owned connection behavior.
 5. **Schema bounded contexts:** completed on this branch. Keep combat/effects/clock schema modules separate, retain the `models.schemas` re-export facade and verify OpenAPI output.
 6. **Provider contract coverage:** add a focused provider contract test matrix for success, timeout, unavailable Ollama, malformed JSON and normalized errors; retain fake provider parity.
 7. **Campaign runtime lifecycle:** document/test invalidation and shutdown for the current process-local cache before adding any eviction policy.
