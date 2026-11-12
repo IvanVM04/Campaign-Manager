@@ -1,4 +1,4 @@
-"""Render a report-only package coverage summary from Cobertura XML."""
+"""Render an enforced combined-coverage summary from Cobertura XML."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def render_markdown(stats: list[CoverageStats]) -> str:
                 f"| **{total_combined_percent:.1f}%** |"
             ),
             "",
-            "_Report only: these figures do not impose a coverage threshold._",
+            "_Enforced gate: at least 85.0% combined line/branch coverage (`fail_under = 85`)._",
         ]
     )
     return "\n".join(lines) + "\n"
