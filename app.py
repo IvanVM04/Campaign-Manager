@@ -68,6 +68,12 @@ def create_context_builder(
 runtime_factory = CampaignRuntimeFactory(llm_settings=DEFAULT_LLM_SETTINGS)
 
 
+@app.on_event("shutdown")
+def shutdown_campaign_runtimes() -> None:
+    """Libera el estado en memoria asociado a las campañas."""
+    runtime_factory.shutdown()
+
+
 @app.middleware("http")
 async def bind_campaign_runtime(request: Request, call_next):
     public_paths = {
