@@ -237,3 +237,44 @@ def test_propose_stops_after_one_failed_repair_attempt():
         extractor.propose("Hablo con Mara.", make_context())
 
     assert len(prompts) == 2
+
+
+
+def test_model_created_event_is_forced_to_noncanonical_inference():
+    parser = LLMWorldResponseParser(OperationParser())
+    operations = parser.parse_operations({
+        "operations": [{
+            "type": "create_event",
+            "event_id": "rumor-01",
+            "event_type": "rumor",
+            "title": "El faro está maldito",
+            "epistemic_status": "confirmed",
+            "provenance_source": "gm_authored",
+            "visibility_scope": "public",
+        }]
+    })
+
+    event_operation = operations[0]
+    assert event_operation.epistemic_status == "inference"
+    assert event_operation.provenance_source == "model_inference"
+    assert event_operation.visibility_scope == "public"
+
+
+def test_model_created_secret_event_stays_gm_only_inference():
+    parser = LLMWorldResponseParser(OperationParser())
+    operations = parser.parse_operations({
+        "operations": [{
+            "type": "create_event",
+            "event_id": "secret-rumor-01",
+            "event_type": "rumor",
+            "title": "El faro está maldito",
+            "secret": True,
+            "epistemic_status": "confirmed",
+            "provenance_source": "gm_authored",
+        }]
+    })
+
+    event_operation = operations[0]
+    assert event_operation.epistemic_status == "inference"
+    assert event_operation.provenance_source == "model_inference"
+    assert event_operation.visibility_scope == "gm_only"
