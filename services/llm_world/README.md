@@ -44,6 +44,8 @@ The durable/native path no longer sends the full campaign world to the proposal 
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS` | 4096 | Budget for selected world records |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS` | 16000 | Maximum provider response size for extraction/proposal responses |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS` | 2048 | Independent maximum for the one repair request |
+| `CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_PROMPT_MAX_TOKENS` | 65536 | Upper bound for the complete legacy narrative-extraction prompt |
+| `CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS` | 8192 | Budget for selected public world records in legacy extraction |
 
 The current provider contract does not expose a model tokenizer. `estimate_tokens()` therefore uses one token per UTF-8 byte as a deliberately pessimistic upper bound. This is not an exact count of Gemma/Qwen tokens, but it prevents a short character-based estimate from silently accepting an oversized request. The complete rendered prompt is checked separately from the structured-record budget.
 
@@ -51,14 +53,18 @@ The selector reports available, candidate, selected and excluded record counts a
 
 ## Legacy narrative extraction compatibility
 
-The legacy `extract()` path is not protected by the proposal prompt budget described above:
+The legacy `extract()` path now has its own bounded-context and complete-prompt safeguards, separate from the active structured proposal budget:
 
-- `extract()` calls `LLMWorldPromptBuilder.build_prompt()`, which renders the complete legacy snapshot through `LLMWorldContextRenderer`.
-- `extract()` sends that result directly to the provider. It does not call the proposal token estimator or enforce `extraction_prompt_max_tokens` / `extraction_context_max_tokens`.
-- The legacy path enforces the configured response-character limit only after the provider returns.
-- The 46,851-character static instruction source is decomposed into eight files but rendered byte-for-byte as before. Source decomposition improves ownership and navigation; it does not reduce model input size.
+- The composition root injects `ContextBuilder.build_relevant_world_projection()` into `LLMWorldExtractor`; the LLM package depends only on the callback contract and shared projection model, not on `services.context`.
+- The selector searches from the narrative being extracted, expands dependencies, ranks candidates deterministically and preserves the active character/current location as mandatory entities.
+- Secret events are excluded by the existing public memory export/search path. Records are copied into a detached `WorldContextProjection`; the source `WorldState` is not mutated.
+- `LLMWorldPromptBuilder.build_prompt()` accepts an optional projection and renders the selected world records. Calls that do not inject a selector retain the old full-context builder behavior, but still pass through the total prompt cap.
+- The complete rendered prompt is checked with `estimate_tokens()` before provider invocation. If context selection fails or the assembled prompt exceeds the legacy budget, extraction fails closed; it does not call the provider or truncate individual facts.
+- The legacy static instructions and assembly order remain unchanged, so the byte-for-byte prompt compatibility fixture still applies. This bounds dynamic campaign context, not the size or quality of the static instructions themselves.
 
-This path remains behind the narrative-first compatibility branch in `TurnResolutionService` and the deprecated SillyTavern mutation workflow. Large campaign snapshots can therefore produce an oversized request. Do not apply the 8,192-token proposal setting blindly: define a legacy-specific budget or retire the remaining callers, and verify the change with representative large-campaign fixtures and live provider quality probes. Never solve overflow by truncating arbitrary world facts.
+Defaults are a 65,536 estimated-token upper bound for the complete legacy prompt and 8,192 for selected world records. These are independent from the structured proposal limits (8,192 / 4,096). The estimator is one UTF-8 byte per estimated token, a conservative upper bound rather than the selected model's exact tokenizer. Both budgets are configurable at startup.
+
+The compatibility path remains used by the narrative-first branch in `TurnResolutionService` and deprecated SillyTavern mutation workflow. Representative large-campaign tests protect deterministic selection and fail-closed behavior. The static instruction set is still long (the existing representative prompt is about 46,851 characters); shortening it or changing its wording remains a separate quality task that requires live Ollama probes. Never truncate arbitrary world facts or silently fall back to an unbounded snapshot.
 
 ## Response and repair safety
 
@@ -75,7 +81,8 @@ This path remains behind the narrative-first compatibility branch in `TurnResolu
 - [ ] Add intent-specific operation subsets only when the application can classify intent reliably without hiding legitimate consequences; do not infer authorization from a prompt.
 - [ ] Add tokenizer-aware accounting if a selected provider exposes an explicit, reliable token-count API; keep the byte upper bound as a safe fallback.
 - [ ] Add representative large-campaign quality probes with real Ollama models; deterministic CI remains provider-independent.
-- [ ] Decide how to retire or separately budget legacy `extract()`: it renders the full snapshot and currently has no complete-prompt/context budget check. Add a large-campaign probe before changing the prompt contract.
+- [x] Bound legacy `extract()` context and total prompt before provider invocation (PR #197); verify with deterministic selector/budget tests.
+- [ ] Measure the static legacy prompt against real Ollama models and simplify its instructions only when the quality probes show equivalent or better extraction.
 - [x] Map the remaining `extract()` consumers and separate legacy extraction tests from player-intent proposal tests (PR #193).
 - [x] Decompose the legacy narrative prompt into cohesive instruction sections behind the unchanged `LLMWorldPromptBuilder.build_prompt()` façade; PR #194 adds a byte-for-byte regression fixture for the complete rendered prompt.
 
