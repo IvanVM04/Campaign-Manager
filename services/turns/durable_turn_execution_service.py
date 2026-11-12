@@ -578,7 +578,14 @@ class DurableTurnExecutionService:
             if isinstance(exc, DurableNativeTurnError):
                 raise
             logger.exception(
-                "turn.execution.failed",
+                "Unexpected native turn execution failure "
+                "(campaign_id=%s, resolution_id=%s, adapter_namespace=%s, "
+                "lifecycle_state=%s, dice_mode=%s)",
+                self.scope.campaign_id,
+                self._required_resolution_id(record),
+                adapter_namespace,
+                record.lifecycle_state,
+                dice_mode,
                 extra={
                     "campaign_id": str(self.scope.campaign_id),
                     "resolution_id": str(self._required_resolution_id(record)),
