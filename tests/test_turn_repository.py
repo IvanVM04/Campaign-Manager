@@ -911,7 +911,6 @@ def test_get_active_by_external_turn_id_returns_turn_record(
             external_turn_id="external-123",
             version=1,
             status="active",
-            snapshot='{"entities": [], "items": []}',
         ),
     
         scope=CampaignScope(1),
@@ -930,7 +929,6 @@ def test_get_active_by_external_turn_id_returns_turn_record(
     assert active_turn.external_turn_id == "external-123"
     assert active_turn.version == 1
     assert active_turn.status == "active"
-    assert active_turn.snapshot == (
         '{"entities": [], "items": []}'
     )
 
@@ -952,7 +950,6 @@ def test_get_versions_by_external_turn_id_returns_all_versions(
             external_turn_id="external-123",
             version=1,
             status="superseded",
-            snapshot='{"version": 1}',
         ),
     
         scope=CampaignScope(1),
@@ -970,7 +967,6 @@ def test_get_versions_by_external_turn_id_returns_all_versions(
             external_turn_id="external-123",
             version=2,
             status="active",
-            snapshot='{"version": 2}',
         ),
     
         scope=CampaignScope(1),
@@ -988,74 +984,12 @@ def test_get_versions_by_external_turn_id_returns_all_versions(
 
     assert versions[0].version == 1
     assert versions[0].status == "superseded"
-    assert versions[0].snapshot == '{"version": 1}'
 
     assert versions[1].version == 2
     assert versions[1].status == "active"
-    assert versions[1].snapshot == '{"version": 2}'
 
 
-def test_get_versions_by_external_turn_id_preserves_snapshot(
-    isolated_database,
-):
-    repository = TurnRepository()
-
-    snapshot_v1 = (
-        '{"entities": [{"id": 1}], "items": []}'
-    )
-
-    snapshot_v2 = (
-        '{"entities": [], "items": [{"id": 2}]}'
-    )
-
-    repository.save_turn(
-        TurnRecord(
-            player_input="Acción v1",
-            narrative="Narrativa v1",
-            operation_count=1,
-            successful_operation_count=1,
-            failed_operation_count=0,
-            all_operations_succeeded=True,
-            world_changed=True,
-            external_turn_id="external-123",
-            version=1,
-            status="superseded",
-            snapshot=snapshot_v1,
-        ),
-    
-        scope=CampaignScope(1),
-    )
-
-    repository.save_turn(
-        TurnRecord(
-            player_input="Acción v2",
-            narrative="Narrativa v2",
-            operation_count=0,
-            successful_operation_count=0,
-            failed_operation_count=0,
-            all_operations_succeeded=True,
-            world_changed=False,
-            external_turn_id="external-123",
-            version=2,
-            status="active",
-            snapshot=snapshot_v2,
-        ),
-    
-        scope=CampaignScope(1),
-    )
-
-    versions = (
-        repository.get_versions_by_external_turn_id(
-            "external-123",
-        
-            scope=CampaignScope(1),
-        )
-    )
-
-    assert versions[0].snapshot == snapshot_v1
-    assert versions[1].snapshot == snapshot_v2
-
-def test_turn_repository_preserves_version_status_and_snapshot(
+def test_turn_repository_preserves_version_status(
     isolated_database,
 ):
     repository = TurnRepository()
@@ -1072,7 +1006,6 @@ def test_turn_repository_preserves_version_status_and_snapshot(
         external_turn_id="turn-123",
         version=2,
         status="active",
-        snapshot='{"npc": "Aldric"}',
     )
 
     saved = repository.save_turn(original,
@@ -1081,7 +1014,6 @@ def test_turn_repository_preserves_version_status_and_snapshot(
 
     assert saved.version == 2
     assert saved.status == "active"
-    assert saved.snapshot == '{"npc": "Aldric"}'
 
     loaded = repository.get_turn(saved.id,
         scope=CampaignScope(1),
@@ -1090,9 +1022,8 @@ def test_turn_repository_preserves_version_status_and_snapshot(
     assert loaded is not None
     assert loaded.version == 2
     assert loaded.status == "active"
-    assert loaded.snapshot == '{"npc": "Aldric"}'
 
-def test_list_turns_preserves_version_status_and_snapshot(
+def test_list_turns_preserves_version_status(
     isolated_database,
 ):
     repository = TurnRepository()
@@ -1109,7 +1040,6 @@ def test_list_turns_preserves_version_status_and_snapshot(
             external_turn_id="turn-456",
             version=2,
             status="superseded",
-            snapshot='{"state": "old"}',
         ),
     
         scope=CampaignScope(1),
@@ -1122,7 +1052,6 @@ def test_list_turns_preserves_version_status_and_snapshot(
     assert len(turns) == 1
     assert turns[0].version == 2
     assert turns[0].status == "superseded"
-    assert turns[0].snapshot == '{"state": "old"}'
 
 def test_list_recent_active_turns_excludes_superseded_turns(
     isolated_database,

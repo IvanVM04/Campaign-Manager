@@ -26,9 +26,11 @@ class FixedRandom:
 class EmptyExtractor(LLMWorldExtractor):
     def __init__(self):
         self.received = []
+        self.mechanics_results = []
 
-    def extract(self, text, context):
-        self.received.append(text)
+    def propose(self, player_intent, context, *, mechanics_result=None, context_projection=None):
+        self.received.append(player_intent)
+        self.mechanics_results.append(mechanics_result)
         return []
 
 
@@ -74,8 +76,9 @@ def test_skill_check_is_rolled_by_engine_before_dm_narration():
     assert plan.mechanics_result.check.roll.modifier == 5
     assert plan.mechanics_result.check.total == 17
     assert plan.mechanics_result.check.success is True
-    assert "Total: 17" in narrative_provider.last_prompt
-    assert "Resultado: success" in narrative_provider.last_prompt
+    assert extractor.mechanics_results[-1] == plan.mechanics_result
+    assert narrative_provider.call_count == 0
+    assert narrative_provider.call_count == 0
     assert len(extractor.received) == 1
 
 
@@ -102,7 +105,8 @@ def test_unskilled_ability_check_uses_only_ability_modifier():
     assert plan.mechanics_result.check.roll.modifier == 3
     assert plan.mechanics_result.check.total == 15
     assert plan.mechanics_result.check.success is True
-    assert "Total: 15" in narrative_provider.last_prompt
+    assert extractor.mechanics_results[-1] == plan.mechanics_result
+    assert narrative_provider.call_count == 0
 
 
 
@@ -170,7 +174,8 @@ def test_manual_roll_pauses_then_resolves_without_second_adjudication():
     assert completed.mechanics_result.check.roll.rolls == (12,)
     assert completed.mechanics_result.check.total == 17
     assert completed.mechanics_result.check.success is True
-    assert "Total: 17" in narrative_provider.last_prompt
+    assert extractor.mechanics_results[-1] == completed.mechanics_result
+    assert narrative_provider.call_count == 0
 
 
 def test_manual_advantage_request_asks_for_two_d20_results():
@@ -191,7 +196,7 @@ def test_manual_advantage_request_asks_for_two_d20_results():
     assert pending.mechanics_decision.advantage is True
 
 
-def test_clarification_stops_before_narration_and_extraction():
+def test_clarification_stops_before_narration_and_proposal():
     resolver, narrative_provider, extractor = make_service(
         '{"decision":"clarification","question":"¿Qué herramienta utilizas?"}',
         10,

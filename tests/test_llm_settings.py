@@ -17,8 +17,6 @@ def test_llm_settings_preserve_current_defaults():
     assert settings.mechanics_timeout_seconds == 120.0
     assert settings.extraction_prompt_max_tokens == 8192
     assert settings.extraction_context_max_tokens == 4096
-    assert settings.legacy_extraction_prompt_max_tokens == 65536
-    assert settings.legacy_extraction_context_max_tokens == 8192
     assert settings.extraction_max_response_chars == 16000
     assert settings.extraction_repair_max_tokens == 2048
 
@@ -34,8 +32,6 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
         "CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS": "30",
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS": "9000",
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS": "5000",
-        "CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_PROMPT_MAX_TOKENS": "72000",
-        "CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS": "9000",
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS": "18000",
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS": "2500",
     })
@@ -49,8 +45,6 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
     assert settings.mechanics_timeout_seconds == 30.0
     assert settings.extraction_prompt_max_tokens == 9000
     assert settings.extraction_context_max_tokens == 5000
-    assert settings.legacy_extraction_prompt_max_tokens == 72000
-    assert settings.legacy_extraction_context_max_tokens == 9000
     assert settings.extraction_max_response_chars == 18000
     assert settings.extraction_repair_max_tokens == 2500
 
@@ -125,8 +119,6 @@ def test_llm_settings_reject_unknown_provider_role():
     [
         ("extraction_prompt_max_tokens", 0, ValueError),
         ("extraction_context_max_tokens", -1, ValueError),
-        ("legacy_extraction_prompt_max_tokens", 0, ValueError),
-        ("legacy_extraction_context_max_tokens", True, TypeError),
         ("extraction_max_response_chars", True, TypeError),
         ("extraction_repair_max_tokens", 1.5, TypeError),
     ],
@@ -151,23 +143,4 @@ def test_llm_settings_reject_non_integer_extraction_budget_environment_value():
     ):
         LLMSettings.from_env({
             "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS": "many",
-        })
-
-
-
-def test_llm_settings_reject_legacy_context_budget_larger_than_prompt_budget():
-    with pytest.raises(ValueError, match="legacy_extraction_context_max_tokens cannot exceed"):
-        LLMSettings(
-            legacy_extraction_prompt_max_tokens=4096,
-            legacy_extraction_context_max_tokens=8192,
-        )
-
-
-def test_llm_settings_reject_invalid_legacy_context_budget_environment_value():
-    with pytest.raises(
-        ValueError,
-        match="CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS must be an integer",
-    ):
-        LLMSettings.from_env({
-            "CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS": "large",
         })

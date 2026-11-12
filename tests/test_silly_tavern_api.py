@@ -15,7 +15,6 @@ from models.entity import Entity
 from models.schemas import (
     SillyTavernClarificationIn,
     SillyTavernContextIn,
-    SillyTavernTurnIn,
 )
 from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
@@ -23,7 +22,6 @@ from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
 from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
-    SillyTavernIntegrationServiceConflictError,
 )
 from services.turns import TurnExecutionLock
 from services.world import WorldService
@@ -45,42 +43,6 @@ def test_integration_context_endpoint_rejects_empty_query(
         "/integration/context",
         json={
             "query": "",
-        },
-    )
-
-    assert response.status_code == 422
-
-def test_integration_turn_endpoint_rejects_missing_fields(
-    client,
-):
-    response = client.post(
-        "/integration/turn",
-        json={},
-    )
-
-    assert response.status_code == 422
-
-def test_integration_turn_endpoint_rejects_empty_player_input(
-    client,
-):
-    response = client.post(
-        "/integration/turn",
-        json={
-            "player_input": "",
-            "narrative": "Narrativa.",
-        },
-    )
-
-    assert response.status_code == 422
-
-def test_integration_turn_endpoint_rejects_empty_narrative(
-    client,
-):
-    response = client.post(
-        "/integration/turn",
-        json={
-            "player_input": "Abro la puerta.",
-            "narrative": "",
         },
     )
 
@@ -242,7 +204,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         "exclude_external_turn_id": "st-chat-turn",
     }
 
-def test_integration_turn_endpoint_returns_processed_turn(
+def test_integration_turn_complete_endpoint_returns_processed_turn(
     client,
     monkeypatch,
 ):
@@ -348,6 +310,7 @@ def test_integration_turn_endpoint_returns_409_on_durable_conflict(
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
+            "external_turn_id": "st-conflict-turn",
         },
     )
 
@@ -358,56 +321,15 @@ def test_integration_turn_endpoint_returns_409_on_durable_conflict(
         "code": "conflict",
     }
 
-def test_legacy_integration_turn_is_deprecated_in_openapi(client):
-    openapi = client.get("/openapi.json").json()
-    operation = openapi["paths"]["/integration/turn"]["post"]
-
-    assert operation["deprecated"] is True
-
-def test_legacy_integration_turn_logs_compatibility_usage(
-    client,
-    monkeypatch,
-    caplog,
-):
-    from types import SimpleNamespace
-
-    runtime = __import__("app").runtime_factory.get_runtime(1)
-    result = SimpleNamespace(
-        narrative="La puerta se abre.",
-        player_input="Abro la puerta.",
-        operation_count=0,
-        successful_operation_count=0,
-        failed_operation_count=0,
-        all_operations_succeeded=True,
-        world_changed=False,
-        operations=(),
-        character_operations=(),
-        operation_results=(),
-    )
-
-    monkeypatch.setattr(
-        runtime.silly_tavern_integration_service,
-        "process_turn",
-        lambda **kwargs: result,
-    )
-
+def test_legacy_integration_turn_route_is_removed(client):
     response = client.post(
         "/integration/turn",
         json={
             "player_input": "Abro la puerta.",
             "narrative": "La puerta se abre.",
-            "external_turn_id": "legacy-test-turn",
         },
     )
-
-    assert response.status_code == 200
-    warning = next(
-        record
-        for record in caplog.records
-        if "Deprecated legacy SillyTavern turn endpoint" in record.message
-    )
-    assert warning.campaign_id == 1
-    assert warning.external_turn_id == "legacy-test-turn"
+    assert response.status_code == 404
 
 
 # ============================================================
@@ -757,10 +679,10 @@ def test_integration_resolve_maps_invalid_model_response_to_502(
         "code": "invalid_llm_response",
     }
 
-def test_adapter_does_not_expose_legacy_private_helpers():
+def test_adapter_exposes_only_active_read_contract():
     assert not hasattr(
         integration_module.SillyTavernIntegrationService,
-        "_process_turn_locked",
+        "process_turn",
     )
     assert not hasattr(
         integration_module.SillyTavernIntegrationService,

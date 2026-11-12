@@ -70,14 +70,6 @@ class RecordingExtractor(LLMWorldExtractor):
         self.received_projection = None
         self.calls = []
 
-    def extract(self, text, context):
-        self.received_text = text
-        self.received_context = context
-        self.calls.append(
-            ("extract", text)
-        )
-        return self.operations
-
     def propose(
         self,
         player_intent,
@@ -392,7 +384,7 @@ def test_no_operations_are_valid():
     assert applier.calls == []
 
 
-def test_extractor_receives_generated_narrative():
+def test_proposer_receives_player_intent():
 
     service, _, extractor, _ = (
         make_service()
@@ -421,7 +413,7 @@ def test_extractor_failure_is_wrapped():
                 operation_parser=object(),
             )
 
-        def extract(
+        def propose(
             self,
             text,
             world,
@@ -673,20 +665,20 @@ def test_turn_resolution_order():
 
     extractor = RecordingExtractor()
 
-    original_extract = extractor.extract
+    original_propose = extractor.propose
 
     def extract(
         text,
         world,
     ):
-        order.append("extractor")
+        order.append("proposer")
 
         return original_extract(
             text,
             world,
         )
 
-    extractor.extract = extract
+    extractor.propose = propose
 
     applier = RecordingApplier()
 
@@ -975,7 +967,7 @@ def test_turn_resolution_separates_world_and_character_operations(
         LLMWorldExtractor
     )
 
-    def fake_extract(*args, **kwargs):
+    def fake_propose(*args, **kwargs):
         return [
             world_operation,
             character_operation,
@@ -1326,12 +1318,12 @@ def test_prepare_turn_generates_plan_without_mutating_world():
     plan = service.prepare_turn(context, "Conozco a Aldric.")
 
     assert plan.player_input == "Conozco a Aldric."
-    assert plan.narrative == "La puerta se abre lentamente."
+    assert plan.narrative == ""
     assert plan.world_operations == (operation,)
     assert context.world is original_world
     assert context.world.entities == {}
     assert applier.calls == []
-    assert len(dm.calls) == 1
+    assert dm.calls == []
 
 
 def test_apply_plan_applies_only_after_plan_is_prepared():
@@ -1373,7 +1365,6 @@ def test_prepare_turn_can_propose_consequences_without_generating_narrative():
     plan = service.prepare_turn(
         make_turn_context(),
         "Busco al tabernero Aldric.",
-        proposal_from_intent=True,
     )
 
     assert plan.narrative == ""
@@ -1397,7 +1388,6 @@ def test_intent_proposals_cannot_change_character_hp_directly():
         service.prepare_turn(
             make_turn_context(),
             "Ataco al goblin.",
-            proposal_from_intent=True,
         )
 
 
