@@ -55,6 +55,13 @@ class WorldCollectionQueryService:
                 "subject_name": self._entity_name(world, value.subject_id),
                 "target_name": self._entity_name(world, value.target_id),
             }
+        if collection == "events":
+            return {
+                "source_entity_name": self._entity_name(
+                    world,
+                    value.source_entity_id,
+                ),
+            }
         return {}
 
     def list_collection(
