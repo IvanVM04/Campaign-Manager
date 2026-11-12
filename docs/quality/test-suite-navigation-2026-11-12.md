@@ -52,7 +52,7 @@ All 35 original test functions and their assertions are preserved. The support m
 
 ## Current quality baseline and next gate
 
-The latest main coverage artifact (2026-11-12, after PR #208) reported 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch reaches 88.7% line, 76.0% branch and 85.5% combined coverage, and now enforces `fail_under = 85` with branch coverage enabled.
+The latest main coverage artifact (2026-11-12, after PR #208) reported 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch reaches 89.0% line, 76.3% branch and 85.75% combined coverage, and now enforces `fail_under = 85` with branch coverage enabled.
 
 The highest-return additions target the SillyTavern context adapter, persistent-effect API/schema validation and the manual-roll submission lifecycle. Manual rolls are now tested through successful submission, idempotent replay, completion, interrupted prepared-state recovery and stale-context rejection.
 

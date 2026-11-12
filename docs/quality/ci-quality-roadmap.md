@@ -17,7 +17,7 @@ A green deterministic pipeline does not replace the manual SillyTavern smoke tes
 
 The Python test job collects line and branch coverage and publishes coverage.xml as a short-lived workflow artifact.
 
-Coverage remains report-only while the current high-risk test batch is validated. The latest main artifact (2026-11-12, commit `96b0232`) measured 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch raised this to 88.7% line, 76.0% branch and 85.5% combined coverage across the deterministic suite.
+Coverage remains report-only while the current high-risk test batch is validated. The latest main artifact (2026-11-12, commit `96b0232`) measured 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch raised this to 89.0% line, 76.3% branch and 85.75% combined coverage across the deterministic suite.
 
 - The 85% combined line/branch target is now enforced by `[tool.coverage.report].fail_under = 85`.
 - Branch coverage remains enabled; the combined figure is the same line-plus-branch metric reported by coverage.py.
