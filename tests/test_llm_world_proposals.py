@@ -240,7 +240,9 @@ def test_propose_stops_after_one_failed_repair_attempt():
 
 
 
-def test_model_created_event_is_forced_to_noncanonical_inference():
+def test_model_created_event_cannot_promote_its_provenance_to_canon():
+    from services.world.world_applier import WorldApplier
+
     parser = LLMWorldResponseParser(OperationParser())
     operations = parser.parse_operations({
         "operations": [{
@@ -254,13 +256,18 @@ def test_model_created_event_is_forced_to_noncanonical_inference():
         }]
     })
 
-    event_operation = operations[0]
-    assert event_operation.epistemic_status == "inference"
-    assert event_operation.provenance_source == "model_inference"
-    assert event_operation.visibility_scope == "public"
+    world = WorldState()
+    result = WorldApplier().apply(world, operations[0])
+    assert result.success is True
+    event = world.events["rumor-01"]
+    assert event.epistemic_status == "inference"
+    assert event.provenance_source == "model_inference"
+    assert event.visibility_scope == "public"
 
 
 def test_model_created_secret_event_stays_gm_only_inference():
+    from services.world.world_applier import WorldApplier
+
     parser = LLMWorldResponseParser(OperationParser())
     operations = parser.parse_operations({
         "operations": [{
@@ -274,7 +281,10 @@ def test_model_created_secret_event_stays_gm_only_inference():
         }]
     })
 
-    event_operation = operations[0]
-    assert event_operation.epistemic_status == "inference"
-    assert event_operation.provenance_source == "model_inference"
-    assert event_operation.visibility_scope == "gm_only"
+    world = WorldState()
+    result = WorldApplier().apply(world, operations[0])
+    assert result.success is True
+    event = world.events["secret-rumor-01"]
+    assert event.epistemic_status == "inference"
+    assert event.provenance_source == "model_inference"
+    assert event.visibility_scope == "gm_only"
