@@ -5,7 +5,6 @@ import pytest
 from models.character_api_schemas import CharacterCreate
 from models.combat_encounter_state import CombatEncounterState
 from models.combatant_state import CombatantState
-from models.entity import Entity
 from models.persistent_effect import EffectDurationType, EffectSourceType, EffectType
 from repositories.campaign_clock_repository import CampaignClockRepository
 from repositories.campaign_repository import CampaignRepository
