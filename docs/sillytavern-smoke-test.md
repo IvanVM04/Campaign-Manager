@@ -84,6 +84,13 @@ It is a manual integration check and is not replaced by the automated JavaScript
     - Restart the backend (or invalidate/recreate its campaign runtime), then send a different player action that refers to the clue.
     - Confirm the next turn's context includes the previously discovered clue and the DM maintains continuity.
 
+## Retired route guard
+
+- Confirm the extension does not call `POST /integration/turn`.
+- Confirm a request to the retired `POST /integration/turn` returns 404.
+- Confirm `/integration/turn/complete` includes the same stable
+  `external_turn_id` used for `/resolve`.
+
 ## Acceptance criteria
 
 - Each distinct regeneration is processed at most once.
