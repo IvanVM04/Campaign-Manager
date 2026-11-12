@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified baseline:** `main` at `1bf805c0c48676ba753bf7b30da24535a6336362` (2026-11-12, PR #202 merged).  
+**Verified baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (2026-11-12, PR #205 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 ## How to work in this repository
@@ -64,7 +64,7 @@ Critical contracts: turn-resolution lifecycle, durable persistence, idempotency 
 - bootstrap/campaign_runtime.py wires the adapter; durable turn services own all state-changing operations.
 - The supported mutation lifecycle is resolve -> challenge continuation (if needed) -> complete.
 - The narrative-first POST /integration/turn route, LegacySillyTavernTurnService and snapshot restoration have been removed.
-- Migration 029 archives existing non-null turns.snapshot JSON in turn_snapshot_archive before dropping the runtime column.
+- Migration 029 archives historical snapshots; migration 030 persists character Hit Dice and long-rest campaign-time state. The current schema version is 30.
 
 ### Combat attack
 
@@ -206,17 +206,23 @@ resolve/complete lifecycle.
 
 ## Priority backlog
 
-| Priority | Area | Concrete next step | Why now |
+The structural backlog for the supported local single-player, single-process
+scope is closed. Do not schedule broad service decomposition or infrastructure
+work without a demonstrated defect or new product requirement.
+
+| Priority | Area | Current next step | Why |
 |---|---|---|---|
-| P0 | Quality gate | Keep CI summary, repository-wide Pyright and both CodeQL checks green | Already configured and required by main protection. |
-| P1 | Combat | Completed in PR #200: extract player/NPC attack profile selection to `AttackProfileResolver` | Keep rules derivation pure and preserve fail-closed persisted metadata validation. |
-| P1 | Turns | Extract request execution from DurableNativeTurnService | Completed: request identity, planning leases, prepared-plan persistence and recovery now live in `DurableTurnExecutionService`; the public façade remains stable. |
-| P1 | Combat | Completed on this branch: failure-inject encounter writes and standardize `complete()` on `transaction("IMMEDIATE")` | Continue keeping canonical HP, timed effects and encounter projections in the same transaction. |
-| P2 | World | Completed on this branch: `WorldService` delegates mixed turn dispatch to `WorldTurnOperationCoordinator` | Preserve operation order, generated references, shared `WorldState` identity and caller-owned connection semantics. |
-| P2 | Models | Completed on this branch: split request schemas by bounded context and retain `models.schemas` compatibility exports | Keep routers on context-owned imports and preserve OpenAPI contracts. |
-| P2 | Tests | Maintain focused tests for each extracted collaborator and split only mixed-responsibility integration files | Test modules are executable contract documentation. |
-| P3 | Migrations | Completed on this branch: add the contiguous `MIGRATIONS` registry and human-readable catalogue | Keep numbered migration bodies chronological and forward-only; do not split for aesthetics. |
-| P3 | Runtime | Define lifecycle invalidation/shutdown only when multi-campaign or deployment needs justify it | Current runtime/locks are process-local by design. |
+| P1 | Live acceptance | Run and record the Ollama + SillyTavern smoke test | Deterministic CI cannot prove local model quality or extension lifecycle behavior. |
+| P2 | Context / LLM | Add representative medium/large campaign probes for ranking, dependency bundles, mandatory facts, budget exhaustion and non-mutation | Validate scale and proposal quality before adding retrieval infrastructure. |
+| P2 | Critical branches | Continue targeted stale-revision, rollback, lease-fencing/recovery and effect-expiry tests when a missing path is identified | Coverage is diagnostic; do not impose an arbitrary global threshold. |
+| P3 | Characters | Build typed character creation and progression | Current state/sheet/Hit Dice/rest slice is a foundation, not a complete character builder. |
+| P3 | Equipment and combat | Add class/resource-aware equipment and combat mechanics for one selected playable slice | Avoid generic counters or speculative rules that do not share a typed source of truth. |
+| P3 | Adventure loop | Deliver one complete first adventure with clues, NPC continuity, rewards and persistence | The priority is an end-to-end playable experience. |
+
+Completed structural milestones: PRs #198–#203. Character/combat state
+consistency and Hit Dice/rest slice: PR #204. Test-suite contract organization:
+PR #205. See the [engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md)
+for indicative module-readiness estimates and hour ranges.
 
 ## Current proposal assessment
 
@@ -233,4 +239,4 @@ committed.
 
 ## Validation boundaries
 
-The latest integrated baseline had successful CI summary, Ruff, deterministic Python tests, both Pyright checks and both CodeQL language checks. Live Ollama requests and manual SillyTavern sessions remain separate, opt-in integration checks. A green CI run does not claim those live checks passed.
+The PR #205 head passed deterministic Python tests (1,406 passed, 4 deselected as real_llm), JavaScript tests, Ruff, both Pyright scopes and both CodeQL language checks. Live Ollama requests and manual SillyTavern sessions remain separate, opt-in acceptance checks and are not recorded as passed. A green CI run does not claim those live checks passed.
