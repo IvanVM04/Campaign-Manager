@@ -1,8 +1,9 @@
 import json
 
 import pytest
-
 from durable_turn_test_support import service_with_fake_models
+
+from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turns.durable_native_turn_service import DurableNativeTurnError
 
