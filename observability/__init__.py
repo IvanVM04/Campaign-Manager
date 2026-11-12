@@ -1,6 +1,5 @@
 """Local application observability primitives."""
 
-from .logging_config import LoggingSettings, configure_logging
 from .log_context import (
     bind_log_context,
     bind_resolution_context,
@@ -8,6 +7,7 @@ from .log_context import (
     current_request_id,
     current_resolution_id,
 )
+from .logging_config import LoggingSettings, configure_logging
 
 __all__ = [
     "LoggingSettings",
