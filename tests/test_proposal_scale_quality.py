@@ -4,6 +4,7 @@ import json
 
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
+from models.world_state import WorldState
 from operations.world_operations import CreateEventOperation
 from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor
@@ -22,7 +23,7 @@ class SequenceProvider:
         return self.responses.pop(0)
 
 
-def make_turn_context(world) -> TurnContext:
+def make_turn_context(world: WorldState) -> TurnContext:
     return TurnContext(
         campaign=CampaignState(
             name="La guardia de Puerto Gris",
@@ -80,6 +81,7 @@ def test_large_context_proposal_uses_bounded_public_projection_and_parses_typed_
     assert "Fungoso" in provider.prompts[0]
     assert "Fungoso recibe aviso: cambio de turno de la guardia" in provider.prompts[0]
     assert "ruta secreta de contrabando" not in provider.prompts[0]
+    assert "Fungoso conoce la ruta secreta de contrabando" not in provider.prompts[0]
     assert "La capitana trabaja para los contrabandistas" not in provider.prompts[0]
     assert "Fungoso conoce la ruta secreta de contrabando" not in provider.prompts[0]
     assert len(provider.prompts[0].encode("utf-8")) <= 8192
@@ -89,8 +91,8 @@ def test_invalid_large_campaign_proposal_gets_one_compact_repair_without_world_c
     world = build_large_campaign_world(entity_count=750)
     projection = ContextBuilder().build_proposal_context(
         world,
-        "guardia del puerto",
-        max_estimated_tokens=3600,
+        "Fungoso",
+        max_estimated_tokens=5000,
         mandatory_entity_ids=(1, 2),
     )
     provider = SequenceProvider(
