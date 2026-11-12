@@ -209,13 +209,13 @@ resolve/complete lifecycle.
 | Priority | Area | Concrete next step | Why now |
 |---|---|---|---|
 | P0 | Quality gate | Keep CI summary, repository-wide Pyright and both CodeQL checks green | Already configured and required by main protection. |
-| P1 | Combat | Extract attack profile selection from CombatAttackService | It still parses NPC metadata, creates synthetic character state and chooses weapons/natural attacks inside one large use case. |
+| P1 | Combat | Completed in PR #200: extract player/NPC attack profile selection to `AttackProfileResolver` | Keep rules derivation pure and preserve fail-closed persisted metadata validation. |
 | P1 | Turns | Extract request execution from DurableNativeTurnService | Completed: request identity, planning leases, prepared-plan persistence and recovery now live in `DurableTurnExecutionService`; the public façade remains stable. |
-| P1 | Combat | Review CombatEncounterService's transaction ownership across encounter, character/creature HP and effects | A partial write would create divergent canonical and encounter projections. |
+| P1 | Combat | Completed on this branch: failure-inject encounter writes and standardize `complete()` on `transaction("IMMEDIATE")` | Continue keeping canonical HP, timed effects and encounter projections in the same transaction. |
 | P2 | World | Completed on this branch: `WorldService` delegates mixed turn dispatch to `WorldTurnOperationCoordinator` | Preserve operation order, generated references, shared `WorldState` identity and caller-owned connection semantics. |
-| P2 | Models | Split broad schemas by bounded context | Improves discovery; do not introduce breakage in transport imports. |
+| P2 | Models | Completed on this branch: split request schemas by bounded context and retain `models.schemas` compatibility exports | Keep routers on context-owned imports and preserve OpenAPI contracts. |
 | P2 | Tests | Maintain focused tests for each extracted collaborator and split only mixed-responsibility integration files | Test modules are executable contract documentation. |
-| P3 | Migrations | Add a migration index before considering file-level extraction | History is ordered and data-preserving; file count is not a reason to refactor. |
+| P3 | Migrations | Completed on this branch: add the contiguous `MIGRATIONS` registry and human-readable catalogue | Keep numbered migration bodies chronological and forward-only; do not split for aesthetics. |
 | P3 | Runtime | Define lifecycle invalidation/shutdown only when multi-campaign or deployment needs justify it | Current runtime/locks are process-local by design. |
 
 ## Current proposal assessment
