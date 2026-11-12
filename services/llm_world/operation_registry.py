@@ -292,10 +292,6 @@ class OperationMetadataRegistry:
             "amount",
             "entity_type",
             "description",
-            "notes",
-            "condition",
-            "relation_type",
-            "event_type",
         }
 
         for name in selected_names:
@@ -318,7 +314,7 @@ class OperationMetadataRegistry:
             ]
             description = metadata.description.split(". ", maxsplit=1)[0]
             operations[name] = {
-                "description": description[:72],
+                "description": description[:48],
                 "required": ";".join(required),
                 "optional": ";".join(optional),
             }

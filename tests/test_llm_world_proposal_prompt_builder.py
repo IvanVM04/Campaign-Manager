@@ -110,7 +110,7 @@ def test_proposal_prompt_builder_renders_the_shared_operation_schema():
     prompt = LLMWorldProposalPromptBuilder.build_prompt(
         "Quiero recoger la llave.",
         make_context(),
-        allowed_operation_types=("create_item_instance",),
+        allowed_operation_types=("create_entity", "create_item_instance"),
         operation_registry=DEFAULT_OPERATION_REGISTRY,
     )
 
