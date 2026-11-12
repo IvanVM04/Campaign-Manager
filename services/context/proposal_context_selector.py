@@ -143,6 +143,7 @@ class ProposalContextSelector:
             world,
             search_result,
             max_depth=1,
+            character_entity_id=character_entity_id,
         )
 
         candidates: dict[RecordKey, tuple[float, dict[str, Any]]] = {}
