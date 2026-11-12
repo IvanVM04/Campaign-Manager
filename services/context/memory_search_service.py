@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from models.world_state import WorldState
+from models.world_visibility_policy import WorldVisibilityPolicy
 
 
 class MemorySearchService:
@@ -171,13 +172,10 @@ class MemorySearchService:
             ],
             "events": [
                 self._serialize(event)
-                for event in world.events.values()
-                if not getattr(
-                    event,
-                    "secret",
-                    False,
+                for event in WorldVisibilityPolicy.player_visible_events(
+                    world.events.values()
                 )
-                and getattr(
+                if getattr(
                     event,
                     "active",
                     True,
@@ -367,13 +365,9 @@ class MemorySearchService:
     ) -> list[dict[str, Any]]:
         results = []
 
-        for event in world.events.values():
-
-            # Los eventos secretos nunca deben exponerse
-            # mediante búsquedas de memoria.
-            if getattr(event, "secret", False):
-                continue
-
+        for event in WorldVisibilityPolicy.player_visible_events(
+            world.events.values()
+        ):
             if self._matches(
                 query,
                 getattr(event, "title", None),

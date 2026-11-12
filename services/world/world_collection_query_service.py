@@ -14,6 +14,7 @@ from models.world_collection_read_models import (
     WorldResourceRead,
 )
 from models.world_state import WorldState
+from models.world_visibility_policy import WorldVisibilityPolicy
 
 
 class WorldCollectionQueryService:
@@ -74,8 +75,12 @@ class WorldCollectionQueryService:
             raise ValueError(f"unsupported world collection: {collection}")
 
         attribute, model, search_fields = self._COLLECTIONS[collection]
+        values = getattr(world, attribute).values()
+        if collection == "events":
+            values = WorldVisibilityPolicy.player_visible_events(values)
+
         ordered = sorted(
-            getattr(world, attribute).values(),
+            values,
             key=lambda value: (
                 getattr(value, "id", None) is None,
                 str(getattr(value, "id", "")),
