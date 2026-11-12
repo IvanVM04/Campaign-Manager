@@ -21,11 +21,13 @@ Campaign lifecycle, campaign state, campaign clock and per-campaign runtime comp
 - Campaign state may depend on the world state port, but does not own world mutation.
 - Effect lifecycle and condition projection belong to campaign state; combat consumes the derived `ConditionSet` without owning effect persistence.
 
-## Pending work
-- [ ] Define runtime invalidation on campaign deletion and configuration changes.
-- [ ] Specify shutdown behavior and assess whether the unbounded runtime cache needs safe eviction. Runtime state is process-local; the supported deployment remains one process/worker.
-- [ ] Formalize typed composition contracts only where a real substitution boundary requires them; narrative, extraction and mechanics roles already have explicit model and timeout settings in LLMSettings.
-- [ ] Add focused lifecycle and invalidation tests.
+## Runtime lifecycle status
+- [x] Explicit per-campaign runtime invalidation via `CampaignRuntimeFactory.invalidate()`.
+- [x] Idempotent factory shutdown via `CampaignRuntimeFactory.shutdown()`, wired to FastAPI shutdown.
+- [x] Tests for selective invalidation, full shutdown, idempotent shutdown and runtime reconstruction (`tests/test_campaign_runtime_lifecycle.py`; PR #203).
+- [ ] Automatic invalidation on campaign deletion/configuration changes is deferred until those lifecycle operations exist and need to invalidate a cached runtime.
+- [ ] Bounded LRU/TTL eviction is deferred. The supported deployment is one process/worker; add an eviction policy only after measuring cache pressure and defining behavior for in-flight requests.
+- [ ] Add a typed composition protocol only if a real substitution boundary appears; the three LLM roles already have explicit model and timeout settings.
 - [x] Migrate consumers to canonical campaign-package imports and retire the former flat compatibility paths.
 
 ## Session and conversation read API
