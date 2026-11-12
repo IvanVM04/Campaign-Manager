@@ -501,6 +501,13 @@ class ContextExpander:
                 continue
 
             serialized = WorldSerializer.event_to_dict(event)
+            source = (
+                world.entities.get(event.source_entity_id)
+                if event.source_entity_id is not None
+                else None
+            )
+            if source is not None:
+                serialized["source_entity_name"] = source.name
             serialized["is_current"] = event.id not in superseded_ids
             result.append(serialized)
 
