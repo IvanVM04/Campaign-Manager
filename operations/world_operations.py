@@ -290,3 +290,10 @@ class CreateEventOperation(WorldOperation):
     secret: bool = False
 
     metadata: dict[str, Any] | None = None
+
+    # Model-originated event proposals are non-canonical by default.
+    epistemic_status: str = "inference"
+
+    provenance_source: str = "model_inference"
+
+    visibility_scope: str = "public"
