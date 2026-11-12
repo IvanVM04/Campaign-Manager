@@ -115,7 +115,9 @@ these semantic cases:
   deterministic rules engine;
 - facts revealed about an existing NPC that should update the existing ID,
   not create a duplicate;
-- multiple similar NPCs where only the supported referent is selected;
+- multiple similar NPCs where ambiguity remains visible, no singular entity
+  identity is asserted, and any descriptive candidates are treated only as
+  retrieval evidence;
 - a secret event that must not appear in the model-facing projection;
 - malformed structured output followed by exactly one bounded repair;
 - a second malformed response that must fail closed.
