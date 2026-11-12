@@ -252,7 +252,7 @@ gates and must not be marked passed until actually run.
 - [x] Enforce visibility using the active character resolved by trusted application state across memory search/context, proposal selection, mechanics adjudication, native narration, SillyTavern context, world/event collection reads and public export.
 - [x] Keep character-audience IDs internal: player-facing event projections expose the event's epistemic/provenance/temporal labels but not the complete set of other characters who know it.
 - [x] Preserve superseded facts as history, mark them non-current in retrieval/read projections, and persist supersession chains in dependency order; reject cycles.
-- [x] Allow model-originated event proposals only as `inference/model_inference`; the response parser forcibly overwrites attempted canonical provenance. Trusted workflows can author confirmed facts.
+- [x] Allow model-originated event proposals only as `inference/model_inference`; the parser strips untrusted provenance fields and the world applier assigns the non-canonical status. Trusted workflows can author confirmed facts.
 - [x] Feed the narrator only operations whose application result explicitly says both `success=true` and `changed=true`; omit failed, rejected, no-op, malformed and result-less proposal entries.
 - [x] Distinguish confirmed facts, attributed rumors and non-canonical inferences in narrative instructions; use the active character's knowledge projection.
 - [x] Add deterministic tests for migration/backfill/idempotency, campaign-scoped provenance references, per-character visibility, expansion leak prevention, history supersession, API/SillyTavern perspective, repository ordering and committed-only narration evidence.
