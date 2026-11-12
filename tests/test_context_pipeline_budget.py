@@ -1,6 +1,11 @@
+from context_pipeline_test_support import (
+    make_complex_world,
+    make_entity,
+    make_world,
+)
 from models.world_state import WorldState
 from services.context import ContextBuilder
-from context_pipeline_test_support import make_entity, make_world, make_complex_world
+
 
 def test_pipeline_context_never_exceeds_budget():
     builder = ContextBuilder(
