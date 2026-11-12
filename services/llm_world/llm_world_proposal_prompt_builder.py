@@ -96,7 +96,7 @@ class LLMWorldProposalPromptBuilder:
             "Resuelve nombres y alias explícitos contra el snapshot y reutiliza "
             "IDs; ante ambigüedad no elijas ni dupliques. Crea solo referentes "
             "nuevos y persistentes; una persona nueva y nombrada como NPC "
-            "usa entity_type=\\"npc\\". "
+            "usa la categoría npc en entity_type. "
             "Actualiza hechos explícitos y nuevos, conserva los anteriores no "
             "contradichos y no inventes lo desconocido.\n"
             "PERSISTENCIA\n"

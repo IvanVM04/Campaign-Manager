@@ -177,7 +177,6 @@ class EntityReferenceResolver:
         "in",
         "is",
         "it",
-        "me",
         "my",
         "of",
         "on",
