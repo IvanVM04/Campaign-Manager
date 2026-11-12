@@ -160,7 +160,19 @@ class MemorySearchService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _validate_character_entity_id(character_entity_id: int | None) -> None:
+    def _serialize_player_event(world: WorldState, event) -> dict[str, Any]:
+        data = WorldSerializer.event_to_dict(event)
+        source = (
+            world.entities.get(event.source_entity_id)
+            if event.source_entity_id is not None
+            else None
+        )
+        if source is not None:
+            data["source_entity_name"] = source.name
+        return data
+
+    @staticmethod
+    def _validate_character_entity_id(character_entity_id: int | None) -> None;
         if character_entity_id is not None and (
             isinstance(character_entity_id, bool)
             or not isinstance(character_entity_id, int)
@@ -256,7 +268,7 @@ class MemorySearchService:
                 )
             ],
             "events": [
-                WorldSerializer.event_to_dict(event)
+                self._serialize_player_event(world, event)
                 for event in WorldVisibilityPolicy.player_visible_events(
                     world.events.values(),
                     character_entity_id=character_entity_id,
@@ -499,7 +511,7 @@ class MemorySearchService:
                 getattr(event, "consequences", None),
                 getattr(event, "metadata", None),
             ):
-                serialized = WorldSerializer.event_to_dict(event)
+                serialized = self._serialize_player_event(world, event)
                 serialized["is_current"] = event.id not in superseded_ids
                 results.append(serialized)
 
