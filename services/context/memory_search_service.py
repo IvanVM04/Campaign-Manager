@@ -266,9 +266,15 @@ class MemorySearchService:
         # An explicit name/alias collision is unsafe: do not return either
         # entity as though the reference identified one of them. A broad role
         # or description match, however, remains useful retrieval evidence.
-        if resolution.status == "ambiguous":
-            # Preserve ambiguity in resolver diagnostics but do not select
-            # any candidate into player-facing context.
+        if (
+            resolution.status == "ambiguous"
+            and resolution.candidates
+            and resolution.candidates[0].match_kind in {"name", "alias"}
+        ):
+            # An explicit name/alias collision is unsafe: do not return either
+            # entity as though the reference identified one of them. Broad
+            # descriptive matches remain useful retrieval evidence; the
+            # resolver/proposal diagnostics still retain their ambiguous status.
             return []
 
         query_tokens = resolver._significant_tokens(
