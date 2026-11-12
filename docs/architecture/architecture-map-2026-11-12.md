@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified baseline:** `main` at 95c0066ba60e5cbceff2f5230fcde2cccbec457d (2026-11-12, PR #201). The current PR branch contains the consolidation documented below.  
+**Verified baseline:** `main` at `1bf805c0c48676ba753bf7b30da24535a6336362` (2026-11-12, PR #202 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 ## How to work in this repository
