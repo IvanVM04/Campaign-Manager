@@ -14,8 +14,6 @@ from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from rules_engine.dnd5e_2014.core.abilities import ability_modifier
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
-
-
 SHORT_REST_MINUTES = 60
 LONG_REST_MINUTES = 8 * 60
 LONG_REST_RECOVERY_INTERVAL_MINUTES = 24 * 60
