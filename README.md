@@ -76,7 +76,7 @@ This is the target architecture, not a description of completed modules. Existin
 * **Persistent campaign state** backed by SQLite.
 * **REST API** built with FastAPI.
 * **SillyTavern integration** for processing generated narratives.
-* **LLM-based world extraction**, converting narrative text into structured operations.
+* **LLM-based structured proposals**, converting player intent into validated world-operation proposals.
 * **Structured world operations** instead of allowing the LLM to directly modify the database.
 * **In-memory `WorldState`** for efficient world manipulation.
 * **Memory and context retrieval** for supplying relevant campaign information to the LLM.
@@ -84,7 +84,7 @@ This is the target architecture, not a description of completed modules. Existin
 * **Turn versioning** using `external_turn_id` and `turn_version`.
 * **Durable turn resolution**, committing consequences once before narration and keeping transcript versions separate.
 * **Idempotency and conflict detection** for externally identified turns.
-* **Legacy world snapshots** retained for compatibility with the older integration path; the current durable adapter does not restore snapshots or replay consequences on a swipe.
+* **Historical turn-snapshot archive** preserving old JSON payloads after removal of the runtime snapshot/reconciliation path.
 * **Database migrations** for controlled schema evolution.
 * **Automated tests** covering services, repositories, API behaviour and turn reconciliation.
 
@@ -109,7 +109,7 @@ SillyTavern extension
       -> persist narrative version
 ```
 
-The native `POST /turn` route uses the same durable coordinator and application resolution path, then narrates from the committed result. Manual rolls and clarifications pause and resume the same durable resolution. Regeneration/swipes create narrative versions without replaying world consequences. The legacy `POST /integration/turn` route remains for older extensions only.
+The native `POST /turn` route uses the same durable coordinator and application resolution path, then narrates from the committed result. Manual rolls and clarifications pause and resume the same durable resolution. Regeneration/swipes create narrative versions without replaying world consequences. The narrative-first `POST /integration/turn` endpoint and its snapshot-reconciliation implementation have been removed; supported clients use the durable resolve/complete lifecycle.
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
@@ -130,10 +130,10 @@ The application services are organized into eight implemented capability package
 | [context](services/context/README.md) | Context expansion, ranking, selection and rendering |
 | [llm_world](services/llm_world/README.md) | World extraction prompts, parsing and proposal validation |
 | [providers](services/providers/README.md) | LLM provider contracts, adapters and settings |
-| [turns](services/turns/README.md) | Durable turn lifecycle and legacy compatibility |
+| [turns](services/turns/README.md) | Durable turn lifecycle, mechanics orchestration and narration |
 | [world](services/world/README.md) | Validated world-operation application and serialization |
 
-All eight capability packages contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. Their package guides document responsibilities and pending boundary work. The external SillyTavern adapter is isolated under `integrations/adapters/silly_tavern`; `bootstrap/campaign_runtime.py` owns composition. The remaining old narrative-first mutation route and snapshot path are explicit compatibility surfaces, not a second service package. See the [current architecture audit](docs/architecture/architecture-audit-2026-11-12.md) and [module catalogue](docs/architecture/module-catalog-2026-11-12.md). New code should use canonical package paths. Do not restore flat service shims.
+All eight capability packages contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. The external SillyTavern adapter is isolated under `integrations/adapters/silly_tavern`; it owns active context and transcript-state reads only. `bootstrap/campaign_runtime.py` owns composition. The narrative-first mutation route, legacy extraction API, snapshot repository and runtime snapshot column have been retired. Existing snapshot JSON is preserved in the inert `turn_snapshot_archive` table by migration 029. See the [current architecture audit](docs/architecture/architecture-audit-2026-11-12.md), [architecture map](docs/architecture/architecture-map-2026-11-12.md) and [module catalogue](docs/architecture/module-catalog-2026-11-12.md). New code should use canonical package paths. Do not restore flat service shims or retired mutation paths.
 
 ## Turn Processing
 
@@ -173,7 +173,7 @@ completed
 
 Clarifications and manual d20 rolls pause and resume the same durable resolution. The campaign state and resolution transition are committed atomically before narration. If narration fails, retrying the same request resumes narration without reapplying consequences.
 
-The LLM proposes intent interpretation and structured world consequences; deterministic application code validates operations, campaign scope and supported mechanics. The LLM is never allowed to write directly to SQLite. The legacy `POST /integration/turn` endpoint still accepts a completed narrative and extracts world operations for older clients only; it does not have the same contract as the current durable path.
+The LLM proposes intent interpretation and structured world consequences from the player's input; deterministic application code validates operations, campaign scope and supported mechanics. Presentation prose is generated only after consequences are committed. The LLM is never allowed to write directly to SQLite. All supported clients use this single durable resolution contract.
 
 ---
 
@@ -187,17 +187,17 @@ SillyTavern identifies a player action with a stable `external_turn_id`. The dur
 - Re-delivery of the same completed version is idempotent; conflicting content or invalid version sequencing is rejected.
 - Clarification and manual-roll replies remain attached to the original external turn.
 
-The older compatibility endpoint `POST /integration/turn` retains the historical snapshot-reconciliation behavior for legacy clients. It is marked deprecated in OpenAPI and logs usage, but has no removal date until supported clients have migrated. See the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md) and [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
+Regeneration creates narrative versions against the same committed resolution. It does not restore prior world state, rerun mechanics or reapply consequences. The old narrative-first endpoint has been removed. See the [turn pipeline contract](docs/architecture/turn-pipeline-compatibility.md) and [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
 
 ---
 
-## Legacy World Snapshots
+## Historical snapshot archive
 
-World snapshots remain in the codebase for the older compatibility integration path. They are **not** the source of truth for the current durable native/SillyTavern workflow.
-
-In the current flow, a player action has one durable resolution. SillyTavern swipes create new narrative versions against that same committed resolution; they do not restore a previous snapshot, rerun mechanics or reapply world consequences. See the [durable SillyTavern adapter contract](docs/architecture/sillytavern-durable-turn-adapter.md).
-
----
+Migration 029 copies every non-null JSON value from the former `turns.snapshot`
+column into `turn_snapshot_archive` and removes the column from the active
+`turns` table. The archive is intentionally inert: runtime code has no reader,
+writer or restore operation for these payloads. Existing campaign history is
+preserved without keeping the old regeneration architecture alive.
 
 ## Database
 
@@ -284,7 +284,6 @@ GET  /integration/turn/{external_turn_id}/clarification
 GET  /integration/turn/{external_turn_id}/manual-roll
 POST /integration/turn/complete
 
-`POST /integration/turn` remains for legacy extension compatibility only.
 
 ### World
 
@@ -436,8 +435,6 @@ Provider settings are read from environment variables when the backend starts. D
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS` | `4096` | Upper bound for selected world context; cannot exceed the complete prompt budget |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS` | `16000` | Maximum provider response size for extraction/proposal output |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS` | `2048` | Independent upper bound for the single proposal repair request |
-| `CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_PROMPT_MAX_TOKENS` | `65536` | Upper bound for the complete legacy narrative-extraction prompt |
-| `CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS` | `8192` | Budget for selected public world records in the legacy extraction prompt |
 
 Example (PowerShell):
 
@@ -449,7 +446,7 @@ $env:CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS = "90"
 uvicorn app:app --reload
 ```
 
-The settings are validated at startup. Invalid URLs, empty model names, non-positive/non-finite timeouts or invalid extraction budgets prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. The token limits use a pessimistic one-UTF-8-byte-per-token upper bound because the current provider port does not expose an exact tokenizer count. The structured proposal path and compatibility extraction path have separate budgets. The legacy path now selects relevant public context and enforces its total prompt cap before calling Ollama; its static instruction set remains large and still needs live quality testing before simplification. Restart the backend after changing environment variables.
+The settings are validated at startup. Invalid URLs, empty model names, non-positive/non-finite timeouts or invalid extraction budgets prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. The token limits use a pessimistic one-UTF-8-byte-per-token upper bound because the current provider port does not expose an exact tokenizer count. The structured proposal path uses separate context, complete-prompt, response and one-repair budgets. Restart the backend after changing environment variables.
 
 ---
 
@@ -501,7 +498,7 @@ The test suite covers the main application layers, including:
 * SillyTavern integration;
 * restart/persistence behaviour;
 * turn versioning;
-* regeneration / snapshot reconciliation;
+* narrative versioning without replaying world consequences;
 * failed regeneration rollback;
 * idempotency and conflict handling;
 * context before and after a persisted turn.
@@ -592,38 +589,19 @@ This gives the domain layer a convenient object-oriented representation of the w
 
 ---
 
-### Snapshots for turn reconciliation
+### Durable turn identity and versioning
 
-Regenerating an LLM response can invalidate state changes produced by the previous response.
+`external_turn_id` identifies one logical player action across retries,
+clarifications and narrative regenerations. `turn_version` and `status`
+distinguish active and superseded narrative versions. The committed durable
+resolution is authoritative; narrative versions never restore a previous
+world snapshot or replay consequences.
 
-Snapshots provide an explicit mechanism to restore the state associated with the previous version before applying the new one.
+## Historical snapshot retention
 
-This makes turn regeneration a state-reconciliation problem rather than simply inserting another turn into the database.
-
----
-
-### External turn identifiers
-
-SillyTavern and similar clients need a way to identify the same logical turn across regenerated responses.
-
-The combination of:
-
-```text
-external_turn_id
-turn_version
-status
-snapshot
-```
-
-provides the necessary information to distinguish:
-
-* new turns;
-* repeated requests;
-* regenerated responses;
-* stale versions;
-* conflicting payloads.
-
----
+Old regeneration snapshots are retained only as archival JSON in
+`turn_snapshot_archive`. They are not part of the runtime model and are never
+read by the application.
 
 ## Runtime model
 
