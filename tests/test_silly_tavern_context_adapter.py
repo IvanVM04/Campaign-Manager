@@ -17,7 +17,6 @@ from models.session_state import SessionState
 from models.turn_context import TurnContext
 from services.campaign import CampaignStateService, CampaignStateServiceError
 from services.context import ContextBuilder
-from repositories.turn_repository import TurnRepository
 
 
 @pytest.fixture
