@@ -6,7 +6,6 @@ Application orchestration for combat encounters, attacks and character equipment
 ## Modules
 - `combat_encounter_service.py` — campaign-scoped encounter lifecycle, initiative, turn progression and combatant projections.
 - `combat_attack_service.py` — attack use-case orchestration and atomic persistence of encounter and canonical HP state.
-- `attack_profile_resolver.py` — immutable player/NPC weapon and natural-attack profile resolution using caller-owned transaction connections.
 - `attack_profile_resolver.py` — typed player/equipment and NPC melee/natural attack profile loading and normalization; reads through the attack transaction's connection.
 - `rules_engine/dnd5e_2014/combat/hit_points.py` — deterministic HP/death-track transitions invoked by the combat use case.
 - `weapon_equipment_service.py` — equipment queries/mutations and derived armor/attack profiles.
@@ -34,7 +33,6 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - [ ] Review synchronization of HP, resources, conditions and encounter projections.
 - [ ] Surface unsupported 2014 rules rather than silently improvising.
 - [ ] Expand coverage for currently partial combat flows as rules are implemented.
-- [x] Cover player/NPC profiles, multiple NPC weapons, natural attacks, malformed persisted metadata, single-write configuration persistence, and canonical HP synchronization.
 - [x] Cover player, NPC melee and NPC natural-attack profile resolution, malformed persisted metadata, active-turn selection, and NPC configuration persistence.
 
 ## Migration status
