@@ -18,7 +18,7 @@
 
 - [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
 
-- [Architecture and modularity audit — 2026-11-11](architecture-audit-2026-11-11.md): verified package inventory, current runtime/legacy boundaries, prompt pipeline findings, test strategy and the ordered cleanup roadmap.
+- [Architecture and modularity audit — 2026-11-12](architecture-audit-2026-11-12.md): current package inventory, single turn pipeline, snapshot archival and ordered refactoring roadmap.
 - [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): previous detailed audit. Retained as a dated snapshot; several migration-status statements were superseded by subsequent changes.
 - [Turn pipeline contract](turn-pipeline-compatibility.md): the single supported durable native/SillyTavern flow.
 - [Durable SillyTavern adapter contract](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete and retry semantics.
