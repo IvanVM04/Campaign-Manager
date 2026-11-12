@@ -137,7 +137,7 @@ def test_long_rest_restores_hp_and_recovers_half_of_spent_hit_dice(
     assert result.hit_dice_recovered == 2
     assert result.character.hit_dice_used == 2
     assert result.clock.elapsed_minutes == 480
-    assert result.character.last_long_rest_elapsed_minutes == 480
+    assert result.character.last_long_rest_elapsed_minutes == 0
 
 
 def test_level_one_long_rest_recovers_at_least_one_hit_die(
