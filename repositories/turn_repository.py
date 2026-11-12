@@ -12,7 +12,7 @@ class TurnRepository:
         id, session_id, player_input, narrative, operation_count,
         successful_operation_count, failed_operation_count,
         all_operations_succeeded, world_changed, created_at,
-        external_turn_id, version, status, snapshot
+        external_turn_id, version, status
     """
 
     @staticmethod
@@ -72,7 +72,6 @@ class TurnRepository:
             external_turn_id=row["external_turn_id"],
             version=row["version"],
             status=row["status"],
-            snapshot=row["snapshot"],
         )
 
     def save_turn(
@@ -101,7 +100,7 @@ class TurnRepository:
                 session_id, player_input, narrative, operation_count,
                 successful_operation_count, failed_operation_count,
                 all_operations_succeeded, world_changed, external_turn_id,
-                version, status, snapshot, campaign_id
+                version, status, campaign_id
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -110,7 +109,7 @@ class TurnRepository:
             turn.operation_count, turn.successful_operation_count,
             turn.failed_operation_count, int(turn.all_operations_succeeded),
             int(turn.world_changed), external_turn_id, turn.version,
-            turn.status, turn.snapshot, scope.campaign_id,
+            turn.status, scope.campaign_id,
         )
 
         if conn is None:

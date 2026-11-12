@@ -14,9 +14,6 @@ from integrations.adapters.silly_tavern.errors import (
 )
 from models.campaign_scope import CampaignScope
 from repositories.campaign_repository import CampaignRepository
-from repositories.campaign_state_version_repository import (
-    CampaignStateVersionRepository,
-)
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
 from repositories.creature_repository import CreatureRepository
@@ -24,7 +21,6 @@ from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
-from repositories.world_snapshot_repository import WorldSnapshotRepository
 from services.campaign import (
     CampaignStateService,
     EffectiveConditionService,
@@ -45,7 +41,6 @@ from services.llm_world import LLMWorldExtractor, OperationParser
 from services.providers import LLMSettings
 from services.turns import (
     DMService,
-    LegacySillyTavernTurnService,
     MechanicsAdjudicator,
     TurnExecutionLock,
 )
@@ -165,9 +160,6 @@ class CampaignRuntimeFactory:
             max_prompt_tokens=self._llm_settings.extraction_prompt_max_tokens,
             max_response_chars=self._llm_settings.extraction_max_response_chars,
             max_repair_prompt_tokens=self._llm_settings.extraction_repair_max_tokens,
-            max_legacy_prompt_tokens=self._llm_settings.legacy_extraction_prompt_max_tokens,
-            max_legacy_context_tokens=self._llm_settings.legacy_extraction_context_max_tokens,
-            legacy_context_selector=context_builder.build_relevant_world_projection,
         )
         mechanics_adjudicator = MechanicsAdjudicator(mechanics_provider, context_builder)
         turn_resolution_service = TurnResolutionService(
@@ -194,21 +186,8 @@ class CampaignRuntimeFactory:
             context_builder=context_builder,
             turn_repository=turn_repository,
         )
-        legacy_turn_service = LegacySillyTavernTurnService(
-            campaign_scope=scope,
-            campaign_state_service=campaign_state_service,
-            extractor=extractor,
-            world_service=world_service,
-            turn_repository=turn_repository,
-            turn_execution_lock=turn_execution_lock,
-            state_version_repository=CampaignStateVersionRepository(),
-            world_snapshot_repository=WorldSnapshotRepository(),
-            error_type=SillyTavernIntegrationServiceError,
-            conflict_error_type=SillyTavernIntegrationServiceConflictError,
-        )
         silly_tavern_integration_service = SillyTavernIntegrationService(
             context_adapter=context_adapter,
-            legacy_turn_service=legacy_turn_service,
         )
 
         character_creation_service = CharacterCreationService(

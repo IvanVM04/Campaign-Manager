@@ -19,9 +19,6 @@ from services.turns.durable_turn_prepared_commit_service import (
     DurableTurnPreparedCommitService,
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
-from services.turns.legacy_silly_tavern_turn_service import (
-    LegacySillyTavernTurnService,
-)
 from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
@@ -45,7 +42,6 @@ __all__ = [
     "DurableTurnPreparationMapper",
     "DurableTurnPreparedCommitService",
     "DurableTurnResultMapper",
-    "LegacySillyTavernTurnService",
     "MechanicsAdjudicator",
     "MechanicsAdjudicatorError",
     "TurnExecutionLock",

@@ -174,7 +174,6 @@ class DurableTurnNarrationService:
             external_turn_id=external_turn_id,
             version=turn_version,
             status="active",
-            snapshot=None,
         )
 
         with transaction("IMMEDIATE") as conn:

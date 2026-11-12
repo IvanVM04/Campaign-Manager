@@ -42,7 +42,6 @@ class TurnRecord:
 
     version: int = 1
     status: str = "active"
-    snapshot: str | None = None
 
     def __post_init__(self) -> None:
         self._validate_optional_positive_int(
