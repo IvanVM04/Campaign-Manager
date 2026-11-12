@@ -24,6 +24,7 @@ from migrations import (
     migration_021,
     migration_022,
     migration_026,
+    migration_029,
     run_migrations,
 )
 
@@ -1123,4 +1124,45 @@ def test_migration_028_persists_armor_proficiencies_with_empty_legacy_default():
     assert conn.execute(
         "SELECT armor_proficiencies FROM character_states WHERE entity_id=1"
     ).fetchone()[0] == "[]"
+    conn.close()
+
+
+def test_migration_029_archives_turn_snapshots_and_removes_runtime_column():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("""
+        CREATE TABLE turns (
+            id INTEGER PRIMARY KEY,
+            campaign_id INTEGER NOT NULL,
+            player_input TEXT NOT NULL,
+            snapshot TEXT
+        )
+    """)
+    conn.execute(
+        "INSERT INTO turns (id, campaign_id, player_input, snapshot) VALUES (1, 7, 'Exploro', ?)",
+        ('{"entities": [{"id": 12}]}',),
+    )
+    conn.execute(
+        "INSERT INTO turns (id, campaign_id, player_input, snapshot) VALUES (2, 7, 'Espero', NULL)"
+    )
+
+    migration_029(conn)
+
+    turn_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(turns)")
+    }
+    assert "snapshot" not in turn_columns
+
+    archived = conn.execute(
+        "SELECT turn_id, campaign_id, snapshot_json FROM turn_snapshot_archive"
+    ).fetchall()
+    assert [tuple(row) for row in archived] == [
+        (1, 7, '{"entities": [{"id": 12}]}')
+    ]
+
+    # The migration is safe to re-run and never duplicates archived payloads.
+    migration_029(conn)
+    assert conn.execute(
+        "SELECT COUNT(*) FROM turn_snapshot_archive"
+    ).fetchone()[0] == 1
     conn.close()

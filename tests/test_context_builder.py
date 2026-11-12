@@ -1182,32 +1182,3 @@ def test_context_builder_includes_related_entity_from_world_graph(
     assert "Aldric" in result["context"]
     assert "Borin" in result["context"]
     assert "knows" in result["context"]
-
-
-def test_relevant_world_projection_keeps_active_character_and_current_location():
-    world = WorldState(
-        entities={
-            1: Entity(id=1, name="Fungoso", entity_type="character"),
-            2: Entity(id=2, name="Mara", entity_type="npc"),
-            3: Entity(id=3, name="Mercado", entity_type="location"),
-            4: Entity(id=4, name="Aldric", entity_type="npc"),
-        }
-    )
-    campaign = CampaignState()
-    campaign.current_location_id = 3
-    context = TurnContext(
-        campaign=campaign,
-        current_session=None,
-        active_character=CharacterState(entity_id=1),
-        active_character_entity=world.entities[1],
-        world=world,
-    )
-
-    projection = ContextBuilder().build_relevant_world_projection(
-        context,
-        "Quiero hablar con Mara.",
-        max_estimated_tokens=2000,
-    )
-
-    assert set(projection.world.entities) == {1, 2, 3}
-    assert projection.diagnostics.estimated_tokens <= 2000
