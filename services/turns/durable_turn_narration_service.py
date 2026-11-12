@@ -292,6 +292,7 @@ class DurableTurnNarrationService:
         return {
             "context_revision": record.context_revision,
             "resulting_revision": record.resulting_revision,
+            "operations": [item["operation"] for item in committed],
             "committed_operations": committed,
             "proposed_operation_count": len(proposed_operations),
             "committed_operation_count": len(committed),
