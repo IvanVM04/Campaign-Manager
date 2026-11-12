@@ -81,3 +81,4 @@ campaign facts.
 - [ ] Add tokenizer-aware accounting only if a selected provider exposes an explicit, reliable token-count API.
 - [ ] Add intent-specific operation subsets only when classification can be done reliably without hiding legitimate consequences.
 - [x] Keep operation metadata centralized and model-proposable classification distinct from domain authorization.
+- [x] Keep event provenance fields out of the model operation schema; `WorldApplier` owns the inference-only defaults for model-created events.
