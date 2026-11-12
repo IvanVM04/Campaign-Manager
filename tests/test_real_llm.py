@@ -12,7 +12,9 @@ from models.turn_context import TurnContext
 from models.world_state import WorldState
 from operations.character_operations import ChangeCharacterHpOperation
 from repositories.campaign_repository import CampaignRepository
-from repositories.campaign_state_version_repository import CampaignStateVersionRepository
+from repositories.campaign_state_version_repository import (
+    CampaignStateVersionRepository,
+)
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
 from repositories.turn_repository import TurnRepository
