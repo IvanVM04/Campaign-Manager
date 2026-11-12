@@ -1,7 +1,8 @@
 from contextlib import nullcontext
 from types import SimpleNamespace
 
-from api.routers import memory, world as world_router
+from api.routers import memory
+from api.routers import world as world_router
 from models.entity import Entity
 from models.event import Event
 from models.world_state import WorldState
