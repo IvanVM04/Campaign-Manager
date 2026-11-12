@@ -1,6 +1,6 @@
 import sqlite3
 
-CURRENT_VERSION = 28
+CURRENT_VERSION = 29
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -1194,6 +1194,11 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("PRAGMA user_version = 28")
         version = 28
 
+    if version < 29:
+        migration_029(conn)
+        conn.execute("PRAGMA user_version = 29")
+        version = 29
+
     if version != CURRENT_VERSION:
         raise RuntimeError(
             f"Database schema version {version} is not supported. "
@@ -2294,4 +2299,37 @@ def migration_028(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_028")
         conn.execute("RELEASE SAVEPOINT migration_028")
+        raise
+
+
+def migration_029(conn: sqlite3.Connection) -> None:
+    """Archive legacy turn snapshots, then remove the runtime snapshot column."""
+    conn.execute("SAVEPOINT migration_029")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS turn_snapshot_archive (
+                turn_id INTEGER PRIMARY KEY,
+                campaign_id INTEGER NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                archived_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(turns)").fetchall()
+        }
+        if "snapshot" in columns:
+            conn.execute("""
+                INSERT OR IGNORE INTO turn_snapshot_archive (
+                    turn_id, campaign_id, snapshot_json
+                )
+                SELECT id, campaign_id, snapshot
+                FROM turns
+                WHERE snapshot IS NOT NULL
+            """)
+            conn.execute("ALTER TABLE turns DROP COLUMN snapshot")
+        conn.execute("RELEASE SAVEPOINT migration_029")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_029")
+        conn.execute("RELEASE SAVEPOINT migration_029")
         raise
