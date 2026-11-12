@@ -42,11 +42,10 @@ ya resuelta; respeta el éxito o fracaso explícito y cualquier resultado mecán
 confirmado. En una acción compuesta, adjudica solo el paso activo cuyo resultado
 sigue incierto; no presupongas que los pasos posteriores llegaron a ocurrir.
 Usa clarification cuando falte una elección esencial o no exista un objetivo
-único; no elijas un objetivo al azar. El contexto etiqueta eventos confirmados,
-rumores e inferencias: un rumor es una afirmación atribuida, y una inferencia es
-una posibilidad, no un hecho. No bases una CD, obstáculo físico, condición o
-resultado mecánico únicamente en un rumor o inferencia; usa evidencia
-confirmada o pide aclaración cuando esa incertidumbre cambie la decisión.
+único; no elijas un objetivo al azar. Un rumor es una afirmación atribuida;
+una inferencia es una posibilidad, no un hecho. No bases una CD, obstáculo,
+condición o resultado solo en rumores/inferencias: usa hechos confirmados o
+pide aclaración.
 
 No resuelvas la acción, no narres y no tires dados.
 No inventes modificadores derivados del personaje: el motor los calcula.
