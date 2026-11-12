@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** active engineering roadmap; PRs #210 and #211 are integrated, PR #212 hardens retrieval and SillyTavern integration.  
-**Verified base:** `main` at `01ffcb7f94df105454b241ce142c9694016da741` before PR #212.  
+**Status:** active engineering roadmap; PRs #210–#212 are integrated; PR #213 implements the next player-intent semantics tranche.  
+**Verified base:** `main` at `351a4c43759d1ee7e0152d236ed13afaac1adb7d` after PR #212.  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -223,18 +223,22 @@ gates and must not be marked passed until actually run.
 - compound actions with ordered targets;
 - ambiguous intent requiring a concise clarification.
 
-**Design decision to make with evidence:**
-- compare the current single-pass prompt with an optional typed intent interpretation object;
-- evaluate whether the object improves downstream proposals enough to justify another model call, latency, recovery state and more failure modes;
-- if introduced, define a small typed contract (action kind, target references, modality/negation, explicit facts, uncertainty and required clarification) and keep it as untrusted input;
-- never allow the interpreter to certify mechanics or state changes.
+**Design decision for this tranche:**
+- retain the existing single-pass proposal flow and strengthen its bounded semantic contract;
+- do not add a separate typed interpretation object or another model call yet: the current corpus has not demonstrated that the additional latency, recovery state and failure modes buy measurable quality improvements;
+- evaluate modality and action-state handling across positive/negative live controls before revisiting a typed intermediate contract;
+- if later evidence justifies one, keep action kind, references, modality/negation, explicit facts, uncertainty and clarification as untrusted input;
+- never allow an interpreter to certify mechanics or state changes.
 
 **Acceptance criteria:**
-- confusion matrix / per-class results for intent, attempt, negation, hypothetical and explicit outcome;
-- positive and negative controls across several phrasings;
-- no false success from a failed or conditional action in the core corpus;
-- malformed/ambiguous interpretations fail closed or ask a clarification rather than fabricating a target;
-- if a second LLM call is proposed, measured quality/latency trade-off accompanies the design.
+- a versioned live corpus contains positive and negative controls for intention, active attempt, explicit outcome, negation, failure, hypothesis, question, dialogue/quoted speech and compound actions;
+- deterministic prompt-contract tests protect the modality and ordering rules without depending on model wording;
+- no false success from a failed, negated or conditional action in the core corpus;
+- ambiguous targets fail closed or ask a clarification rather than fabricating an identity;
+- every live case reports its own outcome; do not claim a confusion matrix or model-quality pass until the local model has actually been run;
+- a separate typed interpretation call remains deferred unless measured quality/latency results justify it.
+
+**PR #213 delivery boundary:** prompt rules and opt-in live cases are implemented as an application-level contract. The real Ollama corpus and SillyTavern acceptance still require local execution and are not inferred from deterministic CI.
 
 ### PR #214 — Knowledge provenance, perspective and temporal continuity
 
