@@ -72,6 +72,35 @@ def test_lists_each_world_collection(collection, expected, expected_total):
     )
 
 
+def test_event_collection_filters_secret_events_before_search_and_pagination():
+    world = make_world()
+    world.events["secret-1"] = Event(
+        id="secret-1",
+        event_type="secret",
+        title="The king is an impostor",
+        description="A hidden fact.",
+        secret=True,
+    )
+    service = WorldCollectionQueryService()
+
+    page = service.list_collection(
+        world,
+        "events",
+        limit=1,
+        offset=1,
+    )
+    secret_match = service.list_collection(
+        world,
+        "events",
+        query="impostor",
+    )
+
+    assert page.total == 1
+    assert page.items == ()
+    assert secret_match.total == 0
+    assert secret_match.items == ()
+
+
 def test_item_instances_include_item_owner_and_location_names():
     page = WorldCollectionQueryService().list_collection(
         make_world(), "item-instances"

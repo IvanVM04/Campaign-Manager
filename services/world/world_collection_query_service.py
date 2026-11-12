@@ -1,10 +1,10 @@
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, is_dataclass
 from typing import Any, ClassVar, cast
 
-from pydantic import BaseModel
-
 from models.world_collection_read_models import (
+    WorldCollectionItemRead,
     WorldCollectionPage,
     WorldEventRead,
     WorldItemInstanceRead,
@@ -14,6 +14,7 @@ from models.world_collection_read_models import (
     WorldResourceRead,
 )
 from models.world_state import WorldState
+from models.world_visibility_policy import WorldVisibilityPolicy
 
 
 class WorldCollectionQueryService:
@@ -74,15 +75,19 @@ class WorldCollectionQueryService:
             raise ValueError(f"unsupported world collection: {collection}")
 
         attribute, model, search_fields = self._COLLECTIONS[collection]
+        values: Iterable[Any] = getattr(world, attribute).values()
+        if collection == "events":
+            values = WorldVisibilityPolicy.player_visible_events(values)
+
         ordered = sorted(
-            getattr(world, attribute).values(),
+            values,
             key=lambda value: (
                 getattr(value, "id", None) is None,
                 str(getattr(value, "id", "")),
             ),
         )
         needle = (query or "").strip().casefold()
-        projected: list[BaseModel] = []
+        projected: list[WorldCollectionItemRead] = []
         for value in ordered:
             if active is not None and hasattr(value, "active") and value.active is not active:
                 continue
@@ -106,7 +111,7 @@ class WorldCollectionQueryService:
                     if metadata is not None or collection == "events"
                     else None
                 )
-            projected.append(model(**data))
+            projected.append(cast(WorldCollectionItemRead, model(**data)))
 
         return WorldCollectionPage(
             items=tuple(projected[offset:offset + limit]),

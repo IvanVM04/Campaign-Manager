@@ -7,6 +7,7 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - `world_service.py` — campaign-scoped world facade and transaction coordination.
 - `world_query_service.py` — immutable, filtered and paginated entity read models.
 - `world_collection_query_service.py` — detached read projections for items, instances, resources, balances, relations and events, including display names for related records.
+- `world_visibility_policy.py` — the shared player-read policy for secret events.
 - `world_applier.py` — typed operation dispatch.
 - `world_entity_applier.py`, `world_item_applier.py`, `world_relation_applier.py`, `world_resource_applier.py` — operation-family application.
 - `world_serializer.py` — domain dataclass serialization.
@@ -19,7 +20,8 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - Missing related records do not hide the original IDs and produce a null display name.
 - Search includes resolved display names as well as the collection's own fields.
 - Projections remain frozen and detached from mutable domain state.
-- Event visibility is not changed by these projections; secret-event filtering must be enforced by a separate authorization/visibility policy before player-facing exposure.
+- Player-facing reads must use `WorldVisibilityPolicy`; secret events are filtered before search and pagination so neither their fields nor their existence count is exposed.
+- The current policy intentionally has no unauthenticated GM bypass. A future GM projection must be protected by a verified principal and campaign-scoped GM authorization, not by a query parameter or caller-controlled role header.
 
 ## Dependency rules
 - Apply typed operations; never accept arbitrary model-generated database writes.
@@ -30,7 +32,8 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - Model-generated proposals must pass parsing and validation before reaching this package.
 
 ## Pending work
-- [ ] Add relation/event visibility policy before exposing secret campaign data to non-GM clients.
+- [x] Centralize secret-event filtering for world, collection, memory and export reads.
+- [ ] Add authenticated GM/player principals and per-campaign authorization before remote or multi-user exposure.
 - [ ] Audit operation dispatch and multi-aggregate atomicity.
 - [ ] Verify campaign scoping and stale-context/revision checks at the application boundary.
 - [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
