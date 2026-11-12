@@ -198,7 +198,7 @@ def test_position_and_reaction_mutations_roll_back_after_snapshot_write(
     operation,
     monkeypatch,
 ):
-    service, repository, _, _, target, encounter = _active_encounter(position=True)
+    service, repository, _, _, _target, encounter = _active_encounter(position=True)
     _fail_after_save(repository, monkeypatch)
     active = encounter.active_combatant
     assert active is not None
