@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 30
+CURRENT_VERSION = 31
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2268,6 +2268,100 @@ def migration_030(conn: sqlite3.Connection) -> None:
         raise
 
 
+def migration_031(conn: sqlite3.Connection) -> None:
+    """Persist safe, campaign-scoped activity events for the player timeline."""
+    conn.execute("SAVEPOINT migration_031")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS campaign_activity_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL,
+                resolution_id INTEGER,
+                session_id INTEGER,
+                turn_id INTEGER,
+                event_type TEXT NOT NULL CHECK (event_type IN (
+                    'turn.accepted',
+                    'turn.awaiting_input',
+                    'turn.committed',
+                    'turn.completed',
+                    'turn.failed'
+                )),
+                summary TEXT NOT NULL CHECK (
+                    length(trim(summary)) BETWEEN 1 AND 160
+                ),
+                details_json TEXT NOT NULL DEFAULT '{}',
+                request_id TEXT CHECK (
+                    request_id IS NULL OR length(request_id) <= 64
+                ),
+                dedupe_key TEXT NOT NULL CHECK (
+                    length(trim(dedupe_key)) BETWEEN 1 AND 200
+                ),
+                occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (campaign_id, dedupe_key),
+                FOREIGN KEY (campaign_id) REFERENCES campaign(id) ON DELETE CASCADE,
+                FOREIGN KEY (resolution_id) REFERENCES turn_resolutions(id) ON DELETE SET NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL,
+                FOREIGN KEY (turn_id) REFERENCES turns(id) ON DELETE SET NULL
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_campaign_activity_events_campaign_id
+            ON campaign_activity_events(campaign_id, id DESC)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_campaign_activity_events_resolution
+            ON campaign_activity_events(campaign_id, resolution_id, id DESC)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_campaign_activity_events_session
+            ON campaign_activity_events(campaign_id, session_id, id DESC)
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_activity_resolution_campaign_insert
+            BEFORE INSERT ON campaign_activity_events
+            WHEN NEW.resolution_id IS NOT NULL
+             AND NOT EXISTS (
+                SELECT 1 FROM turn_resolutions
+                WHERE id = NEW.resolution_id
+                  AND campaign_id = NEW.campaign_id
+             )
+            BEGIN
+                SELECT RAISE(ABORT, 'activity resolution belongs to another campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_activity_turn_campaign_insert
+            BEFORE INSERT ON campaign_activity_events
+            WHEN NEW.turn_id IS NOT NULL
+             AND NOT EXISTS (
+                SELECT 1 FROM turns
+                WHERE id = NEW.turn_id
+                  AND campaign_id = NEW.campaign_id
+             )
+            BEGIN
+                SELECT RAISE(ABORT, 'activity turn belongs to another campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_activity_session_campaign_insert
+            BEFORE INSERT ON campaign_activity_events
+            WHEN NEW.session_id IS NOT NULL
+             AND NOT EXISTS (
+                SELECT 1 FROM sessions
+                WHERE id = NEW.session_id
+                  AND campaign_id = NEW.campaign_id
+             )
+            BEGIN
+                SELECT RAISE(ABORT, 'activity session belongs to another campaign');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_031")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_031")
+        conn.execute("RELEASE SAVEPOINT migration_031")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2450,5 +2544,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_030",
         description="Persist class Hit Dice and completed long-rest campaign time.",
         apply=migration_030,
+    ),
+    MigrationDefinition(
+        version=31,
+        name="migration_031",
+        description="Persist safe, campaign-scoped activity events for the player timeline.",
+        apply=migration_031,
     ),
 )
