@@ -43,6 +43,8 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 
 ## Remaining combat scope
 
+The recommended order and indicative effort for expanding combat as part of a playable character/adventure slice are tracked in the [engineering readiness and gameplay roadmap](../../docs/architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md).
+
 - [ ] Add class-specific action/resource consumption only after class features
   and resources have typed canonical models.
 - [ ] Add spell slots, ammunition and other expendable resources with explicit
