@@ -281,8 +281,8 @@ def test_pipeline_related_public_event_is_included():
     world = make_world()
 
     world.events = {
-        1: Event(
-            id=1,
+        "event-1": Event(
+            id="event-1",
             event_type="arrival",
             title="Llegada a la ciudad",
             description="Fungoso llega a la ciudad.",
@@ -313,8 +313,8 @@ def test_pipeline_secret_event_is_never_included():
     world = make_world()
 
     world.events = {
-        1: Event(
-            id=1,
+        "event-1": Event(
+            id="event-1",
             event_type="secret",
             title="El secreto del rey",
             description="Información secreta.",
@@ -339,8 +339,8 @@ def test_pipeline_event_without_entity_relationship_is_not_included():
     world = make_world()
 
     world.events = {
-        1: Event(
-            id=1,
+        "event-1": Event(
+            id="event-1",
             event_type="distant",
             title="Evento lejano",
             description="No tiene relación.",
