@@ -95,6 +95,28 @@ class WorldEntityApplier:
                 operation=operation,
             )
 
+        requested_name = (
+            operation.name.strip()
+            if operation.name is not None
+            else entity.name
+        )
+        if operation.aliases is not None or requested_name != entity.name:
+            try:
+                aliases_to_apply = normalize_entity_aliases(
+                    operation.aliases
+                    if operation.aliases is not None
+                    else entity.aliases,
+                    canonical_name=requested_name,
+                )
+            except (TypeError, ValueError) as exc:
+                return OperationResult(
+                    status=OperationStatus.INVALID,
+                    message=str(exc),
+                    operation=operation,
+                )
+        else:
+            aliases_to_apply = None
+
         changed = False
 
         if operation.name is not None:
@@ -136,21 +158,12 @@ class WorldEntityApplier:
             entity.active = operation.active
             changed = True
 
-        if operation.aliases is not None:
-            try:
-                aliases = normalize_entity_aliases(
-                    operation.aliases,
-                    canonical_name=entity.name,
-                )
-            except (TypeError, ValueError) as exc:
-                return OperationResult(
-                    status=OperationStatus.INVALID,
-                    message=str(exc),
-                    operation=operation,
-                )
-            if entity.aliases != aliases:
-                entity.aliases = aliases
-                changed = True
+        if (
+            aliases_to_apply is not None
+            and entity.aliases != aliases_to_apply
+        ):
+            entity.aliases = aliases_to_apply
+            changed = True
         if not changed:
             return OperationResult(
                 status=OperationStatus.NO_CHANGE,

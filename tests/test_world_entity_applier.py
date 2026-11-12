@@ -120,3 +120,19 @@ def test_create_entity_rejects_invalid_aliases_without_mutating_world():
     )
     assert result.status == OperationStatus.INVALID
     assert list(world.entities) == [4]
+
+
+def test_update_entity_rejects_invalid_aliases_without_partial_mutation():
+    world = build_world()
+    result = WorldEntityApplier().apply(
+        world,
+        UpdateEntityOperation(
+            entity_id=4,
+            description="This must not be applied.",
+            aliases=["x" * 101],
+        ),
+    )
+
+    assert result.status == OperationStatus.INVALID
+    assert world.entities[4].description == ""
+    assert world.entities[4].aliases == []

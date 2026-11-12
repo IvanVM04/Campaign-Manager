@@ -228,7 +228,7 @@ for indicative module-readiness estimates and hour ranges.
 
 The PR #211 branch introduces `services/context/entity_reference_resolver.py` as the deterministic identity-matching collaborator used by memory retrieval and proposal projection diagnostics. See the [entity reference-resolution contract](../quality/entity-reference-resolution-2026-11-12.md).
 
-The next AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PR #210 strengthens the evidence rendered to the proposal model and the semantic contract. Retrieval, reference resolution, intent interpretation, knowledge provenance and narrative continuity are sequenced as separate evidence-led follow-up objectives; this is not a justification for a vector database, another extraction pipeline or a monolithic prompt.
+The AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PR #210 strengthens the evidence and semantic contract; PR #211 adds deterministic entity reference resolution. Intent interpretation, knowledge provenance and narrative continuity remain separate evidence-led follow-up objectives; this is not a justification for a vector database, another extraction pipeline or a monolithic prompt.
 
 ## Current proposal assessment
 

@@ -338,6 +338,8 @@ class OperationParser:
 
         metadata = self.registry.get(operation_type)
         integer_fields = metadata.reference_fields if metadata is not None else ()
+
+        for name in integer_fields:
             if name not in fields:
                 continue
 
