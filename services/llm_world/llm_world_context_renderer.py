@@ -4,6 +4,7 @@ import json
 
 from models.turn_context import TurnContext
 from models.world_context_projection import WorldContextProjection
+from models.world_visibility_policy import WorldVisibilityPolicy
 
 
 class LLMWorldContextRenderer:
@@ -242,18 +243,44 @@ class LLMWorldContextRenderer:
         # ------------------------------------------------------------
 
         event_lines = []
+        character_entity_id = (
+            context.active_character.entity_id
+            if context.active_character is not None
+            else None
+        )
+        visible_event_ids = {
+            event.id
+            for event in WorldVisibilityPolicy.player_visible_events(
+                world.events.values(),
+                character_entity_id=character_entity_id,
+            )
+        }
+        superseded_event_ids = WorldVisibilityPolicy.superseded_event_ids(
+            world.events.values()
+        )
 
         for event_id, event in world.events.items():
-            if event.secret:
+            if event_id not in visible_event_ids:
                 continue
+            temporal_status = (
+                "historical/superseded"
+                if event_id in superseded_event_ids
+                else "current"
+            )
             event_lines.append(
                 f"- ID {event_id}: "
+                f"epistemic_status={event.epistemic_status}, "
+                f"provenance_source={event.provenance_source}, "
+                f"visibility_scope={event.visibility_scope}, "
+                f"source_entity_id={event.source_entity_id}, "
+                f"campaign_elapsed_minutes={event.campaign_elapsed_minutes}, "
+                f"temporal_status={temporal_status}, "
+                f"supersedes_event_id={event.supersedes_event_id}, "
                 f"type={event.event_type}, "
                 f"title={event.title}, "
                 f"description={event.description}, "
                 f"consequences={event.consequences}, "
                 f"session_id={event.session_id}, "
-                f"secret={event.secret}, "
                 "metadata="
                 + json.dumps(
                     event.metadata,
