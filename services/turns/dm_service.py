@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+from time import perf_counter
 from typing import Any
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
 from services.context import ContextBuilder
 from services.providers import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 
 class DMServiceError(RuntimeError):
@@ -210,14 +214,29 @@ class DMService:
             committed_resolution=committed_resolution,
         )
 
+        provider_started = perf_counter()
         try:
-            response = self.provider.generate(
-                prompt
-            )
+            response = self.provider.generate(prompt)
         except Exception as exc:
+            logger.warning(
+                "llm.provider.failed",
+                extra={
+                    "provider_role": "narrative",
+                    "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise DMServiceError(
                 "LLM provider failed to generate a response"
             ) from exc
+        logger.info(
+            "llm.provider.completed",
+            extra={
+                "provider_role": "narrative",
+                "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                "response_chars": len(response) if isinstance(response, str) else None,
+            },
+        )
 
         if not isinstance(response, str):
             raise DMServiceError(
