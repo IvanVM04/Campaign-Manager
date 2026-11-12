@@ -242,10 +242,15 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
                 defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
-                data.query,
-                additional_queries=(data.additional_query,) if data.additional_query else (),
-            )
+            if data.additional_query:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                )
+            else:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                )
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
