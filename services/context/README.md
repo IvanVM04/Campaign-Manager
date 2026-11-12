@@ -69,8 +69,10 @@ actual search text.
 Entity-reference resolution continues to prioritize canonical names and
 explicit aliases. Descriptive references can now match shared, more-specific
 terms inside a longer player sentence. When descriptive candidates remain
-similarly plausible, the resolver reports ambiguity and the player-facing
-projection selects none of them.
+similarly plausible, the resolver reports ambiguity and emits no singular
+entity ID. The memory search may still retain the descriptive candidates as
+retrieval evidence; that is not a resolved identity. Explicit name/alias
+collisions remain fail-closed and return no candidate records.
 
 This is still lexical evidence, not general semantic retrieval. Paraphrases
 without shared words, cross-turn pronouns, ellipsis and speaker continuity
