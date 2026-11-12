@@ -18,9 +18,10 @@ indexes over searching through dated audit history.
 11. [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — current contract-based test layout after PR #205.
 12. [Observability and diagnostics](architecture/observability-and-diagnostics.md) — local structured logging, request correlation, error diagnostics and safe field policy.
 13. [Prompt evaluation](quality/prompt-evaluation-2026-11-12.md) — deterministic proposal contracts, live Ollama probes and the SillyTavern acceptance boundary.
-14. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
-15. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
-16. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
+14. [AI world-understanding roadmap](quality/ai-world-understanding-roadmap-2026-11-12.md) — multi-PR strategy for world comprehension, retrieval, intent semantics, knowledge provenance and narrative continuity.
+15. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
+16. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
+17. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
 
 ## Active architectural contracts
 

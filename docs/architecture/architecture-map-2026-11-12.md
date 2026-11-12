@@ -224,6 +224,10 @@ consistency and Hit Dice/rest slice: PR #204. Test-suite contract organization:
 PR #205. See the [engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md)
 for indicative module-readiness estimates and hour ranges.
 
+## AI world-understanding roadmap
+
+The next AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PR #210 strengthens the evidence rendered to the proposal model and the semantic contract. Retrieval, reference resolution, intent interpretation, knowledge provenance and narrative continuity are sequenced as separate evidence-led follow-up objectives; this is not a justification for a vector database, another extraction pipeline or a monolithic prompt.
+
 ## Current proposal assessment
 
 The only world-consequence proposal flow uses player intent and confirmed

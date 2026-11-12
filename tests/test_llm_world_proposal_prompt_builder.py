@@ -54,6 +54,11 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     assert "Ahora analiza únicamente" not in prompt
     assert "Las operaciones son propuestas, no hechos confirmados." in prompt
     assert "No afirmes que las acciones ya han ocurrido" in prompt
+    assert "INTERPRETACIÓN" in prompt
+    assert "Una intención no es resultado" in prompt
+    assert "no dupliques" in prompt
+    assert "Relaciones requieren evidencia" in prompt
+    assert "Sin cambio justificado" in prompt
 
 
 def test_proposal_prompt_builder_appends_confirmed_mechanics():
@@ -105,7 +110,7 @@ def test_proposal_prompt_builder_renders_the_shared_operation_schema():
     prompt = LLMWorldProposalPromptBuilder.build_prompt(
         "Quiero recoger la llave.",
         make_context(),
-        allowed_operation_types=("create_item_instance",),
+        allowed_operation_types=("create_entity", "create_item_instance"),
         operation_registry=DEFAULT_OPERATION_REGISTRY,
     )
 
@@ -113,5 +118,6 @@ def test_proposal_prompt_builder_renders_the_shared_operation_schema():
     assert '"create_item_instance"' in prompt
     assert '"required":"item_id:int|$ref"' in prompt
     assert "ID de la definición del objeto." in prompt
+    assert "Usa npc para una persona identificada" in prompt
     assert '"type":"create_item_instance"' in prompt
     assert "change_character_hp" not in prompt
