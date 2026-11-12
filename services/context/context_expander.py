@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from models.world_state import WorldState
+from models.world_visibility_policy import WorldVisibilityPolicy
 from services.world.world_serializer import WorldSerializer
 
 from .context_ranker import ContextRanker
@@ -53,6 +54,8 @@ class ContextExpander:
         world: WorldState,
         search_result: dict[str, Any],
         max_depth: int = 1,
+        *,
+        character_entity_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Enriquece un resultado de búsqueda.
@@ -90,6 +93,7 @@ class ContextExpander:
         events = self.related_events(
             world,
             entities,
+            character_entity_id=character_entity_id,
         )
 
         result["entities"] = entities
@@ -431,6 +435,8 @@ class ContextExpander:
     def related_events(
         world: WorldState,
         entities: list[dict[str, Any]],
+        *,
+        character_entity_id: int | None = None,
     ) -> list[dict[str, Any]]:
 
         entity_ids = {
@@ -440,14 +446,19 @@ class ContextExpander:
         }
 
         result: list[dict[str, Any]] = []
+        superseded_ids = WorldVisibilityPolicy.superseded_event_ids(
+            world.events.values()
+        )
+        visible_event_ids = {
+            event.id
+            for event in WorldVisibilityPolicy.player_visible_events(
+                world.events.values(),
+                character_entity_id=character_entity_id,
+            )
+        }
 
         for event in world.events.values():
-
-            if getattr(
-                event,
-                "secret",
-                False,
-            ):
+            if event.id not in visible_event_ids:
                 continue
 
             metadata = getattr(
@@ -478,11 +489,9 @@ class ContextExpander:
             ):
                 continue
 
-            result.append(
-                WorldSerializer.event_to_dict(
-                    event
-                )
-            )
+            serialized = WorldSerializer.event_to_dict(event)
+            serialized["is_current"] = event.id not in superseded_ids
+            result.append(serialized)
 
         result.sort(
             key=lambda event: str(
