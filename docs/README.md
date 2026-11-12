@@ -16,9 +16,10 @@ indexes over searching through dated audit history.
 9. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries.
 10. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results and quality-gate roadmap.
 11. [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — current contract-based test layout after PR #205.
-12. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
-13. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
-14. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
+12. [Context scale and proposal-quality probes](quality/context-scale-probes-2026-11-12.md) — synthetic medium/large campaign contracts added in PR #207.
+13. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
+14. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
+15. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
 
 ## Active architectural contracts
 

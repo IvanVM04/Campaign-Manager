@@ -70,5 +70,6 @@ campaign facts.
 
 - [ ] Add intent-specific operation subsets only when the application can classify intent reliably without hiding legitimate consequences.
 - [ ] Add tokenizer-aware accounting if a selected provider exposes an explicit, reliable token-count API.
-- [ ] Add representative medium/large campaign proposal probes that record selected-context size, prompt budget, ranking stability, malformed/repair behavior and the configured Ollama model. Keep real-model probes opt-in; deterministic CI remains provider-independent.
+- [x] Add deterministic large-context proposal and bounded-repair probes that record selected-context size, prompt budget, ranking stability and secret-event exclusion (`tests/test_proposal_scale_quality.py`; PR #207; see [probe documentation](../../docs/quality/context-scale-probes-2026-11-12.md)).
+- [ ] Add opt-in real-Ollama model-quality probes after the local environment is mounted; record model and settings.
 - [x] Keep operation metadata centralized and model-proposable classification distinct from domain authorization.
