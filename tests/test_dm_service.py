@@ -601,6 +601,10 @@ def test_invalid_context_from_context_builder_is_rejected():
             self,
             world,
             query,
+            recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
         ):
             return {
                 "context": None,
@@ -927,8 +931,12 @@ def test_generate_passes_recent_turns_to_context_builder():
             world,
             query,
             recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
         ):
             self.received_recent_turns = recent_turns
+            self.received_character_entity_id = character_entity_id
 
             return {
                 "query": query,
@@ -975,6 +983,7 @@ def test_generate_passes_recent_turns_to_context_builder():
         context_builder.received_recent_turns
         == recent_turns
     )
+    assert context_builder.received_character_entity_id == 20
 
 
 def test_default_prompt_respects_campaign_tone_and_defers_mechanics():
