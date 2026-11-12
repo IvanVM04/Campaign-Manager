@@ -219,6 +219,7 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=422,
             code="validation_error",
             detail=public_errors,
+            headers=_request_response_headers(request),
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -250,7 +251,10 @@ def register_error_handlers(app: FastAPI) -> None:
         logging.getLogger(__name__).exception(
             "Unhandled API exception",
             exc_info=(type(exc), exc, exc.__traceback__),
-            extra=_request_log_fields(request),
+            extra={
+                **_request_log_fields(request),
+                "error_type": type(exc).__name__,
+            },
         )
         return error_response(
             status_code=500,
