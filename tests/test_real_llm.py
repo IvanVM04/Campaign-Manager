@@ -50,6 +50,7 @@ def _compose_service(
         extractor=extractor,
         world_service=world_service,
         turn_repository=turn_repository,
+        turn_execution_lock=TurnExecutionLock(),
         state_version_repository=CampaignStateVersionRepository(),
         world_snapshot_repository=WorldSnapshotRepository(),
         error_type=SillyTavernIntegrationServiceError,
