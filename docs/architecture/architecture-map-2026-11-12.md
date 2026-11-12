@@ -154,7 +154,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| dm_service.py | Narrative generation, separate from consequences | Keep provider calls outside write transactions and narrate committed evidence. |
+| dm_service.py | Narrative generation, separate from consequences | Apply active-character event visibility; label rumors/inferences and superseded history; narrate only authorized context. |
 | mechanics_adjudicator.py | Structured mechanics proposal and validation | It does not roll dice or mutate world state. |
 | turn_resolution_service.py | Structured player-intent proposal, mechanics orchestration, application and non-durable narration wrapper | Preserve proposal/apply/narrate ordering; durable orchestration owns commit-before-narration. |
 | durable_native_turn_service.py | Stable public lifecycle façade and collaborator composition | Keep transport and lifecycle routing outside this service; preserve its public contract while new use cases are extracted behind it. |
@@ -166,7 +166,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | durable_turn_prepared_commit_service.py | Atomic prepared-resolution commit boundary | Do not include provider calls or narration inside the write transaction. |
 | durable_turn_preparation_mapper.py | Internal preparation to public response mapping | Keep it an adapter, not a rules authority. |
 | durable_turn_result_mapper.py | Durable record to public result mapping | Keep serialization stable and side-effect free. |
-| durable_turn_narration_service.py | Native/external narration completion | Never replay operations after a committed resolution. |
+| durable_turn_narration_service.py | Native/external narration completion | Never replay operations after commit; narrator evidence includes only successful operations that actually changed state. |
 | turn_resolution_codec.py | Canonical JSON codec for durable records | Keep schema/codec compatibility explicit and tested. |
 | turn_execution_lock.py | Process-local shared lock | Single-process limitation must remain documented until distributed coordination is a real requirement. |
 
@@ -176,7 +176,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 |---|---|---|
 | world_service.py | Campaign-scoped state façade and applier publication | Mixed world/character turn dispatch is delegated to `WorldTurnOperationCoordinator`; preserve operation order, shared state identity and caller-owned transactions. |
 | world_query_service.py | Filtered/paginated entity read model | Keep reads detached, stable and campaign-scoped. |
-| world_collection_query_service.py | Item/resource/relation/event read projections | Keep secret-event visibility out of generic serialization; apply explicit policy before player exposure. |
+| world_collection_query_service.py | Item/resource/relation/event read projections | Apply trusted active-character visibility before filtering/pagination; expose provenance/currentness but not internal known-by character IDs. |
 | world_applier.py | Typed operation dispatch | Keep dispatch deterministic and fail closed. |
 | world_entity_applier.py | Entity operation family | Keep operation-specific validation and repository writes together. |
 | world_item_applier.py | Item/instance/transfer operation family | Keep inventory ownership and location invariants atomic. |
@@ -189,7 +189,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Area | Current shape | Disposition |
 |---|---|---|
-| migrations.py | Ordered historical migrations 001–031 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
+| migrations.py | Ordered historical migrations 001–032 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
 | models/schemas.py | Compatibility facade; bounded-context modules own campaign, character, world, turn and integration request DTOs | Production routers import the owning module; retain facade exports and verify OpenAPI stability. |
 | models/combat_api_schemas.py | Combat-specific API contracts | Keep combat schemas isolated from unrelated API requests. |
 | models/turn_context.py and models/world_context_projection.py | Shared application input and detached context projection | Keep the projection typed and detached from mutable runtime state. |
@@ -237,7 +237,7 @@ for indicative module-readiness estimates and hour ranges.
 
 The PR #211 branch introduces `services/context/entity_reference_resolver.py` as the deterministic identity-matching collaborator used by memory retrieval and proposal projection diagnostics. See the [entity reference-resolution contract](../quality/entity-reference-resolution-2026-11-12.md).
 
-The AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PR #210 strengthens the evidence and semantic contract; PR #211 adds deterministic entity reference resolution. Intent interpretation, knowledge provenance and narrative continuity remain separate evidence-led follow-up objectives; this is not a justification for a vector database, another extraction pipeline or a monolithic prompt.
+The AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PRs #210–#213 strengthen the evidence, references, retrieval and player-intent contract. PR #214 consolidates event provenance, active-character visibility, temporal supersession and committed-only narration grounding across the read/turn boundary. This does not justify a vector database, another extraction pipeline or a monolithic prompt.
 
 ## Current proposal assessment
 
