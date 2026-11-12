@@ -195,3 +195,55 @@ def test_collection_query_rejects_invalid_pagination(kwargs, message):
 def test_collection_query_rejects_unknown_collection():
     with pytest.raises(ValueError, match="unsupported world collection"):
         WorldCollectionQueryService().list_collection(make_world(), "unknown")
+
+
+def test_event_collection_scopes_character_knowledge_and_exposes_temporal_status():
+    world = make_world()
+    world.events["private-7"] = Event(
+        id="private-7",
+        event_type="clue",
+        title="Fungoso knows the hidden entrance",
+        visibility_scope="character",
+        known_by_entity_ids=[7],
+        provenance_source="direct_observation",
+    )
+    world.events["private-8"] = Event(
+        id="private-8",
+        event_type="clue",
+        title="Neria knows the hidden passage",
+        visibility_scope="character",
+        known_by_entity_ids=[8],
+    )
+    world.events["old-fact"] = Event(
+        id="old-fact",
+        event_type="location",
+        title="Aldric lives in the inn",
+    )
+    world.events["new-fact"] = Event(
+        id="new-fact",
+        event_type="location",
+        title="Aldric lives in the tower",
+        supersedes_event_id="old-fact",
+    )
+    service = WorldCollectionQueryService()
+
+    no_perspective = service.list_collection(world, "events")
+    fungoso = service.list_collection(
+        world,
+        "events",
+        character_entity_id=7,
+    )
+    neria = service.list_collection(
+        world,
+        "events",
+        character_entity_id=8,
+    )
+
+    assert "private-7" not in {item.id for item in no_perspective.items}
+    assert "private-8" not in {item.id for item in no_perspective.items}
+    assert "private-7" in {item.id for item in fungoso.items}
+    assert "private-8" not in {item.id for item in fungoso.items}
+    assert "private-8" in {item.id for item in neria.items}
+    currentness = {item.id: item.is_current for item in fungoso.items}
+    assert currentness["old-fact"] is False
+    assert currentness["new-fact"] is True
