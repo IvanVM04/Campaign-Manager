@@ -90,14 +90,27 @@ class LLMWorldContextRenderer:
         item_lines = []
 
         for item_id, item in world.items.items():
+            details = []
+            for label, value in (
+                ("descripción", item.description),
+                ("importancia", item.significance),
+                ("notas", item.notes),
+                ("weapon_key", item.weapon_key),
+                ("armor_key", item.armor_key),
+                ("equipment_slot", item.equipment_slot),
+            ):
+                if value:
+                    rendered_value = (
+                        json.dumps(value, ensure_ascii=False)
+                        if isinstance(value, str)
+                        else str(value)
+                    )
+                    details.append(f"{label}={rendered_value}")
+            if item.unique:
+                details.append("único")
             item_lines.append(
-                f"- ID {item_id}: "
-                f"{item.name} "
-                f"(descripción={json.dumps(item.description, ensure_ascii=False)}, "
-                f"importancia={json.dumps(item.significance, ensure_ascii=False)}, "
-                f"notas={json.dumps(item.notes, ensure_ascii=False)}, "
-                f"único={item.unique}, weapon_key={item.weapon_key}, "
-                f"armor_key={item.armor_key}, equipment_slot={item.equipment_slot})"
+                f"- ID {item_id}: {item.name}"
+                + (f" ({'; '.join(details)})" if details else "")
             )
 
         known_items = (
@@ -121,16 +134,25 @@ class LLMWorldContextRenderer:
                 else f"Item {instance.item_id}"
             )
 
+            details = [
+                f"item_id={instance.item_id}",
+                f"instance_number={instance.instance_number}",
+                f"owner_id={instance.owner_id}",
+            ]
+            if instance.location_id is not None:
+                details.append(f"location_id={instance.location_id}")
+            if instance.condition:
+                details.append(
+                    f"condition={json.dumps(instance.condition, ensure_ascii=False)}"
+                )
+            if instance.notes:
+                details.append(
+                    f"notes={json.dumps(instance.notes, ensure_ascii=False)}"
+                )
+            if not instance.active:
+                details.append("inactive")
             item_instance_lines.append(
-                f"- ID {instance_id}: "
-                f"{item_name} "
-                f"(item_id={instance.item_id}, "
-                f"instance_number={instance.instance_number}, "
-                f"owner_id={instance.owner_id}, "
-                f"location_id={instance.location_id}, "
-                f"condition={json.dumps(instance.condition, ensure_ascii=False)}, "
-                f"notes={json.dumps(instance.notes, ensure_ascii=False)}, "
-                f"active={instance.active})"
+                f"- ID {instance_id}: {item_name} ({'; '.join(details)})"
             )
 
         known_item_instances = (
@@ -146,12 +168,16 @@ class LLMWorldContextRenderer:
         resource_lines = []
 
         for resource_id, resource in world.resources.items():
+            details = [
+                value
+                for value in (resource.resource_type, resource.unit)
+                if value
+            ]
+            if resource.notes:
+                details.append(f"notas={json.dumps(resource.notes, ensure_ascii=False)}")
             resource_lines.append(
-                f"- ID {resource_id}: "
-                f"{resource.name} "
-                f"(tipo={resource.resource_type}, "
-                f"unidad={resource.unit}, "
-                f"notas={json.dumps(resource.notes, ensure_ascii=False)})"
+                f"- ID {resource_id}: {resource.name}"
+                + (f" ({'; '.join(details)})" if details else "")
             )
 
         known_resources = (
@@ -180,12 +206,16 @@ class LLMWorldContextRenderer:
                 else f"Entidad {balance.owner_id}"
             )
             unit = resource.unit if resource is not None else ""
+            details = [
+                f"resource_id={balance.resource_id}",
+                f"owner_id={balance.owner_id}",
+                f"owner={owner_name}",
+            ]
+            if balance.notes:
+                details.append(f"notas={json.dumps(balance.notes, ensure_ascii=False)}")
             resource_balance_lines.append(
-                f"- ID {balance_id}: "
-                f"{balance.amount} {unit} de {resource_name} "
-                f"(resource_id={balance.resource_id}, "
-                f"owner_id={balance.owner_id}, owner={owner_name}, "
-                f"notas={json.dumps(balance.notes, ensure_ascii=False)})"
+                f"- ID {balance_id}: {balance.amount} {unit} de {resource_name} "
+                f"({'; '.join(details)})"
             )
 
         known_resource_balances = (
@@ -215,22 +245,23 @@ class LLMWorldContextRenderer:
                 else f"Entidad {relation.target_id}"
             )
 
-            relation_lines.append(
+            relation_line = (
                 f"- ID {relation_id}: "
-                f"{subject_name} "
-                f"(ID {relation.subject_id}) "
+                f"{subject_name} (ID {relation.subject_id}) "
                 f"--[{relation.relation_type}]--> "
-                f"{target_name} "
-                f"(ID {relation.target_id}), "
-                f"active={relation.active}, "
-                "metadata="
-                + json.dumps(
+                f"{target_name} (ID {relation.target_id})"
+            )
+            if not relation.active:
+                relation_line += " [inactiva]"
+            if relation.metadata:
+                relation_line += " metadata=" + json.dumps(
                     relation.metadata,
                     ensure_ascii=False,
                     sort_keys=True,
                     default=str,
+                    separators=(",", ":"),
                 )
-            )
+            relation_lines.append(relation_line)
 
         known_relations = (
             "\n".join(relation_lines)
@@ -275,29 +306,34 @@ class LLMWorldContextRenderer:
             source_entity_name = (
                 source_entity.name if source_entity is not None else "unknown"
             )
-            event_lines.append(
-                f"- ID {event_id}: "
-                f"epistemic_status={event.epistemic_status}, "
-                f"provenance_source={event.provenance_source}, "
-                f"source_entity_name={source_entity_name}, "
-                f"visibility_scope={event.visibility_scope}, "
-                f"source_entity_id={event.source_entity_id}, "
-                f"campaign_elapsed_minutes={event.campaign_elapsed_minutes}, "
-                f"temporal_status={temporal_status}, "
-                f"supersedes_event_id={event.supersedes_event_id}, "
-                f"type={event.event_type}, "
-                f"title={event.title}, "
-                f"description={event.description}, "
-                f"consequences={event.consequences}, "
-                f"session_id={event.session_id}, "
-                "metadata="
-                + json.dumps(
+            details = [
+                f"{event.epistemic_status}/{event.provenance_source}",
+                f"tipo={event.event_type}",
+            ]
+            if source_entity is not None:
+                details.append(f"fuente={source_entity_name}")
+            if temporal_status != "current":
+                details.append("histórico/sustituido")
+            if event.campaign_elapsed_minutes is not None:
+                details.append(f"minuto={event.campaign_elapsed_minutes}")
+            if event.supersedes_event_id is not None:
+                details.append(f"sustituye={event.supersedes_event_id}")
+            event_text = f"- ID {event_id}: [{' ; '.join(details)}] {event.title}"
+            if event.description:
+                event_text += f" — {event.description}"
+            if event.consequences:
+                event_text += f" Consecuencias: {event.consequences}"
+            if event.session_id is not None:
+                event_text += f" (sesión={event.session_id})"
+            if event.metadata:
+                event_text += " metadata=" + json.dumps(
                     event.metadata,
                     ensure_ascii=False,
                     sort_keys=True,
                     default=str,
+                    separators=(",", ":"),
                 )
-            )
+            event_lines.append(event_text)
 
         known_events = (
             "\n".join(event_lines)
