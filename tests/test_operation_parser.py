@@ -403,3 +403,44 @@ def test_parser_uses_registry_reference_fields_for_id_normalization():
     assert operations[0].resource_id.name == "gold"
     assert operations[0].subject_id == 12
     assert operations[0].target_id == 14
+
+
+def test_parser_accepts_and_normalizes_entity_aliases():
+    operations = OperationParser().parse(
+        {
+            "operations": [
+                {
+                    "type": "create_entity",
+                    "name": "Aldric",
+                    "entity_type": "npc",
+                    "aliases": [" el tabernero ", "el tabernero", "Aldric"],
+                }
+            ]
+        }
+    )
+    assert operations[0].aliases == ["el tabernero", "Aldric"]
+
+
+@pytest.mark.parametrize(
+    "aliases",
+    [
+        "el tabernero",
+        [12],
+        [""],
+        ["x" * 101],
+        [f"alias-{index}" for index in range(21)],
+    ],
+)
+def test_parser_rejects_malformed_or_unbounded_entity_aliases(aliases):
+    with pytest.raises(OperationParseError, match="aliases|alias"):
+        OperationParser().parse(
+            {
+                "operations": [
+                    {
+                        "type": "create_entity",
+                        "name": "Aldric",
+                        "aliases": aliases,
+                    }
+                ]
+            }
+        )

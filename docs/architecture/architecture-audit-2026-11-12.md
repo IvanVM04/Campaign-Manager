@@ -71,6 +71,14 @@ Encounter creation merges supplied NPC melee profiles, natural attacks and defen
 
 ## Verified boundaries and remaining structural work
 
+### Entity identity and reference retrieval
+
+PR #211 adds a typed `Entity.aliases` field, a forward-only persistence migration and a deterministic resolver. Canonical names and explicit aliases outrank role/description matches; free-form notes are lower-confidence fallback evidence. Shared alias collisions and similarly scored role matches return an ambiguous result with no selected entity IDs, rather than choosing whichever record appears first.
+
+Pronouns, cross-turn ellipsis and broad semantic paraphrases are intentionally not inferred from a single query. They require explicit history, recency, speaker and knowledge-visibility contracts. No embedding endpoint or vector store is introduced.
+
+
+
 | Area | Current finding | Next safe improvement |
 |---|---|---|
 | `DurableNativeTurnService` | Stable public façade/composition point; request idempotency, planning leases, pre-commit recovery and typed failures are behind dedicated collaborators (PR #201). | Preserve the public API, lease fencing, challenge continuation and restart recovery; decompose only when a new lifecycle boundary owns a distinct invariant. |
@@ -78,7 +86,7 @@ Encounter creation merges supplied NPC melee profiles, natural attacks and defen
 | `CombatEncounterService` | Every mutating encounter use case owns one explicit `IMMEDIATE` transaction; `complete()` now uses the shared transaction helper. | Failure-injection tests cover create, death-save HP synchronization, turn/effect expiration, completion, movement and reaction rollback. Keep canonical HP and encounter projections in the same transaction. |
 | `WorldService` | Stable facade for world state and appliers; mixed turn-operation dispatch/transaction coordination extracted to `WorldTurnOperationCoordinator`. | Preserve the facade signature, shared `WorldState` identity, operation ordering, reference resolution and caller-owned connection semantics. |
 | `models/schemas.py` | Backward-compatible import facade over campaign, character, world, turn and integration schema modules. | Production routers import from the owning bounded context; keep facade exports and OpenAPI contracts stable. |
-| `migrations.py` | Ordered historical functions 001–030 plus the explicit `MIGRATIONS` metadata/runner registry. | Keep historical bodies in chronological order; use [the migration catalogue](migration-catalog-2026-11-12.md) and preserve fresh/upgrade/idempotency tests. Current schema version is 30. |
+| `migrations.py` | Ordered historical functions 001–031 plus the explicit `MIGRATIONS` metadata/runner registry. | Keep historical bodies in chronological order; use [the migration catalogue](migration-catalog-2026-11-12.md) and preserve fresh/upgrade/idempotency tests. PR #211 adds typed entity aliases; branch schema version 31. |
 
 ## Structural and adjacent work integrated through PR #205
 

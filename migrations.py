@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 30
+CURRENT_VERSION = 31
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2268,6 +2268,29 @@ def migration_030(conn: sqlite3.Connection) -> None:
         raise
 
 
+def migration_031(conn: sqlite3.Connection) -> None:
+    """Persist explicit alternate names used for safe entity-reference resolution."""
+    conn.execute("SAVEPOINT migration_031")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(entities)").fetchall()
+        }
+        if "aliases" not in columns:
+            conn.execute(
+                "ALTER TABLE entities ADD COLUMN aliases TEXT NOT NULL DEFAULT '[]'"
+            )
+        conn.execute(
+            "UPDATE entities SET aliases = '[]' "
+            "WHERE aliases IS NULL OR trim(aliases) = ''"
+        )
+        conn.execute("RELEASE SAVEPOINT migration_031")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_031")
+        conn.execute("RELEASE SAVEPOINT migration_031")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2450,5 +2473,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_030",
         description="Persist class Hit Dice and completed long-rest campaign time.",
         apply=migration_030,
+    ),
+    MigrationDefinition(
+        version=31,
+        name="migration_031",
+        description="Persist explicit entity aliases for deterministic reference resolution.",
+        apply=migration_031,
     ),
 )

@@ -8,6 +8,24 @@ class WorldEntityBootstrapIn(BaseModel):
     entity_type: str = Field(..., min_length=1, max_length=50)
     description: str = Field(default="", max_length=2000)
     notes: str = Field(default="", max_length=2000)
+    aliases: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("aliases")
+    @classmethod
+    def validate_aliases(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for alias in values:
+            alias = alias.strip()
+            if not alias:
+                raise ValueError("entity aliases cannot be blank")
+            if len(alias) > 100:
+                raise ValueError("entity aliases must be at most 100 characters")
+            key = alias.casefold()
+            if key not in seen:
+                seen.add(key)
+                normalized.append(alias)
+        return normalized
 
     @field_validator("name", "entity_type")
     @classmethod

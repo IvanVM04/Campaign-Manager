@@ -18,6 +18,7 @@ from models.world_state import WorldState
 
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
+from .entity_reference_resolver import EntityReferenceResolver
 from .context_renderer import ContextRenderer
 from .memory_search_service import MemorySearchService
 
@@ -328,12 +329,23 @@ class ProposalContextSelector:
             (category, len(selected_lookup[category]))
             for category in _RECORD_CATEGORIES
         )
+        reference_resolution = EntityReferenceResolver().resolve(
+            world,
+            normalized_query,
+        )
         diagnostics = ContextProjectionDiagnostics(
             estimated_tokens=estimated_tokens,
             budget_tokens=max_estimated_tokens,
             available_counts=available_counts,
             candidate_counts=candidate_counts,
             selected_counts=selected_counts,
+            reference_status=reference_resolution.status,
+            reference_match_kind=(
+                reference_resolution.candidates[0].match_kind
+                if reference_resolution.candidates
+                else "none"
+            ),
+            reference_candidate_count=reference_resolution.candidate_count,
         )
         return WorldContextProjection(
             world=projected_world,

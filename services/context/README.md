@@ -5,6 +5,8 @@ Retrieve, expand, rank, select and render campaign context for application and L
 
 ## Modules (migrated into this package)
 - memory_search_service.py — deterministic retrieval and public world-state export.
+- entity_reference_resolver.py — explicit name/alias/role matching with ambiguity abstention.
+- entity_reference_resolver.py — explicit name/alias/role matching with ambiguity abstention.
 - context_builder.py — orchestration facade.
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
@@ -35,8 +37,10 @@ The byte-based budget is an upper bound rather than a model-specific token count
 ## Remaining work
 - [x] Preserve deterministic retrieval, dependency bundles, mandatory character/location facts, budget failure and non-mutation at medium/large campaign scale (PR #207).
 - [x] Render selected entity descriptions and contextual notes so the model can reason about known state rather than seeing only names and types (PR #210).
-- [ ] Measure retrieval quality for indirect references, role-based references, aliases, paraphrases and multi-hop relationships before changing the deterministic ranking pipeline (roadmap PR #211).
-- [ ] Decide whether explicit alias/known-as fields are needed in the domain; do not overload free-form notes or introduce vector retrieval without a measured recall/precision gap.
+- [x] Add explicit, bounded entity aliases through the domain, bootstrap API, read model, structured operations and SQLite migration 031 (roadmap PR #211).
+- [x] Resolve canonical names and explicit aliases with accent-insensitive normalization; descriptions and notes remain lower-confidence fallbacks, and ambiguous references return no selected entity IDs.
+- [x] Record resolution status, match kind and candidate count in the detached proposal projection without storing the raw player query.
+- [ ] Add conversation-scoped pronoun/ellipsis resolution only after speaker, visibility and recency rules have an explicit contract.
 - [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
 - [ ] Consider tokenizer-aware accounting only after a provider exposes a reliable tokenizer contract.
 - [x] Keep rendering independent from transport response formatting.

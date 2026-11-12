@@ -53,6 +53,12 @@ class LLMWorldProposalPromptBuilder:
             + context_blocks["conditions_block"]
             + "\n\nENTIDADES CONOCIDAS:\n"
             + context_blocks["known_entities"]
+            + (
+                "\n\nRESOLUCIÓN DE REFERENCIAS:\n"
+                + context_blocks.get("reference_guidance", "")
+                if context_blocks.get("reference_guidance")
+                else ""
+            )
             + "\n\nITEMS CONOCIDOS:\n"
             + context_blocks["known_items"]
             + "\n\nINSTANCIAS DE OBJETOS CONOCIDAS:\n"
@@ -87,8 +93,8 @@ class LLMWorldProposalPromptBuilder:
             "confirmados. Una intención no es resultado; si falla o sigue "
             "cerrado, conserva el estado. El motor confirma mecánicas.\n"
             "IDENTIDAD\n"
-            "Resuelve nombres, roles y lugares contra el snapshot y reutiliza "
-            "IDs; no dupliques. Crea solo referentes nuevos y persistentes; "
+            "Resuelve nombres y alias explícitos contra el snapshot y reutiliza "
+            "IDs; ante ambigüedad no elijas ni dupliques. Crea solo referentes "
             "una persona nueva y nombrada como NPC usa entity_type=\"npc\". "
             "Actualiza hechos explícitos y nuevos, conserva los anteriores no "
             "contradichos y no inventes lo desconocido.\n"

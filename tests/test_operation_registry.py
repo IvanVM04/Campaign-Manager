@@ -54,6 +54,9 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
 
     assert create_entity["required"] == "name:text"
     assert "entity_type:text" in create_entity["optional"]
+    assert "aliases" in create_entity["optional"]
+    assert "aliases" in parsed["field_notes"]
+    assert "no los inventes" in parsed["field_notes"]["aliases"]
     assert create_entity["description"]
     assert len(create_entity["description"]) > 32
     assert parsed["examples"]["create_entity"]["name"] == "Aldric"

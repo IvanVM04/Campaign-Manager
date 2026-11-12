@@ -12,6 +12,7 @@ class WorldEntityRead(BaseModel):
     description: str
     notes: str
     active: bool
+    aliases: tuple[str, ...] = ()
 
 
 class WorldEntityPage(BaseModel):

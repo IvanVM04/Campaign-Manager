@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from operations.operation_reference import OperationReference
@@ -39,6 +39,7 @@ class CreateEntityOperation(WorldOperation):
     description: str = ""
     notes: str = ""
     active: bool = True
+    aliases: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class UpdateEntityOperation(WorldOperation):
     description: str | None = None
     notes: str | None = None
     active: bool | None = None
+    aliases: list[str] | None = None
 
 
 # ============================================================

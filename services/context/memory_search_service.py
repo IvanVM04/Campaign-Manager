@@ -6,6 +6,8 @@ from typing import Any
 from models.world_state import WorldState
 from models.world_visibility_policy import WorldVisibilityPolicy
 
+from .entity_reference_resolver import EntityReferenceResolver
+
 
 class MemorySearchService:
     """
@@ -192,27 +194,15 @@ class MemorySearchService:
         world: WorldState,
         query: str,
     ) -> list[dict[str, Any]]:
-        results = []
-
-        for entity in world.entities.values():
-            if not getattr(entity, "active", True):
-                continue
-
-            if self._matches(
-                query,
-                getattr(entity, "name", None),
-                getattr(entity, "entity_type", None),
-                getattr(entity, "description", None),
-                getattr(entity, "notes", None),
-                getattr(entity, "metadata", None),
-            ):
-                results.append(
-                    self._serialize(
-                        entity
-                    )
-                )
-
-        return results
+        """Return resolved entity references; abstain when identity is ambiguous."""
+        resolution = EntityReferenceResolver().resolve(world, query)
+        if resolution.status != "resolved":
+            return []
+        return [
+            self._serialize(world.entities[entity_id])
+            for entity_id in resolution.entity_ids
+            if entity_id in world.entities
+        ]
 
     # ------------------------------------------------------------------
     # ITEMS

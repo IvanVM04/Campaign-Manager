@@ -136,16 +136,20 @@ This does not require seven model calls. Several stages may share one call where
 
 ### PR #211 — Context retrieval and reference resolution
 
+**Implementation branch:** `feat/entity-reference-resolution`. This tranche adds typed entity aliases, conservative deterministic matching, ambiguity abstention, detached resolution diagnostics and a forward-only SQLite migration (031), threaded through the API/domain/LLM contracts.
+
+
 **Goal:** retrieve the right canonical records when the player refers to them indirectly.
 
 **Investigation and delivery:**
-- build a retrieval test matrix for exact names, partial names, titles, aliases, roles, locations, pronouns, paraphrases, spelling variations and Spanish accents/inflections;
-- quantify direct retrieval recall and false-positive selection before changing the ranker;
-- add explicit aliases/known-as labels only through a typed domain contract and persistence migration if the corpus proves free-text description matching is inadequate;
+- [x] Cover canonical names, explicit aliases, role descriptions, case/diacritic normalization, multiple explicitly named entities and ambiguous collisions with deterministic contract tests;
+- [x] Require all significant query terms to match a single role description/notes field; canonical names and explicit aliases outrank descriptive fallbacks;
+- [x] Add bounded, typed alias data through domain, bootstrap API, read models, structured operations and migration 031; never infer aliases from free-form notes;
 - resolve role references ("el tabernero"), location references ("la mujer de la posada") and multi-entity references without selecting a similarly named NPC;
 - review one-hop graph expansion against actual campaign queries; add bounded multi-hop expansion only with evidence and cycle/size controls;
 - preserve dependency bundles, active character/current location, secret exclusion, stable ordering, detachment and fail-closed mandatory budgets;
-- add retrieval diagnostics such as query class, candidate count, selected categories and reason/score buckets, without logging private campaign text;
+- [x] Add detached projection diagnostics for reference status, match kind and candidate count without recording raw player text;
+- [ ] Extend retrieval measurement to multi-turn pronouns, paraphrases and inflections once conversation history and speaker/visibility semantics are explicit;
 - evaluate whether a provider-native embedding endpoint or a local embedding model adds enough recall to justify an optional semantic retrieval collaborator.
 
 **Acceptance criteria:**
@@ -325,7 +329,7 @@ Do not introduce the following merely because they sound like AI best practices:
 - model-written canonical facts without domain validation;
 - another narrative-first extraction path;
 - automatic model switching or retries hidden from the evaluation report;
-- new migrations for aliases/provenance until typed semantics and migration defaults are designed;
+- new migrations for provenance until typed semantics and migration defaults are designed; aliases now have a typed contract and migration 031.
 - arbitrary prompt/context budgets based on unverified tokenizer assumptions.
 
 ## 10. Exit criteria for the AI-understanding phase

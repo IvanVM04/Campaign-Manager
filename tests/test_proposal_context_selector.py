@@ -295,3 +295,21 @@ def test_proposal_context_orders_selected_records_numerically_and_stably():
     )
 
     assert list(projection.world.entities) == [1, 2, 10]
+
+
+def test_proposal_context_diagnostics_expose_ambiguous_entity_references():
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="Aldric", aliases=["el guardia"]),
+            2: Entity(id=2, name="Mara", aliases=["el guardia"]),
+        }
+    )
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Hablo con el guardia.",
+        max_estimated_tokens=2000,
+    )
+    assert projection.diagnostics.reference_status == "ambiguous"
+    assert projection.diagnostics.reference_match_kind == "alias"
+    assert projection.diagnostics.reference_candidate_count == 2
+    assert projection.world.entities == {}

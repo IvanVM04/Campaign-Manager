@@ -38,6 +38,9 @@ The registry is the discoverability and execution index. It does not move, rewri
 | 028 | `migration_028` | Persist light, medium, heavy armor and shield proficiencies. |
 | 029 | `migration_029` | Archive historical turn snapshots before removing the runtime snapshot column. |
 | 030 | `migration_030` | Persist class Hit Dice, used Hit Dice and the last completed long-rest campaign-time marker. |
+| 031 | `migration_031` | Persist explicit entity aliases for deterministic reference resolution. |
+
+The PR #211 branch advances the schema to version 31. Migration 031 adds `entities.aliases` as JSON text with an empty-list default; historical entities do not receive inferred aliases.
 
 ## Runner invariants
 
@@ -50,7 +53,7 @@ The registry is the discoverability and execution index. It does not move, rewri
 
 ## Future migration checklist
 
-1. Add `migration_031` (or the next sequential version) without editing earlier migration functions.
+1. Add `migration_032` (or the next sequential version) without editing earlier migration functions.
 2. Add one `MigrationDefinition` at the end of `MIGRATIONS` and update `CURRENT_VERSION`.
 3. Test upgrade from a relevant prior schema, old-data preservation, foreign keys and idempotency where appropriate.
 4. Keep fresh-database initialization green and update this catalogue.

@@ -48,6 +48,11 @@ class LLMWorldContextRenderer:
                 f"({entity.entity_type})"
                 f"{marker}"
             )
+            if entity.aliases:
+                entity_line += (
+                    " | alias explícitos="
+                    + json.dumps(entity.aliases, ensure_ascii=False)
+                )
             if entity.description:
                 entity_line += (
                     " | descripción conocida="
@@ -65,6 +70,17 @@ class LLMWorldContextRenderer:
             if entity_lines
             else "- Ninguna"
         )
+        reference_guidance = ""
+        if (
+            projection is not None
+            and projection.diagnostics.reference_status == "ambiguous"
+        ):
+            reference_guidance = (
+                "La referencia a una entidad coincide con varios registros. "
+                "No elijas uno al azar, no actualices ninguno y no crees un "
+                "duplicado para resolver la ambigüedad. Devuelve operaciones "
+                "vacías para esa referencia hasta disponer de aclaración."
+            )
 
         # ------------------------------------------------------------
         # ITEMS CONOCIDOS
@@ -323,6 +339,7 @@ class LLMWorldContextRenderer:
             "character_block": character_block,
             "conditions_block": conditions_block,
             "known_entities": known_entities,
+            "reference_guidance": reference_guidance,
             "known_items": known_items,
             "known_item_instances": known_item_instances,
             "known_resources": known_resources,

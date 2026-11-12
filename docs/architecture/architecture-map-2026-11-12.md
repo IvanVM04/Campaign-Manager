@@ -64,7 +64,7 @@ Critical contracts: turn-resolution lifecycle, durable persistence, idempotency 
 - bootstrap/campaign_runtime.py wires the adapter; durable turn services own all state-changing operations.
 - The supported mutation lifecycle is resolve -> challenge continuation (if needed) -> complete.
 - The narrative-first POST /integration/turn route, LegacySillyTavernTurnService and snapshot restoration have been removed.
-- Migration 029 archives historical snapshots; migration 030 persists character Hit Dice and long-rest campaign-time state. The current schema version is 30.
+- Migration 029 archives historical snapshots; migration 030 persists character Hit Dice and long-rest campaign-time state; migration 031 (PR #211) adds explicit entity aliases. The branch schema version is 31.
 
 ### Combat attack
 
@@ -180,7 +180,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Area | Current shape | Disposition |
 |---|---|---|
-| migrations.py | Ordered historical migrations 001–030 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
+| migrations.py | Ordered historical migrations 001–031 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
 | models/schemas.py | Compatibility facade; bounded-context modules own campaign, character, world, turn and integration request DTOs | Production routers import the owning module; retain facade exports and verify OpenAPI stability. |
 | models/combat_api_schemas.py | Combat-specific API contracts | Keep combat schemas isolated from unrelated API requests. |
 | models/turn_context.py and models/world_context_projection.py | Shared application input and detached context projection | Keep the projection typed and detached from mutable runtime state. |
@@ -225,6 +225,8 @@ PR #205. See the [engineering readiness and gameplay roadmap](engineering-readin
 for indicative module-readiness estimates and hour ranges.
 
 ## AI world-understanding roadmap
+
+The PR #211 branch introduces `services/context/entity_reference_resolver.py` as the deterministic identity-matching collaborator used by memory retrieval and proposal projection diagnostics. See the [entity reference-resolution contract](../quality/entity-reference-resolution-2026-11-12.md).
 
 The next AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PR #210 strengthens the evidence rendered to the proposal model and the semantic contract. Retrieval, reference resolution, intent interpretation, knowledge provenance and narrative continuity are sequenced as separate evidence-led follow-up objectives; this is not a justification for a vector database, another extraction pipeline or a monolithic prompt.
 

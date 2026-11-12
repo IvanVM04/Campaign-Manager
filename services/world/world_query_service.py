@@ -38,7 +38,7 @@ class WorldQueryService:
         filtered = []
         for entity in entities:
             searchable_text = (
-                f"{entity.name} {entity.description} {entity.notes}"
+                f"{entity.name} {entity.description} {entity.notes} {' '.join(entity.aliases)}"
             ).casefold()
             if normalized_query and normalized_query not in searchable_text:
                 continue
@@ -54,6 +54,7 @@ class WorldQueryService:
                     description=entity.description,
                     notes=entity.notes,
                     active=entity.active,
+                    aliases=tuple(entity.aliases),
                 )
             )
 
