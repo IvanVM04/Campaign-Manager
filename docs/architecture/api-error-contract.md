@@ -43,6 +43,24 @@ Application-specific errors may use a more precise stable code through `APIError
 - The campaign runtime middleware uses the same response envelope as route-level errors.
 - Successful response payloads are unchanged.
 
+## Request correlation
+
+Every HTTP response includes `X-Request-ID`. Clients may supply a valid
+request ID using 1–64 ASCII letters, digits, dots, underscores or hyphens;
+otherwise the application creates one. The identifier is diagnostic only and
+must not be used for authorization, idempotency or trust decisions.
+
+The same ID is attached to local technical logs and should be included in bug
+reports. The browser can read it because local CORS configuration exposes
+`X-Request-ID`. Campaign and durable-resolution identifiers are added to
+server-side records where available; they are not a replacement for the
+request ID.
+
+Unexpected exceptions are logged with correlation context, while the HTTP
+response remains sanitized. Technical logs are separate from the future
+campaign activity API and must not expose prompts, raw model responses,
+credentials, GM-only notes or secret world events.
+
 ## Migration guidance for clients
 
 Use `code` for programmatic handling. Treat `detail` as display/debug context, not a stable identifier. Validation `detail` is a list of field errors; other details are generally strings.
