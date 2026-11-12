@@ -20,6 +20,8 @@ replay committed consequences.
 - `durable_turn_challenge_state_service.py` — read-only challenge-state projections.
 - `durable_turn_clarification_submission_service.py` — clarification submission and recovery.
 - `durable_turn_manual_roll_submission_service.py` — manual-roll submission and recovery.
+- `durable_turn_execution_service.py` — request idempotency, planning leases, preparation and recovery before the atomic commit.
+- `durable_turn_errors.py` — stable error codes for durable lifecycle and commit failures.
 - `durable_turn_prepared_commit_service.py` — atomic prepared-resolution commit boundary.
 - `durable_turn_preparation_mapper.py` — adapter-facing preparation projection.
 - `durable_turn_result_mapper.py` — durable record to public result mapping.
@@ -45,8 +47,8 @@ resolve/complete lifecycle as the native API.
 
 ## Pending work
 
-- [ ] Replace exception-message matching for lifecycle/error codes with typed errors and explicit transition reasons.
-- [x] Extract challenge projections/submissions, prepared commit, narration and result mapping while preserving `DurableNativeTurnService` as the public coordinator.
+- [x] Replace exception-message matching for lifecycle/error codes with typed error codes and explicit transition reasons.
+- [x] Extract request acceptance/planning/execution, challenge projections/submissions, prepared commit, narration and result mapping while preserving `DurableNativeTurnService` as the public coordinator.
 - [x] Add focused recovery tests for expired planning leases, late-worker fencing and retry after unexpected planning failure across a fresh runtime.
 - [ ] Keep the documented single-process constraint while locks/runtime are process-local.
-- [ ] Continue decomposing the durable coordinator behind its stable façade while preserving idempotency, lease and recovery invariants.
+- [ ] Revisit remaining continuation orchestration only where a separate lifecycle boundary reduces coupling without duplicating ownership.

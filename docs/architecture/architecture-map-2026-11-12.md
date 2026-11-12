@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified baseline:** main at eb57316d9b060bb3a09b0b6b08c7282e07fce192 (2026-11-12, PR #195).  
+**Verified baseline:** main at 004b45b689b0dddb1becfc839328d1d126ed59e2 (2026-11-12, PR #200).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 ## How to work in this repository
@@ -48,7 +48,7 @@ The intended shape is a local-first modular monolith. Do not introduce microserv
 
 1. api/routers/turns.py receives the native turn request.
 2. The request-scoped CampaignRuntime exposes DurableNativeTurnService.
-3. services/turns/durable_native_turn_service.py coordinates the durable lifecycle, idempotency, leases and recovery.
+3. `DurableNativeTurnService` is the stable façade; `DurableTurnExecutionService` owns request identity/idempotency, planning leases, proposal preparation and recovery before commit.
 4. services/turns/turn_resolution_service.py orchestrates mechanics and player-intent proposal preparation.
 5. services/context builds a detached, ranked WorldContextProjection for the intent.
 6. services/llm_world builds a bounded proposal prompt, calls the injected provider and validates model output.
@@ -148,7 +148,9 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | dm_service.py | Narrative generation, separate from consequences | Keep provider calls outside write transactions and narrate committed evidence. |
 | mechanics_adjudicator.py | Structured mechanics proposal and validation | It does not roll dice or mutate world state. |
 | turn_resolution_service.py | Structured player-intent proposal, mechanics orchestration, application and non-durable narration wrapper | Preserve proposal/apply/narrate ordering; durable orchestration owns commit-before-narration. |
-| durable_native_turn_service.py | Public durable coordinator, lifecycle façade, continuation and recovery | Next major decomposition candidate: split public lifecycle use cases while preserving this façade and all lease/idempotency invariants. |
+| durable_native_turn_service.py | Stable public lifecycle façade and collaborator composition | Keep transport and lifecycle routing outside this service; preserve its public contract while new use cases are extracted behind it. |
+| durable_turn_execution_service.py | Request identity/idempotency, planning leases, proposal preparation and pre-commit recovery | Preserve exact request fingerprint semantics, campaign scope, lease fencing and the one prepared-commit hand-off. |
+| durable_turn_errors.py | Stable typed codes for durable lifecycle failures | Lifecycle transitions and API mapping must use codes/types, never exception-message matching. |
 | durable_turn_challenge_state_service.py | Read-only challenge state projection | Keep detached and campaign-scoped. |
 | durable_turn_clarification_submission_service.py | Clarification submission and recovery | Keep revision/lease fencing and retry behavior. |
 | durable_turn_manual_roll_submission_service.py | Manual roll submission and recovery | Preserve deterministic dice ownership and exactly-once consequence application. |
@@ -208,7 +210,7 @@ resolve/complete lifecycle.
 |---|---|---|---|
 | P0 | Quality gate | Keep CI summary, repository-wide Pyright and both CodeQL checks green | Already configured and required by main protection. |
 | P1 | Combat | Extract attack profile selection from CombatAttackService | It still parses NPC metadata, creates synthetic character state and chooses weapons/natural attacks inside one large use case. |
-| P1 | Turns | Decompose DurableNativeTurnService behind its stable public façade | It still coordinates multiple lifecycle operations in a 778-line module; preserve idempotency, lease fencing and restart semantics. |
+| P1 | Turns | Extract request execution from DurableNativeTurnService | Completed: request identity, planning leases, prepared-plan persistence and recovery now live in `DurableTurnExecutionService`; the public façade remains stable. |
 | P1 | Combat | Review CombatEncounterService's transaction ownership across encounter, character/creature HP and effects | A partial write would create divergent canonical and encounter projections. |
 | P2 | World | Map WorldService dispatch/transaction boundaries and split only along operation families | Keep existing appliers and caller connection behavior authoritative. |
 | P2 | Models | Split broad schemas by bounded context | Improves discovery; do not introduce breakage in transport imports. |

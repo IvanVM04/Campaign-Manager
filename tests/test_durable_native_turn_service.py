@@ -309,7 +309,7 @@ def test_manual_roll_challenge_is_server_computed_and_hides_internal_decision():
         reason="The character is moving unseen.",
     )
 
-    pending = service._build_manual_roll_request(
+    pending = service.execution_service.build_manual_roll_request(
         None, decision, SimpleNamespace(active_character=character), 12
     )
     result = service._manual_roll_result(
@@ -592,7 +592,7 @@ def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
         "disadvantage": False,
     }
     monkeypatch.setattr(
-        service,
+        service.execution_service,
         "_play_turn_locked",
         lambda player_input, **kwargs: (
             captured.update(kwargs)
@@ -737,7 +737,7 @@ def test_silly_tavern_turn_retry_uses_persisted_manual_dice_mode(monkeypatch):
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        service,
+        service.execution_service,
         "_play_turn_locked",
         lambda player_input, **kwargs: (
             captured.update(kwargs)

@@ -218,7 +218,7 @@ Use the existing [capability dependency matrix](package-dependency-matrix.md) as
 Ordered by expected architectural value, not ease of implementation:
 
 1. **Combat profile resolution:** keep the selection/metadata boundary in `AttackProfileResolver`, numerical weapon/natural-attack derivation in `rules_engine`, and atomic encounter/HP writes in the use cases. Retain malformed-metadata, NPC selection and HP-synchronization regression coverage.
-2. **Durable turn lifecycle:** keep `DurableNativeTurnService` as public façade, extract clarification/manual-roll/external completion orchestration by durable state boundary. Every extraction must preserve idempotency, lease fencing and commit-before-narration.
+2. **Durable turn lifecycle:** request acceptance, idempotency, planning leases and pre-commit recovery now live in `DurableTurnExecutionService` behind `DurableNativeTurnService`. Preserve that boundary; extract another lifecycle family only when it owns a distinct invariant and can be tested independently.
 3. **Combat transaction audit:** map every repository write during create/start/advance/death-save/move/reaction/attack and inject failures to verify encounter snapshots never diverge from canonical character/creature HP or persistent effects.
 4. **World application audit:** map `WorldService` dispatch and connection ownership. Existing applier modules already define operation-family candidates; split coordination only after a transaction map exists.
 5. **Schema bounded contexts:** split `models/schemas.py` by campaign, character, world, turn and integration DTOs. Keep combat/effects/clock schema modules separate and verify OpenAPI output.

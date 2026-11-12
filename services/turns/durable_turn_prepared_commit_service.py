@@ -5,6 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from database import transaction
+from services.turns.durable_turn_errors import (
+    DurableTurnCommitError,
+    DurableTurnErrorCode,
+)
 
 
 class DurableTurnPreparedCommitService:
@@ -52,16 +56,23 @@ class DurableTurnPreparedCommitService:
                 conn=conn,
             )
             if current_revision != revision:
-                raise self.error_type(revision_error_message)
+                raise DurableTurnCommitError(
+                    revision_error_message,
+                    code=DurableTurnErrorCode.STALE_CONTEXT,
+                )
 
             current_context, current_recent = self.context_loader(conn)
             if current_context != context or current_recent != recent:
-                raise self.error_type(context_error_message)
+                raise DurableTurnCommitError(
+                    context_error_message,
+                    code=DurableTurnErrorCode.STALE_CONTEXT,
+                )
 
             result = self.resolver.apply_plan(current_context, plan, conn=conn)
             if not result.all_operations_succeeded:
-                raise self.error_type(
-                    "one or more proposed consequences failed validation"
+                raise DurableTurnCommitError(
+                    "one or more proposed consequences failed validation",
+                    code=DurableTurnErrorCode.CONSEQUENCE_VALIDATION_FAILED,
                 )
 
             resulting_revision = self.revision_repository.get_revision(

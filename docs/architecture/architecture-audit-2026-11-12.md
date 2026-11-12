@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Baseline:** PR #199 is integrated. It closes player-facing secret-event exposure; PR #198 had already retired the remaining narrative-first extraction and snapshot-reconciliation paths.  
+**Baseline:** PR #200 is integrated. PR #199 closes player-facing secret-event exposure; PR #198 retired the remaining narrative-first extraction and snapshot-reconciliation paths; PR #200 hardens typed player/NPC attack profiles.  
 **Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.
 
 ## Executive assessment

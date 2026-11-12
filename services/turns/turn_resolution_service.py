@@ -44,9 +44,11 @@ class TurnResolutionPlan:
 
 
 class TurnResolutionServiceError(RuntimeError):
-    """
-    Error base del servicio de resolución de turnos.
-    """
+    """Failure while preparing or applying a turn-resolution plan."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class TurnResolutionService:
@@ -373,7 +375,8 @@ class TurnResolutionService:
             for operation in operations
         ):
             raise TurnResolutionServiceError(
-                "character-state changes must come from deterministic mechanics, not an LLM proposal"
+                "character-state changes must come from deterministic mechanics, not an LLM proposal",
+                code="character_operation_not_allowed",
             )
 
         normalized_operations = []
