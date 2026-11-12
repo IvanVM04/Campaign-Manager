@@ -449,3 +449,17 @@ def test_search_keeps_role_candidates_when_description_is_ambiguous(service):
     )
     result = service.search(world, "Quiero hablar con el guardia del puerto")
     assert [entity["id"] for entity in result["entities"]] == [1, 2]
+
+
+def test_search_keeps_number_words_as_part_of_compound_entity_names(service):
+    world = WorldState(
+        entities={
+            10: Entity(id=10, name="Entidad diez", entity_type="npc"),
+            2: Entity(id=2, name="Entidad dos", entity_type="npc"),
+            1: Entity(id=1, name="Entidad uno", entity_type="npc"),
+        }
+    )
+
+    result = service.search(world, "Entidad")
+
+    assert sorted(entity["id"] for entity in result["entities"]) == [1, 2, 10]

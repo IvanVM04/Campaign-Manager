@@ -78,7 +78,7 @@ class EntityReferenceResolver:
         "del",
         "desde",
         "donde",
-        "dos",
+
         "el",
         "ella",
         "ellas",
@@ -151,7 +151,7 @@ class EntityReferenceResolver:
         "tus",
         "un",
         "una",
-        "uno",
+
         "unos",
         "unas",
         "y",
