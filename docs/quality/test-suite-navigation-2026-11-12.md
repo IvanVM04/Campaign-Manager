@@ -1,7 +1,7 @@
 # Test-suite navigation — 2026-11-12
 
-**Baseline:** `main` after PR #205, commit `a14d1568ba852cd545caaf06e9efd48a4f925b03`.  
-**Change set:** PR #205 is merged. Its test-only reorganization changes test placement and shared fixture support; production behavior and assertions are unchanged.
+**Baseline:** `main` after PR #208, commit `96b0232395de670d4ef4c4fa658eae88dd8f3c34`.  
+**History:** PR #205 reorganized the durable-turn and context suites without changing production behavior. PRs #207 and #208 subsequently added scale/proposal probes and structured observability. This page retains the original split details and adds the current quality/acceptance map.
 
 ## Durable turn lifecycle
 
@@ -14,6 +14,14 @@ The former `tests/test_durable_native_turn_service.py` contained 24 test functio
 | `tests/durable_turn_test_support.py` | — | One deterministic fake-provider runtime builder shared by both modules; not collected as a test module. |
 
 The split preserves all 24 original test functions. The native and SillyTavern tests still exercise the real durable application service; only provider calls are deterministic/injected. The support module is deliberately not named `test_*.py`.
+
+## Adapter and effects boundaries
+
+| Module | Protected behavior |
+|---|---|
+| `tests/test_silly_tavern_context_adapter.py` | SillyTavern context query validation, campaign-state error mapping, recent-turn filtering, optional session/character projection, external transcript version state and façade delegation. |
+| `tests/test_effects_api.py` | Persistent-effect API create/list/status/remove lifecycle, payload mapping and 404/409/422 error contracts. |
+| `tests/test_persistent_effect_api_schemas.py` | Permanent, conditional, campaign-time and encounter duration shapes; strict numeric bounds; canonical condition/exhaustion rules; narrative slug constraints. |
 
 ## Context pipeline
 
@@ -28,6 +36,12 @@ The former `tests/test_context_pipeline.py` contained 35 test functions for retr
 
 All 35 original test functions and their assertions are preserved. The support module owns only reusable fixture construction; each test remains next to the contract it protects.
 
+## Prompt and model evaluation
+
+- Deterministic prompt contracts remain in `tests/test_llm_world_proposal_prompt_builder.py`, `tests/test_llm_world_proposals.py`, `tests/test_proposal_scale_quality.py` and `tests/test_context_scale_probes.py`.
+- `tests/test_real_llm.py` is opt-in and calls local Ollama. Run `python -m pytest -m real_llm -v -s`; see [the prompt evaluation guide](prompt-evaluation-2026-11-12.md).
+- Never make the CI suite depend on Ollama or compare exact generated prose. Live probes assert semantic invariants and remain separate from the SillyTavern UI smoke test.
+
 ## Rules for future test organization
 
 - Split by externally observable contract or independently meaningful boundary, not by arbitrary line count.
@@ -36,10 +50,18 @@ All 35 original test functions and their assertions are preserved. The support m
 - Keep `real_llm` probes separate from deterministic CI. A green deterministic run does not validate Ollama model quality or the live SillyTavern extension.
 - Do not add a global coverage threshold solely to force the percentage upward. Use branch coverage to select missing failure paths.
 
-## Remaining coverage priorities after PR #207
+## Current quality baseline and next gate
 
-1. **Critical transaction branches:** continue targeting stale revisions, partial-write rollback, lease fencing/recovery and campaign-time effect expiry when a concrete uncovered path is identified.
-2. **Live Ollama + SillyTavern acceptance:** run the opt-in manual checklist and record backend/extension revisions, model and settings. Do not treat deterministic fake-provider tests as model-quality validation.
+The latest main coverage artifact (2026-11-12, after PR #208) reports 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The next target is 85% combined coverage without excluding production modules or weakening assertions.
+
+The highest-return additions in the current quality branch target the SillyTavern context adapter, persistent-effect API/schema validation and the manual-roll submission lifecycle. The manual-roll path must be exercised through a successful challenge and replay, not only malformed-input tests.
+
+After the coverage target is reached and CI confirms it, enforce the threshold while retaining branch coverage. Do not set a threshold against an unverified local estimate.
+
+Next acceptance gates:
+1. **Coverage and prompt contract PR:** reach 85% combined line/branch coverage, document the live prompt corpus and keep all deterministic CI checks green.
+2. **Live Ollama evaluation:** run the opt-in manual probes and record backend revision, Ollama/model tag and results.
+3. **SillyTavern acceptance:** run the separate manual checklist and record extension/backend revisions. Do not treat deterministic fake-provider tests as model-quality validation.
 
 The synthetic context-scale and structured-proposal probes are implemented in
 PR #207 and documented in

@@ -48,6 +48,7 @@ def test_summarize_coverage_groups_files_by_top_level_package(tmp_path: Path) ->
     assert api.branches_covered == 1
     assert api.branches_valid == 2
     assert api.branch_percent == 50.0
+    assert api.combined_percent == 75.0
 
 
 def test_render_markdown_marks_report_as_informational(tmp_path: Path) -> None:

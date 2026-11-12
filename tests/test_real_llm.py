@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from models.campaign_state import CampaignState
@@ -20,8 +22,16 @@ def make_context() -> TurnContext:
 
 
 def make_extractor() -> LLMWorldExtractor:
+    provider = OllamaProvider(
+        model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            OllamaProvider.DEFAULT_BASE_URL,
+        ),
+        timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+    )
     return LLMWorldExtractor(
-        provider=OllamaProvider(),
+        provider=provider,
         operation_parser=OperationParser(),
     )
 

@@ -16,7 +16,7 @@
 
 - Prompt construction does not invoke the provider or parse operations.
 - PR #161 removed the proposal builder's dependency on the legacy narrative-extraction prompt and marker-based text extraction.
-- The active durable turn path passes `proposal_from_intent=True`; player intent is untrusted input, not confirmed narrative.
+- The active durable turn path passes the player's normalized intent to `LLMWorldExtractor.propose()`; player intent is untrusted input, not confirmed narrative. There is no separate boolean switch that upgrades intent into confirmed facts.
 - The active path selects world records by intent and expands them through relevant relationships. Required entity/item/resource dependencies travel with their parent records.
 - The active character and current campaign-location entities are mandatory. Campaign/session summaries and active-character conditions/exhaustion are rendered separately. If mandatory entity records cannot fit the context budget, planning fails closed rather than silently dropping them.
 - Secret events remain excluded. The selected projection is detached from the runtime world; it never mutates canonical state.
@@ -28,3 +28,12 @@
 - Model output remains an untrusted proposal. Parsing, semantic validation and mutation are separate authorities.
 - The repair request never resends the full world prompt. It includes a bounded error and bounded invalid-response excerpt and is limited to one attempt.
 - Do not import `services.context` from `services.llm_world`; the turn/application boundary passes the shared typed projection.
+
+
+## Evaluation and acceptance
+
+Deterministic contracts are kept in the normal test suite; real-model probes
+are opt-in and must assert semantic outcomes rather than exact wording. See
+[Prompt evaluation](../quality/prompt-evaluation-2026-11-12.md) for the current
+corpus, local Ollama command and planned semantic cases. A live model result
+does not replace the separate SillyTavern integration smoke test.

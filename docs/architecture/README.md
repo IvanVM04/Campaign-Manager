@@ -17,7 +17,8 @@
 
 - [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
 - [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, required status checks and observed CI results.
-- [Current test-suite navigation — 2026-11-12](../quality/test-suite-navigation-2026-11-12.md): durable native/SillyTavern and context regression-test contracts after PR #205.
+- [Current test-suite navigation — 2026-11-12](../quality/test-suite-navigation-2026-11-12.md): durable native/SillyTavern, context, adapter and effects regression-test contracts.
+- [Prompt evaluation — 2026-11-12](../quality/prompt-evaluation-2026-11-12.md): deterministic contracts, opt-in live Ollama probes and local acceptance boundaries.
 - [Test-suite audit — 2026-11-11](../quality/test-suite-audit-2026-11-11.md): suite structure, protected contracts and reorganization plan.
 - [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
 - [LLM context rendering boundary](llm-world-context-rendering-boundaries.md): typed projection ownership and context-budget gap.
