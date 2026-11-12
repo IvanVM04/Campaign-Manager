@@ -5,6 +5,7 @@ from typing import Any
 
 from models.world_state import WorldState
 from models.world_visibility_policy import WorldVisibilityPolicy
+from services.world.world_serializer import WorldSerializer
 
 from .entity_reference_resolver import EntityReferenceResolver
 
@@ -255,7 +256,7 @@ class MemorySearchService:
                 )
             ],
             "events": [
-                self._serialize(event)
+                WorldSerializer.event_to_dict(event)
                 for event in WorldVisibilityPolicy.player_visible_events(
                     world.events.values(),
                     character_entity_id=character_entity_id,
@@ -498,7 +499,7 @@ class MemorySearchService:
                 getattr(event, "consequences", None),
                 getattr(event, "metadata", None),
             ):
-                serialized = self._serialize(event)
+                serialized = WorldSerializer.event_to_dict(event)
                 serialized["is_current"] = event.id not in superseded_ids
                 results.append(serialized)
 
