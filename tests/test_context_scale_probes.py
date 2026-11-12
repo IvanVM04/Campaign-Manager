@@ -90,7 +90,6 @@ def test_context_budget_growth_admits_more_optional_records_without_losing_manda
     assert expanded.diagnostics.estimated_tokens <= 9000
 
 
-
 def test_large_campaign_dependency_bundles_keep_related_records_and_filter_secret_events():
     world = build_large_campaign_world(entity_count=600)
     before = repr(world)
@@ -104,7 +103,11 @@ def test_large_campaign_dependency_bundles_keep_related_records_and_filter_secre
 
     selected = projection.world
     assert {1, 2, 3}.issubset(selected.entities)
-    assert set(selected.relations) == {"player-location", "player-guard", "guard-location"}
+    assert set(selected.relations) == {
+        "player-location",
+        "player-guard",
+        "guard-location",
+    }
     assert set(selected.item_instances) == {100}
     assert set(selected.items) == {10}
     assert set(selected.resource_balances) == {200}
