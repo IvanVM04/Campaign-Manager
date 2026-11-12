@@ -33,7 +33,8 @@ The LLM-specific world-context projection is a shared typed model in `models/wor
 The byte-based budget is an upper bound rather than a model-specific token count. The LLM package checks the final rendered prompt independently. The selector raises `ProposalContextBudgetError` rather than dropping mandatory player facts.
 
 ## Remaining work
-- [ ] Add representative medium/large campaign probes for stable ranking, dependency expansion, mandatory character/location retention, budget exhaustion and non-mutation. Keep deterministic probes in CI; use opt-in live Ollama probes for model-quality evaluation.
+- [x] Add deterministic medium/large campaign probes for stable ranking, dependency expansion, mandatory character/location retention, budget exhaustion and non-mutation (`tests/test_context_scale_probes.py`; PR #207; see [probe documentation](../../docs/quality/context-scale-probes-2026-11-12.md)).
+- [ ] Add opt-in live Ollama probes for model-quality evaluation after the local environment is mounted.
 - [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
 - [ ] Consider richer semantic retrieval or tokenizer-aware accounting only after representative workloads or a provider tokenizer contract justify them.
 - [x] Keep rendering independent from transport response formatting.

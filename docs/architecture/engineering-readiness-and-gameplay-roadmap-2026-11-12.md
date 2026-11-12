@@ -40,7 +40,7 @@ Do not average these figures into a product-completion score. Their purpose is t
 |---|---|---|---:|
 | P1 | Synchronize architecture/module documentation and remove completed checkboxes | This documentation PR | 2–3 h |
 | P1 | Run local Ollama + SillyTavern acceptance and record model/settings/results | Not yet recorded | 2–4 h |
-| P2 | Add representative medium/large campaign context and proposal probes | Pending | 3–5 h |
+| P2 | Add representative medium/large campaign context and proposal probes | Implemented in PR #207; awaits CI | 3–5 h |
 | Contingent | Correct defects discovered during live acceptance/probes | Unknown until observed | 0–6 h initial allowance |
 
 **Residual engineering estimate: 7–18 hours**, including documentation, acceptance and scale probes, plus an initial allowance for corrections. This is a planning range, not a commitment that defects will fit within six hours.
@@ -64,7 +64,7 @@ The percentages below are approximate estimates of functional breadth, not sourc
 | Equipment and resources | Foundation exists; mechanics integration incomplete | Items, instances, ownership/location, equipment slots, generic resource balances and derived attack/armor profiles | Typed weapon properties, consumables, charges, ammunition and class-resource ownership/recovery. |
 | D&D 5e 2014 rules engine | Around 30% of the full rules breadth | Deterministic character checks and a first combat/mechanics slice | Add only the rules needed by selected classes and the first playable adventure; expose unsupported rules rather than improvising. |
 | Campaign and world | Foundation advanced; game loop incomplete | Campaigns, sessions, fictional clock, entities, relations, events, items, resources and persistence | Adventure objectives, clues, NPC continuity, quest progression, rewards and inter-session consequences. |
-| Context, turns and LLM | Around 85–90% of the current technical pipeline | Bounded structured proposal, ranked detached context, typed operation registry, durable commit/recovery and post-commit narration | Live model validation, representative scale probes and prompt-quality adjustments driven by observed failures. |
+| Context, turns and LLM | Around 85–90% of the current technical pipeline | Bounded structured proposal, ranked detached context, typed operation registry, durable commit/recovery and post-commit narration | Live model validation, real-model quality probes and prompt-quality adjustments driven by observed failures. |
 
 ## First playable milestone — planning estimate
 
@@ -84,7 +84,7 @@ Combined with the residual engineering estimate above, the planning range is **4
 
 1. Complete and merge the documentation/readiness update.
 2. Run the local Ollama + SillyTavern smoke test and record the outcome.
-3. Add representative context/proposal scale probes and fix any demonstrated issue.
+3. Review the context/proposal scale probes from PR #207 and fix any demonstrated issue.
 4. Build the typed character-creation vertical slice.
 5. Add one class progression/resource slice that feeds both the sheet and deterministic rules.
 6. Extend combat and equipment only for the mechanics required by that class/adventure.
