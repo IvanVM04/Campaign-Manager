@@ -165,11 +165,17 @@ class ContextBuilder:
         if not normalized_query:
             return self._empty_result()
 
-        result = self._build_context_data(
-            world,
-            normalized_query,
-            normalized_supplemental_queries,
-        )
+        if normalized_supplemental_queries:
+            result = self._build_context_data(
+                world,
+                normalized_query,
+                normalized_supplemental_queries,
+            )
+        else:
+            result = self._build_context_data(
+                world,
+                normalized_query,
+            )
 
         result["recent_turns"] = normalized_recent_turns
 
