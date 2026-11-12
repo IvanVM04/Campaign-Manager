@@ -1,13 +1,12 @@
 from copy import deepcopy
 
+from models.world_state import WorldState
+from services.context import ContextBuilder
 from tests.context_pipeline_test_support import (
     make_complex_world,
     make_relation,
     make_world,
 )
-
-from models.world_state import WorldState
-from services.context import ContextBuilder
 
 
 def test_pipeline_does_not_mutate_world():
