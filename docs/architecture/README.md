@@ -7,6 +7,7 @@
 - [Test-suite audit — 2026-11-11](../quality/test-suite-audit-2026-11-11.md): suite structure, protected contracts and reorganization plan.
 - [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
 - [LLM context rendering boundary](llm-world-context-rendering-boundaries.md): typed projection ownership and context-budget gap.
+- [Legacy narrative prompt decomposition — 2026-11-12](legacy-prompt-decomposition-2026-11-12.md): static instruction sections and byte-for-byte compatibility baseline.
 
 - [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
 
