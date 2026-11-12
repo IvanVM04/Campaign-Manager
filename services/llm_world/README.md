@@ -75,7 +75,7 @@ campaign facts.
 - [ ] Run and record the expanded local Ollama corpus; deterministic CI does not certify model quality or provide a confusion matrix.
 - [ ] Reconsider a typed intermediate intent contract only if live quality/latency evidence justifies an extra model stage.
 - [x] Add typed event epistemic/provenance/visibility/temporal metadata and apply active-character perspective across retrieval and narration (consolidated roadmap PR #214).
-- [x] Force model-originated event proposals to non-canonical inference provenance; only trusted workflows can create confirmed events (consolidated roadmap PR #214).
+- [x] Keep provenance out of the model operation schema; the world applier assigns non-canonical inference to model-created events (consolidated roadmap PR #214).
 - [ ] Extend provenance to individual entity/item assertions only when a real authoring workflow can maintain it.
 - [ ] Run and record local Ollama and complete SillyTavern acceptance; CI does not certify those environments.
 - [ ] Add tokenizer-aware accounting only if a selected provider exposes an explicit, reliable token-count API.
