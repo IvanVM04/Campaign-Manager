@@ -115,3 +115,15 @@ def make_turn_context():
         active_character=CharacterState(entity_id=20),
         world=WorldState(),
     )
+
+
+
+def test_system_prompt_classifies_player_action_modality_before_checking():
+    prompt = MechanicsAdjudicator.SYSTEM_PROMPT.casefold()
+
+    assert "hipótesis condicional" in prompt
+    assert "pregunta" in prompt
+    assert "acción cancelada" in prompt
+    assert "diálogo citado" in prompt
+    assert "paso activo" in prompt
+    assert "no elijas un objetivo al azar" in prompt
