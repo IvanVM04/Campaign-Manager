@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+
 class CampaignCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     system: str = Field(default="D&D 5e 2014", min_length=1, max_length=100)
