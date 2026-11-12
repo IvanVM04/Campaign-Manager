@@ -159,3 +159,13 @@ def test_adjudicator_retrieves_context_for_the_active_character():
 
     assert decision.decision is MechanicsDecisionType.NONE
     assert context_builder.character_entity_id == 20
+
+
+
+def test_system_prompt_does_not_treat_rumors_or_inferences_as_confirmed_facts():
+    prompt = MechanicsAdjudicator.SYSTEM_PROMPT.casefold()
+
+    assert "un rumor es una afirmación atribuida" in prompt
+    assert "una inferencia es una posibilidad" in prompt
+    assert "no bases una cd" in prompt
+    assert "pide aclaración" in prompt
