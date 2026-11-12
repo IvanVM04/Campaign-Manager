@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import services.silly_tavern_integration_service as integration_module
+import integrations.adapters.silly_tavern as integration_module
 from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -21,7 +21,7 @@ from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.silly_tavern_integration_service import (
+from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
 )
@@ -145,7 +145,7 @@ def test_integration_context_endpoint_returns_500_on_service_error(
     client,
     monkeypatch,
 ):
-    from services.silly_tavern_integration_service import (
+    from integrations.adapters.silly_tavern import (
         SillyTavernIntegrationServiceError,
     )
 

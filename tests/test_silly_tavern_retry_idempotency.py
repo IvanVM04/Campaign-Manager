@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import services.silly_tavern_integration_service as integration_module
+import integrations.adapters.silly_tavern as integration_module
 from models.campaign_scope import CampaignScope
 from models.character_state import CharacterState
 from models.entity import Entity
@@ -21,7 +21,7 @@ from operations.world_operations import CreateEntityOperation
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.silly_tavern_integration_service import (
+from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
     SillyTavernIntegrationServiceConflictError,
 )
@@ -58,7 +58,7 @@ def test_exact_retry_returns_persisted_turn_without_running_extractor(
         return []
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         fake_extract,
     )
@@ -172,7 +172,7 @@ def test_same_turn_version_with_different_content_returns_conflict(
         return []
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         fake_extract,
     )
@@ -288,7 +288,7 @@ def test_concurrent_exact_retries_persist_only_one_turn(
         return []
 
     service = app.runtime_factory.get_runtime(1).silly_tavern_integration_service
-    extractor = service.extractor
+    extractor = service.legacy_turn_service.extractor
 
     monkeypatch.setattr(
         extractor,
@@ -385,7 +385,7 @@ def test_silly_tavern_turn_same_version_different_content_conflicts(
         "La puerta se abre lentamente."
     )
 
-    from services.silly_tavern_integration_service import (
+    from integrations.adapters.silly_tavern import (
         SillyTavernIntegrationServiceConflictError,
     )
 

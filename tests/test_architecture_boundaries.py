@@ -166,3 +166,41 @@ def test_capability_packages_respect_dependency_matrix():
         "Capability-package dependency matrix was violated:\n"
         + "\\n".join(violations)
     )
+
+
+def test_capability_services_do_not_depend_on_external_adapters():
+    violations = []
+    services_path = ROOT / "services"
+    for path in sorted(services_path.rglob("*.py")):
+        imports = _absolute_module_imports(path.read_text(encoding="utf-8"))
+        external = sorted(
+            imported
+            for imported in imports
+            if imported == "integrations" or imported.startswith("integrations.")
+        )
+        if external:
+            violations.append(
+                f"{path.relative_to(ROOT)} imports external adapter(s): "
+                f"{', '.join(external)}"
+            )
+    assert not violations, (
+        "Capability services must not depend on external integration adapters:\\n"
+        + "\\n".join(violations)
+    )
+
+
+def test_external_silly_tavern_adapters_do_not_import_transport_or_composition():
+    violations = []
+    adapter_path = ROOT / "integrations" / "adapters" / "silly_tavern"
+    for path in sorted(adapter_path.rglob("*.py")):
+        imports = _import_roots(path.read_text(encoding="utf-8"))
+        forbidden = sorted(imports & {"api", "bootstrap"})
+        if forbidden:
+            violations.append(
+                f"{path.relative_to(ROOT)} imports forbidden layer(s): "
+                f"{', '.join(forbidden)}"
+            )
+    assert not violations, (
+        "External integration adapters must not depend on API or bootstrap:\\n"
+        + "\\n".join(violations)
+    )
