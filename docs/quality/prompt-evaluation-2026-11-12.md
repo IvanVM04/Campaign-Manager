@@ -60,9 +60,9 @@ called; those retrieval contracts are tested without Ollama:
    step; a later failed step does not mutate its target.
 
 The first and third cases are positive controls: the model must not learn to
-return an empty list for every input. The second and fourth are negative
-controls: it must not persist ephemeral actions or reverse an explicitly
-failed outcome.
+return an empty list for every input. The remaining cases are negative or
+partial-completion controls: they must not persist ephemeral, negated,
+hypothetical or attributed content, and must not apply a later failed step.
 
 Run them manually from the repository root:
 
