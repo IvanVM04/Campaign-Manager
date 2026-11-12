@@ -16,13 +16,20 @@ def _list(
 ):
     runtime = get_current_runtime()
     with runtime.turn_execution_lock.acquire():
+        turn_context = runtime.campaign_state_service.get_turn_context()
+        character_entity_id = (
+            turn_context.active_character.entity_id
+            if turn_context.active_character is not None
+            else None
+        )
         return _query_service.list_collection(
-            runtime.world_service.get_world(),
+            turn_context.world,
             collection,
             query=q,
             active=active,
             limit=limit,
             offset=offset,
+            character_entity_id=character_entity_id,
         )
 
 
