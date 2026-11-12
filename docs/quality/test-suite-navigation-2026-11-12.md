@@ -36,11 +36,17 @@ All 35 original test functions and their assertions are preserved. The support m
 - Keep `real_llm` probes separate from deterministic CI. A green deterministic run does not validate Ollama model quality or the live SillyTavern extension.
 - Do not add a global coverage threshold solely to force the percentage upward. Use branch coverage to select missing failure paths.
 
-## Remaining coverage priorities after PR #205
+## Remaining coverage priorities after PR #207
 
-1. **Context scale probes:** representative medium/large campaign fixtures, stable ranking, mandatory character/location retention, dependency expansion, budget exhaustion and projection non-mutation.
-2. **Critical transaction branches:** continue targeting stale revisions, partial-write rollback, lease fencing/recovery and campaign-time effect expiry when a concrete uncovered path is identified.
-3. **Live Ollama + SillyTavern acceptance:** run the opt-in manual checklist and record backend/extension revisions, model and settings. Do not treat deterministic fake-provider tests as model-quality validation.
+1. **Critical transaction branches:** continue targeting stale revisions, partial-write rollback, lease fencing/recovery and campaign-time effect expiry when a concrete uncovered path is identified.
+2. **Live Ollama + SillyTavern acceptance:** run the opt-in manual checklist and record backend/extension revisions, model and settings. Do not treat deterministic fake-provider tests as model-quality validation.
+
+The synthetic context-scale and structured-proposal probes are implemented in
+PR #207 and documented in
+[context-scale-probes-2026-11-12.md](context-scale-probes-2026-11-12.md).
+They cover large candidate sets, stable insertion-order behavior, budget
+growth, mandatory facts, dependencies, non-mutation, secret filtering and a
+single bounded repair. They do not replace live-model acceptance.
 
 Already covered deterministically:
 - Ollama request success, timeout, connection failure, HTTP errors with/without parseable error bodies, malformed/non-object JSON, malformed response payloads and no hidden transport retry.
