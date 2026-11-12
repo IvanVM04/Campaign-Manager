@@ -80,7 +80,14 @@ Encounter creation merges supplied NPC melee profiles, natural attacks and defen
 | `models/schemas.py` | Backward-compatible import facade over campaign, character, world, turn and integration schema modules. | Production routers import from the owning bounded context; keep facade exports and OpenAPI contracts stable. |
 | `migrations.py` | Ordered historical functions 001–029 plus the explicit `MIGRATIONS` metadata/runner registry. | Keep historical bodies in chronological order; use [the migration catalogue](migration-catalog-2026-11-12.md) and preserve fresh/upgrade/idempotency tests. No schema-version change in this consolidation. |
 
-## Consolidation implemented on this branch\n\n- Combat transaction ownership was made uniform for encounter completion and failure-injection tests verify rollback across writes to encounter snapshots, canonical character HP and timed effects.\n- `WorldService.apply_turn_operations()` remains the public entrypoint and delegates to `WorldTurnOperationCoordinator`; caller-supplied connections and in-memory state identity are preserved.\n- API request schemas are split into campaign, character, world, turn and integration modules. `models.schemas` remains a compatibility facade; routers now import their bounded-context schemas directly.\n- The migration runner now uses a contiguous, named `MigrationDefinition` registry and has a [human-readable migration catalogue](migration-catalog-2026-11-12.md). Historical migration functions remain in their original file/order; `CURRENT_VERSION` stays 29.\n\n## Cleanup disposition
+## Consolidation implemented on this branch
+
+- Combat transaction ownership was made uniform for encounter completion and failure-injection tests verify rollback across writes to encounter snapshots, canonical character HP and timed effects.
+- `WorldService.apply_turn_operations()` remains the public entrypoint and delegates to `WorldTurnOperationCoordinator`; caller-supplied connections and in-memory state identity are preserved.
+- API request schemas are split into campaign, character, world, turn and integration modules. `models.schemas` remains a compatibility facade; routers now import their bounded-context schemas directly.
+- The migration runner now uses a contiguous, named `MigrationDefinition` registry and has a [human-readable migration catalogue](migration-catalog-2026-11-12.md). Historical migration functions remain in their original file/order; `CURRENT_VERSION` stays 29.
+
+## Cleanup disposition
 
 ### Retired
 
