@@ -229,6 +229,8 @@ The selected campaign is resolved to a dedicated `CampaignRuntime`, which owns i
 
 **Local security boundary:** `X-Campaign-Id` selects one of the local user's campaigns; it is not an authentication credential. This is intentional for the single-player, local-first application. The server is configured to bind to `127.0.0.1`, so it is not exposed to other machines by the documented default commands. Do not change the bind address to `0.0.0.0` or expose the API through a reverse proxy/tunnel without adding an explicit authentication mechanism and reviewing campaign access. Remote access is a separate future scope.
 
+All current world, memory and export read endpoints return player-safe projections: events marked `secret=true` are omitted from `/world`, `/world/events`, `/memory/search`, `/memory/context` and `/export`. There is not yet an authenticated GM read API. Do not add a query parameter or caller-controlled header to opt into secret data; a future GM view must be gated by a verified identity and a per-campaign GM permission.
+
 ### Basic
 
 ```text

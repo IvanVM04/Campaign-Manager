@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Baseline:** PR #197 is integrated; this cleanup branch removes the remaining narrative-first extraction and snapshot-reconciliation paths.  
+**Baseline:** PR #198 is integrated and retired the remaining narrative-first extraction and snapshot-reconciliation paths.  
 **Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.
 
 ## Executive assessment
@@ -56,6 +56,12 @@ The migration is forward-only. It does not change earlier migration history. Mig
 The durable turn workflow preserves stable external-turn idempotency, campaign revision checks and lease fencing, a short atomic commit for canonical state and durable resolution, narration/provider calls outside the write transaction, recovery after process restart or provider/narration failure, and no replay of consequences when narrative versions change.
 
 The rules engine remains pure and repository-free. Application services own transaction boundaries and pass the caller-owned connection to repositories.
+
+## World visibility and deployment boundary
+
+The earlier audit found that `GET /world` and `GET /world/events` could expose events marked `secret=true`, although memory search and export already filtered them. The central `WorldVisibilityPolicy` now applies the same player-safe rule to the world overview, event collection, memory search/context and export paths. Collection filtering happens before search, pagination and total calculation.
+
+The application remains single-user/local-first. `X-Campaign-Id` is campaign selection, not authentication, and CORS is not an authorization boundary. No unauthenticated GM bypass is provided. A GM read model, multi-user access or remote deployment requires verified identity plus per-campaign authorization before secret data can be exposed. Keep the documented loopback bind and single-process runtime assumptions until that work is implemented.
 
 ## Remaining architectural hotspots
 

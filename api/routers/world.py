@@ -6,6 +6,7 @@ from models.schemas import WorldBootstrapIn
 from models.world_read_models import WorldEntityPage
 from operations.world_operations import CreateEntityOperation
 from services.world import WorldQueryService
+from services.world.world_visibility_policy import WorldVisibilityPolicy
 
 router = APIRouter()
 
@@ -41,7 +42,9 @@ def get_world():
                 world.relations.values()
             ),
             "events": list(
-                world.events.values()
+                WorldVisibilityPolicy.player_visible_events(
+                    world.events.values()
+                )
             ),
         }
 

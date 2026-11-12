@@ -491,3 +491,73 @@ def test_memory_context_accepts_query(
     assert response.json() == {
         "context": "Aldric es un mercader.",
     }
+
+
+def test_world_overview_does_not_expose_secret_events(clean_world):
+    clean_world.events["public-001"] = Event(
+        id="public-001",
+        event_type="discovery",
+        title="The old bridge",
+        description="The party found a bridge.",
+        secret=False,
+    )
+    clean_world.events["secret-001"] = Event(
+        id="secret-001",
+        event_type="secret",
+        title="The king is an impostor",
+        description="The players must not know this.",
+        secret=True,
+    )
+
+    response = client.get("/world")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [event["id"] for event in data["events"]] == ["public-001"]
+    assert "impostor" not in response.text
+
+
+def test_world_event_collection_hides_secret_events_and_counts_only_visible_rows(
+    clean_world,
+):
+    clean_world.events["public-001"] = Event(
+        id="public-001",
+        event_type="discovery",
+        title="The old bridge",
+        secret=False,
+    )
+    clean_world.events["secret-001"] = Event(
+        id="secret-001",
+        event_type="secret",
+        title="The king is an impostor",
+        secret=True,
+    )
+
+    response = client.get("/world/events")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert [event["id"] for event in data["items"]] == ["public-001"]
+    assert "impostor" not in response.text
+
+
+def test_memory_context_does_not_include_secret_events(clean_world):
+    clean_world.events["secret-001"] = Event(
+        id="secret-001",
+        event_type="secret",
+        title="The king is an impostor",
+        description="A hidden fact about the royal family.",
+        consequences="The players must not know this.",
+        secret=True,
+    )
+
+    response = client.get(
+        "/memory/context",
+        params={"q": "impostor"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["events"] == []
+    assert "impostor" not in data["context"].casefold()
