@@ -171,21 +171,22 @@ def test_long_rest_cannot_be_benefited_from_twice_within_24_campaign_hours(
             expected_elapsed_minutes=first.clock.elapsed_minutes,
         )
 
-    CampaignClockRepository().advance(
-        1,
-        minutes=1440,
-        expected_elapsed_minutes=first.clock.elapsed_minutes,
-        conn=_clock_transaction_connection(),
+    from database import transaction
+
+    with transaction("IMMEDIATE") as conn:
+        CampaignClockRepository().advance(
+            1,
+            minutes=960,
+            expected_elapsed_minutes=first.clock.elapsed_minutes,
+            conn=conn,
+        )
+
+    second = service.long_rest(
+        character.entity_id,
+        expected_elapsed_minutes=first.clock.elapsed_minutes + 960,
     )
+    assert second.clock.elapsed_minutes == 1920
 
-
-def _clock_transaction_connection():
-    # Kept separate from the production rest service so the test can advance
-    # campaign time without consuming or recovering any character resource.
-    from database import get_conn
-
-    connection_context = get_conn()
-    return connection_context
 
 
 def test_rest_is_rejected_while_an_encounter_is_active(isolated_database):
