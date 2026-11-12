@@ -33,6 +33,7 @@ def test_context_renderer_returns_empty_section_fallbacks():
         "character_block": "No hay personaje activo.",
         "conditions_block": "Condiciones: ninguna\nAgotamiento: 0",
         "known_entities": "- Ninguna",
+        "reference_guidance": "",
         "known_items": "- Ninguno",
         "known_item_instances": "- Ninguna",
         "known_resources": "- Ninguno",
@@ -239,3 +240,17 @@ def test_context_renderer_includes_active_character_conditions_and_exhaustion():
     assert rendered["conditions_block"] == (
         "Condiciones: poisoned, prone\nAgotamiento: 2"
     )
+
+
+def test_context_renderer_includes_explicit_aliases_for_known_entities():
+    context = make_context(
+        WorldState(
+            entities={
+                1: Entity(id=1, name="Aldric", aliases=["el tabernero"])
+            }
+        )
+    )
+    blocks = LLMWorldContextRenderer.build_context(context)
+    assert "alias explícitos" in blocks["known_entities"]
+    assert "el tabernero" in blocks["known_entities"]
+    assert blocks["reference_guidance"] == ""

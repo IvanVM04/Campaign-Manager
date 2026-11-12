@@ -28,6 +28,7 @@ from migrations import (
     migration_026,
     migration_029,
     migration_030,
+    migration_031,
     run_migrations,
 )
 
@@ -914,14 +915,14 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_30():
+def test_run_migrations_upgrades_version_21_to_latest_schema():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -940,7 +941,7 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
     conn.close()
 
 
@@ -962,7 +963,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
@@ -1014,7 +1015,7 @@ def test_migration_025_adds_encounter_scoped_effect_timer_columns():
         "encounter_id", "duration_rounds", "expires_at_round",
         "duration_turns", "expires_at_turn", "expired_at_round", "expired_at_turn",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
     trigger = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_effect_timer_encounter_campaign'"
     ).fetchone()
@@ -1066,7 +1067,7 @@ def test_migration_026_creates_slot_projection_and_migrates_legacy_weapon():
     assert conn.execute(
         "SELECT equipment_slot FROM items WHERE id=1"
     ).fetchone()[0] == "main_hand"
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
     conn.close()
 
 
@@ -1115,7 +1116,7 @@ def test_migration_028_persists_armor_proficiencies_with_empty_legacy_default():
         row["name"] for row in conn.execute("PRAGMA table_info(character_states)")
     }
     assert "armor_proficiencies" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
     conn.execute("""
         INSERT INTO entities (id, name, entity_type, campaign_id)
         VALUES (1, 'Legacy hero', 'player_character', 1)
@@ -1207,7 +1208,7 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
 
     from migrations import MIGRATIONS
 
-    for definition in MIGRATIONS[:-1]:
+    for definition in MIGRATIONS[:-2]:
         definition.apply(conn)
 
     for name, class_name in (
@@ -1273,5 +1274,43 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
         (wizard_id,),
     ).fetchone()
     assert tuple(persisted) == (10, 1, 120)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()
+
+
+def test_migration_031_persists_entity_aliases_and_is_idempotent():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    for definition in MIGRATIONS[:-1]:
+        definition.apply(conn)
+
+    entity_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, description, campaign_id)
+        VALUES ('Aldric', 'npc', 'Tabernero de la posada.', 1)
+        """
+    ).lastrowid
+    migration_031(conn)
+
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(entities)")
+    }
+    assert "aliases" in columns
+    row = conn.execute(
+        "SELECT name, description, aliases FROM entities WHERE id = ?",
+        (entity_id,),
+    ).fetchone()
+    assert tuple(row) == ("Aldric", "Tabernero de la posada.", "[]")
+
+    conn.execute(
+        "UPDATE entities SET aliases = ? WHERE id = ?",
+        ('["el tabernero","el posadero"]', entity_id),
+    )
+    migration_031(conn)
+    aliases = conn.execute(
+        "SELECT aliases FROM entities WHERE id = ?", (entity_id,)
+    ).fetchone()["aliases"]
+    assert aliases == '["el tabernero","el posadero"]'
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     conn.close()

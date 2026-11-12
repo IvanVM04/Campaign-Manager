@@ -94,6 +94,7 @@ def bootstrap_world_entities(data: WorldBootstrapIn):
                     entity_type=entity.entity_type,
                     description=entity.description,
                     notes=entity.notes,
+                    aliases=entity.aliases,
                 )
                 for entity in missing
             ]
@@ -129,6 +130,7 @@ def bootstrap_world_entities(data: WorldBootstrapIn):
                     "id": entities_by_name[entity.name.casefold()].id,
                     "name": entities_by_name[entity.name.casefold()].name,
                     "entity_type": entities_by_name[entity.name.casefold()].entity_type,
+                    "aliases": entities_by_name[entity.name.casefold()].aliases,
                 }
                 for entity in data.entities
             ],

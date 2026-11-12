@@ -59,6 +59,7 @@ def test_world_repository_round_trip(tmp_path):
             description="Un aventurero peculiar.",
             notes="Le gusta el oro.",
             active=True,
+            aliases=["el aventurero", "el buscador de oro"],
         )
 
         goblin = Entity(
@@ -192,6 +193,9 @@ def test_world_repository_round_trip(tmp_path):
         # --------------------------------------------------------
 
         assert loaded.entities == world.entities
+        assert loaded.entities[1].aliases == [
+            "el aventurero", "el buscador de oro"
+        ]
 
         # --------------------------------------------------------
         # ITEMS

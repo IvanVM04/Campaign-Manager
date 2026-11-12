@@ -59,7 +59,7 @@ class WorldRepository:
 
     def _load_entities(self, world, *, campaign_id, conn=None):
         data = self._rows("""
-            SELECT id, name, entity_type, description, notes, active
+            SELECT id, name, entity_type, description, notes, active, aliases
             FROM entities
             WHERE campaign_id = ?
         """, (campaign_id,), conn=conn)
@@ -72,6 +72,7 @@ class WorldRepository:
                 description=row["description"],
                 notes=row["notes"],
                 active=bool(row["active"]),
+                aliases=json.loads(row["aliases"] or "[]"),
             )
             world.entities[entity.id] = entity
 
@@ -285,15 +286,16 @@ class WorldRepository:
                 query="""
                     INSERT INTO entities (
                         id, name, entity_type, description, notes,
-                        active, campaign_id
+                        active, aliases, campaign_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         name = excluded.name,
                         entity_type = excluded.entity_type,
                         description = excluded.description,
                         notes = excluded.notes,
                         active = excluded.active,
+                        aliases = excluded.aliases,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE entities.campaign_id = excluded.campaign_id
                 """,
@@ -304,6 +306,7 @@ class WorldRepository:
                     entity.description,
                     entity.notes,
                     int(entity.active),
+                    json.dumps(entity.aliases, ensure_ascii=False, separators=(",", ":")),
                     campaign_id,
                 ),
             )

@@ -314,6 +314,28 @@ class OperationParser:
         fields: dict[str, Any],
     ) -> None:
 
+        aliases = fields.get("aliases")
+        if aliases is not None:
+            if not isinstance(aliases, list):
+                raise OperationParseError("'aliases' must be a list of strings.")
+            if len(aliases) > 20:
+                raise OperationParseError("'aliases' cannot contain more than 20 entries.")
+            normalized_aliases: list[str] = []
+            seen_aliases: set[str] = set()
+            for alias in aliases:
+                if not isinstance(alias, str):
+                    raise OperationParseError("'aliases' must contain only strings.")
+                value = alias.strip()
+                if not value or len(value) > 100:
+                    raise OperationParseError(
+                        "Each alias must contain 1 to 100 non-whitespace characters."
+                    )
+                key = value.casefold()
+                if key not in seen_aliases:
+                    seen_aliases.add(key)
+                    normalized_aliases.append(value)
+            fields["aliases"] = normalized_aliases
+
         metadata = self.registry.get(operation_type)
         integer_fields = metadata.reference_fields if metadata is not None else ()
 

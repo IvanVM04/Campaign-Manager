@@ -393,3 +393,73 @@ def test_search_matches_entity_when_name_is_only_part_of_query():
 
     assert len(result["entities"]) == 1
     assert result["entities"][0]["name"] == "Aldren"
+
+def test_search_finds_entity_by_explicit_alias(service):
+    world = WorldState(
+        entities={
+            12: Entity(
+                id=12,
+                name="Aldric",
+                entity_type="npc",
+                description="Un tabernero veterano.",
+                aliases=["el tabernero", "el posadero"],
+            )
+        }
+    )
+    result = service.search(world, "Hablo con el tabernero")
+    assert [entity["id"] for entity in result["entities"]] == [12]
+
+
+def test_search_normalizes_accents_and_case_for_entity_names(service):
+    world = WorldState(
+        entities={2: Entity(id=2, name="Doña Cárdena", entity_type="npc")}
+    )
+    result = service.search(world, "dona cardena")
+    assert [entity["id"] for entity in result["entities"]] == [2]
+
+
+def test_search_abstains_when_an_entity_alias_is_ambiguous(service):
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="Aldric", aliases=["el guardia"]),
+            2: Entity(id=2, name="Mara", aliases=["la guardia", "el guardia"]),
+        }
+    )
+    result = service.search(world, "Hablo con el guardia")
+    assert result["entities"] == []
+
+
+def test_search_resolves_role_from_description_only_when_all_terms_match(service):
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="Aldric", description="El tabernero de la posada del Dragón."),
+            2: Entity(id=2, name="Mara", description="Una exploradora de los bosques."),
+        }
+    )
+    result = service.search(world, "Hablo con el tabernero de la posada")
+    assert [entity["id"] for entity in result["entities"]] == [1]
+
+
+def test_search_keeps_role_candidates_when_description_is_ambiguous(service):
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="Aldric", description="Un guardia del puerto."),
+            2: Entity(id=2, name="Mara", description="Una guardia del puerto."),
+        }
+    )
+    result = service.search(world, "Quiero hablar con el guardia del puerto")
+    assert [entity["id"] for entity in result["entities"]] == [1, 2]
+
+
+def test_search_keeps_number_words_as_part_of_compound_entity_names(service):
+    world = WorldState(
+        entities={
+            10: Entity(id=10, name="Entidad diez", entity_type="npc"),
+            2: Entity(id=2, name="Entidad dos", entity_type="npc"),
+            1: Entity(id=1, name="Entidad uno", entity_type="npc"),
+        }
+    )
+
+    result = service.search(world, "Entidad")
+
+    assert sorted(entity["id"] for entity in result["entities"]) == [1, 2, 10]

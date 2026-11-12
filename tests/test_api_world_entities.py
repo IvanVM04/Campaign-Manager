@@ -7,6 +7,7 @@ def test_world_entity_read_api_filters_and_paginates(client):
                     "name": "Aldric",
                     "entity_type": "character",
                     "description": "A travelling fighter.",
+                    "aliases": ["the innkeeper", "keeper of the inn"],
                 },
                 {
                     "name": "Aldora",
@@ -35,6 +36,7 @@ def test_world_entity_read_api_filters_and_paginates(client):
     assert len(data["items"]) == 1
     assert data["items"][0]["name"] == "Aldric"
     assert data["items"][0]["entity_type"] == "character"
+    assert data["items"][0]["aliases"] == ["the innkeeper", "keeper of the inn"]
 
     next_page = client.get(
         "/world/entities?q=ald&entity_type=character&limit=1&offset=1"
@@ -43,6 +45,10 @@ def test_world_entity_read_api_filters_and_paginates(client):
     assert [item["name"] for item in next_page.json()["items"]] == [
         "Aldora"
     ]
+
+    alias_match = client.get("/world/entities?q=keeper%20of%20the%20inn")
+    assert alias_match.status_code == 200
+    assert [item["name"] for item in alias_match.json()["items"]] == ["Aldric"]
 
 
 def test_world_entity_read_api_rejects_invalid_pagination(client):
@@ -73,3 +79,18 @@ def test_world_collection_read_endpoints_validate_pagination(client):
     assert client.get("/world/items?limit=0").status_code == 422
     assert client.get("/world/events?limit=101").status_code == 422
     assert client.get("/world/resources?offset=-1").status_code == 422
+
+
+def test_world_entity_bootstrap_validates_alias_count_and_length(client):
+    too_many = [f"alias-{index}" for index in range(21)]
+    response = client.post(
+        "/world/entities/bootstrap",
+        json={"entities": [{"name": "Aldric", "entity_type": "npc", "aliases": too_many}]},
+    )
+    assert response.status_code == 422
+
+    too_long = client.post(
+        "/world/entities/bootstrap",
+        json={"entities": [{"name": "Aldric", "entity_type": "npc", "aliases": ["x" * 101]}]},
+    )
+    assert too_long.status_code == 422

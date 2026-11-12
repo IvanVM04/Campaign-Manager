@@ -1,6 +1,6 @@
 """In-memory application of world entity operations."""
 
-from models.entity import Entity
+from models.entity import Entity, normalize_entity_aliases
 from models.operation_result import OperationResult, OperationStatus
 from models.world_state import WorldState
 from operations.world_operations import CreateEntityOperation, UpdateEntityOperation
@@ -42,6 +42,17 @@ class WorldEntityApplier:
                     operation=operation,
                 )
 
+        try:
+            aliases = normalize_entity_aliases(
+                operation.aliases,
+                canonical_name=name,
+            )
+        except (TypeError, ValueError) as exc:
+            return OperationResult(
+                status=OperationStatus.INVALID,
+                message=str(exc),
+                operation=operation,
+            )
         entity_id = self._next_entity_id(world)
         entity = Entity(
             id=entity_id,
@@ -50,6 +61,7 @@ class WorldEntityApplier:
             description=operation.description,
             notes=operation.notes,
             active=operation.active,
+            aliases=aliases,
         )
         world.entities[entity_id] = entity
 
@@ -82,6 +94,28 @@ class WorldEntityApplier:
                 message=f"Entity '{operation.entity_id}' does not exist.",
                 operation=operation,
             )
+
+        requested_name = (
+            operation.name.strip()
+            if operation.name is not None
+            else entity.name
+        )
+        if operation.aliases is not None or requested_name != entity.name:
+            try:
+                aliases_to_apply = normalize_entity_aliases(
+                    operation.aliases
+                    if operation.aliases is not None
+                    else entity.aliases,
+                    canonical_name=requested_name,
+                )
+            except (TypeError, ValueError) as exc:
+                return OperationResult(
+                    status=OperationStatus.INVALID,
+                    message=str(exc),
+                    operation=operation,
+                )
+        else:
+            aliases_to_apply = None
 
         changed = False
 
@@ -124,6 +158,12 @@ class WorldEntityApplier:
             entity.active = operation.active
             changed = True
 
+        if (
+            aliases_to_apply is not None
+            and entity.aliases != aliases_to_apply
+        ):
+            entity.aliases = aliases_to_apply
+            changed = True
         if not changed:
             return OperationResult(
                 status=OperationStatus.NO_CHANGE,

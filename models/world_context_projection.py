@@ -27,6 +27,9 @@ class ContextProjectionDiagnostics:
     available_counts: tuple[tuple[str, int], ...]
     candidate_counts: tuple[tuple[str, int], ...]
     selected_counts: tuple[tuple[str, int], ...]
+    reference_status: str = "unresolved"
+    reference_match_kind: str = "none"
+    reference_candidate_count: int = 0
 
     def __post_init__(self) -> None:
         for name in ("estimated_tokens", "budget_tokens"):
@@ -35,6 +38,16 @@ class ContextProjectionDiagnostics:
                 raise ValueError(f"{name} must be a non-negative integer")
         if self.budget_tokens <= 0:
             raise ValueError("budget_tokens must be greater than zero")
+        if self.reference_status not in {"resolved", "ambiguous", "unresolved"}:
+            raise ValueError("reference_status must be resolved, ambiguous or unresolved")
+        if not isinstance(self.reference_match_kind, str):
+            raise TypeError("reference_match_kind must be a string")
+        if (
+            isinstance(self.reference_candidate_count, bool)
+            or not isinstance(self.reference_candidate_count, int)
+            or self.reference_candidate_count < 0
+        ):
+            raise ValueError("reference_candidate_count must be a non-negative integer")
 
     @property
     def available_records(self) -> int:

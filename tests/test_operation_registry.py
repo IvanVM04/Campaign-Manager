@@ -54,6 +54,9 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
 
     assert create_entity["required"] == "name:text"
     assert "entity_type:text" in create_entity["optional"]
+    assert "aliases" in create_entity["optional"]
+    assert "aliases" in parsed["field_notes"]
+    assert parsed["field_notes"]["aliases"] == "Alias explícitos."
     assert create_entity["description"]
     assert len(create_entity["description"]) > 32
     assert parsed["examples"]["create_entity"]["name"] == "Aldric"
@@ -65,6 +68,7 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
     assert "entity_type" in parsed["field_notes"]
     assert "persona identificada" in parsed["field_notes"]["entity_type"]
     entity_schema = DEFAULT_OPERATION_REGISTRY.get("create_entity").json_schema()
+    assert entity_schema["properties"]["aliases"]["description"] == "Alias explícitos."
     assert "Hechos conocidos" in entity_schema["properties"]["description"]["description"]
 
 

@@ -15,6 +15,7 @@
 - [Combat and character-state audit — 2026-11-12](combat-character-state-audit-2026-11-12.md): canonical HP, persistent effects, movement/reaction projections, Hit Dice and rest transaction contracts.
 - [Durable turn execution boundary](durable-turn-execution-boundary.md): request idempotency, planning leases, prepared commit hand-off and typed failures.
 
+- [Entity reference resolution — 2026-11-12](../quality/entity-reference-resolution-2026-11-12.md): typed aliases, deterministic identity matching and ambiguity abstention.
 - [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
 - [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, required status checks and observed CI results.
 - [Current test-suite navigation — 2026-11-12](../quality/test-suite-navigation-2026-11-12.md): durable native/SillyTavern, context, adapter and effects regression-test contracts.

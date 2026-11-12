@@ -121,3 +121,31 @@ def test_proposal_prompt_builder_renders_the_shared_operation_schema():
     assert "Usa npc para una persona identificada" in prompt
     assert '"type":"create_item_instance"' in prompt
     assert "change_character_hp" not in prompt
+
+
+def test_ambiguous_entity_reference_is_spelled_out_in_proposal_prompt():
+    from models.world_context_projection import (
+        ContextProjectionDiagnostics,
+        WorldContextProjection,
+    )
+
+    context = make_context()
+    diagnostics = ContextProjectionDiagnostics(
+        estimated_tokens=0,
+        budget_tokens=500,
+        available_counts=(),
+        candidate_counts=(),
+        selected_counts=(),
+        reference_status="ambiguous",
+        reference_match_kind="alias",
+        reference_candidate_count=2,
+    )
+    projection = WorldContextProjection(world=WorldState(), diagnostics=diagnostics)
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Hablo con el guardia.",
+        context,
+        projection=projection,
+    )
+
+    assert "coincide con varios registros" in prompt
+    assert "no elijas uno al azar" in prompt.casefold()

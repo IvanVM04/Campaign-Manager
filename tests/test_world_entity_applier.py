@@ -84,3 +84,55 @@ def test_update_entity_returns_no_change_for_identical_state():
     )
 
     assert result.status == OperationStatus.NO_CHANGE
+
+
+def test_create_entity_normalizes_explicit_aliases():
+    world = build_world()
+    result = WorldEntityApplier().apply(
+        world,
+        CreateEntityOperation(
+            name="Mara",
+            aliases=[" La Guardiana ", "la guardiana", "Mara"],
+        ),
+    )
+    assert result.status == OperationStatus.SUCCESS
+    assert world.entities[5].aliases == ["La Guardiana"]
+
+
+def test_update_entity_replaces_aliases_and_detects_identical_values():
+    world = build_world()
+    applier = WorldEntityApplier()
+    updated = applier.apply(
+        world, UpdateEntityOperation(entity_id=4, aliases=["el tabernero"])
+    )
+    repeated = applier.apply(
+        world, UpdateEntityOperation(entity_id=4, aliases=["el tabernero"])
+    )
+    assert updated.status == OperationStatus.SUCCESS
+    assert world.entities[4].aliases == ["el tabernero"]
+    assert repeated.status == OperationStatus.NO_CHANGE
+
+
+def test_create_entity_rejects_invalid_aliases_without_mutating_world():
+    world = build_world()
+    result = WorldEntityApplier().apply(
+        world, CreateEntityOperation(name="Mara", aliases=["x" * 101])
+    )
+    assert result.status == OperationStatus.INVALID
+    assert list(world.entities) == [4]
+
+
+def test_update_entity_rejects_invalid_aliases_without_partial_mutation():
+    world = build_world()
+    result = WorldEntityApplier().apply(
+        world,
+        UpdateEntityOperation(
+            entity_id=4,
+            description="This must not be applied.",
+            aliases=["x" * 101],
+        ),
+    )
+
+    assert result.status == OperationStatus.INVALID
+    assert world.entities[4].description == ""
+    assert world.entities[4].aliases == []
