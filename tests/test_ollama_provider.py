@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -560,3 +562,41 @@ def test_ollama_provider_is_callable(
     assert provider(
         "Hola"
     ) == "ok"
+
+def test_ollama_provider_converts_http_error_with_provider_message(monkeypatch):
+    def fake_urlopen(request, timeout):
+        raise HTTPError(request.full_url, 404, "Not Found", None, BytesIO(b'{"error":"model not found"}'))
+    monkeypatch.setattr("services.providers.ollama_provider.urlopen", fake_urlopen)
+    with pytest.raises(LLMProviderError, match="Ollama HTTP 404: model not found"):
+        OllamaProvider().generate("Hola")
+
+
+def test_ollama_provider_uses_stable_http_error_when_body_is_malformed(monkeypatch):
+    def fake_urlopen(request, timeout):
+        raise HTTPError(request.full_url, 500, "Internal Server Error", None, BytesIO(b"not-json"))
+    monkeypatch.setattr("services.providers.ollama_provider.urlopen", fake_urlopen)
+    with pytest.raises(LLMProviderError, match="Ollama HTTP error 500"):
+        OllamaProvider().generate("Hola")
+
+
+def test_ollama_provider_does_not_retry_transport_failures(monkeypatch):
+    calls = 0
+    def fake_urlopen(request, timeout):
+        nonlocal calls
+        calls += 1
+        raise URLError("connection refused")
+    monkeypatch.setattr("services.providers.ollama_provider.urlopen", fake_urlopen)
+    with pytest.raises(LLMProviderError, match="Could not connect to Ollama"):
+        OllamaProvider().generate("Hola")
+    assert calls == 1
+
+
+@pytest.mark.parametrize("timeout", [float("nan"), float("inf"), float("-inf")])
+def test_ollama_provider_rejects_non_finite_timeout(timeout):
+    with pytest.raises(ValueError, match="timeout must be > 0"):
+        OllamaProvider(timeout=timeout)
+
+
+def test_ollama_provider_rejects_boolean_timeout():
+    with pytest.raises(TypeError, match="timeout must be a number"):
+        OllamaProvider(timeout=True)
