@@ -22,6 +22,8 @@ class MemorySearchService:
         self,
         world: WorldState,
         query: str,
+        *,
+        character_entity_id: int | None = None,
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Busca candidatos que coinciden con una consulta dentro del WorldState.
@@ -40,6 +42,7 @@ class MemorySearchService:
                 "query must be a string"
             )
 
+        self._validate_character_entity_id(character_entity_id)
         query = query.strip()
 
         if not query:
@@ -81,6 +84,7 @@ class MemorySearchService:
             "events": self._search_events(
                 world,
                 query,
+                character_entity_id=character_entity_id,
             ),
         }
 
@@ -88,6 +92,8 @@ class MemorySearchService:
         self,
         world: WorldState,
         queries: tuple[str, ...] | list[str],
+        *,
+        character_entity_id: int | None = None,
     ) -> dict[str, list[dict[str, Any]]]:
         """Union independent retrieval queries in stable, first-match order.
 
@@ -96,6 +102,7 @@ class MemorySearchService:
         """
         if not isinstance(queries, (tuple, list)):
             raise TypeError("queries must be a tuple or list")
+        self._validate_character_entity_id(character_entity_id)
 
         normalized_queries: list[str] = []
         seen_queries: set[str] = set()
@@ -125,7 +132,11 @@ class MemorySearchService:
         }
 
         for query in normalized_queries:
-            result = self.search(world, query)
+            result = self.search(
+                world,
+                query,
+                character_entity_id=character_entity_id,
+            )
             for category in categories:
                 for record in result.get(category, []):
                     if not isinstance(record, dict):
@@ -148,6 +159,15 @@ class MemorySearchService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _validate_character_entity_id(character_entity_id: int | None) -> None:
+        if character_entity_id is not None and (
+            isinstance(character_entity_id, bool)
+            or not isinstance(character_entity_id, int)
+            or character_entity_id < 1
+        ):
+            raise ValueError("character_entity_id must be a positive integer or None")
+
+    @staticmethod
     def _validate_world(
         world: WorldState,
     ) -> None:
@@ -163,6 +183,8 @@ class MemorySearchService:
     def export(
         self,
         world: WorldState,
+        *,
+        character_entity_id: int | None = None,
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Exporta únicamente el estado público del mundo.
@@ -175,6 +197,7 @@ class MemorySearchService:
         """
 
         self._validate_world(world)
+        self._validate_character_entity_id(character_entity_id)
 
         return {
             "entities": [
@@ -234,7 +257,8 @@ class MemorySearchService:
             "events": [
                 self._serialize(event)
                 for event in WorldVisibilityPolicy.player_visible_events(
-                    world.events.values()
+                    world.events.values(),
+                    character_entity_id=character_entity_id,
                 )
                 if getattr(
                     event,
@@ -452,11 +476,17 @@ class MemorySearchService:
         self,
         world: WorldState,
         query: str,
+        *,
+        character_entity_id: int | None = None,
     ) -> list[dict[str, Any]]:
         results = []
+        superseded_ids = WorldVisibilityPolicy.superseded_event_ids(
+            world.events.values()
+        )
 
         for event in WorldVisibilityPolicy.player_visible_events(
-            world.events.values()
+            world.events.values(),
+            character_entity_id=character_entity_id,
         ):
             if self._matches(
                 query,
@@ -468,11 +498,9 @@ class MemorySearchService:
                 getattr(event, "consequences", None),
                 getattr(event, "metadata", None),
             ):
-                results.append(
-                    self._serialize(
-                        event
-                    )
-                )
+                serialized = self._serialize(event)
+                serialized["is_current"] = event.id not in superseded_ids
+                results.append(serialized)
 
         return results
 
