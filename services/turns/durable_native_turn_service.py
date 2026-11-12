@@ -44,6 +44,7 @@ class DurableNativeTurnService:
         turn_repository: TurnRepository,
         resolution_repository: TurnResolutionRepository | None = None,
         turn_execution_lock=None,
+        activity_service=None,
     ) -> None:
         self.scope = scope
         self.resolver = resolver
@@ -53,6 +54,7 @@ class DurableNativeTurnService:
         self.resolution_repository = resolution_repository or TurnResolutionRepository()
         self.revision_repository = CampaignStateVersionRepository()
         self.turn_execution_lock = turn_execution_lock
+        self.activity_service = activity_service
         self.challenge_state_service = DurableTurnChallengeStateService(
             scope=scope,
             turn_repository=self.turn_repository,
@@ -66,6 +68,7 @@ class DurableNativeTurnService:
             resolution_repository=self.resolution_repository,
             context_loader=lambda conn: self._context_and_history(conn),
             operation_results_serializer=self._operation_results_json,
+            activity_service=activity_service,
             error_type=DurableNativeTurnError,
         )
         self.clarification_submission_service = (
@@ -87,6 +90,7 @@ class DurableNativeTurnService:
             resolution_repository=self.resolution_repository,
             turn_execution_lock=turn_execution_lock,
             context_loader=lambda conn: self._context_and_history(conn),
+            activity_service=activity_service,
             error_type=DurableNativeTurnError,
         )
 
@@ -100,6 +104,7 @@ class DurableNativeTurnService:
             narration_service=self.narration_service,
             context_loader=lambda conn: self._context_and_history(conn),
             turn_execution_lock=turn_execution_lock,
+            activity_service=activity_service,
             error_type=DurableNativeTurnError,
         )
 
