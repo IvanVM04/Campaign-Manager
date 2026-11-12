@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from durable_turn_test_support import service_with_fake_models
+from tests.durable_turn_test_support import service_with_fake_models
 
 from services.turns.durable_native_turn_service import DurableNativeTurnError
 
