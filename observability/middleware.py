@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 import uuid
-import logging
-from typing import Any
+
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from observability.log_context import bind_log_context
 
@@ -37,10 +38,15 @@ def _campaign_id_from_header(headers: list[tuple[bytes, bytes]]) -> str | None:
 class RequestObservabilityMiddleware:
     """Assign a safe request ID, bind context and append it to the response."""
 
-    def __init__(self, app: Any) -> None:
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
             return
@@ -65,7 +71,7 @@ class RequestObservabilityMiddleware:
         method = scope.get("method", "UNKNOWN")
         path = scope.get("path", "")
 
-        async def send_with_request_id(message: dict[str, Any]) -> None:
+        async def send_with_request_id(message: Message) -> None:
             nonlocal status_code
             if message.get("type") == "http.response.start":
                 status_code = int(message.get("status", 500))
