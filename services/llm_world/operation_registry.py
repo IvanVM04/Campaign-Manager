@@ -32,9 +32,18 @@ from operations.world_operations import (
 
 _FIELD_DESCRIPTIONS: dict[str, str] = {
     "name": "Nombre visible del registro.",
-    "entity_type": "Categoría de la entidad.",
-    "description": "Descripción conocida y observable.",
-    "notes": "Notas de contexto no mecánicas.",
+    "entity_type": (
+        "Categoría de la entidad. Usa npc para una persona identificada; "
+        "location para un lugar; creature para una criatura; faction para un grupo organizado."
+    ),
+    "description": (
+        "Hechos conocidos y observables. No añadas rasgos, motivos ni "
+        "historia que no estén establecidos."
+    ),
+    "notes": (
+        "Hechos contextuales duraderos y confirmados; no instrucciones "
+        "ni especulación."
+    ),
     "active": "Indica si el registro o relación sigue activo.",
     "entity_id": "ID de la entidad que se modifica.",
     "significance": "Importancia narrativa del objeto.",
@@ -47,7 +56,10 @@ _FIELD_DESCRIPTIONS: dict[str, str] = {
     "item_id": "ID de la definición del objeto.",
     "owner_id": "ID de la entidad propietaria.",
     "location_id": "ID de la entidad que representa su ubicación.",
-    "condition": "Estado descriptivo de la instancia.",
+    "condition": (
+        "Estado observable y confirmado de esta instancia; no inventes "
+        "resultados mecánicos."
+    ),
     "new_owner_id": "ID de la nueva entidad propietaria.",
     "resource_id": "ID de la definición del recurso.",
     "resource_type": "Categoría del recurso cuantificable.",
@@ -56,7 +68,10 @@ _FIELD_DESCRIPTIONS: dict[str, str] = {
     "subject_id": "ID de la entidad que inicia la relación o transferencia.",
     "target_id": "ID de la entidad destino.",
     "relation_id": "Identificador estable de la relación.",
-    "relation_type": "Tipo semántico de relación.",
+    "relation_type": (
+        "Relación explícitamente establecida entre ambos extremos; no "
+        "infieras vínculos sociales."
+    ),
     "metadata": "Datos estructurados adicionales del registro.",
     "event_id": "Identificador estable del evento.",
     "event_type": "Categoría histórica del evento.",
@@ -274,6 +289,12 @@ class OperationMetadataRegistry:
             "subject_id",
             "target_id",
             "amount",
+            "entity_type",
+            "description",
+            "notes",
+            "condition",
+            "relation_type",
+            "event_type",
         }
 
         for name in selected_names:
@@ -296,7 +317,7 @@ class OperationMetadataRegistry:
             ]
             description = metadata.description.split(". ", maxsplit=1)[0]
             operations[name] = {
-                "description": description[:32],
+                "description": description[:72],
                 "required": ";".join(required),
                 "optional": ";".join(optional),
             }
@@ -326,7 +347,8 @@ class OperationMetadataRegistry:
 DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
     (
         _metadata("create_entity", CreateEntityOperation,
-                  example={"type": "create_entity", "name": "Guardia del mercado"},
+                  example={"type": "create_entity", "name": "Aldric", "entity_type": "npc",
+                           "description": "Tabernero de la posada del Dragón, presentado por su nombre."},
                   model_proposable=True),
         _metadata("update_entity", UpdateEntityOperation,
                   reference_fields=("entity_id",),

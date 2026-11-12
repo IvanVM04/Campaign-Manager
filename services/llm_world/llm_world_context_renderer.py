@@ -1,5 +1,7 @@
 """Render a selected world projection for LLM extraction prompts."""
 
+import json
+
 from models.turn_context import TurnContext
 from models.world_context_projection import WorldContextProjection
 
@@ -40,12 +42,23 @@ class LLMWorldContextRenderer:
             ):
                 marker += " [UBICACIÓN ACTUAL]"
 
-            entity_lines.append(
+            entity_line = (
                 f"- ID {entity_id}: "
                 f"{entity.name} "
                 f"({entity.entity_type})"
                 f"{marker}"
             )
+            if entity.description:
+                entity_line += (
+                    " | descripción conocida="
+                    + json.dumps(entity.description, ensure_ascii=False)
+                )
+            if entity.notes:
+                entity_line += (
+                    " | notas conocidas="
+                    + json.dumps(entity.notes, ensure_ascii=False)
+                )
+            entity_lines.append(entity_line)
 
         known_entities = (
             "\n".join(entity_lines)
@@ -63,8 +76,11 @@ class LLMWorldContextRenderer:
             item_lines.append(
                 f"- ID {item_id}: "
                 f"{item.name} "
-                f"(weapon_key={item.weapon_key}, armor_key={item.armor_key}, "
-                f"equipment_slot={item.equipment_slot})"
+                f"(descripción={json.dumps(item.description, ensure_ascii=False)}, "
+                f"importancia={json.dumps(item.significance, ensure_ascii=False)}, "
+                f"notas={json.dumps(item.notes, ensure_ascii=False)}, "
+                f"único={item.unique}, weapon_key={item.weapon_key}, "
+                f"armor_key={item.armor_key}, equipment_slot={item.equipment_slot})"
             )
 
         known_items = (
@@ -95,7 +111,8 @@ class LLMWorldContextRenderer:
                 f"instance_number={instance.instance_number}, "
                 f"owner_id={instance.owner_id}, "
                 f"location_id={instance.location_id}, "
-                f"condition={instance.condition}, "
+                f"condition={json.dumps(instance.condition, ensure_ascii=False)}, "
+                f"notes={json.dumps(instance.notes, ensure_ascii=False)}, "
                 f"active={instance.active})"
             )
 
@@ -116,7 +133,8 @@ class LLMWorldContextRenderer:
                 f"- ID {resource_id}: "
                 f"{resource.name} "
                 f"(tipo={resource.resource_type}, "
-                f"unidad={resource.unit})"
+                f"unidad={resource.unit}, "
+                f"notas={json.dumps(resource.notes, ensure_ascii=False)})"
             )
 
         known_resources = (
@@ -149,7 +167,8 @@ class LLMWorldContextRenderer:
                 f"- ID {balance_id}: "
                 f"{balance.amount} {unit} de {resource_name} "
                 f"(resource_id={balance.resource_id}, "
-                f"owner_id={balance.owner_id}, owner={owner_name})"
+                f"owner_id={balance.owner_id}, owner={owner_name}, "
+                f"notas={json.dumps(balance.notes, ensure_ascii=False)})"
             )
 
         known_resource_balances = (
@@ -187,7 +206,13 @@ class LLMWorldContextRenderer:
                 f"{target_name} "
                 f"(ID {relation.target_id}), "
                 f"active={relation.active}, "
-                f"metadata={relation.metadata}"
+                "metadata="
+                + json.dumps(
+                    relation.metadata,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
             )
 
         known_relations = (
@@ -213,7 +238,13 @@ class LLMWorldContextRenderer:
                 f"consequences={event.consequences}, "
                 f"session_id={event.session_id}, "
                 f"secret={event.secret}, "
-                f"metadata={event.metadata}"
+                "metadata="
+                + json.dumps(
+                    event.metadata,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
             )
 
         known_events = (

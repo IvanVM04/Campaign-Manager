@@ -26,6 +26,10 @@
 - Full JSON Schemas are derived from operation dataclass definitions, while the prompt receives a compact typed manifest to preserve room for selected world context. Required fields and declared types stay aligned with constructors. Reference fields are explicitly declared once in registry metadata and drive both prompt rendering and ID normalization.
 - There is no separate typed permission model in the current domain; future authorization policy must be implemented as a domain/application contract, not inferred from prompt wording.
 - Model output remains an untrusted proposal. Parsing, semantic validation and mutation are separate authorities.
+- The prompt distinguishes desire, attempt, failure/negation, hypothesis and explicitly established fact; persistence is proposed only for new, durable, grounded information.
+- The context renderer exposes selected entity descriptions and notes, item descriptions/significance/notes, instance conditions and notes, and resource notes. The selector already budgets the underlying record payloads; the renderer must not discard those useful fields.
+- Operation field notes explain identity/category/description and relationship/event semantics. The registry is guidance for model output, not a domain authorization policy.
+- See the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md) for the sequenced retrieval, intent, provenance and narrative-quality work.
 - The repair request never resends the full world prompt. It includes a bounded error and bounded invalid-response excerpt and is limited to one attempt.
 - Do not import `services.context` from `services.llm_world`; the turn/application boundary passes the shared typed projection.
 

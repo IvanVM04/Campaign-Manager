@@ -54,6 +54,11 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     assert "Ahora analiza únicamente" not in prompt
     assert "Las operaciones son propuestas, no hechos confirmados." in prompt
     assert "No afirmes que las acciones ya han ocurrido" in prompt
+    assert "INTERPRETACIÓN Y PERSISTENCIA" in prompt
+    assert "Intentar no significa lograr" in prompt
+    assert "no crees duplicados" in prompt
+    assert "Las relaciones requieren evidencia explícita" in prompt
+    assert "Si no hay un cambio persistente nuevo" in prompt
 
 
 def test_proposal_prompt_builder_appends_confirmed_mechanics():
@@ -113,5 +118,6 @@ def test_proposal_prompt_builder_renders_the_shared_operation_schema():
     assert '"create_item_instance"' in prompt
     assert '"required":"item_id:int|$ref"' in prompt
     assert "ID de la definición del objeto." in prompt
+    assert "Usa npc para una persona identificada" in prompt
     assert '"type":"create_item_instance"' in prompt
     assert "change_character_hp" not in prompt

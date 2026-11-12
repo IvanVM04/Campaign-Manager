@@ -68,8 +68,13 @@ campaign facts.
 
 ## Remaining work
 
-- [ ] Add intent-specific operation subsets only when the application can classify intent reliably without hiding legitimate consequences.
-- [ ] Add tokenizer-aware accounting if a selected provider exposes an explicit, reliable token-count API.
-- [x] Add deterministic large-context proposal and bounded-repair probes that record selected-context size, prompt budget, ranking stability and secret-event exclusion (`tests/test_proposal_scale_quality.py`; PR #207; see [probe documentation](../../docs/quality/context-scale-probes-2026-11-12.md)).
-- [ ] Add opt-in real-Ollama model-quality probes after the local environment is mounted; record model and settings.
+- [x] Make entity descriptions/notes visible to the model and strengthen the prompt's distinction between intent, attempt, failure, hypothesis and durable fact (PR #210).
+- [x] Enrich the model-facing operation contract with meaningful field semantics and a concrete NPC example (PR #210).
+- [ ] Expand the live semantic corpus to indirect references, ambiguous intent, negation, unknown facts, multiple candidate entities and multi-turn continuity (see [AI world-understanding roadmap](../../docs/quality/ai-world-understanding-roadmap-2026-11-12.md)).
+- [ ] Improve context retrieval using benchmarked aliases, normalization and relation-aware matching; add new persistence fields only when the domain requires them (roadmap PR #211).
+- [ ] Evaluate whether a typed intent interpretation stage improves accuracy enough to justify additional calls/latency (roadmap PR #212).
+- [ ] Design richer epistemic/provenance contracts for confirmed, unknown, inferred, rumored and secret knowledge (roadmap PR #213).
+- [ ] Align narration with committed facts and measure multi-turn continuity (roadmap PR #214).
+- [ ] Add tokenizer-aware accounting only if a selected provider exposes an explicit, reliable token-count API.
+- [ ] Add intent-specific operation subsets only when classification can be done reliably without hiding legitimate consequences.
 - [x] Keep operation metadata centralized and model-proposable classification distinct from domain authorization.

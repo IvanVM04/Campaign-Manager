@@ -45,11 +45,29 @@ def test_context_renderer_returns_empty_section_fallbacks():
 def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
     world = WorldState(
         entities={
-            1: Entity(id=1, name="Aldric", entity_type="npc"),
-            2: Entity(id=2, name="Guardia", entity_type="npc"),
+            1: Entity(
+                id=1,
+                name="Aldric",
+                entity_type="npc",
+                description="Tabernero de la posada del Dragón.",
+                notes="Conoce los rumores del pueblo.",
+            ),
+            2: Entity(
+                id=2,
+                name="Guardia",
+                entity_type="npc",
+                description="Vigila la entrada norte.",
+            ),
         },
         items={
-            10: Item(id=10, name="Espada", weapon_key="longsword"),
+            10: Item(
+                id=10,
+                name="Espada",
+                description="Una espada de acero con empuñadura gastada.",
+                significance="Fue entregada por la capitana.",
+                notes="Tiene una marca de herrero en la guarda.",
+                weapon_key="longsword",
+            ),
         },
         item_instances={
             25: ItemInstance(
@@ -57,6 +75,8 @@ def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
                 item_id=10,
                 instance_number=1,
                 owner_id=1,
+                condition="mellada",
+                notes="El filo necesita reparación.",
             ),
         },
         resources={
@@ -65,6 +85,7 @@ def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
                 name="Oro",
                 resource_type="currency",
                 unit="moedas",
+                notes="Moneda habitual del reino.",
             ),
         },
         relations={
@@ -105,9 +126,16 @@ def test_context_renderer_formats_world_snapshot_and_hides_secret_events():
 
     assert "ID de entidad: 1" in rendered["character_block"]
     assert "Aldric (npc) [PERSONAJE ACTIVO]" in rendered["known_entities"]
+    assert "Tabernero de la posada del Dragón" in rendered["known_entities"]
+    assert "Conoce los rumores del pueblo" in rendered["known_entities"]
     assert "Espada" in rendered["known_items"]
+    assert "empuñadura gastada" in rendered["known_items"]
+    assert "capitana" in rendered["known_items"]
     assert "instance_number=1" in rendered["known_item_instances"]
+    assert "mellada" in rendered["known_item_instances"]
+    assert "necesita reparación" in rendered["known_item_instances"]
     assert "Oro" in rendered["known_resources"]
+    assert "Moneda habitual del reino" in rendered["known_resources"]
     assert rendered["known_resource_balances"] == "- Ninguno"
     assert "aliado_de" in rendered["known_relations"]
     assert "Puerta abierta" in rendered["known_events"]

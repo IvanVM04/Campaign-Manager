@@ -35,13 +35,20 @@ Current default provider settings:
 - Model: `gemma4:26b`
 - Timeout: 120 seconds
 
-The live tests currently cover:
+The live corpus currently covers four complementary semantic contracts:
 
-1. A structured proposal is returned for an explicitly introduced NPC.
+1. A known NPC receives one explicitly observed new fact, updating the existing
+   entity ID rather than creating a duplicate or inventing unrelated details.
 2. Ambient observation/waiting does not create persistent world changes.
-3. An explicitly introduced NPC is represented as a typed NPC creation.
-4. A failed attempt to open a locked door is not recorded as a successful
-   world change.
+3. A newly introduced, named and identifiable NPC is represented as one typed
+   NPC creation with a grounded description.
+4. A failed attempt against an existing locked door does not update the door,
+   create a success event or otherwise change its persistent state.
+
+The first and third cases are positive controls: the model must not learn to
+return an empty list for every input. The second and fourth are negative
+controls: it must not persist ephemeral actions or reverse an explicitly
+failed outcome.
 
 Run them manually from the repository root:
 
@@ -86,11 +93,18 @@ across models.
 Before expanding the prompt or changing the model, extend the live corpus with
 these semantic cases:
 
+- indirect references such as "el tabernero", "la persona de detrás de la
+  barra" or pronouns that should resolve to a known entity without duplication;
 - ordinary dialogue that does not establish a new persistent fact;
 - an unknown fact or unnamed person that must not be invented as canonical
   world state;
+- negated, failed, conditional and hypothetical actions that must not become
+  successful persistent changes;
 - an attempted character/mechanical change that must remain owned by the
   deterministic rules engine;
+- facts revealed about an existing NPC that should update the existing ID,
+  not create a duplicate;
+- multiple similar NPCs where only the supported referent is selected;
 - a secret event that must not appear in the model-facing projection;
 - malformed structured output followed by exactly one bounded repair;
 - a second malformed response that must fail closed.
@@ -98,6 +112,23 @@ these semantic cases:
 The last three contracts already have deterministic coverage; live probes
 should be added only where they provide evidence about model behavior that
 offline tests cannot provide.
+
+## Recording live evaluation results
+
+For each run, record:
+
+- date/time, exact Ollama model tag and Ollama version;
+- provider base URL and timeout (do not record credentials);
+- scenario ID and individual pass/fail outcome;
+- returned operation type names and count, never raw prompts or full responses;
+- duration and whether the bounded repair path was used, when available.
+
+A failed safety invariant must remain visible even when the same scenario passes
+on a later run. For model-quality comparisons, run each scenario at least three
+times with the same model/settings before changing one variable at a time. Do
+not combine runs into a single average that hides a false positive or a secret
+leak. This is a small regression corpus, not a benchmark with statistical
+confidence.
 
 ## Acceptance boundary
 
