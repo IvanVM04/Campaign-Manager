@@ -1,9 +1,12 @@
 """Validated request/transport schemas for the character API context."""
 
 from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator, model_validator
+
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
+
 
 class CharacterCreate(BaseModel):
     """
