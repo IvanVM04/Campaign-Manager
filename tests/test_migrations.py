@@ -27,6 +27,7 @@ from migrations import (
     migration_022,
     migration_026,
     migration_029,
+    migration_030,
     run_migrations,
 )
 
@@ -1196,4 +1197,61 @@ def test_run_migrations_uses_registry_and_leaves_current_database_unchanged():
     assert conn.execute(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
     ).fetchone()[0] == table_count
+    conn.close()
+
+
+def test_migration_030_backfills_class_hit_dice_without_losing_character_state():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    from migrations import MIGRATIONS
+
+    for definition in MIGRATIONS[:-1]:
+        definition.apply(conn)
+
+    inserted = {}
+    for name, class_name in (
+        ("Wizard", "Wizard"),
+        ("Barbarian", "Barbarian"),
+        ("Fighter", "Fighter"),
+        ("Unknown", "Homebrew class"),
+    ):
+        entity_id = conn.execute(
+            """
+            INSERT INTO entities (name, entity_type, campaign_id)
+            VALUES (?, 'player_character', 1)
+            """,
+            (name,),
+        ).lastrowid
+        conn.execute(
+            """
+            INSERT INTO character_states (
+                entity_id, campaign_id, class_name, current_hp, max_hp
+            ) VALUES (?, 1, ?, 7, 12)
+            """,
+            (entity_id, class_name),
+        )
+        inserted[name] = entity_id
+
+    migration_030(conn)
+
+    rows = conn.execute(
+        """
+        SELECT entity_id, class_name, current_hp, max_hp, hit_die_sides,
+               hit_dice_used, last_long_rest_elapsed_minutes
+        FROM character_states
+        ORDER BY entity_id
+        """
+    ).fetchall()
+    values = {row["class_name"]: row for row in rows}
+
+    assert values["Wizard"]["hit_die_sides"] == 6
+    assert values["Barbarian"]["hit_die_sides"] == 12
+    assert values["Fighter"]["hit_die_sides"] == 10
+    assert values["Homebrew class"]["hit_die_sides"] == 8
+    assert all(row["hit_dice_used"] == 0 for row in rows)
+    assert all(row["last_long_rest_elapsed_minutes"] is None for row in rows)
+    assert all((row["current_hp"], row["max_hp"]) == (7, 12) for row in rows)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     conn.close()
