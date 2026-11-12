@@ -14,7 +14,7 @@
 - [Durable turn execution boundary](durable-turn-execution-boundary.md): request idempotency, planning leases, prepared commit hand-off and typed failures.
 
 - [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
-- [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, observed CI results and merge-enforcement gap.
+- [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, required status checks and observed CI results.
 - [Current test-suite navigation — 2026-11-12](../quality/test-suite-navigation-2026-11-12.md): durable native/SillyTavern and context regression-test contracts after PR #205.
 - [Test-suite audit — 2026-11-11](../quality/test-suite-audit-2026-11-11.md): suite structure, protected contracts and reorganization plan.
 - [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
