@@ -178,6 +178,24 @@ class CombatEncounterRepository:
             row = dict(found) if found else None
         return self._deserialize(row) if row else None
 
+    def has_active_for_campaign(
+        self,
+        campaign_id: int,
+        *,
+        conn: sqlite3.Connection,
+    ) -> bool:
+        """Whether any persisted encounter in the campaign is still active."""
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM combat_encounters
+            WHERE campaign_id = ? AND status = 'active'
+            LIMIT 1
+            """,
+            (campaign_id,),
+        ).fetchone()
+        return row is not None
+
     def list_for_campaign(self, campaign_id: int) -> list[CombatEncounterState]:
         found = rows(
             """
