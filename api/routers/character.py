@@ -213,6 +213,7 @@ def take_short_rest(character_entity_id: int, data: CharacterShortRestIn):
     return {
         "character_entity_id": result.character.entity_id,
         "rest_type": result.rest_type,
+        "benefits_applied": result.benefits_applied,
         "current_hp": result.character.current_hp,
         "max_hp": result.character.max_hp,
         "hp_recovered": result.hp_recovered,
@@ -247,6 +248,7 @@ def take_long_rest(character_entity_id: int, data: CharacterLongRestIn):
     return {
         "character_entity_id": result.character.entity_id,
         "rest_type": result.rest_type,
+        "benefits_applied": result.benefits_applied,
         "current_hp": result.character.current_hp,
         "max_hp": result.character.max_hp,
         "hp_recovered": result.hp_recovered,
