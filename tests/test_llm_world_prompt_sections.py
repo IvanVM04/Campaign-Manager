@@ -56,4 +56,4 @@ def test_legacy_prompt_matches_pre_decomposition_output_byte_for_byte() -> None:
         )
 
     assert prompt.startswith(STATIC_INSTRUCTIONS)
-    assert _git_blob_sha(prompt) == _PRE_DECOMPOSITION_PROMPT_BLOB_SHA
+    assert _prompt_sha256(prompt) == _PRE_DECOMPOSITION_PROMPT_SHA256
