@@ -35,6 +35,7 @@ class CombatEncounterService:
         creature_repository: CreatureRepository | None = None,
         world_service=None,
         persistent_effect_repository=None,
+        effective_condition_service=None,
         equipment_service=None,
         dice_roller: DiceRoller | None = None,
     ) -> None:
@@ -44,6 +45,7 @@ class CombatEncounterService:
         self.creature_repository = creature_repository or CreatureRepository()
         self.world_service = world_service
         self.persistent_effect_repository = persistent_effect_repository
+        self.effective_condition_service = effective_condition_service
         self.equipment_service = equipment_service
         self.dice_roller = dice_roller or DiceRoller()
 
@@ -554,7 +556,8 @@ class CombatEncounterService:
             active = encounter.active_combatant
             if active is None or active.combatant_id != combatant_id:
                 raise ValueError("only the active combatant can move")
-            if active.dead or not active.conscious or active.conditions.is_incapacitated:
+            conditions = self._effective_conditions(active, campaign_id, conn)
+            if active.dead or not active.conscious or conditions.is_incapacitated:
                 raise ValueError("an unconscious, dead or incapacitated combatant cannot move")
             if active.position_x is None or active.position_y is None:
                 raise ValueError("combatant has no tactical position; set it when creating the encounter")
@@ -563,7 +566,7 @@ class CombatEncounterService:
             if path[0] != GridPosition(active.position_x, active.position_y):
                 raise ValueError("movement path must start at the combatant's current position")
             cost = movement_path_cost_feet(path)
-            speed = movement_speed_feet(active.speed_feet, active.conditions)
+            speed = movement_speed_feet(active.speed_feet, conditions)
             remaining = max(0, speed - active.movement_used_feet)
             if cost > remaining:
                 raise ValueError("movement path exceeds the combatant's remaining movement")
@@ -592,12 +595,24 @@ class CombatEncounterService:
             combatant = encounter.combatants.get(combatant_id)
             if combatant is None:
                 raise ValueError("combatant is not part of this encounter")
-            if combatant.dead or not combatant.conscious or combatant.conditions.is_incapacitated:
+            conditions = self._effective_conditions(combatant, campaign_id, conn)
+            if combatant.dead or not combatant.conscious or conditions.is_incapacitated:
                 raise ValueError("an unconscious, dead or incapacitated combatant cannot use a reaction")
             if combatant.reaction_used:
                 raise ValueError("this combatant has already used its reaction")
             encounter.combatants[combatant_id] = replace(combatant, reaction_used=True)
             return self.repository.save(encounter, campaign_id=campaign_id, conn=conn)
+
+    def _effective_conditions(self, combatant, campaign_id: int, conn):
+        """Overlay active persistent effects on the encounter's base condition snapshot."""
+        if self.effective_condition_service is None or combatant.entity_id is None:
+            return combatant.conditions
+        return self.effective_condition_service.for_entity(
+            combatant.entity_id,
+            campaign_id=campaign_id,
+            base=combatant.conditions,
+            conn=conn,
+        )
 
     def _require_encounter(self, campaign_id: int, encounter_id: str, *, conn=None):
         encounter = self.repository.get(encounter_id, campaign_id=campaign_id, conn=conn)
