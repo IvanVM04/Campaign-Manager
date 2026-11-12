@@ -255,6 +255,52 @@ class DurableTurnNarrationService:
         adjudication = json.loads(record.adjudication_json or "{}")
         return adjudication.get("resolved_player_input", record.player_input)
 
+    @staticmethod
+    def _committed_narration_evidence(record: TurnResolutionRecord) -> dict:
+        """Return only operations that actually changed canonical state.
+
+        The prepared proposal is untrusted input. Failed, rejected and no-op
+        operations are deliberately omitted from narrative evidence so the
+        narrator cannot turn attempted consequences into established facts.
+        """
+        proposal = json.loads(record.proposal_json or '{"operations":[]}')
+        proposed_operations = proposal.get("operations", [])
+        operation_results = json.loads(record.operation_results_json or "[]")
+        if not isinstance(proposed_operations, list):
+            proposed_operations = []
+        if not isinstance(operation_results, list):
+            operation_results = []
+
+        committed: list[dict] = []
+        for index, result in enumerate(operation_results):
+            if (
+                not isinstance(result, dict)
+                or result.get("success") is not True
+                or result.get("changed") is not True
+                or index >= len(proposed_operations)
+            ):
+                continue
+            operation = proposed_operations[index]
+            if not isinstance(operation, dict):
+                continue
+            committed.append({
+                "operation": operation,
+                "status": result.get("status", "success"),
+                "changed": True,
+            })
+
+        return {
+            "context_revision": record.context_revision,
+            "resulting_revision": record.resulting_revision,
+            "committed_operations": committed,
+            "proposed_operation_count": len(proposed_operations),
+            "committed_operation_count": len(committed),
+            "omitted_non_committed_count": max(
+                0,
+                len(proposed_operations) - len(committed),
+            ),
+        }
+
     def resume_narration(
         self,
         record: TurnResolutionRecord,
@@ -278,16 +324,7 @@ class DurableTurnNarrationService:
         mechanics_result = TurnResolutionCodec.mechanics_from_json(record.mechanics_json)
         resolved_player_input = self._resolved_player_input(record)
         committed_resolution = json.dumps(
-            {
-                "context_revision": record.context_revision,
-                "resulting_revision": record.resulting_revision,
-                "operations": json.loads(
-                    record.proposal_json or '{"operations":[]}'
-                )["operations"],
-                "operation_results": json.loads(
-                    record.operation_results_json or "[]"
-                ),
-            },
+            self._committed_narration_evidence(record),
             ensure_ascii=False,
             indent=2,
             sort_keys=True,
