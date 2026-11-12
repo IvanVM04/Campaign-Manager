@@ -103,12 +103,22 @@ class SillyTavernContextAdapter:
                     normalized_query,
                     recent_turns=recent_turns,
                     supplemental_queries=normalized_additional_queries,
+                    character_entity_id=(
+                        turn_context.active_character.entity_id
+                        if turn_context.active_character is not None
+                        else None
+                    ),
                 )
             else:
                 context = self.context_builder.build(
                     turn_context.world,
                     normalized_query,
                     recent_turns=recent_turns,
+                    character_entity_id=(
+                        turn_context.active_character.entity_id
+                        if turn_context.active_character is not None
+                        else None
+                    ),
                 )
         except Exception as exc:
             raise SillyTavernIntegrationServiceError(
