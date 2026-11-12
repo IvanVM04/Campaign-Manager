@@ -328,7 +328,7 @@ class EntityReferenceResolver:
                 current = explicit.get(entity_id)
                 if current is None or candidate.score > current.score:
                     explicit[entity_id] = candidate
-                explicit_owners.setdefault(reference, set()).add(entity.id)
+                explicit_owners.setdefault(reference, set()).add(entity_id)
 
             description_match = self._match_description(
                 query_tokens,
