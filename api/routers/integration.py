@@ -174,6 +174,7 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         "session": context_result["session"],
         "active_character": context_result["active_character"],
         "context": context_result["context"],
+        "retrieval_diagnostics": context_result["retrieval_diagnostics"],
     }
 
 
@@ -225,6 +226,7 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
         "session": context_result["session"],
         "active_character": context_result["active_character"],
         "context": context_result["context"],
+        "retrieval_diagnostics": context_result["retrieval_diagnostics"],
     }
 
 
@@ -271,6 +273,7 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
         "session": context_result["session"],
         "active_character": context_result["active_character"],
         "context": context_result["context"],
+        "retrieval_diagnostics": context_result["retrieval_diagnostics"],
     }
 
 
