@@ -1,6 +1,7 @@
 """Prompt construction for extracting structured world operations."""
 
 from models.turn_context import TurnContext
+from models.world_context_projection import WorldContextProjection
 
 from .legacy_prompt_sections import STATIC_INSTRUCTIONS
 from .llm_world_context_renderer import LLMWorldContextRenderer
@@ -13,13 +14,21 @@ class LLMWorldPromptBuilder:
     def build_prompt(
         text: str,
         context: TurnContext,
+        *,
+        projection: WorldContextProjection | None = None,
     ) -> str:
         """
         Construye el prompt para extraer cambios persistentes
         del turno a partir de hechos explícitos de la narrativa.
         """
 
-        context_blocks = LLMWorldContextRenderer.build_context(context)
+        if projection is None:
+            context_blocks = LLMWorldContextRenderer.build_context(context)
+        else:
+            context_blocks = LLMWorldContextRenderer.build_context(
+                context,
+                projection=projection,
+            )
 
         prompt = STATIC_INSTRUCTIONS
 
