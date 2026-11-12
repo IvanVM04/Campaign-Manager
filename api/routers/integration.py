@@ -33,10 +33,13 @@ def get_silly_tavern_context(
     runtime = get_current_runtime()
     try:
         with runtime.turn_execution_lock.acquire():
-            result = runtime.silly_tavern_integration_service.get_context(
-                data.query,
-                additional_queries=(data.additional_query,) if data.additional_query else (),
-            )
+            if data.additional_query:
+                result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                )
+            else:
+                result = runtime.silly_tavern_integration_service.get_context(data.query)
 
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(
@@ -130,11 +133,17 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
                 external_turn_id=data.external_turn_id,
                 dice_mode=data.dice_mode,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
-                data.query,
-                additional_queries=(data.additional_query,) if data.additional_query else (),
-                exclude_external_turn_id=data.external_turn_id,
-            )
+            if data.additional_query:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                    exclude_external_turn_id=data.external_turn_id,
+                )
+            else:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    exclude_external_turn_id=data.external_turn_id,
+                )
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
@@ -188,10 +197,13 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
                 adapter_namespace="sillytavern", defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
-                data.query,
-                additional_queries=(data.additional_query,) if data.additional_query else (),
-            )
+            if data.additional_query:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                )
+            else:
+                context_result = runtime.silly_tavern_integration_service.get_context(data.query)
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
