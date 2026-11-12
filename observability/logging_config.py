@@ -10,7 +10,7 @@ import sys
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
@@ -73,10 +73,19 @@ class LoggingSettings:
         environ: Mapping[str, str] | None = None,
     ) -> LoggingSettings:
         values = os.environ if environ is None else environ
+        levels = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+            "CRITICAL": logging.CRITICAL,
+        }
         level_name = values.get("CAMPAIGN_MANAGER_LOG_LEVEL", "INFO").strip().upper()
-        level_value = logging.getLevelName(level_name)
-        if not isinstance(level_value, int):
-            raise ValueError("CAMPAIGN_MANAGER_LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR or CRITICAL")
+        if level_name not in levels:
+            raise ValueError(
+                "CAMPAIGN_MANAGER_LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR or CRITICAL"
+            )
+        level_value = levels[level_name]
 
         console_format = values.get(
             "CAMPAIGN_MANAGER_LOG_CONSOLE_FORMAT", "text"
@@ -134,7 +143,7 @@ class JsonLineFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         timestamp = datetime.fromtimestamp(
             record.created,
-            tz=timezone.utc,
+            tz=UTC,
         ).isoformat(timespec="milliseconds")
         payload: dict[str, Any] = {
             "timestamp": timestamp,
