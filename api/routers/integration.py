@@ -1,3 +1,4 @@
+from api.errors import api_error_for_exception
 from fastapi import APIRouter, HTTPException
 
 from api.runtime_context import get_current_runtime

@@ -14,7 +14,6 @@ from operations.world_operations import CreateEntityOperation, WorldOperation
 from services.llm_world import (
     LLMExtractionError,
     LLMWorldExtractor,
-    LLMWorldPromptBuilder,
     LLMWorldResponseParser,
 )
 from services.llm_world.operation_parser import OperationParser

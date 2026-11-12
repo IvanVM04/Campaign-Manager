@@ -997,7 +997,7 @@ def test_turn_resolution_separates_world_and_character_operations(
     monkeypatch.setattr(
         extractor,
         "propose",
-        fake_extract,
+        fake_propose,
     )
 
     service = TurnResolutionService(

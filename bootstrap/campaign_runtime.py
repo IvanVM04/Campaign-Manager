@@ -8,10 +8,6 @@ from integrations.adapters.silly_tavern import (
     SillyTavernContextAdapter,
     SillyTavernIntegrationService,
 )
-from integrations.adapters.silly_tavern.errors import (
-    SillyTavernIntegrationServiceConflictError,
-    SillyTavernIntegrationServiceError,
-)
 from models.campaign_scope import CampaignScope
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
