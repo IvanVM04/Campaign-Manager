@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified baseline:** main at 004b45b689b0dddb1becfc839328d1d126ed59e2 (2026-11-12, PR #200).  
+**Verified baseline:** `main` at 95c0066ba60e5cbceff2f5230fcde2cccbec457d (2026-11-12, PR #201). The current PR branch contains the consolidation documented below.  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 ## How to work in this repository
@@ -100,7 +100,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
 | combat_attack_service.py | Atomic attack use case, validation, profile selection orchestration, result persistence and HP synchronization | Continue extracting attack-profile resolution and transaction-boundary collaborators. Do not duplicate D&D rules here. |
-| combat_encounter_service.py | Encounter lifecycle, initiative, turn advancement, death saves, movement and reactions | Split only along independently testable use cases; keep encounter/character/creature/effect updates atomic. |
+| combat_encounter_service.py | Encounter lifecycle, initiative, turn advancement, death saves, movement and reactions; one `IMMEDIATE` transaction per mutation | Keep the failure-injection rollback suite green; canonical HP, timed effects and encounter snapshot must roll back together. |
 | weapon_equipment_service.py | Equipment queries/mutations and derived armor/attack profiles | Preserve one source of weapon/equipment truth and document unsupported weapon properties. |
 | rules_engine/dnd5e_2014/combat/attack.py | Deterministic attack roll and damage result | Keep independent of services and persistence. |
 | rules_engine/dnd5e_2014/combat/damage.py | Damage types, resistance/vulnerability and HP clamping | Keep modifier order explicit and tested. |
@@ -180,8 +180,8 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Area | Current shape | Disposition |
 |---|---|---|
-| migrations.py | Ordered historical migrations in one 2,298-line module | Do not move historical functions casually. A future split needs an explicit migration import registry and replay tests. |
-| models/schemas.py | Broad transport/domain request schema module | Split by API bounded context when schemas have stable owners; retain import compatibility during migration. |
+| migrations.py | Ordered historical migrations 001–029 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
+| models/schemas.py | Compatibility facade; bounded-context modules own campaign, character, world, turn and integration request DTOs | Production routers import the owning module; retain facade exports and verify OpenAPI stability. |
 | models/combat_api_schemas.py | Combat-specific API contracts | Keep combat schemas isolated from unrelated API requests. |
 | models/turn_context.py and models/world_context_projection.py | Shared application input and detached context projection | Keep the projection typed and detached from mutable runtime state. |
 | repositories/turn_repository.py | Turn/transcript persistence | Preserve campaign scope and connection/transaction ownership. |
@@ -212,7 +212,7 @@ resolve/complete lifecycle.
 | P1 | Combat | Extract attack profile selection from CombatAttackService | It still parses NPC metadata, creates synthetic character state and chooses weapons/natural attacks inside one large use case. |
 | P1 | Turns | Extract request execution from DurableNativeTurnService | Completed: request identity, planning leases, prepared-plan persistence and recovery now live in `DurableTurnExecutionService`; the public façade remains stable. |
 | P1 | Combat | Review CombatEncounterService's transaction ownership across encounter, character/creature HP and effects | A partial write would create divergent canonical and encounter projections. |
-| P2 | World | Map WorldService dispatch/transaction boundaries and split only along operation families | Keep existing appliers and caller connection behavior authoritative. |
+| P2 | World | Completed on this branch: `WorldService` delegates mixed turn dispatch to `WorldTurnOperationCoordinator` | Preserve operation order, generated references, shared `WorldState` identity and caller-owned connection semantics. |
 | P2 | Models | Split broad schemas by bounded context | Improves discovery; do not introduce breakage in transport imports. |
 | P2 | Tests | Maintain focused tests for each extracted collaborator and split only mixed-responsibility integration files | Test modules are executable contract documentation. |
 | P3 | Migrations | Add a migration index before considering file-level extraction | History is ordered and data-preserving; file count is not a reason to refactor. |
