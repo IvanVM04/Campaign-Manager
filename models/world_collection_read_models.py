@@ -79,10 +79,20 @@ class WorldEventRead(BaseModel):
     metadata_json: str
 
 
+WorldCollectionItemRead = (
+    WorldItemRead
+    | WorldItemInstanceRead
+    | WorldResourceRead
+    | WorldResourceBalanceRead
+    | WorldRelationRead
+    | WorldEventRead
+)
+
+
 class WorldCollectionPage(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    items: tuple[BaseModel, ...]
+    items: tuple[WorldCollectionItemRead, ...]
     total: int
     limit: int
     offset: int
