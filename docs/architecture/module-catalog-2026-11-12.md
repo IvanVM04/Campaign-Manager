@@ -1,6 +1,6 @@
 # Shared-layer module catalogue — 2026-11-12
 
-**Verified against:** `main` at `97e98666b20b455067ca11a7ff26f60e3b82feb9`.  
+**Verified against:** `main` at `95c0066ba60e5cbceff2f5230fcde2cccbec457d` (PR #201), with the bounded-context updates in this branch.  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 
 ## Read this before changing shared layers
@@ -88,7 +88,12 @@ The `models/` directory currently includes domain state, immutable read projecti
 | `models/world_application_result.py` | Aggregate result of applying operations. | Keep deterministic ordering and failure details stable for service/API callers. |
 | `models/world_read_models.py`, `models/world_collection_read_models.py` | Detached entity and collection query DTOs. | Keep pagination metadata stable and display names additive; enforce event visibility before player exposure. |
 | `models/session_read_models.py` | Session list/detail read projection. | Avoid embedding internal session notes unless an explicit GM authorization contract exists. |
-| `models/schemas.py` | Backward-compatible re-export facade for the bounded-context request schema modules. | Keep exports stable for existing consumers; production routers should import from the owning context module. |\n| `models/campaign_api_schemas.py` | Campaign and session request DTOs. | Preserve field validation and campaign API contracts. |\n| `models/character_api_schemas.py` | Character creation request DTO. | Preserve rules-enum validation and character creation contract. |\n| `models/world_api_schemas.py` | World bootstrap request DTOs. | Preserve uniqueness and bounded collection validation. |\n| `models/turn_api_schemas.py` | Native turn, manual roll, dice and clarification request DTOs. | Preserve dice-mode and strict d20 validation. |\n| `models/integration_api_schemas.py` | SillyTavern context, resolve, clarification, manual-roll and completion DTOs. | Preserve external IDs, payload bounds and inheritance from native turn challenge schemas. |
+| `models/schemas.py` | Backward-compatible re-export facade for the bounded-context request schema modules. | Keep exports stable for existing consumers; production routers should import from the owning context module. |
+| `models/campaign_api_schemas.py` | Campaign and session request DTOs. | Preserve field validation and campaign API contracts. |
+| `models/character_api_schemas.py` | Character creation request DTO. | Preserve rules-enum validation and character creation contract. |
+| `models/world_api_schemas.py` | World bootstrap request DTOs. | Preserve uniqueness and bounded collection validation. |
+| `models/turn_api_schemas.py` | Native turn, manual roll, dice and clarification request DTOs. | Preserve dice-mode and strict d20 validation. |
+| `models/integration_api_schemas.py` | SillyTavern context, resolve, clarification, manual-roll and completion DTOs. | Preserve external IDs, payload bounds and inheritance from native turn challenge schemas. |
 | `models/combat_api_schemas.py` | Combat-specific request schemas and strict tactical/attack validation. | Keep separate from general schemas; cross-check duplicated constraints between API schemas and service/domain boundaries. |
 | `models/persistent_effect_api_schemas.py` | Persistent-effect API request contracts. | Keep transport validation distinct from effect domain lifecycle invariants. |
 | `models/campaign_clock_api_schemas.py` | Campaign-clock request/response DTOs. | Keep fictional time fields explicit and validated. |
@@ -224,7 +229,7 @@ Ordered by expected architectural value, not ease of implementation:
 5. **Schema bounded contexts:** completed on this branch. Keep combat/effects/clock schema modules separate, retain the `models.schemas` re-export facade and verify OpenAPI output.
 6. **Provider contract coverage:** add a focused provider contract test matrix for success, timeout, unavailable Ollama, malformed JSON and normalized errors; retain fake provider parity.
 7. **Campaign runtime lifecycle:** document/test invalidation and shutdown for the current process-local cache before adding any eviction policy.
-8. **Migration navigation:** add an index mapping migration number to schema/data transition before changing the 2,298-line migration history.
+8. **Migration navigation:** completed on this branch with the explicit 001–029 registry and [migration catalogue](migration-catalog-2026-11-12.md); keep the chronological source and forward-only rule.
 9. **Visibility policy:** define an explicit GM/player permission model for secret events and hidden world state before expanding non-GM read surfaces.
 10. **Structured proposal quality:** run representative large-campaign/live-Ollama probes for the active prompt without coupling deterministic CI to a live provider.
 11. **Legacy retirement:** completed in PR #198; historical snapshot JSON is preserved in the inert archive created by migration 029.
