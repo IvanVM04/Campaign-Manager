@@ -109,6 +109,11 @@ class CampaignRuntimeFactory:
         with self._lock:
             self._runtimes.pop(scope.campaign_id, None)
 
+    def shutdown(self) -> None:
+        """Libera los grafos de runtime cacheados al detener la aplicación."""
+        with self._lock:
+            self._runtimes.clear()
+
     def _build_runtime(self, scope: CampaignScope) -> CampaignRuntime:
         campaign_repository = CampaignRepository()
         character_repository = CharacterRepository()

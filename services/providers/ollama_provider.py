@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -67,14 +68,14 @@ class OllamaProvider(LLMProvider):
                 "base_url must not be empty"
             )
 
-        if not isinstance(timeout, (int, float)):
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
             raise TypeError(
                 "timeout must be a number"
             )
 
-        if timeout <= 0:
+        if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError(
-                "timeout must be > 0"
+                "timeout must be > 0 and finite"
             )
 
         self.model = model

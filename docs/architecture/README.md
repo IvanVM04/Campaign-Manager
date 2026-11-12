@@ -3,6 +3,7 @@
 ## Current baseline
 
 - [Shared-layer module catalogue — 2026-11-12](module-catalog-2026-11-12.md): API, models, operations, persistence, rules engine, shared entrypoints and test navigation.
+- [Phase 0 closeout — 2026-11-12](phase-0-closeout-2026-11-12.md): integrated structural changes, remaining acceptance gates and product hand-off.
 - [Change-impact map — 2026-11-12](change-impact-map-2026-11-12.md): cross-layer consumer, transaction and regression-test review matrix.
 
 - [Architecture map — 2026-11-12](architecture-map-2026-11-12.md): package/module ownership, execution paths, protected compatibility surfaces and improvement register.
