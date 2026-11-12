@@ -288,16 +288,20 @@ class EntityReferenceResolver:
         if not normalized_query or not query_tokens:
             return EntityReferenceResolution("unresolved")
 
-        active_entities = [
-            entity
-            for entity in world.entities.values()
-            if isinstance(entity, Entity)
-            and entity.active
-            and isinstance(entity.id, int)
-            and not isinstance(entity.id, bool)
-        ]
+        active_entities: list[tuple[Entity, int]] = []
+        for entity in world.entities.values():
+            if not isinstance(entity, Entity) or not entity.active:
+                continue
+            entity_id = entity.id
+            if (
+                isinstance(entity_id, bool)
+                or not isinstance(entity_id, int)
+            ):
+                continue
+            active_entities.append((entity, entity_id))
+
         descriptive_token_frequency: Counter[str] = Counter()
-        for entity in active_entities:
+        for entity, _entity_id in active_entities:
             entity_tokens = (
                 self._significant_tokens(self.normalize(entity.description))
                 | self._significant_tokens(self.normalize(entity.notes))
@@ -307,7 +311,7 @@ class EntityReferenceResolver:
         explicit: dict[int, EntityReferenceCandidate] = {}
         explicit_owners: dict[str, set[int]] = {}
         descriptive: dict[int, EntityReferenceCandidate] = {}
-        for entity in active_entities:
+        for entity, entity_id in active_entities:
             references = [(entity.name, "name", 130, 120)]
             references.extend((alias, "alias", 125, 115) for alias in entity.aliases)
             for value, kind, exact_score, token_score in references:
@@ -316,14 +320,14 @@ class EntityReferenceResolver:
                     continue
                 exact_phrase, reference = match
                 candidate = EntityReferenceCandidate(
-                    entity_id=entity.id,
+                    entity_id=entity_id,
                     score=exact_score if exact_phrase else token_score,
                     match_kind=kind,
                     matched_reference=reference,
                 )
-                current = explicit.get(entity.id)
+                current = explicit.get(entity_id)
                 if current is None or candidate.score > current.score:
-                    explicit[entity.id] = candidate
+                    explicit[entity_id] = candidate
                 explicit_owners.setdefault(reference, set()).add(entity.id)
 
             description_match = self._match_description(
@@ -333,8 +337,8 @@ class EntityReferenceResolver:
             )
             if description_match is not None:
                 match_score, matched_terms = description_match
-                descriptive[entity.id] = EntityReferenceCandidate(
-                    entity_id=entity.id,
+                descriptive[entity_id] = EntityReferenceCandidate(
+                    entity_id=entity_id,
                     score=80 + match_score,
                     match_kind="description",
                     matched_reference=matched_terms,
@@ -347,14 +351,14 @@ class EntityReferenceResolver:
             if notes_match is not None:
                 match_score, matched_terms = notes_match
                 note_candidate = EntityReferenceCandidate(
-                    entity_id=entity.id,
+                    entity_id=entity_id,
                     score=60 + match_score,
                     match_kind="notes",
                     matched_reference=matched_terms,
                 )
-                current = descriptive.get(entity.id)
+                current = descriptive.get(entity_id)
                 if current is None or note_candidate.score > current.score:
-                    descriptive[entity.id] = note_candidate
+                    descriptive[entity_id] = note_candidate
 
         collisions = [
             owners for owners in explicit_owners.values() if len(owners) > 1
