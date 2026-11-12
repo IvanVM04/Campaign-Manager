@@ -463,3 +463,68 @@ def test_search_keeps_number_words_as_part_of_compound_entity_names(service):
     result = service.search(world, "Entidad")
 
     assert sorted(entity["id"] for entity in result["entities"]) == [1, 2, 10]
+
+
+def test_search_respects_character_knowledge_scope(service):
+    world = WorldState(
+        events={
+            "only-fungoso": Event(
+                id="only-fungoso",
+                event_type="clue",
+                title="La carta revela el nombre del culto de ceniza",
+                visibility_scope="character",
+                known_by_entity_ids=[1],
+                epistemic_status="rumor",
+                provenance_source="npc_statement",
+            ),
+            "only-neria": Event(
+                id="only-neria",
+                event_type="clue",
+                title="El mapa revela el refugio del pantano",
+                visibility_scope="character",
+                known_by_entity_ids=[2],
+                provenance_source="direct_observation",
+            ),
+        }
+    )
+
+    assert service.search(world, "culto de ceniza")["events"] == []
+    fungoso = service.search(
+        world,
+        "culto de ceniza",
+        character_entity_id=1,
+    )
+    assert [event["id"] for event in fungoso["events"]] == ["only-fungoso"]
+    assert fungoso["events"][0]["epistemic_status"] == "rumor"
+    assert service.search(
+        world,
+        "culto de ceniza",
+        character_entity_id=2,
+    )["events"] == []
+
+
+def test_search_labels_superseded_events_as_historical(service):
+    old = Event(
+        id="old-location",
+        event_type="location",
+        title="Aldric vive en la posada",
+    )
+    current = Event(
+        id="new-location",
+        event_type="location",
+        title="Aldric vive en la torre",
+        supersedes_event_id="old-location",
+        campaign_elapsed_minutes=240,
+    )
+    world = WorldState(events={old.id: old, current.id: current})
+
+    old_result = service.search(world, "posada")["events"]
+    current_result = service.search(world, "torre")["events"]
+
+    assert old_result[0]["is_current"] is False
+    assert current_result[0]["is_current"] is True
+
+
+def test_search_rejects_invalid_character_perspective(service, world):
+    with pytest.raises(ValueError, match="character_entity_id"):
+        service.search(world, "Fungoso", character_entity_id=True)
