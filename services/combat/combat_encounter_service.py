@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from uuid import uuid4
 
-from database import get_conn, transaction
+from database import transaction
 from models.combat_encounter_state import CombatEncounterState, EncounterStatus
 from models.combatant_state import CombatantState
 from models.creature_state import CreatureState
@@ -409,8 +409,7 @@ class CombatEncounterService:
         expected_round: int,
         expected_turn_index: int,
     ):
-        with get_conn() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+        with transaction("IMMEDIATE") as conn:
             encounter = self._require_encounter(campaign_id, encounter_id, conn=conn)
             self._check_position(encounter, expected_round, expected_turn_index)
             encounter.complete()
