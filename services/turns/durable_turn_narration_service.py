@@ -25,6 +25,7 @@ class DurableTurnNarrationService:
         resolution_repository,
         turn_execution_lock=None,
         context_loader,
+        activity_service=None,
         error_type=RuntimeError,
     ) -> None:
         self.scope = scope
@@ -33,6 +34,7 @@ class DurableTurnNarrationService:
         self.resolution_repository = resolution_repository
         self.turn_execution_lock = turn_execution_lock
         self.context_loader = context_loader
+        self.activity_service = activity_service
         self.error_type = error_type
 
     def complete_external_narration(
@@ -226,6 +228,12 @@ class DurableTurnNarrationService:
                     scope=self.scope,
                     conn=conn,
                 )
+            if record is not None and self.activity_service is not None:
+                self.activity_service.record_turn_completed(
+                    record,
+                    saved_turn,
+                    conn=conn,
+                )
 
         if record is None:
             return TurnResolutionResult.from_persisted_turn(saved_turn)
@@ -336,6 +344,12 @@ class DurableTurnNarrationService:
                 },
                 conn=conn,
             )
+            if self.activity_service is not None:
+                self.activity_service.record_turn_completed(
+                    record,
+                    turn,
+                    conn=conn,
+                )
         completed = self.resolution_repository.get(
             record.id, scope=self.scope
         )
