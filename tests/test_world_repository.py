@@ -1516,3 +1516,59 @@ def test_world_repository_rejects_cross_campaign_id_collision(
 
     finally:
         database.DB_PATH = original_db_path
+
+
+def test_world_repository_saves_event_supersession_chains_in_dependency_order():
+    from models.event import Event
+    from models.world_state import WorldState
+
+    earlier = Event(
+        id="earlier",
+        event_type="location",
+        title="Aldric vive en la posada",
+    )
+    current = Event(
+        id="current",
+        event_type="location",
+        title="Aldric vive en la torre",
+        supersedes_event_id="earlier",
+    )
+    latest = Event(
+        id="latest",
+        event_type="location",
+        title="Aldric abandona la torre",
+        supersedes_event_id="current",
+    )
+    world = WorldState(events={
+        "latest": latest,
+        "current": current,
+        "earlier": earlier,
+    })
+
+    ordered = WorldRepository._events_in_supersession_order(world)
+
+    assert [event.id for event in ordered] == ["earlier", "current", "latest"]
+
+
+def test_world_repository_rejects_cyclic_event_supersession():
+    import pytest
+
+    from models.event import Event
+    from models.world_state import WorldState
+
+    first = Event(
+        id="first",
+        event_type="status",
+        title="First",
+        supersedes_event_id="second",
+    )
+    second = Event(
+        id="second",
+        event_type="status",
+        title="Second",
+        supersedes_event_id="first",
+    )
+    world = WorldState(events={"first": first, "second": second})
+
+    with pytest.raises(ValueError, match="supersession references contain a cycle"):
+        WorldRepository._events_in_supersession_order(world)
