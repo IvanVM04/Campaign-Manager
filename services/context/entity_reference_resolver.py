@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass
 from typing import Literal
 
@@ -287,14 +288,26 @@ class EntityReferenceResolver:
         if not normalized_query or not query_tokens:
             return EntityReferenceResolution("unresolved")
 
+        active_entities = [
+            entity
+            for entity in world.entities.values()
+            if isinstance(entity, Entity)
+            and entity.active
+            and isinstance(entity.id, int)
+            and not isinstance(entity.id, bool)
+        ]
+        descriptive_token_frequency: Counter[str] = Counter()
+        for entity in active_entities:
+            entity_tokens = (
+                self._significant_tokens(self.normalize(entity.description))
+                | self._significant_tokens(self.normalize(entity.notes))
+            )
+            descriptive_token_frequency.update(entity_tokens)
+
         explicit: dict[int, EntityReferenceCandidate] = {}
         explicit_owners: dict[str, set[int]] = {}
         descriptive: dict[int, EntityReferenceCandidate] = {}
-        for entity in world.entities.values():
-            if not isinstance(entity, Entity) or not entity.active:
-                continue
-            if isinstance(entity.id, bool) or not isinstance(entity.id, int):
-                continue
+        for entity in active_entities:
             references = [(entity.name, "name", 130, 120)]
             references.extend((alias, "alias", 125, 115) for alias in entity.aliases)
             for value, kind, exact_score, token_score in references:
@@ -313,19 +326,31 @@ class EntityReferenceResolver:
                     explicit[entity.id] = candidate
                 explicit_owners.setdefault(reference, set()).add(entity.id)
 
-            if self._match_description(query_tokens, entity.description):
+            description_match = self._match_description(
+                query_tokens,
+                entity.description,
+                descriptive_token_frequency,
+            )
+            if description_match is not None:
+                match_score, matched_terms = description_match
                 descriptive[entity.id] = EntityReferenceCandidate(
                     entity_id=entity.id,
-                    score=80 + min(len(query_tokens), 10),
+                    score=80 + match_score,
                     match_kind="description",
-                    matched_reference=" ".join(sorted(query_tokens)),
+                    matched_reference=matched_terms,
                 )
-            if self._match_description(query_tokens, entity.notes):
+            notes_match = self._match_description(
+                query_tokens,
+                entity.notes,
+                descriptive_token_frequency,
+            )
+            if notes_match is not None:
+                match_score, matched_terms = notes_match
                 note_candidate = EntityReferenceCandidate(
                     entity_id=entity.id,
-                    score=60 + min(len(query_tokens), 10),
+                    score=60 + match_score,
                     match_kind="notes",
-                    matched_reference=" ".join(sorted(query_tokens)),
+                    matched_reference=matched_terms,
                 )
                 current = descriptive.get(entity.id)
                 if current is None or note_candidate.score > current.score:
@@ -397,8 +422,24 @@ class EntityReferenceResolver:
         cls,
         query_tokens: frozenset[str],
         value: str,
-    ) -> bool:
-        if not value:
-            return False
+        token_frequency: Counter[str],
+    ) -> tuple[int, str] | None:
+        """Score descriptive terms shared with a natural-language query.
+
+        Full player sentences include verbs, dialogue and unrelated details.
+        Requiring every query token to occur in one description made role
+        references fail when the player used a longer natural-language turn.
+        Shared rare terms are useful evidence; tied candidates remain
+        ambiguous rather than producing an arbitrary identity.
+        """
+        if not value or not query_tokens:
+            return None
         value_tokens = cls._significant_tokens(cls.normalize(value))
-        return bool(query_tokens) and query_tokens.issubset(value_tokens)
+        matched_tokens = query_tokens & value_tokens
+        if not matched_tokens:
+            return None
+        score = sum(
+            10 + max(0, 10 - token_frequency.get(token, 1))
+            for token in matched_tokens
+        )
+        return score, " ".join(sorted(matched_tokens))
