@@ -23,7 +23,7 @@ class LegacyExtractionContextSelector(Protocol):
 
     def __call__(
         self,
-        context: TurnContext,
+        turn_context: TurnContext,
         query: str,
         *,
         max_estimated_tokens: int,
