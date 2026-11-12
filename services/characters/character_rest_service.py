@@ -145,7 +145,7 @@ class CharacterRestService:
                 character=updated_character,
                 clock=advanced_clock,
                 hp_recovered=hp_recovered,
-                benefits_applied=True,
+                benefits_applied=hit_dice_to_spend > 0,
                 hit_dice_spent=hit_dice_to_spend,
                 hit_dice_recovered=0,
                 dice_rolls=rolls,
@@ -157,7 +157,7 @@ class CharacterRestService:
         *,
         expected_elapsed_minutes: int,
     ) -> CharacterRestResult:
-        """Restore HP, recover up to half of expended Hit Dice, and advance eight hours."""
+        """Attempt a long rest; apply recovery only when 2014 eligibility rules allow it."""
         self._validate_non_negative_integer(
             expected_elapsed_minutes, "expected_elapsed_minutes"
         )
