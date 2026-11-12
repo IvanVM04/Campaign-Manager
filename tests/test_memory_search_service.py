@@ -570,3 +570,30 @@ def test_context_builder_never_reintroduces_another_characters_private_event(ser
     assert no_perspective["events"] == []
     assert "culto de ceniza" in fungoso_context["context"]
     assert "culto de ceniza" not in other_context["context"]
+
+
+def test_player_event_search_and_export_do_not_disclose_other_character_ids(service):
+    world = WorldState(
+        events={
+            "private": Event(
+                id="private",
+                event_type="clue",
+                title="A secret map",
+                visibility_scope="character",
+                known_by_entity_ids=[1, 2, 3],
+                provenance_source="direct_observation",
+            )
+        }
+    )
+
+    search_result = service.search(
+        world,
+        "secret map",
+        character_entity_id=1,
+    )
+    exported = service.export(world, character_entity_id=1)
+
+    assert search_result["events"][0]["id"] == "private"
+    assert "known_by_entity_ids" not in search_result["events"][0]
+    assert exported["events"][0]["id"] == "private"
+    assert "known_by_entity_ids" not in exported["events"][0]
