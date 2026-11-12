@@ -1,7 +1,9 @@
 """Validated request/transport schemas for the turn API context."""
 
 from typing import Literal
+
 from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
+
 
 class TurnIn(BaseModel):
     player_input: str = Field(
