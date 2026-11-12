@@ -1,12 +1,12 @@
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Baseline:** `main` includes PR #202 (`1bf805c`). PR #201 extracted durable turn execution; PR #202 integrated combat transaction hardening, world operation coordination, bounded-context request schemas and the ordered migration registry.  
+**Baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged). PRs #198–#202 retired legacy paths and hardened core boundaries; #203 added runtime lifecycle shutdown/invalidation and provider contract hardening; #204 added effect-aware combat, Hit Dice and rests; #205 reorganized tests by observable contract.  
 **Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.
 
 ## Executive assessment
 
-The project is a modular monolith with eight implemented capability packages: campaign, characters, combat, context, llm_world, providers, turns and world. Do not rewrite it as microservices. The immediate cleanup objective was to remove the parallel legacy turn architecture, not replace the active one.
+The project is a modular monolith with eight implemented capability packages: campaign, characters, combat, context, llm_world, providers, turns and world. For the current local, single-player, single-process scope, its architecture is sufficiently modular; do not schedule another broad decomposition or rewrite it as microservices. The focus now shifts to live acceptance and gameplay capabilities. See the [engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md).
 
 This cleanup consolidates the system around one turn contract: player intent is interpreted into a bounded structured proposal; deterministic mechanics and application code validate and commit consequences; narrative is generated from committed evidence; retries, clarifications, manual rolls and transcript versions resume the same durable resolution rather than replaying consequences.
 
@@ -78,14 +78,16 @@ Encounter creation merges supplied NPC melee profiles, natural attacks and defen
 | `CombatEncounterService` | Every mutating encounter use case owns one explicit `IMMEDIATE` transaction; `complete()` now uses the shared transaction helper. | Failure-injection tests cover create, death-save HP synchronization, turn/effect expiration, completion, movement and reaction rollback. Keep canonical HP and encounter projections in the same transaction. |
 | `WorldService` | Stable facade for world state and appliers; mixed turn-operation dispatch/transaction coordination extracted to `WorldTurnOperationCoordinator`. | Preserve the facade signature, shared `WorldState` identity, operation ordering, reference resolution and caller-owned connection semantics. |
 | `models/schemas.py` | Backward-compatible import facade over campaign, character, world, turn and integration schema modules. | Production routers import from the owning bounded context; keep facade exports and OpenAPI contracts stable. |
-| `migrations.py` | Ordered historical functions 001–029 plus the explicit `MIGRATIONS` metadata/runner registry. | Keep historical bodies in chronological order; use [the migration catalogue](migration-catalog-2026-11-12.md) and preserve fresh/upgrade/idempotency tests. No schema-version change in this consolidation. |
+| `migrations.py` | Ordered historical functions 001–030 plus the explicit `MIGRATIONS` metadata/runner registry. | Keep historical bodies in chronological order; use [the migration catalogue](migration-catalog-2026-11-12.md) and preserve fresh/upgrade/idempotency tests. Current schema version is 30. |
 
-## Consolidation integrated in PR #202
+## Structural and adjacent work integrated through PR #205
 
-- Combat transaction ownership was made uniform for encounter completion and failure-injection tests verify rollback across writes to encounter snapshots, canonical character HP and timed effects.
-- `WorldService.apply_turn_operations()` remains the public entrypoint and delegates to `WorldTurnOperationCoordinator`; caller-supplied connections and in-memory state identity are preserved.
-- API request schemas are split into campaign, character, world, turn and integration modules. `models.schemas` remains a compatibility facade; routers now import their bounded-context schemas directly.
-- The migration runner now uses a contiguous, named `MigrationDefinition` registry and has a [human-readable migration catalogue](migration-catalog-2026-11-12.md). Historical migration functions remain in their original file/order; `CURRENT_VERSION` stays 29.
+- **PR #202:** combat writes use explicit atomic transaction boundaries with failure-injection rollback coverage; `WorldService.apply_turn_operations()` delegates mixed operation coordination to `WorldTurnOperationCoordinator`; request schemas are split by bounded context while `models.schemas` remains a compatibility facade; migration execution uses a contiguous `MIGRATIONS` registry.
+- **PR #203:** `CampaignRuntimeFactory.shutdown()` is wired to FastAPI shutdown; selective invalidation and shutdown/rebuild behavior have deterministic tests. Ollama timeout validation, HTTP error normalization and no-hidden-transport-retry behavior are covered.
+- **PR #204:** migration 030 persists Hit Dice state and long-rest timing; character rest workflows coordinate character state, campaign clock and effect expiry atomically; movement/reaction validation uses active persistent effects in the same combat transaction.
+- **PR #205:** 24 durable-turn tests and 35 context-pipeline tests are split by observable contract; all 59 test functions/assertions are preserved and production code is unchanged.
+
+The migration catalogue now documents schema version 30. Historical migrations remain chronological and forward-only.
 
 ## Cleanup disposition
 
