@@ -4,8 +4,7 @@
 Retrieve, expand, rank, select and render campaign context for application and LLM workflows. This package does not own campaign state.
 
 ## Modules (migrated into this package)
-- memory_search_service.py — deterministic retrieval and public world-state export.
-- entity_reference_resolver.py — explicit name/alias/role matching with ambiguity abstention.
+- memory_search_service.py — deterministic retrieval and active-character-scoped player export.
 - entity_reference_resolver.py — explicit name/alias/role matching with ambiguity abstention.
 - context_builder.py — orchestration facade.
 - context_expander.py — expands candidates.
@@ -28,7 +27,9 @@ The LLM-specific world-context projection is a shared typed model in `models/wor
 - Search, graph expansion and ranking are reused from the existing deterministic collaborators.
 - The active character is mandatory; owned records and other related records are candidates ranked against the player intent.
 - Relations retain referenced entities; item instances retain item definitions and owner/location entities; resource balances retain resource definitions and owners; events retain linked entities.
-- Secret events remain excluded by the existing search/export and expander contracts.
+- Event visibility is applied before context selection: public events are shared, character-scoped events require the active character to be in their known-by set, and GM-only/legacy secret events fail closed.
+- Superseded events remain available as labelled history; they are not treated as current facts.
+- Player projections omit internal known-by character ID lists. The active character is supplied by trusted runtime state, never from player request text.
 - Selected domain records are deep-copied into a detached `WorldState` subset.
 - `ContextProjectionDiagnostics` provides available/candidate/selected/excluded counts and estimated use of the context budget.
 
@@ -44,6 +45,7 @@ The byte-based budget is an upper bound rather than a model-specific token count
 - [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
 - [ ] Consider tokenizer-aware accounting only after a provider exposes a reliable tokenizer contract.
 - [x] Keep rendering independent from transport response formatting.
+- [x] Apply the same event visibility policy to direct search, graph expansion, proposal selection and public export.
 - [x] Preserve the existing ContextBuilder facade unless a distinct policy boundary emerges; no broad decomposition is currently justified.
 
 ## Migration status
