@@ -5,6 +5,7 @@ from context_pipeline_test_support import (
     make_relation,
     make_world,
 )
+
 from models.world_state import WorldState
 from services.context import ContextBuilder
 
