@@ -13,15 +13,15 @@ from services.llm_world.llm_world_context_renderer import LLMWorldContextRendere
 from services.llm_world.llm_world_prompt_builder import LLMWorldPromptBuilder
 
 
-# Git's content-addressed blob ID for the complete pre-decomposition prompt
-# produced by the fixed narrative/context fixture below.
-_PRE_DECOMPOSITION_PROMPT_BLOB_SHA = "7dde2bdeca36d9e1d61a00fdd92125e1fdd8de21"
+# SHA-256 of the complete pre-decomposition prompt produced by the fixed
+# narrative/context fixture below. SHA-256 avoids a weak-hash CodeQL alert.
+_PRE_DECOMPOSITION_PROMPT_SHA256 = (
+    "4854ebbe815cbc81f9cf59a02090da017ebcc663c57a5684acbff260ff02f07f"
+)
 
 
-def _git_blob_sha(content: str) -> str:
-    encoded = content.encode("utf-8")
-    header = f"blob {len(encoded)}\0".encode("ascii")
-    return hashlib.sha1(header + encoded).hexdigest()
+def _prompt_sha256(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def test_legacy_prompt_matches_pre_decomposition_output_byte_for_byte() -> None:
