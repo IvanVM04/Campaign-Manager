@@ -1029,5 +1029,5 @@ def test_generate_retrieves_events_for_the_active_character_perspective():
     service.generate(context, "Busco una pista.")
 
     assert context_builder.perspectives == [20]
-    assert "Los rumores" in service.DEFAULT_SYSTEM_PROMPT
+    assert "rumores atribuyendo" in service.DEFAULT_SYSTEM_PROMPT
     assert "históricos/sustituidos" in service.DEFAULT_SYSTEM_PROMPT
