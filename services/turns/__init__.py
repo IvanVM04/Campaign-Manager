@@ -7,6 +7,12 @@ from services.turns.durable_turn_challenge_state_service import (
 from services.turns.durable_turn_clarification_submission_service import (
     DurableTurnClarificationSubmissionService,
 )
+from services.turns.durable_turn_errors import (
+    DurableNativeTurnError,
+    DurableTurnCommitError,
+    DurableTurnErrorCode,
+)
+from services.turns.durable_turn_execution_service import DurableTurnExecutionService
 from services.turns.durable_turn_manual_roll_submission_service import (
     DurableTurnManualRollSubmissionService,
 )
@@ -34,8 +40,12 @@ from services.turns.turn_resolution_service import (
 __all__ = [
     "DMService",
     "DMServiceError",
+    "DurableNativeTurnError",
     "DurableTurnChallengeStateService",
     "DurableTurnClarificationSubmissionService",
+    "DurableTurnCommitError",
+    "DurableTurnErrorCode",
+    "DurableTurnExecutionService",
     "DurableTurnManualRollSubmissionService",
     "DurableTurnNarrationService",
     "DurableTurnPreparation",

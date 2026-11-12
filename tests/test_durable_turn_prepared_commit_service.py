@@ -119,7 +119,7 @@ def test_prepared_commit_service_rejects_stale_revision_before_applying(monkeypa
         error_type=DurableNativeTurnError,
     )
 
-    with pytest.raises(DurableNativeTurnError, match="stale revision"):
+    with pytest.raises(DurableNativeTurnError, match="stale revision") as raised:
         service.commit_prepared_plan(
             SimpleNamespace(id=18),
             object(),
@@ -130,6 +130,7 @@ def test_prepared_commit_service_rejects_stale_revision_before_applying(monkeypa
             context_error_message="stale context",
         )
 
+    assert raised.value.code == "stale_context"
     assert applied == []
     assert transitions == []
 
@@ -177,7 +178,7 @@ def test_prepared_commit_service_does_not_advance_failed_consequences(monkeypatc
     with pytest.raises(
         DurableNativeTurnError,
         match="proposed consequences failed validation",
-    ):
+    ) as raised:
         service.commit_prepared_plan(
             SimpleNamespace(id=19),
             object(),
@@ -188,6 +189,7 @@ def test_prepared_commit_service_does_not_advance_failed_consequences(monkeypatc
             context_error_message="stale context",
         )
 
+    assert raised.value.code == "operation_validation_failed"
     assert transitions == []
 
 

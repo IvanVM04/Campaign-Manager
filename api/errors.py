@@ -50,6 +50,10 @@ def api_error_for_exception(
     """
     from services.llm_world import LLMExtractionError
     from services.providers import LLMProviderError
+    from services.turns.durable_turn_errors import (
+        DurableNativeTurnError,
+        DurableTurnErrorCode,
+    )
     from services.turns.mechanics_adjudicator import MechanicsAdjudicatorError
     from services.turns.turn_resolution_service import TurnResolutionServiceError
 
@@ -78,11 +82,39 @@ def api_error_for_exception(
             code="invalid_llm_response",
             detail="The language model returned a response that could not be safely processed.",
         )
+    if any(
+        isinstance(item, TurnResolutionServiceError)
+        and item.code == DurableTurnErrorCode.CHARACTER_OPERATION_NOT_ALLOWED.value
+        for item in chain
+    ):
+        return APIError(
+            status_code=502,
+            code="invalid_llm_response",
+            detail="The language model proposed a state change outside its allowed operation set.",
+        )
     if any(isinstance(item, TurnResolutionServiceError) for item in chain):
         return APIError(
             status_code=500,
             code="turn_resolution_failed",
             detail="The turn could not be resolved because of an internal error.",
+        )
+
+    durable_error = next(
+        (item for item in chain if isinstance(item, DurableNativeTurnError)),
+        None,
+    )
+    if durable_error is not None:
+        is_internal = (
+            durable_error.code == DurableTurnErrorCode.EXECUTION_FAILED.value
+        )
+        return APIError(
+            status_code=500 if is_internal else 409,
+            code=durable_error.code,
+            detail=(
+                "The turn could not be completed because of an internal error."
+                if is_internal
+                else fallback_detail
+            ),
         )
 
     return APIError(

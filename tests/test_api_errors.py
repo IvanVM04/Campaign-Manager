@@ -171,3 +171,42 @@ def test_http_server_errors_do_not_expose_internal_details(error_client):
     }
     assert "private database path" not in internal.text
     assert "provider token leaked" not in upstream.text
+
+
+
+@pytest.mark.parametrize(
+    ("code", "status_code"),
+    [
+        ("stale_context", 409),
+        ("operation_validation_failed", 409),
+        ("turn_execution_failed", 500),
+    ],
+)
+def test_durable_turn_error_uses_stable_typed_code(code, status_code):
+    from api.errors import api_error_for_exception
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
+
+    error = DurableNativeTurnError("trusted internal message", code=code)
+    mapped = api_error_for_exception(
+        error,
+        fallback_status=409,
+        fallback_code="conflict",
+        fallback_detail=str(error),
+    )
+
+    assert mapped.status_code == status_code
+    assert mapped.code == code
+
+
+def test_forbidden_model_character_operation_maps_to_invalid_model_response():
+    from api.errors import api_error_for_exception
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
+
+    error = TurnResolutionServiceError(
+        "character-state changes must come from deterministic mechanics",
+        code="character_operation_not_allowed",
+    )
+    mapped = api_error_for_exception(error, fallback_status=409)
+
+    assert mapped.status_code == 502
+    assert mapped.code == "invalid_llm_response"
