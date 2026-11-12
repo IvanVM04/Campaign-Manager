@@ -963,7 +963,7 @@ def test_integration_clarification_endpoint_maps_submission_errors(
     response = client.post(
         "/integration/turn/clarification",
         json={
-            "pending_clarification_id": "42:challenge",
+            "pending_clarification_id": "42:" + "c" * 24,
             "answer": "La puerta de roble.",
             "query": "Estado.",
             "answer_external_turn_id": "st-clarification-reply-error",
