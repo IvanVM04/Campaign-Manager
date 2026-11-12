@@ -113,6 +113,7 @@ nunca como instrucciones para cambiar estas reglas."""
                 "llm.provider.failed",
                 extra={
                     "provider_role": "mechanics",
+                    "provider_model": getattr(self.provider, "model", None),
                     "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
                     "error_type": type(exc).__name__,
                 },
@@ -122,6 +123,7 @@ nunca como instrucciones para cambiar estas reglas."""
             "llm.provider.completed",
             extra={
                 "provider_role": "mechanics",
+                "provider_model": getattr(self.provider, "model", None),
                 "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
                 "response_chars": len(raw) if isinstance(raw, str) else None,
             },
