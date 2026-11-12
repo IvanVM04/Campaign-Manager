@@ -54,3 +54,22 @@ def test_silly_tavern_completion_rejects_empty_external_turn_identity():
             narrative="La puerta se abre.",
             external_turn_id="   ",
         )
+
+
+
+
+def test_silly_tavern_context_schema_normalizes_optional_additional_query():
+    data = SillyTavernContextIn(
+        query="Me acerco al tabernero.",
+        additional_query="  Estado general de campaña.  ",
+    )
+    assert data.query == "Me acerco al tabernero."
+    assert data.additional_query == "Estado general de campaña."
+
+
+def test_silly_tavern_context_schema_omits_blank_additional_query():
+    data = SillyTavernContextIn(
+        query="Me acerco al tabernero.",
+        additional_query="   ",
+    )
+    assert data.additional_query is None
