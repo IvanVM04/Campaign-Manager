@@ -81,7 +81,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| campaign_state_service.py | Campaign/session state and turn-context assembly | Keep world mutation behind the world state port; add explicit invalidation on campaign lifecycle changes. |
+| campaign_state_service.py | Campaign/session state and turn-context assembly | Keep world mutation behind the world state port. Runtime invalidation/shutdown lives in the bootstrap factory; add lifecycle hooks only when campaign deletion/configuration workflows need them. |
 | campaign_clock_service.py | Campaign clock reads, advancement and effect-expiry coordination | Preserve deterministic expiry and campaign-scoped reads. |
 | persistent_effect_service.py | Persisted campaign effect lifecycle | Audit effect lifecycle transaction ownership with combat, without creating a second source of condition state. |
 | effective_condition_service.py | Derived ConditionSet from active effects | Keep it a projection; do not persist duplicate condition flags. |
@@ -99,8 +99,8 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| combat_attack_service.py | Atomic attack use case, validation, profile selection orchestration, result persistence and HP synchronization | Continue extracting attack-profile resolution and transaction-boundary collaborators. Do not duplicate D&D rules here. |
-| combat_encounter_service.py | Encounter lifecycle, initiative, turn advancement, death saves, movement and reactions; one `IMMEDIATE` transaction per mutation | Keep the failure-injection rollback suite green; canonical HP, timed effects and encounter snapshot must roll back together. |
+| combat_attack_service.py | Atomic attack use case, validation, profile selection orchestration, result persistence and HP synchronization | Attack-profile resolution is already isolated in `AttackProfileResolver`; add future action families only through typed profiles and pure rules helpers. |
+| combat_encounter_service.py | Encounter lifecycle, initiative, turn advancement, death saves, movement and reactions; one `IMMEDIATE` transaction per mutation | Preserve the tested rollback contract: canonical HP, timed effects and encounter projections must roll back together. Add new mutations to the failure-injection matrix. |
 | weapon_equipment_service.py | Equipment queries/mutations and derived armor/attack profiles | Preserve one source of weapon/equipment truth and document unsupported weapon properties. |
 | rules_engine/dnd5e_2014/combat/attack.py | Deterministic attack roll and damage result | Keep independent of services and persistence. |
 | rules_engine/dnd5e_2014/combat/damage.py | Damage types, resistance/vulnerability and HP clamping | Keep modifier order explicit and tested. |
@@ -165,7 +165,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| world_service.py | Campaign-scoped state façade, operation dispatch and transaction coordination | Review atomicity and dispatch decomposition; preserve caller-owned transactions. |
+| world_service.py | Campaign-scoped state façade and applier publication | Mixed world/character turn dispatch is delegated to `WorldTurnOperationCoordinator`; preserve operation order, shared state identity and caller-owned transactions. |
 | world_query_service.py | Filtered/paginated entity read model | Keep reads detached, stable and campaign-scoped. |
 | world_collection_query_service.py | Item/resource/relation/event read projections | Keep secret-event visibility out of generic serialization; apply explicit policy before player exposure. |
 | world_applier.py | Typed operation dispatch | Keep dispatch deterministic and fail closed. |
@@ -180,14 +180,14 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Area | Current shape | Disposition |
 |---|---|---|
-| migrations.py | Ordered historical migrations 001–029 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
+| migrations.py | Ordered historical migrations 001–030 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
 | models/schemas.py | Compatibility facade; bounded-context modules own campaign, character, world, turn and integration request DTOs | Production routers import the owning module; retain facade exports and verify OpenAPI stability. |
 | models/combat_api_schemas.py | Combat-specific API contracts | Keep combat schemas isolated from unrelated API requests. |
 | models/turn_context.py and models/world_context_projection.py | Shared application input and detached context projection | Keep the projection typed and detached from mutable runtime state. |
 | repositories/turn_repository.py | Turn/transcript persistence | Preserve campaign scope and connection/transaction ownership. |
 | repositories/turn_resolution_repository.py | Durable in-flight state persistence | Preserve lease fencing, uniqueness and atomic transitions. |
 | repositories/world_repository.py | Canonical world persistence | Preserve one canonical state source and caller-owned transaction behavior. |
-| bootstrap/campaign_runtime.py | Per-campaign composition root and runtime cache | Keep composition here; make cache shutdown/eviction a separately justified change. |
+| bootstrap/campaign_runtime.py | Per-campaign composition root and runtime cache | Shutdown and selective invalidation are implemented/tested; defer cache eviction until measured pressure and an in-flight request policy justify it. |
 | app.py | FastAPI app and middleware wiring | Keep thin; no business use cases belong here. |
 | api/routers | Transport-facing endpoint groups | Keep each route handler focused on validation, service call and response mapping. |
 
