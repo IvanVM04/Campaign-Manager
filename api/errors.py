@@ -153,6 +153,33 @@ def _code_for_status(status_code: int) -> str:
     return "http_error"
 
 
+
+def _request_log_fields(request: object) -> dict[str, str]:
+    scope = getattr(request, "scope", {})
+    state = scope.get("state", {}) if isinstance(scope, dict) else {}
+    if not isinstance(state, dict):
+        return {}
+    fields: dict[str, str] = {}
+    request_id = state.get("request_id")
+    campaign_id = state.get("campaign_id")
+    if isinstance(request_id, str) and request_id:
+        fields["request_id"] = request_id
+    if isinstance(campaign_id, str) and campaign_id:
+        fields["campaign_id"] = campaign_id
+    return fields
+
+
+def _request_response_headers(
+    request: object,
+    existing: Mapping[str, str] | None = None,
+) -> dict[str, str] | None:
+    headers = dict(existing or {})
+    request_id = _request_log_fields(request).get("request_id")
+    if request_id is not None:
+        headers.setdefault("X-Request-ID", request_id)
+    return headers or None
+
+
 def register_error_handlers(app: FastAPI) -> None:
     """Install consistent error responses without exposing internal failures."""
     from fastapi import Request
@@ -172,7 +199,7 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=exc.status_code,
             code=exc.code,
             detail=detail,
-            headers=exc.headers,
+            headers=_request_response_headers(request, exc.headers),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -210,7 +237,7 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=exc.status_code,
             code=_code_for_status(exc.status_code),
             detail=detail,
-            headers=exc.headers,
+            headers=_request_response_headers(request, exc.headers),
         )
 
     @app.exception_handler(Exception)
@@ -223,9 +250,11 @@ def register_error_handlers(app: FastAPI) -> None:
         logging.getLogger(__name__).exception(
             "Unhandled API exception",
             exc_info=(type(exc), exc, exc.__traceback__),
+            extra=_request_log_fields(request),
         )
         return error_response(
             status_code=500,
             code="internal_error",
             detail="Internal server error",
+            headers=_request_response_headers(request),
         )
