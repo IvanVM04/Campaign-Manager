@@ -12,10 +12,10 @@ from .weapon_equipment_service import WeaponEquipmentService
 
 __all__ = [
     "AttackProfileResolver",
+    "CombatAttackService",
+    "CombatEncounterService",
     "NpcNaturalAttackConfiguration",
     "NpcWeaponAttackConfiguration",
     "ResolvedCombatAttackProfile",
-    "CombatAttackService",
-    "CombatEncounterService",
     "WeaponEquipmentService",
 ]

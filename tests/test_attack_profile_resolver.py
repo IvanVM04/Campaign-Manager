@@ -338,7 +338,7 @@ def test_npc_without_attack_profiles_cannot_attack():
 def test_npc_weapon_metadata_fails_closed_for_invalid_profiles(profiles):
     creature = _creature(metadata={"npc_melee_attacks": profiles})
 
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, TypeError)):
         _resolver(creature=creature).resolve(
             attacker=_attacker(player=False, hp=18),
             campaign_id=3,
@@ -484,7 +484,7 @@ def test_npc_natural_attack_metadata_rejects_duplicate_keys():
 def test_npc_natural_attack_metadata_requires_a_list():
     creature = _creature(metadata={"npc_natural_attacks": {"key": "bite"}})
 
-    with pytest.raises(ValueError, match="configuration is invalid"):
+    with pytest.raises(TypeError, match="must be a list"):
         _resolver(creature=creature).resolve(
             attacker=_attacker(player=False, hp=18),
             campaign_id=3,

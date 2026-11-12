@@ -269,7 +269,7 @@ class AttackProfileResolver:
             weapon_key = item["weapon_key"]
             proficient = item.get("proficient", True)
             if not isinstance(proficient, bool):
-                raise ValueError("NPC melee proficiency configuration is invalid")
+                raise TypeError("NPC melee proficiency configuration is invalid")
             if weapon_key in seen_keys:
                 raise ValueError("NPC melee weapon keys must be unique")
             seen_keys.add(weapon_key)
@@ -286,7 +286,7 @@ class AttackProfileResolver:
         raw_profiles: object,
     ) -> tuple[NpcNaturalAttackConfiguration, ...]:
         if not isinstance(raw_profiles, list):
-            raise ValueError("NPC natural attack configuration is invalid")
+            raise TypeError("NPC natural attack configuration must be a list")
 
         profiles: list[NpcNaturalAttackConfiguration] = []
         seen_keys: set[str] = set()
