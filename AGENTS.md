@@ -63,17 +63,15 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - Keep deterministic rules/mechanics, semantic validation, persistence and LLM proposal generation as separate authorities.
 - LLM output is untrusted input. It may propose operations but must never write directly to SQLite or bypass domain validation.
 - Preserve turn idempotency, campaign revision checks, lease fencing, short atomic commit boundaries and narration recovery.
-- Do not remove `POST /integration/turn`, `LegacySillyTavernTurnService`, `WorldSnapshotRepository` or `turns.snapshot` until the external-client usage and data-retention gates are satisfied.
+- The narrative-first `POST /integration/turn` route, `LegacySillyTavernTurnService`, `WorldSnapshotRepository`, `LLMWorldExtractor.extract()` and runtime `turns.snapshot` column are retired. Do not reintroduce them. Migration 029 preserves old non-null snapshot JSON in the inert `turn_snapshot_archive` table.
 
 ## LLM context and prompt constraints
 
 - Keep static instructions separate from typed context data.
-- The structured proposal prompt must not be built by parsing or editing the legacy narrative-extraction prompt. PR #161 completed this decoupling.
+- The structured proposal prompt is the only world-consequence proposal path. Keep static instructions separate from typed context data; do not add a parallel narrative-first extraction pipeline.
 - `TurnResolutionService` builds the active structured proposal projection through `ContextBuilder.build_proposal_context()` and passes the typed `models.world_context_projection.WorldContextProjection` to `services/llm_world`.
 - Keep the dependency direction: `services/turns` may orchestrate `services.context`; `services/llm_world` must not import `services.context`.
 - Preserve the active character, current location, related records and dependency bundles. Never solve context overflow by truncating arbitrary campaign facts.
-- Legacy `extract()` receives `ContextBuilder.build_relevant_world_projection()` through an injected callback. Keep the LLM package independent of `services.context`; validate the returned projection and fail closed on selector errors.
-- The legacy complete prompt and selected record context have separate configurable budgets; a total prompt overflow must stop before provider invocation.
 - The shared token-budget helper is a conservative one-UTF-8-byte-per-token upper bound, not a model-specific tokenizer. The complete prompt and compact one-repair request are independently bounded.
 - Keep provider output size-limited, repair attempts limited to one, and model output strictly validated.
 

@@ -19,9 +19,9 @@
 |---|---|---|
 | `app.py` | Creates the FastAPI application, middleware and router registrations. | Keep it as transport composition only. Route registration should remain discoverable; do not move use-case construction here. |
 | `bootstrap/__init__.py` | Public package surface for runtime composition. | Export only stable composition contracts. |
-| `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Preserve the single composition root. Next review: lifecycle invalidation, shutdown and cache eviction only if deployment requirements justify them. Keep provider, context, integration and legacy dependencies visible in this file. |
+| `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Preserve the single composition root. Next review: lifecycle invalidation, shutdown and cache eviction only if deployment requirements justify them. Keep provider, context and integration dependencies visible in this file. |
 | `database.py` | SQLite connection helpers, transaction boundaries and database initialization. | Keep connection and transaction ownership explicit. Review nested transaction behavior and shared-connection assumptions before adding repository conveniences. |
-| `migrations.py` | Ordered schema/data migrations 001–028. | This is historical, data-sensitive code. Add a migration index and replay fixture before any file split; preserve idempotency, foreign keys and historical data. |
+| `migrations.py` | Ordered schema/data migrations 001–029. | This is historical, data-sensitive code. Add a migration index and replay fixture before any file split; preserve idempotency, foreign keys and historical data. |
 | `start.bat` | Local Windows startup entrypoint. | Keep aligned with the documented install/run path; avoid embedding configuration defaults that differ from application settings. |
 | `scripts/bootstrap_demo.py` | Creates deterministic demo campaign/world content. | Keep demo data reproducible and safe to run against an explicitly selected database. Add assertions for idempotency/reset semantics before changing it. |
 | `scripts/ci/coverage_summary.py` | Converts coverage XML into package-level CI summary data. | Keep report-only policy separate from test execution. Validate missing/empty coverage inputs and keep package aggregation deterministic. |
@@ -42,7 +42,7 @@ Routers should stay thin: validate request DTOs, obtain the request-bound runtim
 | `api/routers/combat.py` | Encounter lifecycle, attacks, death saves, movement, reactions and opportunity-attack endpoints. | Keep request schemas specific to combat. Avoid allowing route parameters to override persisted turn/position state; preserve expected-round/turn checks. |
 | `api/routers/dice.py` | Standalone dice-tray endpoint, independent of turn resolution. | Keep this endpoint separate from authoritative mechanics adjudication and durable-turn state. |
 | `api/routers/effects.py` | Persistent-effect query/create/status/remove endpoints. | Keep entity/campaign ownership checks in application services and repositories, not only in route validation. |
-| `api/routers/integration.py` | SillyTavern context, external turn state, resolve/complete, clarification/manual-roll and deprecated narrative-first route. | Preserve the current read-vs-legacy-mutation split. Keep the old mutation route deprecated and instrumented until deployed usage and supported-client gates are satisfied. |
+| `api/routers/integration.py` | SillyTavern context, external turn state, resolve/complete and clarification/manual-roll routes. | Keep the router thin; all state changes use the durable turn lifecycle. The narrative-first mutation route has been removed. |
 | `api/routers/memory.py` | Memory search and context endpoints. | Ensure returned information follows player/GM visibility policy; do not let generic search bypass secret-event filtering. |
 | `api/routers/system.py` | Root, liveness and readiness endpoints. | Keep liveness cheap; readiness should check only dependencies required to serve traffic and must not mutate state. |
 | `api/routers/turns.py` | Native turn play, manual-roll/clarification continuation and transcript reads. | Keep durable-turn orchestration in `services/turns`; keep serialization helpers pure and test their public payloads. |
@@ -134,7 +134,7 @@ Repositories own SQL and hydration. They must not call providers or orchestrate 
 | `repositories/turn_repository.py` | Transcript turns, versioning, external turn identity and status persistence. | Preserve idempotency, ordering, campaign isolation, supersession and external ID uniqueness. |
 | `repositories/turn_resolution_repository.py` | Durable in-flight resolution, lease acquisition/fencing and transitions. | Critical consistency boundary. Never weaken compare-and-set state transitions or stale-worker fencing. |
 | `repositories/world_repository.py` | Canonical world state load/save and collection persistence. | Critical transaction boundary. Preserve atomic multi-collection writes, connection ownership and campaign isolation. |
-| `repositories/world_snapshot_repository.py` | Legacy JSON snapshot encode/load/restore from `turns.snapshot`. | Compatibility-only while the deprecated narrative-first route exists. Remove only with route retirement and an explicit data-retention/migration decision. |
+| `turn_snapshot_archive` (migration 029) | Inert archive of pre-retirement snapshot JSON. | Preserve historical payloads; do not introduce a runtime restore/read path. |
 
 ### Repository review checklist
 
@@ -191,9 +191,9 @@ Tests are grouped by capability and boundary in `tests/`. Keep deterministic CI 
 | `tests/test_*combat*` | Encounter, attack, conditions, movement, opportunity attacks, equipment and HP projection synchronization. | Add failure-injection tests wherever an attack or encounter update spans canonical HP and encounter snapshots. |
 | `tests/test_*turn*` | Turn resolution, durable commit, manual rolls, clarification, idempotency and recovery. | Preserve failure-path/restart/fencing assertions when extracting lifecycle collaborators. |
 | `tests/test_context_*`, `tests/test_proposal_context_selector.py` | Retrieval, expansion, stable ranking, secret exclusion, mandatory facts and budget failures. | Add medium/large campaign fixtures and assert deterministic selection, not just token totals. |
-| `tests/test_llm_world_legacy_extraction.py`, `tests/test_llm_world_prompt_sections.py` | Legacy narrative extraction API and byte-identical full prompt assembly. | Do not change golden prompt digest without a separate live-quality comparison. |
+| `tests/test_llm_world_proposals.py`, `tests/test_llm_world_proposal_prompt_builder.py`, `tests/test_llm_world_proposal_validator.py` | Single structured player-intent proposal, trust gate and bounded one-repair behavior. | Keep model output untrusted and domain validation independent. |
 | `tests/test_llm_world_proposals.py`, `tests/test_llm_world_proposal_prompt_builder.py`, `tests/test_llm_world_proposal_validator.py` | Active structured intent proposal, trust gate and bounded one-repair behavior. | Keep model output untrusted and domain validation independent. |
-| `tests/test_silly_tavern_*` | Active client contracts plus quarantined legacy route, snapshots, retries and regeneration. | Split by HTTP, adapter, durable lifecycle and deprecated compatibility only; preserve all assertions and client-visible response shapes. |
+| `tests/test_silly_tavern_api.py`, `tests/test_silly_tavern_schemas.py` | Active context, resolve/complete, external identity and durable challenge contracts. | Preserve client-visible payload/status semantics and ensure historical transcripts cannot bypass durable resolution. |
 | `tests/test_real_llm.py` | Live Ollama/provider quality probes. | Run only as explicit opt-in/manual validation; never pretend deterministic CI covers it. |
 
 Oversized tests are a navigation concern, not automatic evidence of bad architecture. The current test audit identifies the modules and contracts that should be split first; update that inventory after structural changes.
@@ -226,5 +226,5 @@ Ordered by expected architectural value, not ease of implementation:
 7. **Campaign runtime lifecycle:** document/test invalidation and shutdown for the current process-local cache before adding any eviction policy.
 8. **Migration navigation:** add an index mapping migration number to schema/data transition before changing the 2,298-line migration history.
 9. **Visibility policy:** define an explicit GM/player permission model for secret events and hidden world state before expanding non-GM read surfaces.
-10. **Legacy static prompt quality:** dynamic world context and complete prompt are now bounded in PR #197; run representative large-campaign/live-Ollama probes before shortening the still-large static instruction set.
-11. **Legacy retirement:** keep the old SillyTavern mutation route/snapshots and `extract()` compatibility flow isolated until usage/client/retention evidence authorizes removal.
+10. **Structured proposal quality:** run representative large-campaign/live-Ollama probes for the active prompt without coupling deterministic CI to a live provider.
+11. **Legacy retirement:** completed in PR #198; historical snapshot JSON is preserved in the inert archive created by migration 029.

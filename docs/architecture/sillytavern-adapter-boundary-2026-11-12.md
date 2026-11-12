@@ -1,45 +1,32 @@
-# SillyTavern adapter boundary — 2026-11-12
+# SillyTavern adapter boundary
 
-## Purpose
+## Ownership
 
-Move external-platform translation out of the capability-service tree and separate active read behavior from the deprecated narrative-first mutation workflow. This is an ownership and dependency change only; it does not retire the compatibility endpoint.
+- `integrations/adapters/silly_tavern/context_adapter.py` owns context/history and external transcript-state read translation.
+- `integrations/adapters/silly_tavern/service.py` is a thin read-oriented façade exposing `get_context()` and `get_external_turn_state()`.
+- `bootstrap/campaign_runtime.py` constructs and wires the adapter into the campaign runtime.
+- `api/routers/integration.py` owns transport validation and delegates state-changing operations to `DurableNativeTurnService`.
 
-## Resulting structure
+## Active request contracts
 
-- integrations/adapters/silly_tavern/context_adapter.py — read-only campaign context/history and external transcript-state translation.
-- integrations/adapters/silly_tavern/service.py — thin runtime-facing façade. It delegates reads to the context adapter and delegates deprecated turn processing through a small processor protocol.
-- integrations/adapters/silly_tavern/errors.py — stable integration error types translated by the HTTP router.
-- services/turns/legacy_silly_tavern_turn_service.py — unchanged legacy narrative-first turn processing, idempotency, snapshot reconciliation and transaction behavior.
-- bootstrap/campaign_runtime.py — composition root. It builds the context adapter and legacy turn service separately, injects their dependencies and assembles the façade.
+- Context retrieval: `POST /integration/context`.
+- Player intent and durable consequence commit: `POST /integration/turn/resolve`.
+- Clarification/manual dice continuation: dedicated `/clarification` and `/roll` routes.
+- Narrative completion/version persistence: `POST /integration/turn/complete`.
+- Transcript and challenge reads: dedicated GET routes under `/integration/turn/{external_turn_id}`.
 
-## Dependency direction
+The external client must use one stable `external_turn_id` for the logical player action, including retries, clarifications and narrative versions. Completion requires this identity.
 
-1. HTTP routers use request-scoped runtime services and map integration errors to HTTP responses.
-2. The integration adapter translates external contracts and delegates to application services/use cases.
-3. Capability packages do not import the integration adapter.
-4. The integration adapter does not import API routers or bootstrap.
-5. Bootstrap owns cross-package composition, including CampaignStateVersionRepository and WorldSnapshotRepository construction for the deprecated route.
+## Removed behavior
 
-The active context adapter no longer imports or constructs an LLM extractor, world mutation service, snapshot repository, campaign-state version repository, legacy turn service or transaction helper. The façade does not own those dependencies.
+The narrative-first `POST /integration/turn` route and `LegacySillyTavernTurnService` have been removed. The adapter has no `process_turn()` method and does not own world mutation, LLM extraction, snapshot repositories, campaign-state-version repositories or transactions.
 
-## Compatibility preserved
+Migration 029 archives former snapshot JSON before removing the runtime `turns.snapshot` column. The archive is not part of this adapter boundary.
 
-- POST /integration/turn remains deprecated but operational.
-- Resolve/complete, context, external transcript-state, clarification and manual-roll routes retain their existing paths and response shapes.
-- SillyTavernIntegrationService remains the runtime-facing property name.
-- Legacy idempotency, revision checks, rollback and snapshot regeneration remain owned by LegacySillyTavernTurnService.
-- No historical snapshot JSON or turns.snapshot schema is changed.
-- The manual SillyTavern smoke test and live Ollama probes remain separate from deterministic CI.
+## Invariants
 
-## Regression coverage
-
-- Existing SillyTavern HTTP, context, transcript-state, idempotency, regeneration and rollback tests are migrated to the canonical integration package.
-- Test fixtures compose the same adapters explicitly.
-- Architecture tests prevent capability services from importing external integration adapters and prevent the adapter package from importing transport/composition layers.
-- The old root module under services/ is asserted absent.
-
-## Deferred work
-
-- Do not remove the deprecated mutation route until production logs show zero usage for an agreed observation window and supported client versions have signed off.
-- Do not remove snapshot compatibility or the nullable turns.snapshot column until a separate retention/migration decision is approved.
-- Do not add new gameplay behavior to the legacy service.
+- The durable service commits consequences once before narration.
+- Narrative regeneration cannot replay world operations or mechanics.
+- Context/transcript reads remain campaign-scoped.
+- Clarification and manual-roll submissions resume the original durable resolution.
+- Keep adapter imports inward; capability services must not depend on integration adapters.

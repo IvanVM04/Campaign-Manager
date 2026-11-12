@@ -1,51 +1,50 @@
 # SQLite transaction ownership
 
-**Status:** Initial implementation in PR #22  
-**Scope:** Explicit transaction boundaries for selected application use cases
+## Core rules
 
-## Contract
+- The application/use-case layer owns transaction boundaries.
+- Repositories accept a caller-provided connection and must use it rather
+  than silently opening a second transaction.
+- World and character changes belonging to one logical action commit or roll
+  back together.
+- Provider calls, LLM inference and presentation narration remain outside
+  write transactions.
+- Migrations are the only path for forward schema/data changes.
 
-`database.transaction(mode)` owns exactly one SQLite connection and one transaction. It:
-
-1. Opens a connection using the existing `get_conn()` configuration.
-2. Starts an explicit `DEFERRED`, `IMMEDIATE` or `EXCLUSIVE` transaction.
-3. Yields the connection to the application use case.
-4. Commits when the context exits normally.
-5. Rolls back when an exception escapes the context.
-6. Closes the connection in all cases.
-
-The connection is valid only inside the context. Every repository participating in the same atomic operation must receive that exact connection via its `conn` argument.
-
-Nested transaction contexts are not supported. Compose multiple repository operations on the connection already owned by the outer use case. Savepoints require a separate, explicit design if a real use case needs partial rollback.
-
-## Mode selection
+## Transaction modes
 
 | Mode | Intended use |
 |---|---|
+| `IMMEDIATE` | Short write transactions that must acquire the writer reservation before reading mutable state |
 | `DEFERRED` | Read-oriented, consistent multi-query snapshots where an immediate writer lock is unnecessary |
-| `IMMEDIATE` | Read/validate/write workflows that must reserve SQLite's writer slot before checking mutable state |
-| `EXCLUSIVE` | Reserved for schema/maintenance workflows; not used by current application use cases |
 
-Use the weakest mode that preserves the invariant. Do not hold an `IMMEDIATE` transaction while calling an LLM, making HTTP requests, waiting for user input or doing expensive non-database work.
+## Current owners
 
-## Migrated use cases
+- Native durable turn commit: prepared-commit application collaborator using
+  the caller-provided connection. Resolution state, campaign revision and
+  world/character consequences commit atomically.
+- Combat attack: `CombatAttackService` opens one `IMMEDIATE` transaction.
+  Encounter state and canonical target HP remain synchronized.
+- Encounter create/start/advance/death-save/move/reaction:
+  `CombatEncounterService` owns one service-level transaction per use case.
+- World operation application: the application caller determines whether it
+  owns the connection; `WorldService` passes it to appliers/repositories.
+- Persistent effect lifecycle: effect application/repository boundary owns
+  campaign-scoped writes and keeps derived condition projections consistent.
+- Campaign clock reads may use an explicit `DEFERRED` read transaction.
 
-- `CampaignClockService.get`: explicit `DEFERRED` snapshot for campaign validation and clock retrieval.
-- `CampaignClockService.advance`: explicit `IMMEDIATE` transaction covering clock advancement and expiration of due campaign-time effects.
-- `services.campaign.PersistentEffectService.create` and `set_status`: explicit `IMMEDIATE` transaction covering ownership checks, clock deadline calculation and effect mutation.
-- `CombatAttackService.attack`: explicit `IMMEDIATE` transaction covering encounter turn validation, rules resolution, PC HP synchronization and encounter persistence.
-- `LegacySillyTavernTurnService._process_turn_locked` (invoked through the adapter's public `process_turn()` method): explicit `IMMEDIATE` write transaction covering authoritative idempotency checks, optional snapshot restoration/superseding, world and character operations, and successful turn persistence. Narrative extraction remains outside the transaction. Failed operations roll back this transaction before persisting the failed turn record through its own repository transaction.
+## Removed compatibility transaction
 
-These use cases already relied on a caller-supplied shared connection for their atomic writes. This change makes ownership visible and consistent; it does not change their domain rules or transaction scope.
+The narrative-first SillyTavern mutation transaction and its optional snapshot
+restoration/superseding path have been removed. Migration 029 archives the
+historical JSON first and removes the old runtime column; the archive is not
+part of any application transaction or read path.
 
-## Compatibility
+## Review checklist
 
-`get_conn()` remains available for simple one-connection operations, migrations and existing code not yet migrated. Its existing automatic commit/rollback/close behaviour is unchanged.
-
-The transaction helper is intentionally small and SQLite-specific. It is not a generic Unit of Work, does not abstract repositories, and does not imply support for multiple database engines.
-
-## Verification
-
-The database tests verify successful commit, rollback on an escaping exception and rejection of unsupported transaction modes. Existing service tests continue to verify domain-level atomicity, including campaign clock/effect expiry and encounter/character HP synchronization.
-
-The remaining services are migrated incrementally when their transaction boundary is being changed for a concrete reason. A repository-wide mechanical replacement is explicitly out of scope.
+- Does every participant share the same connection?
+- Can a failure after the first write leave canonical projections divergent?
+- Are in-memory state and persisted state restored together on rollback?
+- Are provider calls kept outside write transactions?
+- Do tests cover rollback, stale revision/lease rejection and retry behavior?
+- Does a schema change preserve existing data through a forward migration?

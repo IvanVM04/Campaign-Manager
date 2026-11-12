@@ -220,23 +220,8 @@ class DurableNativeTurnService:
                     raise DurableNativeTurnError(
                         "external turn identity was reused with different player input"
                     )
-                return DurableTurnPreparation(
-                    resolution_id=None,
-                    lifecycle_state="legacy_replay",
-                    player_input=active_turn.player_input,
-                    committed_resolution=json.dumps(
-                        {
-                            "legacy_replay": True,
-                            "message": (
-                                "This turn predates durable resolution. "
-                                "Preserve its existing world effects; narration regeneration "
-                                "must not create new consequences."
-                            ),
-                        },
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    ),
-                    legacy_replay=True,
+                raise DurableNativeTurnError(
+                    "external turn has no durable resolution; use a new external_turn_id"
                 )
             result = self._play_turn_locked(
                 player_input,
@@ -432,9 +417,7 @@ class DurableNativeTurnService:
                 plan = self._plan_from_record(record)
             else:
                 plan = self.resolver.prepare_turn(
-                    context, normalized, recent_turns=recent,
-                    manual_mode=(dice_mode == "manual"),
-                    proposal_from_intent=True,
+                    context, normalized, manual_mode=(dice_mode == "manual"),
                 )
                 if plan.awaiting_manual_roll:
                     pending = self._build_manual_roll_request(record, plan.mechanics_decision, context, revision)

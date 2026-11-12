@@ -58,8 +58,9 @@ class DMService:
     - parsear operaciones del LLM.
 
     La separación entre narración y mutaciones persistentes es
-    intencionada. LLMWorldExtractor se encarga de interpretar
-    cambios persistentes cuando corresponda.
+    intencionada. TurnResolutionService propone consecuencias estructuradas
+    desde la intención del jugador; DMService solo presenta el resultado
+    después de que el motor confirme y aplique esas consecuencias.
     """
 
     DEFAULT_SYSTEM_PROMPT = (

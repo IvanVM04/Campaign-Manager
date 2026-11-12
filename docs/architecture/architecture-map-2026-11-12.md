@@ -59,14 +59,12 @@ Critical contracts: turn-resolution lifecycle, durable persistence, idempotency 
 
 ### SillyTavern
 
-- integrations/adapters/silly_tavern/context_adapter.py translates active read/context and external transcript-state contracts.
-- integrations/adapters/silly_tavern/service.py is a thin façade with an injected legacy processor.
-- services/turns/legacy_silly_tavern_turn_service.py owns the deprecated narrative-first mutation and snapshot-regeneration path.
-- bootstrap/campaign_runtime.py creates the context adapter and legacy processor separately and injects both into the façade.
-- POST /integration/turn remains deprecated but operational. Its usage has not been proven to be zero.
-- WorldSnapshotRepository serializes state into JSON stored in the nullable turns.snapshot column; these are not dedicated snapshot tables.
-
-Do not delete the old route, legacy processor, snapshot repository or snapshot column until deployed usage and supported-client migration gates are evidenced.
+- integrations/adapters/silly_tavern/context_adapter.py translates active context/history and external transcript-state contracts.
+- integrations/adapters/silly_tavern/service.py is a thin read-only façade exposing context and transcript-state queries.
+- bootstrap/campaign_runtime.py wires the adapter; durable turn services own all state-changing operations.
+- The supported mutation lifecycle is resolve -> challenge continuation (if needed) -> complete.
+- The narrative-first POST /integration/turn route, LegacySillyTavernTurnService and snapshot restoration have been removed.
+- Migration 029 archives existing non-null turns.snapshot JSON in turn_snapshot_archive before dropping the runtime column.
 
 ### Combat attack
 
@@ -116,7 +114,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
 | memory_search_service.py | Deterministic retrieval/export from supplied WorldState | Remain persistence-free; do not make this a second canonical world store. |
-| context_builder.py | Public orchestration façade for context construction | Keep narrative budgets and proposal token budgets distinct. |
+| context_builder.py | Public orchestration façade for context construction | Keep narrative rendering and bounded proposal-context selection explicit. |
 | context_expander.py | One-hop relationship/dependency expansion | Preserve deterministic and bounded expansion. |
 | context_ranker.py | Stable relevance scoring and ordering | Avoid nondeterministic score sources; maintain ranking regression tests. |
 | context_renderer.py | Narrative context and recent-history rendering | Keep character budgets and transport rendering separate. |
@@ -126,11 +124,9 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| llm_world_extractor.py | Coordinates legacy extract() and active propose() APIs | Keep paths separate: propose() has independent context/prompt/response/repair budgets; extract() renders the full snapshot and currently has no complete-prompt/context budget check. Retire or separately budget legacy callers before further use. |
-| llm_world_prompt_builder.py | Stable façade for legacy narrative-extraction prompt | Static instructions are decomposed; do not confuse source split with a smaller prompt. |
-| legacy_prompt_sections/ | Ordered static instruction modules | Preserve byte-for-byte composition until a separate quality-measured prompt revision. |
+| llm_world_extractor.py | Single structured player-intent proposal workflow | Keep proposals bounded and fail closed on invalid or unsupported output. |
 | llm_world_context_renderer.py | Dynamic campaign/context rendering | Keep it distinct from static prompt instructions and the proposal context selector. |
-| llm_world_proposal_prompt_builder.py | Active player-intent structured proposal prompt | Keep bounded, typed and independent of the legacy extraction prompt. |
+| llm_world_proposal_prompt_builder.py | Single player-intent structured proposal prompt | Keep bounded, typed and driven by the registry allowlist. |
 | llm_world_proposal_validator.py | Structured response validation and one compact repair | Keep one repair only, bounded input/output and fail-closed behavior. |
 | llm_world_response_parser.py | Strict response decoding and trust gate | Reject unsupported/internal-only operations before domain object construction. |
 | operation_registry.py | Typed operation catalog, schema, examples and model-proposable classification | The registry is not authorization; domain permission/existence checks remain outside this package. |
@@ -151,7 +147,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 |---|---|---|
 | dm_service.py | Narrative generation, separate from consequences | Keep provider calls outside write transactions and narrate committed evidence. |
 | mechanics_adjudicator.py | Structured mechanics proposal and validation | It does not roll dice or mutate world state. |
-| turn_resolution_service.py | Non-persistent planning, mechanics orchestration and plan application | Continue reducing orchestration complexity; retain legacy branch only while supported consumers exist. |
+| turn_resolution_service.py | Structured player-intent proposal, mechanics orchestration, application and non-durable narration wrapper | Preserve proposal/apply/narrate ordering; durable orchestration owns commit-before-narration. |
 | durable_native_turn_service.py | Public durable coordinator, lifecycle façade, continuation and recovery | Next major decomposition candidate: split public lifecycle use cases while preserving this façade and all lease/idempotency invariants. |
 | durable_turn_challenge_state_service.py | Read-only challenge state projection | Keep detached and campaign-scoped. |
 | durable_turn_clarification_submission_service.py | Clarification submission and recovery | Keep revision/lease fencing and retry behavior. |
@@ -162,7 +158,6 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | durable_turn_narration_service.py | Native/external narration completion | Never replay operations after a committed resolution. |
 | turn_resolution_codec.py | Canonical JSON codec for durable records | Keep schema/codec compatibility explicit and tested. |
 | turn_execution_lock.py | Process-local shared lock | Single-process limitation must remain documented until distributed coordination is a real requirement. |
-| legacy_silly_tavern_turn_service.py | Quarantined narrative-first endpoint and snapshot regeneration | Remove with the deprecated route only after external usage/sign-off gates. |
 
 ### services/world
 
@@ -190,24 +185,22 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | repositories/turn_repository.py | Turn/transcript persistence | Preserve campaign scope and connection/transaction ownership. |
 | repositories/turn_resolution_repository.py | Durable in-flight state persistence | Preserve lease fencing, uniqueness and atomic transitions. |
 | repositories/world_repository.py | Canonical world persistence | Preserve one canonical state source and caller-owned transaction behavior. |
-| repositories/world_snapshot_repository.py | Legacy JSON snapshot serialization/restoration | Compatibility-only while the deprecated narrative-first route is supported. |
 | bootstrap/campaign_runtime.py | Per-campaign composition root and runtime cache | Keep composition here; make cache shutdown/eviction a separately justified change. |
 | app.py | FastAPI app and middleware wiring | Keep thin; no business use cases belong here. |
 | api/routers | Transport-facing endpoint groups | Keep each route handler focused on validation, service call and response mapping. |
 
-## Protected compatibility and data
+## Retired paths and preserved history
 
-Do not remove these based on names or age alone:
+The narrative-first `POST /integration/turn`, `LegacySillyTavernTurnService`,
+`LLMWorldExtractor.extract()`, legacy prompt builder/modules,
+`WorldSnapshotRepository`, `TurnRecord.snapshot` and runtime
+`turns.snapshot` column are retired. Do not recreate them as compatibility
+shims or parallel processing paths.
 
-- Deprecated POST /integration/turn.
-- services/turns/legacy_silly_tavern_turn_service.py.
-- integrations/adapters/silly_tavern/service.py active read/context façade.
-- repositories/world_snapshot_repository.py and existing JSON payloads.
-- Nullable turns.snapshot column and its migration history.
-- Legacy extract() and its stable builder façade while the narrative-first consumer branch remains.
-- Migration tests and deterministic integration tests for active contracts.
-
-Removal requires code/test/script/external-client consumer searches, production usage evidence where applicable, a data-retention decision and tests in the same implementation PR.
+Migration 029 preserves historical non-null snapshot JSON in the inert
+`turn_snapshot_archive` table. The archive is retained for data preservation,
+not runtime restoration. All supported integrations use the durable
+resolve/complete lifecycle.
 
 ## Priority backlog
 
@@ -223,11 +216,18 @@ Removal requires code/test/script/external-client consumer searches, production 
 | P3 | Migrations | Add a migration index before considering file-level extraction | History is ordered and data-preserving; file count is not a reason to refactor. |
 | P3 | Runtime | Define lifecycle invalidation/shutdown only when multi-campaign or deployment needs justify it | Current runtime/locks are process-local by design. |
 
-## Current prompt assessment
+## Current proposal assessment
 
-The active durable proposal flow uses TurnResolutionService -> ContextBuilder -> ProposalContextSelector -> LLMWorldProposalPromptBuilder and has bounded context, full-prompt, response and one-repair budgets. Operation metadata is centralized, and model output remains untrusted.
+The only world-consequence proposal flow uses player intent and confirmed
+mechanics. The turn/application boundary selects a bounded
+`WorldContextProjection`; `LLMWorldProposalPromptBuilder` renders it;
+the response parser enforces the model-proposable allowlist; the world
+application boundary performs semantic validation and mutation. Prompt,
+selected context, response and one repair have independent budgets.
 
-The legacy narrative-first extract() path still uses the decomposed static instruction modules; PR #197 now selects a bounded, query-relevant public world projection and preserves the active character/current location. It enforces a separate 8,192 selected-record budget and a 65,536 complete-prompt upper bound before provider invocation, failing closed when either selection or total prompt checks fail. The old static instructions and their rendered order remain unchanged and protected by the golden fixture. This bounds dynamic campaign state, but it does not shorten the approximately 46,851-character representative prompt or prove model quality. The next prompt task is a measured live Ollama comparison before simplifying static instructions.
+There is no narrative-first extraction API or static legacy prompt builder.
+Narrative generation is a presentation phase after durable consequences are
+committed.
 
 ## Validation boundaries
 

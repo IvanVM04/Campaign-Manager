@@ -33,8 +33,8 @@ class LLMWorldProposalPromptBuilder:
             raise ValueError("max_prompt_tokens must be greater than zero")
 
         if projection is None:
-            # Keep the simple one-argument call for legacy callers and tests
-            # that replace the renderer at this boundary.
+            # Keep the renderer call narrow for tests and simple callers
+            # that replace this boundary with a deterministic double.
             context_blocks = LLMWorldContextRenderer.build_context(context)
         else:
             context_blocks = LLMWorldContextRenderer.build_context(

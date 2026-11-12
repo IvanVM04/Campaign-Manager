@@ -1,32 +1,21 @@
-import logging
-
 from fastapi import APIRouter, HTTPException
 
 from api.errors import api_error_for_exception
 from api.runtime_context import get_current_runtime
 from api.serializers import serialize_operation_result
 from integrations.adapters.silly_tavern import (
-    SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
 )
 from models.schemas import (
     SillyTavernClarificationIn,
     SillyTavernContextIn,
     SillyTavernManualRollIn,
-    SillyTavernTurnIn,
+    SillyTavernTurnCompleteIn,
     SillyTavernTurnResolveIn,
 )
 from services.turns.durable_native_turn_service import DurableNativeTurnError
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
-
-
-def _sanitize_for_log(value: object) -> str:
-    text = "" if value is None else str(value)
-    return text.replace("\r", "").replace("\n", "")
-
-
 # ============================================================
 # SILLYTAVERN INTEGRATION
 # ============================================================
@@ -170,7 +159,6 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         ),
         "pending_roll_id": getattr(preparation, "pending_roll_id", None),
         "pending_roll": getattr(preparation, "pending_roll", None),
-        "legacy_replay": preparation.legacy_replay,
         "campaign": context_result["campaign"],
         "session": context_result["session"],
         "active_character": context_result["active_character"],
@@ -268,63 +256,8 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
     }
 
 
-@router.post("/integration/turn", deprecated=True)
-def process_silly_tavern_turn(data: SillyTavernTurnIn):
-    """Deprecated compatibility endpoint for pre-PR31 SillyTavern extensions.
-
-    This narrative-first endpoint does not provide the durable resolution
-    guarantees of /integration/turn/resolve and /integration/turn/complete.
-    New clients must use the durable two-phase flow.
-    """
-    runtime = get_current_runtime()
-    logger.warning(
-        "Deprecated legacy SillyTavern turn endpoint used; migrate to "
-        "/integration/turn/resolve and /integration/turn/complete",
-        extra={
-            "campaign_id": runtime.campaign_id,
-            "external_turn_id": _sanitize_for_log(data.external_turn_id),
-        },
-    )
-    try:
-        result = runtime.silly_tavern_integration_service.process_turn(
-            player_input=data.player_input,
-            narrative=data.narrative,
-            external_turn_id=data.external_turn_id,
-            turn_version=data.turn_version,
-        )
-    except SillyTavernIntegrationServiceConflictError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except SillyTavernIntegrationServiceError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail="failed to process legacy SillyTavern turn",
-        ) from exc
-
-    return {
-        "narrative": result.narrative,
-        "player_input": result.player_input,
-        "external_turn_id": data.external_turn_id,
-        "turn_version": data.turn_version,
-        "operation_count": result.operation_count,
-        "successful_operation_count": result.successful_operation_count,
-        "failed_operation_count": result.failed_operation_count,
-        "all_operations_succeeded": result.all_operations_succeeded,
-        "world_changed": result.world_changed,
-        "operations": [
-            type(operation).__name__
-            for operation in result.operations + result.character_operations
-        ],
-        "operation_results": [
-            serialize_operation_result(item)
-            for item in result.operation_results
-        ],
-    }
-
-
 @router.post("/integration/turn/complete")
-def complete_silly_tavern_turn(data: SillyTavernTurnIn):
+def complete_silly_tavern_turn(data: SillyTavernTurnCompleteIn):
     """Persist an external narrative against an already committed resolution."""
     runtime = get_current_runtime()
     try:

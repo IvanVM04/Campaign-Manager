@@ -24,6 +24,7 @@ from migrations import (
     migration_021,
     migration_022,
     migration_026,
+    migration_029,
     run_migrations,
 )
 
@@ -910,14 +911,14 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_28():
+def test_run_migrations_upgrades_version_21_to_29():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -936,7 +937,7 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
     conn.close()
 
 
@@ -958,7 +959,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
@@ -1010,7 +1011,7 @@ def test_migration_025_adds_encounter_scoped_effect_timer_columns():
         "encounter_id", "duration_rounds", "expires_at_round",
         "duration_turns", "expires_at_turn", "expired_at_round", "expired_at_turn",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
     trigger = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_effect_timer_encounter_campaign'"
     ).fetchone()
@@ -1062,7 +1063,7 @@ def test_migration_026_creates_slot_projection_and_migrates_legacy_weapon():
     assert conn.execute(
         "SELECT equipment_slot FROM items WHERE id=1"
     ).fetchone()[0] == "main_hand"
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
     conn.close()
 
 
@@ -1111,7 +1112,7 @@ def test_migration_028_persists_armor_proficiencies_with_empty_legacy_default():
         row["name"] for row in conn.execute("PRAGMA table_info(character_states)")
     }
     assert "armor_proficiencies" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 28
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
     conn.execute("""
         INSERT INTO entities (id, name, entity_type, campaign_id)
         VALUES (1, 'Legacy hero', 'player_character', 1)
@@ -1123,4 +1124,45 @@ def test_migration_028_persists_armor_proficiencies_with_empty_legacy_default():
     assert conn.execute(
         "SELECT armor_proficiencies FROM character_states WHERE entity_id=1"
     ).fetchone()[0] == "[]"
+    conn.close()
+
+
+def test_migration_029_archives_turn_snapshots_and_removes_runtime_column():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("""
+        CREATE TABLE turns (
+            id INTEGER PRIMARY KEY,
+            campaign_id INTEGER NOT NULL,
+            player_input TEXT NOT NULL,
+            snapshot TEXT
+        )
+    """)
+    conn.execute(
+        "INSERT INTO turns (id, campaign_id, player_input, snapshot) VALUES (1, 7, 'Exploro', ?)",
+        ('{"entities": [{"id": 12}]}',),
+    )
+    conn.execute(
+        "INSERT INTO turns (id, campaign_id, player_input, snapshot) VALUES (2, 7, 'Espero', NULL)"
+    )
+
+    migration_029(conn)
+
+    turn_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(turns)")
+    }
+    assert "snapshot" not in turn_columns
+
+    archived = conn.execute(
+        "SELECT turn_id, campaign_id, snapshot_json FROM turn_snapshot_archive"
+    ).fetchall()
+    assert [tuple(row) for row in archived] == [
+        (1, 7, '{"entities": [{"id": 12}]}')
+    ]
+
+    # The migration is safe to re-run and never duplicates archived payloads.
+    migration_029(conn)
+    assert conn.execute(
+        "SELECT COUNT(*) FROM turn_snapshot_archive"
+    ).fetchone()[0] == 1
     conn.close()

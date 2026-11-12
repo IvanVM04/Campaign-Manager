@@ -14,7 +14,6 @@ from operations.world_operations import CreateEntityOperation, WorldOperation
 from services.llm_world import (
     LLMExtractionError,
     LLMWorldExtractor,
-    LLMWorldPromptBuilder,
     LLMWorldResponseParser,
 )
 from services.llm_world.operation_parser import OperationParser
@@ -153,7 +152,7 @@ def test_propose_empty_intent_does_not_call_provider():
     assert extractor.propose("   ", make_context()) == []
     assert provider.calls == []
 
-def test_extractor_does_not_receive_secret_world_events():
+def test_proposal_context_excludes_secret_world_events():
     world = WorldState(events={
         "public-discovery": Event(
             id="public-discovery",
@@ -177,7 +176,18 @@ def test_extractor_does_not_receive_secret_world_events():
         operation_parser=FakeParser(),
     )
 
-    extractor.extract("El grupo examina el campanario.", make_context(world=world))
+    from services.context import ContextBuilder
+
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "El grupo examina el campanario.",
+        max_estimated_tokens=4096,
+    )
+    extractor.propose(
+        "El grupo examina el campanario.",
+        make_context(world=world),
+        context_projection=projection,
+    )
 
     prompt = provider.calls[0]
     assert "La campana rota" in prompt

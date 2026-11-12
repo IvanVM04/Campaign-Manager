@@ -1,62 +1,48 @@
-# Capability-package dependency matrix
+# Package dependency matrix
 
-**Status:** initial enforceable baseline, introduced with PR #150.
+This document records allowed dependency direction for the modular monolith.
+It complements the [architecture map](architecture-map-2026-11-12.md) and
+is enforced by the architecture-boundary tests.
 
-This matrix describes dependency direction for the eight capability packages under `services/`. It is deliberately conservative: it records boundaries that current code can enforce without a broad relocation or behavior change. A dependency not explicitly discussed below is not automatically endorsed; update this document and its architecture test in the same PR when introducing a new cross-package edge.
+## Dependency direction
 
-## Shared layers
+- API routers depend on transport schemas, runtime context and application
+  services; application logic does not import routers.
+- Bootstrap is the composition root. Capability packages do not import
+  bootstrap or construct their own process-wide runtime.
+- Capability application services may depend on shared models, repositories,
+  operations, rules-engine contracts and explicitly injected collaborators.
+- The rules engine remains pure: it does not import services, repositories,
+  database code, FastAPI or provider clients.
+- `services/turns` may orchestrate `services/context` and
+  `services/llm_world`; `services/llm_world` must not import
+  `services/context`.
+- `integrations/adapters/silly_tavern` may depend on public application
+  contracts and read-oriented context adapters. Capability services must not
+  import external integration adapters.
 
-Capability packages may use the shared layers needed by their responsibilities:
+## SillyTavern composition
 
-- `models` — domain state and typed read/write models.
-- `operations` — typed commands and proposals.
-- `repositories` — persistence ports/adapters currently used by application services.
-- `rules_engine` — deterministic ruleset mechanics.
+- `SillyTavernContextAdapter` owns active context/history and external
+  transcript-state read translation.
+- `SillyTavernIntegrationService` is a thin read-oriented façade.
+- `bootstrap/campaign_runtime.py` builds the context adapter and wires it
+  into the facade.
+- Turn mutation remains owned by `DurableNativeTurnService` and its
+  collaborators, not by the integration adapter.
 
-The rules engine remains independent of API, database, repositories, LLM providers and service orchestration. API routers are transport adapters and must not be imported by service packages. Runtime construction belongs to `bootstrap`, not capability packages.
+## Retired dependency paths
 
-## Capability-package matrix
+Do not recreate the narrative-first `POST /integration/turn`,
+`LegacySillyTavernTurnService`, `WorldSnapshotRepository`, or a
+compatibility `process_turn()` delegate. The active external client uses the
+durable resolve/complete lifecycle.
 
-| Package | Allowed cross-package service dependencies | Forbidden dependencies enforced by tests |
-|---|---|---|
-| `campaign` | `services.world` state port | API, bootstrap, characters, combat, context, llm_world, providers, turns |
-| `characters` | None | API, bootstrap and all other capability packages |
-| `combat` | Character mechanics remain accessed through shared models/repositories/rules | API, bootstrap, campaign, context, llm_world, providers, turns, world |
-| `context` | `services.world` serialization/projection | API, bootstrap, campaign, characters, combat, llm_world, providers, turns |
-| `llm_world` | None; provider invocation is injected at its application boundary | API, bootstrap, database, repositories, campaign, characters, combat, context, providers, turns, world |
-| `providers` | None; this is an adapter/port boundary | API, bootstrap, database, models, operations, repositories, rules_engine and service packages |
-| `turns` | `services.world`, `services.llm_world`, `services.context` and `services.providers` for planning, adjudication and narration | API and bootstrap |
-| `world` | `services.characters` for typed character application | API, bootstrap, campaign, combat, context, llm_world, providers, turns |
+## Rules for adding dependencies
 
-The matrix is a set of enforced prohibitions, not a claim that every allowed edge is currently used. In particular, a package's permission to import a shared layer does not authorize bypassing its public contracts or transaction ownership.
-
-## Integration adapters and composition
-
-- integrations/adapters/ is an inbound/outbound adapter layer. It may depend on public application services, repositories and shared models, but must not import api or bootstrap.
-- Capability packages must not import integrations; direction flows inward from adapters to application/domain contracts.
-- integrations/adapters/silly_tavern/context_adapter.py owns read-only context/history and external transcript-state translation. The package façade delegates the deprecated narrative-first call through an injected processor protocol.
-- bootstrap/campaign_runtime.py constructs LegacySillyTavernTurnService, its snapshot/state-version repositories and the context adapter independently, then wires them into the façade. The adapter does not create legacy repositories, transactions or providers.
-
-## Composition and cross-cutting services
-
-- `bootstrap/campaign_runtime.py` is the composition root and may wire capability packages together.
-- `api/routers/` obtains the request-scoped runtime and translates HTTP input/output; it does not compose services.
-- `DMService` belongs to `services/turns`; it owns narrative generation for a turn and consumes context/provider collaborators without applying world mutations.
-- `SillyTavernIntegrationService` is a thin external adapter façade under integrations/adapters/silly_tavern; active context reads are owned by SillyTavernContextAdapter, while the deprecated narrative-first collaborator remains quarantined in services/turns. Its legacy status does not authorize new dependencies or gameplay behavior.
-- `PersistentEffectService` and `EffectiveConditionService` belong to `services/campaign`; the first owns persisted campaign-effect lifecycle and the second derives effective D&D conditions without storing duplicate state.
-- `OperationParser` belongs to `services/llm_world`; it performs structural decoding only. LLM-specific allowlisting remains in the proposal validator, while semantic validation and mutation remain in `services/world`.
-- `MechanicsAdjudicator` belongs to `services/turns`; it proposes and validates structured mechanics decisions but leaves dice rolls and consequences to deterministic turn/rules services.
-- `MemorySearchService` belongs to `services/context`; it performs deterministic retrieval/export over a supplied `WorldState` and does not own persistence or campaign state.
-- Legacy compatibility code is not a precedent for new dependencies. Do not expand its dependency surface.
-
-## Updating the matrix
-
-When a change needs a new dependency:
-
-1. Confirm that the dependency reflects a stable responsibility rather than a convenient import.
-2. Prefer a small protocol/value contract or move orchestration to the composition/application boundary when that reduces coupling.
-3. Add the edge to this document with its direction and reason.
-4. Update `PACKAGE_FORBIDDEN_IMPORTS` in `tests/test_architecture_boundaries.py` so the new edge is an explicit exception.
-5. Run the architecture tests, Ruff, Python tests and JavaScript tests.
-
-Do not introduce a generic dependency-injection framework or split the modular monolith merely to satisfy this matrix. The purpose is to make coupling visible and intentional while preserving the current working architecture.
+1. Prefer an existing owning package or a narrow injected protocol.
+2. Add the import edge to this matrix and an architecture test in the same PR.
+3. Avoid circular imports and package-level reexports that recreate old flat
+   module paths.
+4. Do not make domain/rules packages aware of HTTP, integrations, or provider
+   implementations.

@@ -46,6 +46,10 @@ class RecordingDMService(DMService):
         self,
         turn_context,
         player_input,
+        *,
+        recent_turns=None,
+        mechanics_result=None,
+        committed_resolution=None,
     ):
         self.calls.append(
             (
@@ -58,6 +62,9 @@ class RecordingDMService(DMService):
         return super().generate(
             turn_context,
             player_input,
+            recent_turns=recent_turns,
+            mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
 
@@ -69,14 +76,6 @@ class RecordingExtractor(LLMWorldExtractor):
         self.received_context = None
         self.received_projection = None
         self.calls = []
-
-    def extract(self, text, context):
-        self.received_text = text
-        self.received_context = context
-        self.calls.append(
-            ("extract", text)
-        )
-        return self.operations
 
     def propose(
         self,
@@ -392,7 +391,7 @@ def test_no_operations_are_valid():
     assert applier.calls == []
 
 
-def test_extractor_receives_generated_narrative():
+def test_proposer_receives_player_intent():
 
     service, _, extractor, _ = (
         make_service()
@@ -403,12 +402,7 @@ def test_extractor_receives_generated_narrative():
         "Abro la puerta.",
     )
 
-    assert extractor.calls == [
-        (
-            "extract",
-            "La puerta se abre lentamente.",
-        )
-    ]
+    assert extractor.calls == [("propose", "Abro la puerta.")]
 
 
 def test_extractor_failure_is_wrapped():
@@ -421,12 +415,15 @@ def test_extractor_failure_is_wrapped():
                 operation_parser=object(),
             )
 
-        def extract(
+        def propose(
             self,
             text,
             world,
+            *,
+            mechanics_result=None,
+            context_projection=None,
         ):
-            raise RuntimeError("extract failed")
+            raise RuntimeError("proposal failed")
 
     service, dm, _, _applier = (
         make_service()
@@ -461,10 +458,13 @@ def test_invalid_extractor_result_is_rejected():
                 operation_parser=object(),
             )
 
-        def extract(
+        def propose(
             self,
             text,
             world,
+            *,
+            mechanics_result=None,
+            context_projection=None,
         ):
             return [
                 "not an operation"
@@ -661,32 +661,42 @@ def test_turn_resolution_order():
     def generate(
         turn_context,
         player_input,
+        *,
+        recent_turns=None,
+        mechanics_result=None,
+        committed_resolution=None,
     ):
         order.append("dm")
-
         return original_generate(
             turn_context,
             player_input,
+            recent_turns=recent_turns,
+            mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
     dm.generate = generate
 
     extractor = RecordingExtractor()
 
-    original_extract = extractor.extract
+    original_propose = extractor.propose
 
-    def extract(
-        text,
-        world,
+    def propose(
+        player_intent,
+        context,
+        *,
+        mechanics_result=None,
+        context_projection=None,
     ):
-        order.append("extractor")
-
-        return original_extract(
-            text,
-            world,
+        order.append("proposer")
+        return original_propose(
+            player_intent,
+            context,
+            mechanics_result=mechanics_result,
+            context_projection=context_projection,
         )
 
-    extractor.extract = extract
+    extractor.propose = propose
 
     applier = RecordingApplier()
 
@@ -720,10 +730,7 @@ def test_turn_resolution_order():
         "Exploro.",
     )
 
-    assert order == [
-        "dm",
-        "extractor",
-    ]
+    assert order == ["proposer", "dm"]
 
 
 # ============================================================
@@ -759,12 +766,18 @@ def test_turn_resolution_order_with_operation():
     def generate(
         turn_context,
         player_input,
+        *,
+        recent_turns=None,
+        mechanics_result=None,
+        committed_resolution=None,
     ):
         order.append("dm")
-
         return original_generate(
             turn_context,
             player_input,
+            recent_turns=recent_turns,
+            mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
     dm.generate = generate
@@ -783,20 +796,24 @@ def test_turn_resolution_order_with_operation():
         ]
     )
 
-    original_extract = extractor.extract
+    original_propose = extractor.propose
 
-    def extract(
-        text,
-        world,
+    def propose(
+        player_intent,
+        context,
+        *,
+        mechanics_result=None,
+        context_projection=None,
     ):
-        order.append("extractor")
-
-        return original_extract(
-            text,
-            world,
+        order.append("proposer")
+        return original_propose(
+            player_intent,
+            context,
+            mechanics_result=mechanics_result,
+            context_projection=context_projection,
         )
 
-    extractor.extract = extract
+    extractor.propose = propose
 
     applier = RecordingApplier()
 
@@ -830,11 +847,7 @@ def test_turn_resolution_order_with_operation():
         "Conozco a Aldric.",
     )
 
-    assert order == [
-        "dm",
-        "extractor",
-        "applier",
-    ]
+    assert order == ["proposer", "applier", "dm"]
 
 def test_turn_resolution_uses_world_from_turn_context():
 
@@ -949,66 +962,34 @@ def test_world_state_compatibility_creates_typed_turn_context():
     assert player_input == "Exploro."
 
 
-def test_turn_resolution_separates_world_and_character_operations(
-    monkeypatch,
-):
-    from operations.character_operations import (
-        ChangeCharacterHpOperation,
-    )
-    from operations.world_operations import (
-        WorldOperation,
-    )
-    from services.llm_world import (
-        LLMWorldExtractor,
-    )
+def test_turn_resolution_rejects_character_changes_from_llm_proposal(monkeypatch):
+    from operations.character_operations import ChangeCharacterHpOperation
+    from services.llm_world import LLMWorldExtractor
 
-    world_operation = WorldOperation()
-
-    character_operation = ChangeCharacterHpOperation(
-        entity_id=1,
-        amount=-4,
-    )
-
+    character_operation = ChangeCharacterHpOperation(entity_id=1, amount=-4)
     service, dm, _, _ = make_service()
-
-    extractor = LLMWorldExtractor.__new__(
-        LLMWorldExtractor
-    )
-
-    def fake_extract(*args, **kwargs):
-        return [
-            world_operation,
-            character_operation,
-        ]
-
+    extractor = LLMWorldExtractor.__new__(LLMWorldExtractor)
     monkeypatch.setattr(
         extractor,
-        "extract",
-        fake_extract,
+        "propose",
+        lambda *args, **kwargs: [character_operation],
     )
-
     service = TurnResolutionService(
         dm_service=dm,
         extractor=extractor,
-        world_service=WorldService(
-            applier=RecordingApplier(),
-        ),
+        world_service=WorldService(applier=RecordingApplier()),
     )
 
-    result = service.resolve_turn(
-        turn_context=make_turn_context(),
-        player_input="Ataco al enemigo.",
-    )
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="character-state changes must come from deterministic mechanics",
+    ):
+        service.resolve_turn(
+            turn_context=make_turn_context(),
+            player_input="Ataco al enemigo.",
+        )
 
-    assert result.operations == (
-        world_operation,
-    )
 
-    assert result.character_operations == (
-        character_operation,
-    )
-
-    assert result.operation_count == 2
 
 def test_turn_resolution_uses_turn_context():
 
@@ -1232,10 +1213,6 @@ def test_resolve_turn_preserves_global_operation_order(
             name="Aldren",
             entity_type="npc",
         ),
-        ChangeCharacterHpOperation(
-            entity_id=1,
-            amount=-2,
-        ),
         UpdateEntityOperation(
             entity_id=1,
             notes="Herido durante el combate.",
@@ -1326,12 +1303,12 @@ def test_prepare_turn_generates_plan_without_mutating_world():
     plan = service.prepare_turn(context, "Conozco a Aldric.")
 
     assert plan.player_input == "Conozco a Aldric."
-    assert plan.narrative == "La puerta se abre lentamente."
+    assert plan.narrative == ""
     assert plan.world_operations == (operation,)
     assert context.world is original_world
     assert context.world.entities == {}
     assert applier.calls == []
-    assert len(dm.calls) == 1
+    assert dm.calls == []
 
 
 def test_apply_plan_applies_only_after_plan_is_prepared():
@@ -1373,7 +1350,6 @@ def test_prepare_turn_can_propose_consequences_without_generating_narrative():
     plan = service.prepare_turn(
         make_turn_context(),
         "Busco al tabernero Aldric.",
-        proposal_from_intent=True,
     )
 
     assert plan.narrative == ""
@@ -1397,7 +1373,6 @@ def test_intent_proposals_cannot_change_character_hp_directly():
         service.prepare_turn(
             make_turn_context(),
             "Ataco al goblin.",
-            proposal_from_intent=True,
         )
 
 
@@ -1420,7 +1395,6 @@ def test_prepare_turn_builds_bounded_context_for_structured_proposal():
     service.prepare_turn(
         context,
         "Quiero hablar con Mara.",
-        proposal_from_intent=True,
     )
 
     projection = extractor.received_projection

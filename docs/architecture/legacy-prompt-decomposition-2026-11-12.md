@@ -1,3 +1,12 @@
+> **Historical document — superseded by the 2026-11-12 legacy-retirement cleanup.**
+> The narrative-first extractor, static legacy prompt builder, deprecated
+> `POST /integration/turn`, legacy turn service and runtime snapshot
+> reconciliation described below have been removed. Migration 029 archives
+> existing non-null snapshot JSON in `turn_snapshot_archive`. Do not treat
+> the recommendations in this historical report as current implementation
+> instructions; see [the current architecture audit](architecture-audit-2026-11-12.md)
+> and [turn pipeline contract](turn-pipeline-compatibility.md).
+
 # Legacy narrative prompt decomposition — 2026-11-12
 
 ## Purpose
