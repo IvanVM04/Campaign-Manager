@@ -43,6 +43,10 @@ class CharacterSheetRead(BaseModel):
     max_hp: int
     armor_class: int
     proficiency_bonus: int
+    hit_die_sides: int
+    hit_dice_total: int
+    hit_dice_used: int
+    hit_dice_available: int
     abilities: tuple[AbilityScoreRead, ...]
     saving_throws: tuple[SavingThrowRead, ...]
     skills: tuple[SkillRead, ...]
