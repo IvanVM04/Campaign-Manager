@@ -172,6 +172,12 @@ def test_world_repository_round_trip(tmp_path):
                 "importance": "medium",
                 "location": "mina",
             },
+            epistemic_status="rumor",
+            provenance_source="npc_statement",
+            visibility_scope="character",
+            known_by_entity_ids=[1],
+            source_entity_id=2,
+            campaign_elapsed_minutes=400,
         )
 
         world.events[event.id] = event
