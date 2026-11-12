@@ -56,8 +56,6 @@ def test_silly_tavern_completion_rejects_empty_external_turn_identity():
         )
 
 
-
-
 def test_silly_tavern_context_schema_normalizes_optional_additional_query():
     data = SillyTavernContextIn(
         query="Me acerco al tabernero.",
@@ -73,7 +71,6 @@ def test_silly_tavern_context_schema_omits_blank_additional_query():
         additional_query="   ",
     )
     assert data.additional_query is None
-
 
 
 def test_silly_tavern_resolve_schema_preserves_primary_and_optional_scope_queries():
