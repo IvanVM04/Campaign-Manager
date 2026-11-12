@@ -14,8 +14,9 @@ indexes over searching through dated audit history.
 6. [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) — retired paths, preserved snapshot history and migration 029.
 7. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries.
 8. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results and quality-gate roadmap.
-9. [Test-suite audit](quality/test-suite-audit-2026-11-11.md) — suite composition, large modules and protected contracts.
-10. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
+9. [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — current contract-based test layout after PR #205.
+10. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
+11. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
 11. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
 
 ## Active architectural contracts
