@@ -4,6 +4,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import error_response, register_error_handlers
+from observability import configure_logging
+from observability.middleware import RequestObservabilityMiddleware
 from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
@@ -23,6 +25,8 @@ from services.context import ContextBuilder, MemorySearchService
 from services.providers import LLMSettings
 from services.world import WorldService
 
+configure_logging()
+
 app = FastAPI(
     title="D&D Campaign Manager",
     version="0.1.0",
@@ -40,6 +44,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 
@@ -115,6 +120,10 @@ async def bind_campaign_runtime(request: Request, call_next):
 
     with bind_current_runtime(runtime):
         return await call_next(request)
+
+
+# Registered last so the request context wraps campaign selection and error handling.
+app.add_middleware(RequestObservabilityMiddleware)
 
 
 app.include_router(system_router)
