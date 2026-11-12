@@ -2,6 +2,8 @@
 
 ## Current baseline
 
+- [Observability and diagnostics](observability-and-diagnostics.md): local logging configuration, correlation IDs, safe structured fields and the boundary with future player activity history.
+
 - [Shared-layer module catalogue — 2026-11-12](module-catalog-2026-11-12.md): API, models, operations, persistence, rules engine, shared entrypoints and test navigation.
 - [Phase 0 closeout — 2026-11-12](phase-0-closeout-2026-11-12.md): integrated structural changes, remaining acceptance gates and product hand-off.
 - [Engineering readiness and gameplay roadmap — 2026-11-12](engineering-readiness-and-gameplay-roadmap-2026-11-12.md): post-#205 readiness assessment, module expansion priorities and indicative hour ranges.
