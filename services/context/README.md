@@ -32,12 +32,12 @@ The LLM-specific world-context projection is a shared typed model in `models/wor
 
 The byte-based budget is an upper bound rather than a model-specific token count. The LLM package checks the final rendered prompt independently. The selector raises `ProposalContextBudgetError` rather than dropping mandatory player facts.
 
-## Pending work
-- [ ] Reduce `ContextBuilder` only where a distinct policy boundary exists; do not weaken the narrative path contract.
-- [ ] Document source freshness and campaign revision assumptions for any future cached/persisted projection.
-- [ ] Review whether richer semantic retrieval is justified by representative large-campaign cases; keep deterministic ranking as the safe baseline.
-- [ ] Add tokenizer-aware accounting only if the selected provider exposes a reliable token-count contract.
+## Remaining work
+- [ ] Add representative medium/large campaign probes for stable ranking, dependency expansion, mandatory character/location retention, budget exhaustion and non-mutation. Keep deterministic probes in CI; use opt-in live Ollama probes for model-quality evaluation.
+- [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
+- [ ] Consider richer semantic retrieval or tokenizer-aware accounting only after representative workloads or a provider tokenizer contract justify them.
 - [x] Keep rendering independent from transport response formatting.
+- [x] Preserve the existing ContextBuilder facade unless a distinct policy boundary emerges; no broad decomposition is currently justified.
 
 ## Migration status
 The five generic context modules plus `proposal_context_selector.py` live in this package. The former flat `services.memory_search_service` import path has been removed; import from this package's canonical modules.
