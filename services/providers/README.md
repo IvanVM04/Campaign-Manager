@@ -32,5 +32,12 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 
 Ollama error normalization and timeout handling were strengthened in PR #203. Keep deterministic provider tests in CI and live model checks opt-in.
 
+## Diagnostics
+
+Provider success/failure duration, role, configured model where available,
+response character count and stable error type are emitted through the shared
+[observability configuration](../../docs/architecture/observability-and-diagnostics.md).
+Never log API keys, full prompts or model completions.
+
 ## Migration status
 Provider implementations now live in this package. Production and test consumers use the canonical `services.providers` API; the former flat modules under `services/` have been removed.
