@@ -48,11 +48,11 @@ class Event:
         if not isinstance(self.secret, bool):
             raise TypeError("secret must be a boolean")
 
-        if self.epistemic_status not in EPISTEMIC_STATUSES:
+        if not isinstance(self.epistemic_status, str) or self.epistemic_status not in EPISTEMIC_STATUSES:
             raise ValueError("epistemic_status must be confirmed, rumor or inference")
-        if self.provenance_source not in PROVENANCE_SOURCES:
+        if not isinstance(self.provenance_source, str) or self.provenance_source not in PROVENANCE_SOURCES:
             raise ValueError("unsupported provenance_source")
-        if self.visibility_scope not in VISIBILITY_SCOPES:
+        if not isinstance(self.visibility_scope, str) or self.visibility_scope not in VISIBILITY_SCOPES:
             raise ValueError("visibility_scope must be public, character or gm_only")
         if self.provenance_source == "model_inference" and self.epistemic_status != "inference":
             raise ValueError("model_inference provenance must remain epistemically unconfirmed")
