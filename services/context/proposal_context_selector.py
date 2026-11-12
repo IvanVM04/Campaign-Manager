@@ -18,8 +18,8 @@ from models.world_state import WorldState
 
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
-from .entity_reference_resolver import EntityReferenceResolver
 from .context_renderer import ContextRenderer
+from .entity_reference_resolver import EntityReferenceResolver
 from .memory_search_service import MemorySearchService
 
 RecordKey = tuple[str, int | str]

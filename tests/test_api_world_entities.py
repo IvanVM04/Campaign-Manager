@@ -93,4 +93,5 @@ def test_world_entity_bootstrap_validates_alias_count_and_length(client):
         "/world/entities/bootstrap",
         json={"entities": [{"name": "Aldric", "entity_type": "npc", "aliases": ["x" * 101]}]},
     )
+    assert too_long.status_code == 422
     assert response.status_code == 422
