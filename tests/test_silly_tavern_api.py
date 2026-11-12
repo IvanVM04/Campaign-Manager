@@ -173,6 +173,11 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
             "session": None,
             "active_character": None,
             "context": {"query": query, "context": "Estado confirmado."},
+            "retrieval_diagnostics": {
+                "query_count": 2,
+                "supplemental_query_count": 1,
+                "included_record_counts": {},
+            },
         }
 
     monkeypatch.setattr(
@@ -514,6 +519,11 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
             "session": None,
             "active_character": None,
             "context": {"query": query, "context": "Estado actual."},
+            "retrieval_diagnostics": {
+                "query_count": 1,
+                "supplemental_query_count": 0,
+                "included_record_counts": {},
+            },
         }
 
     monkeypatch.setattr(runtime.durable_native_turn_service, "submit_manual_roll", fake_submit)
@@ -586,6 +596,11 @@ def test_silly_tavern_clarification_endpoint_returns_manual_roll_challenge(clien
                 "session": None,
                 "active_character": None,
                 "context": {"query": query, "context": "Estado actual."},
+                "retrieval_diagnostics": {
+                    "query_count": 1,
+                    "supplemental_query_count": 0,
+                    "included_record_counts": {},
+                },
             }
         ),
     )
