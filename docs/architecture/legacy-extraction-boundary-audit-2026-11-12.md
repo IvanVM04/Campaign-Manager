@@ -44,3 +44,20 @@ A follow-up behavior-preserving refactor should:
 - Deterministic Python suite, required Pyright scopes, JavaScript tests and both CodeQL checks pass.
 - No runtime behavior changes appear in the diff.
 - Live Ollama/SillyTavern smoke tests are reported separately from deterministic CI.
+
+
+
+## Revalidation after the bounded-context change — PR #197
+
+The production call sites still use the same `LLMWorldExtractor.extract()` API. The composition root injects `ContextBuilder.build_relevant_world_projection()`, so the narrative-first compatibility branch in `TurnResolutionService` and the deprecated SillyTavern processor share the same selection and budget behavior without importing context services into the LLM package.
+
+The selector:
+- uses the narrative as its deterministic search query;
+- requires the active character and current location when those entities exist;
+- includes dependencies for selected relations, events, item instances and resource balances;
+- uses the public memory export/search path, which excludes secret events;
+- returns a detached projection and does not mutate canonical `WorldState`.
+
+The extractor enforces separate selected-record and complete-prompt budgets before calling the provider. Selection failures and prompt overflow fail closed. Direct extractor construction without an injected selector remains source-compatible, but still has a hard total-prompt cap.
+
+The static instruction text remains unchanged and the existing rendered-prompt golden fixture is preserved. This PR closes the unbounded dynamic-context/prompt-submission gap; it does not claim that the 46,851-character static prompt has been optimized. A future prompt-simplification change requires representative live Ollama quality probes.

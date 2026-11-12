@@ -436,6 +436,8 @@ Provider settings are read from environment variables when the backend starts. D
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS` | `4096` | Upper bound for selected world context; cannot exceed the complete prompt budget |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS` | `16000` | Maximum provider response size for extraction/proposal output |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS` | `2048` | Independent upper bound for the single proposal repair request |
+| `CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_PROMPT_MAX_TOKENS` | `65536` | Upper bound for the complete legacy narrative-extraction prompt |
+| `CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS` | `8192` | Budget for selected public world records in the legacy extraction prompt |
 
 Example (PowerShell):
 
@@ -447,7 +449,7 @@ $env:CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS = "90"
 uvicorn app:app --reload
 ```
 
-The settings are validated at startup. Invalid URLs, empty model names, non-positive/non-finite timeouts or invalid extraction budgets prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. The token limits use a pessimistic one-UTF-8-byte-per-token upper bound because the current provider port does not expose an exact tokenizer count. Restart the backend after changing environment variables.
+The settings are validated at startup. Invalid URLs, empty model names, non-positive/non-finite timeouts or invalid extraction budgets prevent the application from starting rather than failing later during a turn. All roles may use the same model; separate models and timeouts are optional tuning points. The token limits use a pessimistic one-UTF-8-byte-per-token upper bound because the current provider port does not expose an exact tokenizer count. The structured proposal path and compatibility extraction path have separate budgets. The legacy path now selects relevant public context and enforces its total prompt cap before calling Ollama; its static instruction set remains large and still needs live quality testing before simplification. Restart the backend after changing environment variables.
 
 ---
 
