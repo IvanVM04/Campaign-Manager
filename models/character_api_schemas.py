@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
 
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
@@ -172,3 +172,29 @@ class CharacterCreate(BaseModel):
             )
 
         return value
+
+class CharacterShortRestIn(BaseModel):
+    """One short-rest recovery request, scoped to the campaign clock revision."""
+
+    expected_elapsed_minutes: StrictInt = Field(..., ge=0)
+    hit_dice_to_spend: StrictInt = Field(default=0, ge=0, le=20)
+    dice_mode: Literal["automatic", "manual"] = "automatic"
+    manual_rolls: list[StrictInt] | None = Field(default=None, min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def validate_hit_dice_rolls(self):
+        if self.dice_mode == "automatic" and self.manual_rolls is not None:
+            raise ValueError("manual_rolls can only be supplied in manual mode")
+        if self.dice_mode == "manual":
+            if self.hit_dice_to_spend < 1 or self.manual_rolls is None:
+                raise ValueError("manual mode requires at least one spent Hit Die and its roll")
+            if len(self.manual_rolls) != self.hit_dice_to_spend:
+                raise ValueError("manual_rolls must contain one result per spent Hit Die")
+        return self
+
+
+class CharacterLongRestIn(BaseModel):
+    """One long-rest request, guarded by the current campaign-clock value."""
+
+    expected_elapsed_minutes: StrictInt = Field(..., ge=0)
+

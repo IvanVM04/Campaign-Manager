@@ -25,6 +25,7 @@ from services.campaign import (
 from services.characters import (
     CharacterApplier,
     CharacterCreationService,
+    CharacterRestService,
     CharacterService,
 )
 from services.combat import (
@@ -60,6 +61,7 @@ class CampaignRuntime:
     context_builder: ContextBuilder
     turn_execution_lock: TurnExecutionLock
     character_creation_service: CharacterCreationService
+    character_rest_service: CharacterRestService
     combat_encounter_service: CombatEncounterService
     combat_attack_service: CombatAttackService
     weapon_equipment_service: WeaponEquipmentService
@@ -207,7 +209,15 @@ class CampaignRuntimeFactory:
             creature_repository=creature_repository,
             world_service=world_service,
             persistent_effect_repository=persistent_effect_repository,
+            effective_condition_service=effective_condition_service,
             equipment_service=weapon_equipment_service,
+        )
+        character_rest_service = CharacterRestService(
+            campaign_id=scope.campaign_id,
+            campaign_repository=campaign_repository,
+            character_repository=character_repository,
+            encounter_repository=encounter_repository,
+            effect_repository=persistent_effect_repository,
         )
         combat_attack_service = CombatAttackService(
             encounter_repository=encounter_repository,
@@ -236,6 +246,7 @@ class CampaignRuntimeFactory:
             context_builder=context_builder,
             turn_execution_lock=turn_execution_lock,
             character_creation_service=character_creation_service,
+            character_rest_service=character_rest_service,
             combat_encounter_service=combat_encounter_service,
             combat_attack_service=combat_attack_service,
             weapon_equipment_service=weapon_equipment_service,

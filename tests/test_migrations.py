@@ -27,6 +27,7 @@ from migrations import (
     migration_022,
     migration_026,
     migration_029,
+    migration_030,
     run_migrations,
 )
 
@@ -913,14 +914,14 @@ def test_migration_022_lifecycle_checks_and_revision_isolation():
     conn.close()
 
 
-def test_run_migrations_upgrades_version_21_to_29():
+def test_run_migrations_upgrades_version_21_to_30():
     conn = create_version_20_database()
     migration_021(conn)
     conn.execute("PRAGMA user_version = 21")
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -939,7 +940,7 @@ def test_migration_023_adds_resulting_revision_to_turn_resolutions():
     }
 
     assert "resulting_revision" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
     conn.close()
 
 
@@ -961,7 +962,7 @@ def test_migration_024_adds_campaign_scoped_creature_state_and_revision_triggers
         "armor_class", "strength", "dexterity", "constitution",
         "intelligence", "wisdom", "charisma", "proficiency_bonus",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
 
     entity_id = conn.execute(
         "INSERT INTO entities (name, entity_type, campaign_id) VALUES ('Goblin', 'creature', 1)"
@@ -1013,7 +1014,7 @@ def test_migration_025_adds_encounter_scoped_effect_timer_columns():
         "encounter_id", "duration_rounds", "expires_at_round",
         "duration_turns", "expires_at_turn", "expired_at_round", "expired_at_turn",
     } <= columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
     trigger = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_effect_timer_encounter_campaign'"
     ).fetchone()
@@ -1065,7 +1066,7 @@ def test_migration_026_creates_slot_projection_and_migrates_legacy_weapon():
     assert conn.execute(
         "SELECT equipment_slot FROM items WHERE id=1"
     ).fetchone()[0] == "main_hand"
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
     conn.close()
 
 
@@ -1114,7 +1115,7 @@ def test_migration_028_persists_armor_proficiencies_with_empty_legacy_default():
         row["name"] for row in conn.execute("PRAGMA table_info(character_states)")
     }
     assert "armor_proficiencies" in columns
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 29
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
     conn.execute("""
         INSERT INTO entities (id, name, entity_type, campaign_id)
         VALUES (1, 'Legacy hero', 'player_character', 1)
@@ -1196,4 +1197,81 @@ def test_run_migrations_uses_registry_and_leaves_current_database_unchanged():
     assert conn.execute(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
     ).fetchone()[0] == table_count
+    conn.close()
+
+
+def test_migration_030_backfills_class_hit_dice_without_losing_character_state():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    from migrations import MIGRATIONS
+
+    for definition in MIGRATIONS[:-1]:
+        definition.apply(conn)
+
+    for name, class_name in (
+        ("Wizard", "Wizard"),
+        ("Barbarian", "Barbarian"),
+        ("Fighter", "Fighter"),
+        ("Unknown", "Homebrew class"),
+    ):
+        entity_id = conn.execute(
+            """
+            INSERT INTO entities (name, entity_type, campaign_id)
+            VALUES (?, 'player_character', 1)
+            """,
+            (name,),
+        ).lastrowid
+        conn.execute(
+            """
+            INSERT INTO character_states (
+                entity_id, campaign_id, class_name, current_hp, max_hp
+            ) VALUES (?, 1, ?, 7, 12)
+            """,
+            (entity_id, class_name),
+        )
+
+    migration_030(conn)
+
+    rows = conn.execute(
+        """
+        SELECT entity_id, class_name, current_hp, max_hp, hit_die_sides,
+               hit_dice_used, last_long_rest_elapsed_minutes
+        FROM character_states
+        ORDER BY entity_id
+        """
+    ).fetchall()
+    values = {row["class_name"]: row for row in rows}
+
+    assert values["Wizard"]["hit_die_sides"] == 6
+    assert values["Barbarian"]["hit_die_sides"] == 12
+    assert values["Fighter"]["hit_die_sides"] == 10
+    assert values["Homebrew class"]["hit_die_sides"] == 8
+    assert all(row["hit_dice_used"] == 0 for row in rows)
+    assert all(row["last_long_rest_elapsed_minutes"] is None for row in rows)
+    assert all((row["current_hp"], row["max_hp"]) == (7, 12) for row in rows)
+
+    # Re-running the migration must not reset per-character die choices or use.
+    wizard_id = values["Wizard"]["entity_id"]
+    conn.execute(
+        """
+        UPDATE character_states
+        SET hit_die_sides = 10,
+            hit_dice_used = 1,
+            last_long_rest_elapsed_minutes = 120
+        WHERE entity_id = ?
+        """,
+        (wizard_id,),
+    )
+    migration_030(conn)
+    persisted = conn.execute(
+        """
+        SELECT hit_die_sides, hit_dice_used, last_long_rest_elapsed_minutes
+        FROM character_states WHERE entity_id = ?
+        """,
+        (wizard_id,),
+    ).fetchone()
+    assert tuple(persisted) == (10, 1, 120)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     conn.close()

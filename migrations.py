@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 29
+CURRENT_VERSION = 30
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2213,6 +2213,61 @@ def migration_029(conn: sqlite3.Connection) -> None:
         conn.execute("RELEASE SAVEPOINT migration_029")
         raise
 
+def migration_030(conn: sqlite3.Connection) -> None:
+    """Persist class Hit Dice and the last completed long-rest campaign time."""
+    conn.execute("SAVEPOINT migration_030")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(character_states)").fetchall()
+        }
+        backfill_hit_die_sides = "hit_die_sides" not in columns
+        additions = {
+            "hit_die_sides": (
+                "INTEGER NOT NULL DEFAULT 8 "
+                "CHECK (hit_die_sides IN (6, 8, 10, 12))"
+            ),
+            "hit_dice_used": (
+                "INTEGER NOT NULL DEFAULT 0 "
+                "CHECK (hit_dice_used >= 0 AND hit_dice_used <= level)"
+            ),
+            "last_long_rest_elapsed_minutes": (
+                "INTEGER CHECK (last_long_rest_elapsed_minutes IS NULL "
+                "OR last_long_rest_elapsed_minutes >= 0)"
+            ),
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                conn.execute(
+                    f"ALTER TABLE character_states ADD COLUMN {name} {definition}"
+                )
+
+        if backfill_hit_die_sides:
+            conn.execute("""
+                UPDATE character_states
+                SET hit_die_sides = CASE lower(trim(COALESCE(class_name, '')))
+                    WHEN 'barbarian' THEN 12
+                    WHEN 'fighter' THEN 10
+                    WHEN 'paladin' THEN 10
+                    WHEN 'ranger' THEN 10
+                    WHEN 'sorcerer' THEN 6
+                    WHEN 'wizard' THEN 6
+                    WHEN 'bard' THEN 8
+                    WHEN 'cleric' THEN 8
+                    WHEN 'druid' THEN 8
+                    WHEN 'monk' THEN 8
+                    WHEN 'rogue' THEN 8
+                    WHEN 'warlock' THEN 8
+                    ELSE 8
+                END
+            """)
+            conn.execute("RELEASE SAVEPOINT migration_030")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_030")
+        conn.execute("RELEASE SAVEPOINT migration_030")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2389,5 +2444,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_029",
         description="Archive historical turn snapshots before removing the runtime snapshot column.",
         apply=migration_029,
+    ),
+    MigrationDefinition(
+        version=30,
+        name="migration_030",
+        description="Persist class Hit Dice and completed long-rest campaign time.",
+        apply=migration_030,
     ),
 )

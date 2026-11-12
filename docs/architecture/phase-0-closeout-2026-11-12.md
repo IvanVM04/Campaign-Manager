@@ -16,15 +16,18 @@ Do not delete `turn_snapshot_archive`, `models.schemas`, the legacy
 They preserve data/import compatibility/history and are not active parallel
 runtime paths.
 
-## Remaining P1 gates
-1. Trace combat state across resource consumption/recovery, canonical HP,
-   encounter projections, persistent-effect expiry, derived conditions,
-   campaign-clock advancement and future rest flows. Add transaction tests for
-   demonstrated ownership gaps; do not create duplicate state.
-2. Run the local Ollama + SillyTavern acceptance flow: campaign setup,
-   exploration, checks, clarification, manual/automatic dice, combat where
-   applicable, persistence, restart/recovery and provider outage. Record model
-   and settings; deterministic CI cannot prove model quality.
+## Remaining P1 gate
+- Run the local Ollama + SillyTavern acceptance flow: campaign setup,
+  exploration, checks, clarification, manual/automatic dice, combat where
+  applicable, persistence, restart/recovery and provider outage. Record model
+  and settings; deterministic CI cannot prove model quality.
+
+The cross-workflow state audit for mechanics currently implemented in the
+repository is documented in
+[the combat/character-state audit](combat-character-state-audit-2026-11-12.md)
+and addressed in the character-rest/combat-consistency PR. That work does not
+claim that future class resources, spell slots or rest interruptions exist;
+those require their own typed rules and persistence contracts.
 
 ## Remaining P2
 - Split the largest turn/context test modules by observable contract, preserving assertions.

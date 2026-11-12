@@ -98,6 +98,10 @@ class CharacterSheetQueryService:
             for skill in Skill
         )
 
+        hit_die_sides = character.hit_die_sides
+        if hit_die_sides is None:
+            raise RuntimeError("character Hit Die size is missing")
+
         return CharacterSheetRead(
             entity_id=entity_id,
             name=entity.name,
@@ -110,6 +114,10 @@ class CharacterSheetQueryService:
             max_hp=character.max_hp,
             armor_class=character.armor_class,
             proficiency_bonus=character.proficiency_bonus,
+            hit_die_sides=hit_die_sides,
+            hit_dice_total=character.level,
+            hit_dice_used=character.hit_dice_used,
+            hit_dice_available=character.level - character.hit_dice_used,
             abilities=abilities,
             saving_throws=saving_throws,
             skills=skills,

@@ -9,6 +9,7 @@
 - [Architecture map — 2026-11-12](architecture-map-2026-11-12.md): package/module ownership, execution paths, protected compatibility surfaces and improvement register.
 - [Current architecture audit — 2026-11-12](architecture-audit-2026-11-12.md): latest source-verified architecture findings and refactoring priorities.
 - [Combat attack-profile boundary](combat-attack-profile-boundary.md): player/NPC profile selection, rules derivation and atomic persistence contracts.
+- [Combat and character-state audit — 2026-11-12](combat-character-state-audit-2026-11-12.md): canonical HP, persistent effects, movement/reaction projections, Hit Dice and rest transaction contracts.
 - [Durable turn execution boundary](durable-turn-execution-boundary.md): request idempotency, planning leases, prepared commit hand-off and typed failures.
 
 - [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
