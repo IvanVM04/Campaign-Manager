@@ -28,6 +28,9 @@ def get_world():
             if turn_context.active_character is not None
             else None
         )
+        superseded_event_ids = WorldVisibilityPolicy.superseded_event_ids(
+            world.events.values()
+        )
 
         return {
             "entities": list(
@@ -49,7 +52,15 @@ def get_world():
                 world.relations.values()
             ),
             "events": [
-                WorldSerializer.event_to_dict(event)
+                {
+                    **WorldSerializer.event_to_dict(event),
+                    "source_entity_name": (
+                        world.entities[event.source_entity_id].name
+                        if event.source_entity_id in world.entities
+                        else None
+                    ),
+                    "is_current": event.id not in superseded_event_ids,
+                }
                 for event in WorldVisibilityPolicy.player_visible_events(
                     world.events.values(),
                     character_entity_id=character_entity_id,
