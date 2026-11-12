@@ -97,14 +97,19 @@ class SillyTavernContextAdapter:
             ) from exc
 
         try:
-            build_kwargs = {"recent_turns": recent_turns}
             if normalized_additional_queries:
-                build_kwargs["supplemental_queries"] = normalized_additional_queries
-            context = self.context_builder.build(
-                turn_context.world,
-                normalized_query,
-                **build_kwargs,
-            )
+                context = self.context_builder.build(
+                    turn_context.world,
+                    normalized_query,
+                    recent_turns=recent_turns,
+                    supplemental_queries=normalized_additional_queries,
+                )
+            else:
+                context = self.context_builder.build(
+                    turn_context.world,
+                    normalized_query,
+                    recent_turns=recent_turns,
+                )
         except Exception as exc:
             raise SillyTavernIntegrationServiceError(
                 "ContextBuilder failed to build context"
