@@ -4,9 +4,9 @@ from dataclasses import asdict
 from fastapi import APIRouter, HTTPException
 
 from api.runtime_context import get_current_runtime
+from models.character_api_schemas import CharacterCreate
 from models.character_sheet_read_models import CharacterSheetRead
 from models.equipment_api_schemas import EquipItemIn, EquipmentSlot
-from models.character_api_schemas import CharacterCreate
 from services.characters.character_sheet_query_service import (
     CharacterSheetQueryService,
 )
