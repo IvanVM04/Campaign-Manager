@@ -20,7 +20,7 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - Resolve character/NPC profile selection in `AttackProfileResolver`; derive numerical weapon and natural-attack mechanics in `rules_engine`, never from LLM or API-provided bonuses.
 - Parse NPC creature metadata at the trust boundary and fail closed on malformed or ambiguous profiles; preserve the legacy single-melee-profile read during migration.
 - Merge encounter-supplied NPC weapons, natural attacks and defenses into one creature-state save within the encounter-creation transaction.
-- Keep encounter, character/creature HP and effect updates within their existing transaction boundaries.
+- Keep encounter, character/creature HP and effect updates within one explicit `IMMEDIATE` transaction per use case; `complete()` uses the same transaction helper as other encounter writes.
 - Runtime composition and tests import the canonical `services.combat` package; former flat combat shims have been retired.
 
 ## Pending work
@@ -29,7 +29,7 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - [x] Derive NPC natural-attack ability/proficiency bonuses in the pure rules engine.
 - [x] Merge encounter-supplied NPC profile and defense metadata in one creature-state save.
 - [ ] Audit remaining duplicated mechanics that should be delegated to the rules engine.
-- [ ] Map transaction ownership for multi-entity combat updates; preserve the current single IMMEDIATE transaction for attack and HP synchronization.
+- [x] Map and failure-inject encounter creation, death saves, turn/effect progression, completion, movement and reactions; canonical state and snapshots roll back together.
 - [ ] Review synchronization of HP, resources, conditions and encounter projections.
 - [ ] Surface unsupported 2014 rules rather than silently improvising.
 - [ ] Expand coverage for currently partial combat flows as rules are implemented.
