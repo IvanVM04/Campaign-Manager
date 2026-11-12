@@ -53,10 +53,9 @@ def test_integration_context_endpoint_returns_context(
     client,
     monkeypatch,
 ):
-    def fake_get_context(query):
-        assert query == (
-            "Entro en la taberna."
-        )
+    def fake_get_context(query, *, additional_queries=()):
+        assert query == "Entro en la taberna."
+        assert additional_queries == ("Estado general de la campaña.",)
 
         return {
             "campaign": {
@@ -87,6 +86,7 @@ def test_integration_context_endpoint_returns_context(
         "/integration/context",
         json={
             "query": "Entro en la taberna.",
+            "additional_query": "Estado general de la campaña.",
         },
     )
 
@@ -159,8 +159,14 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
             clarification_question=None,
         )
 
-    def fake_context(query, *, exclude_external_turn_id=None):
+    def fake_context(
+        query,
+        *,
+        additional_queries=(),
+        exclude_external_turn_id=None,
+    ):
         captured["query"] = query
+        captured["additional_queries"] = additional_queries
         captured["exclude_external_turn_id"] = exclude_external_turn_id
         return {
             "campaign": {"id": 1, "name": "Campaña"},
@@ -185,7 +191,8 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         json={
             "player_input": "Abro la puerta.",
             "external_turn_id": "st-chat-turn",
-            "query": "Estado actual + acción.",
+            "query": "Abro la puerta.",
+            "additional_query": "Estado general de campaña.",
             "dice_mode": "manual",
         },
     )
@@ -200,7 +207,8 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         "player_input": "Abro la puerta.",
         "external_turn_id": "st-chat-turn",
         "dice_mode": "manual",
-        "query": "Estado actual + acción.",
+        "query": "Abro la puerta.",
+        "additional_queries": ("Estado general de campaña.",),
         "exclude_external_turn_id": "st-chat-turn",
     }
 
