@@ -44,23 +44,25 @@ revision, extension revision, model, settings and outcome in
 This has not been marked as passed. Deterministic CI does not establish real
 model quality or the behavior of the local SillyTavern extension.
 
-### P2 — representative scale/branch probes
+### P2 — remaining branch probes and live acceptance
 
-- Add medium/large campaign context and proposal fixtures covering stable
-  ranking, mandatory character/location retention, dependency expansion,
-  budget exhaustion and projection non-mutation.
+- [x] Add deterministic medium/large campaign context and proposal fixtures
+  covering stable ranking, mandatory character/location retention, dependency
+  expansion, budget growth/exhaustion, projection non-mutation, secret-event
+  exclusion and one compact repair (PR #207; see
+  [probe documentation](../quality/context-scale-probes-2026-11-12.md)).
 - Keep targeted branch coverage for stale revisions, partial-write rollback,
   lease fencing/recovery and effect expiry. Provider-level success, timeout,
   connection failure, HTTP errors, malformed JSON and no-hidden-transport-
   retry behavior already have deterministic tests; extend them only when a
   new uncovered contract is identified.
 - Keep real Ollama quality probes opt-in and separate from deterministic CI.
+  They do not replace the local Ollama + SillyTavern end-to-end acceptance.
 - Do not introduce a global coverage threshold solely to raise a percentage.
 
-The test-suite organization from the previous P2 checklist is complete in
-PR #205. Runtime shutdown/selective invalidation tests and the deterministic
-Ollama adapter error contract are also implemented; see PR #203 and the
-current test-suite navigation.
+Test-suite organization is complete in PR #205; deterministic context/proposal
+scale probes are added in PR #207. Runtime shutdown/selective invalidation
+tests and the Ollama adapter error contract are covered by PR #203.
 
 ## Deferred by product scope
 
