@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from models.event import Event
 from models.world_state import WorldState
 from models.world_visibility_policy import WorldVisibilityPolicy
 from services.world.world_serializer import WorldSerializer
@@ -160,7 +161,7 @@ class MemorySearchService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _serialize_player_event(world: WorldState, event) -> dict[str, Any]:
+    def _serialize_player_event(world: WorldState, event: Event) -> dict[str, Any]:
         data = WorldSerializer.event_to_dict(event)
         source = (
             world.entities.get(event.source_entity_id)
@@ -172,7 +173,7 @@ class MemorySearchService:
         return data
 
     @staticmethod
-    def _validate_character_entity_id(character_entity_id: int | None) -> None;
+    def _validate_character_entity_id(character_entity_id: int | None) -> None:
         if character_entity_id is not None and (
             isinstance(character_entity_id, bool)
             or not isinstance(character_entity_id, int)
