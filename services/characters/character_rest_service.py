@@ -96,9 +96,12 @@ class CharacterRestService:
 
             rolls: tuple[int, ...] = ()
             if hit_dice_to_spend:
+                hit_die_sides = character.hit_die_sides
+                if hit_die_sides is None:
+                    raise RuntimeError("character Hit Die size is missing")
                 roll = self.dice_roller.roll(
                     hit_dice_to_spend,
-                    character.hit_die_sides,
+                    hit_die_sides,
                     manual_rolls=manual_rolls,
                 )
                 rolls = roll.rolls
