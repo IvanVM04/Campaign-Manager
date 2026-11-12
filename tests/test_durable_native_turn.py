@@ -1,11 +1,11 @@
 import json
 
 import pytest
-from tests.durable_turn_test_support import service_with_fake_models
 
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turns.durable_native_turn_service import DurableNativeTurnError
+from tests.durable_turn_test_support import service_with_fake_models
 
 
 def test_native_turn_commits_before_narration_and_completes_durably():
