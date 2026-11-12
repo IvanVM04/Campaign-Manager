@@ -1,48 +1,80 @@
 # Phase 0 — architecture closeout and hand-off
 
-**Scope:** local, single-player, single-process modular monolith.
+**Scope:** local, single-player, single-process modular monolith.  
+**Verified baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged, 2026-11-12).
 
 ## Decision
-The architecture is sufficiently modular for the current product scope.
-Do not start another broad decomposition, microservices, distributed
-infrastructure, multi-user authorization or standalone UI before gameplay
-demonstrates a concrete need. PRs #198–#202 retired the parallel turn path,
-centralized visibility, extracted durable execution, hardened combat writes,
-coordinated world operations, split request schemas and indexed migrations.
+
+Phase 0 structural consolidation is closed for the current product scope. The
+architecture is sufficiently modular to continue with gameplay. Do not start
+another broad decomposition, microservices, distributed infrastructure,
+multi-user authorization or standalone UI before gameplay demonstrates a
+concrete need.
+
+- PRs #198–#202 retired the parallel turn path, centralized player-safe
+  visibility, extracted durable execution, hardened combat writes,
+  coordinated world operations, split request schemas and indexed migrations.
+- PR #203 added explicit runtime shutdown and invalidation behavior/tests and
+  strengthened Ollama provider error/timeout handling.
+- PR #204 completed the first cross-workflow audit of implemented character
+  and combat state, fixed effect-aware movement/reactions and added Hit Dice
+  plus short/long rests in migration 030.
+- PR #205 split the durable-turn and context test suites by observable
+  contract, preserving all 59 original test functions/assertions and changing
+  no production behavior.
 
 ## Preserved compatibility/history
-Do not delete `turn_snapshot_archive`, `models.schemas`, the legacy
-`npc_melee_attack` read fallback or historical migrations merely as cleanup.
-They preserve data/import compatibility/history and are not active parallel
-runtime paths.
 
-## Remaining P1 gate
-- Run the local Ollama + SillyTavern acceptance flow: campaign setup,
-  exploration, checks, clarification, manual/automatic dice, combat where
-  applicable, persistence, restart/recovery and provider outage. Record model
-  and settings; deterministic CI cannot prove model quality.
+Do not delete `turn_snapshot_archive`, the `models.schemas` compatibility
+facade, the legacy `npc_melee_attack` read fallback or historical migrations
+merely as cleanup. They preserve data/import compatibility/history and are
+not active parallel runtime paths.
 
-The cross-workflow state audit for mechanics currently implemented in the
-repository is documented in
-[the combat/character-state audit](combat-character-state-audit-2026-11-12.md)
-and addressed in the character-rest/combat-consistency PR. That work does not
-claim that future class resources, spell slots or rest interruptions exist;
-those require their own typed rules and persistence contracts.
+## Remaining acceptance and quality work
 
-## Remaining P2
-- Split the largest turn/context test modules by observable contract, preserving assertions.
-- Target critical branches: rollback, provider errors, stale state, lease fencing,
-  restart recovery, resource handling and effect expiry. Treat 73.2% branch
-  coverage as diagnostic, not a global gate.
-- Run representative large-campaign context/proposal probes with Ollama opt-in.
+### P1 — local end-to-end acceptance
+
+Run the local Ollama + SillyTavern acceptance flow: campaign setup,
+exploration, checks, clarification (including multiple rounds), manual and
+automatic dice, combat where applicable, persistence, duplicate delivery,
+regeneration, restart/recovery and provider outage/recovery. Record backend
+revision, extension revision, model, settings and outcome in
+[the smoke-test checklist](../sillytavern-smoke-test.md).
+
+This has not been marked as passed. Deterministic CI does not establish real
+model quality or the behavior of the local SillyTavern extension.
+
+### P2 — representative scale/branch probes
+
+- Add medium/large campaign context and proposal fixtures covering stable
+  ranking, mandatory character/location retention, dependency expansion,
+  budget exhaustion and projection non-mutation.
+- Keep targeted branch coverage for stale revisions, partial-write rollback,
+  lease fencing/recovery and effect expiry. Provider-level success, timeout,
+  connection failure, HTTP errors, malformed JSON and no-hidden-transport-
+  retry behavior already have deterministic tests; extend them only when a
+  new uncovered contract is identified.
+- Keep real Ollama quality probes opt-in and separate from deterministic CI.
+- Do not introduce a global coverage threshold solely to raise a percentage.
+
+The test-suite organization from the previous P2 checklist is complete in
+PR #205. Runtime shutdown/selective invalidation tests and the deterministic
+Ollama adapter error contract are also implemented; see PR #203 and the
+current test-suite navigation.
 
 ## Deferred by product scope
-No multiplayer, accounts, remote exposure, multiple workers, distributed locks,
-automatic LRU/TTL cache eviction without measured need, standalone UI or full
-D&D 5e implementation. Implement rules in deterministic tested slices.
+
+No multiplayer, accounts, remote exposure, multiple workers, distributed
+locks, automatic LRU/TTL cache eviction without measured need, standalone UI
+or full D&D 5e implementation. Add rules in deterministic tested slices.
 
 ## Development hand-off
-After the P1 combat audit and live acceptance, focus on gameplay: persisted
-character creation, equipment/resources, core combat/rest loop and one complete
-first adventure. Refactor further only when a real ownership/testability issue
-appears.
+
+The next phase is gameplay-first: typed character creation and progression,
+class/equipment/resource slices, a complete core combat/rest loop and one
+complete first adventure. The suggested sequencing and indicative percentages
+and hours are recorded in
+[the engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md).
+
+Refactor further only when a real ownership, correctness, performance or
+testability issue appears.
