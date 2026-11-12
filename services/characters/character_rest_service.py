@@ -29,6 +29,7 @@ class CharacterRestResult:
     character: CharacterState
     clock: CampaignClock
     hp_recovered: int
+    benefits_applied: bool
     hit_dice_spent: int
     hit_dice_recovered: int
     dice_rolls: tuple[int, ...]
@@ -144,6 +145,7 @@ class CharacterRestService:
                 character=updated_character,
                 clock=advanced_clock,
                 hp_recovered=hp_recovered,
+                benefits_applied=True,
                 hit_dice_spent=hit_dice_to_spend,
                 hit_dice_recovered=0,
                 dice_rolls=rolls,
@@ -166,24 +168,23 @@ class CharacterRestService:
                 conn=conn,
             )
             last_rest = character.last_long_rest_elapsed_minutes
-            if last_rest is not None and (
-                clock.elapsed_minutes - last_rest
-                < LONG_REST_RECOVERY_INTERVAL_MINUTES
-            ):
-                remaining = (
-                    LONG_REST_RECOVERY_INTERVAL_MINUTES
-                    - (clock.elapsed_minutes - last_rest)
+            elapsed_since_last_benefit = (
+                None if last_rest is None else clock.elapsed_minutes - last_rest
+            )
+            benefits_applied = (
+                character.current_hp > 0
+                and (
+                    elapsed_since_last_benefit is None
+                    or elapsed_since_last_benefit >= LONG_REST_RECOVERY_INTERVAL_MINUTES
                 )
-                raise ValueError(
-                    "a character can benefit from only one long rest per 24 hours; "
-                    f"{remaining} campaign minutes remain"
-                )
-
-            hit_dice_recovered = min(
-                character.hit_dice_used,
-                max(1, character.level // 2),
+            )
+            hit_dice_recovered = (
+                min(character.hit_dice_used, max(1, character.level // 2))
+                if benefits_applied
+                else 0
             )
             new_hit_dice_used = character.hit_dice_used - hit_dice_recovered
+            new_current_hp = character.max_hp if benefits_applied else character.current_hp
             advanced_clock = self.clock_repository.advance(
                 self.campaign_id,
                 minutes=LONG_REST_MINUTES,
@@ -201,16 +202,19 @@ class CharacterRestService:
                 expected_current_hp=character.current_hp,
                 expected_hit_dice_used=character.hit_dice_used,
                 expected_last_long_rest_elapsed_minutes=last_rest,
-                new_current_hp=character.max_hp,
+                new_current_hp=new_current_hp,
                 new_hit_dice_used=new_hit_dice_used,
-                new_last_long_rest_elapsed_minutes=expected_elapsed_minutes,
+                new_last_long_rest_elapsed_minutes=(
+                    expected_elapsed_minutes if benefits_applied else last_rest
+                ),
                 conn=conn,
             )
             return CharacterRestResult(
                 rest_type="long",
                 character=updated_character,
                 clock=advanced_clock,
-                hp_recovered=character.max_hp - character.current_hp,
+                hp_recovered=new_current_hp - character.current_hp,
+                benefits_applied=benefits_applied,
                 hit_dice_spent=0,
                 hit_dice_recovered=hit_dice_recovered,
                 dice_rolls=(),
