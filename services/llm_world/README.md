@@ -74,8 +74,10 @@ campaign facts.
 - [x] Strengthen single-pass player-intent semantics for negation, attempts, outcomes, hypotheses, quoted dialogue and ordered compound actions (PR #213).
 - [ ] Run and record the expanded local Ollama corpus; deterministic CI does not certify model quality or provide a confusion matrix.
 - [ ] Reconsider a typed intermediate intent contract only if live quality/latency evidence justifies an extra model stage.
-- [ ] Design richer epistemic/provenance contracts for confirmed, unknown, inferred, rumored and secret knowledge (roadmap PR #214).
-- [ ] Align narration with committed facts and measure multi-turn continuity (roadmap PR #215).
+- [x] Add typed event epistemic/provenance/visibility/temporal metadata and apply active-character perspective across retrieval and narration (consolidated roadmap PR #214).
+- [x] Restrict canonical event creation to trusted workflows and provide narration with committed state-changing operations only (consolidated roadmap PR #214).
+- [ ] Extend provenance to individual entity/item assertions only when a real authoring workflow can maintain it.
+- [ ] Run and record local Ollama and complete SillyTavern acceptance; CI does not certify those environments.
 - [ ] Add tokenizer-aware accounting only if a selected provider exposes an explicit, reliable token-count API.
 - [ ] Add intent-specific operation subsets only when classification can be done reliably without hiding legitimate consequences.
 - [x] Keep operation metadata centralized and model-proposable classification distinct from domain authorization.
