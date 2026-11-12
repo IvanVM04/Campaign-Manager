@@ -60,6 +60,7 @@ class DurableTurnExecutionService:
         narration_service: DurableTurnNarrationService,
         context_loader,
         turn_execution_lock=None,
+        activity_service=None,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -71,6 +72,7 @@ class DurableTurnExecutionService:
         self.narration_service = narration_service
         self.context_loader = context_loader
         self.turn_execution_lock = turn_execution_lock
+        self.activity_service = activity_service
         self.error_type = error_type
 
     def _serialize_operations(self, plan: TurnResolutionPlan) -> str:
@@ -329,6 +331,12 @@ class DurableTurnExecutionService:
                     scope=self.scope,
                     conn=conn,
                 )
+                if self.activity_service is not None:
+                    self.activity_service.record_turn_accepted(
+                        record,
+                        dice_mode=dice_mode,
+                        conn=conn,
+                    )
 
         if record.lifecycle_state in {"committed", "narration_pending"}:
             if defer_narration:
@@ -398,6 +406,18 @@ class DurableTurnExecutionService:
                                 "lease_token": None, "lease_expires_at": None,
                             }, conn=conn,
                         )
+                        if self.activity_service is not None:
+                            self.activity_service.record_turn_awaiting_input(
+                                record,
+                                challenge_type="manual_roll",
+                                conn=conn,
+                            )
+                            if self.activity_service is not None:
+                                self.activity_service.record_turn_awaiting_input(
+                                    record,
+                                    challenge_type="clarification",
+                                    conn=conn,
+                                )
                     saved = self._require_resolution_record(
                         self.resolution_repository.get(
                             self._required_resolution_id(record), scope=self.scope
@@ -512,6 +532,13 @@ class DurableTurnExecutionService:
                             updates={"last_error_code": "character_operation_not_allowed"},
                             conn=conn,
                         )
+                        if self.activity_service is not None:
+                            self.activity_service.record_turn_failed(
+                                record,
+                                error_code="character_operation_not_allowed",
+                                retryable=False,
+                                conn=conn,
+                            )
             cause = exc
             invalid_llm_proposal = False
             while cause is not None:
@@ -550,6 +577,17 @@ class DurableTurnExecutionService:
                         },
                         conn=conn,
                     )
+                    if self.activity_service is not None:
+                        self.activity_service.record_turn_failed(
+                            record,
+                            error_code=(
+                                "invalid_llm_proposal"
+                                if invalid_llm_proposal
+                                else "planning_failed"
+                            ),
+                            retryable=True,
+                            conn=conn,
+                        )
 
             rejection_code = (
                 exc.code
@@ -575,6 +613,13 @@ class DurableTurnExecutionService:
                             updates={"last_error_code": rejection_code},
                             conn=conn,
                         )
+                        if self.activity_service is not None:
+                            self.activity_service.record_turn_failed(
+                                record,
+                                error_code=rejection_code,
+                                retryable=False,
+                                conn=conn,
+                            )
             if isinstance(exc, DurableNativeTurnError):
                 raise
             logger.exception(
