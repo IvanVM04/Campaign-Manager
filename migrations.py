@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 31
+CURRENT_VERSION = 32
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2291,6 +2291,119 @@ def migration_031(conn: sqlite3.Connection) -> None:
         raise
 
 
+
+def migration_032(conn: sqlite3.Connection) -> None:
+    """Add typed event provenance, player perspective and campaign-time continuity."""
+    conn.execute("SAVEPOINT migration_032")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(world_events)").fetchall()
+        }
+        additions = {
+            "epistemic_status": (
+                "TEXT NOT NULL DEFAULT 'confirmed' "
+                "CHECK (epistemic_status IN ('confirmed', 'rumor', 'inference'))"
+            ),
+            "provenance_source": (
+                "TEXT NOT NULL DEFAULT 'gm_authored' "
+                "CHECK (provenance_source IN ('gm_authored', 'direct_observation', "
+                "'npc_statement', 'discovered_document', 'rules_result', "
+                "'model_inference', 'imported'))"
+            ),
+            "visibility_scope": (
+                "TEXT NOT NULL DEFAULT 'public' "
+                "CHECK (visibility_scope IN ('public', 'character', 'gm_only'))"
+            ),
+            "known_by_entity_ids": "TEXT NOT NULL DEFAULT '[]'",
+            "source_entity_id": "INTEGER",
+            "campaign_elapsed_minutes": (
+                "INTEGER CHECK (campaign_elapsed_minutes IS NULL "
+                "OR campaign_elapsed_minutes >= 0)"
+            ),
+            "supersedes_event_id": "TEXT",
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                conn.execute(
+                    f"ALTER TABLE world_events ADD COLUMN {name} {definition}"
+                )
+
+        # Preserve legacy privacy: secret events stay GM-only after migration.
+        conn.execute(
+            "UPDATE world_events SET visibility_scope = 'gm_only' WHERE secret = 1"
+        )
+        conn.execute(
+            "UPDATE world_events SET known_by_entity_ids = '[]' "
+            "WHERE known_by_entity_ids IS NULL OR trim(known_by_entity_ids) = ''"
+        )
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_world_events_campaign_supersedes
+            ON world_events(campaign_id, supersedes_event_id)
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_world_events_source_entity_campaign_insert
+            BEFORE INSERT ON world_events
+            FOR EACH ROW
+            WHEN NEW.source_entity_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.source_entity_id
+                  AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'event source entity must belong to the same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_world_events_source_entity_campaign_update
+            BEFORE UPDATE OF source_entity_id, campaign_id ON world_events
+            FOR EACH ROW
+            WHEN NEW.source_entity_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM entities
+                WHERE id = NEW.source_entity_id
+                  AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'event source entity must belong to the same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_world_events_supersedes_campaign_insert
+            BEFORE INSERT ON world_events
+            FOR EACH ROW
+            WHEN NEW.supersedes_event_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM world_events
+                WHERE id = NEW.supersedes_event_id
+                  AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'superseded event must belong to the same campaign');
+            END
+        """)
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_world_events_supersedes_campaign_update
+            BEFORE UPDATE OF supersedes_event_id, campaign_id ON world_events
+            FOR EACH ROW
+            WHEN NEW.supersedes_event_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM world_events
+                WHERE id = NEW.supersedes_event_id
+                  AND campaign_id = NEW.campaign_id
+              )
+            BEGIN
+                SELECT RAISE(ABORT, 'superseded event must belong to the same campaign');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_032")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_032")
+        conn.execute("RELEASE SAVEPOINT migration_032")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2479,5 +2592,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_031",
         description="Persist explicit entity aliases for deterministic reference resolution.",
         apply=migration_031,
+    ),
+    MigrationDefinition(
+        version=32,
+        name="migration_032",
+        description="Persist typed event provenance, player perspective and campaign-time continuity.",
+        apply=migration_032,
     ),
 )
