@@ -10,14 +10,15 @@ indexes over searching through dated audit history.
 3. [Change-impact map](architecture/change-impact-map-2026-11-12.md) — contracts and tests to review for cross-layer changes.
 4. [Current architecture and modularity audit](architecture/architecture-audit-2026-11-12.md) — verified findings and ordered refactoring plan.
 5. [Phase 0 closeout](architecture/phase-0-closeout-2026-11-12.md) — integrated structural work, remaining acceptance gates and hand-off to gameplay.
-5. [Migration catalogue](architecture/migration-catalog-2026-11-12.md) — ordered schema history, migration registry and rules for adding the next version.
-6. [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) — retired paths, preserved snapshot history and migration 029.
-7. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries.
-8. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results and quality-gate roadmap.
-9. [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — current contract-based test layout after PR #205.
-10. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
-11. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
-11. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
+6. [Engineering readiness and gameplay roadmap](architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md) — post-#205 assessment, indicative module readiness and effort estimates.
+7. [Migration catalogue](architecture/migration-catalog-2026-11-12.md) — ordered schema history, migration registry and rules for adding the next version.
+8. [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) — retired paths, preserved snapshot history and migration 029.
+9. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries.
+10. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results and quality-gate roadmap.
+11. [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — current contract-based test layout after PR #205.
+12. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
+13. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
+14. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
 
 ## Active architectural contracts
 
