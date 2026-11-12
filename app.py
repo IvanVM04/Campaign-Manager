@@ -4,8 +4,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import error_response, register_error_handlers
-from observability import configure_logging
-from observability.middleware import RequestObservabilityMiddleware
 from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
@@ -21,6 +19,8 @@ from api.routers.world import router as world_router
 from api.runtime_context import bind_current_runtime
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from database import init_db
+from observability import configure_logging
+from observability.middleware import RequestObservabilityMiddleware
 from services.context import ContextBuilder, MemorySearchService
 from services.providers import LLMSettings
 from services.world import WorldService
