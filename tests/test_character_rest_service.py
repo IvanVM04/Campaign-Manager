@@ -132,6 +132,7 @@ def test_long_rest_restores_hp_and_recovers_half_of_spent_hit_dice(
     )
 
     assert result.rest_type == "long"
+    assert result.benefits_applied is True
     assert result.character.current_hp == 50
     assert result.hp_recovered == 46
     assert result.hit_dice_recovered == 2
@@ -158,34 +159,58 @@ def test_level_one_long_rest_recovers_at_least_one_hit_die(
     assert result.character.hit_dice_used == 0
 
 
-def test_long_rest_cannot_be_benefited_from_twice_within_24_campaign_hours(
+def test_long_rest_within_24_hours_advances_time_without_granting_benefits(
     isolated_database,
 ):
-    character = _create_character()
+    character = _create_character(current_hp=5)
     service = _rest_service()
     first = service.long_rest(character.entity_id, expected_elapsed_minutes=0)
 
-    with pytest.raises(ValueError, match="only one long rest per 24 hours"):
-        service.long_rest(
-            character.entity_id,
-            expected_elapsed_minutes=first.clock.elapsed_minutes,
-        )
+    second = service.long_rest(
+        character.entity_id,
+        expected_elapsed_minutes=first.clock.elapsed_minutes,
+    )
+    assert second.benefits_applied is False
+    assert second.hp_recovered == 0
+    assert second.character.current_hp == first.character.current_hp
+    assert second.hit_dice_recovered == 0
+    assert second.clock.elapsed_minutes == 960
+    assert second.character.last_long_rest_elapsed_minutes == 0
 
     from database import transaction
 
     with transaction("IMMEDIATE") as conn:
         CampaignClockRepository().advance(
             1,
-            minutes=960,
-            expected_elapsed_minutes=first.clock.elapsed_minutes,
+            minutes=480,
+            expected_elapsed_minutes=second.clock.elapsed_minutes,
             conn=conn,
         )
 
-    second = service.long_rest(
+    third = service.long_rest(
         character.entity_id,
-        expected_elapsed_minutes=first.clock.elapsed_minutes + 960,
+        expected_elapsed_minutes=1440,
     )
-    assert second.clock.elapsed_minutes == 1920
+    assert third.benefits_applied is True
+    assert third.character.current_hp == third.character.max_hp
+    assert third.clock.elapsed_minutes == 1920
+
+
+def test_character_at_zero_hp_does_not_benefit_from_long_rest(
+    isolated_database,
+):
+    character = _create_character(current_hp=0)
+
+    result = _rest_service().long_rest(
+        character.entity_id,
+        expected_elapsed_minutes=0,
+    )
+
+    assert result.benefits_applied is False
+    assert result.hp_recovered == 0
+    assert result.character.current_hp == 0
+    assert result.clock.elapsed_minutes == 480
+    assert result.character.last_long_rest_elapsed_minutes is None
 
 
 
