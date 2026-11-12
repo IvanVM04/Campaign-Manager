@@ -849,3 +849,14 @@ def test_turn_history_accepts_offset_and_exposes_version_status(client, monkeypa
 
 def test_turn_history_rejects_negative_offset(client):
     assert client.get("/turns?offset=-1").status_code == 422
+
+
+def test_application_shutdown_clears_cached_campaign_runtimes(monkeypatch):
+    from fastapi.testclient import TestClient
+    import app as application
+
+    calls = []
+    monkeypatch.setattr(application.runtime_factory, "shutdown", lambda: calls.append("shutdown"))
+    with TestClient(application.app):
+        pass
+    assert calls == ["shutdown"]
