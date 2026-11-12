@@ -113,15 +113,11 @@ def test_empty_proposal_allowlist_renders_empty_contract_without_fallback():
     assert contract["examples"] == {}
 
 
-def test_model_event_creation_uses_noncanonical_safe_defaults():
-    from operations.world_operations import CreateEventOperation
+def test_event_provenance_is_not_a_model_configurable_operation_field():
+    metadata = DEFAULT_OPERATION_REGISTRY.get("create_event")
+    assert metadata is not None
+    properties = metadata.json_schema()["properties"]
 
-    operation = CreateEventOperation(
-        event_id="rumor-02",
-        event_type="rumor",
-        title="El bosque susurra",
-    )
-
-    assert operation.epistemic_status == "inference"
-    assert operation.provenance_source == "model_inference"
-    assert operation.visibility_scope == "public"
+    assert "epistemic_status" not in properties
+    assert "provenance_source" not in properties
+    assert "visibility_scope" not in properties
