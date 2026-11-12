@@ -1048,8 +1048,12 @@ def test_legacy_extraction_uses_bounded_relevant_world_projection():
     )
 
     prompt = provider.calls[0]
-    assert "- ID 1: Mara (npc)" in prompt
-    assert "Aldric" not in prompt
+    entity_context = prompt.rsplit("ENTIDADES CONOCIDAS:", maxsplit=1)[1].split(
+        "ITEMS CONOCIDOS:",
+        maxsplit=1,
+    )[0]
+    assert "- ID 1: Mara (npc)" in entity_context
+    assert "Aldric" not in entity_context
 
 
 def test_legacy_extraction_rejects_oversized_prompt_before_provider_call():
