@@ -34,7 +34,8 @@ _FIELD_DESCRIPTIONS: dict[str, str] = {
     "name": "Nombre visible del registro.",
     "entity_type": (
         "Categoría de la entidad. Usa npc para una persona identificada; "
-        "location para un lugar; creature para una criatura; faction para un grupo organizado."
+        "location para un lugar; creature para una criatura; "
+        "faction para un grupo organizado."
     ),
     "description": (
         "Hechos conocidos y observables. No añadas rasgos, motivos ni "
@@ -346,10 +347,17 @@ class OperationMetadataRegistry:
 
 DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
     (
-        _metadata("create_entity", CreateEntityOperation,
-                  example={"type": "create_entity", "name": "Aldric", "entity_type": "npc",
-                           "description": "Tabernero de la posada del Dragón, presentado por su nombre."},
-                  model_proposable=True),
+        _metadata(
+            "create_entity",
+            CreateEntityOperation,
+            example={
+                "type": "create_entity",
+                "name": "Aldric",
+                "entity_type": "npc",
+                "description": "Tabernero de la posada del Dragón, presentado por su nombre.",
+            },
+            model_proposable=True,
+        ),
         _metadata("update_entity", UpdateEntityOperation,
                   reference_fields=("entity_id",),
                   example={"type": "update_entity", "entity_id": 12,

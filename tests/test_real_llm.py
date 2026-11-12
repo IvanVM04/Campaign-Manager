@@ -6,11 +6,11 @@ from models.campaign_state import CampaignState
 from models.entity import Entity
 from models.turn_context import TurnContext
 from models.world_state import WorldState
-from services.llm_world import LLMWorldExtractor
 from operations.world_operations import (
     CreateEntityOperation,
     UpdateEntityOperation,
 )
+from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
 
@@ -106,7 +106,7 @@ def test_real_ollama_proposal_records_an_explicitly_introduced_npc():
     assert "tabernero" in description or "posada" in description
 
 
-def test_real_ollama_proposal_does_not_change_an_existing_locked_door_after_failure():
+def test_real_ollama_keeps_existing_locked_door_after_failed_attempt():
     world = WorldState(
         entities={
             7: Entity(

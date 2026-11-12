@@ -58,7 +58,9 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
     assert len(create_entity["description"]) > 32
     assert parsed["examples"]["create_entity"]["name"] == "Aldric"
     assert parsed["examples"]["create_entity"]["entity_type"] == "npc"
-    assert "Tabernero" in parsed["examples"]["create_entity"]["description"]
+    assert (
+        "Tabernero" in parsed["examples"]["create_entity"]["description"]
+    )
     assert "item_id" in parsed["field_notes"]
     assert "entity_type" in parsed["field_notes"]
     assert "persona identificada" in parsed["field_notes"]["entity_type"]
