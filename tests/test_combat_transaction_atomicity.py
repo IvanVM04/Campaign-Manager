@@ -230,3 +230,50 @@ def test_position_and_reaction_mutations_roll_back_after_snapshot_write(
         assert current.movement_used_feet == 0
     else:
         assert current.reaction_used is False
+
+def test_encounter_start_rolls_back_initiative_and_status_after_snapshot_write(
+    monkeypatch,
+):
+    entities = EntityRepository()
+    encounter_repository = CombatEncounterRepository()
+    creature = entities.save_entity(
+        Entity(name="Goblin", entity_type="creature"),
+        campaign_id=1,
+    )
+    combatant = CombatantState(
+        combatant_id=f"creature-{creature.id}",
+        name="Goblin",
+        initiative=0,
+        current_hp=7,
+        max_hp=7,
+        armor_class=13,
+        entity_id=creature.id,
+    )
+    encounter = CombatEncounterState.prepare(
+        "start-rollback",
+        (combatant,),
+    )
+    encounter_repository.save(encounter, campaign_id=1)
+    service = CombatEncounterService(
+        repository=encounter_repository,
+        character_repository=CharacterRepository(),
+        entity_repository=entities,
+        creature_repository=CreatureRepository(),
+    )
+    _fail_after_save(encounter_repository, monkeypatch)
+
+    with pytest.raises(RuntimeError, match="injected failure"):
+        service.start(
+            1,
+            encounter.encounter_id,
+            dice_mode="manual",
+            manual_rolls={combatant.combatant_id: 15},
+            initiative_order=(combatant.combatant_id,),
+        )
+
+    persisted = encounter_repository.get(encounter.encounter_id, campaign_id=1)
+    assert persisted is not None
+    assert persisted.status.value == "preparing"
+    assert persisted.round_number == 0
+    assert persisted.initiative_order == ()
+    assert persisted.combatants[combatant.combatant_id].initiative == 0
