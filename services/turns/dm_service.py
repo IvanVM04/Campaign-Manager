@@ -222,6 +222,7 @@ class DMService:
                 "llm.provider.failed",
                 extra={
                     "provider_role": "narrative",
+                    "provider_model": getattr(self.provider, "model", None),
                     "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
                     "error_type": type(exc).__name__,
                 },
@@ -233,6 +234,7 @@ class DMService:
             "llm.provider.completed",
             extra={
                 "provider_role": "narrative",
+                "provider_model": getattr(self.provider, "model", None),
                 "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
                 "response_chars": len(response) if isinstance(response, str) else None,
             },
