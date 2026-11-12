@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+
 class WorldEntityBootstrapIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     entity_type: str = Field(..., min_length=1, max_length=50)
