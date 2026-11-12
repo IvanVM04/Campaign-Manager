@@ -1,6 +1,6 @@
 # Shared-layer module catalogue — 2026-11-12
 
-**Verified against:** `main` at `1bf805c0c48676ba753bf7b30da24535a6336362` (PR #202 merged).  
+**Verified against:** `main` at `73b6fc627e4cf94cea5bb8ad97c36f596567c8dc` (PR #204 merged).  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 
 ## Read this before changing shared layers
@@ -21,7 +21,7 @@
 | `bootstrap/__init__.py` | Public package surface for runtime composition. | Export only stable composition contracts. |
 | `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Preserve the single composition root. Next review: lifecycle invalidation, shutdown and cache eviction only if deployment requirements justify them. Keep provider, context and integration dependencies visible in this file. |
 | `database.py` | SQLite connection helpers, transaction boundaries and database initialization. | Keep connection and transaction ownership explicit. Review nested transaction behavior and shared-connection assumptions before adding repository conveniences. |
-| `migrations.py` | Historical migration functions 001–029 plus contiguous `MIGRATIONS` metadata/runner registry. | Do not move or rewrite old functions casually. Use the [migration catalogue](migration-catalog-2026-11-12.md); preserve idempotency, foreign keys and historical data. |
+| `migrations.py` | Historical migration functions 001–030 plus contiguous `MIGRATIONS` metadata/runner registry. | Do not move or rewrite old functions casually. Use the [migration catalogue](migration-catalog-2026-11-12.md); preserve idempotency, foreign keys and historical data. |
 | `start.bat` | Local Windows startup entrypoint. | Keep aligned with the documented install/run path; avoid embedding configuration defaults that differ from application settings. |
 | `scripts/bootstrap_demo.py` | Creates deterministic demo campaign/world content. | Keep demo data reproducible and safe to run against an explicitly selected database. Add assertions for idempotency/reset semantics before changing it. |
 | `scripts/ci/coverage_summary.py` | Converts coverage XML into package-level CI summary data. | Keep report-only policy separate from test execution. Validate missing/empty coverage inputs and keep package aggregation deterministic. |
@@ -194,14 +194,14 @@ Tests are grouped by capability and boundary in `tests/`. Keep deterministic CI 
 | `tests/test_migrations.py` | Historical schema/data upgrades and constraints. | Treat every supported historical migration as a compatibility contract; replay from old DB fixtures before changing migrations. |
 | `tests/test_*world*` | World application, appliers, query projections, persistence and serializer behavior. | Split oversized test modules only along observable contracts; retain multi-collection rollback cases. |
 | `tests/test_*combat*` | Encounter, attack, conditions, movement, opportunity attacks, equipment and HP projection synchronization. | Add failure-injection tests wherever an attack or encounter update spans canonical HP and encounter snapshots. |
-| `tests/test_*turn*` | Turn resolution, durable commit, manual rolls, clarification, idempotency and recovery. | Preserve failure-path/restart/fencing assertions when extracting lifecycle collaborators. |
-| `tests/test_context_*`, `tests/test_proposal_context_selector.py` | Retrieval, expansion, stable ranking, secret exclusion, mandatory facts and budget failures. | Add medium/large campaign fixtures and assert deterministic selection, not just token totals. |
+| `tests/test_*turn*`, `tests/test_durable_native_turn.py`, `tests/test_durable_silly_tavern_turn.py` | Turn resolution, durable commit, manual rolls, clarification, idempotency and recovery. | Preserve failure-path/restart/fencing assertions; current native/SillyTavern split is indexed in the [test-suite navigation](../quality/test-suite-navigation-2026-11-12.md). |
+| `tests/test_context_pipeline_retrieval.py`, `tests/test_context_pipeline_budget.py`, `tests/test_context_pipeline_integrity.py`, `tests/test_proposal_context_selector.py` | Retrieval, expansion, stable ranking, secret exclusion, mandatory facts, budgets, purity and determinism. | Add medium/large campaign fixtures and assert deterministic selection, not just token totals; see the [test-suite navigation](../quality/test-suite-navigation-2026-11-12.md). |
 | `tests/test_llm_world_proposals.py`, `tests/test_llm_world_proposal_prompt_builder.py`, `tests/test_llm_world_proposal_validator.py` | Single structured player-intent proposal, trust gate and bounded one-repair behavior. | Keep model output untrusted and domain validation independent. |
 | `tests/test_llm_world_proposals.py`, `tests/test_llm_world_proposal_prompt_builder.py`, `tests/test_llm_world_proposal_validator.py` | Active structured intent proposal, trust gate and bounded one-repair behavior. | Keep model output untrusted and domain validation independent. |
 | `tests/test_silly_tavern_api.py`, `tests/test_silly_tavern_schemas.py` | Active context, resolve/complete, external identity and durable challenge contracts. | Preserve client-visible payload/status semantics and ensure historical transcripts cannot bypass durable resolution. |
 | `tests/test_real_llm.py` | Live Ollama/provider quality probes. | Run only as explicit opt-in/manual validation; never pretend deterministic CI covers it. |
 
-Oversized tests are a navigation concern, not automatic evidence of bad architecture. The current test audit identifies the modules and contracts that should be split first; update that inventory after structural changes.
+Oversized tests are a navigation concern, not automatic evidence of bad architecture. The current [test-suite navigation](../quality/test-suite-navigation-2026-11-12.md) records the completed contract-based split and remaining coverage priorities.
 
 ## Dependency and ownership cross-check
 
@@ -218,18 +218,14 @@ Use the existing [capability dependency matrix](package-dependency-matrix.md) as
 | Repository | scoped SQL using caller-owned connection when supplied | Repository begins unrelated transaction during a multi-aggregate use case. |
 | Rules engine | typed inputs -> deterministic result | Rules engine imports models, database, repositories, services or API. |
 
-## Known candidates for future PRs
+## Remaining candidates for future PRs
 
-Ordered by expected architectural value, not ease of implementation:
+Ordered by expected architectural value for the local, single-player, single-process scope:
 
-1. **Combat profile resolution:** keep the selection/metadata boundary in `AttackProfileResolver`, numerical weapon/natural-attack derivation in `rules_engine`, and atomic encounter/HP writes in the use cases. Retain malformed-metadata, NPC selection and HP-synchronization regression coverage.
-2. **Durable turn lifecycle:** request acceptance, idempotency, planning leases and pre-commit recovery now live in `DurableTurnExecutionService` behind `DurableNativeTurnService`. Preserve that boundary; extract another lifecycle family only when it owns a distinct invariant and can be tested independently.
-3. **Combat transaction audit:** implemented on this branch; retain failure-injection tests for encounter creation, death saves, timed-effect progression/completion, movement and reactions.
-4. **World application audit:** implemented on this branch with `WorldTurnOperationCoordinator`; preserve ordered dispatch, reference resolution, shared state identity and caller-owned connection behavior.
-5. **Schema bounded contexts:** completed on this branch. Keep combat/effects/clock schema modules separate, retain the `models.schemas` re-export facade and verify OpenAPI output.
-6. **Provider contract coverage:** add a focused provider contract test matrix for success, timeout, unavailable Ollama, malformed JSON and normalized errors; retain fake provider parity.
-7. **Campaign runtime lifecycle:** document/test invalidation and shutdown for the current process-local cache before adding any eviction policy.
-8. **Migration navigation:** completed on this branch with the explicit 001–029 registry and [migration catalogue](migration-catalog-2026-11-12.md); keep the chronological source and forward-only rule.
-9. **Visibility policy:** define an explicit GM/player permission model for secret events and hidden world state before expanding non-GM read surfaces.
-10. **Structured proposal quality:** run representative large-campaign/live-Ollama probes for the active prompt without coupling deterministic CI to a live provider.
-11. **Legacy retirement:** completed in PR #198; historical snapshot JSON is preserved in the inert archive created by migration 029.
+1. **Provider contract coverage:** add a focused success/timeout/unavailable/malformed-response matrix for Ollama and fake-provider parity. Document normalized errors and choose one retry owner; do not layer invisible retries.
+2. **Campaign runtime lifecycle:** explicitly test invalidation on campaign deletion/configuration changes and define shutdown behavior. Keep the current one-process deployment and avoid premature LRU/TTL complexity.
+3. **Critical branch coverage:** prioritize rollback, stale revision, lease fencing, restart recovery, provider errors and effect expiry. Use the [test-suite navigation](../quality/test-suite-navigation-2026-11-12.md); do not introduce a universal percentage gate.
+4. **Structured proposal quality:** run representative medium/large campaign and live-Ollama probes for the active structured prompt. Keep those probes opt-in and separate from deterministic CI.
+5. **Remote/GM-player visibility model:** define explicit principals and permission policy only before any remote or multi-user exposure; the current local single-player read boundary remains the supported scope.
+
+Completed structural work is recorded in PRs #198–#204: legacy paths retired, player-safe visibility centralized, combat profiles and durable turn execution hardened, transaction ownership and world-operation coordination clarified, schemas/migrations indexed, provider/runtime concerns documented, and current character Hit Dice/rest state added. Keep those contracts covered rather than reopening completed decompositions without a demonstrated defect.

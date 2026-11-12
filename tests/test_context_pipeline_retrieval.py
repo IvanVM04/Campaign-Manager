@@ -1,167 +1,14 @@
-from __future__ import annotations
-
-from copy import deepcopy
-
 import pytest
 
-from models.entity import Entity
 from models.event import Event
 from models.item import Item, ItemInstance
-from models.relation import Relation
 from models.resource import Resource, ResourceBalance
-from models.world_state import WorldState
 from services.context import ContextBuilder
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-
-def make_entity(
-    entity_id: int,
-    name: str,
-    entity_type: str = "character",
-    description: str = "",
-    active: bool = True,
-) -> Entity:
-    return Entity(
-        id=entity_id,
-        name=name,
-        entity_type=entity_type,
-        description=description,
-        active=active,
-    )
-
-
-def make_relation(
-    relation_id: int,
-    subject_id: int,
-    target_id: int,
-    relation_type: str = "knows",
-    active: bool = True,
-    metadata: dict | None = None,
-) -> Relation:
-    return Relation(
-        id=relation_id,
-        subject_id=subject_id,
-        target_id=target_id,
-        relation_type=relation_type,
-        active=active,
-        metadata=metadata or {},
-    )
-
-
-def make_world() -> WorldState:
-    world = WorldState()
-
-    world.entities = {
-        1: make_entity(
-            1,
-            "Fungoso",
-            description="Un aventurero solitario.",
-        ),
-        2: make_entity(
-            2,
-            "Aldric",
-            entity_type="npc",
-            description="Un viejo mercader.",
-        ),
-    }
-
-    world.relations = {
-        1: make_relation(
-            1,
-            1,
-            2,
-            relation_type="friend",
-        ),
-    }
-
-    return world
-
-
-def make_complex_world() -> WorldState:
-    world = WorldState()
-
-    world.entities = {
-        1: make_entity(
-            1,
-            "Fungoso",
-            description="Aventurero protagonista.",
-        ),
-        2: make_entity(
-            2,
-            "Aldric",
-            entity_type="npc",
-            description="Mercader y viejo amigo.",
-        ),
-        3: make_entity(
-            3,
-            "Morth",
-            entity_type="npc",
-            description="Rival peligroso.",
-        ),
-        4: make_entity(
-            4,
-            "Vera",
-            entity_type="npc",
-            description="Una guardia local.",
-        ),
-        5: make_entity(
-            5,
-            "Fantasma",
-            entity_type="creature",
-            description="Una criatura olvidada.",
-        ),
-        6: make_entity(
-            6,
-            "Inactivo",
-            entity_type="npc",
-            description="No debería aparecer.",
-            active=False,
-        ),
-    }
-
-    world.relations = {
-        1: make_relation(
-            1,
-            1,
-            2,
-            relation_type="friend",
-        ),
-        2: make_relation(
-            2,
-            1,
-            3,
-            relation_type="enemy",
-        ),
-        3: make_relation(
-            3,
-            2,
-            4,
-            relation_type="knows",
-        ),
-        4: make_relation(
-            4,
-            1,
-            6,
-            relation_type="friend",
-        ),
-        5: make_relation(
-            5,
-            1,
-            5,
-            relation_type="knows",
-            active=False,
-        ),
-    }
-
-    return world
-
-
-# ============================================================
-# BASIC PIPELINE
-# ============================================================
+from tests.context_pipeline_test_support import (
+    make_complex_world,
+    make_relation,
+    make_world,
+)
 
 
 def test_pipeline_direct_entity_appears_in_context():
@@ -184,7 +31,6 @@ def test_pipeline_direct_entity_appears_in_context():
     assert "Fungoso" in names
     assert "Fungoso" in result["context"]
 
-
 def test_pipeline_related_entity_appears_in_context():
     builder = ContextBuilder()
     world = make_world()
@@ -202,7 +48,6 @@ def test_pipeline_related_entity_appears_in_context():
     assert "Fungoso" in names
     assert "Aldric" in names
 
-
 def test_pipeline_query_matching_is_case_insensitive():
     builder = ContextBuilder()
     world = make_world()
@@ -214,7 +59,6 @@ def test_pipeline_query_matching_is_case_insensitive():
 
     assert result["query"] == "fungoso"
     assert "Fungoso" in result["context"]
-
 
 def test_pipeline_query_is_stripped():
     builder = ContextBuilder()
@@ -231,7 +75,6 @@ def test_pipeline_query_is_stripped():
 # ============================================================
 # EMPTY / INVALID QUERY
 # ============================================================
-
 
 def test_pipeline_empty_query_returns_empty_result():
     builder = ContextBuilder()
@@ -250,7 +93,6 @@ def test_pipeline_empty_query_returns_empty_result():
         "Sin información relevante."
     )
 
-
 def test_pipeline_none_query_raises():
     builder = ContextBuilder()
     world = make_world()
@@ -260,7 +102,6 @@ def test_pipeline_none_query_raises():
             world,
             None,
         )
-
 
 def test_pipeline_invalid_world_raises():
     builder = ContextBuilder()
@@ -275,7 +116,6 @@ def test_pipeline_invalid_world_raises():
 # ============================================================
 # RELATION EXPANSION
 # ============================================================
-
 
 def test_pipeline_strong_relation_is_more_relevant_than_weak_relation():
     builder = ContextBuilder()
@@ -300,7 +140,6 @@ def test_pipeline_strong_relation_is_more_relevant_than_weak_relation():
         "Morth"
     )
 
-
 def test_pipeline_enemy_relation_is_included():
     builder = ContextBuilder()
     world = make_complex_world()
@@ -316,7 +155,6 @@ def test_pipeline_enemy_relation_is_included():
     }
 
     assert "Morth" in names
-
 
 def test_pipeline_inactive_relation_does_not_expand():
     builder = ContextBuilder()
@@ -334,7 +172,6 @@ def test_pipeline_inactive_relation_does_not_expand():
 
     assert "Fantasma" not in names
 
-
 def test_pipeline_inactive_entity_is_excluded():
     builder = ContextBuilder()
     world = make_complex_world()
@@ -350,7 +187,6 @@ def test_pipeline_inactive_entity_is_excluded():
     }
 
     assert "Inactivo" not in names
-
 
 def test_pipeline_max_depth_one_does_not_include_second_degree_entity():
     builder = ContextBuilder()
@@ -378,7 +214,6 @@ def test_pipeline_max_depth_one_does_not_include_second_degree_entity():
 # RELATIONS
 # ============================================================
 
-
 def test_pipeline_returns_relations_connected_to_entities():
     builder = ContextBuilder()
     world = make_world()
@@ -397,7 +232,6 @@ def test_pipeline_returns_relations_connected_to_entities():
 
     assert "friend" in relation_types
 
-
 def test_pipeline_inactive_relations_are_excluded():
     builder = ContextBuilder()
     world = make_complex_world()
@@ -413,7 +247,6 @@ def test_pipeline_inactive_relations_are_excluded():
     }
 
     assert 5 not in relation_ids
-
 
 def test_pipeline_unrelated_relation_is_not_included():
     builder = ContextBuilder()
@@ -442,7 +275,6 @@ def test_pipeline_unrelated_relation_is_not_included():
 # ============================================================
 # EVENTS
 # ============================================================
-
 
 def test_pipeline_related_public_event_is_included():
     builder = ContextBuilder()
@@ -476,7 +308,6 @@ def test_pipeline_related_public_event_is_included():
 
     assert "Llegada a la ciudad" in titles
 
-
 def test_pipeline_secret_event_is_never_included():
     builder = ContextBuilder()
     world = make_world()
@@ -502,7 +333,6 @@ def test_pipeline_secret_event_is_never_included():
 
     assert result["events"] == []
     assert "El secreto del rey" not in result["context"]
-
 
 def test_pipeline_event_without_entity_relationship_is_not_included():
     builder = ContextBuilder()
@@ -533,7 +363,6 @@ def test_pipeline_event_without_entity_relationship_is_not_included():
 # ============================================================
 # PARENT OBJECT RESOLUTION
 # ============================================================
-
 
 def test_pipeline_item_instance_resolves_parent_item():
     builder = ContextBuilder()
@@ -570,7 +399,6 @@ def test_pipeline_item_instance_resolves_parent_item():
 
     assert 10 in item_ids
 
-
 def test_pipeline_item_instance_parent_is_not_duplicated():
     builder = ContextBuilder()
     world = make_world()
@@ -605,7 +433,6 @@ def test_pipeline_item_instance_parent_is_not_duplicated():
     ]
 
     assert item_ids.count(10) == 1
-
 
 def test_pipeline_resource_balance_resolves_parent_resource():
     builder = ContextBuilder()
@@ -646,324 +473,3 @@ def test_pipeline_resource_balance_resolves_parent_resource():
 # ============================================================
 # CONTEXT BUDGET
 # ============================================================
-
-
-def test_pipeline_context_never_exceeds_budget():
-    builder = ContextBuilder(
-        max_context_chars=250,
-    )
-
-    world = make_complex_world()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert len(result["context"]) <= 250
-
-
-def test_pipeline_context_budget_is_respected_with_large_descriptions():
-    world = WorldState()
-
-    world.entities = {
-        1: make_entity(
-            1,
-            "Fungoso",
-            description="X" * 1000,
-        ),
-        2: make_entity(
-            2,
-            "Aldric",
-            description="Y" * 1000,
-        ),
-    }
-
-    world.relations = {}
-
-    builder = ContextBuilder(
-        max_context_chars=100,
-    )
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert len(result["context"]) <= 100
-
-
-def test_pipeline_oversized_candidate_does_not_corrupt_context():
-    builder = ContextBuilder(
-        max_context_chars=150,
-    )
-
-    world = WorldState()
-
-    world.entities = {
-        1: make_entity(
-            1,
-            "A" * 1000,
-        ),
-        2: make_entity(
-            2,
-            "Fungoso",
-        ),
-    }
-
-    world.relations = {}
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert "Fungoso" in result["context"]
-    assert "A" * 1000 not in result["context"]
-
-
-# ============================================================
-# PUBLIC CONTRACT
-# ============================================================
-
-
-def test_pipeline_internal_relevance_is_not_public():
-    builder = ContextBuilder()
-    world = make_complex_world()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    for entity in result["entities"]:
-        assert "_relevance" not in entity
-        assert "_depth" not in entity
-
-
-def test_pipeline_internal_relevance_is_not_in_text():
-    builder = ContextBuilder()
-    world = make_complex_world()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert "_relevance" not in result["context"]
-    assert "_depth" not in result["context"]
-
-
-def test_pipeline_public_result_has_expected_categories():
-    builder = ContextBuilder()
-    world = make_world()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    expected = {
-        "query",
-        "entities",
-        "items",
-        "item_instances",
-        "resources",
-        "resource_balances",
-        "relations",
-        "events",
-        "context",
-    }
-
-    assert expected.issubset(
-        result.keys()
-    )
-
-
-# ============================================================
-# WORLD IMMUTABILITY
-# ============================================================
-
-
-def test_pipeline_does_not_mutate_world():
-    world = make_complex_world()
-
-    before_entities = dict(
-        world.entities
-    )
-    before_relations = dict(
-        world.relations
-    )
-    before_events = dict(
-        getattr(world, "events", {})
-    )
-
-    builder = ContextBuilder()
-
-    builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert world.entities == before_entities
-    assert world.relations == before_relations
-    assert getattr(world, "events", {}) == before_events
-
-
-def test_pipeline_does_not_mutate_nested_world_state():
-    world = make_complex_world()
-
-    snapshot = deepcopy(world)
-
-    builder = ContextBuilder()
-
-    builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert world == snapshot
-
-
-# ============================================================
-# DETERMINISM
-# ============================================================
-
-
-def test_pipeline_is_deterministic():
-    world = make_complex_world()
-    builder = ContextBuilder()
-
-    first = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    second = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert first == second
-
-
-def test_pipeline_entity_order_is_deterministic():
-    world = make_complex_world()
-    builder = ContextBuilder()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    first_order = [
-        entity["id"]
-        for entity in result["entities"]
-    ]
-
-    second = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    second_order = [
-        entity["id"]
-        for entity in second["entities"]
-    ]
-
-    assert first_order == second_order
-
-
-# ============================================================
-# NO DATA
-# ============================================================
-
-
-def test_pipeline_world_without_matches_returns_empty_context():
-    world = WorldState()
-    world.entities = {}
-    world.relations = {}
-    world.events = {}
-
-    builder = ContextBuilder()
-
-    result = builder.build(
-        world,
-        "dragón inexistente",
-    )
-
-    assert result["entities"] == []
-    assert result["relations"] == []
-    assert result["events"] == []
-    assert result["context"] == (
-        "Sin información relevante."
-    )
-
-
-# ============================================================
-# RELATION METADATA
-# ============================================================
-
-
-def test_pipeline_relation_reason_is_rendered():
-    world = make_world()
-
-    world.relations[1] = make_relation(
-        1,
-        1,
-        2,
-        relation_type="friend",
-        metadata={
-            "reason": "Combatieron juntos durante la guerra.",
-        },
-    )
-
-    builder = ContextBuilder()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    assert (
-        "Combatieron juntos durante la guerra."
-        in result["context"]
-    )
-
-
-# ============================================================
-# RESULT ISOLATION
-# ============================================================
-
-
-def test_pipeline_modifying_result_does_not_modify_world():
-    world = make_world()
-    builder = ContextBuilder()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    result["entities"][0]["name"] = "MODIFICADO"
-
-    assert any(
-        entity.name == "Fungoso"
-        for entity in world.entities.values()
-    )
-
-
-def test_pipeline_result_lists_are_independent():
-    world = make_world()
-    builder = ContextBuilder()
-
-    result = builder.build(
-        world,
-        "Fungoso",
-    )
-
-    entities = result["entities"]
-
-    entities.clear()
-
-    assert world.entities
