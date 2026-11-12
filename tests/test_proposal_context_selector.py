@@ -313,3 +313,18 @@ def test_proposal_context_diagnostics_expose_ambiguous_entity_references():
     assert projection.diagnostics.reference_match_kind == "alias"
     assert projection.diagnostics.reference_candidate_count == 2
     assert projection.world.entities == {}
+
+
+def test_proposal_context_merges_independent_supplemental_queries():
+    world = build_world()
+
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Mara",
+        supplemental_queries=("Aldric",),
+        max_estimated_tokens=2000,
+        mandatory_entity_ids=(1,),
+    )
+
+    assert set(projection.world.entities) == {1, 2, 3}
+    assert projection.diagnostics.estimated_tokens <= projection.diagnostics.budget_tokens

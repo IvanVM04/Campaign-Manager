@@ -12,10 +12,20 @@
 - Context retrieval: `POST /integration/context`.
 - Player intent and durable consequence commit: `POST /integration/turn/resolve`.
 - Clarification/manual dice continuation: dedicated `/clarification` and `/roll` routes.
+
+For retrieval requests, `query` is the primary current player action.
+The optional `additional_query` carries configured campaign-scope wording as
+an independent supplemental signal. The adapter unions and deduplicates results
+in stable order, while ranking remains based on the primary action. The field is
+optional, so clients using the previous single-query payload remain compatible.
 - Narrative completion/version persistence: `POST /integration/turn/complete`.
 - Transcript and challenge reads: dedicated GET routes under `/integration/turn/{external_turn_id}`.
 
 The external client must use one stable `external_turn_id` for the logical player action, including retries, clarifications and narrative versions. Completion requires this identity.
+
+The context response includes privacy-safe `retrieval_diagnostics`: number of
+queries and record counts by category. It intentionally does not echo query
+text or player content into diagnostics.
 
 ## Removed behavior
 

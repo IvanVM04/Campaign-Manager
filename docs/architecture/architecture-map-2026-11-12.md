@@ -1,7 +1,16 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (2026-11-12, PR #205 merged).  
+**Verified base:** `main` at `01ffcb7f94df105454b241ce142c9694016da741` (2026-11-12, PR #211 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
+
+> **Phase 1 retrieval update — PR #212:** the SillyTavern action is now the
+> primary retrieval query and configured campaign-scope wording is an independent
+> optional query. The context pipeline merges and deduplicates the two signals;
+> descriptive entity matching can resolve a role inside a longer player sentence
+> and still reports ambiguity on comparable candidates while retaining their
+> descriptive evidence for retrieval (without resolving one canonical ID).
+> Pronoun continuity and semantic paraphrase matching remain open work. See the
+> [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md).
 
 ## How to work in this repository
 

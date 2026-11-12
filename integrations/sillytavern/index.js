@@ -12,7 +12,7 @@ import {
 
 import {
     describeTurnFailure,
-    buildRetrievalQuery,
+    buildRetrievalRequest,
     summarizeConnectionReadiness,
     buildStableTurnIdentityInput,
     findClarificationOrigin,
@@ -85,25 +85,9 @@ async function getCampaignManagerGenerationContext(
             ? currentSettings.contextQuery.trim()
             : "";
 
-    if (!configuredQuery) {
-        warn(
-            "Context query is empty. Generation context was not requested.",
-        );
-
-        return "";
-    }
-
-    /*
-     * The configured context query defines WHAT kind of
-     * campaign information should be retrieved.
-     *
-     * The current player input defines WHICH part of that
-     * information is relevant to the current generation.
-     *
-     * Keeping both makes the setting useful without losing
-     * turn-specific retrieval.
-     */
-    const retrievalQuery = buildRetrievalQuery(
+    // The player's action drives retrieval. The configured query is a
+    // separate, lower-priority signal and is optional.
+    const retrievalRequest = buildRetrievalRequest(
         configuredQuery,
         normalizedPlayerInput,
     );
@@ -117,7 +101,7 @@ async function getCampaignManagerGenerationContext(
                 headers: getCampaignHeaders(true),
 
                 body: JSON.stringify({
-                    query: retrievalQuery,
+                    ...retrievalRequest,
                     player_input: normalizedPlayerInput,
                     external_turn_id: externalTurnId,
                     dice_mode: diceMode,
@@ -1379,8 +1363,10 @@ async function submitCampaignManagerManualRoll(origin, answer) {
         throw new Error('Introduce exactamente ' + origin.state.pending_roll.count + ' resultado(s) de d20 entre 1 y 20, separados por coma.');
     }
     const backendUrl = getSettings().backendUrl.trim().replace(/\/+$/, '');
-    const configuredQuery = getSettings().contextQuery.trim();
-    const query = buildRetrievalQuery(configuredQuery, origin.playerInput);
+    const configuredQuery = typeof getSettings().contextQuery === 'string'
+        ? getSettings().contextQuery.trim()
+        : '';
+    const retrievalRequest = buildRetrievalRequest(configuredQuery, origin.playerInput);
     const response = await fetch(`${backendUrl}/integration/turn/roll`, {
         method: 'POST',
         headers: getCampaignHeaders(true),
@@ -1388,7 +1374,7 @@ async function submitCampaignManagerManualRoll(origin, answer) {
             pending_roll_id: origin.pendingRollId,
             rolls: origin.rolls,
             answer_external_turn_id: await createStableTurnId(getLatestUserMessage()),
-            query,
+            ...retrievalRequest,
         }),
     });
     const body = await response.json();
@@ -1426,13 +1412,11 @@ async function getCampaignManagerClarificationContext(
     const configuredQuery = typeof currentSettings.contextQuery === 'string'
         ? currentSettings.contextQuery.trim()
         : '';
-    if (!backendUrl || !configuredQuery) {
-        throw new Error(
-            'Backend URL and context query are required for clarification.',
-        );
+    if (!backendUrl) {
+        throw new Error('Backend URL is required for clarification.');
     }
 
-    const retrievalQuery = buildRetrievalQuery(
+    const retrievalRequest = buildRetrievalRequest(
         configuredQuery,
         `${clarificationOrigin.playerInput}\nRespuesta a la aclaración: ${answer}`,
     );
@@ -1446,7 +1430,7 @@ async function getCampaignManagerClarificationContext(
                     clarificationOrigin.pendingClarificationId,
                 answer,
                 answer_external_turn_id: answerExternalTurnId,
-                query: retrievalQuery,
+                ...retrievalRequest,
             }),
         },
     );

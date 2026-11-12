@@ -473,3 +473,40 @@ def test_pipeline_resource_balance_resolves_parent_resource():
 # ============================================================
 # CONTEXT BUDGET
 # ============================================================
+
+
+def test_pipeline_merges_supplemental_queries_without_losing_primary_intent():
+    builder = ContextBuilder()
+    world = make_complex_world()
+
+    result = builder.build(
+        world,
+        "Fungoso",
+        supplemental_queries=("Vera", "Vera"),
+    )
+
+    names = {entity["name"] for entity in result["entities"]}
+    assert result["query"] == "Fungoso"
+    assert "Fungoso" in names
+    assert "Vera" in names
+    assert len([entity for entity in result["entities"] if entity["name"] == "Vera"]) == 1
+
+
+def test_pipeline_rejects_non_string_supplemental_query_values():
+    builder = ContextBuilder()
+    with pytest.raises(TypeError, match="supplemental_queries"):
+        builder.build(make_world(), "Fungoso", supplemental_queries=("Aldric", 7))
+
+
+def test_memory_search_many_preserves_primary_precedence_and_deduplicates():
+    from services.context.memory_search_service import MemorySearchService
+
+    world = make_complex_world()
+    result = MemorySearchService().search_many(
+        world,
+        ("Fungoso", "Vera", " fungoso "),
+    )
+    entity_ids = [entity["id"] for entity in result["entities"]]
+    assert entity_ids[0] == 1
+    assert len(entity_ids) == len(set(entity_ids))
+    assert 4 in entity_ids

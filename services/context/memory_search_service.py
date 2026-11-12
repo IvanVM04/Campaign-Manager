@@ -84,6 +84,65 @@ class MemorySearchService:
             ),
         }
 
+    def search_many(
+        self,
+        world: WorldState,
+        queries: tuple[str, ...] | list[str],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Union independent retrieval queries in stable, first-match order.
+
+        The primary query should be first so its candidates retain precedence.
+        Independent signals are not fused into one natural-language string.
+        """
+        if not isinstance(queries, (tuple, list)):
+            raise TypeError("queries must be a tuple or list")
+
+        normalized_queries: list[str] = []
+        seen_queries: set[str] = set()
+        for query in queries:
+            if not isinstance(query, str):
+                raise TypeError("queries must contain only strings")
+            normalized = query.strip()
+            if not normalized:
+                continue
+            key = normalized.casefold()
+            if key not in seen_queries:
+                normalized_queries.append(normalized)
+                seen_queries.add(key)
+
+        categories = (
+            "entities",
+            "items",
+            "item_instances",
+            "resources",
+            "resource_balances",
+            "relations",
+            "events",
+        )
+        merged = {category: [] for category in categories}
+        seen_records: dict[str, set[object]] = {
+            category: set() for category in categories
+        }
+
+        for query in normalized_queries:
+            result = self.search(world, query)
+            for category in categories:
+                for record in result.get(category, []):
+                    if not isinstance(record, dict):
+                        continue
+                    record_id = record.get("id")
+                    identity: object = (
+                        record_id
+                        if record_id is not None
+                        else repr(sorted(record.items()))
+                    )
+                    if identity in seen_records[category]:
+                        continue
+                    seen_records[category].add(identity)
+                    merged[category].append(record)
+
+        return merged
+
     # ------------------------------------------------------------------
     # VALIDATION
     # ------------------------------------------------------------------
@@ -212,6 +271,10 @@ class MemorySearchService:
             and resolution.candidates
             and resolution.candidates[0].match_kind in {"name", "alias"}
         ):
+            # An explicit name/alias collision is unsafe: do not return either
+            # entity as though the reference identified one of them. Broad
+            # descriptive matches remain useful retrieval evidence; the
+            # resolver/proposal diagnostics still retain their ambiguous status.
             return []
 
         query_tokens = resolver._significant_tokens(

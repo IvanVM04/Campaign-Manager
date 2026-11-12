@@ -66,6 +66,7 @@ class ProposalContextSelector:
         *,
         max_estimated_tokens: int,
         mandatory_entity_ids: tuple[int, ...] | list[int] = (),
+        supplemental_queries: tuple[str, ...] | list[str] = (),
     ) -> WorldContextProjection:
         if not isinstance(world, WorldState):
             raise TypeError("world must be a WorldState")
@@ -81,6 +82,17 @@ class ProposalContextSelector:
             raise TypeError("mandatory_entity_ids must be a tuple or list")
 
         normalized_query = query.strip()
+        if not isinstance(supplemental_queries, (tuple, list)):
+            raise TypeError("supplemental_queries must be a tuple or list")
+        normalized_supplemental_queries: list[str] = []
+        seen_queries = {normalized_query.casefold()} if normalized_query else set()
+        for supplemental_query in supplemental_queries:
+            if not isinstance(supplemental_query, str):
+                raise TypeError("supplemental_queries must contain only strings")
+            normalized = supplemental_query.strip()
+            if normalized and normalized.casefold() not in seen_queries:
+                normalized_supplemental_queries.append(normalized)
+                seen_queries.add(normalized.casefold())
         mandatory_ids: list[int] = []
         for entity_id in mandatory_entity_ids:
             if isinstance(entity_id, bool) or not isinstance(entity_id, int):
@@ -101,7 +113,13 @@ class ProposalContextSelector:
             }
             object_lookup[category] = dict(getattr(world, category))
 
-        search_result = self.memory_search_service.search(world, normalized_query)
+        if normalized_supplemental_queries:
+            search_result = self.memory_search_service.search_many(
+                world,
+                (normalized_query, *normalized_supplemental_queries),
+            )
+        else:
+            search_result = self.memory_search_service.search(world, normalized_query)
         searched_entity_ids = {
             record.get("id")
             for record in search_result.get("entities", [])

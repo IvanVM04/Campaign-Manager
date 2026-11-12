@@ -33,9 +33,13 @@ def get_silly_tavern_context(
     runtime = get_current_runtime()
     try:
         with runtime.turn_execution_lock.acquire():
-            result = runtime.silly_tavern_integration_service.get_context(
-                data.query
-            )
+            if data.additional_query:
+                result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                )
+            else:
+                result = runtime.silly_tavern_integration_service.get_context(data.query)
 
     except SillyTavernIntegrationServiceError as exc:
         raise HTTPException(
@@ -129,10 +133,17 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
                 external_turn_id=data.external_turn_id,
                 dice_mode=data.dice_mode,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
-                data.query,
-                exclude_external_turn_id=data.external_turn_id,
-            )
+            if data.additional_query:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                    exclude_external_turn_id=data.external_turn_id,
+                )
+            else:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    exclude_external_turn_id=data.external_turn_id,
+                )
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
@@ -163,6 +174,7 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
         "session": context_result["session"],
         "active_character": context_result["active_character"],
         "context": context_result["context"],
+        "retrieval_diagnostics": context_result["retrieval_diagnostics"],
     }
 
 
@@ -186,7 +198,13 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
                 adapter_namespace="sillytavern", defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(data.query)
+            if data.additional_query:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                )
+            else:
+                context_result = runtime.silly_tavern_integration_service.get_context(data.query)
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
@@ -208,6 +226,7 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
         "session": context_result["session"],
         "active_character": context_result["active_character"],
         "context": context_result["context"],
+        "retrieval_diagnostics": context_result["retrieval_diagnostics"],
     }
 
 
@@ -223,9 +242,15 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
                 defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(
-                data.query,
-            )
+            if data.additional_query:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                    additional_queries=(data.additional_query,),
+                )
+            else:
+                context_result = runtime.silly_tavern_integration_service.get_context(
+                    data.query,
+                )
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
@@ -253,6 +278,7 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
         "session": context_result["session"],
         "active_character": context_result["active_character"],
         "context": context_result["context"],
+        "retrieval_diagnostics": context_result["retrieval_diagnostics"],
     }
 
 

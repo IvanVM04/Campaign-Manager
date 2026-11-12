@@ -16,6 +16,10 @@ depend on model wording:
 | `tests/test_llm_world_proposal_prompt_builder.py` | Player intent is the proposal input; bounded instructions, typed operation manifest, mechanics and selected context are rendered without legacy narrative prompt coupling. |
 | `tests/test_llm_world_proposals.py` | Structured parsing, allowed operation types, typed operations, invalid output and one bounded repair. |
 | `tests/test_proposal_scale_quality.py` | Context relevance, stable selection, required facts/dependencies, scale and secret exclusion. |
+| `tests/test_context_pipeline_retrieval.py`, `tests/test_entity_reference_resolver.py` | Independent search signals, long natural-language role references, specificity and ambiguity abstention. |
+| `tests/test_proposal_context_selector.py` | Supplemental proposal retrieval while preserving primary-query ranking, dependencies, budgets and secret exclusion. |
+| `tests/test_silly_tavern_context_adapter.py`, `tests/test_silly_tavern_schemas.py`, `tests/test_silly_tavern_api.py` | Optional supplemental retrieval field, compatibility with older payloads and adapter diagnostics. |
+| `integrations/sillytavern/core.test.js` | Current player action remains primary; configured campaign-scope query is supplemental. |
 | `tests/test_context_scale_probes.py` | Synthetic campaign growth, budget behavior, mandatory records, stable order and non-mutation. |
 | `tests/test_durable_native_turn.py`, `tests/test_durable_silly_tavern_turn.py` | Durable commit/retry behavior, clarification and manual-roll challenge lifecycle. |
 
@@ -35,7 +39,9 @@ Current default provider settings:
 - Model: `gemma4:26b`
 - Timeout: 120 seconds
 
-The live corpus currently covers four complementary semantic contracts:
+The live corpus currently covers four complementary semantic contracts.
+PR #212 also improves deterministic retrieval before the proposal model is
+called; these retrieval contracts are tested without Ollama:
 
 1. A known NPC receives one explicitly observed new fact, updating the existing
    entity ID rather than creating a duplicate or inventing unrelated details.
@@ -93,8 +99,13 @@ across models.
 Before expanding the prompt or changing the model, extend the live corpus with
 these semantic cases:
 
-- indirect references such as "el tabernero", "la persona de detrás de la
-  barra" or pronouns that should resolve to a known entity without duplication;
+- long natural-language role references such as "me acerco al tabernero y le
+  pregunto por los rumores" (deterministic overlap resolution is covered by
+  PR #212);
+- paraphrases such as "la persona de detrás de la barra" when there is no
+  shared lexical evidence (not solved by PR #212; use an alias or abstain);
+- pronouns across turns, which remain deferred until speaker/recency/visibility
+  semantics are implemented;
 - ordinary dialogue that does not establish a new persistent fact;
 - an unknown fact or unnamed person that must not be invented as canonical
   world state;
@@ -104,7 +115,9 @@ these semantic cases:
   deterministic rules engine;
 - facts revealed about an existing NPC that should update the existing ID,
   not create a duplicate;
-- multiple similar NPCs where only the supported referent is selected;
+- multiple similar NPCs where ambiguity remains visible, no singular entity
+  identity is asserted, and any descriptive candidates are treated only as
+  retrieval evidence;
 - a secret event that must not appear in the model-facing projection;
 - malformed structured output followed by exactly one bounded repair;
 - a second malformed response that must fail closed.

@@ -45,10 +45,15 @@ class SillyTavernContextAdapter:
         self,
         query: str,
         *,
+        additional_queries: tuple[str, ...] | list[str] = (),
         exclude_external_turn_id: str | None = None,
     ) -> dict:
-        """Build the campaign context required before SillyTavern narration."""
+        """Build context from a primary action and independent supplemental signals."""
         normalized_query = self._validate_text(query, "query")
+        normalized_additional_queries = self._validate_additional_queries(
+            additional_queries,
+            primary_query=normalized_query,
+        )
 
         try:
             turn_context = self.campaign_state_service.get_turn_context(
@@ -92,11 +97,19 @@ class SillyTavernContextAdapter:
             ) from exc
 
         try:
-            context = self.context_builder.build(
-                turn_context.world,
-                normalized_query,
-                recent_turns=recent_turns,
-            )
+            if normalized_additional_queries:
+                context = self.context_builder.build(
+                    turn_context.world,
+                    normalized_query,
+                    recent_turns=recent_turns,
+                    supplemental_queries=normalized_additional_queries,
+                )
+            else:
+                context = self.context_builder.build(
+                    turn_context.world,
+                    normalized_query,
+                    recent_turns=recent_turns,
+                )
         except Exception as exc:
             raise SillyTavernIntegrationServiceError(
                 "ContextBuilder failed to build context"
@@ -114,6 +127,22 @@ class SillyTavernContextAdapter:
             "active_character": self._serialize_active_character(turn_context),
             "query": normalized_query,
             "context": context,
+            "retrieval_diagnostics": {
+                "query_count": 1 + len(normalized_additional_queries),
+                "supplemental_query_count": len(normalized_additional_queries),
+                "included_record_counts": {
+                    category: len(context.get(category, []))
+                    for category in (
+                        "entities",
+                        "items",
+                        "item_instances",
+                        "resources",
+                        "resource_balances",
+                        "relations",
+                        "events",
+                    )
+                },
+            },
         }
 
     def get_external_turn_state(self, external_turn_id: str) -> dict:
@@ -202,6 +231,28 @@ class SillyTavernContextAdapter:
             "charisma": character.charisma,
             "proficiency_bonus": character.proficiency_bonus,
         }
+
+    @staticmethod
+    def _validate_additional_queries(
+        queries: tuple[str, ...] | list[str],
+        *,
+        primary_query: str,
+    ) -> tuple[str, ...]:
+        if not isinstance(queries, (tuple, list)):
+            raise TypeError("additional_queries must be a tuple or list")
+        normalized: list[str] = []
+        seen = {primary_query.casefold()}
+        for query in queries:
+            if not isinstance(query, str):
+                raise TypeError("additional_queries must contain only strings")
+            value = query.strip()
+            if not value:
+                continue
+            key = value.casefold()
+            if key not in seen:
+                normalized.append(value)
+                seen.add(key)
+        return tuple(normalized)
 
     @staticmethod
     def _validate_text(value: str, field_name: str) -> str:

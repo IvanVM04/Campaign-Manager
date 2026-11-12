@@ -318,3 +318,89 @@ def test_integration_service_is_a_thin_delegating_facade(adapter, monkeypatch):
 def test_integration_service_rejects_invalid_context_adapter():
     with pytest.raises(TypeError, match="context_adapter"):
         SillyTavernIntegrationService(context_adapter=object())
+
+
+def test_context_adapter_keeps_additional_retrieval_queries_separate(
+    adapter, monkeypatch
+):
+    context = adapter.campaign_state_service.get_turn_context(campaign_id=1)
+    monkeypatch.setattr(
+        adapter.campaign_state_service,
+        "get_turn_context",
+        lambda **kwargs: context,
+    )
+    monkeypatch.setattr(
+        adapter.turn_repository,
+        "list_recent_active_turns",
+        lambda **kwargs: [],
+    )
+    captured = {}
+
+    def build(world, query, *, recent_turns, supplemental_queries):
+        captured["query"] = query
+        captured["supplemental_queries"] = supplemental_queries
+        return {
+            "query": query,
+            "entities": [{"id": 1}],
+            "items": [],
+            "item_instances": [],
+            "resources": [],
+            "resource_balances": [],
+            "relations": [],
+            "events": [],
+            "context": "Contexto recuperado.",
+        }
+
+    monkeypatch.setattr(adapter.context_builder, "build", build)
+    result = adapter.get_context(
+        "Me acerco al tabernero y le pregunto por los rumores.",
+        additional_queries=("Estado general de la campaña.",),
+    )
+
+    assert captured == {
+        "query": "Me acerco al tabernero y le pregunto por los rumores.",
+        "supplemental_queries": ("Estado general de la campaña.",),
+    }
+    assert result["retrieval_diagnostics"] == {
+        "query_count": 2,
+        "supplemental_query_count": 1,
+        "included_record_counts": {
+            "entities": 1,
+            "items": 0,
+            "item_instances": 0,
+            "resources": 0,
+            "resource_balances": 0,
+            "relations": 0,
+            "events": 0,
+        },
+    }
+
+
+def test_context_adapter_deduplicates_additional_queries(
+    adapter, monkeypatch
+):
+    context = adapter.campaign_state_service.get_turn_context(campaign_id=1)
+    monkeypatch.setattr(
+        adapter.campaign_state_service,
+        "get_turn_context",
+        lambda **kwargs: context,
+    )
+    monkeypatch.setattr(
+        adapter.turn_repository,
+        "list_recent_active_turns",
+        lambda **kwargs: [],
+    )
+    captured = {}
+
+    def build(world, query, *, recent_turns, supplemental_queries):
+        captured["supplemental_queries"] = supplemental_queries
+        return {"query": query, "context": "Contexto.", "entities": []}
+
+    monkeypatch.setattr(adapter.context_builder, "build", build)
+    result = adapter.get_context(
+        "Aldric",
+        additional_queries=("Aldric", "  ", "Campaña general"),
+    )
+
+    assert captured["supplemental_queries"] == ("Campaña general",)
+    assert result["retrieval_diagnostics"]["query_count"] == 2

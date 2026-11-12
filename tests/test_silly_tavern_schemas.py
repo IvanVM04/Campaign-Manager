@@ -54,3 +54,45 @@ def test_silly_tavern_completion_rejects_empty_external_turn_identity():
             narrative="La puerta se abre.",
             external_turn_id="   ",
         )
+
+
+def test_silly_tavern_context_schema_normalizes_optional_additional_query():
+    data = SillyTavernContextIn(
+        query="Me acerco al tabernero.",
+        additional_query="  Estado general de campaña.  ",
+    )
+    assert data.query == "Me acerco al tabernero."
+    assert data.additional_query == "Estado general de campaña."
+
+
+def test_silly_tavern_context_schema_omits_blank_additional_query():
+    data = SillyTavernContextIn(
+        query="Me acerco al tabernero.",
+        additional_query="   ",
+    )
+    assert data.additional_query is None
+
+
+def test_silly_tavern_resolve_schema_preserves_primary_and_optional_scope_queries():
+    from models.schemas import SillyTavernTurnResolveIn
+
+    data = SillyTavernTurnResolveIn(
+        player_input="Abro la puerta.",
+        external_turn_id="stable-turn-1",
+        query="Abro la puerta.",
+        additional_query="  Estado general de campaña.  ",
+    )
+    assert data.query == "Abro la puerta."
+    assert data.additional_query == "Estado general de campaña."
+
+
+def test_silly_tavern_resolve_schema_omits_blank_supplemental_query():
+    from models.schemas import SillyTavernTurnResolveIn
+
+    data = SillyTavernTurnResolveIn(
+        player_input="Abro la puerta.",
+        external_turn_id="stable-turn-1",
+        query="Abro la puerta.",
+        additional_query=" ",
+    )
+    assert data.additional_query is None

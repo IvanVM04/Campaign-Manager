@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
     describeTurnFailure,
-    buildRetrievalQuery,
+    buildRetrievalRequest,
     summarizeConnectionReadiness,
     findClarificationOrigin,
     findManualRollOrigin,
@@ -13,70 +13,56 @@ import {
 
 
 test(
-    "buildRetrievalQuery combines configured query and player input",
+    "buildRetrievalRequest keeps player intent primary and campaign scope separate",
     () => {
-        const result = buildRetrievalQuery(
-            "Estado actual de la campaña.",
-            "Abro la puerta.",
-        );
-
-        assert.equal(
-            result,
-            [
+        assert.deepEqual(
+            buildRetrievalRequest(
                 "Estado actual de la campaña.",
-                "",
-                "Acción actual del jugador:",
-                "Abro la puerta.",
-            ].join("\n"),
-        );
-    },
-);
-
-
-test(
-    "buildRetrievalQuery trims both values",
-    () => {
-        const result = buildRetrievalQuery(
-            "  Estado actual.  ",
-            "  Abro la puerta.  ",
-        );
-
-        assert.equal(
-            result,
-            [
-                "Estado actual.",
-                "",
-                "Acción actual del jugador:",
-                "Abro la puerta.",
-            ].join("\n"),
-        );
-    },
-);
-
-
-test(
-    "buildRetrievalQuery returns empty string without configured query",
-    () => {
-        assert.equal(
-            buildRetrievalQuery(
-                "   ",
-                "Abro la puerta.",
+                "Me acerco al tabernero y pregunto por los rumores.",
             ),
-            "",
+            {
+                query: "Me acerco al tabernero y pregunto por los rumores.",
+                additional_query: "Estado actual de la campaña.",
+            },
         );
     },
 );
 
 
 test(
-    "buildRetrievalQuery returns empty string without player input",
+    "buildRetrievalRequest trims independent retrieval signals",
     () => {
-        assert.equal(
-            buildRetrievalQuery(
-                "Estado actual.",
-                "   ",
+        assert.deepEqual(
+            buildRetrievalRequest(
+                "  Estado actual.  ",
+                "  Abro la puerta.  ",
             ),
-            "",
+            {
+                query: "Abro la puerta.",
+                additional_query: "Estado actual.",
+            },
+        );
+    },
+);
+
+
+test(
+    "buildRetrievalRequest supports action-only retrieval",
+    () => {
+        assert.deepEqual(
+            buildRetrievalRequest("   ", "Abro la puerta."),
+            { query: "Abro la puerta.", additional_query: null },
+        );
+    },
+);
+
+
+test(
+    "buildRetrievalRequest falls back to campaign scope when action is absent",
+    () => {
+        assert.deepEqual(
+            buildRetrievalRequest("Estado actual.", "   "),
+            { query: "Estado actual.", additional_query: null },
         );
     },
 );

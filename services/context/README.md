@@ -48,3 +48,32 @@ The byte-based budget is an upper bound rather than a model-specific token count
 
 ## Migration status
 The five generic context modules plus `proposal_context_selector.py` live in this package. The former flat `services.memory_search_service` import path has been removed; import from this package's canonical modules.
+
+
+## Multi-signal retrieval
+
+`MemorySearchService.search_many(world, queries)` unions independent retrieval
+signals in stable order and deduplicates records by category-local ID. The
+primary query must be first. Supplemental queries add candidates but do not
+replace the primary query used by the context renderer and ranker.
+
+`ContextBuilder.build(..., supplemental_queries=...)` and
+`ContextBuilder.build_proposal_context(..., supplemental_queries=...)` accept
+optional extra signals. Existing callers remain compatible.
+
+The SillyTavern adapter maps the current player action to its primary query and
+the configured campaign-scope text to an optional supplemental query. Its
+`retrieval_diagnostics` contains only query/record counts; it never echoes the
+actual search text.
+
+Entity-reference resolution continues to prioritize canonical names and
+explicit aliases. Descriptive references can now match shared, more-specific
+terms inside a longer player sentence. When descriptive candidates remain
+similarly plausible, the resolver reports ambiguity and emits no singular
+entity ID. The memory search may still retain the descriptive candidates as
+retrieval evidence; that is not a resolved identity. Explicit name/alias
+collisions remain fail-closed and return no candidate records.
+
+This is still lexical evidence, not general semantic retrieval. Paraphrases
+without shared words, cross-turn pronouns, ellipsis and speaker continuity
+remain deferred to later roadmap phases.
