@@ -56,6 +56,16 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     assert "No afirmes que las acciones ya han ocurrido" in prompt
     assert "INTERPRETACIÓN" in prompt
     assert "Una intención no es resultado" in prompt
+    for semantic_rule in (
+        "plan, futuro condicional o hipótesis no ejecutada",
+        "pregunta, deseo, diálogo, cita o relato de terceros",
+        "intento en curso sin resultado",
+        "negación, cancelación, interrupción o fracaso explícito",
+        "resultado explícito y ya ocurrido",
+        "Las acciones compuestas se evalúan en orden",
+        "resultado mecánico confirmado por el motor",
+    ):
+        assert semantic_rule in prompt
     assert "no dupliques" in prompt
     assert "Relaciones requieren evidencia" in prompt
     assert "Sin cambio justificado" in prompt
