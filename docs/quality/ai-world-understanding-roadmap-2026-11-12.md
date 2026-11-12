@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** active engineering roadmap, starting after PR #209  
-**Baseline:** `main` at `b0d1619fbb838ddc69129dde37a3f2911f7193f3`  
+**Status:** active engineering roadmap; PRs #210 and #211 are integrated, PR #212 hardens retrieval and SillyTavern integration.  
+**Verified base:** `main` at `01ffcb7f94df105454b241ce142c9694016da741` before PR #212.  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -88,7 +88,10 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - There is no explicit, typed provenance/epistemic model for confirmed, inferred, rumored, unknown and character-known facts. A boolean secret flag is not a full knowledge model.
 - The adjudicator, world proposer and narrator have distinct roles, but their semantic decisions need a shared evaluation corpus to expose disagreements and continuity failures.
 
-PR #210 addresses the first three rendering/contract gaps and corrects the live-test fixtures. Later PRs should tackle retrieval and interpretation based on measurable scenarios rather than speculative infrastructure.
+PR #210 addresses the renderer/contract gaps and corrects the live-test fixtures.
+PR #211 adds explicit alias data and conservative entity resolution. PR #212
+hardens multi-signal retrieval and SillyTavern integration. Conversation-level
+intent, knowledge perspective and cross-role grounding remain later work.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
@@ -160,7 +163,48 @@ This does not require seven model calls. Several stages may share one call where
 - large-campaign tests remain deterministic and bounded;
 - no vector database or cache is added without a measured need.
 
-### PR #212 — Player-intent semantics
+### PR #212 — Retrieval and SillyTavern integration hardening
+
+**Goal:** make the current player action the primary retrieval signal and keep
+broad campaign-scope wording independent, so it supplements rather than dilutes
+the specific action being processed.
+
+**Implementation:**
+- [x] Add an optional `additional_query` to SillyTavern context, resolve,
+  clarification and manual-roll requests. Existing clients may continue sending
+  a single `query`.
+- [x] Submit the current player action in `query` and the configured
+  campaign-scope text independently in `additional_query`.
+- [x] Merge independent searches in stable order, deduplicate records by their
+  category-local IDs and retain the primary query as the ranking signal.
+- [x] Add optional supplemental queries to narrative and proposal context
+  builders without changing existing default call sites.
+- [x] Improve descriptive entity matching inside complete natural-language
+  actions using shared, rarity-weighted terms. Explicit names and aliases retain
+  precedence.
+- [x] Abstain when multiple descriptive candidates remain similarly plausible;
+  ambiguous candidates are not admitted into the model-facing projection.
+- [x] Expose privacy-safe adapter diagnostics (query and included-record counts,
+  never the query strings themselves).
+- [x] Add deterministic tests for long role references, tie/ambiguity handling,
+  supplemental-query union, duplicate suppression, API schemas and the
+  SillyTavern request builder.
+
+**Limits deliberately retained:**
+- Retrieval remains deterministic and lexical. A paraphrase with no shared
+  words still needs an explicit alias or a future semantic retrieval mechanism.
+- No pronoun/ellipsis resolution across turns is claimed. That requires a
+  speaker, recency, visibility and dialogue-state contract.
+- The supplemental campaign-scope query is not allowed to replace the player's
+  action as the primary query or ranker input.
+- No embeddings, vector database, persistent cache, extra provider call or new
+  migration is introduced.
+
+**Acceptance:** deterministic checks protect the contract. Live Ollama quality
+and the complete manual SillyTavern smoke test remain separate acceptance
+gates and must not be marked passed until actually run.
+
+### PR #213 — Player-intent semantics
 
 **Goal:** interpret what the player means, not just match words in the input.
 
@@ -190,7 +234,7 @@ This does not require seven model calls. Several stages may share one call where
 - malformed/ambiguous interpretations fail closed or ask a clarification rather than fabricating a target;
 - if a second LLM call is proposed, measured quality/latency trade-off accompanies the design.
 
-### PR #213 — Knowledge provenance, perspective and temporal continuity
+### PR #214 — Knowledge provenance, perspective and temporal continuity
 
 **Goal:** represent not just what is true, but how it is known, to whom and when.
 
@@ -211,7 +255,7 @@ This does not require seven model calls. Several stages may share one call where
 - migration tests preserve existing campaign data and default legacy records safely;
 - no model can elevate an inference/rumor into canonical truth without an application-authorized workflow.
 
-### PR #214 — Cross-role consistency and narrative grounding
+### PR #215 — Cross-role consistency and narrative grounding
 
 **Goal:** make the adjudicator, proposal generator and narrator agree about the same action and committed reality.
 
@@ -232,7 +276,7 @@ This does not require seven model calls. Several stages may share one call where
 - clarification/manual-roll recovery retains the original request identity and outcome;
 - failures are diagnosable from correlation IDs and sanitized error categories.
 
-### PR #215 — Benchmark hardening and model selection (conditional)
+### PR #216 — Benchmark hardening and model selection (conditional)
 
 **Goal:** establish evidence for a default local model and regression policy.
 
