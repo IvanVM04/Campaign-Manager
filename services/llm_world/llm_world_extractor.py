@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from time import perf_counter
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
