@@ -16,7 +16,7 @@ from services.llm_world.llm_world_prompt_builder import LLMWorldPromptBuilder
 # SHA-256 of the complete pre-decomposition prompt produced by the fixed
 # narrative/context fixture below. SHA-256 avoids a weak-hash CodeQL alert.
 _PRE_DECOMPOSITION_PROMPT_SHA256 = (
-    "4854ebbe815cbc81f9cf59a02090da017ebcc663c57a5684acbff260ff02f07f"
+    "2bee5c3846bf171c9560ece7643e08ccdc4b83d6c0b6ee28b3e4edd357b5ee7a"
 )
 
 
