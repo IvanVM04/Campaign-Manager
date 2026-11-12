@@ -55,7 +55,7 @@ def build_large_campaign_world(
         10: Item(
             id=10,
             name="Insignia de la guardia",
-            description="Insignia oficial de la guardia del puerto.",
+            description="Insignia oficial de Fungoso y de la guardia del puerto.",
         )
     }
     world.item_instances = {
@@ -65,10 +65,11 @@ def build_large_campaign_world(
             instance_number=1,
             owner_id=1,
             condition="Bueno",
+            notes="Pertenece a Fungoso.",
         )
     }
     world.resources = {
-        20: Resource(id=20, name="Crédito portuario", unit="fichas")
+        20: Resource(id=20, name="Crédito portuario", unit="fichas", notes="Recurso de Fungoso.")
     }
     world.resource_balances = {
         200: ResourceBalance(
@@ -76,20 +77,21 @@ def build_large_campaign_world(
             resource_id=20,
             owner_id=1,
             amount=75,
+            notes="Saldo de Fungoso.",
         )
     }
     world.relations = {
         "player-location": Relation(
             id="player-location",
             subject_id=1,
-            relation_type="se encuentra en",
+            relation_type="Fungoso se encuentra en",
             target_id=2,
             active=True,
         ),
         "player-guard": Relation(
             id="player-guard",
             subject_id=1,
-            relation_type="aliado de",
+            relation_type="Fungoso aliado de",
             target_id=3,
             active=True,
         ),
@@ -105,14 +107,14 @@ def build_large_campaign_world(
         "public-guard-shift": Event(
             id="public-guard-shift",
             event_type="public_notice",
-            title="Guardia del puerto: cambio de turno",
+            title="Fungoso recibe aviso: cambio de turno de la guardia",
             description="La guardia ha cambiado de turno.",
             metadata={"entity_ids": [2, 3]},
         ),
         "secret-smuggling-route": Event(
             id="secret-smuggling-route",
             event_type="secret",
-            title="Guardia del puerto: ruta secreta de contrabando",
+            title="Fungoso conoce la ruta secreta de contrabando",
             description="La capitana trabaja para los contrabandistas.",
             consequences="Los guardias protegen la ruta oculta.",
             secret=True,
