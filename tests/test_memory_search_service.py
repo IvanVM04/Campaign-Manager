@@ -528,3 +528,45 @@ def test_search_labels_superseded_events_as_historical(service):
 def test_search_rejects_invalid_character_perspective(service, world):
     with pytest.raises(ValueError, match="character_entity_id"):
         service.search(world, "Fungoso", character_entity_id=True)
+
+
+def test_context_builder_never_reintroduces_another_characters_private_event(service):
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="Fungoso", entity_type="player_character"),
+        },
+        events={
+            "private-clue": Event(
+                id="private-clue",
+                event_type="clue",
+                title="La carta menciona el culto de ceniza",
+                description="Una pista conocida solo por Fungoso.",
+                visibility_scope="character",
+                known_by_entity_ids=[1],
+                provenance_source="direct_observation",
+                metadata={"entity_ids": [1]},
+            )
+        },
+    )
+    builder = ContextBuilder(memory_search_service=service)
+
+    fungoso_context = builder.build(
+        world,
+        "La carta",
+        character_entity_id=1,
+    )
+    other_context = builder.build(
+        world,
+        "Fungoso",
+        character_entity_id=2,
+    )
+    no_perspective = builder.build(
+        world,
+        "Fungoso",
+    )
+
+    assert [event["id"] for event in fungoso_context["events"]] == ["private-clue"]
+    assert other_context["events"] == []
+    assert no_perspective["events"] == []
+    assert "culto de ceniza" in fungoso_context["context"]
+    assert "culto de ceniza" not in other_context["context"]
