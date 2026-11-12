@@ -200,7 +200,7 @@ class CharacterRestService:
                 expected_last_long_rest_elapsed_minutes=last_rest,
                 new_current_hp=character.max_hp,
                 new_hit_dice_used=new_hit_dice_used,
-                new_last_long_rest_elapsed_minutes=advanced_clock.elapsed_minutes,
+                new_last_long_rest_elapsed_minutes=expected_elapsed_minutes,
                 conn=conn,
             )
             return CharacterRestResult(
