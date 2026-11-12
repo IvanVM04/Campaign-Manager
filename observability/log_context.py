@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from collections.abc import Iterator
 
 _request_id: ContextVar[str | None] = ContextVar("campaign_manager_request_id", default=None)
 _campaign_id: ContextVar[str | None] = ContextVar("campaign_manager_campaign_id", default=None)
