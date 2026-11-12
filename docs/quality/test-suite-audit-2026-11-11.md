@@ -131,3 +131,19 @@ PR #196 adds a focused rules-engine regression module alongside the existing com
 - The new module is discovered by the existing `tests/rules_engine/` test collection; no special marker or live provider is required.
 
 **Validation note:** this is an inventory of the tests added by PR #196, not a claim that the latest SHA has passed CI. The final PR head must pass the full deterministic Python suite, Ruff, JavaScript tests, both Pyright scopes and both CodeQL language checks.
+
+
+
+## Revalidation after PR #197 — bounded legacy extraction
+
+PR #197 adds deterministic coverage for the legacy narrative-first extraction safeguards without changing the static prompt text.
+
+- `ContextBuilder.build_relevant_world_projection()` selects public, query-relevant records and preserves active-character/current-location entities as mandatory context.
+- The existing selector expands record dependencies, excludes secret events through the public memory search boundary and returns detached records without mutating the canonical world.
+- `LLMWorldExtractor.extract()` accepts an injected context-selector callback, renders the selected projection and enforces the complete-prompt budget before provider invocation.
+- Separate startup settings control the complete legacy prompt (65,536 estimated tokens) and selected world records (8,192 estimated tokens). The existing UTF-8-byte upper-bound estimator is used; it is not an exact model tokenizer.
+- Selector failures and total-prompt overflow fail closed. Tests assert the provider and parser are not called on these failures.
+- Three extractor tests cover selected context, oversized prompt rejection and selector failure. One ContextBuilder test protects active-character/location retention. Two settings tests cover environment/default validation and invalid budget combinations.
+- The static legacy prompt remains byte-for-byte compatible; the existing representative rendered prompt is about 46,851 characters. No live Ollama quality comparison has been executed.
+
+**Validation note:** CI must validate the final PR head. The added tests are deterministic and do not require Ollama; prompt compression/wording changes remain outside this PR until representative live model probes are available.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Protocol
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
@@ -15,6 +16,18 @@ from .llm_world_proposal_validator import LLMWorldProposalValidator
 from .llm_world_response_parser import LLMWorldResponseParser
 
 logger = logging.getLogger(__name__)
+
+
+class LegacyExtractionContextSelector(Protocol):
+    """Application-owned selector injected into the LLM package."""
+
+    def __call__(
+        self,
+        turn_context: TurnContext,
+        query: str,
+        *,
+        max_estimated_tokens: int,
+    ) -> WorldContextProjection: ...
 
 
 def __getattr__(name: str):
@@ -49,6 +62,9 @@ class LLMWorldExtractor:
         max_prompt_tokens: int = LLMWorldProposalPromptBuilder.DEFAULT_MAX_PROMPT_TOKENS,
         max_response_chars: int = LLMWorldProposalValidator.DEFAULT_MAX_RESPONSE_CHARS,
         max_repair_prompt_tokens: int = LLMWorldProposalValidator.DEFAULT_MAX_REPAIR_PROMPT_TOKENS,
+        max_legacy_prompt_tokens: int = 65536,
+        max_legacy_context_tokens: int = 8192,
+        legacy_context_selector: LegacyExtractionContextSelector | None = None,
     ) -> None:
         if not callable(provider):
             raise TypeError(
@@ -65,7 +81,25 @@ class LLMWorldExtractor:
         self.operation_registry = getattr(operation_parser, "registry", None)
         if isinstance(max_prompt_tokens, bool) or not isinstance(max_prompt_tokens, int) or max_prompt_tokens <= 0:
             raise ValueError("max_prompt_tokens must be a positive integer")
+        for value, name in (
+            (max_legacy_prompt_tokens, "max_legacy_prompt_tokens"),
+            (max_legacy_context_tokens, "max_legacy_context_tokens"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"{name} must be an integer")
+            if value <= 0:
+                raise ValueError(f"{name} must be greater than zero")
+        if max_legacy_context_tokens > max_legacy_prompt_tokens:
+            raise ValueError(
+                "max_legacy_context_tokens cannot exceed max_legacy_prompt_tokens"
+            )
+        if legacy_context_selector is not None and not callable(legacy_context_selector):
+            raise TypeError("legacy_context_selector must be callable or None")
+
         self.max_prompt_tokens = max_prompt_tokens
+        self.max_legacy_prompt_tokens = max_legacy_prompt_tokens
+        self.max_legacy_context_tokens = max_legacy_context_tokens
+        self.legacy_context_selector = legacy_context_selector
         self.max_response_chars = max_response_chars
         self.response_parser = LLMWorldResponseParser(operation_parser)
         self.proposal_prompt_builder = LLMWorldProposalPromptBuilder()
@@ -97,6 +131,8 @@ class LLMWorldExtractor:
         self,
         text: str,
         context: TurnContext,
+        *,
+        context_projection: WorldContextProjection | None = None,
     ) -> list[TurnOperation]:
         if not isinstance(text, str):
             raise TypeError(
@@ -113,14 +149,64 @@ class LLMWorldExtractor:
         if not text:
             return []
 
+        if context_projection is not None and not isinstance(
+            context_projection,
+            WorldContextProjection,
+        ):
+            raise TypeError("context_projection must be a WorldContextProjection or None")
+
+        if context_projection is None and self.legacy_context_selector is not None:
+            try:
+                context_projection = self.legacy_context_selector(
+                    context,
+                    text,
+                    max_estimated_tokens=self.max_legacy_context_tokens,
+                )
+            except Exception as exc:
+                raise LLMExtractionError(
+                    "legacy extraction context selection failed"
+                ) from exc
+            if not isinstance(context_projection, WorldContextProjection):
+                raise LLMExtractionError(
+                    "legacy extraction context selector returned an invalid projection"
+                )
+
         prompt = self._build_prompt(
             text,
             context,
+            context_projection,
+        )
+        prompt_estimated_tokens = estimate_tokens(prompt)
+        if prompt_estimated_tokens > self.max_legacy_prompt_tokens:
+            raise LLMExtractionError(
+                "legacy extraction prompt exceeds the configured estimated token budget"
+            )
+
+        log_fields = {
+            "prompt_chars": len(prompt),
+            "prompt_estimated_tokens": prompt_estimated_tokens,
+            "prompt_budget_tokens": self.max_legacy_prompt_tokens,
+            "prompt_budget_utilization": (
+                prompt_estimated_tokens / self.max_legacy_prompt_tokens
+            ),
+        }
+        if context_projection is not None:
+            diagnostics = context_projection.diagnostics
+            log_fields.update({
+                "context_estimated_tokens": diagnostics.estimated_tokens,
+                "context_budget_tokens": diagnostics.budget_tokens,
+                "available_records": diagnostics.available_records,
+                "candidate_records": diagnostics.candidate_records,
+                "selected_records": diagnostics.selected_records,
+                "excluded_records": diagnostics.excluded_records,
+                "selected_counts": dict(diagnostics.selected_counts),
+            })
+        logger.debug(
+            "Prepared bounded legacy extraction prompt",
+            extra=log_fields,
         )
 
-        raw_response = self.provider(
-            prompt
-        )
+        raw_response = self.provider(prompt)
 
         response_text = (
             raw_response
@@ -229,9 +315,17 @@ class LLMWorldExtractor:
     # ============================================================
 
     @staticmethod
-    def _build_prompt(text: str, context: TurnContext) -> str:
+    def _build_prompt(
+        text: str,
+        context: TurnContext,
+        projection: WorldContextProjection | None = None,
+    ) -> str:
         """Compatibility facade for world-extraction prompt construction."""
-        return LLMWorldPromptBuilder.build_prompt(text, context)
+        return LLMWorldPromptBuilder.build_prompt(
+            text,
+            context,
+            projection=projection,
+        )
 
     # ============================================================
     # RESPONSE PARSING

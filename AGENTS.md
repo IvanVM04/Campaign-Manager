@@ -71,7 +71,9 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - The structured proposal prompt must not be built by parsing or editing the legacy narrative-extraction prompt. PR #161 completed this decoupling.
 - `TurnResolutionService` builds the active structured proposal projection through `ContextBuilder.build_proposal_context()` and passes the typed `models.world_context_projection.WorldContextProjection` to `services/llm_world`.
 - Keep the dependency direction: `services/turns` may orchestrate `services.context`; `services/llm_world` must not import `services.context`.
-- Preserve the active character, related records and dependency records. Never solve context overflow by truncating arbitrary campaign facts.
+- Preserve the active character, current location, related records and dependency bundles. Never solve context overflow by truncating arbitrary campaign facts.
+- Legacy `extract()` receives `ContextBuilder.build_relevant_world_projection()` through an injected callback. Keep the LLM package independent of `services.context`; validate the returned projection and fail closed on selector errors.
+- The legacy complete prompt and selected record context have separate configurable budgets; a total prompt overflow must stop before provider invocation.
 - The shared token-budget helper is a conservative one-UTF-8-byte-per-token upper bound, not a model-specific tokenizer. The complete prompt and compact one-repair request are independently bounded.
 - Keep provider output size-limited, repair attempts limited to one, and model output strictly validated.
 

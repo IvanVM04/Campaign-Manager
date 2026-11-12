@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection
 from models.world_state import WorldState
@@ -173,6 +174,53 @@ class ContextBuilder:
         ContextRenderer._strip_internal_context_fields(result)
 
         return result
+
+    def build_relevant_world_projection(
+        self,
+        turn_context: TurnContext,
+        query: str,
+        *,
+        max_estimated_tokens: int,
+    ) -> WorldContextProjection:
+        """Build a bounded world projection for any model-facing context.
+
+        The active character and current location are mandatory. Search,
+        dependency expansion and deterministic ranking select the remaining
+        public records without mutating the source WorldState.
+        """
+        if not isinstance(turn_context, TurnContext):
+            raise TypeError("turn_context must be a TurnContext")
+        if not isinstance(query, str):
+            raise TypeError("query must be a string")
+
+        mandatory_entity_ids: list[int] = []
+        if turn_context.active_character is not None:
+            entity_id = turn_context.active_character.entity_id
+            if isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                mandatory_entity_ids.append(entity_id)
+        if turn_context.active_character_entity is not None:
+            entity_id = turn_context.active_character_entity.id
+            if (
+                isinstance(entity_id, int)
+                and not isinstance(entity_id, bool)
+                and entity_id not in mandatory_entity_ids
+            ):
+                mandatory_entity_ids.append(entity_id)
+
+        current_location_id = turn_context.campaign.current_location_id
+        if (
+            isinstance(current_location_id, int)
+            and not isinstance(current_location_id, bool)
+            and current_location_id not in mandatory_entity_ids
+        ):
+            mandatory_entity_ids.append(current_location_id)
+
+        return self.build_proposal_context(
+            turn_context.world,
+            query,
+            max_estimated_tokens=max_estimated_tokens,
+            mandatory_entity_ids=mandatory_entity_ids,
+        )
 
     def build_proposal_context(
         self,

@@ -39,9 +39,9 @@ The 778-line DurableNativeTurnService is a coordinator across preparation, execu
 Keep the two pipelines distinct:
 
 1. Active durable proposals: player intent is converted into typed, relevant WorldContextProjection data. Context selection, full prompt, response and one compact repair request have independent budgets. Operation metadata is centralized. Domain authorization and mutation remain downstream.
-2. Legacy narrative-first extraction: extract() and the stable LLMWorldPromptBuilder facade are retained for the legacy planner branch and deprecated SillyTavern mutation route. The old prompt's static text is decomposed into eight ordered source modules and protected by a byte-for-byte rendered-prompt regression fixture.
+2. Legacy narrative-first extraction: `extract()` and the stable `LLMWorldPromptBuilder` facade remain for the legacy planner branch and deprecated SillyTavern mutation route. PR #197 injects the deterministic relevant-context selector, preserves active character/current location, excludes secret events, and enforces separate context/complete-prompt budgets before provider invocation. Direct callers without a selector retain the legacy builder but fail closed at the total-prompt cap.
 
-PR #194 changed source organization, not prompt length or model output quality. The 46,851-character legacy prompt is not the active proposal prompt. It should not be shortened or rewritten without representative live-provider probes and consumer retirement evidence.
+PR #194 changed source organization, not prompt length or model output quality. The static instruction set is still long (about 46,851 characters in the representative rendered prompt) and remains byte-for-byte compatible. Context selection fixes unbounded world snapshots; it does not prove the static prompt is optimal. Shortening or rewriting those instructions still requires representative live-provider quality probes.
 
 ### SillyTavern compatibility
 
@@ -99,7 +99,7 @@ The current main commit has green CI summary, Ruff, deterministic tests, scoped 
 
 ### P1 — next implementation sequence
 
-1. **Close the legacy extraction prompt-budget gap or retire the path.** Verify remaining deployed consumers of extract(); if supported callers remain, design a separate full-prompt/context budget and relevant-context policy with large-campaign fixtures and live Ollama quality probes. Do not truncate arbitrary world facts or reuse the 8,192-token structured-proposal limit without measurement.
+1. **Measure and simplify the static legacy extraction instructions.** PR #197 bounds dynamic world context and the complete prompt, while preserving the existing static prompt. Run representative live Ollama quality probes and only then simplify redundant instructions; retain the golden compatibility fixture until an intentional prompt version change is approved.
 2. **Complete combat attack-profile extraction.** Move player/NPC equipment and natural-attack profile resolution into an application collaborator. Keep validation behavior, supported metadata, attack result shape and transaction boundaries unchanged.
 3. **Decompose DurableNativeTurnService.** Extract cohesive public lifecycle workflows behind the current service façade. Preserve turn idempotency, campaign revision checks, lease fencing, clarification/manual-roll retries, narration recovery and atomic commit.
 4. **Audit CombatEncounterService transactions.** Map writes to encounter snapshots, canonical CharacterState/CreatureState HP and persistent effects. Add failure/rollback tests before moving responsibilities.
