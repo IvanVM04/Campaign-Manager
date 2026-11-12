@@ -21,10 +21,11 @@ def test_registry_marks_model_proposable_operations_explicitly():
     allowed = DEFAULT_OPERATION_REGISTRY.model_proposable_operation_types()
 
     assert "create_entity" in allowed
-    assert "create_event" in allowed
+    assert "create_event" not in allowed
     assert "change_character_hp" not in allowed
     assert allowed == tuple(sorted(set(allowed)))
     assert DEFAULT_OPERATION_REGISTRY.is_model_proposable("change_character_hp") is False
+    assert DEFAULT_OPERATION_REGISTRY.is_model_proposable("create_event") is False
 
 
 def test_generated_json_schema_uses_dataclass_fields_and_required_values():
@@ -100,7 +101,7 @@ def test_default_prompt_contract_is_compact_enough_to_leave_room_for_world_conte
     contract = DEFAULT_OPERATION_REGISTRY.render_prompt_contract()
 
     assert len(contract) <= 3500
-    assert len(DEFAULT_OPERATION_REGISTRY.model_proposable_operation_types()) == 14
+    assert len(DEFAULT_OPERATION_REGISTRY.model_proposable_operation_types()) == 13
 
 
 def test_empty_proposal_allowlist_renders_empty_contract_without_fallback():
@@ -110,3 +111,10 @@ def test_empty_proposal_allowlist_renders_empty_contract_without_fallback():
 
     assert contract["operations"] == {}
     assert contract["examples"] == {}
+
+
+def test_canonical_event_creation_is_reserved_for_a_trusted_workflow():
+    metadata = DEFAULT_OPERATION_REGISTRY.get("create_event")
+
+    assert metadata is not None
+    assert metadata.model_proposable is False
