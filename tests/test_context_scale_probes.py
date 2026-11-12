@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+from services.context import ContextBuilder
 from tests.context_scale_test_support import (
     build_large_campaign_world,
     projection_fingerprint,
 )
-
-from services.context import ContextBuilder
 
 
 def test_large_campaign_selection_is_bounded_and_reports_category_diagnostics():
