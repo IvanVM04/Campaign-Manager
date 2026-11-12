@@ -77,7 +77,7 @@ def test_real_ollama_full_turn_persists_world_change():
     from services.llm_world import LLMWorldExtractor
     from services.llm_world.operation_parser import OperationParser
     from services.providers import OllamaProvider
-        from services.world import WorldService
+    from services.world import WorldService
 
     world_service = WorldService()
     world_service.load()
@@ -171,7 +171,7 @@ def test_real_ollama_regeneration_restores_previous_snapshot():
     from services.llm_world import LLMWorldExtractor
     from services.llm_world.operation_parser import OperationParser
     from services.providers import OllamaProvider
-        from services.world import WorldService
+    from services.world import WorldService
 
     world_service = WorldService()
 
