@@ -7,6 +7,7 @@
 
 - [Architecture map — 2026-11-12](architecture-map-2026-11-12.md): package/module ownership, execution paths, protected compatibility surfaces and improvement register.
 - [Current architecture audit — 2026-11-12](architecture-audit-2026-11-12.md): latest source-verified architecture findings and refactoring priorities.
+- [Combat attack-profile boundary](combat-attack-profile-boundary.md): player/NPC profile selection, rules derivation and atomic persistence contracts.
 
 - [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
 - [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, observed CI results and merge-enforcement gap.

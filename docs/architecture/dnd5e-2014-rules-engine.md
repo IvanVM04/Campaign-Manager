@@ -14,9 +14,15 @@ The first supported mechanics are:
 - Character proficiency bonus by level.
 - Generic ability checks and skill checks, including proficiency and expertise.
 - Saving throws, including saving-throw proficiency.
+- Weapon attack profiles: ability choice for finesse, ranged/melee ability
+  selection, weapon proficiency and versatile damage dice.
+- Natural-attack profiles: Strength/Dexterity modifier, optional proficiency
+  bonus and validated damage-dice expressions.
 
-This is not yet a complete character sheet, combat engine, attack resolver,
-spell system or character progression system.
+This is not a complete character sheet, combat engine, spell system or
+character progression system. The application currently supports a bounded
+weapon/natural-attack profile and attack-resolution path; multiattack,
+spellcasting and the complete action economy are not implemented.
 
 ## Rule references
 
@@ -130,10 +136,18 @@ FastAPI, campaign orchestration and the LLM.
   Strength/Dexterity save failures, attack advantage/disadvantage and
   cumulative exhaustion effects.
 
-This is still the domain foundation, not the complete combat loop. Conditions
-do not yet have source/duration tracking, encounter state is not persisted,
-and weapon proficiency, equipment-derived attack bonuses, action economy,
-movement/range/cover, death saves, concentration and spell effects remain
-subsequent integration work.
+The integrated combat path supports persisted encounter state, initiative,
+manual/automatic attacks, typed player/NPC weapon and natural-attack profiles,
+damage defenses, HP/death-track transitions, death saves, grid movement and
+opportunity attacks. `AttackProfileResolver` loads equipment and campaign NPC
+metadata; the rules engine derives only the numeric weapon/natural-attack
+mechanics. These are separate boundaries: the rules engine does not read
+repositories or decide which inventory item is equipped.
+
+This is still a bounded combat slice, not the complete 2014 combat loop.
+Conditions do not yet have source/duration tracking; multiple attacks,
+multiattack action definitions, bonus actions, ranged distance/cover,
+ammunition/loading tracking, special weapon resolvers, concentration and spell
+effects remain subsequent work.
 
 Rules baseline: [System Reference Document 5.1 (Creative Commons)](https://media.wizards.com/2016/downloads/DND/SRD-OGL_V5.1.pdf).

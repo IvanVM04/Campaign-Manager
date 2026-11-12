@@ -295,7 +295,7 @@ def attack_in_combat_encounter(encounter_id: str, data: EncounterAttackIn):
         }
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (ValueError, RuntimeError) as exc:
+    except (TypeError, ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
@@ -374,7 +374,7 @@ def resolve_opportunity_attack(encounter_id: str, data: EncounterOpportunityAtta
         }
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (ValueError, RuntimeError) as exc:
+    except (TypeError, ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 @router.post("/encounters/{encounter_id}/reaction")

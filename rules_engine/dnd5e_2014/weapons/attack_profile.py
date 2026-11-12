@@ -1,7 +1,10 @@
-"""Server-derived attack profiles from character state and equipped weapons."""
+"""Server-derived weapon and natural-attack profiles for D&D 5e (2014)."""
+
+import re
 from dataclasses import dataclass
 
 from rules_engine.dnd5e_2014.character import CharacterRulesInput
+from rules_engine.dnd5e_2014.core.abilities import ability_modifier
 from rules_engine.dnd5e_2014.weapons.catalog import WeaponDefinition, WeaponProperty
 
 
@@ -15,6 +18,54 @@ class AttackProfile:
     damage_type: str
     proficient: bool
     properties: frozenset[WeaponProperty]
+
+
+@dataclass(frozen=True)
+class NaturalAttackProfile:
+    """Derived mechanics for a configured NPC natural attack."""
+
+    attack_ability: str
+    attack_bonus: int
+    damage_dice: str
+    damage_bonus: int
+    damage_type: str
+    proficient: bool
+
+
+_NATURAL_DAMAGE_DICE = re.compile(r"^([1-9][0-9]*)d(4|6|8|10|12|20)$")
+
+
+def derive_natural_attack_profile(
+    character: CharacterRulesInput,
+    *,
+    attack_ability: str,
+    damage_dice: str,
+    damage_type: str,
+    proficient: bool,
+) -> NaturalAttackProfile:
+    """Derive NPC natural-attack bonuses through the deterministic rules layer."""
+    if attack_ability not in ("strength", "dexterity"):
+        raise ValueError("natural attacks use Strength or Dexterity")
+    if not isinstance(proficient, bool):
+        raise TypeError("natural attack proficiency must be a boolean")
+    if (
+        not isinstance(damage_dice, str)
+        or _NATURAL_DAMAGE_DICE.fullmatch(damage_dice) is None
+    ):
+        raise ValueError("natural attack damage dice are not supported")
+    if not isinstance(damage_type, str) or not damage_type.strip():
+        raise ValueError("natural attack damage type must be a non-empty string")
+
+    modifier = ability_modifier(getattr(character, attack_ability))
+    proficiency_bonus = character.proficiency_bonus if proficient else 0
+    return NaturalAttackProfile(
+        attack_ability=attack_ability,
+        attack_bonus=modifier + proficiency_bonus,
+        damage_dice=damage_dice,
+        damage_bonus=modifier,
+        damage_type=damage_type,
+        proficient=proficient,
+    )
 
 
 def derive_attack_profile(
