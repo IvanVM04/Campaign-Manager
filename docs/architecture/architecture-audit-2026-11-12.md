@@ -99,11 +99,12 @@ The current main commit has green CI summary, Ruff, deterministic tests, scoped 
 
 ### P1 — next implementation sequence
 
-1. **Complete combat attack-profile extraction.** Move player/NPC equipment and natural-attack profile resolution into an application collaborator. Keep validation behavior, supported metadata, attack result shape and transaction boundaries unchanged.
-2. **Decompose DurableNativeTurnService.** Extract cohesive public lifecycle workflows behind the current service façade. Preserve turn idempotency, campaign revision checks, lease fencing, clarification/manual-roll retries, narration recovery and atomic commit.
-3. **Audit CombatEncounterService transactions.** Map writes to encounter snapshots, canonical CharacterState/CreatureState HP and persistent effects. Add failure/rollback tests before moving responsibilities.
-4. **Review WorldService.** Inventory transaction ownership and dispatch responsibilities; split only where an operation family already has a clear stable boundary.
-5. **Split broad API schemas.** Organize models/schemas.py by bounded context, preserving current router imports through explicit migration or re-export strategy only if needed.
+1. **Close the legacy extraction prompt-budget gap or retire the path.** Verify remaining deployed consumers of extract(); if supported callers remain, design a separate full-prompt/context budget and relevant-context policy with large-campaign fixtures and live Ollama quality probes. Do not truncate arbitrary world facts or reuse the 8,192-token structured-proposal limit without measurement.
+2. **Complete combat attack-profile extraction.** Move player/NPC equipment and natural-attack profile resolution into an application collaborator. Keep validation behavior, supported metadata, attack result shape and transaction boundaries unchanged.
+3. **Decompose DurableNativeTurnService.** Extract cohesive public lifecycle workflows behind the current service façade. Preserve turn idempotency, campaign revision checks, lease fencing, clarification/manual-roll retries, narration recovery and atomic commit.
+4. **Audit CombatEncounterService transactions.** Map writes to encounter snapshots, canonical CharacterState/CreatureState HP and persistent effects. Add failure/rollback tests before moving responsibilities.
+5. **Review WorldService.** Inventory transaction ownership and dispatch responsibilities; split only where an operation family already has a clear stable boundary.
+6. **Split broad API schemas.** Organize models/schemas.py by bounded context, preserving current router imports through explicit migration or re-export strategy only if needed.
 
 ### P2 — navigation and test maintenance
 

@@ -126,7 +126,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| llm_world_extractor.py | Coordinates legacy extract() and active propose() APIs | Retain extract() only for verified compatibility consumers; keep output untrusted. |
+| llm_world_extractor.py | Coordinates legacy extract() and active propose() APIs | Keep paths separate: propose() has independent context/prompt/response/repair budgets; extract() renders the full snapshot and currently has no complete-prompt/context budget check. Retire or separately budget legacy callers before further use. |
 | llm_world_prompt_builder.py | Stable façade for legacy narrative-extraction prompt | Static instructions are decomposed; do not confuse source split with a smaller prompt. |
 | legacy_prompt_sections/ | Ordered static instruction modules | Preserve byte-for-byte composition until a separate quality-measured prompt revision. |
 | llm_world_context_renderer.py | Dynamic campaign/context rendering | Keep it distinct from static prompt instructions and the proposal context selector. |
@@ -227,7 +227,7 @@ Removal requires code/test/script/external-client consumer searches, production 
 
 The active durable proposal flow uses TurnResolutionService -> ContextBuilder -> ProposalContextSelector -> LLMWorldProposalPromptBuilder and has bounded context, full-prompt, response and one-repair budgets. Operation metadata is centralized, and model output remains untrusted.
 
-The legacy narrative-first extract() path still uses the decomposed static instruction modules and a full snapshot rendering. Its 46,851-character source prompt was split into ordered modules by PR #194 without changing rendered output; that change improved maintainability, not model context size. Do not spend more time shortening the active proposal prompt unless real model probes demonstrate a quality issue. If legacy extract() is used externally, its prompt/context budgets and migration plan should be assessed separately.
+The legacy narrative-first extract() path still uses the decomposed static instruction modules and a full snapshot rendering. Its 46,851-character source prompt was split into ordered modules by PR #194 without changing rendered output; that change improved maintainability, not model context size. Unlike propose(), extract() calls the provider without enforcing extraction_prompt_max_tokens or extraction_context_max_tokens; it only bounds response characters after the call. Large campaigns can therefore exceed the intended model context. This is the most urgent remaining prompt issue, but it belongs to the compatibility path rather than the active durable proposal flow. Decide between retiring its remaining callers and implementing a separate measured legacy budget/context policy. Do not apply the proposal's 8,192-token limit blindly or truncate arbitrary world facts.
 
 ## Validation boundaries
 
