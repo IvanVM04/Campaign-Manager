@@ -76,7 +76,7 @@ class CharacterRestService:
             raise ValueError("hit_dice_to_spend cannot exceed 20")
 
         with transaction("IMMEDIATE") as conn:
-            character, clock = self._load_rest_context(
+            character, _clock = self._load_rest_context(
                 character_entity_id,
                 expected_elapsed_minutes=expected_elapsed_minutes,
                 conn=conn,
