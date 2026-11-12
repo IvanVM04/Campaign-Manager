@@ -514,8 +514,31 @@ class WorldRepository:
     # SAVE EVENTS
     # ============================================================
 
+    @staticmethod
+    def _events_in_supersession_order(world):
+        """Order event rows so every superseded event exists before its successor."""
+        pending = dict(world.events)
+        ordered = []
+        saved_ids: set[str] = set()
+        while pending:
+            ready = [
+                event
+                for event in pending.values()
+                if (
+                    event.supersedes_event_id is None
+                    or event.supersedes_event_id in saved_ids
+                )
+            ]
+            if not ready:
+                raise ValueError("event supersession references contain a cycle")
+            for event in ready:
+                ordered.append(event)
+                saved_ids.add(event.id)
+                pending.pop(event.id, None)
+        return ordered
+
     def _save_events(self, conn, world, *, campaign_id):
-        for event in world.events.values():
+        for event in self._events_in_supersession_order(world):
             metadata = (
                 json.dumps(event.metadata)
                 if event.metadata is not None
