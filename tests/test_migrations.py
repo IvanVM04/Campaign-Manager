@@ -1209,7 +1209,7 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
 
     from migrations import MIGRATIONS
 
-    for definition in MIGRATIONS[:-2]:
+    for definition in MIGRATIONS[:-3]:
         definition.apply(conn)
 
     for name, class_name in (
