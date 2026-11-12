@@ -670,15 +670,15 @@ Validated areas include:
 
 * persistent campaign state;
 * structured world operations;
-* LLM-based extraction;
+* structured LLM proposals from player intent;
 * context and memory retrieval;
 * SQLite persistence;
 * REST API;
 * SillyTavern integration;
 * turn versioning;
 * idempotency and conflict detection;
-* snapshot-based regeneration reconciliation;
-* rollback after failed regeneration;
+* narrative-version idempotency and conflict detection;
+* recoverable narration failure without replaying consequences;
 * persistence across a simulated application restart;
 * end-to-end `context → turn → context` behaviour;
 * automated CI testing and Ruff linting.

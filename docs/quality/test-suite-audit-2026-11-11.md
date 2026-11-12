@@ -1,3 +1,5 @@
+> **Point-in-time inventory:** the line counts and proposed test reorganizations below describe the suite on 2026-11-11. PR #193 and the 2026-11-12 legacy-retirement cleanup subsequently moved and retired several of these files. Use the revalidation section at the end for the current disposition; do not use the older inventory table as a live file list.
+
 # Test-suite audit — 2026-11-11
 
 **Repository:** `IvanVM04/Campaign-Manager`  
@@ -147,3 +149,35 @@ PR #197 adds deterministic coverage for the legacy narrative-first extraction sa
 - The static legacy prompt remains byte-for-byte compatible; the existing representative rendered prompt is about 46,851 characters. No live Ollama quality comparison has been executed.
 
 **Validation note:** CI must validate the final PR head. The added tests are deterministic and do not require Ollama; prompt compression/wording changes remain outside this PR until representative live model probes are available.
+
+
+## Revalidation after the 2026-11-12 legacy-retirement cleanup
+
+The narrative-first extractor and snapshot-reconciliation behavior were
+removed together with their implementation. The following test files were
+retired because they exclusively asserted that old behavior:
+
+- `test_llm_world_legacy_extraction.py`
+- `test_llm_world_prompt_sections.py`
+- `test_silly_tavern_service.py`
+- `test_silly_tavern_regeneration.py`
+- `test_silly_tavern_regeneration_failure.py`
+- `test_silly_tavern_retry_idempotency.py`
+- `test_silly_tavern_transactional_lifecycle.py`
+- `silly_tavern_integration_support.py` (legacy-only test support)
+
+Active regression coverage remains in `test_llm_world_proposals.py`,
+`test_turn_resolution_service.py`, `test_turn_mechanics_integration.py`,
+`test_durable_native_turn_service.py`, `test_silly_tavern_api.py`,
+`test_silly_tavern_schemas.py`, `test_turn_repository.py` and
+`test_migrations.py`. The real-provider suite in `test_real_llm.py` now
+probes structured proposals and remains opt-in; it is not part of
+provider-independent deterministic CI.
+
+Migration 029 has a regression test that verifies archived JSON preservation,
+runtime column removal and safe rerun. Historical transcripts without a
+durable resolution remain readable but cannot be mutated or versioned through
+a compatibility bypass.
+
+Update line counts and test inventory only after the complete CI run for this
+cleanup branch; do not infer new counts from the 2026-11-11 baseline.

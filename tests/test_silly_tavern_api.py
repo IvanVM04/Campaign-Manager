@@ -156,7 +156,6 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
             lifecycle_state="narration_pending",
             committed_resolution='{"resulting_revision": 2}',
             clarification_question=None,
-            legacy_replay=False,
         )
 
     def fake_context(query, *, exclude_external_turn_id=None):

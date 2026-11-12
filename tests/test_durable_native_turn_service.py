@@ -244,12 +244,11 @@ def test_silly_tavern_narrative_retry_is_idempotent():
     assert count == 1
 
 
-def test_silly_tavern_legacy_replay_versions_narrative_without_new_resolution():
-    from database import get_conn
+def test_silly_tavern_rejects_transcript_without_durable_resolution():
     from models.turn_record import TurnRecord
 
     service, proposal_calls, _ = _service_with_fake_models()
-    legacy = service.turn_repository.save_turn(
+    service.turn_repository.save_turn(
         TurnRecord(
             player_input="Entro en la taberna.",
             narrative="La taberna está llena.",
@@ -258,110 +257,36 @@ def test_silly_tavern_legacy_replay_versions_narrative_without_new_resolution():
             failed_operation_count=0,
             all_operations_succeeded=True,
             world_changed=True,
-            external_turn_id="legacy-st-turn",
+            external_turn_id="historical-st-turn",
             version=1,
             status="active",
         ),
         scope=service.scope,
     )
 
-    prepared = service.prepare_external_turn(
-        "Entro en la taberna.",
-        external_turn_id="legacy-st-turn",
-    )
-    assert prepared.legacy_replay is True
-    assert prepared.lifecycle_state == "legacy_replay"
+    with pytest.raises(DurableNativeTurnError, match="no durable resolution"):
+        service.prepare_external_turn(
+            "Entro en la taberna.",
+            external_turn_id="historical-st-turn",
+        )
+
+    with pytest.raises(DurableNativeTurnError, match="no durable resolution"):
+        service.complete_external_narration(
+            external_turn_id="historical-st-turn",
+            player_input="Entro en la taberna.",
+            narrative="La taberna está abarrotada.",
+            turn_version=2,
+        )
+
     assert proposal_calls == []
-
-    replay = service.complete_external_narration(
-        external_turn_id="legacy-st-turn",
-        player_input="Entro en la taberna.",
-        narrative="La taberna está abarrotada.",
-        turn_version=2,
-    )
-    assert replay.narrative == "La taberna está abarrotada."
-    assert replay.already_processed is True
-    assert proposal_calls == []
-
-    with get_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT version, status, operation_count, world_changed
-            FROM turns
-            WHERE external_turn_id=?
-            ORDER BY version
-            """,
-            ("legacy-st-turn",),
-        ).fetchall()
-
-    assert [(row["version"], row["status"]) for row in rows] == [
-        (1, "superseded"),
-        (2, "active"),
-    ]
-    assert rows[1]["operation_count"] == legacy.operation_count
-    assert rows[1]["world_changed"] == 1
-
-
-def test_legacy_silly_tavern_replay_skips_a_persisted_failed_version():
-    from models.turn_record import TurnRecord
-
-    service, proposal_calls, _ = _service_with_fake_models()
-    service.turn_repository.save_turn(
-        TurnRecord(
-            player_input="Abro la puerta.",
-            narrative="Versión activa.",
-            external_turn_id="legacy-failed-swipe",
-            version=1,
-            status="active",
-        ),
+    active = service.turn_repository.get_active_by_external_turn_id(
+        "historical-st-turn",
         scope=service.scope,
     )
-    service.turn_repository.save_turn(
-        TurnRecord(
-            player_input="Abro la puerta.",
-            narrative="Versión fallida.",
-            operation_count=1,
-            successful_operation_count=0,
-            failed_operation_count=1,
-            all_operations_succeeded=False,
-            external_turn_id="legacy-failed-swipe",
-            version=2,
-            status="failed",
-        ),
-        scope=service.scope,
-    )
+    assert active is not None
+    assert active.version == 1
+    assert active.narrative == "La taberna está llena."
 
-    preparation = service.prepare_external_turn(
-        "Abro la puerta.",
-        external_turn_id="legacy-failed-swipe",
-    )
-    assert preparation.legacy_replay is True
-
-    result = service.complete_external_narration(
-        external_turn_id="legacy-failed-swipe",
-        player_input="Abro la puerta.",
-        narrative="Nueva versión tras el intento fallido.",
-        turn_version=3,
-    )
-    assert result.narrative == "Nueva versión tras el intento fallido."
-    assert proposal_calls == []
-
-    from database import get_conn
-    with get_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT version, status
-            FROM turns
-            WHERE external_turn_id=?
-            ORDER BY version
-            """,
-            ("legacy-failed-swipe",),
-        ).fetchall()
-    assert [(row["version"], row["status"]) for row in rows] == [
-        (1, "superseded"),
-        (2, "failed"),
-        (3, "active"),
-    ]
 
 def test_manual_roll_challenge_is_server_computed_and_hides_internal_decision():
     from types import SimpleNamespace

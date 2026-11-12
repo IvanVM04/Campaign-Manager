@@ -13,14 +13,14 @@
 - [Test-suite audit — 2026-11-11](../quality/test-suite-audit-2026-11-11.md): suite structure, protected contracts and reorganization plan.
 - [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
 - [LLM context rendering boundary](llm-world-context-rendering-boundaries.md): typed projection ownership and context-budget gap.
-- [Legacy narrative prompt decomposition — 2026-11-12](legacy-prompt-decomposition-2026-11-12.md): static instruction sections and byte-for-byte compatibility baseline.
-- [SillyTavern adapter boundary — 2026-11-12](sillytavern-adapter-boundary-2026-11-12.md): separated read adapter, legacy processor port and composition-root ownership.
+- [SillyTavern adapter boundary — 2026-11-12](sillytavern-adapter-boundary-2026-11-12.md): active read-only adapter and composition-root ownership.
+- [Legacy retirement — 2026-11-12](legacy-retirement-2026-11-12.md): retired turn paths and snapshot data archive.
 
 - [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
 
 - [Architecture and modularity audit — 2026-11-11](architecture-audit-2026-11-11.md): verified package inventory, current runtime/legacy boundaries, prompt pipeline findings, test strategy and the ordered cleanup roadmap.
 - [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): previous detailed audit. Retained as a dated snapshot; several migration-status statements were superseded by subsequent changes.
-- [Turn pipeline compatibility boundaries](turn-pipeline-compatibility.md): active durable native/SillyTavern flow and explicit deprecation gates.
+- [Turn pipeline contract](turn-pipeline-compatibility.md): the single supported durable native/SillyTavern flow.
 - [Durable SillyTavern adapter contract](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete and retry semantics.
 - [Writer, lock and cache audit](writer-lock-cache-audit.md): current single-process synchronization assumptions and mutation ownership.
 - [SQLite transaction ownership](sqlite-transaction-ownership.md): transaction and shared-connection contract.
@@ -29,7 +29,7 @@
 
 ## Historical snapshots
 
-The following documents are retained as decision and audit history. Their findings describe the repository at their recorded baseline and must not be treated as current without checking the 2026-11-11 audit.
+The following documents are retained as decision and audit history. Their findings describe the repository at their recorded baseline and must not be treated as current without checking the 2026-11-12 architecture audit and legacy-retirement record.
 
 - [Current architecture snapshot — 2026-11-05](current-architecture-2026-11-05.md)
 - [Comprehensive architecture audit — 2026-11-05](comprehensive-architecture-audit-2026-11-05.md)
