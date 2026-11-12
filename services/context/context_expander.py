@@ -90,11 +90,22 @@ class ContextExpander:
             entities,
         )
 
-        events = self.related_events(
+        related_events = self.related_events(
             world,
             entities,
             character_entity_id=character_entity_id,
         )
+        # Retain direct event hits even when their metadata has no entity edge.
+        # The direct hits came from the perspective-filtered search; related
+        # events use the same visibility policy before graph expansion.
+        events_by_id: dict[str, dict[str, Any]] = {}
+        for event in (
+            *result.get("events", []),
+            *related_events,
+        ):
+            if isinstance(event, dict) and isinstance(event.get("id"), str):
+                events_by_id.setdefault(event["id"], event)
+        events = sorted(events_by_id.values(), key=lambda event: event["id"])
 
         result["entities"] = entities
         result["relations"] = relations
