@@ -90,11 +90,10 @@ class LLMWorldResponseParser:
         for raw_operation in raw_operations:
             normalized = dict(raw_operation)
             if normalized.get("type") == "create_event":
-                normalized["epistemic_status"] = "inference"
-                normalized["provenance_source"] = "model_inference"
-                normalized["visibility_scope"] = (
-                    "gm_only" if normalized.get("secret") is True else "public"
-                )
+                # These values are controlled by the application, never by the model.
+                normalized.pop("epistemic_status", None)
+                normalized.pop("provenance_source", None)
+                normalized.pop("visibility_scope", None)
             normalized_operations.append(normalized)
 
         try:
