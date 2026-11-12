@@ -247,3 +247,5 @@ def test_event_collection_scopes_character_knowledge_and_exposes_temporal_status
     currentness = {item.id: item.is_current for item in fungoso.items}
     assert currentness["old-fact"] is False
     assert currentness["new-fact"] is True
+    private_projection = next(item for item in fungoso.items if item.id == "private-7")
+    assert not hasattr(private_projection, "known_by_entity_ids")
