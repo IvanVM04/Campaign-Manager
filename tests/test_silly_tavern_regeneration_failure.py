@@ -17,7 +17,7 @@ def test_failed_regeneration_keeps_previous_active_turn_and_records_failed_attem
     )
 
     monkeypatch.setattr(
-        service.extractor,
+        service.legacy_turn_service.extractor,
         "extract",
         lambda narrative, context: (
             [] if narrative == "V1" else [failing_operation]
@@ -54,7 +54,7 @@ def test_failed_regeneration_keeps_previous_active_turn_and_records_failed_attem
         )
 
     monkeypatch.setattr(
-        service.world_service,
+        service.legacy_turn_service.world_service,
         "apply_turn_operations",
         fail_apply,
     )
