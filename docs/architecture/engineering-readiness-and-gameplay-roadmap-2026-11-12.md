@@ -1,7 +1,7 @@
 # Engineering readiness and gameplay roadmap — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Verified baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged).  
+**Verified baseline:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` (PR #214 merged).  
 **Product scope:** local, single-player, single-process modular monolith.  
 **Purpose:** record the post-#205 architecture assessment, remaining engineering validation, module expansion priorities and planning estimates.
 
