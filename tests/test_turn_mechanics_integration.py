@@ -78,7 +78,6 @@ def test_skill_check_is_rolled_by_engine_before_dm_narration():
     assert plan.mechanics_result.check.success is True
     assert extractor.mechanics_results[-1] == plan.mechanics_result
     assert narrative_provider.call_count == 0
-    assert narrative_provider.call_count == 0
     assert len(extractor.received) == 1
 
 
@@ -89,7 +88,7 @@ def test_unskilled_ability_check_uses_only_ability_modifier():
         level=1,
         strength=16,
     )
-    resolver, narrative_provider, _extractor = make_service(
+    resolver, narrative_provider, extractor = make_service(
         '{"decision":"ability_check","ability":"strength","dc":15,'
         '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Empujar la roca"}',
         12,
@@ -117,7 +116,7 @@ def test_saving_throw_uses_character_save_proficiency():
         wisdom=16,
         saving_throw_proficiencies=frozenset({Ability.WISDOM}),
     )
-    resolver, narrative_provider, _extractor = make_service(
+    resolver, narrative_provider, extractor = make_service(
         '{"decision":"saving_throw","ability":"wisdom","dc":14,'
         '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Resistir el miedo"}',
         10,
@@ -133,7 +132,8 @@ def test_saving_throw_uses_character_save_proficiency():
     assert plan.mechanics_result.check.roll.modifier == 5
     assert plan.mechanics_result.check.total == 15
     assert plan.mechanics_result.check.success is True
-    assert "Total: 15" in narrative_provider.last_prompt
+    assert extractor.mechanics_results[-1] == plan.mechanics_result
+    assert narrative_provider.call_count == 0
 
 
 
@@ -144,7 +144,7 @@ def test_manual_roll_pauses_then_resolves_without_second_adjudication():
         dexterity=16,
         skill_proficiencies=frozenset({Skill.STEALTH}),
     )
-    resolver, narrative_provider, _extractor = make_service(
+    resolver, narrative_provider, extractor = make_service(
         '{"decision":"skill_check","skill":"stealth","ability":null,"dc":15,'
         '"advantage":false,"disadvantage":false,"modifier":0,"reason":"Evitar al guardia"}',
         2,

@@ -397,7 +397,7 @@ def test_proposer_receives_player_intent():
 
     assert extractor.calls == [
         (
-            "extract",
+            "propose",
             "La puerta se abre lentamente.",
         )
     ]
@@ -453,7 +453,7 @@ def test_invalid_extractor_result_is_rejected():
                 operation_parser=object(),
             )
 
-        def extract(
+        def propose(
             self,
             text,
             world,
@@ -667,13 +667,13 @@ def test_turn_resolution_order():
 
     original_propose = extractor.propose
 
-    def extract(
+    def propose(
         text,
         world,
     ):
         order.append("proposer")
 
-        return original_extract(
+        return original_propose(
             text,
             world,
         )
@@ -712,10 +712,7 @@ def test_turn_resolution_order():
         "Exploro.",
     )
 
-    assert order == [
-        "dm",
-        "extractor",
-    ]
+    assert order == ["proposer", "dm"]
 
 
 # ============================================================
@@ -775,20 +772,20 @@ def test_turn_resolution_order_with_operation():
         ]
     )
 
-    original_extract = extractor.extract
+    original_propose = extractor.propose
 
-    def extract(
+    def propose(
         text,
         world,
     ):
-        order.append("extractor")
+        order.append("proposer")
 
-        return original_extract(
+        return original_propose(
             text,
             world,
         )
 
-    extractor.extract = extract
+    extractor.propose = propose
 
     applier = RecordingApplier()
 
@@ -822,11 +819,7 @@ def test_turn_resolution_order_with_operation():
         "Conozco a Aldric.",
     )
 
-    assert order == [
-        "dm",
-        "extractor",
-        "applier",
-    ]
+    assert order == ["proposer", "applier", "dm"]
 
 def test_turn_resolution_uses_world_from_turn_context():
 
@@ -975,7 +968,7 @@ def test_turn_resolution_separates_world_and_character_operations(
 
     monkeypatch.setattr(
         extractor,
-        "extract",
+        "propose",
         fake_extract,
     )
 
@@ -1410,7 +1403,6 @@ def test_prepare_turn_builds_bounded_context_for_structured_proposal():
     service.prepare_turn(
         context,
         "Quiero hablar con Mara.",
-        proposal_from_intent=True,
     )
 
     projection = extractor.received_projection
