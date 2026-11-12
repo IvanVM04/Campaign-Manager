@@ -226,5 +226,5 @@ Ordered by expected architectural value, not ease of implementation:
 7. **Campaign runtime lifecycle:** document/test invalidation and shutdown for the current process-local cache before adding any eviction policy.
 8. **Migration navigation:** add an index mapping migration number to schema/data transition before changing the 2,298-line migration history.
 9. **Visibility policy:** define an explicit GM/player permission model for secret events and hidden world state before expanding non-GM read surfaces.
-10. **Legacy extraction prompt budget:** `extract()` sends a full-snapshot prompt without enforcing the prompt/context budget; either retire its remaining callers or implement a separately measured legacy cap/selector with large-campaign and live-quality probes.
+10. **Legacy static prompt quality:** dynamic world context and complete prompt are now bounded in PR #197; run representative large-campaign/live-Ollama probes before shortening the still-large static instruction set.
 11. **Legacy retirement:** keep the old SillyTavern mutation route/snapshots and `extract()` compatibility flow isolated until usage/client/retention evidence authorizes removal.
