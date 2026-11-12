@@ -5,7 +5,7 @@ from services.turns.durable_native_turn_service import DurableNativeTurnError
 from durable_turn_test_support import service_with_fake_models
 
 def test_native_turn_commits_before_narration_and_completes_durably():
-    service, proposal_calls, narrative_calls = _service_with_fake_models()
+    service, proposal_calls, narrative_calls = service_with_fake_models()
 
     result = service.play_turn(
         "Miro alrededor.",
@@ -32,7 +32,7 @@ def test_native_turn_commits_before_narration_and_completes_durably():
     assert record.turn_id is not None
 
 def test_native_turn_retry_does_not_reapply_or_replan_completed_resolution():
-    service, proposal_calls, narrative_calls = _service_with_fake_models()
+    service, proposal_calls, narrative_calls = service_with_fake_models()
 
     first = service.play_turn(
         "Miro alrededor.",
@@ -49,7 +49,7 @@ def test_native_turn_retry_does_not_reapply_or_replan_completed_resolution():
     assert len(narrative_calls) == 1
 
 def test_narration_failure_leaves_committed_resolution_resumable():
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     attempts = {"count": 0}
     proposal_payload = json.dumps({
         "operations": [{
@@ -107,7 +107,7 @@ def test_manual_roll_challenge_is_server_computed_and_hides_internal_decision():
     from models.mechanics import MechanicsDecision, MechanicsDecisionType
     from rules_engine.dnd5e_2014.core.skills import Skill
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     character = CharacterState(
         entity_id=77,
         dexterity=16,
@@ -140,7 +140,7 @@ def test_manual_roll_challenge_is_server_computed_and_hides_internal_decision():
 def test_manual_roll_submission_rejects_malformed_challenge_and_die_results():
     from services.turns.durable_native_turn_service import DurableNativeTurnError
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
 
     with pytest.raises(DurableNativeTurnError):
         service.submit_manual_roll("not-a-challenge", (12,))
@@ -152,7 +152,7 @@ def test_manual_roll_submission_rejects_malformed_challenge_and_die_results():
 def test_native_clarification_survives_and_resumes_durably(monkeypatch):
     from services.turns.turn_resolution_service import TurnResolutionPlan
 
-    service, _, narrative_calls = _service_with_fake_models()
+    service, _, narrative_calls = service_with_fake_models()
     plans = [
         TurnResolutionPlan(
             player_input="Abro la puerta.",
@@ -246,7 +246,7 @@ def test_native_clarification_survives_and_resumes_durably(monkeypatch):
 def test_native_clarification_rotates_challenge_when_more_detail_is_needed(monkeypatch):
     from services.turns.turn_resolution_service import TurnResolutionPlan
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     questions = iter([
         "¿Qué puerta?",
         "¿La abres con cuidado o con fuerza?",
@@ -286,7 +286,7 @@ def test_native_clarification_rotates_challenge_when_more_detail_is_needed(monke
         )
 
 def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
 
     def fail_during_preparation(*args, **kwargs):
         raise RuntimeError("simulated provider failure")
@@ -322,7 +322,7 @@ def test_unexpected_native_turn_failure_logs_original_traceback(caplog):
     assert "lifecycle_state=planning" in entries[0].getMessage()
 
 def test_unexpected_planning_failure_releases_lease_and_recovers_after_runtime_restart():
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
 
     def fail_during_preparation(*args, **kwargs):
         raise RuntimeError("temporary extraction provider outage")
@@ -384,7 +384,7 @@ def test_unexpected_planning_failure_releases_lease_and_recovers_after_runtime_r
     assert completed.lease_expires_at is None
 
 def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries():
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     responses = iter([
         '{"operations": [{"type": "start_interaction"}]}',
         '{"operations": [{"type": "start_interaction"}]}',
@@ -424,7 +424,7 @@ def test_invalid_llm_proposal_releases_planning_lease_and_same_identity_retries(
     assert len(proposal_calls) == 3
 
 def test_context_failure_after_commit_is_recoverable_without_reapplying_operations(monkeypatch):
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     proposal_payload = json.dumps({
         "operations": [{
             "type": "create_entity",
@@ -480,7 +480,7 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     assert any(entity.name == "Aldric" for entity in recovered_world.entities.values())
 
 def test_native_idempotency_key_rejects_different_player_input():
-    service, proposal_calls, narrative_calls = _service_with_fake_models()
+    service, proposal_calls, narrative_calls = service_with_fake_models()
     service.play_turn(
         "Miro alrededor.",
         idempotency_key="native-idempotency-input-conflict",
