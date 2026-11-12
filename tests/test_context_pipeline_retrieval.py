@@ -1,14 +1,14 @@
 import pytest
-from tests.context_pipeline_test_support import (
-    make_complex_world,
-    make_relation,
-    make_world,
-)
 
 from models.event import Event
 from models.item import Item, ItemInstance
 from models.resource import Resource, ResourceBalance
 from services.context import ContextBuilder
+from tests.context_pipeline_test_support import (
+    make_complex_world,
+    make_relation,
+    make_world,
+)
 
 
 def test_pipeline_direct_entity_appears_in_context():
