@@ -852,8 +852,9 @@ def test_turn_history_rejects_negative_offset(client):
 
 
 def test_application_shutdown_clears_cached_campaign_runtimes(monkeypatch):
-    import app as application
     from fastapi.testclient import TestClient
+
+    import app as application
 
     calls = []
     monkeypatch.setattr(application.runtime_factory, "shutdown", lambda: calls.append("shutdown"))
