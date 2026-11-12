@@ -9,10 +9,6 @@ from operations.world_operations import CreateEventOperation
 from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
-
-from services.context import ContextBuilder
-from services.llm_world import LLMWorldExtractor
-from services.llm_world.operation_parser import OperationParser
 from tests.context_scale_test_support import build_large_campaign_world
 
 
