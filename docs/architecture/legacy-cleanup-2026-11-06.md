@@ -1,45 +1,34 @@
-# Legacy cleanup inventory
+# Legacy cleanup inventory — current disposition
 
-**Baseline:** `main` at `20e7d49939c87249e7ad905abd11c135a892f207` (2026-11-06)
+This document began as an inventory on 2026-11-06. The implementation status below was revalidated during the 2026-11-12 cleanup.
 
-This inventory separates confirmed dead code from compatibility code that still has consumers. Age or a legacy name alone is not a deletion criterion.
+## Retired
 
-## Current status verified after PR #159 (2026-11-11)
+- RuntimeProxy and module-level runtime proxies.
+- CampaignTurnService.
+- Flat service re-export modules and old root-level provider/service aliases.
+- Narrative-first `LLMWorldExtractor.extract()` and its callable facade.
+- `LLMWorldPromptBuilder` and the `legacy_prompt_sections/` static prompt modules.
+- Deprecated `POST /integration/turn` and `LegacySillyTavernTurnService`.
+- `WorldSnapshotRepository`, `TurnRecord.snapshot` and the runtime `turns.snapshot` column.
+- Tests that exclusively covered those retired behaviors.
 
-The flat service re-export modules listed in the historical removal inventory have been retired. The legacy import names remain in `tests/test_canonical_service_import_boundaries.py` as a denylist, and that test now verifies that none of those modules can be resolved again. The former runtime proxies and flat combat/provider paths are also retired; they are not outstanding cleanup tasks.
+## Preserved
 
-The remaining compatibility work is limited to the deprecated SillyTavern narrative-first route and its snapshot-backed implementation. Those surfaces remain intentionally supported until external-client usage and migration gates can be verified; see the dedicated retirement audit.
+- One durable native/SillyTavern lifecycle: resolve, challenge continuation and complete.
+- Context/history and external transcript-state reads in the active SillyTavern adapter.
+- Existing transcript versioning, external ID identity and challenge history.
+- Historical non-null snapshot JSON, archived by migration 029 into `turn_snapshot_archive`.
 
-## Removed in this cleanup
+## Data migration
 
-- `services/identity_service.py`: its text-normalization and name-matching helpers have no source-code callers in the repository. No dynamic import or plugin registration references were found in the source search.
-- `data/database.py`: tracked zero-byte artefact with no imports. The actual SQLite implementation remains `database.py`.
-- `services/campaign_runtime.py`: its test consumers now import `CampaignRuntimeFactory` from `bootstrap.campaign_runtime`.
-- Flat compatibility shims `services/campaign_state_service.py`, `services/character_applier.py`, `services/character_service.py`, `services/context_builder.py`, `services/llm_world_extractor.py`, `services/world_service.py`, and `services/turn_execution_lock.py`: all test consumers were migrated to the canonical `services.campaign`, `services.characters`, `services.context`, `services.llm_world`, `services.world`, and `services.turns` packages before deletion.
-- Additional confirmed re-export shims `services/durable_native_turn_service.py`, `services/turn_resolution_service.py`, `services/world_applier.py`, `services/llm_world_prompt_builder.py`, and `services/llm_world_response_parser.py`: consumers now import from `services.turns`, `services.world`, and `services.llm_world`; compatibility-only tests were removed while canonical package export coverage remains.
-- Seven more flat re-export shims removed after migrating production and test imports: `services/context_ranker.py`, `services/context_expander.py`, `services/context_renderer.py`, `services/world_serializer.py`, `services/world_item_applier.py`, `services/world_entity_applier.py`, and `services/llm_extraction_errors.py`. Their implementations remain in `services/context/`, `services/world/`, and `services/llm_world/` respectively.
-- Three combat re-export shims removed after migrating the remaining test imports to `services.combat`: `services/combat_encounter_service.py`, `services/combat_attack_service.py`, and `services/weapon_equipment_service.py`. The runtime already consumed the canonical package; service implementations and combat behavior are unchanged.
-- Two further flat re-export shims, `services/character_creation_service.py` and `services/campaign_clock_service.py`, were removed after migrating their test consumers to `services.characters` and `services.campaign`; the package implementations and exports were already canonical.
-- Eight further flat re-export shims were removed after confirming their only remaining consumers were compatibility-import tests: `services/durable_turn_challenge_state_service.py`, `services/durable_turn_clarification_submission_service.py`, `services/durable_turn_manual_roll_submission_service.py`, `services/durable_turn_narration_service.py`, `services/durable_turn_preparation_mapper.py`, `services/durable_turn_prepared_commit_service.py`, `services/durable_turn_result_mapper.py`, and `services/turn_resolution_codec.py`. Their canonical implementations and public exports remain in `services.turns`; behavior and persisted turn data are unchanged.
-- Four final flat LLM/world re-export shims were removed after migrating three test modules to `services.llm_world` and confirming `services.world_state_port` had no consumers: `services/llm_world_context_renderer.py`, `services/llm_world_proposal_prompt_builder.py`, `services/llm_world_proposal_validator.py`, and `services/world_state_port.py`. Implementations and package exports remain unchanged.
-- The LLM provider boundary is now a real package: `llm_provider.py`, `ollama_provider.py`, `fake_llm_provider.py`, and `llm_settings.py` moved into `services/providers/`. Production and test imports now use `services.providers`; the old flat modules were removed without changing provider behavior.
-- `PersistentEffectService` and `EffectiveConditionService` moved into `services/campaign/`; all runtime and test imports use the canonical package. The old flat modules were removed after checking their in-repository consumers; effect persistence and condition projection behavior are unchanged.
-- `DMService` moved into `services/turns/`; runtime and tests now use the canonical turn package. The old `services/dm_service.py` module was removed after migrating all in-repository consumers; narrative generation behavior is unchanged.
-- `CampaignTurnService` and `tests/test_campaign_turn_service.py` were removed together after repository-wide search confirmed no production or runtime-composition consumers. Its compatibility-only turn path had already been superseded by `DurableNativeTurnService`; the runtime assertion that no `campaign_turn_service` is exposed remains covered in `tests/test_app.py`.
+Migration 029 creates the inert archive table, copies every non-null legacy snapshot payload with its turn and campaign IDs, and drops the former `turns.snapshot` column. The archive is not a second runtime source of truth and has no restore operation. Fresh databases and upgrades from earlier supported schema versions converge on schema version 29.
 
-- `LegacySillyTavernTurnService` moved from the flat `services/` root into `services/turns/` to make turn-lifecycle ownership explicit. This is a relocation only; the deprecated route, snapshot reconciliation and historical data remain supported pending downstream migration sign-off.
+## Rules for future cleanup
 
-## Still legacy, but not dead
-
-| Area | Why it remains | Deletion gate |
-|---|---|---|
-| `POST /integration/turn` and `services/turns/LegacySillyTavernTurnService` | Deprecated route still dispatches to the isolated legacy turn collaborator | Observe zero usage for an agreed window and confirm supported extension clients have migrated; then retire route and collaborator together |
-| `WorldSnapshotRepository` and `turns.snapshot` | Used by legacy SillyTavern regeneration; the repository serializes world rows into a JSON value stored in the nullable `turns.snapshot` column (there are no dedicated snapshot tables) | Retire the legacy route first; confirm no other production writer/reader remains, decide how to retain or clear historical JSON payloads, then remove the repository/column only through a deliberate migration |
-
-## Cleanup rules
-
-1. Search production code, tests, scripts, and documentation for imports/references before deleting a module.
-2. Migrate callers before deleting compatibility shims; do not keep tests importing a shim merely to prove the shim works.
-3. Keep regression tests for active behavior. Delete tests only when the behavior itself is intentionally retired.
-4. Treat deprecated HTTP routes, persistence columns, and stored data as a coordinated compatibility/data migration, not ordinary dead-code cleanup.
-5. Run Ruff, Python tests, and JavaScript tests in CI for every cleanup PR.
+1. Search production code, tests, scripts, docs and supported clients before removing a public or persisted contract.
+2. Migrate callers before deleting compatibility shims.
+3. Retain regression tests for active behavior; remove tests only when the behavior is intentionally retired.
+4. Treat schemas and stored data as deliberate forward migrations.
+5. Require Ruff, Python and JavaScript tests, Pyright scopes and CodeQL checks to pass before merging.
+6. Do not reintroduce a parallel legacy turn/extraction pipeline.

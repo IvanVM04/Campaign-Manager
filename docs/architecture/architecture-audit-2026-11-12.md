@@ -1,133 +1,97 @@
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Verified baseline:** main at eb57316d9b060bb3a09b0b6b08c7282e07fce192 (PR #195, 2026-11-12).  
-**Method:** recursive source-tree inventory, review of the current architecture/legacy/prompt/test/CI audits, package READMEs, dependency matrix, runtime composition, LLM extract/propose boundaries, combat services and representative persistence/rules modules.  
-**Limitations:** no local test run, database migration replay, live Ollama call or manual SillyTavern session was executed during this audit. GitHub Actions results were inspected directly.
+**Baseline:** PR #197 is integrated; this cleanup branch removes the remaining narrative-first extraction and snapshot-reconciliation paths.  
+**Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.
 
 ## Executive assessment
 
-The repository has reached a useful modular-monolith baseline. All eight capability packages contain implementation code, the old flat service re-export layer has been removed, service-to-adapter direction is enforced, the runtime composition root is explicit, and the durable turn path has idempotency/recovery coverage.
+The project is a modular monolith with eight implemented capability packages: campaign, characters, combat, context, llm_world, providers, turns and world. Do not rewrite it as microservices. The immediate cleanup objective was to remove the parallel legacy turn architecture, not replace the active one.
 
-Do not rewrite the application or split it into services. The remaining work is mainly about making existing boundaries authoritative, reducing oversized application coordinators, moving deterministic mechanics out of service code and keeping the deprecated integration path safely isolated.
+This cleanup consolidates the system around one turn contract: player intent is interpreted into a bounded structured proposal; deterministic mechanics and application code validate and commit consequences; narrative is generated from committed evidence; retries, clarifications, manual rolls and transcript versions resume the same durable resolution rather than replaying consequences.
 
-The biggest current architectural risks are not the already-retired shims. They are:
-- the large DurableNativeTurnService coordinator;
-- the large CombatAttackService use case, which still contains attack-profile and NPC metadata translation;
-- transaction/aggregate consistency across combat encounter and canonical character/creature HP;
-- the mixed responsibilities in WorldService;
-- a long-lived legacy narrative-first extraction path that is no longer the active durable proposal prompt.
-
-## Verified repository state
-
-The global navigation is split into complementary references: [architecture map](architecture-map-2026-11-12.md) for capability packages and end-to-end flows, [shared-layer module catalogue](module-catalog-2026-11-12.md) for transport, models, operations, persistence, rules, scripts and tests, and [change-impact map](change-impact-map-2026-11-12.md) for cross-layer consumers and regression requirements. All are linked from the documentation hub and coding-agent instructions.
+## Verified design after this cleanup
 
 ### Capability boundaries
 
-The eight service packages and their ownership are documented in the architecture map. The former root-level services compatibility shims and RuntimeProxy surface are already retired. The external SillyTavern Python adapter now lives under integrations/adapters/silly_tavern. Bootstrap owns construction; API routers obtain request-scoped runtime services.
+The old flat service re-export layer and runtime proxies remain retired. Bootstrap owns composition. API routers obtain request-scoped runtime services. The SillyTavern adapter is isolated under `integrations/adapters/silly_tavern` and owns active context/history and external transcript-state reads only.
 
-The root services directory now consists of capability packages rather than an additional flat service façade. Do not recreate old import paths.
+No compatibility façade should be added merely to preserve an old import path. New code imports from the owning capability package.
 
-### Durable turn workflow
+### Single LLM proposal pipeline
 
-The active durable native path is DurableNativeTurnService -> TurnResolutionService -> ContextBuilder/ProposalContextSelector -> LLMWorldExtractor.propose() -> WorldService. It commits typed consequences durably before narration. Provider calls and narration must remain outside the atomic write transaction.
+`LLMWorldExtractor` exposes the structured player-intent `propose()` workflow. The old `extract()` / callable facade, narrative-first prompt builder and static legacy prompt sections have been removed.
 
-The 778-line DurableNativeTurnService is a coordinator across preparation, execution, clarification, manual rolls, external completion and recovery. It has extracted collaborators already; the next work should preserve the public façade while moving cohesive lifecycle workflows behind it, not create a second orchestration layer.
+The active path is:
 
-### LLM and prompt assessment
+`TurnResolutionService` -> `ContextBuilder.build_proposal_context()` -> `ProposalContextSelector` -> `LLMWorldProposalPromptBuilder` -> `LLMWorldResponseParser` -> `WorldService`.
 
-Keep the two pipelines distinct:
+Context selection preserves the active character and current location, expands dependencies, excludes secret events and creates a detached `WorldContextProjection`. Prompt, selected context, response and one repair request have independent bounded budgets. Model output is untrusted; semantic validation, authorization and mutation remain downstream.
 
-1. Active durable proposals: player intent is converted into typed, relevant WorldContextProjection data. Context selection, full prompt, response and one compact repair request have independent budgets. Operation metadata is centralized. Domain authorization and mutation remain downstream.
-2. Legacy narrative-first extraction: `extract()` and the stable `LLMWorldPromptBuilder` facade remain for the legacy planner branch and deprecated SillyTavern mutation route. PR #197 injects the deterministic relevant-context selector, preserves active character/current location, excludes secret events, and enforces separate context/complete-prompt budgets before provider invocation. Direct callers without a selector retain the legacy builder but fail closed at the total-prompt cap.
+The model receives player intent and confirmed mechanics, not already-generated narrative to reverse-engineer consequences. `TurnResolutionService` separates proposal, apply and narration phases. The durable coordinator commits before narration and does not hold a write transaction while calling a provider.
 
-PR #194 changed source organization, not prompt length or model output quality. The static instruction set is still long (about 46,851 characters in the representative rendered prompt) and remains byte-for-byte compatible. Context selection fixes unbounded world snapshots; it does not prove the static prompt is optimal. Shortening or rewriting those instructions still requires representative live-provider quality probes.
+### SillyTavern integration
 
-### SillyTavern compatibility
+The deprecated `POST /integration/turn` narrative-first mutation endpoint and its `LegacySillyTavernTurnService` have been removed. The active extension contract remains:
 
-PR #195 separated active context/transcript reads from legacy mutation processing. The read adapter is independent of snapshot repositories and mutation workflows; the legacy processor is separately injected at bootstrap.
+- `POST /integration/context`
+- `POST /integration/turn/resolve`
+- `POST /integration/turn/roll`
+- `POST /integration/turn/clarification`
+- `GET /integration/turn/{external_turn_id}`
+- `GET /integration/turn/{external_turn_id}/clarification`
+- `GET /integration/turn/{external_turn_id}/manual-roll`
+- `POST /integration/turn/complete`
 
-The deprecated POST /integration/turn route remains operational, and zero external usage has not been proven. WorldSnapshotRepository serializes state into JSON in the nullable turns.snapshot column; there are no dedicated snapshot tables. Preserve this route/data until the explicit observation-window, supported-client and retention gates in the legacy retirement audit are met.
+The adapter façade keeps context/history and transcript-state reads. It does not perform mutation, narrative extraction or snapshot reconciliation. Completion requires a stable external turn ID.
 
-### Rules and combat
+### Historical snapshot data
 
-The combat application package currently contains an oversized attack use case. It coordinates input guards, opportunity attacks, character/NPC state loading, NPC attack metadata parsing, equipment-derived profiles, conditions, damage, death-state transitions and atomic persistence.
+The runtime `turns.snapshot` field, its repository and all restoration consumers have been removed. Migration 029 copies every non-null historical snapshot payload into `turn_snapshot_archive` and drops the column from the active `turns` table. The archive is inert and intentionally has no runtime reader or writer. Existing campaign/turn history is retained.
 
-The deterministic HP/death-track transition has been moved into rules_engine/dnd5e_2014/combat/hit_points.py in the companion refactor. It receives primitive state and returns a value object; it does not import models, repositories or services. This makes the engine own the rule transition while the service retains canonical-state synchronization and transaction ownership.
+The migration is forward-only. It does not change earlier migration history. Migration tests cover payload preservation, column removal and safe rerun.
 
-The next combat extraction should isolate player/NPC attack-profile resolution, then review transaction ownership for encounter, character/creature HP and effect updates. Do not move repository access into rules_engine.
+### Transactions and persistence
 
-### Other structural hotspots
+The durable turn workflow preserves stable external-turn idempotency, campaign revision checks and lease fencing, a short atomic commit for canonical state and durable resolution, narration/provider calls outside the write transaction, recovery after process restart or provider/narration failure, and no replay of consequences when narrative versions change.
 
-| Area | Verified shape | Finding |
+The rules engine remains pure and repository-free. Application services own transaction boundaries and pass the caller-owned connection to repositories.
+
+## Remaining architectural hotspots
+
+| Area | Current finding | Next safe improvement |
 |---|---|---|
-| DurableNativeTurnService | 778 lines | Next high-value application-coordinator decomposition. |
-| CombatAttackService | 532 lines before the HP transition extraction | Profile and NPC metadata resolution remain mixed into the use case. |
-| CombatEncounterService | 599 lines | Encounter lifecycle, movement, reaction and death-save use cases share one service; split only by stable transaction boundaries. |
-| WorldService | 660 lines | State façade, dispatch and transaction coordination; preserve caller-owned connection semantics. |
-| migrations.py | 2,298 lines / 28 ordered migration functions | Do not split history casually. Introduce an index first and require full replay/data-preservation tests. |
-| models/schemas.py | 514 lines | Broad schema module; split by bounded context with stable import contracts. |
-| bootstrap/campaign_runtime.py | 11 KB | Composition root, not a business-service dumping ground. Keep wiring centralized. |
+| `DurableNativeTurnService` | Large public coordinator spanning multiple lifecycle operations | Decompose cohesive use cases behind the existing façade; preserve idempotency, lease fencing, challenge continuation and restart recovery. |
+| `CombatAttackService` | Attack profile and NPC metadata resolution still mixed into the use case | Extract a typed player/NPC attack-profile resolver without moving repository ownership into rules code. |
+| `CombatEncounterService` | Encounter lifecycle touches encounter snapshots and canonical character/creature state | Map writes and failure/rollback behavior before splitting by use case. |
+| `WorldService` | Dispatch and transaction coordination share a large service | Identify stable operation families and caller-owned connection boundaries before extracting. |
+| `models/schemas.py` | Broad transport schema module | Split by bounded context while preserving OpenAPI and import contracts. |
+| `migrations.py` | Ordered, data-sensitive migration history through version 029 | Keep history ordered; add an index/replay fixture before considering file-level extraction. |
 
 ## Cleanup disposition
 
-### Confirmed retired
+### Retired
 
 - RuntimeProxy and module-level runtime proxies.
 - CampaignTurnService.
-- Flat compatibility shims under services/.
-- Old root SillyTavern integration module; adapter now belongs to integrations/adapters/silly_tavern.
-- Old mixed LLM extractor tests and the former monolithic SillyTavern lifecycle test names were reorganized in PR #193 without deleting test functions.
+- Flat service re-export modules.
+- Narrative-first `LLMWorldExtractor.extract()` and callable facade.
+- Legacy static extraction prompt builder and its prompt-section modules.
+- Deprecated `POST /integration/turn` endpoint and `LegacySillyTavernTurnService`.
+- `WorldSnapshotRepository`, runtime `TurnRecord.snapshot` and `turns.snapshot` column.
+- Regeneration/retry tests that exercised only snapshot restoration and narrative-first mutation.
 
-Do not repeat these cleanup items.
+### Preserved
 
-### Retain with explicit retirement gates
+- The current durable native and SillyTavern endpoints.
+- External-turn idempotency, version/status history and challenge recovery.
+- Historical snapshot JSON in `turn_snapshot_archive`.
+- Earlier migration functions and schema upgrade history.
 
-- POST /integration/turn and LegacySillyTavernTurnService.
-- WorldSnapshotRepository and existing snapshot JSON payloads.
-- Nullable turns.snapshot schema column.
-- Legacy extract() API and LLMWorldPromptBuilder facade while narrative-first compatibility consumers remain.
-- Migration functions and historical migration tests.
-
-No new flat compatibility layer should be introduced. Legacy code should receive bug fixes only when required for supported compatibility, and no new gameplay features should be added to it.
-
-## Ordered roadmap
-
-### P0 — keep quality protection intact
-
-The current main commit has green CI summary, Ruff, deterministic tests, scoped and repository-wide Pyright, and both CodeQL language checks. Every follow-up PR must start from latest main and remain unmerged until all required checks are green.
-
-### P1 — next implementation sequence
-
-1. **Measure and simplify the static legacy extraction instructions.** PR #197 bounds dynamic world context and the complete prompt, while preserving the existing static prompt. Run representative live Ollama quality probes and only then simplify redundant instructions; retain the golden compatibility fixture until an intentional prompt version change is approved.
-2. **Complete combat attack-profile extraction.** Move player/NPC equipment and natural-attack profile resolution into an application collaborator. Keep validation behavior, supported metadata, attack result shape and transaction boundaries unchanged.
-3. **Decompose DurableNativeTurnService.** Extract cohesive public lifecycle workflows behind the current service façade. Preserve turn idempotency, campaign revision checks, lease fencing, clarification/manual-roll retries, narration recovery and atomic commit.
-4. **Audit CombatEncounterService transactions.** Map writes to encounter snapshots, canonical CharacterState/CreatureState HP and persistent effects. Add failure/rollback tests before moving responsibilities.
-5. **Review WorldService.** Inventory transaction ownership and dispatch responsibilities; split only where an operation family already has a clear stable boundary.
-6. **Split broad API schemas.** Organize models/schemas.py by bounded context, preserving current router imports through explicit migration or re-export strategy only if needed.
-
-### P2 — navigation and test maintenance
-
-- Keep package READMEs as local entrypoints and the architecture map as global navigation.
-- Continue splitting only genuinely mixed test files. Do not remove tests to reduce line counts.
-- Refresh test-suite inventories after each test reorganization; the 2026-11-11 large-file table predates the PR #193 test split and should not be treated as a current exact line-count report.
-- Keep module improvement notes close to the owning package README and cross-link to the architecture map.
-
-### P3 — defer until justified
-
-- Migration file-level extraction; preserve ordered replay and historical identity.
-- Runtime cache eviction or distributed coordination; current support is process-local/single-worker.
-- New provider retry/cancellation abstractions; avoid layered hidden retries.
+Do not recreate retired paths. Any future external integration must call the durable resolve/complete lifecycle and carry a stable external turn identity.
 
 ## Acceptance policy
 
-Every implementation PR:
-- begins from the latest integrated main;
-- has one architectural objective and a coherent scope;
-- includes consumer review and regression tests;
-- preserves all applicable public contracts and transaction boundaries;
-- updates package and global navigation documents;
-- passes Ruff, deterministic Python tests, JavaScript tests, required Pyright scopes, repository-wide Pyright and both CodeQL checks;
-- reports live provider/manual client checks separately.
+Every implementation PR starts from the latest integrated `main`, has one coherent architectural objective, searches production/tests/scripts/docs for all affected consumers, preserves contracts/campaign scope/idempotency/transaction ownership, updates package and global docs, and passes Ruff, deterministic Python tests, JavaScript tests, required Pyright scopes, repository-wide Pyright and both CodeQL checks. Live Ollama and manual SillyTavern smoke tests are reported separately.
 
-Do not merge while a required check is failed, pending, cancelled or skipped.
+Do not merge while a required CI check is failed, pending, cancelled or skipped.
