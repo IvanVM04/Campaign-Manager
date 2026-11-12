@@ -9,7 +9,7 @@ indexes over searching through dated audit history.
 2. [Shared-layer module catalogue](architecture/module-catalog-2026-11-12.md) — API, models, operations, repositories, rules engine, tests and shared entrypoints.
 3. [Change-impact map](architecture/change-impact-map-2026-11-12.md) — contracts and tests to review for cross-layer changes.
 4. [Current architecture and modularity audit](architecture/architecture-audit-2026-11-12.md) — verified findings and ordered refactoring plan.
-5. [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) — retired paths, preserved snapshot history and migration 029.
+5. [Migration catalogue](architecture/migration-catalog-2026-11-12.md) — ordered schema history, migration registry and rules for adding the next version.\n6. [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) — retired paths, preserved snapshot history and migration 029.
 6. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries.
 7. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results and quality-gate roadmap.
 8. [Test-suite audit](quality/test-suite-audit-2026-11-11.md) — suite composition, large modules and protected contracts.
