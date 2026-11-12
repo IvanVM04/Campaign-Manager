@@ -597,3 +597,28 @@ def test_player_event_search_and_export_do_not_disclose_other_character_ids(serv
     assert "known_by_entity_ids" not in search_result["events"][0]
     assert exported["events"][0]["id"] == "private"
     assert "known_by_entity_ids" not in exported["events"][0]
+
+
+
+def test_player_event_projections_resolve_provenance_source_name(service):
+    world = WorldState(
+        entities={
+            9: Entity(id=9, name="Aldric", entity_type="npc"),
+        },
+        events={
+            "rumor": Event(
+                id="rumor",
+                event_type="rumor",
+                title="El faro está maldito",
+                epistemic_status="rumor",
+                provenance_source="npc_statement",
+                source_entity_id=9,
+            )
+        },
+    )
+
+    search_result = service.search(world, "faro", character_entity_id=1)
+    exported = service.export(world, character_entity_id=1)
+
+    assert search_result["events"][0]["source_entity_name"] == "Aldric"
+    assert exported["events"][0]["source_entity_name"] == "Aldric"
