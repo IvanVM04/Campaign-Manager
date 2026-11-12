@@ -6,7 +6,7 @@ from api.serializers import serialize_operation_result
 from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationServiceError,
 )
-from models.schemas import (
+from models.integration_api_schemas import (
     SillyTavernClarificationIn,
     SillyTavernContextIn,
     SillyTavernManualRollIn,

@@ -1,6 +1,6 @@
 # Shared-layer module catalogue — 2026-11-12
 
-**Verified against:** `main` at `97e98666b20b455067ca11a7ff26f60e3b82feb9`.  
+**Verified against:** `main` at `95c0066ba60e5cbceff2f5230fcde2cccbec457d` (PR #201), with the bounded-context updates in this branch.  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 
 ## Read this before changing shared layers
@@ -21,7 +21,7 @@
 | `bootstrap/__init__.py` | Public package surface for runtime composition. | Export only stable composition contracts. |
 | `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Preserve the single composition root. Next review: lifecycle invalidation, shutdown and cache eviction only if deployment requirements justify them. Keep provider, context and integration dependencies visible in this file. |
 | `database.py` | SQLite connection helpers, transaction boundaries and database initialization. | Keep connection and transaction ownership explicit. Review nested transaction behavior and shared-connection assumptions before adding repository conveniences. |
-| `migrations.py` | Ordered schema/data migrations 001–029. | This is historical, data-sensitive code. Add a migration index and replay fixture before any file split; preserve idempotency, foreign keys and historical data. |
+| `migrations.py` | Historical migration functions 001–029 plus contiguous `MIGRATIONS` metadata/runner registry. | Do not move or rewrite old functions casually. Use the [migration catalogue](migration-catalog-2026-11-12.md); preserve idempotency, foreign keys and historical data. |
 | `start.bat` | Local Windows startup entrypoint. | Keep aligned with the documented install/run path; avoid embedding configuration defaults that differ from application settings. |
 | `scripts/bootstrap_demo.py` | Creates deterministic demo campaign/world content. | Keep demo data reproducible and safe to run against an explicitly selected database. Add assertions for idempotency/reset semantics before changing it. |
 | `scripts/ci/coverage_summary.py` | Converts coverage XML into package-level CI summary data. | Keep report-only policy separate from test execution. Validate missing/empty coverage inputs and keep package aggregation deterministic. |
@@ -88,7 +88,12 @@ The `models/` directory currently includes domain state, immutable read projecti
 | `models/world_application_result.py` | Aggregate result of applying operations. | Keep deterministic ordering and failure details stable for service/API callers. |
 | `models/world_read_models.py`, `models/world_collection_read_models.py` | Detached entity and collection query DTOs. | Keep pagination metadata stable and display names additive; enforce event visibility before player exposure. |
 | `models/session_read_models.py` | Session list/detail read projection. | Avoid embedding internal session notes unless an explicit GM authorization contract exists. |
-| `models/schemas.py` | Broad Pydantic request schemas for campaign, character, world, turn, integration and other API domains. | Main schema-navigation hotspot. Split by bounded context only with a stable import migration plan; avoid circular imports and preserve OpenAPI contracts. |
+| `models/schemas.py` | Backward-compatible re-export facade for the bounded-context request schema modules. | Keep exports stable for existing consumers; production routers should import from the owning context module. |
+| `models/campaign_api_schemas.py` | Campaign and session request DTOs. | Preserve field validation and campaign API contracts. |
+| `models/character_api_schemas.py` | Character creation request DTO. | Preserve rules-enum validation and character creation contract. |
+| `models/world_api_schemas.py` | World bootstrap request DTOs. | Preserve uniqueness and bounded collection validation. |
+| `models/turn_api_schemas.py` | Native turn, manual roll, dice and clarification request DTOs. | Preserve dice-mode and strict d20 validation. |
+| `models/integration_api_schemas.py` | SillyTavern context, resolve, clarification, manual-roll and completion DTOs. | Preserve external IDs, payload bounds and inheritance from native turn challenge schemas. |
 | `models/combat_api_schemas.py` | Combat-specific request schemas and strict tactical/attack validation. | Keep separate from general schemas; cross-check duplicated constraints between API schemas and service/domain boundaries. |
 | `models/persistent_effect_api_schemas.py` | Persistent-effect API request contracts. | Keep transport validation distinct from effect domain lifecycle invariants. |
 | `models/campaign_clock_api_schemas.py` | Campaign-clock request/response DTOs. | Keep fictional time fields explicit and validated. |
@@ -219,12 +224,12 @@ Ordered by expected architectural value, not ease of implementation:
 
 1. **Combat profile resolution:** keep the selection/metadata boundary in `AttackProfileResolver`, numerical weapon/natural-attack derivation in `rules_engine`, and atomic encounter/HP writes in the use cases. Retain malformed-metadata, NPC selection and HP-synchronization regression coverage.
 2. **Durable turn lifecycle:** request acceptance, idempotency, planning leases and pre-commit recovery now live in `DurableTurnExecutionService` behind `DurableNativeTurnService`. Preserve that boundary; extract another lifecycle family only when it owns a distinct invariant and can be tested independently.
-3. **Combat transaction audit:** map every repository write during create/start/advance/death-save/move/reaction/attack and inject failures to verify encounter snapshots never diverge from canonical character/creature HP or persistent effects.
-4. **World application audit:** map `WorldService` dispatch and connection ownership. Existing applier modules already define operation-family candidates; split coordination only after a transaction map exists.
-5. **Schema bounded contexts:** split `models/schemas.py` by campaign, character, world, turn and integration DTOs. Keep combat/effects/clock schema modules separate and verify OpenAPI output.
+3. **Combat transaction audit:** implemented on this branch; retain failure-injection tests for encounter creation, death saves, timed-effect progression/completion, movement and reactions.
+4. **World application audit:** implemented on this branch with `WorldTurnOperationCoordinator`; preserve ordered dispatch, reference resolution, shared state identity and caller-owned connection behavior.
+5. **Schema bounded contexts:** completed on this branch. Keep combat/effects/clock schema modules separate, retain the `models.schemas` re-export facade and verify OpenAPI output.
 6. **Provider contract coverage:** add a focused provider contract test matrix for success, timeout, unavailable Ollama, malformed JSON and normalized errors; retain fake provider parity.
 7. **Campaign runtime lifecycle:** document/test invalidation and shutdown for the current process-local cache before adding any eviction policy.
-8. **Migration navigation:** add an index mapping migration number to schema/data transition before changing the 2,298-line migration history.
+8. **Migration navigation:** completed on this branch with the explicit 001–029 registry and [migration catalogue](migration-catalog-2026-11-12.md); keep the chronological source and forward-only rule.
 9. **Visibility policy:** define an explicit GM/player permission model for secret events and hidden world state before expanding non-GM read surfaces.
 10. **Structured proposal quality:** run representative large-campaign/live-Ollama probes for the active prompt without coupling deterministic CI to a live provider.
 11. **Legacy retirement:** completed in PR #198; historical snapshot JSON is preserved in the inert archive created by migration 029.

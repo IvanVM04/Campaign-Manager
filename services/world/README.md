@@ -4,7 +4,8 @@
 Apply validated typed world operations to in-memory campaign state, coordinate persistence through repositories and expose serialization/state-port adapters.
 
 ## Modules
-- `world_service.py` — campaign-scoped world facade and transaction coordination.
+- `world_service.py` — campaign-scoped world facade and state publication.
+- `world_turn_operation_coordinator.py` — ordered mixed world/character turn operations, reference resolution hand-off and caller-owned connection coordination.
 - `world_query_service.py` — immutable, filtered and paginated entity read models.
 - `world_collection_query_service.py` — detached read projections for items, instances, resources, balances, relations and events, including display names for related records.
 - `world_visibility_policy.py` — the shared player-read policy for secret events.
@@ -34,7 +35,7 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 ## Pending work
 - [x] Centralize secret-event filtering for world, collection, memory and export reads.
 - [ ] Add authenticated GM/player principals and per-campaign authorization before remote or multi-user exposure.
-- [ ] Audit operation dispatch and multi-aggregate atomicity.
+- [x] Extract mixed turn-operation dispatch and preserve the shared caller-owned transaction; rollback tests cover operation failures.
 - [ ] Verify campaign scoping and stale-context/revision checks at the application boundary.
 - [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
 - [ ] Review serializer consumers before changing its output contract.

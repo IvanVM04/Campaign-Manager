@@ -28,7 +28,7 @@
 - Encounter create/start/advance/death-save/move/reaction:
   `CombatEncounterService` owns one service-level transaction per use case.
 - World operation application: the application caller determines whether it
-  owns the connection; `WorldService` passes it to appliers/repositories.
+  owns the connection; `WorldService` delegates mixed turn application to `WorldTurnOperationCoordinator`, passing the same caller-owned connection to appliers/repositories.
 - Persistent effect lifecycle: effect application/repository boundary owns
   campaign-scoped writes and keeps derived condition projections consistent.
 - Campaign clock reads may use an explicit `DEFERRED` read transaction.
@@ -47,4 +47,5 @@ part of any application transaction or read path.
 - Are in-memory state and persisted state restored together on rollback?
 - Are provider calls kept outside write transactions?
 - Do tests cover rollback, stale revision/lease rejection and retry behavior?
+- For each encounter mutation, does a failure after a write restore both the encounter snapshot and every canonical/effect row?
 - Does a schema change preserve existing data through a forward migration?

@@ -1,4 +1,17 @@
 import sqlite3
+from collections.abc import Callable
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationDefinition:
+    """Discoverable metadata for one ordered, forward-only migration."""
+
+    version: int
+    name: str
+    description: str
+    apply: Callable[[sqlite3.Connection], None]
+
 
 CURRENT_VERSION = 29
 
@@ -1050,154 +1063,20 @@ def migration_015(conn: sqlite3.Connection) -> None:
 
 
 def run_migrations(conn: sqlite3.Connection) -> None:
-    version = conn.execute(
-        "PRAGMA user_version"
-    ).fetchone()[0]
+    """Apply every pending migration in registry order."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
 
-    if version < 1:
-        migration_001(conn)
-        conn.execute("PRAGMA user_version = 1")
-        version = 1
-
-    if version < 2:
-        migration_002(conn)
-        conn.execute("PRAGMA user_version = 2")
-        version = 2
-
-    if version < 3:
-        migration_003(conn)
-        conn.execute("PRAGMA user_version = 3")
-        version = 3
-
-    if version < 4:
-        migration_004(conn)
-        conn.execute("PRAGMA user_version = 4")
-        version = 4
-
-    if version < 5:
-        migration_005(conn)
-        conn.execute("PRAGMA user_version = 5")
-        version = 5
-
-    if version < 6:
-        migration_006(conn)
-        conn.execute("PRAGMA user_version = 6")
-        version = 6
-
-    if version < 7:
-        migration_007(conn)
-        conn.execute("PRAGMA user_version = 7")
-        version = 7
-
-    if version < 8:
-        migration_008(conn)
-        conn.execute("PRAGMA user_version = 8")
-        version = 8
-
-    if version < 9:
-        migration_009(conn)
-        conn.execute("PRAGMA user_version = 9")
-        version = 9
-
-    if version < 10:
-        migration_010(conn)
-        conn.execute("PRAGMA user_version = 10")
-        version = 10
-
-    if version < 11:
-        migration_011(conn)
-        conn.execute("PRAGMA user_version = 11")
-        version = 11
-
-    if version < 12:
-        migration_012(conn)
-        conn.execute("PRAGMA user_version = 12")
-        version = 12
-
-    if version < 13:
-        migration_013(conn)
-        conn.execute("PRAGMA user_version = 13")
-        version = 13
-
-    if version < 14:
-        migration_014(conn)
-        conn.execute("PRAGMA user_version = 14")
-        version = 14
-
-    if version < 15:
-        migration_015(conn)
-        conn.execute("PRAGMA user_version = 15")
-        version = 15
-
-    if version < 16:
-        migration_016(conn)
-        conn.execute("PRAGMA user_version = 16")
-        version = 16
-
-    if version < 17:
-        migration_017(conn)
-        conn.execute("PRAGMA user_version = 17")
-        version = 17
-
-    if version < 18:
-        migration_018(conn)
-        conn.execute("PRAGMA user_version = 18")
-        version = 18
-
-    if version < 19:
-        migration_019(conn)
-        conn.execute("PRAGMA user_version = 19")
-        version = 19
-
-    if version < 20:
-        migration_020(conn)
-        conn.execute("PRAGMA user_version = 20")
-        version = 20
-
-    if version < 21:
-        migration_021(conn)
-        conn.execute("PRAGMA user_version = 21")
-        version = 21
-
-    if version < 22:
-        migration_022(conn)
-        conn.execute("PRAGMA user_version = 22")
-        version = 22
-
-    if version < 23:
-        migration_023(conn)
-        conn.execute("PRAGMA user_version = 23")
-        version = 23
-
-    if version < 24:
-        migration_024(conn)
-        conn.execute("PRAGMA user_version = 24")
-        version = 24
-
-    if version < 25:
-        migration_025(conn)
-        conn.execute("PRAGMA user_version = 25")
-        version = 25
-
-    if version < 26:
-        migration_026(conn)
-        conn.execute("PRAGMA user_version = 26")
-        version = 26
-
-    if version < 27:
-        migration_027(conn)
-        conn.execute("PRAGMA user_version = 27")
-        version = 27
-
-    if version < 28:
-        migration_028(conn)
-        conn.execute("PRAGMA user_version = 28")
-        version = 28
-
-    if version < 29:
-        migration_029(conn)
-        conn.execute("PRAGMA user_version = 29")
-        version = 29
+    for migration in MIGRATIONS:
+        if version >= migration.version:
+            continue
+        if migration.version != version + 1:
+            raise RuntimeError(
+                "migration registry is not contiguous: "
+                f"database is at {version}, next entry is {migration.version}"
+            )
+        migration.apply(conn)
+        conn.execute(f"PRAGMA user_version = {migration.version}")
+        version = migration.version
 
     if version != CURRENT_VERSION:
         raise RuntimeError(
@@ -2333,3 +2212,182 @@ def migration_029(conn: sqlite3.Connection) -> None:
         conn.execute("ROLLBACK TO SAVEPOINT migration_029")
         conn.execute("RELEASE SAVEPOINT migration_029")
         raise
+
+# Keep this tuple in strict numeric order. Migration functions above remain the
+# immutable historical record; this registry is the discoverable execution map.
+MIGRATIONS: tuple[MigrationDefinition, ...] = (
+    MigrationDefinition(
+        version=1,
+        name="migration_001",
+        description="Create the initial campaign, entity, item, resource, session and event schema.",
+        apply=migration_001,
+    ),
+    MigrationDefinition(
+        version=2,
+        name="migration_002",
+        description="Remove obsolete pre-campaign tables.",
+        apply=migration_002,
+    ),
+    MigrationDefinition(
+        version=3,
+        name="migration_003",
+        description="Introduce persistent character mechanics state.",
+        apply=migration_003,
+    ),
+    MigrationDefinition(
+        version=4,
+        name="migration_004",
+        description="Add the campaign active-character pointer.",
+        apply=migration_004,
+    ),
+    MigrationDefinition(
+        version=5,
+        name="migration_005",
+        description="Seed the initial campaign record.",
+        apply=migration_005,
+    ),
+    MigrationDefinition(
+        version=6,
+        name="migration_006",
+        description="Introduce campaign turn history.",
+        apply=migration_006,
+    ),
+    MigrationDefinition(
+        version=7,
+        name="migration_007",
+        description="Add external turn identity.",
+        apply=migration_007,
+    ),
+    MigrationDefinition(
+        version=8,
+        name="migration_008",
+        description="Add turn versioning and reconciliation metadata.",
+        apply=migration_008,
+    ),
+    MigrationDefinition(
+        version=9,
+        name="migration_009",
+        description="Correct turn-versioning indexes and constraints.",
+        apply=migration_009,
+    ),
+    MigrationDefinition(
+        version=10,
+        name="migration_010",
+        description="Allow retrying failed turn versions.",
+        apply=migration_010,
+    ),
+    MigrationDefinition(
+        version=11,
+        name="migration_011",
+        description="Scope existing records and turn history to multiple campaigns; assign existing data to campaign 1.",
+        apply=migration_011,
+    ),
+    MigrationDefinition(
+        version=12,
+        name="migration_012",
+        description="Enforce campaign-scoped names and prevent cross-campaign references.",
+        apply=migration_012,
+    ),
+    MigrationDefinition(
+        version=13,
+        name="migration_013",
+        description="Validate campaign pointers against records in the same campaign.",
+        apply=migration_013,
+    ),
+    MigrationDefinition(
+        version=14,
+        name="migration_014",
+        description="Clear campaign pointers when referenced records are deleted.",
+        apply=migration_014,
+    ),
+    MigrationDefinition(
+        version=15,
+        name="migration_015",
+        description="Persist skill, expertise and saving-throw proficiencies.",
+        apply=migration_015,
+    ),
+    MigrationDefinition(
+        version=16,
+        name="migration_016",
+        description="Persist campaign-scoped combat encounter snapshots.",
+        apply=migration_016,
+    ),
+    MigrationDefinition(
+        version=17,
+        name="migration_017",
+        description="Add typed weapon metadata, proficiencies and equipment references.",
+        apply=migration_017,
+    ),
+    MigrationDefinition(
+        version=18,
+        name="migration_018",
+        description="Persist campaign-scoped effects.",
+        apply=migration_018,
+    ),
+    MigrationDefinition(
+        version=19,
+        name="migration_019",
+        description="Add the authoritative fictional campaign-time clock.",
+        apply=migration_019,
+    ),
+    MigrationDefinition(
+        version=20,
+        name="migration_020",
+        description="Persist campaign-time deadlines for effects.",
+        apply=migration_020,
+    ),
+    MigrationDefinition(
+        version=21,
+        name="migration_021",
+        description="Track monotonic revisions for campaign-owned state.",
+        apply=migration_021,
+    ),
+    MigrationDefinition(
+        version=22,
+        name="migration_022",
+        description="Persist recoverable durable turn-resolution attempts.",
+        apply=migration_022,
+    ),
+    MigrationDefinition(
+        version=23,
+        name="migration_023",
+        description="Record the campaign revision produced by a committed turn.",
+        apply=migration_023,
+    ),
+    MigrationDefinition(
+        version=24,
+        name="migration_024",
+        description="Persist canonical NPC creature mechanics outside encounter snapshots.",
+        apply=migration_024,
+    ),
+    MigrationDefinition(
+        version=25,
+        name="migration_025",
+        description="Add encounter-round and encounter-turn effect deadlines.",
+        apply=migration_025,
+    ),
+    MigrationDefinition(
+        version=26,
+        name="migration_026",
+        description="Make equipment assignment campaign-scoped and slot-based.",
+        apply=migration_026,
+    ),
+    MigrationDefinition(
+        version=27,
+        name="migration_027",
+        description="Add typed armor definitions.",
+        apply=migration_027,
+    ),
+    MigrationDefinition(
+        version=28,
+        name="migration_028",
+        description="Persist light, medium, heavy armor and shield proficiencies.",
+        apply=migration_028,
+    ),
+    MigrationDefinition(
+        version=29,
+        name="migration_029",
+        description="Archive historical turn snapshots before removing the runtime snapshot column.",
+        apply=migration_029,
+    ),
+)

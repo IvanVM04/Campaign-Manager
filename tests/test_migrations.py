@@ -1,6 +1,8 @@
 import sqlite3
 
 from migrations import (
+    CURRENT_VERSION,
+    MIGRATIONS,
     migration_001,
     migration_002,
     migration_003,
@@ -1165,4 +1167,33 @@ def test_migration_029_archives_turn_snapshots_and_removes_runtime_column():
     assert conn.execute(
         "SELECT COUNT(*) FROM turn_snapshot_archive"
     ).fetchone()[0] == 1
+    conn.close()
+
+def test_migration_registry_is_contiguous_named_and_documented():
+    assert tuple(item.version for item in MIGRATIONS) == tuple(
+        range(1, CURRENT_VERSION + 1)
+    )
+    assert len(MIGRATIONS) == CURRENT_VERSION
+    assert all(item.name == item.apply.__name__ for item in MIGRATIONS)
+    assert all(item.description.strip() for item in MIGRATIONS)
+
+
+def test_run_migrations_uses_registry_and_leaves_current_database_unchanged():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    run_migrations(conn)
+    schema_version = conn.execute("PRAGMA user_version").fetchone()[0]
+    table_count = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
+    ).fetchone()[0]
+
+    run_migrations(conn)
+
+    assert schema_version == CURRENT_VERSION
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_VERSION
+    assert conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
+    ).fetchone()[0] == table_count
     conn.close()

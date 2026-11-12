@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from api.runtime_context import get_current_runtime
-from models.schemas import (
+from models.campaign_api_schemas import (
     ActiveCharacterUpdate,
     CampaignCreate,
     CampaignSessionUpdate,

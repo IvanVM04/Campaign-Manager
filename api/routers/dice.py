@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from models.schemas import DiceRollIn
+from models.turn_api_schemas import DiceRollIn
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
 
 router = APIRouter(prefix="/dice", tags=["dice"])

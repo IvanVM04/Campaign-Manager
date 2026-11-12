@@ -2,7 +2,7 @@ from fastapi import APIRouter, Header, Query
 
 from api.errors import api_error_for_exception
 from api.runtime_context import get_current_runtime
-from models.schemas import ClarificationIn, ManualRollIn, TurnIn
+from models.turn_api_schemas import ClarificationIn, ManualRollIn, TurnIn
 
 router = APIRouter()
 

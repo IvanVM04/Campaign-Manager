@@ -1,7 +1,7 @@
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
-**Baseline:** PR #200 is integrated. PR #199 closes player-facing secret-event exposure; PR #198 retired the remaining narrative-first extraction and snapshot-reconciliation paths; PR #200 hardens typed player/NPC attack profiles.  
+**Baseline:** `main` includes PR #201 (`95c0066`). This working branch adds the combat/world/schema/migration consolidation described below; its checks must pass before merge. PR #201 extracted durable turn execution behind its stable façade.  
 **Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.
 
 ## Executive assessment
@@ -69,16 +69,23 @@ NPC/player attack-profile selection is isolated in `services/combat/attack_profi
 
 Encounter creation merges supplied NPC melee profiles, natural attacks and defenses into one creature-state save inside the existing `IMMEDIATE` transaction. Runtime resolution validates persisted metadata again and fails closed if it is malformed. The legacy single `npc_melee_attack` field remains a read fallback for already-persisted creatures; new data writes the list form plus that first-profile field during migration.
 
-## Remaining architectural hotspots
+## Verified boundaries and remaining structural work
 
 | Area | Current finding | Next safe improvement |
 |---|---|---|
-| `DurableNativeTurnService` | Large public coordinator spanning multiple lifecycle operations | Decompose cohesive use cases behind the existing façade; preserve idempotency, lease fencing, challenge continuation and restart recovery. |
+| `DurableNativeTurnService` | Stable public façade/composition point; request idempotency, planning leases, pre-commit recovery and typed failures are behind dedicated collaborators (PR #201). | Preserve the public API, lease fencing, challenge continuation and restart recovery; decompose only when a new lifecycle boundary owns a distinct invariant. |
 | `CombatAttackService` | Coordinates attack validation, effects, rolls and atomic HP/encounter persistence; profile selection now belongs to `AttackProfileResolver`. | Keep the facade as the transaction owner; add future weapon/action families through typed profile contracts and deterministic rules helpers. |
-| `CombatEncounterService` | Encounter lifecycle touches encounter snapshots and canonical character/creature state; NPC profiles/defenses are merged before one creature save during creation. | Continue transaction failure-injection coverage across create/start/advance/death-save/move/reaction; split lifecycle use cases only after mapping write boundaries. |
-| `WorldService` | Dispatch and transaction coordination share a large service | Identify stable operation families and caller-owned connection boundaries before extracting. |
-| `models/schemas.py` | Broad transport schema module | Split by bounded context while preserving OpenAPI and import contracts. |
-| `migrations.py` | Ordered, data-sensitive migration history through version 029 | Keep history ordered; add an index/replay fixture before considering file-level extraction. |
+| `CombatEncounterService` | Every mutating encounter use case owns one explicit `IMMEDIATE` transaction; `complete()` now uses the shared transaction helper. | Failure-injection tests cover create, death-save HP synchronization, turn/effect expiration, completion, movement and reaction rollback. Keep canonical HP and encounter projections in the same transaction. |
+| `WorldService` | Stable facade for world state and appliers; mixed turn-operation dispatch/transaction coordination extracted to `WorldTurnOperationCoordinator`. | Preserve the facade signature, shared `WorldState` identity, operation ordering, reference resolution and caller-owned connection semantics. |
+| `models/schemas.py` | Backward-compatible import facade over campaign, character, world, turn and integration schema modules. | Production routers import from the owning bounded context; keep facade exports and OpenAPI contracts stable. |
+| `migrations.py` | Ordered historical functions 001–029 plus the explicit `MIGRATIONS` metadata/runner registry. | Keep historical bodies in chronological order; use [the migration catalogue](migration-catalog-2026-11-12.md) and preserve fresh/upgrade/idempotency tests. No schema-version change in this consolidation. |
+
+## Consolidation implemented on this branch
+
+- Combat transaction ownership was made uniform for encounter completion and failure-injection tests verify rollback across writes to encounter snapshots, canonical character HP and timed effects.
+- `WorldService.apply_turn_operations()` remains the public entrypoint and delegates to `WorldTurnOperationCoordinator`; caller-supplied connections and in-memory state identity are preserved.
+- API request schemas are split into campaign, character, world, turn and integration modules. `models.schemas` remains a compatibility facade; routers now import their bounded-context schemas directly.
+- The migration runner now uses a contiguous, named `MigrationDefinition` registry and has a [human-readable migration catalogue](migration-catalog-2026-11-12.md). Historical migration functions remain in their original file/order; `CURRENT_VERSION` stays 29.
 
 ## Cleanup disposition
 
