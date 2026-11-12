@@ -51,6 +51,8 @@ def test_short_rest_spends_manual_hit_dice_and_applies_constitution_per_die(
     isolated_database,
 ):
     character = _create_character()
+    initial_clock = CampaignClockRepository().get(1)
+    assert initial_clock is not None
 
     result = _rest_service().short_rest(
         character.entity_id,
@@ -67,7 +69,7 @@ def test_short_rest_spends_manual_hit_dice_and_applies_constitution_per_die(
     assert result.character.hit_dice_used == 2
     assert result.character.level - result.character.hit_dice_used == 3
     assert result.clock.elapsed_minutes == 60
-    assert result.clock.version == 1
+    assert result.clock.version == initial_clock.version + 1
 
 
 def test_short_rest_applies_zero_minimum_healing_per_die_and_caps_at_max_hp(
@@ -102,6 +104,8 @@ def test_short_rest_rejects_spending_more_hit_dice_than_available_without_mutati
     isolated_database,
 ):
     character = _create_character()
+    initial_clock = CampaignClockRepository().get(1)
+    assert initial_clock is not None
     with pytest.raises(ValueError, match="only 5 remain"):
         _rest_service().short_rest(
             character.entity_id,
@@ -113,7 +117,7 @@ def test_short_rest_rejects_spending_more_hit_dice_than_available_without_mutati
         character.entity_id,
         campaign_id=1,
     ).hit_dice_used == 0
-    assert CampaignClockRepository().get(1) is None
+    assert CampaignClockRepository().get(1) == initial_clock
 
 
 def test_long_rest_restores_hp_and_recovers_half_of_spent_hit_dice(
@@ -286,6 +290,8 @@ def test_rest_rolls_back_clock_and_effect_expiry_when_character_write_fails(
     monkeypatch,
 ):
     character = _create_character()
+    initial_clock = CampaignClockRepository().get(1)
+    assert initial_clock is not None
     effect_service = PersistentEffectService(
         repository=PersistentEffectRepository(),
         entity_repository=EntityRepository(),
@@ -317,7 +323,7 @@ def test_rest_rolls_back_clock_and_effect_expiry_when_character_write_fails(
             expected_elapsed_minutes=0,
         )
 
-    assert CampaignClockRepository().get(1) is None
+    assert CampaignClockRepository().get(1) == initial_clock
     persisted_effect = PersistentEffectRepository().get(effect.id, campaign_id=1)
     assert persisted_effect is not None
     assert persisted_effect.status.value == "active"
