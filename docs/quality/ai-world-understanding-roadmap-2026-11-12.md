@@ -1,7 +1,8 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#213 are integrated; PR #214 consolidates knowledge provenance/perspective (#214) and cross-role narrative grounding (#215).  
-**Verified base:** `main` at `3ba5e485fdf89259a3341b50b16d5e36300af634` after PR #213.  
+**Status:** PRs #210–#214 are integrated (PR #214 merged 2026-11-13).  
+**Verified base:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` after PR #214.  
+**Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -20,7 +21,9 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The next phase should improve the quality of each boundary without replacing the architecture or introducing a second proposal pipeline.
+The next implementation phase is P0 shared natural-language understanding and intent resolution. The current architecture does not yet expose one validated semantic interpretation shared by mechanics adjudication and consequence proposals. Do not begin the Character Builder or broad gameplay expansion until the P0 acceptance gates in [the implementation specification](language-understanding-priority-2026-11-13.md) are met.
+
+This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
 **Do not solve comprehension by creating one enormous prompt.** Keep static rules, world facts, player intent, confirmed mechanics, operation schemas and narration evidence as separate, explicit inputs. Give each model role the smallest context sufficient for its responsibility.
 
@@ -271,11 +274,13 @@ gates and must not be marked passed until actually run.
 
 **Consolidation note:** the original roadmap item #215 (cross-role consistency and narrative grounding) is delivered in this PR rather than a second PR. The next conditional model benchmark remains #216.
 
-### PR #216 — Benchmark hardening and model selection (conditional)
+### Deferred follow-up — Benchmark hardening and model selection (after P0)
+
+**Priority:** P2 / conditional. This work is intentionally behind the shared language-understanding P0 implementation and acceptance gate.
 
 **Goal:** establish evidence for a default local model and regression policy.
 
-Only proceed when the corpus is large and stable enough to compare models.
+Only proceed when the expanded corpus is stable enough to compare models. Do not let model selection distract from fixing the shared interpretation contract.
 
 - run the same versioned corpus against candidate Ollama models;
 - record model digest/tag, Ollama version, sampling parameters, hardware class, duration, token/character counts and per-scenario outcomes;
