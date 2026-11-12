@@ -11,7 +11,10 @@ from rules_engine.dnd5e_2014.combat.death_saves import (
     DeathSaveResult,
     resolve_death_saving_throw,
 )
-from rules_engine.dnd5e_2014.combat.hit_points import HitPointDamageState, apply_combatant_damage
+from rules_engine.dnd5e_2014.combat.hit_points import (
+    HitPointDamageState,
+    apply_combatant_damage,
+)
 from rules_engine.dnd5e_2014.combat.initiative import InitiativeResult, roll_initiative
 from rules_engine.dnd5e_2014.combat.movement import (
     GridPosition,
