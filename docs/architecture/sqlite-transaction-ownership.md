@@ -46,5 +46,6 @@ part of any application transaction or read path.
 - Can a failure after the first write leave canonical projections divergent?
 - Are in-memory state and persisted state restored together on rollback?
 - Are provider calls kept outside write transactions?
-- Do tests cover rollback, stale revision/lease rejection and retry behavior?\n- For each encounter mutation, does a failure after a write restore both the encounter snapshot and every canonical/effect row?
+- Do tests cover rollback, stale revision/lease rejection and retry behavior?
+- For each encounter mutation, does a failure after a write restore both the encounter snapshot and every canonical/effect row?
 - Does a schema change preserve existing data through a forward migration?
