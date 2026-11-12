@@ -249,3 +249,29 @@ def test_event_collection_scopes_character_knowledge_and_exposes_temporal_status
     assert currentness["new-fact"] is True
     private_projection = next(item for item in fungoso.items if item.id == "private-7")
     assert not hasattr(private_projection, "known_by_entity_ids")
+
+
+
+def test_event_collection_includes_resolved_provenance_source_name():
+    world = make_world()
+    world.events["rumor"] = Event(
+        id="rumor",
+        event_type="rumor",
+        title="The lighthouse is cursed",
+        provenance_source="npc_statement",
+        source_entity_id=7,
+    )
+
+    event = next(
+        item
+        for item in WorldCollectionQueryService().list_collection(
+            world,
+            "events",
+            character_entity_id=8,
+        ).items
+        if item.id == "rumor"
+    )
+
+    assert event.source_entity_id == 7
+    assert event.source_entity_name == "Aldric"
+    assert not hasattr(event, "known_by_entity_ids")
