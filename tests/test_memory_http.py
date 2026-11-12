@@ -467,6 +467,8 @@ def test_memory_context_accepts_query(
     def fake_build(
         world,
         query,
+        *,
+        character_entity_id=None,
     ):
         assert query == "Aldric"
 
