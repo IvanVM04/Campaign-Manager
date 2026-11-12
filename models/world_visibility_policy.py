@@ -49,11 +49,12 @@ class WorldVisibilityPolicy:
     @staticmethod
     def superseded_event_ids(events: Iterable[Event]) -> frozenset[str]:
         """IDs of historical events explicitly replaced by a later event."""
-        return frozenset(
-            event.supersedes_event_id
-            for event in events
-            if isinstance(getattr(event, "supersedes_event_id", None), str)
-        )
+        superseded_ids: set[str] = set()
+        for event in events:
+            superseded_event_id = event.supersedes_event_id
+            if isinstance(superseded_event_id, str):
+                superseded_ids.add(superseded_event_id)
+        return frozenset(superseded_ids)
 
     @classmethod
     def is_event_current(cls, event: Event, events: Iterable[Event]) -> bool:
