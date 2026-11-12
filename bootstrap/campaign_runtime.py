@@ -9,6 +9,7 @@ from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
 )
 from models.campaign_scope import CampaignScope
+from repositories.activity_event_repository import ActivityEventRepository
 from repositories.campaign_repository import CampaignRepository
 from repositories.character_repository import CharacterRepository
 from repositories.combat_encounter_repository import CombatEncounterRepository
@@ -17,6 +18,7 @@ from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from repositories.turn_repository import TurnRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
+from services.activity import CampaignActivityService
 from services.campaign import (
     CampaignStateService,
     EffectiveConditionService,
@@ -66,6 +68,7 @@ class CampaignRuntime:
     combat_attack_service: CombatAttackService
     weapon_equipment_service: WeaponEquipmentService
     persistent_effect_service: PersistentEffectService
+    campaign_activity_service: CampaignActivityService
     durable_native_turn_service: DurableNativeTurnService
     silly_tavern_integration_service: SillyTavernIntegrationService
 
@@ -148,6 +151,11 @@ class CampaignRuntimeFactory:
             memory_search_service=memory_search_service,
         )
         turn_execution_lock = TurnExecutionLock()
+        activity_event_repository = ActivityEventRepository()
+        campaign_activity_service = CampaignActivityService(
+            scope=scope,
+            repository=activity_event_repository,
+        )
 
         narrative_provider = self._llm_settings.create_provider("narrative")
         extraction_provider = self._llm_settings.create_provider("extraction")
@@ -181,6 +189,7 @@ class CampaignRuntimeFactory:
             context_service=campaign_state_service,
             turn_repository=turn_repository,
             turn_execution_lock=turn_execution_lock,
+            activity_service=campaign_activity_service,
         )
 
         context_adapter = SillyTavernContextAdapter(
@@ -251,6 +260,7 @@ class CampaignRuntimeFactory:
             combat_attack_service=combat_attack_service,
             weapon_equipment_service=weapon_equipment_service,
             persistent_effect_service=persistent_effect_service,
+            campaign_activity_service=campaign_activity_service,
             durable_native_turn_service=durable_native_turn_service,
             silly_tavern_integration_service=silly_tavern_integration_service,
         )
