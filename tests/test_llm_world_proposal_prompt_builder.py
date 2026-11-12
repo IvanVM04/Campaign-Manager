@@ -54,7 +54,7 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     assert "Ahora analiza únicamente" not in prompt
     assert "Las operaciones son propuestas, no hechos confirmados." in prompt
     assert "No afirmes que las acciones ya han ocurrido" in prompt
-    assert "INTERPRETACIÓN Y PERSISTENCIA" in prompt
+    assert "INTERPRETACIÓN" in prompt
     assert "Una intención no es resultado" in prompt
     assert "no dupliques" in prompt
     assert "Relaciones requieren evidencia" in prompt

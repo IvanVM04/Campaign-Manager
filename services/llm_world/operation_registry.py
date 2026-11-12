@@ -32,11 +32,7 @@ from operations.world_operations import (
 
 _FIELD_DESCRIPTIONS: dict[str, str] = {
     "name": "Nombre visible del registro.",
-    "entity_type": (
-        "Categoría de la entidad. Usa npc para una persona identificada; "
-        "location para un lugar; creature para una criatura; "
-        "faction para un grupo organizado."
-    ),
+    "entity_type": "Categoría; npc = persona identificada.",
     "description": (
         "Hechos conocidos y observables. No añadas rasgos, motivos ni "
         "historia que no estén establecidos."
@@ -349,7 +345,7 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                 "type": "create_entity",
                 "name": "Aldric",
                 "entity_type": "npc",
-                "description": "Tabernero de la posada del Dragón, presentado por su nombre.",
+                "description": "Tabernero.",
             },
             model_proposable=True,
         ),
