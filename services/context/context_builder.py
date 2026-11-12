@@ -326,6 +326,7 @@ class ContextBuilder:
         result = self.context_expander.expand(
             world,
             search_result,
+            character_entity_id=character_entity_id,
         )
 
         result["query"] = normalized_query
