@@ -48,15 +48,13 @@ def get_world():
             "relations": list(
                 world.relations.values()
             ),
-            "events": list(
-                [
-                    WorldSerializer.event_to_dict(event)
-                    for event in WorldVisibilityPolicy.player_visible_events(
-                        world.events.values(),
-                        character_entity_id=character_entity_id,
-                    )
-                ]
-            ),
+            "events": [
+                WorldSerializer.event_to_dict(event)
+                for event in WorldVisibilityPolicy.player_visible_events(
+                    world.events.values(),
+                    character_entity_id=character_entity_id,
+                )
+            ],
         }
 
 
