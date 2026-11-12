@@ -929,8 +929,6 @@ def test_get_active_by_external_turn_id_returns_turn_record(
     assert active_turn.external_turn_id == "external-123"
     assert active_turn.version == 1
     assert active_turn.status == "active"
-        '{"entities": [], "items": []}'
-    )
 
 
 def test_get_versions_by_external_turn_id_returns_all_versions(

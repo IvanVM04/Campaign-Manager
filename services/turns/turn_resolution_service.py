@@ -54,23 +54,25 @@ class TurnResolutionService:
     Prepara y aplica un turno en dos fases.
 
     prepare_turn():
-        jugador -> DMService -> narrativa -> LLMWorldExtractor
-        -> TurnResolutionPlan inmutable (sin mutar estado)
+        player intent -> deterministic mechanics + structured proposal
+        -> immutable TurnResolutionPlan (without mutating state)
 
     apply_plan():
-        TurnResolutionPlan + contexto fresco -> WorldService
-        -> resultados de operaciones
+        TurnResolutionPlan + fresh context -> WorldService
+        -> operation results
 
-    resolve_turn() conserva una API de compatibilidad que ejecuta
-    ambas fases en secuencia. CampaignTurnService usa las fases
-    por separado para no mantener SQLite abierta durante inferencia.
+    generate_narrative():
+        context + applied consequences -> DMService -> presentation
+
+    resolve_turn() is a convenience sequence for non-durable callers.
+    DurableNativeTurnService keeps commit and narration as separate phases.
 
     Responsabilidades:
 
     - validar WorldState
     - validar entrada del jugador
-    - generar narrativa mediante DMService
-    - extraer operaciones mediante LLMWorldExtractor
+    - proponer consecuencias estructuradas desde la intención del jugador
+    - generar narración después de aplicar las consecuencias
     - aplicar y persistir operaciones de forma consistente
         mediante WorldService
     - devolver TurnResolutionResult
@@ -508,10 +510,12 @@ class TurnResolutionService:
         recent_turns=None,
         conn=None,
     ) -> TurnResolutionResult:
-        """Backward-compatible convenience wrapper around prepare/apply."""
+        """Convenience wrapper: prepare, apply, then narrate for non-durable callers."""
         plan = self.prepare_turn(turn_context, player_input)
         result = self.apply_plan(turn_context, plan, conn=conn)
-        if conn is not None:
+        if conn is not None or plan.awaiting_manual_roll:
+            return result
+        if plan.clarification_question is not None:
             return result
 
         context = (

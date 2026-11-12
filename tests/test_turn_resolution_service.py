@@ -46,6 +46,10 @@ class RecordingDMService(DMService):
         self,
         turn_context,
         player_input,
+        *,
+        recent_turns=None,
+        mechanics_result=None,
+        committed_resolution=None,
     ):
         self.calls.append(
             (
@@ -58,6 +62,9 @@ class RecordingDMService(DMService):
         return super().generate(
             turn_context,
             player_input,
+            recent_turns=recent_turns,
+            mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
 
@@ -395,12 +402,7 @@ def test_proposer_receives_player_intent():
         "Abro la puerta.",
     )
 
-    assert extractor.calls == [
-        (
-            "propose",
-            "La puerta se abre lentamente.",
-        )
-    ]
+    assert extractor.calls == [("propose", "Abro la puerta.")]
 
 
 def test_extractor_failure_is_wrapped():
@@ -417,8 +419,11 @@ def test_extractor_failure_is_wrapped():
             self,
             text,
             world,
+            *,
+            mechanics_result=None,
+            context_projection=None,
         ):
-            raise RuntimeError("extract failed")
+            raise RuntimeError("proposal failed")
 
     service, dm, _, _applier = (
         make_service()
@@ -457,6 +462,9 @@ def test_invalid_extractor_result_is_rejected():
             self,
             text,
             world,
+            *,
+            mechanics_result=None,
+            context_projection=None,
         ):
             return [
                 "not an operation"
@@ -668,14 +676,18 @@ def test_turn_resolution_order():
     original_propose = extractor.propose
 
     def propose(
-        text,
-        world,
+        player_intent,
+        context,
+        *,
+        mechanics_result=None,
+        context_projection=None,
     ):
         order.append("proposer")
-
         return original_propose(
-            text,
-            world,
+            player_intent,
+            context,
+            mechanics_result=mechanics_result,
+            context_projection=context_projection,
         )
 
     extractor.propose = propose
@@ -775,14 +787,18 @@ def test_turn_resolution_order_with_operation():
     original_propose = extractor.propose
 
     def propose(
-        text,
-        world,
+        player_intent,
+        context,
+        *,
+        mechanics_result=None,
+        context_projection=None,
     ):
         order.append("proposer")
-
         return original_propose(
-            text,
-            world,
+            player_intent,
+            context,
+            mechanics_result=mechanics_result,
+            context_projection=context_projection,
         )
 
     extractor.propose = propose
