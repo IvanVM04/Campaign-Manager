@@ -2221,6 +2221,7 @@ def migration_030(conn: sqlite3.Connection) -> None:
             row["name"] if isinstance(row, sqlite3.Row) else row[1]
             for row in conn.execute("PRAGMA table_info(character_states)").fetchall()
         }
+        backfill_hit_die_sides = "hit_die_sides" not in columns
         additions = {
             "hit_die_sides": (
                 "INTEGER NOT NULL DEFAULT 8 "
@@ -2241,25 +2242,26 @@ def migration_030(conn: sqlite3.Connection) -> None:
                     f"ALTER TABLE character_states ADD COLUMN {name} {definition}"
                 )
 
-        conn.execute("""
-            UPDATE character_states
-            SET hit_die_sides = CASE lower(trim(COALESCE(class_name, '')))
-                WHEN 'barbarian' THEN 12
-                WHEN 'fighter' THEN 10
-                WHEN 'paladin' THEN 10
-                WHEN 'ranger' THEN 10
-                WHEN 'sorcerer' THEN 6
-                WHEN 'wizard' THEN 6
-                WHEN 'bard' THEN 8
-                WHEN 'cleric' THEN 8
-                WHEN 'druid' THEN 8
-                WHEN 'monk' THEN 8
-                WHEN 'rogue' THEN 8
-                WHEN 'warlock' THEN 8
-                ELSE 8
-            END
-        """)
-        conn.execute("RELEASE SAVEPOINT migration_030")
+        if backfill_hit_die_sides:
+            conn.execute("""
+                UPDATE character_states
+                SET hit_die_sides = CASE lower(trim(COALESCE(class_name, '')))
+                    WHEN 'barbarian' THEN 12
+                    WHEN 'fighter' THEN 10
+                    WHEN 'paladin' THEN 10
+                    WHEN 'ranger' THEN 10
+                    WHEN 'sorcerer' THEN 6
+                    WHEN 'wizard' THEN 6
+                    WHEN 'bard' THEN 8
+                    WHEN 'cleric' THEN 8
+                    WHEN 'druid' THEN 8
+                    WHEN 'monk' THEN 8
+                    WHEN 'rogue' THEN 8
+                    WHEN 'warlock' THEN 8
+                    ELSE 8
+                END
+            """)
+            conn.execute("RELEASE SAVEPOINT migration_030")
     except Exception:
         conn.execute("ROLLBACK TO SAVEPOINT migration_030")
         conn.execute("RELEASE SAVEPOINT migration_030")
