@@ -1,6 +1,6 @@
 # Shared-layer module catalogue — 2026-11-12
 
-**Verified against:** `main` at `73b6fc627e4cf94cea5bb8ad97c36f596567c8dc` (PR #204 merged).  
+**Verified against:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged).  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 
 ## Read this before changing shared layers
@@ -19,7 +19,7 @@
 |---|---|---|
 | `app.py` | Creates the FastAPI application, middleware and router registrations. | Keep it as transport composition only. Route registration should remain discoverable; do not move use-case construction here. |
 | `bootstrap/__init__.py` | Public package surface for runtime composition. | Export only stable composition contracts. |
-| `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Preserve the single composition root. Next review: lifecycle invalidation, shutdown and cache eviction only if deployment requirements justify them. Keep provider, context and integration dependencies visible in this file. |
+| `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Shutdown and selective invalidation are implemented/tested (PR #203). Preserve the single composition root; defer deletion/configuration hooks until those lifecycle operations exist, and defer LRU/TTL eviction until measured cache pressure and an in-flight request policy justify it. |
 | `database.py` | SQLite connection helpers, transaction boundaries and database initialization. | Keep connection and transaction ownership explicit. Review nested transaction behavior and shared-connection assumptions before adding repository conveniences. |
 | `migrations.py` | Historical migration functions 001–030 plus contiguous `MIGRATIONS` metadata/runner registry. | Do not move or rewrite old functions casually. Use the [migration catalogue](migration-catalog-2026-11-12.md); preserve idempotency, foreign keys and historical data. |
 | `start.bat` | Local Windows startup entrypoint. | Keep aligned with the documented install/run path; avoid embedding configuration defaults that differ from application settings. |
@@ -220,12 +220,26 @@ Use the existing [capability dependency matrix](package-dependency-matrix.md) as
 
 ## Remaining candidates for future PRs
 
-Ordered by expected architectural value for the local, single-player, single-process scope:
+For the local, single-player, single-process scope, there is no broad
+architecture refactor currently justified. Order the remaining work by
+observable product and validation value:
 
-1. **Provider contract coverage:** add a focused success/timeout/unavailable/malformed-response matrix for Ollama and fake-provider parity. Document normalized errors and choose one retry owner; do not layer invisible retries.
-2. **Campaign runtime lifecycle:** explicitly test invalidation on campaign deletion/configuration changes and define shutdown behavior. Keep the current one-process deployment and avoid premature LRU/TTL complexity.
-3. **Critical branch coverage:** prioritize rollback, stale revision, lease fencing, restart recovery, provider errors and effect expiry. Use the [test-suite navigation](../quality/test-suite-navigation-2026-11-12.md); do not introduce a universal percentage gate.
-4. **Structured proposal quality:** run representative medium/large campaign and live-Ollama probes for the active structured prompt. Keep those probes opt-in and separate from deterministic CI.
-5. **Remote/GM-player visibility model:** define explicit principals and permission policy only before any remote or multi-user exposure; the current local single-player read boundary remains the supported scope.
+1. **Live local acceptance:** run the Ollama + SillyTavern manual smoke test and
+   record backend/extension revisions, model, settings and results.
+2. **Context scale/quality probes:** cover medium/large campaigns, stable
+   ranking, mandatory character/location retention, dependency expansion,
+   budget exhaustion and projection non-mutation. Keep live model-quality
+   probes opt-in.
+3. **Risk-driven branch tests:** extend stale revision, partial-write rollback,
+   lease fencing/recovery and effect-expiry cases when a specific uncovered
+   branch is identified. Do not add a universal coverage threshold.
+4. **Gameplay expansion:** typed character creation/progression, class-specific
+   resources, equipment/combat mechanics and one complete first adventure.
+5. **Remote/GM-player visibility:** define authenticated principals and
+   per-campaign authorization only before remote or multi-user exposure.
 
-Completed structural work is recorded in PRs #198–#204: legacy paths retired, player-safe visibility centralized, combat profiles and durable turn execution hardened, transaction ownership and world-operation coordination clarified, schemas/migrations indexed, provider/runtime concerns documented, and current character Hit Dice/rest state added. Keep those contracts covered rather than reopening completed decompositions without a demonstrated defect.
+Completed structural work is recorded in PRs #198–#203; the first canonical
+character-state/rest slice is PR #204; test organization is PR #205. The
+[engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md)
+records the planning estimates and the distinction between structural
+readiness and functional breadth.
