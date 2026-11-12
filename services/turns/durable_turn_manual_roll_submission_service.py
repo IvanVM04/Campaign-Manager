@@ -128,7 +128,13 @@ class DurableTurnManualRollSubmissionService:
             from rules_engine.dnd5e_2014.core.skills import Skill
             d = pending["decision"]
             decision = MechanicsDecision(decision=MechanicsDecisionType(d["decision"]), skill=Skill(d["skill"]) if d["skill"] else None, ability=Ability(d["ability"]) if d["ability"] else None, dc=d["dc"], advantage=d["advantage"], disadvantage=d["disadvantage"], situational_modifier=d["situational_modifier"], reason=d["reason"], question=d["question"])
-            plan = service.resolver.prepare_turn(context, record.player_input, recent_turns=recent, manual_mode=True, manual_rolls=rolls, decision_override=decision, proposal_from_intent=True)
+            plan = service.resolver.prepare_turn(
+                context,
+                record.player_input,
+                manual_mode=True,
+                manual_rolls=rolls,
+                decision_override=decision,
+            )
             if plan.awaiting_manual_roll or plan.clarification_question:
                 raise self.error_type("manual roll could not be resolved")
             pending["submitted_rolls"] = list(rolls)

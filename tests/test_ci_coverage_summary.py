@@ -48,9 +48,10 @@ def test_summarize_coverage_groups_files_by_top_level_package(tmp_path: Path) ->
     assert api.branches_covered == 1
     assert api.branches_valid == 2
     assert api.branch_percent == 50.0
+    assert api.combined_percent == 75.0
 
 
-def test_render_markdown_marks_report_as_informational(tmp_path: Path) -> None:
+def test_render_markdown_reports_the_enforced_combined_threshold(tmp_path: Path) -> None:
     report = tmp_path / "coverage.xml"
     report.write_text(
         """<coverage><packages><package name="models"><classes>
@@ -62,5 +63,6 @@ def test_render_markdown_marks_report_as_informational(tmp_path: Path) -> None:
 
     markdown = render_markdown(summarize_coverage(report))
 
-    assert "| models | 1/1 | 100.0% | 0/0 | n/a |" in markdown
-    assert "do not impose a coverage threshold" in markdown
+    assert "| models | 1/1 | 100.0% | 0/0 | n/a | 100.0% |" in markdown
+    assert "at least 85.0% combined line/branch coverage" in markdown
+    assert "`fail_under = 85`" in markdown

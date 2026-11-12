@@ -1,4 +1,4 @@
-"""Render a report-only package coverage summary from Cobertura XML."""
+"""Render an enforced combined-coverage summary from Cobertura XML."""
 
 from __future__ import annotations
 
@@ -27,6 +27,13 @@ class CoverageStats(NamedTuple):
         if self.branches_valid == 0:
             return None
         return _percentage(self.branches_covered, self.branches_valid)
+
+    @property
+    def combined_percent(self) -> float:
+        return _percentage(
+            self.lines_covered + self.branches_covered,
+            self.lines_valid + self.branches_valid,
+        )
 
 
 def _percentage(covered: int, valid: int) -> float:
@@ -65,8 +72,8 @@ def render_markdown(stats: list[CoverageStats]) -> str:
     lines = [
         "## Python coverage by top-level package",
         "",
-        "| Package | Lines | Line coverage | Branches | Branch coverage |",
-        "|---|---:|---:|---:|---:|",
+        "| Package | Lines | Line coverage | Branches | Branch coverage | Combined |",
+        "|---|---:|---:|---:|---:|---:|"
     ]
 
     for item in stats:
@@ -78,7 +85,8 @@ def render_markdown(stats: list[CoverageStats]) -> str:
         )
         lines.append(
             f"| {item.package} | {item.lines_covered}/{item.lines_valid} "
-            f"| {item.line_percent:.1f}% | {branch_count} | {branch_percent} |"
+            f"| {item.line_percent:.1f}% | {branch_count} | {branch_percent} "
+            f"| {item.combined_percent:.1f}% |"
         )
 
     total_lines_covered = sum(item.lines_covered for item in stats)
@@ -91,16 +99,21 @@ def render_markdown(stats: list[CoverageStats]) -> str:
         if total_branches_valid
         else "n/a"
     )
+    total_combined_percent = _percentage(
+        total_lines_covered + total_branches_covered,
+        total_lines_valid + total_branches_valid,
+    )
     lines.extend(
         [
             (
                 f"| **Total** | **{total_lines_covered}/{total_lines_valid}** "
                 f"| **{total_line_percent:.1f}%** "
                 f"| **{total_branches_covered}/{total_branches_valid}** "
-                f"| **{total_branch_percent}** |"
+                f"| **{total_branch_percent}** "
+                f"| **{total_combined_percent:.1f}%** |"
             ),
             "",
-            "_Report only: these figures do not impose a coverage threshold._",
+            "_Enforced gate: at least 85.0% combined line/branch coverage (`fail_under = 85`)._",
         ]
     )
     return "\n".join(lines) + "\n"

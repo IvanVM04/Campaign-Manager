@@ -24,6 +24,7 @@ from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationService,
 )
 from services.turns import TurnExecutionLock
+from services.turns.durable_native_turn_service import DurableNativeTurnError
 from services.world import WorldService
 
 def test_integration_context_endpoint_rejects_missing_query(
@@ -345,7 +346,7 @@ def test_integration_clarification_state_endpoint_returns_durable_state(
         "lifecycle_state": "awaiting_input",
         "player_input": "Abro una puerta.",
         "clarification_question": "¿Qué puerta?",
-        "pending_clarification_id": "42:challenge",
+        "pending_clarification_id": "42:" + "c" * 24,
         "last_pending_clarification_id": None,
         "last_answer": None,
         "resolved_player_input": None,
@@ -687,3 +688,316 @@ def test_adapter_exposes_only_active_read_contract():
         integration_module.SillyTavernIntegrationService,
         "_restore_world_state",
     )
+
+
+# ============================================================
+# DURABLE INTEGRATION ROUTE ERROR CONTRACTS
+# ============================================================
+
+
+def _runtime_with_fake_lock(**services):
+    class FakeLock:
+        def acquire(self):
+            return nullcontext()
+
+    return SimpleNamespace(
+        turn_execution_lock=FakeLock(),
+        **services,
+    )
+
+
+def _raise_error(error):
+    def fail(*args, **kwargs):
+        raise error
+
+    return fail
+
+
+def test_integration_context_endpoint_maps_unexpected_service_failure(
+    client,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        silly_tavern_integration_service=SimpleNamespace(
+            get_context=_raise_error(RuntimeError("unexpected context failure"))
+        )
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.post(
+        "/integration/context",
+        json={"query": "Estado de campaña."},
+    )
+
+    assert response.status_code == 500
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (ValueError("invalid external turn id"), 400),
+        (integration_module.SillyTavernIntegrationServiceError("storage failed"), 500),
+        (RuntimeError("unexpected storage failure"), 500),
+    ],
+)
+def test_integration_turn_state_endpoint_maps_read_errors(
+    client,
+    monkeypatch,
+    error,
+    expected_status,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        silly_tavern_integration_service=SimpleNamespace(
+            get_external_turn_state=_raise_error(error)
+        )
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.get("/integration/turn/external-turn-error")
+
+    assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (
+            DurableNativeTurnError("clarification missing"),
+            400,
+        ),
+        (RuntimeError("unexpected clarification failure"), 500),
+    ],
+)
+def test_integration_clarification_state_endpoint_maps_read_errors(
+    client,
+    monkeypatch,
+    error,
+    expected_status,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        durable_native_turn_service=SimpleNamespace(
+            get_external_clarification_state=_raise_error(error)
+        )
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.get(
+        "/integration/turn/external-turn-error/clarification"
+    )
+
+    assert response.status_code == expected_status
+
+
+def test_integration_manual_roll_state_endpoint_maps_durable_error(
+    client,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        durable_native_turn_service=SimpleNamespace(
+            get_external_manual_roll_state=_raise_error(
+                DurableNativeTurnError("manual roll missing")
+            )
+        )
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.get("/integration/turn/external-turn-error/manual-roll")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (
+            integration_module.SillyTavernIntegrationServiceError(
+                "context projection failed"
+            ),
+            500,
+        ),
+        (RuntimeError("unexpected context failure"), 500),
+    ],
+)
+def test_integration_resolve_endpoint_maps_context_failures(
+    client,
+    monkeypatch,
+    error,
+    expected_status,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        durable_native_turn_service=SimpleNamespace(
+            prepare_external_turn=lambda *args, **kwargs: SimpleNamespace(
+                resolution_id=12,
+                lifecycle_state="narration_pending",
+                committed_resolution="{}",
+                clarification_question=None,
+            )
+        ),
+        silly_tavern_integration_service=SimpleNamespace(
+            get_context=_raise_error(error)
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.post(
+        "/integration/turn/resolve",
+        json={
+            "player_input": "Abro la puerta.",
+            "external_turn_id": "st-context-error",
+            "query": "Estado.",
+        },
+    )
+
+    assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (DurableNativeTurnError("invalid roll"), 409),
+        (
+            integration_module.SillyTavernIntegrationServiceError(
+                "context projection failed"
+            ),
+            500,
+        ),
+        (RuntimeError("unexpected roll failure"), 500),
+    ],
+)
+def test_integration_manual_roll_endpoint_maps_submission_errors(
+    client,
+    monkeypatch,
+    error,
+    expected_status,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        durable_native_turn_service=SimpleNamespace(
+            submit_manual_roll=_raise_error(error)
+        ),
+        silly_tavern_integration_service=SimpleNamespace(
+            get_context=lambda query: {}
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.post(
+        "/integration/turn/roll",
+        json={
+            "pending_roll_id": "42:" + "a" * 24,
+            "rolls": [12],
+            "query": "Estado.",
+            "answer_external_turn_id": "st-roll-reply-error",
+        },
+    )
+
+    assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (
+            DurableNativeTurnError("invalid clarification"),
+            409,
+        ),
+        (
+            integration_module.SillyTavernIntegrationServiceError(
+                "context projection failed"
+            ),
+            500,
+        ),
+        (RuntimeError("unexpected clarification failure"), 500),
+    ],
+)
+def test_integration_clarification_endpoint_maps_submission_errors(
+    client,
+    monkeypatch,
+    error,
+    expected_status,
+):
+    from types import SimpleNamespace
+
+    runtime = _runtime_with_fake_lock(
+        durable_native_turn_service=SimpleNamespace(
+            submit_clarification=_raise_error(error)
+        ),
+        silly_tavern_integration_service=SimpleNamespace(
+            get_context=lambda query: {}
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.post(
+        "/integration/turn/clarification",
+        json={
+            "pending_clarification_id": "42:" + "c" * 24,
+            "answer": "La puerta de roble.",
+            "query": "Estado.",
+            "answer_external_turn_id": "st-clarification-reply-error",
+        },
+    )
+
+    assert response.status_code == expected_status
+
+
+def test_integration_complete_endpoint_maps_unexpected_persistence_failure(
+    client,
+    monkeypatch,
+):
+    from types import SimpleNamespace
+
+    runtime = SimpleNamespace(
+        durable_native_turn_service=SimpleNamespace(
+            complete_external_narration=_raise_error(
+                RuntimeError("unexpected persistence failure")
+            )
+        )
+    )
+    monkeypatch.setattr(
+        "api.routers.integration.get_current_runtime",
+        lambda: runtime,
+    )
+
+    response = client.post(
+        "/integration/turn/complete",
+        json={
+            "player_input": "Abro la puerta.",
+            "narrative": "La puerta se abre.",
+            "external_turn_id": "st-complete-error",
+        },
+    )
+
+    assert response.status_code == 500

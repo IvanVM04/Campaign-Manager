@@ -2,7 +2,7 @@
 
 ## Workflow checks vs merge enforcement
 
-The workflows contain blocking jobs, but the current default-branch ruleset has an empty `required_status_checks` list. This means these results are not yet mandatory GitHub merge conditions. See [the CI audit](ci-audit-2026-11-11.md) and configure the ruleset in repository settings.
+The active default-branch ruleset requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. The aggregate CI summary includes deterministic Python tests, Ruff, repository-wide Pyright and JavaScript tests; CodeQL language analyses are independently required. This supersedes the earlier empty-ruleset finding in older audit snapshots. See [the CI audit](ci-audit-2026-11-11.md).
 
 The following checks are expected to pass on every implementation pull request and should be configured as required status checks:
 
@@ -17,12 +17,12 @@ A green deterministic pipeline does not replace the manual SillyTavern smoke tes
 
 The Python test job collects line and branch coverage and publishes coverage.xml as a short-lived workflow artifact.
 
-Coverage is report-only at this stage:
+The 85% combined line/branch gate is now blocking and has passed in CI. The latest main artifact (2026-11-12, commit `96b0232`) measured 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. PR #209's successful deterministic run (commit `f06d764`, run `43283240982`) reports 89.3% line coverage, 76.3% branch coverage and 85.98% combined coverage, with 1,539 tests passed and 4 opt-in real-LLM tests deselected.
 
-- No minimum percentage is enforced.
-- Existing uncovered code is recorded as baseline debt, not treated as a reason to block unrelated work.
-- Do not lower test assertions or remove tests to improve the percentage.
-- Establish a stable baseline before proposing a threshold. Any future threshold should prevent newly introduced coverage debt rather than require an immediate repository-wide cleanup.
+- The 85% combined line/branch target is now enforced by `[tool.coverage.report].fail_under = 85`.
+- Branch coverage remains enabled; the combined figure is the same line-plus-branch metric reported by coverage.py.
+- Do not exclude production modules, lower assertions or remove tests to improve the percentage.
+- Use package and file-level reports to prioritize risk: remaining candidates include API integration edge cases, durable manual-roll recovery branches and rules-engine condition restrictions.
 
 ## Pyright baseline and progressive enforcement
 
@@ -48,7 +48,7 @@ The original repository-wide report is classified in [pyright-baseline-2026-11-1
 2. Pyright baseline — collect and classify existing type diagnostics (implemented).
 3. CodeQL — add repository security analysis (workflow added; review alerts before introducing blocking policy).
 4. Expand blocking Pyright scope incrementally; `models` is now included after resolving its five baseline diagnostics.
-5. Improve coverage quality and introduce incremental thresholds only after reviewing the baseline.
+5. **Enforced:** 85% combined line/branch coverage with branch coverage enabled; the CI test job fails below `fail_under = 85`.
 6. SonarQube (optional) — evaluate only if it adds actionable signal beyond Ruff, Pyright, tests, coverage and CodeQL.
 
 New quality checks should initially be informational where the repository has inherited findings. Promote them to required checks only after the baseline is understood and the workflow is stable.

@@ -35,6 +35,13 @@ context/history and external transcript-state reads. The integration façade
 does not own player-turn mutation; the extension uses the same durable
 resolve/complete lifecycle as the native API.
 
+## Test and evaluation map
+
+- `tests/test_durable_native_turn.py` and `tests/test_durable_silly_tavern_turn.py` protect the durable turn state machine.
+- `tests/test_manual_roll_submission_service.py` protects the manual d20 challenge submission/replay boundary, including the provider-independent integration path.
+- `tests/test_silly_tavern_context_adapter.py` protects adapter query validation, context rendering, history filtering and external transcript-state reads.
+- Live prompt behavior is evaluated separately by `python -m pytest -m real_llm -v -s`; see [the prompt evaluation guide](../../docs/quality/prompt-evaluation-2026-11-12.md).
+
 ## Dependency and lifecycle rules
 
 - Preserve idempotency, lease fencing, campaign revision checks and atomic commit.

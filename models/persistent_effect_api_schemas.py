@@ -1,5 +1,6 @@
 """Validated API schemas for persistent campaign effects."""
 
+import re
 from enum import Enum
 
 from pydantic import BaseModel, Field, StrictInt, model_validator
@@ -52,6 +53,8 @@ class PersistentEffectCreateIn(BaseModel):
 
     @model_validator(mode="after")
     def validate_effect_shape(self):
+        if self.duration_condition is not None and not self.duration_condition.strip():
+            raise ValueError("duration_condition must not be blank")
         timed_values = (
             self.duration_minutes, self.encounter_id,
             self.duration_rounds, self.duration_turns,
@@ -91,7 +94,10 @@ class PersistentEffectCreateIn(BaseModel):
         else:
             if self.level is not None:
                 raise ValueError("narrative effects cannot define a mechanical level")
-            if not self.effect_key.replace("-", "").replace("_", "").isalnum():
+            if not re.fullmatch(
+                r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}",
+                self.effect_key,
+            ):
                 raise ValueError("narrative effect_key must be a simple slug")
         return self
 
