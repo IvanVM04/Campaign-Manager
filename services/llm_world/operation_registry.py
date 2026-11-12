@@ -291,7 +291,6 @@ class OperationMetadataRegistry:
             "target_id",
             "amount",
             "entity_type",
-            "description",
         }
 
         for name in selected_names:
@@ -314,7 +313,7 @@ class OperationMetadataRegistry:
             ]
             description = metadata.description.split(". ", maxsplit=1)[0]
             operations[name] = {
-                "description": description[:48],
+                "description": description[:48] if name == "create_entity" else description[:32],
                 "required": ";".join(required),
                 "optional": ";".join(optional),
             }

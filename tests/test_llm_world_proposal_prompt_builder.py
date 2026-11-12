@@ -55,10 +55,10 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
     assert "Las operaciones son propuestas, no hechos confirmados." in prompt
     assert "No afirmes que las acciones ya han ocurrido" in prompt
     assert "INTERPRETACIÓN Y PERSISTENCIA" in prompt
-    assert "Intentar no significa lograr" in prompt
-    assert "no crees duplicados" in prompt
-    assert "Las relaciones requieren evidencia explícita" in prompt
-    assert "Si no hay un cambio persistente nuevo" in prompt
+    assert "Una intención no es resultado" in prompt
+    assert "no dupliques" in prompt
+    assert "Relaciones requieren evidencia" in prompt
+    assert "Sin cambio justificado" in prompt
 
 
 def test_proposal_prompt_builder_appends_confirmed_mechanics():

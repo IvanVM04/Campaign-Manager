@@ -64,7 +64,8 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
     assert "item_id" in parsed["field_notes"]
     assert "entity_type" in parsed["field_notes"]
     assert "persona identificada" in parsed["field_notes"]["entity_type"]
-    assert "Hechos conocidos" in parsed["field_notes"]["description"]
+    entity_schema = DEFAULT_OPERATION_REGISTRY.get("create_entity").json_schema()
+    assert "Hechos conocidos" in entity_schema["properties"]["description"]["description"]
 
 
 def test_prompt_contract_rejects_internal_or_unknown_operation_types():
