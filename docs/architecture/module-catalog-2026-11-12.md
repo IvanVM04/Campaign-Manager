@@ -21,7 +21,7 @@
 | `bootstrap/__init__.py` | Public package surface for runtime composition. | Export only stable composition contracts. |
 | `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Preserve the single composition root. Next review: lifecycle invalidation, shutdown and cache eviction only if deployment requirements justify them. Keep provider, context, integration and legacy dependencies visible in this file. |
 | `database.py` | SQLite connection helpers, transaction boundaries and database initialization. | Keep connection and transaction ownership explicit. Review nested transaction behavior and shared-connection assumptions before adding repository conveniences. |
-| `migrations.py` | Ordered schema/data migrations 001–028. | This is historical, data-sensitive code. Add a migration index and replay fixture before any file split; preserve idempotency, foreign keys and historical data. |
+| `migrations.py` | Ordered schema/data migrations 001–029. | This is historical, data-sensitive code. Add a migration index and replay fixture before any file split; preserve idempotency, foreign keys and historical data. |
 | `start.bat` | Local Windows startup entrypoint. | Keep aligned with the documented install/run path; avoid embedding configuration defaults that differ from application settings. |
 | `scripts/bootstrap_demo.py` | Creates deterministic demo campaign/world content. | Keep demo data reproducible and safe to run against an explicitly selected database. Add assertions for idempotency/reset semantics before changing it. |
 | `scripts/ci/coverage_summary.py` | Converts coverage XML into package-level CI summary data. | Keep report-only policy separate from test execution. Validate missing/empty coverage inputs and keep package aggregation deterministic. |
@@ -134,7 +134,7 @@ Repositories own SQL and hydration. They must not call providers or orchestrate 
 | `repositories/turn_repository.py` | Transcript turns, versioning, external turn identity and status persistence. | Preserve idempotency, ordering, campaign isolation, supersession and external ID uniqueness. |
 | `repositories/turn_resolution_repository.py` | Durable in-flight resolution, lease acquisition/fencing and transitions. | Critical consistency boundary. Never weaken compare-and-set state transitions or stale-worker fencing. |
 | `repositories/world_repository.py` | Canonical world state load/save and collection persistence. | Critical transaction boundary. Preserve atomic multi-collection writes, connection ownership and campaign isolation. |
-| `repositories/world_snapshot_repository.py` | Legacy JSON snapshot encode/load/restore from `turns.snapshot`. | Compatibility-only while the deprecated narrative-first route exists. Remove only with route retirement and an explicit data-retention/migration decision. |
+| `turn_snapshot_archive` (migration 029) | Inert archive of pre-retirement snapshot JSON. | Preserve historical payloads; do not introduce a runtime restore/read path. |
 
 ### Repository review checklist
 
