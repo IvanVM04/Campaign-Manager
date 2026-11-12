@@ -55,14 +55,13 @@ All 35 original test functions and their assertions are preserved. The support m
 
 The latest main coverage artifact (2026-11-12, after PR #208) reported 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch reaches 89.3% line, 76.3% branch and 85.98% combined coverage, and now enforces `fail_under = 85` with branch coverage enabled.
 
-The highest-return additions target the SillyTavern context adapter, persistent-effect API/schema validation and the manual-roll submission lifecycle. Manual rolls are now tested through successful submission, idempotent replay, completion, interrupted prepared-state recovery and stale-context rejection.
+The high-return additions in PR #209 cover the SillyTavern context adapter, persistent-effect API/schema validation, manual-roll recovery and rules-engine condition projections. Manual rolls are tested through successful submission, idempotent replay, completion, interrupted prepared-state recovery, stale-context rejection and concurrent-lease rejection.
 
-Keep the 85% gate; do not exclude production modules or weaken assertions to preserve it.
+Keep the 85% gate; do not exclude production modules or weaken assertions to preserve it. The deterministic PR checks are green at 86.0% combined coverage (1,539 passed; 4 opt-in real-LLM tests deselected).
 
 Next acceptance gates:
-1. **Coverage and prompt contract PR:** reach 85% combined line/branch coverage, document the live prompt corpus and keep all deterministic CI checks green.
-2. **Live Ollama evaluation:** run the opt-in manual probes and record backend revision, Ollama/model tag and results.
-3. **SillyTavern acceptance:** run the separate manual checklist and record extension/backend revisions. Do not treat deterministic fake-provider tests as model-quality validation.
+1. **Live Ollama evaluation:** run the opt-in manual probes and record backend revision, Ollama/model tag and results.
+2. **SillyTavern acceptance:** run the separate manual checklist and record extension/backend revisions. Do not treat deterministic fake-provider tests as model-quality validation.
 
 The synthetic context-scale and structured-proposal probes are implemented in
 PR #207 and documented in
