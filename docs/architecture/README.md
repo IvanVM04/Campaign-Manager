@@ -25,7 +25,8 @@
 - [Turn pipeline contract](turn-pipeline-compatibility.md): the single supported durable native/SillyTavern flow.
 - [Durable SillyTavern adapter contract](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete and retry semantics.
 - [Writer, lock and cache audit](writer-lock-cache-audit.md): current single-process synchronization assumptions and mutation ownership.
-- [SQLite transaction ownership](sqlite-transaction-ownership.md): transaction and shared-connection contract.\n- [Migration catalogue](migration-catalog-2026-11-12.md): ordered schema history, explicit runner registry and upgrade checklist.
+- [SQLite transaction ownership](sqlite-transaction-ownership.md): transaction and shared-connection contract.
+- [Migration catalogue](migration-catalog-2026-11-12.md): ordered schema history, explicit runner registry and upgrade checklist.
 - [Turn-resolution lifecycle](turn-resolution-lifecycle.md): durable state transitions and commit boundaries.
 - [MVP quickstart](../mvp-quickstart.md) and [manual SillyTavern smoke test](../sillytavern-smoke-test.md): operational setup and manual acceptance.
 
