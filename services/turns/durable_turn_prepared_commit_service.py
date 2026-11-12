@@ -28,6 +28,7 @@ class DurableTurnPreparedCommitService:
         resolution_repository,
         context_loader,
         operation_results_serializer,
+        activity_service=None,
         error_type=RuntimeError,
     ) -> None:
         self.scope = scope
@@ -36,6 +37,7 @@ class DurableTurnPreparedCommitService:
         self.resolution_repository = resolution_repository
         self.context_loader = context_loader
         self.operation_results_serializer = operation_results_serializer
+        self.activity_service = activity_service
         self.error_type = error_type
 
     def commit_prepared_plan(
@@ -100,5 +102,11 @@ class DurableTurnPreparedCommitService:
                 expected_state="committed",
                 conn=conn,
             )
+            if self.activity_service is not None:
+                self.activity_service.record_turn_committed(
+                    record,
+                    result,
+                    conn=conn,
+                )
 
         return self.resolution_repository.get(record.id, scope=self.scope)
