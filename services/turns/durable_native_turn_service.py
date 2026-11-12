@@ -1,9 +1,7 @@
-from __future__ import annotations  # noqa: I001
+from __future__ import annotations
 
-import json
 from dataclasses import replace
 
-from database import transaction
 from models.campaign_scope import CampaignScope
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord

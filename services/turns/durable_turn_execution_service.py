@@ -12,7 +12,9 @@ from database import transaction
 from models.campaign_scope import CampaignScope
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
-from repositories.campaign_state_version_repository import CampaignStateVersionRepository
+from repositories.campaign_state_version_repository import (
+    CampaignStateVersionRepository,
+)
 from repositories.turn_repository import TurnRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.llm_world import LLMExtractionError
@@ -21,12 +23,12 @@ from services.turns.durable_turn_errors import (
     DurableTurnCommitError,
     DurableTurnErrorCode,
 )
+from services.turns.durable_turn_narration_service import DurableTurnNarrationService
 from services.turns.durable_turn_preparation_mapper import (
     DurableTurnPreparation,
     DurableTurnPreparationMapper,
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
-from services.turns.durable_turn_narration_service import DurableTurnNarrationService
 from services.turns.turn_resolution_codec import TurnResolutionCodec
 from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
