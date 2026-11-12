@@ -267,13 +267,9 @@ class MemorySearchService:
         # entity as though the reference identified one of them. A broad role
         # or description match, however, remains useful retrieval evidence.
         if resolution.status == "ambiguous":
-            # Keep evidence-backed candidates visible to projection
-            # diagnostics. Never silently select one during retrieval.
-            return [
-                self._serialize(world.entities[candidate.entity_id])
-                for candidate in resolution.candidates
-                if candidate.entity_id in world.entities
-            ]
+            # Preserve ambiguity in resolver diagnostics but do not select
+            # any candidate into player-facing context.
+            return []
 
         query_tokens = resolver._significant_tokens(
             resolver.normalize(query)
