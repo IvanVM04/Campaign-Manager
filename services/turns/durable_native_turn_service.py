@@ -432,9 +432,7 @@ class DurableNativeTurnService:
                 plan = self._plan_from_record(record)
             else:
                 plan = self.resolver.prepare_turn(
-                    context, normalized, recent_turns=recent,
-                    manual_mode=(dice_mode == "manual"),
-                    proposal_from_intent=True,
+                    context, normalized, manual_mode=(dice_mode == "manual"),
                 )
                 if plan.awaiting_manual_roll:
                     pending = self._build_manual_roll_request(record, plan.mechanics_decision, context, revision)

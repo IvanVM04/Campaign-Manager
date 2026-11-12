@@ -155,14 +155,12 @@ class TurnResolutionService:
         turn_context: TurnContext | WorldState,
         player_input: str,
         *,
-        recent_turns=None,
         manual_mode: bool = False,
         manual_rolls: tuple[int, ...] | None = None,
         decision_override: MechanicsDecision | None = None,
-        proposal_from_intent: bool = False,
     ) -> TurnResolutionPlan:
         """
-        Prepare a typed operation proposal; optionally preserve the legacy narrative-first path.
+        Prepare a typed operation proposal from the player's intent.
 
         This phase performs no database access or state mutation.
         """
@@ -306,111 +304,66 @@ class TurnResolutionService:
                 )
                 mechanics_result = MechanicsResult(decision, check)
 
-        if not isinstance(proposal_from_intent, bool):
-            raise TypeError("proposal_from_intent must be a boolean")
-
-        if proposal_from_intent:
-            context_projection = None
-            if self.context_builder is not None:
-                mandatory_entity_ids: list[int] = []
-                if context.active_character is not None:
-                    entity_id = context.active_character.entity_id
-                    if isinstance(entity_id, int) and not isinstance(entity_id, bool):
-                        mandatory_entity_ids.append(entity_id)
-                if context.active_character_entity is not None:
-                    entity_id = context.active_character_entity.id
-                    if (
-                        isinstance(entity_id, int)
-                        and not isinstance(entity_id, bool)
-                        and entity_id not in mandatory_entity_ids
-                    ):
-                        mandatory_entity_ids.append(entity_id)
-                current_location_id = context.campaign.current_location_id
+        context_projection = None
+        if self.context_builder is not None:
+            mandatory_entity_ids: list[int] = []
+            if context.active_character is not None:
+                entity_id = context.active_character.entity_id
+                if isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                    mandatory_entity_ids.append(entity_id)
+            if context.active_character_entity is not None:
+                entity_id = context.active_character_entity.id
                 if (
-                    isinstance(current_location_id, int)
-                    and not isinstance(current_location_id, bool)
-                    and current_location_id not in mandatory_entity_ids
+                    isinstance(entity_id, int)
+                    and not isinstance(entity_id, bool)
+                    and entity_id not in mandatory_entity_ids
                 ):
-                    mandatory_entity_ids.append(current_location_id)
-                try:
-                    context_projection = self.context_builder.build_proposal_context(
-                        context.world,
-                        normalized_input,
-                        max_estimated_tokens=self.proposal_context_max_tokens,
-                        mandatory_entity_ids=mandatory_entity_ids,
-                    )
-                except Exception as exc:
-                    raise TurnResolutionServiceError(
-                        "proposal context selection failed"
-                    ) from exc
-
+                    mandatory_entity_ids.append(entity_id)
+            current_location_id = context.campaign.current_location_id
+            if (
+                isinstance(current_location_id, int)
+                and not isinstance(current_location_id, bool)
+                and current_location_id not in mandatory_entity_ids
+            ):
+                mandatory_entity_ids.append(current_location_id)
             try:
-                if context_projection is None:
-                    operations = self.extractor.propose(
-                        normalized_input,
-                        context,
-                        mechanics_result=mechanics_result,
-                    )
-                else:
-                    operations = self.extractor.propose(
-                        normalized_input,
-                        context,
-                        mechanics_result=mechanics_result,
-                        context_projection=context_projection,
-                    )
-            except Exception as exc:
-                raise TurnResolutionServiceError(
-                    "LLMWorldExtractor failed to propose consequences"
-                ) from exc
-            narrative = ""
-        else:
-            try:
-                if recent_turns is None:
-                    if mechanics_result is None:
-                        narrative = self.dm_service.generate(context, normalized_input)
-                    else:
-                        narrative = self.dm_service.generate(
-                            context, normalized_input, mechanics_result=mechanics_result
-                        )
-                else:
-                    if mechanics_result is None:
-                        narrative = self.dm_service.generate(
-                            context, normalized_input, recent_turns=recent_turns
-                        )
-                    else:
-                        narrative = self.dm_service.generate(
-                            context, normalized_input, recent_turns=recent_turns,
-                            mechanics_result=mechanics_result,
-                        )
-            except Exception as exc:
-                raise TurnResolutionServiceError(
-                    "DMService failed to generate the turn"
-                ) from exc
-
-            if not isinstance(narrative, str):
-                raise TurnResolutionServiceError(
-                    "DMService returned a non-string narrative"
+                context_projection = self.context_builder.build_proposal_context(
+                    context.world,
+                    normalized_input,
+                    max_estimated_tokens=self.proposal_context_max_tokens,
+                    mandatory_entity_ids=mandatory_entity_ids,
                 )
-            narrative = narrative.strip()
-            if not narrative:
-                raise TurnResolutionServiceError(
-                    "DMService returned an empty narrative"
-                )
-
-            try:
-                operations = self.extractor.extract(narrative, context)
             except Exception as exc:
                 raise TurnResolutionServiceError(
-                    "LLMWorldExtractor failed to extract operations"
+                    "proposal context selection failed"
                 ) from exc
 
+        try:
+            if context_projection is None:
+                operations = self.extractor.propose(
+                    normalized_input,
+                    context,
+                    mechanics_result=mechanics_result,
+                )
+            else:
+                operations = self.extractor.propose(
+                    normalized_input,
+                    context,
+                    mechanics_result=mechanics_result,
+                    context_projection=context_projection,
+                )
+        except Exception as exc:
+            raise TurnResolutionServiceError(
+                "LLMWorldExtractor failed to propose consequences"
+            ) from exc
+        narrative = ""
 
         if not isinstance(operations, list):
             raise TurnResolutionServiceError(
                 "LLMWorldExtractor returned an invalid operations list"
             )
 
-        if proposal_from_intent and any(
+        if any(
             isinstance(
                 operation.operation if isinstance(operation, ReferencedOperation) else operation,
                 CharacterOperation,
@@ -556,12 +509,30 @@ class TurnResolutionService:
         conn=None,
     ) -> TurnResolutionResult:
         """Backward-compatible convenience wrapper around prepare/apply."""
-        plan = self.prepare_turn(
-            turn_context,
-            player_input,
-            recent_turns=recent_turns,
+        plan = self.prepare_turn(turn_context, player_input)
+        result = self.apply_plan(turn_context, plan, conn=conn)
+        if conn is not None:
+            return result
+
+        context = (
+            turn_context
+            if isinstance(turn_context, TurnContext)
+            else TurnContext(
+                campaign=CampaignState(),
+                current_session=None,
+                active_character=None,
+                world=turn_context,
+            )
         )
-        return self.apply_plan(turn_context, plan, conn=conn)
+        narrative = self.generate_narrative(
+            context,
+            plan.player_input,
+            recent_turns=recent_turns,
+            mechanics_result=plan.mechanics_result,
+        )
+        if not narrative:
+            raise TurnResolutionServiceError("DMService returned an empty narrative")
+        return replace(result, narrative=narrative)
 
     # ============================================================
     # VALIDATION

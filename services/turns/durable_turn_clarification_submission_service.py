@@ -175,9 +175,7 @@ class DurableTurnClarificationSubmissionService:
                 plan = service.resolver.prepare_turn(
                     context,
                     clarified_input,
-                    recent_turns=recent,
                     manual_mode=(pending_state.get("dice_mode") == "manual"),
-                    proposal_from_intent=True,
                 )
                 if plan.awaiting_manual_roll:
                     manual_pending = service._build_manual_roll_request(

@@ -25,8 +25,6 @@ class LLMSettings:
     mechanics_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     extraction_prompt_max_tokens: int = 8192
     extraction_context_max_tokens: int = 4096
-    legacy_extraction_prompt_max_tokens: int = 65536
-    legacy_extraction_context_max_tokens: int = 8192
     extraction_max_response_chars: int = 16000
     extraction_repair_max_tokens: int = 2048
 
@@ -79,8 +77,6 @@ class LLMSettings:
         for field_name in (
             "extraction_prompt_max_tokens",
             "extraction_context_max_tokens",
-            "legacy_extraction_prompt_max_tokens",
-            "legacy_extraction_context_max_tokens",
             "extraction_max_response_chars",
             "extraction_repair_max_tokens",
         ):
@@ -94,15 +90,6 @@ class LLMSettings:
             raise ValueError(
                 "extraction_context_max_tokens cannot exceed extraction_prompt_max_tokens"
             )
-        if (
-            self.legacy_extraction_context_max_tokens
-            > self.legacy_extraction_prompt_max_tokens
-        ):
-            raise ValueError(
-                "legacy_extraction_context_max_tokens cannot exceed "
-                "legacy_extraction_prompt_max_tokens"
-            )
-
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> LLMSettings:
         """Read validated settings from environment variables."""
@@ -162,14 +149,6 @@ class LLMSettings:
             extraction_context_max_tokens=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
                 defaults.extraction_context_max_tokens,
-            ),
-            legacy_extraction_prompt_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_PROMPT_MAX_TOKENS",
-                defaults.legacy_extraction_prompt_max_tokens,
-            ),
-            legacy_extraction_context_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_LEGACY_EXTRACTION_CONTEXT_MAX_TOKENS",
-                defaults.legacy_extraction_context_max_tokens,
             ),
             extraction_max_response_chars=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS",
