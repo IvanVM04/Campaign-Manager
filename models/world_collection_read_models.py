@@ -84,6 +84,7 @@ class WorldEventRead(BaseModel):
     source_entity_id: int | None = None
     campaign_elapsed_minutes: int | None = None
     supersedes_event_id: str | None = None
+    is_current: bool = True
 
 
 WorldCollectionItemRead = (
