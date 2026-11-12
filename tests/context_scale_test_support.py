@@ -7,6 +7,7 @@ from models.event import Event
 from models.item import Item, ItemInstance
 from models.relation import Relation
 from models.resource import Resource, ResourceBalance
+from models.world_context_projection import WorldContextProjection
 from models.world_state import WorldState
 
 
@@ -121,7 +122,9 @@ def build_large_campaign_world(
     return world
 
 
-def projection_fingerprint(projection) -> tuple[object, ...]:
+def projection_fingerprint(
+    projection: WorldContextProjection,
+) -> tuple[object, ...]:
     """Return stable, public projection identity and diagnostic values."""
     world = projection.world
     diagnostics = projection.diagnostics
