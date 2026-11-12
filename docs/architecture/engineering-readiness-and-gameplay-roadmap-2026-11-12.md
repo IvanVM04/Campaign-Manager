@@ -29,7 +29,7 @@ These are engineering judgement estimates for the present local single-player sc
 | Package boundaries and architecture tests | 95% | Dependency matrix and architecture-boundary tests guard the intended direction. |
 | CI, typing and static analysis | 95% | Deterministic Python/JS, Ruff, repository-wide Pyright and CodeQL checks are integrated. |
 | Provider adapter contract | 90% | Deterministic Ollama/fake-provider behavior is covered; real local model quality and end-to-end behavior remain unverified. |
-| Architecture documentation freshness | 80% | Current indexes exist, but this audit updates the post-#205 baseline and removes stale pending items. |
+| Architecture documentation freshness | 80% on the pre-#206 base branch | Current indexes existed, but several still carried stale post-#203–#205 status; this PR synchronizes them. Reassess after merge. |
 | Live Ollama + SillyTavern acceptance | Not yet recorded | Must be executed and recorded locally; deterministic CI cannot establish model quality or extension behavior. |
 
 Do not average these figures into a product-completion score. Their purpose is to distinguish structural readiness from functional breadth and live acceptance.
