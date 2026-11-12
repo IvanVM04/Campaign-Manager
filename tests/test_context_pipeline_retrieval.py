@@ -475,8 +475,6 @@ def test_pipeline_resource_balance_resolves_parent_resource():
 # ============================================================
 
 
-
-
 def test_pipeline_merges_supplemental_queries_without_losing_primary_intent():
     builder = ContextBuilder()
     world = make_complex_world()
