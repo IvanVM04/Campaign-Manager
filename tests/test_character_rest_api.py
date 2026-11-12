@@ -44,6 +44,7 @@ def test_character_rest_endpoints_update_sheet_and_campaign_clock(client):
     )
     assert long.status_code == 200, long.text
     long_data = long.json()
+    assert long_data["benefits_applied"] is True
     assert long_data["current_hp"] == 40
     assert long_data["hit_dice_used"] == 0
     assert long_data["hit_dice_recovered"] == 1
