@@ -139,6 +139,8 @@ class ContextBuilder:
         world: WorldState,
         query: str,
         recent_turns: list[TurnRecord] | None = None,
+        *,
+        supplemental_queries: tuple[str, ...] | list[str] = (),
     ) -> dict[str, Any]:
         """
         Construye el contexto completo para el LLM.
@@ -155,6 +157,10 @@ class ContextBuilder:
         normalized_recent_turns = self._validate_recent_turns(
             recent_turns
         )
+        normalized_supplemental_queries = self._validate_supplemental_queries(
+            supplemental_queries,
+            primary_query=normalized_query,
+        )
 
         if not normalized_query:
             return self._empty_result()
@@ -162,6 +168,7 @@ class ContextBuilder:
         result = self._build_context_data(
             world,
             normalized_query,
+            normalized_supplemental_queries,
         )
 
         result["recent_turns"] = normalized_recent_turns
@@ -181,6 +188,7 @@ class ContextBuilder:
         *,
         max_estimated_tokens: int,
         mandatory_entity_ids: tuple[int, ...] | list[int] = (),
+        supplemental_queries: tuple[str, ...] | list[str] = (),
     ) -> WorldContextProjection:
         """Build a bounded typed projection for structured consequence proposals.
 
@@ -192,10 +200,33 @@ class ContextBuilder:
             query,
             max_estimated_tokens=max_estimated_tokens,
             mandatory_entity_ids=mandatory_entity_ids,
+            supplemental_queries=supplemental_queries,
         )
     # ============================================================
     # VALIDATION
     # ============================================================
+
+    @staticmethod
+    def _validate_supplemental_queries(
+        queries: tuple[str, ...] | list[str],
+        *,
+        primary_query: str,
+    ) -> tuple[str, ...]:
+        if not isinstance(queries, (tuple, list)):
+            raise TypeError("supplemental_queries must be a tuple or list")
+        normalized: list[str] = []
+        seen = {primary_query.casefold()} if primary_query else set()
+        for query in queries:
+            if not isinstance(query, str):
+                raise TypeError("supplemental_queries must contain only strings")
+            value = query.strip()
+            if not value:
+                continue
+            key = value.casefold()
+            if key not in seen:
+                normalized.append(value)
+                seen.add(key)
+        return tuple(normalized)
 
     @staticmethod
     def _validate_recent_turns(
@@ -254,6 +285,7 @@ class ContextBuilder:
         self,
         world: WorldState,
         normalized_query: str,
+        supplemental_queries: tuple[str, ...] = (),
     ) -> dict[str, Any]:
         """
         Construye los datos estructurados relevantes.
@@ -265,12 +297,16 @@ class ContextBuilder:
         se delega en ContextExpander.
         """
 
-        search_result = (
-            self.memory_search_service.search(
+        if supplemental_queries:
+            search_result = self.memory_search_service.search_many(
+                world,
+                (normalized_query, *supplemental_queries),
+            )
+        else:
+            search_result = self.memory_search_service.search(
                 world,
                 normalized_query,
             )
-        )
 
         result = self.context_expander.expand(
             world,
