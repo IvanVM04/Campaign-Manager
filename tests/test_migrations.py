@@ -28,6 +28,7 @@ from migrations import (
     migration_026,
     migration_029,
     migration_030,
+    migration_031,
     run_migrations,
 )
 
@@ -921,7 +922,7 @@ def test_run_migrations_upgrades_version_21_to_30():
 
     run_migrations(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == 30
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 31
     assert conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='turn_resolutions'"
     ).fetchone() is not None
@@ -1207,7 +1208,7 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
 
     from migrations import MIGRATIONS
 
-    for definition in MIGRATIONS[:-1]:
+    for definition in MIGRATIONS[:-2]:
         definition.apply(conn)
 
     for name, class_name in (
@@ -1273,5 +1274,91 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
         (wizard_id,),
     ).fetchone()
     assert tuple(persisted) == (10, 1, 120)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()
+
+
+
+def test_migration_031_creates_campaign_scoped_activity_events():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    run_migrations(conn)
+
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 31
+    columns = {
+        row["name"]
+        for row in conn.execute(
+            "PRAGMA table_info(campaign_activity_events)"
+        ).fetchall()
+    }
+    assert {
+        "id",
+        "campaign_id",
+        "resolution_id",
+        "session_id",
+        "turn_id",
+        "event_type",
+        "summary",
+        "details_json",
+        "request_id",
+        "dedupe_key",
+        "occurred_at",
+    }.issubset(columns)
+
+    conn.execute(
+        "INSERT INTO campaign (id, name) VALUES (2, 'Second campaign')"
+    )
+    session_id = conn.execute(
+        """
+        INSERT INTO sessions (number, title, campaign_id)
+        VALUES (1, 'Campaign 1 session', 1)
+        """
+    ).lastrowid
+    conn.execute(
+        """
+        INSERT INTO campaign_activity_events (
+            campaign_id, session_id, event_type, summary, dedupe_key
+        ) VALUES (1, ?, 'turn.accepted', 'Turn accepted', 'resolution:1:accepted')
+        """,
+        (session_id,),
+    )
+
+    # Dedupe is scoped to the campaign and the same key can exist elsewhere.
+    conn.execute(
+        """
+        INSERT INTO campaign_activity_events (
+            campaign_id, event_type, summary, dedupe_key
+        ) VALUES (2, 'turn.accepted', 'Turn accepted', 'resolution:1:accepted')
+        """
+    )
+    assert conn.execute(
+        "SELECT COUNT(*) FROM campaign_activity_events WHERE dedupe_key = ?",
+        ("resolution:1:accepted",),
+    ).fetchone()[0] == 2
+
+    import pytest
+
+    with pytest.raises(sqlite3.IntegrityError, match="event_type"):
+        conn.execute(
+            """
+            INSERT INTO campaign_activity_events (
+                campaign_id, event_type, summary, dedupe_key
+            ) VALUES (1, 'raw_prompt', 'Unsafe', 'invalid-event')
+            """
+        )
+    with pytest.raises(
+        sqlite3.IntegrityError,
+        match="activity session belongs to another campaign",
+    ):
+        conn.execute(
+            """
+            INSERT INTO campaign_activity_events (
+                campaign_id, session_id, event_type, summary, dedupe_key
+            ) VALUES (2, ?, 'turn.accepted', 'Turn accepted', 'cross-scope-session')
+            """,
+            (session_id,),
+        )
+
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     conn.close()
