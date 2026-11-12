@@ -11,7 +11,7 @@ from repositories.creature_repository import CreatureRepository
 from repositories.entity_repository import EntityRepository
 from repositories.persistent_effect_repository import PersistentEffectRepository
 from rules_engine.dnd5e_2014.combat.movement import GridPosition
-from services.campaign import PersistentEffectService
+from services.campaign import EffectiveConditionService, PersistentEffectService
 from services.combat import CombatEncounterService
 
 
@@ -67,11 +67,13 @@ def _active_encounter(*, character: bool = False, position: bool = False):
     )
     encounter.start((target_id, other_combatant.combatant_id))
     encounter_repository.save(encounter, campaign_id=1)
+    effects_repository = PersistentEffectRepository()
     service = CombatEncounterService(
         repository=encounter_repository,
         character_repository=character_repository,
         entity_repository=entities,
         creature_repository=CreatureRepository(),
+        effective_condition_service=EffectiveConditionService(effects_repository),
     )
     return service, encounter_repository, entities, character_repository, target, encounter
 
@@ -277,3 +279,91 @@ def test_encounter_start_rolls_back_initiative_and_status_after_snapshot_write(
     assert persisted.round_number == 0
     assert persisted.initiative_order == ()
     assert persisted.combatants[combatant.combatant_id].initiative == 0
+
+
+def test_persistent_incapacitated_condition_blocks_movement_and_reaction(
+    isolated_database,
+):
+    service, repository, entities, _, target, encounter = _active_encounter(position=True)
+    effect_service = PersistentEffectService(
+        repository=service.effective_condition_service.repository,
+        entity_repository=entities,
+        campaign_id=1,
+        encounter_repository=repository,
+    )
+    effect_service.create(
+        entity_id=target.id,
+        effect_type="condition",
+        effect_key="incapacitated",
+        name="Incapacitated",
+    )
+    active = encounter.active_combatant
+    assert active is not None
+
+    with pytest.raises(ValueError, match="incapacitated combatant cannot move"):
+        service.move_combatant(
+            1,
+            encounter.encounter_id,
+            combatant_id=active.combatant_id,
+            expected_round=1,
+            expected_turn_index=0,
+            path=(GridPosition(0, 0), GridPosition(1, 0)),
+        )
+    with pytest.raises(ValueError, match="incapacitated combatant cannot use a reaction"):
+        service.use_reaction(
+            1,
+            encounter.encounter_id,
+            combatant_id=active.combatant_id,
+            expected_round=1,
+            expected_turn_index=0,
+        )
+
+    persisted = repository.get(encounter.encounter_id, campaign_id=1)
+    assert persisted is not None
+    current = persisted.combatants[active.combatant_id]
+    assert (current.position_x, current.position_y) == (0, 0)
+    assert current.movement_used_feet == 0
+    assert current.reaction_used is False
+
+
+def test_persistent_exhaustion_halves_movement_before_path_validation(
+    isolated_database,
+):
+    service, repository, entities, _, target, encounter = _active_encounter(position=True)
+    effect_service = PersistentEffectService(
+        repository=service.effective_condition_service.repository,
+        entity_repository=entities,
+        campaign_id=1,
+        encounter_repository=repository,
+    )
+    effect_service.create(
+        entity_id=target.id,
+        effect_type="exhaustion",
+        effect_key="exhaustion",
+        level=2,
+        name="Exhaustion level 2",
+    )
+    active = encounter.active_combatant
+    assert active is not None
+
+    with pytest.raises(ValueError, match="exceeds the combatant's remaining movement"):
+        service.move_combatant(
+            1,
+            encounter.encounter_id,
+            combatant_id=active.combatant_id,
+            expected_round=1,
+            expected_turn_index=0,
+            path=(
+                GridPosition(0, 0),
+                GridPosition(1, 0),
+                GridPosition(2, 0),
+                GridPosition(3, 0),
+                GridPosition(4, 0),
+            ),
+        )
+
+    persisted = repository.get(encounter.encounter_id, campaign_id=1)
+    assert persisted is not None
+    current = persisted.combatants[active.combatant_id]
+    assert (current.position_x, current.position_y) == (0, 0)
+    assert current.movement_used_feet == 0
