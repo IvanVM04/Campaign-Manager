@@ -23,17 +23,35 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 - Keep encounter, character/creature HP and effect updates within one explicit `IMMEDIATE` transaction per use case; `complete()` uses the same transaction helper as other encounter writes.
 - Runtime composition and tests import the canonical `services.combat` package; former flat combat shims have been retired.
 
-## Pending work
-- [x] Move deterministic HP/death-track transitions out of CombatAttackService and into the rules engine (this PR).
-- [x] Extract player/NPC weapon and natural-attack profile resolution into `AttackProfileResolver` with an immutable normalized result.
-- [x] Derive NPC natural-attack ability/proficiency bonuses in the pure rules engine.
-- [x] Merge encounter-supplied NPC profile and defense metadata in one creature-state save.
-- [ ] Audit remaining duplicated mechanics that should be delegated to the rules engine.
-- [x] Map and failure-inject encounter creation, death saves, turn/effect progression, completion, movement and reactions; canonical state and snapshots roll back together.
-- [ ] Review synchronization of HP, resources, conditions and encounter projections.
-- [ ] Surface unsupported 2014 rules rather than silently improvising.
-- [ ] Expand coverage for currently partial combat flows as rules are implemented.
-- [x] Cover player, NPC melee and NPC natural-attack profile resolution, malformed persisted metadata, active-turn selection, and NPC configuration persistence.
+## Verified state ownership and effect projection
 
+- `CharacterState` and `CreatureState` are canonical for player/NPC HP;
+  encounter combatant HP is a projection synchronized inside the same
+  `IMMEDIATE` transaction as canonical state.
+- `PersistentEffect` owns persisted duration/status.
+  `EffectiveConditionService` derives the live `ConditionSet`; it does not
+  persist another copy.
+- Attacks already use the live effect projection. PR #204 also applies that
+  projection to movement speed/incapacitation and reaction eligibility using
+  the same caller-owned combat transaction connection. A persistent effect
+  can therefore constrain movement/reactions even when it was applied after
+  the encounter snapshot was created.
+- Campaign-clock advances and short/long rests expire campaign-time effects in
+  the same write transaction as their clock/state changes.
+- Equipment/creature metadata selects an immutable attack profile; numeric
+  weapon/natural-attack mechanics remain in the pure rules engine.
+
+## Remaining combat scope
+
+- [ ] Add class-specific action/resource consumption only after class features
+  and resources have typed canonical models.
+- [ ] Add spell slots, ammunition and other expendable resources with explicit
+  transactional owners before exposing them to combat.
+- [ ] Surface unsupported 2014 rules rather than silently improvising.
+- [ ] Add attacks/features only with deterministic rules-engine derivation and
+  regression coverage.
+
+Do not split `CombatEncounterService` only to reduce line count; preserve its
+lifecycle until a distinct independently-owned transaction boundary exists.
 ## Migration status
 The combat application modules live in this package. The flat `services.combat_encounter_service`, `services.combat_attack_service` and `services.weapon_equipment_service` compatibility shims have been removed after migrating the remaining test consumers.
