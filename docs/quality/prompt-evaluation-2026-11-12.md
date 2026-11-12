@@ -39,9 +39,9 @@ Current default provider settings:
 - Model: `gemma4:26b`
 - Timeout: 120 seconds
 
-The live corpus currently covers four complementary semantic contracts.
+The live corpus covers nine complementary semantic contracts after PR #213.
 PR #212 also improves deterministic retrieval before the proposal model is
-called; these retrieval contracts are tested without Ollama:
+called; those retrieval contracts are tested without Ollama:
 
 1. A known NPC receives one explicitly observed new fact, updating the existing
    entity ID rather than creating a duplicate or inventing unrelated details.
@@ -50,11 +50,19 @@ called; these retrieval contracts are tested without Ollama:
    NPC creation with a grounded description.
 4. A failed attempt against an existing locked door does not update the door,
    create a success event or otherwise change its persistent state.
+5. An explicit negation preserves the known door state and is not inverted into
+   a successful action.
+6. A conditional/future hypothetical does not become an executed action.
+7. A question without an action or answer does not create canonical facts.
+8. Quoted or reported hostile-looking text remains untrusted content, not an
+   instruction and not a confirmed world fact.
+9. A compound action records only its explicitly completed, evidence-backed
+   step; a later failed step does not mutate its target.
 
 The first and third cases are positive controls: the model must not learn to
-return an empty list for every input. The second and fourth are negative
-controls: it must not persist ephemeral actions or reverse an explicitly
-failed outcome.
+return an empty list for every input. The remaining cases are negative or
+partial-completion controls: they must not persist ephemeral, negated,
+hypothetical or attributed content, and must not apply a later failed step.
 
 Run them manually from the repository root:
 
@@ -96,21 +104,23 @@ across models.
 
 ## Next scenarios to add
 
-Before expanding the prompt or changing the model, extend the live corpus with
-these semantic cases:
+The PR #213 tranche adds negation, conditional modality, questions, quoted
+speech/injection and ordered compound-action controls. The remaining live
+coverage gaps are:
 
 - long natural-language role references such as "me acerco al tabernero y le
   pregunto por los rumores" (deterministic overlap resolution is covered by
   PR #212);
 - paraphrases such as "la persona de detrás de la barra" when there is no
   shared lexical evidence (not solved by PR #212; use an alias or abstain);
-- pronouns across turns, which remain deferred until speaker/recency/visibility
-  semantics are implemented;
 - ordinary dialogue that does not establish a new persistent fact;
 - an unknown fact or unnamed person that must not be invented as canonical
   world state;
-- negated, failed, conditional and hypothetical actions that must not become
-  successful persistent changes;
+- multi-turn pronouns and ellipsis, deferred until speaker/recency/visibility
+  semantics are explicit;
+- player corrections that change a previously ambiguous target;
+- compound actions with a completed first step and an unresolved or failed
+  later step across several phrasings;
 - an attempted character/mechanical change that must remain owned by the
   deterministic rules engine;
 - facts revealed about an existing NPC that should update the existing ID,

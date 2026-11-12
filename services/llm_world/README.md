@@ -70,11 +70,12 @@ campaign facts.
 
 - [x] Make entity descriptions/notes visible to the model and strengthen the prompt's distinction between intent, attempt, failure, hypothesis and durable fact (PR #210).
 - [x] Enrich the model-facing operation contract with meaningful field semantics and a concrete NPC example (PR #210).
-- [ ] Expand the live semantic corpus to indirect references, ambiguous intent, negation, unknown facts, multiple candidate entities and multi-turn continuity (see [AI world-understanding roadmap](../../docs/quality/ai-world-understanding-roadmap-2026-11-12.md)).
-- [ ] Improve context retrieval using benchmarked aliases, normalization and relation-aware matching; add new persistence fields only when the domain requires them (roadmap PR #211).
-- [ ] Evaluate whether a typed intent interpretation stage improves accuracy enough to justify additional calls/latency (roadmap PR #212).
-- [ ] Design richer epistemic/provenance contracts for confirmed, unknown, inferred, rumored and secret knowledge (roadmap PR #213).
-- [ ] Align narration with committed facts and measure multi-turn continuity (roadmap PR #214).
+- [x] Improve deterministic multi-signal context retrieval and natural-language reference matching (PR #212).
+- [x] Strengthen single-pass player-intent semantics for negation, attempts, outcomes, hypotheses, quoted dialogue and ordered compound actions (PR #213).
+- [ ] Run and record the expanded local Ollama corpus; deterministic CI does not certify model quality or provide a confusion matrix.
+- [ ] Reconsider a typed intermediate intent contract only if live quality/latency evidence justifies an extra model stage.
+- [ ] Design richer epistemic/provenance contracts for confirmed, unknown, inferred, rumored and secret knowledge (roadmap PR #214).
+- [ ] Align narration with committed facts and measure multi-turn continuity (roadmap PR #215).
 - [ ] Add tokenizer-aware accounting only if a selected provider exposes an explicit, reliable token-count API.
 - [ ] Add intent-specific operation subsets only when classification can be done reliably without hiding legitimate consequences.
 - [x] Keep operation metadata centralized and model-proposable classification distinct from domain authorization.
