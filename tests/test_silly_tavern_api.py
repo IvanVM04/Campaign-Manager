@@ -916,6 +916,7 @@ def test_integration_manual_roll_endpoint_maps_submission_errors(
             "pending_roll_id": "42:challenge",
             "rolls": [12],
             "query": "Estado.",
+            "answer_external_turn_id": "st-roll-reply-error",
         },
     )
 
@@ -965,6 +966,7 @@ def test_integration_clarification_endpoint_maps_submission_errors(
             "pending_clarification_id": "42:challenge",
             "answer": "La puerta de roble.",
             "query": "Estado.",
+            "answer_external_turn_id": "st-clarification-reply-error",
         },
     )
 
