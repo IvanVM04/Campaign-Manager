@@ -8,11 +8,11 @@ import os
 import re
 import sys
 import threading
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from collections.abc import Mapping
 from typing import Any
 
 from observability.log_context import (
@@ -145,7 +145,7 @@ class JsonLineFormatter(logging.Formatter):
         for field_name in ("request_id", "campaign_id", "resolution_id", *_SAFE_EXTRA_FIELDS):
             value = getattr(record, field_name, None)
             if value is not None and value != "-":
-                payload[field_name] = value
+                payload[field_name] = _redact(value) if isinstance(value, str) else value
         if record.exc_info:
             payload["exception"] = _redact(self.formatException(record.exc_info))
         return json.dumps(
