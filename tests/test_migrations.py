@@ -29,6 +29,7 @@ from migrations import (
     migration_029,
     migration_030,
     migration_031,
+    migration_032,
     run_migrations,
 )
 
@@ -1313,4 +1314,139 @@ def test_migration_031_persists_entity_aliases_and_is_idempotent():
     ).fetchone()["aliases"]
     assert aliases == '["el tabernero","el posadero"]'
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()
+
+
+def test_migration_032_preserves_legacy_event_semantics_and_is_idempotent():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    for definition in MIGRATIONS[:-1]:
+        definition.apply(conn)
+
+    entity_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Legacy source', 'npc', 1)
+        """
+    ).lastrowid
+    conn.execute(
+        """
+        INSERT INTO world_events (
+            id, event_type, title, description, secret, campaign_id
+        ) VALUES ('legacy-secret', 'secret', 'Old secret', 'Hidden fact', 1, 1)
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO world_events (
+            id, event_type, title, description, secret, campaign_id
+        ) VALUES ('legacy-public', 'discovery', 'Old clue', 'Known fact', 0, 1)
+        """
+    )
+
+    migration_032(conn)
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(world_events)")
+    }
+    assert {
+        "epistemic_status",
+        "provenance_source",
+        "visibility_scope",
+        "known_by_entity_ids",
+        "source_entity_id",
+        "campaign_elapsed_minutes",
+        "supersedes_event_id",
+    }.issubset(columns)
+    rows = {
+        row["id"]: row
+        for row in conn.execute(
+            """
+            SELECT id, secret, epistemic_status, provenance_source,
+                   visibility_scope, known_by_entity_ids
+            FROM world_events
+            """
+        ).fetchall()
+    }
+    assert (
+        rows["legacy-secret"]["epistemic_status"],
+        rows["legacy-secret"]["provenance_source"],
+        rows["legacy-secret"]["visibility_scope"],
+        rows["legacy-secret"]["secret"],
+        rows["legacy-secret"]["known_by_entity_ids"],
+    ) == ("confirmed", "gm_authored", "gm_only", 1, "[]")
+    assert (
+        rows["legacy-public"]["epistemic_status"],
+        rows["legacy-public"]["provenance_source"],
+        rows["legacy-public"]["visibility_scope"],
+    ) == ("confirmed", "gm_authored", "public")
+
+    conn.execute(
+        """
+        UPDATE world_events
+        SET epistemic_status='rumor',
+            provenance_source='npc_statement',
+            source_entity_id=?,
+            campaign_elapsed_minutes=120,
+            known_by_entity_ids='[1]'
+        WHERE id='legacy-public'
+        """,
+        (entity_id,),
+    )
+    migration_032(conn)
+    persisted = conn.execute(
+        """
+        SELECT epistemic_status, provenance_source, visibility_scope,
+               source_entity_id, campaign_elapsed_minutes, known_by_entity_ids
+        FROM world_events WHERE id='legacy-public'
+        """
+    ).fetchone()
+    assert tuple(persisted) == (
+        "rumor", "npc_statement", "public", entity_id, 120, "[1]"
+    )
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()
+
+
+def test_migration_032_rejects_cross_campaign_event_provenance_references():
+    import pytest
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    for definition in MIGRATIONS:
+        definition.apply(conn)
+
+    conn.execute("INSERT INTO campaign (id, name) VALUES (2, 'Second')")
+    foreign_entity_id = conn.execute(
+        """
+        INSERT INTO entities (name, entity_type, campaign_id)
+        VALUES ('Foreign NPC', 'npc', 2)
+        """
+    ).lastrowid
+    conn.execute(
+        """
+        INSERT INTO world_events (id, event_type, title, campaign_id)
+        VALUES ('foreign-event', 'fact', 'Foreign event', 2)
+        """
+    )
+
+    with pytest.raises(sqlite3.IntegrityError, match="same campaign"):
+        conn.execute(
+            """
+            INSERT INTO world_events (
+                id, event_type, title, campaign_id, source_entity_id
+            ) VALUES ('bad-source', 'fact', 'Bad source', 1, ?)
+            """,
+            (foreign_entity_id,),
+        )
+
+    with pytest.raises(sqlite3.IntegrityError, match="same campaign"):
+        conn.execute(
+            """
+            INSERT INTO world_events (
+                id, event_type, title, campaign_id, supersedes_event_id
+            ) VALUES ('bad-history', 'fact', 'Bad history', 1, 'foreign-event')
+            """
+        )
     conn.close()
