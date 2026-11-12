@@ -661,12 +661,18 @@ def test_turn_resolution_order():
     def generate(
         turn_context,
         player_input,
+        *,
+        recent_turns=None,
+        mechanics_result=None,
+        committed_resolution=None,
     ):
         order.append("dm")
-
         return original_generate(
             turn_context,
             player_input,
+            recent_turns=recent_turns,
+            mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
     dm.generate = generate
@@ -760,12 +766,18 @@ def test_turn_resolution_order_with_operation():
     def generate(
         turn_context,
         player_input,
+        *,
+        recent_turns=None,
+        mechanics_result=None,
+        committed_resolution=None,
     ):
         order.append("dm")
-
         return original_generate(
             turn_context,
             player_input,
+            recent_turns=recent_turns,
+            mechanics_result=mechanics_result,
+            committed_resolution=committed_resolution,
         )
 
     dm.generate = generate

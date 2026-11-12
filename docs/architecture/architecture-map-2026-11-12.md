@@ -114,7 +114,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
 | memory_search_service.py | Deterministic retrieval/export from supplied WorldState | Remain persistence-free; do not make this a second canonical world store. |
-| context_builder.py | Public orchestration façade for context construction | Keep narrative budgets and proposal token budgets distinct. |
+| context_builder.py | Public orchestration façade for context construction | Keep narrative rendering and bounded proposal-context selection explicit. |
 | context_expander.py | One-hop relationship/dependency expansion | Preserve deterministic and bounded expansion. |
 | context_ranker.py | Stable relevance scoring and ordering | Avoid nondeterministic score sources; maintain ranking regression tests. |
 | context_renderer.py | Narrative context and recent-history rendering | Keep character budgets and transport rendering separate. |
@@ -126,7 +126,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 |---|---|---|
 | llm_world_extractor.py | Single structured player-intent proposal workflow | Keep proposals bounded and fail closed on invalid or unsupported output. |
 | llm_world_context_renderer.py | Dynamic campaign/context rendering | Keep it distinct from static prompt instructions and the proposal context selector. |
-| llm_world_proposal_prompt_builder.py | Active player-intent structured proposal prompt | Keep bounded, typed and independent of the legacy extraction prompt. |
+| llm_world_proposal_prompt_builder.py | Single player-intent structured proposal prompt | Keep bounded, typed and driven by the registry allowlist. |
 | llm_world_proposal_validator.py | Structured response validation and one compact repair | Keep one repair only, bounded input/output and fail-closed behavior. |
 | llm_world_response_parser.py | Strict response decoding and trust gate | Reject unsupported/internal-only operations before domain object construction. |
 | operation_registry.py | Typed operation catalog, schema, examples and model-proposable classification | The registry is not authorization; domain permission/existence checks remain outside this package. |
