@@ -13,11 +13,8 @@ from repositories.creature_repository import CreatureRepository
 from repositories.weapon_equipment_repository import WeaponEquipmentRepository
 from rules_engine.dnd5e_2014.combat.attack import resolve_attack
 from rules_engine.dnd5e_2014.combat.conditions import attack_roll_advantage_state
-from rules_engine.dnd5e_2014.combat.damage import (
-    DamageAdjustment,
-    DamageType,
-    apply_hit_point_damage,
-)
+from rules_engine.dnd5e_2014.combat.damage import DamageAdjustment, DamageType
+from rules_engine.dnd5e_2014.combat.hit_points import apply_combatant_damage
 from rules_engine.dnd5e_2014.combat.movement import (
     GridPosition,
     grid_distance_feet,
@@ -431,38 +428,18 @@ class CombatAttackService:
             )
 
             damage = result.damage_after_defenses
-            new_target_hp = apply_hit_point_damage(target.current_hp, damage)
-            death_save_successes = target.death_save_successes
-            death_save_failures = target.death_save_failures
-            stable = target.stable
-            dead = target.dead
-            conscious = target.conscious
-            if damage > 0:
-                if target.current_hp == 0:
-                    # Damage while dying causes one failed save, or two on a
-                    # critical hit. Stable creatures become unstable again.
-                    was_stable = stable
-                    stable = False
-                    if was_stable:
-                        death_save_successes = 0
-                    death_save_failures = min(
-                        3, death_save_failures + (2 if result.critical else 1)
-                    )
-                    dead = death_save_failures >= 3
-                    conscious = False
-                elif new_target_hp == 0:
-                    # Massive damage can kill outright when the excess damage
-                    # equals or exceeds the creature's hit point maximum.
-                    dead = damage - target.current_hp >= target.max_hp
-                    conscious = False
-                    death_save_successes = 0
-                    # Massive damage is an immediate death; keep the terminal
-                    # state consistent with the three-failure invariant.
-                    death_save_failures = 3 if dead else 0
-                    stable = False
-                if dead:
-                    new_target_hp = 0
-                    conscious = False
+            damage_state = apply_combatant_damage(
+                current_hp=target.current_hp,
+                max_hp=target.max_hp,
+                damage=damage,
+                death_save_successes=target.death_save_successes,
+                death_save_failures=target.death_save_failures,
+                stable=target.stable,
+                dead=target.dead,
+                conscious=target.conscious,
+                critical_hit=result.critical,
+            )
+            new_target_hp = damage_state.current_hp
             updated_combatants = dict(encounter.combatants)
             updated_combatants[attacker.combatant_id] = (
                 replace(attacker, reaction_used=True)
@@ -473,11 +450,11 @@ class CombatAttackService:
                 target,
                 current_hp=new_target_hp,
                 armor_class=target_armor_class,
-                conscious=conscious,
-                death_save_successes=death_save_successes,
-                death_save_failures=death_save_failures,
-                stable=stable,
-                dead=dead,
+                conscious=damage_state.conscious,
+                death_save_successes=damage_state.death_save_successes,
+                death_save_failures=damage_state.death_save_failures,
+                stable=damage_state.stable,
+                dead=damage_state.dead,
             )
             encounter.combatants = updated_combatants
 

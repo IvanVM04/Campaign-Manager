@@ -5,7 +5,7 @@ Read this file before making repository changes.
 ## Start here
 
 1. Read [the documentation hub](docs/README.md).
-2. Read [the current architecture audit](docs/architecture/architecture-audit-2026-11-11.md).
+2. Read [the current architecture map](docs/architecture/architecture-map-2026-11-12.md), [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [change-impact map](docs/architecture/change-impact-map-2026-11-12.md) and [the current architecture audit](docs/architecture/architecture-audit-2026-11-12.md).
 3. Read [the capability dependency matrix](docs/architecture/package-dependency-matrix.md).
 4. Read the relevant package `README.md` before changing a capability.
 5. Read [the CI audit](docs/quality/ci-audit-2026-11-11.md) and [test-suite audit](docs/quality/test-suite-audit-2026-11-11.md) before changing quality gates or tests.
@@ -87,7 +87,7 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 ## Documentation requirements
 
 - Update the relevant package `README.md` when ownership, public exports or dependencies change.
-- Update current architecture/quality audits when a finding is fixed or a new one is confirmed.
+- Update the current architecture audit and architecture map when a finding is fixed or a new one is confirmed.
 - Keep historical audit documents dated and immutable; do not rewrite history to make it appear that a later fix was always present.
 - Record module purpose, consumers, dependency rules, known risks and concrete follow-up work.
 - Link new current documents from [the documentation hub](docs/README.md) and the relevant index.

@@ -120,3 +120,14 @@ PR #193 reorganizes test navigation only; it does not change runtime behavior or
 - The split creates stable regression boundaries for a later behavior-preserving decomposition of the 46,851-character legacy prompt. That prompt source is deliberately unchanged in this PR.
 
 **Validation note:** source-level inventory confirms 36 extractor tests plus 16 lifecycle tests were carried forward. CI must verify collection, Ruff/import hygiene, deterministic tests, Pyright and CodeQL before merge. This structural change has not been represented as locally executed test coverage.
+
+## Revalidation after PR #196 — 2026-11-12
+
+PR #196 adds a focused rules-engine regression module alongside the existing combat API/service integration coverage:
+
+- `tests/rules_engine/test_hit_points.py` adds 10 test functions (15 collected cases including the invalid-state parameterization) for ordinary damage, first drop to zero, non-massive damage, massive damage, damage while downed, critical damage while downed, stable-state reset, third failure, zero damage and invalid state rejection.
+- The tests target the pure `rules_engine/dnd5e_2014/combat/hit_points.py` transition; database writes and canonical character/creature HP synchronization remain covered by the existing combat service/API tests.
+- This complements rather than replaces `tests/test_combat_attack_service.py`, which protects the persisted attack flow, including HP/death-state transitions and rollback.
+- The new module is discovered by the existing `tests/rules_engine/` test collection; no special marker or live provider is required.
+
+**Validation note:** this is an inventory of the tests added by PR #196, not a claim that the latest SHA has passed CI. The final PR head must pass the full deterministic Python suite, Ruff, JavaScript tests, both Pyright scopes and both CodeQL language checks.
