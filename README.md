@@ -113,7 +113,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-For the current baseline and ordered roadmap, see [the architecture audit — 2026-11-11](docs/architecture/architecture-audit-2026-11-11.md) and the [architecture documentation index](docs/architecture/README.md). The 2026-11-06, 2026-11-05 and 2026-11-03 audits are retained as dated snapshots. Active contracts remain documented in the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), and [SillyTavern smoke test](docs/sillytavern-smoke-test.md).
+For the current baseline, package ownership and ordered roadmap, start with the [architecture audit — 2026-11-12](docs/architecture/architecture-audit-2026-11-12.md), [architecture map](docs/architecture/architecture-map-2026-11-12.md), [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md) and [change-impact map](docs/architecture/change-impact-map-2026-11-12.md), all indexed from the [documentation hub](docs/README.md). The 2026-11-06, 2026-11-05 and 2026-11-03 audits are retained as dated snapshots. Active contracts remain documented in the [turn pipeline compatibility map](docs/architecture/turn-pipeline-compatibility.md), [writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), and [SillyTavern smoke test](docs/sillytavern-smoke-test.md).
 
 ---
 
@@ -133,7 +133,7 @@ The application services are organized into eight implemented capability package
 | [turns](services/turns/README.md) | Durable turn lifecycle and legacy compatibility |
 | [world](services/world/README.md) | Validated world-operation application and serialization |
 
-All eight capability packages now contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. Their package guides document responsibilities and pending boundary work. Some root-level services and compatibility surfaces remain outside those packages; their ownership and consumers are tracked in the [current architecture audit](docs/architecture/architecture-audit-2026-11-11.md). New code should use canonical package paths. Retire remaining shims only after repository-wide consumer checks, downstream compatibility review and full CI.
+All eight capability packages contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. Their package guides document responsibilities and pending boundary work. The external SillyTavern adapter is isolated under `integrations/adapters/silly_tavern`; `bootstrap/campaign_runtime.py` owns composition. The remaining old narrative-first mutation route and snapshot path are explicit compatibility surfaces, not a second service package. See the [current architecture audit](docs/architecture/architecture-audit-2026-11-12.md) and [module catalogue](docs/architecture/module-catalog-2026-11-12.md). New code should use canonical package paths. Do not restore flat service shims.
 
 ## Turn Processing
 
@@ -530,7 +530,10 @@ The real-LLM tests are intentionally excluded from deterministic CI because they
 ## Engineering documentation
 
 - [Documentation hub for maintainers and agents](docs/README.md)
-- [Current architecture and modularity audit](docs/architecture/architecture-audit-2026-11-11.md)
+- [Current architecture and modularity audit](docs/architecture/architecture-audit-2026-11-12.md)
+- [Architecture map](docs/architecture/architecture-map-2026-11-12.md)
+- [Shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md)
+- [Cross-layer change-impact map](docs/architecture/change-impact-map-2026-11-12.md)
 - [Capability dependency matrix](docs/architecture/package-dependency-matrix.md)
 - [CI and quality-gate audit](docs/quality/ci-audit-2026-11-11.md)
 - [Test-suite audit](docs/quality/test-suite-audit-2026-11-11.md)
@@ -667,14 +670,10 @@ Campaign-Manager/
 ├── repositories/
 │   └── SQLite persistence layer
 ├── services/
-│   ├── Campaign services
-│   ├── Context and memory services
-│   ├── LLM services
-│   ├── Turn resolution
-│   ├── SillyTavern integration
-│   └── World management
+│   ├── campaign / characters / combat / context
+│   ├── llm_world / providers / turns / world
 ├── integrations/
-│   └── External integration code
+│   └── adapters/silly_tavern
 ├── tests/
 │   └── Automated test suite
 └── data/
