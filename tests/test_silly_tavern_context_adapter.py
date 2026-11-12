@@ -320,8 +320,6 @@ def test_integration_service_rejects_invalid_context_adapter():
         SillyTavernIntegrationService(context_adapter=object())
 
 
-
-
 def test_context_adapter_keeps_additional_retrieval_queries_separate(
     adapter, monkeypatch
 ):
