@@ -9,7 +9,9 @@ from app import app
 from models.activity_event import ActivityEvent
 from models.campaign_scope import CampaignScope
 from repositories.activity_event_repository import ActivityEventRepository
+from models.turn_resolution_record import TurnResolutionRecord
 from repositories.campaign_repository import CampaignRepository
+from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.activity import CampaignActivityService
 
 
@@ -18,10 +20,11 @@ def make_event(
     campaign_id: int = 1,
     dedupe_key: str = "resolution:1:accepted",
     summary: str = "Turn accepted",
+    resolution_id: int | None = None,
 ) -> ActivityEvent:
     return ActivityEvent(
         campaign_id=campaign_id,
-        resolution_id=1,
+        resolution_id=resolution_id,
         session_id=None,
         turn_id=None,
         event_type="turn.accepted",
@@ -77,12 +80,23 @@ def test_activity_event_contract_rejects_unapproved_details_and_unknown_types():
 
 
 def test_campaign_activity_service_records_only_safe_turn_metadata(isolated_database):
-    service = CampaignActivityService(scope=CampaignScope(1))
+    scope = CampaignScope(1)
+    resolution = TurnResolutionRepository().create(
+        TurnResolutionRecord(
+            campaign_id=1,
+            player_input="Habla con la guardia.",
+            adapter_namespace="native",
+            idempotency_key="activity-service-test",
+            request_fingerprint="activity-service-fingerprint",
+        ),
+        scope=scope,
+    )
+    service = CampaignActivityService(scope=scope)
     record = SimpleNamespace(
-        id=9,
+        id=resolution.id,
         campaign_id=1,
         adapter_namespace="native",
-        session_id=1,
+        session_id=None,
         attempt_count=1,
     )
 
@@ -169,10 +183,20 @@ def test_activity_api_is_campaign_scoped_and_paginates_newest_first(isolated_dat
 def test_activity_api_filters_by_resolution_and_event_type(isolated_database):
     repository = ActivityEventRepository()
     scope = CampaignScope(1)
-    repository.create(make_event(dedupe_key="accepted-1"), scope=scope)
+    resolution = TurnResolutionRepository().create(
+        TurnResolutionRecord(
+            campaign_id=1,
+            player_input="Consulta el aviso del puerto.",
+            adapter_namespace="native",
+            idempotency_key="activity-filter-test",
+            request_fingerprint="activity-filter-fingerprint",
+        ),
+        scope=scope,
+    )
+    repository.create(make_event(dedupe_key="accepted-1", resolution_id=resolution.id), scope=scope)
     committed = ActivityEvent(
         campaign_id=1,
-        resolution_id=1,
+        resolution_id=resolution.id,
         event_type="turn.committed",
         summary="World changes committed",
         details={
