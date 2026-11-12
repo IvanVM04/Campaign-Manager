@@ -4,6 +4,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any, ClassVar, cast
 
 from models.world_collection_read_models import (
+    WorldCollectionItemRead,
     WorldCollectionPage,
     WorldEventRead,
     WorldItemInstanceRead,
@@ -86,7 +87,7 @@ class WorldCollectionQueryService:
             ),
         )
         needle = (query or "").strip().casefold()
-        projected: list[BaseModel] = []
+        projected: list[WorldCollectionItemRead] = []
         for value in ordered:
             if active is not None and hasattr(value, "active") and value.active is not active:
                 continue
@@ -110,7 +111,7 @@ class WorldCollectionQueryService:
                     if metadata is not None or collection == "events"
                     else None
                 )
-            projected.append(model(**data))
+            projected.append(cast(WorldCollectionItemRead, model(**data)))
 
         return WorldCollectionPage(
             items=tuple(projected[offset:offset + limit]),
