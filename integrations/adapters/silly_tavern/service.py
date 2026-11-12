@@ -1,4 +1,4 @@
-"""Thin façade that combines read adapters with the legacy turn processor port."""
+"""Thin read-oriented façade over the active SillyTavern context adapter."""
 
 from __future__ import annotations
 

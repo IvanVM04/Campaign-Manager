@@ -76,21 +76,25 @@ class DurableTurnNarrationService:
         record = self.resolution_repository.get_by_idempotency_key(
             "sillytavern", external_turn_id, scope=self.scope
         )
+        if record is None:
+            raise self.error_type(
+                "no durable resolution exists for this external turn"
+            )
         active_turn = self.turn_repository.get_active_by_external_turn_id(
             external_turn_id, scope=self.scope
         )
 
-        if record is not None and record.player_input != player_input:
+        if record.player_input != player_input:
             raise self.error_type(
                 "external turn identity was reused with different player input"
             )
 
-        if record is not None and record.lifecycle_state == "awaiting_input":
+        if record.lifecycle_state == "awaiting_input":
             raise self.error_type(
                 "turn is awaiting player clarification and cannot be completed as narration"
             )
 
-        if record is not None and record.lifecycle_state not in {
+        if record.lifecycle_state not in {
             "narration_pending",
             "completed",
         }:
@@ -99,7 +103,7 @@ class DurableTurnNarrationService:
             )
 
         previous_turn = active_turn
-        if previous_turn is None and record is not None and record.turn_id is not None:
+        if previous_turn is None and record.turn_id is not None:
             previous_turn = self.turn_repository.get_turn(
                 record.turn_id, scope=self.scope
             )
@@ -122,7 +126,7 @@ class DurableTurnNarrationService:
                     raise self.error_type(
                         "external turn version already exists with different content"
                     )
-                if record is not None and record.lifecycle_state == "completed":
+                if record.lifecycle_state == "completed":
                     return self.result_from_completed_record(
                         record, previous_turn, already_processed=True
                     )
@@ -135,32 +139,15 @@ class DurableTurnNarrationService:
                 f"external turn version must be {latest_version + 1}"
             )
 
-        if record is None and previous_turn is None:
-            raise self.error_type(
-                "no durable resolution exists for this external turn"
-            )
-        if record is None and previous_turn is None:
-            raise RuntimeError("previous turn is required without a durable resolution")
-
-        if record is not None:
-            operation_results = json.loads(record.operation_results_json or "[]")
-            operation_count = len(operation_results)
-            successful_count = sum(
-                1 for item in operation_results if item.get("success", False)
-            )
-            world_changed = any(
-                item.get("changed", False) for item in operation_results
-            )
-            session_id = record.session_id
-        else:
-            if previous_turn is None:
-                raise self.error_type(
-                    "no durable resolution exists for this external turn"
-                )
-            operation_count = previous_turn.operation_count
-            successful_count = previous_turn.successful_operation_count
-            world_changed = previous_turn.world_changed
-            session_id = previous_turn.session_id
+        operation_results = json.loads(record.operation_results_json or "[]")
+        operation_count = len(operation_results)
+        successful_count = sum(
+            1 for item in operation_results if item.get("success", False)
+        )
+        world_changed = any(
+            item.get("changed", False) for item in operation_results
+        )
+        session_id = record.session_id
         failed_count = operation_count - successful_count
         turn = TurnRecord(
             session_id=session_id,

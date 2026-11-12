@@ -16,7 +16,6 @@ class DurableTurnPreparation:
     committed_resolution: str
     clarification_question: str | None = None
     pending_clarification_id: str | None = None
-    legacy_replay: bool = False
     pending_roll_id: str | None = None
     pending_roll: dict | None = None
 

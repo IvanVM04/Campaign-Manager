@@ -15,9 +15,8 @@ from .errors import SillyTavernIntegrationServiceError
 class SillyTavernContextAdapter:
     """Translate campaign context and external-turn state to the client contract.
 
-    This adapter is deliberately read-only. It does not construct or invoke the
-    legacy narrative-first turn workflow; that collaborator is composed
-    separately by the application bootstrap.
+    This adapter is deliberately read-only. Durable turn mutation is owned
+    by the turn application services and is never delegated to this adapter.
     """
 
     def __init__(
