@@ -4,7 +4,7 @@ from services.turns.durable_native_turn_service import DurableNativeTurnError
 from durable_turn_test_support import service_with_fake_models
 
 def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reapply():
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     proposal_payload = json.dumps({
         "operations": [{
             "type": "create_entity",
@@ -93,7 +93,7 @@ def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reappl
     assert narrative_calls == []
 
 def test_silly_tavern_narrative_retry_is_idempotent():
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     service.prepare_external_turn(
         "Miro la habitación.",
         external_turn_id="st-chat-turn-002",
@@ -127,7 +127,7 @@ def test_silly_tavern_narrative_retry_is_idempotent():
 def test_silly_tavern_rejects_transcript_without_durable_resolution():
     from models.turn_record import TurnRecord
 
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     service.turn_repository.save_turn(
         TurnRecord(
             player_input="Entro en la taberna.",
@@ -170,7 +170,7 @@ def test_silly_tavern_rejects_transcript_without_durable_resolution():
 def test_silly_tavern_clarification_keeps_external_narration_durable(monkeypatch):
     from services.turns.turn_resolution_service import TurnResolutionPlan
 
-    service, _, narrative_calls = _service_with_fake_models()
+    service, _, narrative_calls = service_with_fake_models()
     plans = [
         TurnResolutionPlan(
             player_input="Abro una puerta.",
@@ -267,7 +267,7 @@ def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
 
     from models.turn_resolution_result import TurnResolutionResult
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     captured = {}
     pending = {
         "count": 2,
@@ -314,7 +314,7 @@ def test_silly_tavern_manual_mode_returns_durable_roll_challenge(monkeypatch):
 def test_silly_tavern_manual_roll_state_exposes_pending_challenge_without_internal_decision(monkeypatch):
     from types import SimpleNamespace
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     pending = {
         "challenge_id": "secret-challenge",
         "count": 2,
@@ -349,7 +349,7 @@ def test_silly_tavern_manual_roll_state_exposes_pending_challenge_without_intern
     assert "challenge_id" not in state["pending_roll"]
 
 def test_silly_tavern_manual_roll_state_is_scoped_to_sillytavern(monkeypatch):
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     captured = {}
     monkeypatch.setattr(
         service.resolution_repository,
@@ -370,7 +370,7 @@ def test_silly_tavern_manual_roll_state_is_scoped_to_sillytavern(monkeypatch):
 def test_silly_tavern_completed_manual_roll_state_is_recoverable_for_same_reply(monkeypatch):
     from types import SimpleNamespace
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     pending = {
         "challenge_id": "secret-challenge",
         "count": 1,
@@ -404,7 +404,7 @@ def test_silly_tavern_turn_retry_uses_persisted_manual_dice_mode(monkeypatch):
 
     from models.turn_resolution_result import TurnResolutionResult
 
-    service, _, _ = _service_with_fake_models()
+    service, _, _ = service_with_fake_models()
     captured = {}
     record = SimpleNamespace(
         id=42,
@@ -517,7 +517,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
 def test_external_narration_rejects_conflicting_content_for_existing_version():
     from database import get_conn
 
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     service.prepare_external_turn(
         "Miro la habitación.",
         external_turn_id="st-narrative-version-conflict",
@@ -562,7 +562,7 @@ def test_external_narration_rejects_conflicting_content_for_existing_version():
 def test_external_narration_rejects_skipped_version_without_writing_transcript():
     from database import get_conn
 
-    service, proposal_calls, _ = _service_with_fake_models()
+    service, proposal_calls, _ = service_with_fake_models()
     service.prepare_external_turn(
         "Miro la habitación.",
         external_turn_id="st-narrative-version-gap",
