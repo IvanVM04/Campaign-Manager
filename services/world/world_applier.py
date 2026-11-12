@@ -207,6 +207,10 @@ class WorldApplier:
             session_id=operation.session_id,
             secret=operation.secret,
             metadata=operation.metadata or {},
+            # Model-proposed events are evidence, not confirmed canon.
+            epistemic_status="inference",
+            provenance_source="model_inference",
+            visibility_scope=("gm_only" if operation.secret else "public"),
         )
 
         return OperationResult(

@@ -463,3 +463,162 @@ def test_search_keeps_number_words_as_part_of_compound_entity_names(service):
     result = service.search(world, "Entidad")
 
     assert sorted(entity["id"] for entity in result["entities"]) == [1, 2, 10]
+
+
+def test_search_respects_character_knowledge_scope(service):
+    world = WorldState(
+        events={
+            "only-fungoso": Event(
+                id="only-fungoso",
+                event_type="clue",
+                title="La carta revela el nombre del culto de ceniza",
+                visibility_scope="character",
+                known_by_entity_ids=[1],
+                epistemic_status="rumor",
+                provenance_source="npc_statement",
+            ),
+            "only-neria": Event(
+                id="only-neria",
+                event_type="clue",
+                title="El mapa revela el refugio del pantano",
+                visibility_scope="character",
+                known_by_entity_ids=[2],
+                provenance_source="direct_observation",
+            ),
+        }
+    )
+
+    assert service.search(world, "culto de ceniza")["events"] == []
+    fungoso = service.search(
+        world,
+        "culto de ceniza",
+        character_entity_id=1,
+    )
+    assert [event["id"] for event in fungoso["events"]] == ["only-fungoso"]
+    assert fungoso["events"][0]["epistemic_status"] == "rumor"
+    assert service.search(
+        world,
+        "culto de ceniza",
+        character_entity_id=2,
+    )["events"] == []
+
+
+def test_search_labels_superseded_events_as_historical(service):
+    old = Event(
+        id="old-location",
+        event_type="location",
+        title="Aldric vive en la posada",
+    )
+    current = Event(
+        id="new-location",
+        event_type="location",
+        title="Aldric vive en la torre",
+        supersedes_event_id="old-location",
+        campaign_elapsed_minutes=240,
+    )
+    world = WorldState(events={old.id: old, current.id: current})
+
+    old_result = service.search(world, "posada")["events"]
+    current_result = service.search(world, "torre")["events"]
+
+    assert old_result[0]["is_current"] is False
+    assert current_result[0]["is_current"] is True
+
+
+def test_search_rejects_invalid_character_perspective(service, world):
+    with pytest.raises(ValueError, match="character_entity_id"):
+        service.search(world, "Fungoso", character_entity_id=True)
+
+
+def test_context_builder_never_reintroduces_another_characters_private_event(service):
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="Fungoso", entity_type="player_character"),
+        },
+        events={
+            "private-clue": Event(
+                id="private-clue",
+                event_type="clue",
+                title="La carta menciona el culto de ceniza",
+                description="Una pista conocida solo por Fungoso.",
+                visibility_scope="character",
+                known_by_entity_ids=[1],
+                provenance_source="direct_observation",
+                metadata={"entity_ids": [1]},
+            )
+        },
+    )
+    builder = ContextBuilder(memory_search_service=service)
+
+    fungoso_context = builder.build(
+        world,
+        "La carta",
+        character_entity_id=1,
+    )
+    other_context = builder.build(
+        world,
+        "Fungoso",
+        character_entity_id=2,
+    )
+    no_perspective = builder.build(
+        world,
+        "Fungoso",
+    )
+
+    assert [event["id"] for event in fungoso_context["events"]] == ["private-clue"]
+    assert other_context["events"] == []
+    assert no_perspective["events"] == []
+    assert "culto de ceniza" in fungoso_context["context"]
+    assert "culto de ceniza" not in other_context["context"]
+
+
+def test_player_event_search_and_export_do_not_disclose_other_character_ids(service):
+    world = WorldState(
+        events={
+            "private": Event(
+                id="private",
+                event_type="clue",
+                title="A secret map",
+                visibility_scope="character",
+                known_by_entity_ids=[1, 2, 3],
+                provenance_source="direct_observation",
+            )
+        }
+    )
+
+    search_result = service.search(
+        world,
+        "secret map",
+        character_entity_id=1,
+    )
+    exported = service.export(world, character_entity_id=1)
+
+    assert search_result["events"][0]["id"] == "private"
+    assert "known_by_entity_ids" not in search_result["events"][0]
+    assert exported["events"][0]["id"] == "private"
+    assert "known_by_entity_ids" not in exported["events"][0]
+
+
+
+def test_player_event_projections_resolve_provenance_source_name(service):
+    world = WorldState(
+        entities={
+            9: Entity(id=9, name="Aldric", entity_type="npc"),
+        },
+        events={
+            "rumor": Event(
+                id="rumor",
+                event_type="rumor",
+                title="El faro está maldito",
+                epistemic_status="rumor",
+                provenance_source="npc_statement",
+                source_entity_id=9,
+            )
+        },
+    )
+
+    search_result = service.search(world, "faro", character_entity_id=1)
+    exported = service.export(world, character_entity_id=1)
+
+    assert search_result["events"][0]["source_entity_name"] == "Aldric"
+    assert exported["events"][0]["source_entity_name"] == "Aldric"

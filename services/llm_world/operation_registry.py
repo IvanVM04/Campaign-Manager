@@ -403,6 +403,8 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
         _metadata("remove_relation", RemoveRelationOperation,
                   example={"type": "remove_relation", "relation_id": "guardia_mercado"},
                   model_proposable=True),
+        # Event provenance/visibility must be supplied by a trusted workflow;
+        # LLM proposals cannot create canonical campaign history.
         _metadata("create_event", CreateEventOperation,
                   reference_fields=("session_id",),
                   example={"type": "create_event", "event_id": "mercader_amenazado",

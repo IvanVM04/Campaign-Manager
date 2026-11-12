@@ -11,8 +11,17 @@ def search_memory(
 ):
     runtime = get_current_runtime()
     with runtime.turn_execution_lock.acquire():
-        world = runtime.world_service.get_world()
-        return runtime.memory_search_service.search(world, q.strip())
+        turn_context = runtime.campaign_state_service.get_turn_context()
+        character_entity_id = (
+            turn_context.active_character.entity_id
+            if turn_context.active_character is not None
+            else None
+        )
+        return runtime.memory_search_service.search(
+            turn_context.world,
+            q.strip(),
+            character_entity_id=character_entity_id,
+        )
 
 
 @router.get("/memory/context")
@@ -21,5 +30,14 @@ def memory_context(
 ):
     runtime = get_current_runtime()
     with runtime.turn_execution_lock.acquire():
-        world = runtime.world_service.get_world()
-        return runtime.context_builder.build(world, q.strip())
+        turn_context = runtime.campaign_state_service.get_turn_context()
+        character_entity_id = (
+            turn_context.active_character.entity_id
+            if turn_context.active_character is not None
+            else None
+        )
+        return runtime.context_builder.build(
+            turn_context.world,
+            q.strip(),
+            character_entity_id=character_entity_id,
+        )

@@ -182,7 +182,9 @@ class WorldRepository:
         data = self._rows("""
             SELECT
                 id, event_type, title, description, consequences,
-                session_id, secret, metadata
+                session_id, secret, metadata, epistemic_status,
+                provenance_source, visibility_scope, known_by_entity_ids,
+                source_entity_id, campaign_elapsed_minutes, supersedes_event_id
             FROM world_events
             WHERE campaign_id = ?
         """, (campaign_id,), conn=conn)
@@ -201,6 +203,13 @@ class WorldRepository:
                     if row["metadata"] is not None
                     else {}
                 ),
+                epistemic_status=row["epistemic_status"],
+                provenance_source=row["provenance_source"],
+                visibility_scope=row["visibility_scope"],
+                known_by_entity_ids=json.loads(row["known_by_entity_ids"] or "[]"),
+                source_entity_id=row["source_entity_id"],
+                campaign_elapsed_minutes=row["campaign_elapsed_minutes"],
+                supersedes_event_id=row["supersedes_event_id"],
             )
             world.events[event.id] = event
 
@@ -505,8 +514,31 @@ class WorldRepository:
     # SAVE EVENTS
     # ============================================================
 
+    @staticmethod
+    def _events_in_supersession_order(world):
+        """Order event rows so every superseded event exists before its successor."""
+        pending = dict(world.events)
+        ordered = []
+        saved_ids: set[str] = set()
+        while pending:
+            ready = [
+                event
+                for event in pending.values()
+                if (
+                    event.supersedes_event_id is None
+                    or event.supersedes_event_id in saved_ids
+                )
+            ]
+            if not ready:
+                raise ValueError("event supersession references contain a cycle")
+            for event in ready:
+                ordered.append(event)
+                saved_ids.add(event.id)
+                pending.pop(event.id, None)
+        return ordered
+
     def _save_events(self, conn, world, *, campaign_id):
-        for event in world.events.values():
+        for event in self._events_in_supersession_order(world):
             metadata = (
                 json.dumps(event.metadata)
                 if event.metadata is not None
@@ -520,9 +552,12 @@ class WorldRepository:
                 query="""
                     INSERT INTO world_events (
                         id, event_type, title, description, consequences,
-                        session_id, secret, metadata, campaign_id
+                        session_id, secret, metadata, epistemic_status,
+                        provenance_source, visibility_scope, known_by_entity_ids,
+                        source_entity_id, campaign_elapsed_minutes, supersedes_event_id,
+                        campaign_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         event_type = excluded.event_type,
                         title = excluded.title,
@@ -531,6 +566,13 @@ class WorldRepository:
                         session_id = excluded.session_id,
                         secret = excluded.secret,
                         metadata = excluded.metadata,
+                        epistemic_status = excluded.epistemic_status,
+                        provenance_source = excluded.provenance_source,
+                        visibility_scope = excluded.visibility_scope,
+                        known_by_entity_ids = excluded.known_by_entity_ids,
+                        source_entity_id = excluded.source_entity_id,
+                        campaign_elapsed_minutes = excluded.campaign_elapsed_minutes,
+                        supersedes_event_id = excluded.supersedes_event_id,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE world_events.campaign_id = excluded.campaign_id
                 """,
@@ -543,6 +585,13 @@ class WorldRepository:
                     event.session_id,
                     int(event.secret),
                     metadata,
+                    event.epistemic_status,
+                    event.provenance_source,
+                    event.visibility_scope,
+                    json.dumps(event.known_by_entity_ids, separators=(",", ":")),
+                    event.source_entity_id,
+                    event.campaign_elapsed_minutes,
+                    event.supersedes_event_id,
                     campaign_id,
                 ),
             )
@@ -635,3 +684,21 @@ class WorldRepository:
                 and balance.owner_id in entity_ids
             )
         }
+
+        for event in world.events.values():
+            if event.source_entity_id is not None and event.source_entity_id not in entity_ids:
+                raise ValueError(
+                    f"event {event.id!r} references a source entity outside this world"
+                )
+            missing_known_by = set(event.known_by_entity_ids) - entity_ids
+            if missing_known_by:
+                raise ValueError(
+                    f"event {event.id!r} references unknown character visibility IDs"
+                )
+            if (
+                event.supersedes_event_id is not None
+                and event.supersedes_event_id not in world.events
+            ):
+                raise ValueError(
+                    f"event {event.id!r} supersedes an event outside this world"
+                )

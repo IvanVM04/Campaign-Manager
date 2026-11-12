@@ -66,6 +66,9 @@ def test_proposal_prompt_builder_renders_shared_world_projection(monkeypatch):
         "resultado mecánico confirmado por el motor",
     ):
         assert semantic_rule in prompt
+    assert "Los eventos rumor son afirmaciones atribuidas" in prompt
+    assert "Los eventos inference son hipótesis, no canon" in prompt
+    assert "no certifica por sí sola su veracidad" in prompt
     assert "no dupliques" in prompt
     assert "Relaciones requieren evidencia" in prompt
     assert "Sin cambio justificado" in prompt

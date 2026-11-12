@@ -25,6 +25,7 @@ def test_registry_marks_model_proposable_operations_explicitly():
     assert "change_character_hp" not in allowed
     assert allowed == tuple(sorted(set(allowed)))
     assert DEFAULT_OPERATION_REGISTRY.is_model_proposable("change_character_hp") is False
+    assert DEFAULT_OPERATION_REGISTRY.is_model_proposable("create_event") is True
 
 
 def test_generated_json_schema_uses_dataclass_fields_and_required_values():
@@ -110,3 +111,13 @@ def test_empty_proposal_allowlist_renders_empty_contract_without_fallback():
 
     assert contract["operations"] == {}
     assert contract["examples"] == {}
+
+
+def test_event_provenance_is_not_a_model_configurable_operation_field():
+    metadata = DEFAULT_OPERATION_REGISTRY.get("create_event")
+    assert metadata is not None
+    properties = metadata.json_schema()["properties"]
+
+    assert "epistemic_status" not in properties
+    assert "provenance_source" not in properties
+    assert "visibility_scope" not in properties

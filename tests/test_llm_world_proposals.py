@@ -237,3 +237,54 @@ def test_propose_stops_after_one_failed_repair_attempt():
         extractor.propose("Hablo con Mara.", make_context())
 
     assert len(prompts) == 2
+
+
+
+def test_model_created_event_cannot_promote_its_provenance_to_canon():
+    from services.world.world_applier import WorldApplier
+
+    parser = LLMWorldResponseParser(OperationParser())
+    operations = parser.parse_operations({
+        "operations": [{
+            "type": "create_event",
+            "event_id": "rumor-01",
+            "event_type": "rumor",
+            "title": "El faro está maldito",
+            "epistemic_status": "confirmed",
+            "provenance_source": "gm_authored",
+            "visibility_scope": "public",
+        }]
+    })
+
+    world = WorldState()
+    result = WorldApplier().apply(world, operations[0])
+    assert result.success is True
+    event = world.events["rumor-01"]
+    assert event.epistemic_status == "inference"
+    assert event.provenance_source == "model_inference"
+    assert event.visibility_scope == "public"
+
+
+def test_model_created_secret_event_stays_gm_only_inference():
+    from services.world.world_applier import WorldApplier
+
+    parser = LLMWorldResponseParser(OperationParser())
+    operations = parser.parse_operations({
+        "operations": [{
+            "type": "create_event",
+            "event_id": "secret-rumor-01",
+            "event_type": "rumor",
+            "title": "El faro está maldito",
+            "secret": True,
+            "epistemic_status": "confirmed",
+            "provenance_source": "gm_authored",
+        }]
+    })
+
+    world = WorldState()
+    result = WorldApplier().apply(world, operations[0])
+    assert result.success is True
+    event = world.events["secret-rumor-01"]
+    assert event.epistemic_status == "inference"
+    assert event.provenance_source == "model_inference"
+    assert event.visibility_scope == "gm_only"

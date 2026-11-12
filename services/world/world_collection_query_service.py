@@ -55,6 +55,13 @@ class WorldCollectionQueryService:
                 "subject_name": self._entity_name(world, value.subject_id),
                 "target_name": self._entity_name(world, value.target_id),
             }
+        if collection == "events":
+            return {
+                "source_entity_name": self._entity_name(
+                    world,
+                    value.source_entity_id,
+                ),
+            }
         return {}
 
     def list_collection(
@@ -66,6 +73,7 @@ class WorldCollectionQueryService:
         active: bool | None = None,
         limit: int = 50,
         offset: int = 0,
+        character_entity_id: int | None = None,
     ) -> WorldCollectionPage:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
@@ -77,7 +85,15 @@ class WorldCollectionQueryService:
         attribute, model, search_fields = self._COLLECTIONS[collection]
         values: Iterable[Any] = getattr(world, attribute).values()
         if collection == "events":
-            values = WorldVisibilityPolicy.player_visible_events(values)
+            values = WorldVisibilityPolicy.player_visible_events(
+                values,
+                character_entity_id=character_entity_id,
+            )
+            superseded_ids = WorldVisibilityPolicy.superseded_event_ids(
+                world.events.values()
+            )
+        else:
+            superseded_ids = frozenset()
 
         ordered = sorted(
             values,
@@ -104,6 +120,10 @@ class WorldCollectionQueryService:
                 else dict(vars(value))
             )
             data.update(related_names)
+            if collection == "events":
+                data.pop("known_by_entity_ids", None)
+                event_id = getattr(value, "id", None)
+                data["is_current"] = event_id not in superseded_ids
             if collection in {"relations", "events"}:
                 metadata = data.pop("metadata", None)
                 data["metadata_json"] = (

@@ -66,4 +66,11 @@ class WorldSerializer:
     def event_to_dict(
         event: Any,
     ) -> dict[str, Any]:
-        return WorldSerializer.serialize(event)
+        """Return event data safe for player-facing projections.
+
+        The full known-by character ID set is internal access-control
+        metadata and must not be disclosed to a player.
+        """
+        data = WorldSerializer.serialize(event)
+        data.pop("known_by_entity_ids", None)
+        return data

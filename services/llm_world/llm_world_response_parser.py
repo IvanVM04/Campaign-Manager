@@ -84,8 +84,22 @@ class LLMWorldResponseParser:
                     f"Operation type {operation_type!r} is not permitted in model proposals"
                 )
 
+        # A model may propose an event as uncertain evidence, but it cannot
+        # claim GM authorship, confirmed truth, or character-sourced provenance.
+        normalized_operations: list[dict[str, Any]] = []
+        for raw_operation in raw_operations:
+            normalized = dict(raw_operation)
+            if normalized.get("type") == "create_event":
+                # These values are controlled by the application, never by the model.
+                normalized.pop("epistemic_status", None)
+                normalized.pop("provenance_source", None)
+                normalized.pop("visibility_scope", None)
+            normalized_operations.append(normalized)
+
         try:
-            operations = self.operation_parser.parse(payload)
+            operations = self.operation_parser.parse(
+                {"operations": normalized_operations}
+            )
         except Exception as exc:
             raise LLMExtractionError("Failed to parse operations") from exc
 

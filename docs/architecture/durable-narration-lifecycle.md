@@ -13,17 +13,22 @@ an existing legacy transcript projection where compatibility requires it.
 
 ## Invariants preserved
 
-- Narration generation reads a fresh context and recent-turn history.
+- Narration generation reads a fresh context and recent-turn history scoped to the active character's event knowledge.
 - Native narration completion transitions `committed` to `narration_pending`
   before generating prose, then persists the transcript and marks the resolution
   `completed`.
+- Narrative evidence is built from operations whose matching application result
+  explicitly reports `success=true` and `changed=true`; failed, rejected,
+  no-op or result-less proposals are not sent as consequences to the narrator.
 - External narration never applies gameplay consequences.
 - External turn identity, player input, transcript version ordering, and duplicate
   version content remain validated.
 - External transcript writes re-check the active version inside the write transaction.
 - The public `DurableNativeTurnService.complete_external_narration()` API remains
   unchanged.
-- Database schema, persisted JSON, and endpoint payloads remain unchanged.
+- The durable turn-record schema and external narration endpoint contract remain
+  unchanged; world-event knowledge metadata is introduced separately by migration
+  032 and does not alter the durable resolution lifecycle.
 
 The service receives repositories, the resolver, the campaign scope, the shared
 execution lock, and a context-loading callback explicitly. It does not retain the

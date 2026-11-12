@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** active engineering roadmap; PRs #210–#212 are integrated; PR #213 implements the next player-intent semantics tranche.  
-**Verified base:** `main` at `351a4c43759d1ee7e0152d236ed13afaac1adb7d` after PR #212.  
+**Status:** PRs #210–#213 are integrated; PR #214 consolidates knowledge provenance/perspective (#214) and cross-role narrative grounding (#215).  
+**Verified base:** `main` at `3ba5e485fdf89259a3341b50b16d5e36300af634` after PR #213.  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -240,47 +240,36 @@ gates and must not be marked passed until actually run.
 
 **PR #213 delivery boundary:** prompt rules and opt-in live cases are implemented as an application-level contract. The real Ollama corpus and SillyTavern acceptance still require local execution and are not inferred from deterministic CI.
 
-### PR #214 — Knowledge provenance, perspective and temporal continuity
+### PR #214 — Knowledge provenance, character perspective and committed narrative grounding
 
-**Goal:** represent not just what is true, but how it is known, to whom and when.
+**Goal:** represent how campaign events are known, which player-character can access them, when they occurred, and ensure adjudication/proposals/narration share the same evidence.
 
-**Investigation and delivery:**
-- distinguish canonical GM truth, player-character knowledge, public knowledge, rumor, inference, unknown and secret;
-- define provenance: explicit observation, NPC statement, discovered document, rules result, GM-authored fact or model inference;
-- define source/session/time and confidence only where domain workflows can maintain them reliably;
-- distinguish "known to the player" from "known to the character";
-- ensure secret information cannot leak through summaries, retrieval, narration or repair prompts;
-- represent temporal changes without overwriting history where continuity requires it;
-- decide whether these contracts require new domain models and forward-only SQLite migration; avoid stuffing structured meaning into free-form notes/metadata;
-- define how contradictions are resolved: canonical committed fact wins; unverified claims remain attributed/uncertain; conflicting evidence prompts clarification or a GM decision.
+**Implementation:** this larger tranche deliberately combines the original #214 and #215 work so privacy and narrative grounding are verified across the complete read/turn boundary rather than split across partial PRs.
 
-**Acceptance criteria:**
-- tests for perspective isolation and secret leakage at all read/render boundaries;
-- tests for rumor vs confirmed fact and for stale facts superseded by later committed state;
-- multi-turn tests show the narrator uses current state and retains relevant historical evidence;
-- migration tests preserve existing campaign data and default legacy records safely;
-- no model can elevate an inference/rumor into canonical truth without an application-authorized workflow.
+- [x] Add typed event epistemic status (`confirmed`, `rumor`, `inference`) and provenance source (`gm_authored`, `direct_observation`, `npc_statement`, `discovered_document`, `rules_result`, `model_inference`, `imported`).
+- [x] Add event visibility scopes (`public`, `character`, `gm_only`), explicit known-by character IDs, source entity, campaign elapsed time and a supersession link.
+- [x] Keep the legacy `secret` flag as a compatibility alias for GM-only visibility; migration 032 preserves old public records and backfills old secret records as GM-only.
+- [x] Enforce visibility using the active character resolved by trusted application state across memory search/context, proposal selection, mechanics adjudication, native narration, SillyTavern context, world/event collection reads and public export.
+- [x] Keep character-audience IDs internal: player-facing event projections expose the event's epistemic/provenance/temporal labels but not the complete set of other characters who know it.
+- [x] Preserve superseded facts as history, mark them non-current in retrieval/read projections, and persist supersession chains in dependency order; reject cycles.
+- [x] Allow model-originated event proposals only as `inference/model_inference`; the parser strips untrusted provenance fields and the world applier assigns the non-canonical status. Trusted workflows can author confirmed facts.
+- [x] Feed the narrator only operations whose application result explicitly says both `success=true` and `changed=true`; omit failed, rejected, no-op, malformed and result-less proposal entries.
+- [x] Distinguish confirmed facts, attributed rumors and non-canonical inferences in narrative instructions; use the active character's knowledge projection.
+- [x] Add deterministic tests for migration/backfill/idempotency, campaign-scoped provenance references, per-character visibility, expansion leak prevention, history supersession, API/SillyTavern perspective, repository ordering and committed-only narration evidence.
 
-### PR #215 — Cross-role consistency and narrative grounding
+**Explicit limits retained:**
 
-**Goal:** make the adjudicator, proposal generator and narrator agree about the same action and committed reality.
+- The typed provenance/epistemic contract currently applies to campaign events. Entity descriptions/notes, item descriptions and other free-text fields do not yet have per-assertion provenance.
+- `known_by_entity_ids` represents character knowledge, not a separate player's out-of-character knowledge ledger.
+- Confidence scores, document/page citations, source text snapshots, and full event sourcing are not added. Keep provenance limited to data the application can maintain reliably.
+- Unknown remains the absence of a supplied fact; it is not stored as a fabricated event.
+- The active character perspective is fail-closed for character-scoped events when no character is active.
+- Existing turns keep their durable identity/recovery contract. Narration regeneration does not reapply operations.
+- Deterministic CI does not prove local Ollama semantics or a complete SillyTavern user session; those remain separate acceptance gates.
 
-**Investigation and delivery:**
-- build shared scenario fixtures for mechanics, proposals, application outcomes and narration evidence;
-- ensure mechanics prompts receive the necessary relevant world/character facts while preserving their authority boundary;
-- ensure world proposals only use confirmed mechanics results when a check was resolved;
-- ensure clarification answers resume the original action without becoming separate world facts or actions;
-- ensure the narrator receives committed operations/outcomes and relevant context, not uncommitted proposals as facts;
-- add continuity scenarios across NPCs, locations, items, clues, relationships, rewards and changed states;
-- test that narration cannot invent a successful opening, transfer, injury, relationship or discovery when the committed outcome says otherwise;
-- track role-specific model settings and latency; compare models on the same fixed corpus.
+**Acceptance boundary:** deterministic tests and CI protect application privacy/authority invariants. Run and record the expanded local Ollama and manual SillyTavern acceptance separately; do not claim either passed before execution.
 
-**Acceptance criteria:**
-- end-to-end local turn scenarios pass from player input through mechanics, proposal, commit and narration;
-- narration claims are traceable to committed operations, mechanics evidence or pre-existing world facts;
-- repeated generations do not reapply consequences;
-- clarification/manual-roll recovery retains the original request identity and outcome;
-- failures are diagnosable from correlation IDs and sanitized error categories.
+**Consolidation note:** the original roadmap item #215 (cross-role consistency and narrative grounding) is delivered in this PR rather than a second PR. The next conditional model benchmark remains #216.
 
 ### PR #216 — Benchmark hardening and model selection (conditional)
 

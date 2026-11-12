@@ -141,6 +141,7 @@ class ContextBuilder:
         recent_turns: list[TurnRecord] | None = None,
         *,
         supplemental_queries: tuple[str, ...] | list[str] = (),
+        character_entity_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Construye el contexto completo para el LLM.
@@ -170,11 +171,13 @@ class ContextBuilder:
                 world,
                 normalized_query,
                 normalized_supplemental_queries,
+                character_entity_id=character_entity_id,
             )
         else:
             result = self._build_context_data(
                 world,
                 normalized_query,
+                character_entity_id=character_entity_id,
             )
 
         result["recent_turns"] = normalized_recent_turns
@@ -195,6 +198,7 @@ class ContextBuilder:
         max_estimated_tokens: int,
         mandatory_entity_ids: tuple[int, ...] | list[int] = (),
         supplemental_queries: tuple[str, ...] | list[str] = (),
+        character_entity_id: int | None = None,
     ) -> WorldContextProjection:
         """Build a bounded typed projection for structured consequence proposals.
 
@@ -207,6 +211,7 @@ class ContextBuilder:
             max_estimated_tokens=max_estimated_tokens,
             mandatory_entity_ids=mandatory_entity_ids,
             supplemental_queries=supplemental_queries,
+            character_entity_id=character_entity_id,
         )
     # ============================================================
     # VALIDATION
@@ -292,6 +297,8 @@ class ContextBuilder:
         world: WorldState,
         normalized_query: str,
         supplemental_queries: tuple[str, ...] = (),
+        *,
+        character_entity_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Construye los datos estructurados relevantes.
@@ -307,16 +314,19 @@ class ContextBuilder:
             search_result = self.memory_search_service.search_many(
                 world,
                 (normalized_query, *supplemental_queries),
+                character_entity_id=character_entity_id,
             )
         else:
             search_result = self.memory_search_service.search(
                 world,
                 normalized_query,
+                character_entity_id=character_entity_id,
             )
 
         result = self.context_expander.expand(
             world,
             search_result,
+            character_entity_id=character_entity_id,
         )
 
         result["query"] = normalized_query

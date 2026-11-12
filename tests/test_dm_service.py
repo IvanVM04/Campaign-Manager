@@ -31,12 +31,18 @@ class RecordingContextBuilder(ContextBuilder):
         super().__init__()
         self.context = context
         self.calls: list[tuple[WorldState, str]] = []
+        self.perspectives: list[int | None] = []
 
     def build(
         self,
         world: WorldState,
         query: str,
+        recent_turns=None,
+        *,
+        supplemental_queries=(),
+        character_entity_id: int | None = None,
     ) -> dict:
+        self.perspectives.append(character_entity_id)
         self.calls.append(
             (
                 world,
@@ -595,6 +601,10 @@ def test_invalid_context_from_context_builder_is_rejected():
             self,
             world,
             query,
+            recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
         ):
             return {
                 "context": None,
@@ -921,8 +931,12 @@ def test_generate_passes_recent_turns_to_context_builder():
             world,
             query,
             recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
         ):
             self.received_recent_turns = recent_turns
+            self.received_character_entity_id = character_entity_id
 
             return {
                 "query": query,
@@ -969,6 +983,7 @@ def test_generate_passes_recent_turns_to_context_builder():
         context_builder.received_recent_turns
         == recent_turns
     )
+    assert context_builder.received_character_entity_id == 20
 
 
 def test_default_prompt_respects_campaign_tone_and_defers_mechanics():
@@ -1012,3 +1027,16 @@ def test_committed_resolution_is_included_as_authoritative_narration_context():
     assert prompt is not None
     assert "RESOLUCIÓN Y CONSECUENCIAS YA COMPROMETIDAS" in prompt
     assert "open_door" in prompt
+
+
+def test_generate_retrieves_events_for_the_active_character_perspective():
+    provider = FakeLLMProvider(response="Respuesta narrativa.")
+    context_builder = RecordingContextBuilder()
+    service = DMService(provider, context_builder)
+    context = make_turn_context()
+
+    service.generate(context, "Busco una pista.")
+
+    assert context_builder.perspectives == [20]
+    assert "rumores atribuyendo" in service.DEFAULT_SYSTEM_PROMPT
+    assert "históricos/sustituidos" in service.DEFAULT_SYSTEM_PROMPT

@@ -523,7 +523,19 @@ class ContextRenderer:
                 "",
             )
 
-            line = f"- {title}"
+            epistemic_status = event.get("epistemic_status", "confirmed")
+            provenance_source = event.get("provenance_source", "gm_authored")
+            temporal_status = (
+                "histórico/sustituido"
+                if event.get("is_current") is False
+                else "actual"
+            )
+            source_name = event.get("source_entity_name")
+            source_label = f"; fuente={source_name}" if source_name else ""
+            line = (
+                f"- [{epistemic_status}; origen={provenance_source}"
+                f"{source_label}; estado_temporal={temporal_status}] {title}"
+            )
 
             if description:
                 line += (

@@ -127,8 +127,15 @@ def test_context_adapter_excludes_requested_turn_and_serializes_optional_state(
     )
     captured = {}
 
-    def build(world, query, *, recent_turns):
+    def build(
+        world,
+        query,
+        *,
+        recent_turns,
+        character_entity_id=None,
+    ):
         captured["recent_turns"] = recent_turns
+        captured["character_entity_id"] = character_entity_id
         return {"query": query, "context": "Contexto filtrado."}
 
     monkeypatch.setattr(adapter.context_builder, "build", build)
@@ -165,6 +172,7 @@ def test_context_adapter_excludes_requested_turn_and_serializes_optional_state(
         "proficiency_bonus": 2,
     }
     assert result["context"]["context"] == "Contexto filtrado."
+    assert captured["character_entity_id"] == 44
 
 
 def test_context_adapter_external_turn_state_when_no_transcript_exists(
@@ -336,7 +344,14 @@ def test_context_adapter_keeps_additional_retrieval_queries_separate(
     )
     captured = {}
 
-    def build(world, query, *, recent_turns, supplemental_queries):
+    def build(
+        world,
+        query,
+        *,
+        recent_turns,
+        supplemental_queries,
+        character_entity_id=None,
+    ):
         captured["query"] = query
         captured["supplemental_queries"] = supplemental_queries
         return {
@@ -392,7 +407,14 @@ def test_context_adapter_deduplicates_additional_queries(
     )
     captured = {}
 
-    def build(world, query, *, recent_turns, supplemental_queries):
+    def build(
+        world,
+        query,
+        *,
+        recent_turns,
+        supplemental_queries,
+        character_entity_id=None,
+    ):
         captured["supplemental_queries"] = supplemental_queries
         return {"query": query, "context": "Contexto.", "entities": []}
 

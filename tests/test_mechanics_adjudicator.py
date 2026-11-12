@@ -127,3 +127,45 @@ def test_system_prompt_classifies_player_action_modality_before_checking():
     assert "diálogo citado" in prompt
     assert "paso activo" in prompt
     assert "no elijas un objetivo al azar" in prompt
+
+
+def test_adjudicator_retrieves_context_for_the_active_character():
+    from services.context import ContextBuilder
+
+    class RecordingContextBuilder(ContextBuilder):
+        def __init__(self):
+            super().__init__()
+            self.character_entity_id = None
+
+        def build(
+            self,
+            world,
+            query,
+            recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
+        ):
+            self.character_entity_id = character_entity_id
+            return {"context": "Only this character's known facts."}
+
+    context_builder = RecordingContextBuilder()
+    adjudicator = MechanicsAdjudicator(
+        FakeLLMProvider(response='{"decision":"none"}'),
+        context_builder,
+    )
+
+    decision = adjudicator.adjudicate(make_turn_context(), "Miro alrededor.")
+
+    assert decision.decision is MechanicsDecisionType.NONE
+    assert context_builder.character_entity_id == 20
+
+
+
+def test_system_prompt_does_not_treat_rumors_or_inferences_as_confirmed_facts():
+    prompt = MechanicsAdjudicator.SYSTEM_PROMPT.casefold()
+
+    assert "un rumor es una afirmación atribuida" in prompt
+    assert "una inferencia es una posibilidad" in prompt
+    assert "no bases una cd" in prompt
+    assert "pide aclaración" in prompt

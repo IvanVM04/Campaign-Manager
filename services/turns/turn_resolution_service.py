@@ -336,6 +336,11 @@ class TurnResolutionService:
                     normalized_input,
                     max_estimated_tokens=self.proposal_context_max_tokens,
                     mandatory_entity_ids=mandatory_entity_ids,
+                    character_entity_id=(
+                        context.active_character.entity_id
+                        if context.active_character is not None
+                        else None
+                    ),
                 )
             except Exception as exc:
                 raise TurnResolutionServiceError(
