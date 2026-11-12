@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from context_pipeline_test_support import (
+from tests.context_pipeline_test_support import (
     make_complex_world,
     make_relation,
     make_world,
