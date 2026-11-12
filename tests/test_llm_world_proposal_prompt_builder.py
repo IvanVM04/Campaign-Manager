@@ -148,4 +148,4 @@ def test_ambiguous_entity_reference_is_spelled_out_in_proposal_prompt():
     )
 
     assert "coincide con varios registros" in prompt
-    assert "no elijas uno al azar" in prompt
+    assert "no elijas uno al azar" in prompt.casefold()

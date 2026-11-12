@@ -440,7 +440,7 @@ def test_search_resolves_role_from_description_only_when_all_terms_match(service
     assert [entity["id"] for entity in result["entities"]] == [1]
 
 
-def test_search_abstains_when_role_description_matches_multiple_entities(service):
+def test_search_keeps_role_candidates_when_description_is_ambiguous(service):
     world = WorldState(
         entities={
             1: Entity(id=1, name="Aldric", description="Un guardia del puerto."),
@@ -448,4 +448,4 @@ def test_search_abstains_when_role_description_matches_multiple_entities(service
         }
     )
     result = service.search(world, "Quiero hablar con el guardia del puerto")
-    assert result["entities"] == []
+    assert [entity["id"] for entity in result["entities"]] == [1, 2]

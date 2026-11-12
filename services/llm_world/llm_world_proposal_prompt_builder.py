@@ -94,7 +94,7 @@ class LLMWorldProposalPromptBuilder:
             "cerrado, conserva el estado. El motor confirma mecánicas.\n"
             "IDENTIDAD\n"
             "Resuelve nombres y alias explícitos contra el snapshot y reutiliza "
-            "IDs; ante ambigüedad no elijas ni dupliques. Crea solo referentes "
+            "IDs; ante ambigüedad no elijas; no dupliques. Crea solo referentes "
             "nuevos y persistentes; una persona nueva y nombrada como NPC "
             "usa la categoría npc en entity_type. "
             "Actualiza hechos explícitos y nuevos, conserva los anteriores no "

@@ -213,6 +213,7 @@ class EntityReferenceResolver:
         "hablo",
         "hablarle",
         "hablarles",
+        "hablame",
         "pregunto",
         "preguntar",
         "pregunta",

@@ -32,7 +32,7 @@ Ambiguity policy:
 
 - A canonical name or alias shared by multiple active entities is ambiguous.
 - Similarly scored descriptive matches are ambiguous.
-- An ambiguous result exposes candidate information to internal projection diagnostics but returns no selected entity IDs to memory search.
+- A canonical-name or alias collision returns no selected entity IDs. An ambiguous role/description match may remain as retrieval candidates for ranking; the resolver still marks identity as ambiguous, and the proposal prompt must not choose or mutate one candidate.
 - Multiple distinct, explicitly mentioned names/aliases can resolve to multiple entities.
 - No substring-in-token or one-word-of-many matching is used for entity identity.
 

@@ -33,7 +33,7 @@ from operations.world_operations import (
 _FIELD_DESCRIPTIONS: dict[str, str] = {
     "name": "Nombre visible del registro.",
     "entity_type": "Usa npc para una persona identificada.",
-    "aliases": "Alias explícitos y confirmados; no los inventes.",
+    "aliases": "Alias explícitos.",
     "description": (
         "Hechos conocidos y observables. No añadas rasgos, motivos ni "
         "historia que no estén establecidos."

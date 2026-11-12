@@ -194,15 +194,52 @@ class MemorySearchService:
         world: WorldState,
         query: str,
     ) -> list[dict[str, Any]]:
-        """Return resolved entity references; abstain when identity is ambiguous."""
-        resolution = EntityReferenceResolver().resolve(world, query)
-        if resolution.status != "resolved":
+        """Retrieve entity candidates without collapsing an ambiguous identity."""
+        resolver = EntityReferenceResolver()
+        resolution = resolver.resolve(world, query)
+        if resolution.status == "resolved":
+            return [
+                self._serialize(world.entities[entity_id])
+                for entity_id in resolution.entity_ids
+                if entity_id in world.entities
+            ]
+
+        # An explicit name/alias collision is unsafe: do not return either
+        # entity as though the reference identified one of them. A broad role
+        # or description match, however, remains useful retrieval evidence.
+        if (
+            resolution.status == "ambiguous"
+            and resolution.candidates
+            and resolution.candidates[0].match_kind in {"name", "alias"}
+        ):
             return []
-        return [
-            self._serialize(world.entities[entity_id])
-            for entity_id in resolution.entity_ids
-            if entity_id in world.entities
-        ]
+
+        query_tokens = resolver._significant_tokens(
+            resolver.normalize(query)
+        )
+        if not query_tokens:
+            return []
+
+        results: list[dict[str, Any]] = []
+        for entity in world.entities.values():
+            if not getattr(entity, "active", True):
+                continue
+            searchable_values = (
+                getattr(entity, "name", ""),
+                getattr(entity, "description", ""),
+                getattr(entity, "notes", ""),
+            )
+            if any(
+                query_tokens.issubset(
+                    resolver._significant_tokens(
+                        resolver.normalize(value)
+                    )
+                )
+                for value in searchable_values
+                if isinstance(value, str) and value
+            ):
+                results.append(self._serialize(entity))
+        return results
 
     # ------------------------------------------------------------------
     # ITEMS
