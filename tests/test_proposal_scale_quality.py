@@ -40,8 +40,8 @@ def test_large_context_proposal_uses_bounded_public_projection_and_parses_typed_
     world = build_large_campaign_world(entity_count=750)
     projection = ContextBuilder().build_proposal_context(
         world,
-        "guardia del puerto",
-        max_estimated_tokens=3600,
+        "Fungoso",
+        max_estimated_tokens=5000,
         mandatory_entity_ids=(1, 2),
     )
     response = json.dumps(
@@ -78,9 +78,10 @@ def test_large_context_proposal_uses_bounded_public_projection_and_parses_typed_
     assert operations[0].event_id == "guardia-alerta"
     assert "Puerto Gris" in provider.prompts[0]
     assert "Fungoso" in provider.prompts[0]
-    assert "Guardia del puerto: cambio de turno" in provider.prompts[0]
+    assert "Fungoso recibe aviso: cambio de turno de la guardia" in provider.prompts[0]
     assert "ruta secreta de contrabando" not in provider.prompts[0]
     assert "La capitana trabaja para los contrabandistas" not in provider.prompts[0]
+    assert "Fungoso conoce la ruta secreta de contrabando" not in provider.prompts[0]
     assert len(provider.prompts[0].encode("utf-8")) <= 8192
 
 
