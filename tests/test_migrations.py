@@ -1251,5 +1251,27 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
     assert all(row["hit_dice_used"] == 0 for row in rows)
     assert all(row["last_long_rest_elapsed_minutes"] is None for row in rows)
     assert all((row["current_hp"], row["max_hp"]) == (7, 12) for row in rows)
+
+    # Re-running the migration must not reset per-character die choices or use.
+    wizard_id = values["Wizard"]["entity_id"]
+    conn.execute(
+        """
+        UPDATE character_states
+        SET hit_die_sides = 10,
+            hit_dice_used = 1,
+            last_long_rest_elapsed_minutes = 120
+        WHERE entity_id = ?
+        """,
+        (wizard_id,),
+    )
+    migration_030(conn)
+    persisted = conn.execute(
+        """
+        SELECT hit_die_sides, hit_dice_used, last_long_rest_elapsed_minutes
+        FROM character_states WHERE entity_id = ?
+        """,
+        (wizard_id,),
+    ).fetchone()
+    assert tuple(persisted) == (10, 1, 120)
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     conn.close()
