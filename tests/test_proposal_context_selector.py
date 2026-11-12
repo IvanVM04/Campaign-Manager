@@ -315,8 +315,6 @@ def test_proposal_context_diagnostics_expose_ambiguous_entity_references():
     assert projection.world.entities == {}
 
 
-
-
 def test_proposal_context_merges_independent_supplemental_queries():
     world = build_world()
 
