@@ -81,6 +81,14 @@ class DMService:
         "No describas acciones que el jugador no haya decidido.\n"
         "No inventes información que contradiga el contexto recibido.\n"
         "No reveles secretos que el personaje no pueda conocer.\n"
+        "Los hechos confirmados, rumores e inferencias son categorías distintas. "
+        "Presenta los rumores atribuyendo quién los contó; presenta las inferencias "
+        "como posibilidades, nunca como verdad canónica. No eleves una declaración "
+        "de un NPC a hecho confirmado sin corroboración.\n"
+        "Respeta el alcance de conocimiento del personaje activo: no utilices "
+        "información que el contexto no haya autorizado para su perspectiva. "
+        "Los eventos marcados como históricos/sustituidos no representan el estado "
+        "actual cuando existe evidencia posterior que los reemplaza.\n"
         "No inventes ni resuelvas tiradas, pruebas de característica, "
         "salvaciones, ataques, daño, condiciones, conjuros ni otros "
         "resultados mecánicos. No presentes un resultado mecánico como "
@@ -188,12 +196,22 @@ class DMService:
             context_result = self.context_builder.build(
                 turn_context.world,
                 normalized_input,
+                character_entity_id=(
+                    turn_context.active_character.entity_id
+                    if turn_context.active_character is not None
+                    else None
+                ),
             )
         else:
             context_result = self.context_builder.build(
                 turn_context.world,
                 normalized_input,
                 recent_turns=recent_turns,
+                character_entity_id=(
+                    turn_context.active_character.entity_id
+                    if turn_context.active_character is not None
+                    else None
+                ),
             )
 
         context = context_result.get(
