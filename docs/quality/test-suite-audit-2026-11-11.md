@@ -181,3 +181,27 @@ a compatibility bypass.
 
 Update line counts and test inventory only after the complete CI run for this
 cleanup branch; do not infer new counts from the 2026-11-11 baseline.
+
+## Current navigation after PR #205 — 2026-11-12
+
+The 2026-11-11 module inventory above is retained as a historical snapshot.
+After the legacy retirement and subsequent test reorganization, use the
+[current test-suite navigation](test-suite-navigation-2026-11-12.md) for the
+live file layout.
+
+PR #205 moved, without deleting test functions or assertions:
+
+- 24 durable turn tests from the former
+  `test_durable_native_turn_service.py` into
+  `test_durable_native_turn.py` (12 native workflow contracts) and
+  `test_durable_silly_tavern_turn.py` (12 external workflow contracts).
+- 35 context pipeline tests from the former `test_context_pipeline.py` into
+  `test_context_pipeline_retrieval.py` (21), `test_context_pipeline_budget.py`
+  (6), and `test_context_pipeline_integrity.py` (8).
+- Reusable fake-provider/world fixture builders are in
+  `durable_turn_test_support.py` and `context_pipeline_test_support.py`;
+  these are not test-discovery modules.
+
+The 59 test functions are preserved. The split is organizational only and
+must be validated against the final PR head by deterministic CI. No production
+behavior or live-LLM acceptance claim is included.
