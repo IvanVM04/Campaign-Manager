@@ -1,8 +1,11 @@
 """Validated request/transport schemas for the integration API context."""
 
 from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
+
 from .turn_api_schemas import ClarificationIn, ManualRollIn
+
 
 class SillyTavernManualRollIn(ManualRollIn):
     query: str = Field(..., min_length=1, max_length=10000)
