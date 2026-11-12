@@ -1,4 +1,5 @@
 import pytest
+from tests.silly_tavern_integration_support import _compose_service
 
 from models.campaign_state import CampaignState
 from models.turn_context import TurnContext
@@ -11,7 +12,6 @@ from services.turns import (
     TurnExecutionLock,
 )
 
-from tests.silly_tavern_integration_support import _compose_service  # noqa: I001
 
 pytestmark = pytest.mark.real_llm
 
