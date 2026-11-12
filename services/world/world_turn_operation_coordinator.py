@@ -5,9 +5,11 @@ from operations.character_operations import CharacterOperation
 from operations.referenced_operation import ReferencedOperation
 from operations.world_operations import WorldOperation
 
+
 class _WorldTurnOperationFailure(Exception):
     def __init__(self, results):
         self.results = tuple(results)
+
 
 class WorldTurnOperationCoordinator:
     """Apply ordered world/character operations on one caller-owned connection."""
