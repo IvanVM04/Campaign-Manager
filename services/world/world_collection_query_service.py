@@ -122,7 +122,8 @@ class WorldCollectionQueryService:
             data.update(related_names)
             if collection == "events":
                 data.pop("known_by_entity_ids", None)
-                data["is_current"] = value.id not in superseded_ids
+                event_id = getattr(value, "id", None)
+                data["is_current"] = event_id not in superseded_ids
             if collection in {"relations", "events"}:
                 metadata = data.pop("metadata", None)
                 data["metadata_json"] = (
