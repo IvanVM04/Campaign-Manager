@@ -11,7 +11,7 @@ from services.turns import (
     TurnExecutionLock,
 )
 
-from tests.silly_tavern_integration_support import _compose_service
+from tests.silly_tavern_integration_support import _compose_service  # noqa: I001
 
 pytestmark = pytest.mark.real_llm
 
