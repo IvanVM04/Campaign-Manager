@@ -64,8 +64,6 @@ def test_resolver_ignores_inactive_entities():
     assert EntityReferenceResolver().resolve(world, "el tabernero").status == "unresolved"
 
 
-
-
 def test_resolver_finds_a_role_reference_inside_a_long_natural_language_action():
     world = WorldState(
         entities={
