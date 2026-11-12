@@ -1,7 +1,13 @@
 from copy import deepcopy
+
+from context_pipeline_test_support import (
+    make_complex_world,
+    make_relation,
+    make_world,
+)
 from models.world_state import WorldState
 from services.context import ContextBuilder
-from context_pipeline_test_support import make_relation, make_world, make_complex_world
+
 
 def test_pipeline_does_not_mutate_world():
     world = make_complex_world()
