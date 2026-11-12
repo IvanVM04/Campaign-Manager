@@ -530,9 +530,11 @@ class ContextRenderer:
                 if event.get("is_current") is False
                 else "actual"
             )
+            source_name = event.get("source_entity_name")
+            source_label = f"; fuente={source_name}" if source_name else ""
             line = (
-                f"- [{epistemic_status}; origen={provenance_source}; "
-                f"estado_temporal={temporal_status}] {title}"
+                f"- [{epistemic_status}; origen={provenance_source}"
+                f"{source_label}; estado_temporal={temporal_status}] {title}"
             )
 
             if description:
