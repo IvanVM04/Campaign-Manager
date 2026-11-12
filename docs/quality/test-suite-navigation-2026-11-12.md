@@ -21,6 +21,7 @@ The split preserves all 24 original test functions. The native and SillyTavern t
 |---|---|
 | `tests/test_silly_tavern_context_adapter.py` | SillyTavern context query validation, campaign-state error mapping, recent-turn filtering, optional session/character projection, external transcript version state and façade delegation. |
 | `tests/test_effects_api.py` | Persistent-effect API create/list/status/remove lifecycle, payload mapping and 404/409/422 error contracts. |
+| `tests/test_silly_tavern_api.py` | SillyTavern integration endpoint success, request validation and sanitized error mapping for context, turn state, clarification, manual rolls, resolution and narration completion. |
 | `tests/test_persistent_effect_api_schemas.py` | Permanent, conditional, campaign-time and encounter duration shapes; strict numeric bounds; canonical condition/exhaustion rules; narrative slug constraints. |
 
 ## Context pipeline
@@ -52,7 +53,7 @@ All 35 original test functions and their assertions are preserved. The support m
 
 ## Current quality baseline and next gate
 
-The latest main coverage artifact (2026-11-12, after PR #208) reported 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch reaches 89.0% line, 76.3% branch and 85.75% combined coverage, and now enforces `fail_under = 85` with branch coverage enabled.
+The latest main coverage artifact (2026-11-12, after PR #208) reported 86.8% line coverage, 73.6% branch coverage and 83.4% combined line/branch coverage. The quality branch reaches 89.3% line, 76.3% branch and 85.98% combined coverage, and now enforces `fail_under = 85` with branch coverage enabled.
 
 The highest-return additions target the SillyTavern context adapter, persistent-effect API/schema validation and the manual-roll submission lifecycle. Manual rolls are now tested through successful submission, idempotent replay, completion, interrupted prepared-state recovery and stale-context rejection.
 
