@@ -17,7 +17,11 @@ def build_large_campaign_world(
     reverse_insertion: bool = False,
 ) -> WorldState:
     """Build a representative graph with many searchable and dependent records."""
-    if isinstance(entity_count, bool) or not isinstance(entity_count, int) or entity_count < 10:
+    if (
+        isinstance(entity_count, bool)
+        or not isinstance(entity_count, int)
+        or entity_count < 10
+    ):
         raise ValueError("entity_count must be an integer >= 10")
 
     world = WorldState()
@@ -49,7 +53,11 @@ def build_large_campaign_world(
     )
     if reverse_insertion:
         records.reverse()
-    world.entities = {record.id: record for record in records if record.id is not None}
+    world.entities = {
+        record.id: record
+        for record in records
+        if record.id is not None
+    }
 
     world.items = {
         10: Item(
@@ -69,7 +77,12 @@ def build_large_campaign_world(
         )
     }
     world.resources = {
-        20: Resource(id=20, name="Crédito portuario", unit="fichas", notes="Recurso de Fungoso.")
+        20: Resource(
+            id=20,
+            name="Crédito portuario",
+            unit="fichas",
+            notes="Recurso de Fungoso.",
+        )
     }
     world.resource_balances = {
         200: ResourceBalance(
