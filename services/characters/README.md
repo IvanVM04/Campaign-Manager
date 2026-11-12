@@ -52,6 +52,8 @@ Character state and schemas remain in `models/`, persistence in `repositories/`,
 
 ## Remaining work
 
+The cross-package sequencing and estimated effort for this package are tracked in the [engineering readiness and gameplay roadmap](../../docs/architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md).
+
 - [ ] Build a typed class/race/background character builder and validate level,
   proficiency and HP progression once those concepts have explicit models.
 - [ ] Add typed spellcasting and class-feature resources with class-specific
