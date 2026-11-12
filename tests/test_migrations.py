@@ -1210,7 +1210,6 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
     for definition in MIGRATIONS[:-1]:
         definition.apply(conn)
 
-    inserted = {}
     for name, class_name in (
         ("Wizard", "Wizard"),
         ("Barbarian", "Barbarian"),
@@ -1232,7 +1231,6 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
             """,
             (entity_id, class_name),
         )
-        inserted[name] = entity_id
 
     migration_030(conn)
 
