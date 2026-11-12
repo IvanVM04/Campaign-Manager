@@ -83,33 +83,32 @@ export function summarizeConnectionReadiness(payload) {
     };
 }
 
-export function buildRetrievalQuery(
+export function buildRetrievalRequest(
     configuredQuery,
     playerInput,
 ) {
-    const normalizedConfiguredQuery =
+    const additionalQuery =
         typeof configuredQuery === "string"
             ? configuredQuery.trim()
             : "";
 
-    const normalizedPlayerInput =
+    const primaryQuery =
         typeof playerInput === "string"
             ? playerInput.trim()
             : "";
 
-    if (
-        !normalizedConfiguredQuery ||
-        !normalizedPlayerInput
-    ) {
-        return "";
+    if (!primaryQuery && !additionalQuery) {
+        return { query: "", additional_query: null };
     }
 
-    return [
-        normalizedConfiguredQuery,
-        "",
-        "Acción actual del jugador:",
-        normalizedPlayerInput,
-    ].join("\n");
+    // The current player action is the primary retrieval signal.
+    // Campaign-wide scope remains independent and supplemental.
+    return {
+        query: primaryQuery || additionalQuery,
+        additional_query: primaryQuery && additionalQuery
+            ? additionalQuery
+            : null,
+    };
 }
 
 export function buildStableTurnIdentityInput(
