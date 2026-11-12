@@ -256,7 +256,7 @@ def test_invalid_persisted_npc_profile_does_not_consume_action_or_change_hp(clie
     )
 
     assert response.status_code == 409
-    assert "NPC natural attack configuration is invalid" in response.text
+    assert "NPC natural attack configuration must be a list" in response.text
     encounter = CombatEncounterRepository().get(
         "npc-invalid-profile",
         campaign_id=1,
