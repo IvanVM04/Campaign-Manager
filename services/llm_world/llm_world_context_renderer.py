@@ -267,10 +267,19 @@ class LLMWorldContextRenderer:
                 if event_id in superseded_event_ids
                 else "current"
             )
+            source_entity = (
+                world.entities.get(event.source_entity_id)
+                if event.source_entity_id is not None
+                else None
+            )
+            source_entity_name = (
+                source_entity.name if source_entity is not None else "unknown"
+            )
             event_lines.append(
                 f"- ID {event_id}: "
                 f"epistemic_status={event.epistemic_status}, "
                 f"provenance_source={event.provenance_source}, "
+                f"source_entity_name={source_entity_name}, "
                 f"visibility_scope={event.visibility_scope}, "
                 f"source_entity_id={event.source_entity_id}, "
                 f"campaign_elapsed_minutes={event.campaign_elapsed_minutes}, "
