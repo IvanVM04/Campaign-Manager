@@ -344,7 +344,14 @@ def test_context_adapter_keeps_additional_retrieval_queries_separate(
     )
     captured = {}
 
-    def build(world, query, *, recent_turns, supplemental_queries):
+    def build(
+        world,
+        query,
+        *,
+        recent_turns,
+        supplemental_queries,
+        character_entity_id=None,
+    ):
         captured["query"] = query
         captured["supplemental_queries"] = supplemental_queries
         return {
@@ -400,7 +407,14 @@ def test_context_adapter_deduplicates_additional_queries(
     )
     captured = {}
 
-    def build(world, query, *, recent_turns, supplemental_queries):
+    def build(
+        world,
+        query,
+        *,
+        recent_turns,
+        supplemental_queries,
+        character_entity_id=None,
+    ):
         captured["supplemental_queries"] = supplemental_queries
         return {"query": query, "context": "Contexto.", "entities": []}
 
