@@ -1,5 +1,7 @@
 """Atomic coordination for mixed world and character turn operations."""
 
+import copy
+
 from database import get_conn
 from operations.character_operations import CharacterOperation
 from operations.referenced_operation import ReferencedOperation
