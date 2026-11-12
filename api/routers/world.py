@@ -7,6 +7,7 @@ from models.world_read_models import WorldEntityPage
 from models.world_visibility_policy import WorldVisibilityPolicy
 from operations.world_operations import CreateEntityOperation
 from services.world import WorldQueryService
+from services.world.world_serializer import WorldSerializer
 
 router = APIRouter()
 
@@ -48,10 +49,13 @@ def get_world():
                 world.relations.values()
             ),
             "events": list(
-                WorldVisibilityPolicy.player_visible_events(
-                    world.events.values(),
-                    character_entity_id=character_entity_id,
-                )
+                [
+                    WorldSerializer.event_to_dict(event)
+                    for event in WorldVisibilityPolicy.player_visible_events(
+                        world.events.values(),
+                        character_entity_id=character_entity_id,
+                    )
+                ]
             ),
         }
 
