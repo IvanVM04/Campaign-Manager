@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified baseline:** `main` at `1bf805c0c48676ba753bf7b30da24535a6336362` (2026-11-12, PR #202 merged).  
+**Verified baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (2026-11-12, PR #205 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 ## How to work in this repository
@@ -64,7 +64,7 @@ Critical contracts: turn-resolution lifecycle, durable persistence, idempotency 
 - bootstrap/campaign_runtime.py wires the adapter; durable turn services own all state-changing operations.
 - The supported mutation lifecycle is resolve -> challenge continuation (if needed) -> complete.
 - The narrative-first POST /integration/turn route, LegacySillyTavernTurnService and snapshot restoration have been removed.
-- Migration 029 archives existing non-null turns.snapshot JSON in turn_snapshot_archive before dropping the runtime column.
+- Migration 029 archives historical snapshots; migration 030 persists character Hit Dice and long-rest campaign-time state. The current schema version is 30.
 
 ### Combat attack
 
@@ -81,7 +81,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| campaign_state_service.py | Campaign/session state and turn-context assembly | Keep world mutation behind the world state port; add explicit invalidation on campaign lifecycle changes. |
+| campaign_state_service.py | Campaign/session state and turn-context assembly | Keep world mutation behind the world state port. Runtime invalidation/shutdown lives in the bootstrap factory; add lifecycle hooks only when campaign deletion/configuration workflows need them. |
 | campaign_clock_service.py | Campaign clock reads, advancement and effect-expiry coordination | Preserve deterministic expiry and campaign-scoped reads. |
 | persistent_effect_service.py | Persisted campaign effect lifecycle | Audit effect lifecycle transaction ownership with combat, without creating a second source of condition state. |
 | effective_condition_service.py | Derived ConditionSet from active effects | Keep it a projection; do not persist duplicate condition flags. |
@@ -99,8 +99,8 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| combat_attack_service.py | Atomic attack use case, validation, profile selection orchestration, result persistence and HP synchronization | Continue extracting attack-profile resolution and transaction-boundary collaborators. Do not duplicate D&D rules here. |
-| combat_encounter_service.py | Encounter lifecycle, initiative, turn advancement, death saves, movement and reactions; one `IMMEDIATE` transaction per mutation | Keep the failure-injection rollback suite green; canonical HP, timed effects and encounter snapshot must roll back together. |
+| combat_attack_service.py | Atomic attack use case, validation, profile selection orchestration, result persistence and HP synchronization | Attack-profile resolution is already isolated in `AttackProfileResolver`; add future action families only through typed profiles and pure rules helpers. |
+| combat_encounter_service.py | Encounter lifecycle, initiative, turn advancement, death saves, movement and reactions; one `IMMEDIATE` transaction per mutation | Preserve the tested rollback contract: canonical HP, timed effects and encounter projections must roll back together. Add new mutations to the failure-injection matrix. |
 | weapon_equipment_service.py | Equipment queries/mutations and derived armor/attack profiles | Preserve one source of weapon/equipment truth and document unsupported weapon properties. |
 | rules_engine/dnd5e_2014/combat/attack.py | Deterministic attack roll and damage result | Keep independent of services and persistence. |
 | rules_engine/dnd5e_2014/combat/damage.py | Damage types, resistance/vulnerability and HP clamping | Keep modifier order explicit and tested. |
@@ -165,7 +165,7 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Module | Responsibility | Next improvement / guard |
 |---|---|---|
-| world_service.py | Campaign-scoped state façade, operation dispatch and transaction coordination | Review atomicity and dispatch decomposition; preserve caller-owned transactions. |
+| world_service.py | Campaign-scoped state façade and applier publication | Mixed world/character turn dispatch is delegated to `WorldTurnOperationCoordinator`; preserve operation order, shared state identity and caller-owned transactions. |
 | world_query_service.py | Filtered/paginated entity read model | Keep reads detached, stable and campaign-scoped. |
 | world_collection_query_service.py | Item/resource/relation/event read projections | Keep secret-event visibility out of generic serialization; apply explicit policy before player exposure. |
 | world_applier.py | Typed operation dispatch | Keep dispatch deterministic and fail closed. |
@@ -180,14 +180,14 @@ A combatant's CharacterState or CreatureState is canonical for HP; EncounterStat
 
 | Area | Current shape | Disposition |
 |---|---|---|
-| migrations.py | Ordered historical migrations 001–029 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
+| migrations.py | Ordered historical migrations 001–030 and a contiguous `MIGRATIONS` metadata/runner registry | Historical functions stay chronological; use [the migration catalogue](migration-catalog-2026-11-12.md), preserve idempotency and old-data upgrade tests. |
 | models/schemas.py | Compatibility facade; bounded-context modules own campaign, character, world, turn and integration request DTOs | Production routers import the owning module; retain facade exports and verify OpenAPI stability. |
 | models/combat_api_schemas.py | Combat-specific API contracts | Keep combat schemas isolated from unrelated API requests. |
 | models/turn_context.py and models/world_context_projection.py | Shared application input and detached context projection | Keep the projection typed and detached from mutable runtime state. |
 | repositories/turn_repository.py | Turn/transcript persistence | Preserve campaign scope and connection/transaction ownership. |
 | repositories/turn_resolution_repository.py | Durable in-flight state persistence | Preserve lease fencing, uniqueness and atomic transitions. |
 | repositories/world_repository.py | Canonical world persistence | Preserve one canonical state source and caller-owned transaction behavior. |
-| bootstrap/campaign_runtime.py | Per-campaign composition root and runtime cache | Keep composition here; make cache shutdown/eviction a separately justified change. |
+| bootstrap/campaign_runtime.py | Per-campaign composition root and runtime cache | Shutdown and selective invalidation are implemented/tested; defer cache eviction until measured pressure and an in-flight request policy justify it. |
 | app.py | FastAPI app and middleware wiring | Keep thin; no business use cases belong here. |
 | api/routers | Transport-facing endpoint groups | Keep each route handler focused on validation, service call and response mapping. |
 
@@ -206,17 +206,23 @@ resolve/complete lifecycle.
 
 ## Priority backlog
 
-| Priority | Area | Concrete next step | Why now |
+The structural backlog for the supported local single-player, single-process
+scope is closed. Do not schedule broad service decomposition or infrastructure
+work without a demonstrated defect or new product requirement.
+
+| Priority | Area | Current next step | Why |
 |---|---|---|---|
-| P0 | Quality gate | Keep CI summary, repository-wide Pyright and both CodeQL checks green | Already configured and required by main protection. |
-| P1 | Combat | Completed in PR #200: extract player/NPC attack profile selection to `AttackProfileResolver` | Keep rules derivation pure and preserve fail-closed persisted metadata validation. |
-| P1 | Turns | Extract request execution from DurableNativeTurnService | Completed: request identity, planning leases, prepared-plan persistence and recovery now live in `DurableTurnExecutionService`; the public façade remains stable. |
-| P1 | Combat | Completed on this branch: failure-inject encounter writes and standardize `complete()` on `transaction("IMMEDIATE")` | Continue keeping canonical HP, timed effects and encounter projections in the same transaction. |
-| P2 | World | Completed on this branch: `WorldService` delegates mixed turn dispatch to `WorldTurnOperationCoordinator` | Preserve operation order, generated references, shared `WorldState` identity and caller-owned connection semantics. |
-| P2 | Models | Completed on this branch: split request schemas by bounded context and retain `models.schemas` compatibility exports | Keep routers on context-owned imports and preserve OpenAPI contracts. |
-| P2 | Tests | Maintain focused tests for each extracted collaborator and split only mixed-responsibility integration files | Test modules are executable contract documentation. |
-| P3 | Migrations | Completed on this branch: add the contiguous `MIGRATIONS` registry and human-readable catalogue | Keep numbered migration bodies chronological and forward-only; do not split for aesthetics. |
-| P3 | Runtime | Define lifecycle invalidation/shutdown only when multi-campaign or deployment needs justify it | Current runtime/locks are process-local by design. |
+| P1 | Live acceptance | Run and record the Ollama + SillyTavern smoke test | Deterministic CI cannot prove local model quality or extension lifecycle behavior. |
+| P2 | Context / LLM | Add representative medium/large campaign probes for ranking, dependency bundles, mandatory facts, budget exhaustion and non-mutation | Validate scale and proposal quality before adding retrieval infrastructure. |
+| P2 | Critical branches | Continue targeted stale-revision, rollback, lease-fencing/recovery and effect-expiry tests when a missing path is identified | Coverage is diagnostic; do not impose an arbitrary global threshold. |
+| P3 | Characters | Build typed character creation and progression | Current state/sheet/Hit Dice/rest slice is a foundation, not a complete character builder. |
+| P3 | Equipment and combat | Add class/resource-aware equipment and combat mechanics for one selected playable slice | Avoid generic counters or speculative rules that do not share a typed source of truth. |
+| P3 | Adventure loop | Deliver one complete first adventure with clues, NPC continuity, rewards and persistence | The priority is an end-to-end playable experience. |
+
+Completed structural milestones: PRs #198–#203. Character/combat state
+consistency and Hit Dice/rest slice: PR #204. Test-suite contract organization:
+PR #205. See the [engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md)
+for indicative module-readiness estimates and hour ranges.
 
 ## Current proposal assessment
 
@@ -233,4 +239,4 @@ committed.
 
 ## Validation boundaries
 
-The latest integrated baseline had successful CI summary, Ruff, deterministic Python tests, both Pyright checks and both CodeQL language checks. Live Ollama requests and manual SillyTavern sessions remain separate, opt-in integration checks. A green CI run does not claim those live checks passed.
+The PR #205 head passed deterministic Python tests (1,406 passed, 4 deselected as real_llm), JavaScript tests, Ruff, both Pyright scopes and both CodeQL language checks. Live Ollama requests and manual SillyTavern sessions remain separate, opt-in acceptance checks and are not recorded as passed. A green CI run does not claim those live checks passed.

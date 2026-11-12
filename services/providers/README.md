@@ -23,11 +23,14 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 - `FakeLLMProvider` supports fixed responses, prompt-matched responses and injected failures.
 - `LLMProvider` remains a deliberately small text-generation contract; it does not promise structured output, streaming or cancellation.
 
-## Pending work
-- [ ] Add provider contract tests covering success, timeout, unavailable provider and malformed response behavior.
-- [ ] Document Ollama-specific assumptions and the error contract seen by application services.
-- [ ] Decide retry ownership and avoid hidden duplicate retry layers; preserve the bounded proposal-repair policy in `llm_world`.
-- [ ] Add structured-output/cancellation capabilities only when an actual provider or gameplay use case requires them.
+## Contract validation status
+- [x] Deterministic adapter tests cover successful requests, timeout, unavailable provider/connection failure, HTTP failures with and without provider error JSON, malformed/non-object JSON, malformed response payloads and prompt/config validation (`tests/test_ollama_provider.py`).
+- [x] The adapter performs one transport attempt and does not hide retries. Proposal repair remains a separate, bounded application-level behavior in `services/llm_world`.
+- [x] The fake provider contract is covered for fixed/prompt-selected results, injected errors and call/prompt tracking (`tests/test_llm_provider.py`).
+- [ ] Run live Ollama acceptance with the configured local model. Unit tests do not prove model availability, model quality, latency or compatibility with local hardware.
+- [ ] Add structured-output/streaming/cancellation capabilities only when an actual provider or gameplay use case requires them.
+
+Ollama error normalization and timeout handling were strengthened in PR #203. Keep deterministic provider tests in CI and live model checks opt-in.
 
 ## Migration status
 Provider implementations now live in this package. Production and test consumers use the canonical `services.providers` API; the former flat modules under `services/` have been removed.

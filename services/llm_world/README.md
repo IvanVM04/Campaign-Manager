@@ -70,5 +70,5 @@ campaign facts.
 
 - [ ] Add intent-specific operation subsets only when the application can classify intent reliably without hiding legitimate consequences.
 - [ ] Add tokenizer-aware accounting if a selected provider exposes an explicit, reliable token-count API.
-- [ ] Add representative large-campaign quality probes against real Ollama models; deterministic CI remains provider-independent.
-- [ ] Continue centralizing operation metadata and keep model-proposable classification distinct from domain authorization.
+- [ ] Add representative medium/large campaign proposal probes that record selected-context size, prompt budget, ranking stability, malformed/repair behavior and the configured Ollama model. Keep real-model probes opt-in; deterministic CI remains provider-independent.
+- [x] Keep operation metadata centralized and model-proposable classification distinct from domain authorization.
