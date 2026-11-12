@@ -34,7 +34,8 @@ def get_silly_tavern_context(
     try:
         with runtime.turn_execution_lock.acquire():
             result = runtime.silly_tavern_integration_service.get_context(
-                data.query
+                data.query,
+                additional_queries=(data.additional_query,) if data.additional_query else (),
             )
 
     except SillyTavernIntegrationServiceError as exc:
@@ -131,6 +132,7 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
             )
             context_result = runtime.silly_tavern_integration_service.get_context(
                 data.query,
+                additional_queries=(data.additional_query,) if data.additional_query else (),
                 exclude_external_turn_id=data.external_turn_id,
             )
     except DurableNativeTurnError as exc:
@@ -186,7 +188,10 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
                 adapter_namespace="sillytavern", defer_narration=True,
                 answer_external_turn_id=data.answer_external_turn_id,
             )
-            context_result = runtime.silly_tavern_integration_service.get_context(data.query)
+            context_result = runtime.silly_tavern_integration_service.get_context(
+                data.query,
+                additional_queries=(data.additional_query,) if data.additional_query else (),
+            )
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
             exc,
@@ -225,6 +230,7 @@ def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
             )
             context_result = runtime.silly_tavern_integration_service.get_context(
                 data.query,
+                additional_queries=(data.additional_query,) if data.additional_query else (),
             )
     except DurableNativeTurnError as exc:
         raise api_error_for_exception(
