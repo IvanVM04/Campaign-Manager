@@ -18,9 +18,15 @@ router = APIRouter()
 @router.get("/world")
 def get_world():
 
-    with get_current_runtime().turn_execution_lock.acquire():
-
-        world = get_current_runtime().world_service.get_world()
+    runtime = get_current_runtime()
+    with runtime.turn_execution_lock.acquire():
+        turn_context = runtime.campaign_state_service.get_turn_context()
+        world = turn_context.world
+        character_entity_id = (
+            turn_context.active_character.entity_id
+            if turn_context.active_character is not None
+            else None
+        )
 
         return {
             "entities": list(
@@ -43,7 +49,8 @@ def get_world():
             ),
             "events": list(
                 WorldVisibilityPolicy.player_visible_events(
-                    world.events.values()
+                    world.events.values(),
+                    character_entity_id=character_entity_id,
                 )
             ),
         }
@@ -147,8 +154,17 @@ def export_memory():
     construir la representación estructurada exportable.
     """
     with get_current_runtime().turn_execution_lock.acquire():
-        world = get_current_runtime().world_service.get_world()
-        return get_current_runtime().memory_search_service.export(world)
+        runtime = get_current_runtime()
+        turn_context = runtime.campaign_state_service.get_turn_context()
+        character_entity_id = (
+            turn_context.active_character.entity_id
+            if turn_context.active_character is not None
+            else None
+        )
+        return runtime.memory_search_service.export(
+            turn_context.world,
+            character_entity_id=character_entity_id,
+        )
 
 
 router.include_router(world_collections_router)
