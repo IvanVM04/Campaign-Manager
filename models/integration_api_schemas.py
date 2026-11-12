@@ -9,6 +9,7 @@ from .turn_api_schemas import ClarificationIn, ManualRollIn
 
 class SillyTavernManualRollIn(ManualRollIn):
     query: str = Field(..., min_length=1, max_length=10000)
+    additional_query: str | None = Field(default=None, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
 
     @field_validator("query", "answer_external_turn_id")
@@ -19,9 +20,16 @@ class SillyTavernManualRollIn(ManualRollIn):
             raise ValueError("text must not be empty")
         return value
 
+    @field_validator("additional_query")
+    @classmethod
+    def validate_manual_roll_additional_query(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        return normalized or None
+
 
 class SillyTavernClarificationIn(ClarificationIn):
     query: str = Field(..., min_length=1, max_length=10000)
+    additional_query: str | None = Field(default=None, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
 
     @field_validator("answer_external_turn_id")
@@ -40,6 +48,12 @@ class SillyTavernClarificationIn(ClarificationIn):
             raise ValueError("query must not be empty")
         return value
 
+    @field_validator("additional_query")
+    @classmethod
+    def validate_clarification_additional_query(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        return normalized or None
+
 
 class SillyTavernContextIn(BaseModel):
     """
@@ -55,6 +69,7 @@ class SillyTavernContextIn(BaseModel):
         min_length=1,
         max_length=10000,
     )
+    additional_query: str | None = Field(default=None, max_length=10000)
 
     @field_validator("query")
     @classmethod
@@ -71,6 +86,12 @@ class SillyTavernContextIn(BaseModel):
 
         return value
 
+    @field_validator("additional_query")
+    @classmethod
+    def validate_context_additional_query(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        return normalized or None
+
 
 class SillyTavernTurnResolveIn(BaseModel):
     """Player intent and stable identity submitted before SillyTavern narration."""
@@ -78,6 +99,7 @@ class SillyTavernTurnResolveIn(BaseModel):
     player_input: str = Field(..., min_length=1, max_length=10000)
     external_turn_id: str = Field(..., min_length=1, max_length=500)
     query: str = Field(..., min_length=1, max_length=10000)
+    additional_query: str | None = Field(default=None, max_length=10000)
     dice_mode: Literal["automatic", "manual"] = "automatic"
 
     @field_validator("player_input", "external_turn_id", "query")
@@ -87,6 +109,12 @@ class SillyTavernTurnResolveIn(BaseModel):
         if not value:
             raise ValueError("text must not be empty")
         return value
+
+    @field_validator("additional_query")
+    @classmethod
+    def validate_resolve_additional_query(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        return normalized or None
 
 
 class SillyTavernTurnCompleteIn(BaseModel):
