@@ -182,8 +182,10 @@ the specific action being processed.
 - [x] Improve descriptive entity matching inside complete natural-language
   actions using shared, rarity-weighted terms. Explicit names and aliases retain
   precedence.
-- [x] Abstain when multiple descriptive candidates remain similarly plausible;
-  ambiguous candidates are not admitted into the model-facing projection.
+- [x] Keep identity resolution conservative when multiple descriptive
+  candidates remain similarly plausible. The resolver returns an ambiguous
+  status and no singular entity ID; retrieval may still surface evidence-backed
+  descriptive candidates as context, without claiming one is the resolved target.
 - [x] Expose privacy-safe adapter diagnostics (query and included-record counts,
   never the query strings themselves).
 - [x] Add deterministic tests for long role references, tie/ambiguity handling,
