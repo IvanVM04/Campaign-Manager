@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -8,6 +9,8 @@ from models.world_context_projection import estimate_tokens
 
 from .llm_extraction_errors import LLMExtractionError
 from .operation_registry import OperationMetadataRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class LLMWorldProposalValidator:
@@ -62,6 +65,10 @@ class LLMWorldProposalValidator:
                 self.parse_response(raw_response)
             )
         except LLMExtractionError as first_error:
+            logger.info(
+                "llm.proposal.repair_requested",
+                extra={"error_type": type(first_error).__name__},
+            )
             allowed_types = self._allowed_operation_types()
             repair_prompt = self._build_repair_prompt(
                 allowed_types=allowed_types,
@@ -71,13 +78,19 @@ class LLMWorldProposalValidator:
             repaired_response = self.provider(repair_prompt)
             self._validate_response_size(repaired_response)
             try:
-                return self.parse_operations(
+                operations = self.parse_operations(
                     self.parse_response(repaired_response)
                 )
             except LLMExtractionError as second_error:
+                logger.warning(
+                    "llm.proposal.repair_failed",
+                    extra={"error_type": type(second_error).__name__},
+                )
                 raise LLMExtractionError(
                     "LLM proposal remained invalid after one repair attempt"
                 ) from second_error
+            logger.info("llm.proposal.repair_completed")
+            return operations
 
     def _allowed_operation_types(self) -> tuple[str, ...]:
         if self.operation_registry is not None:

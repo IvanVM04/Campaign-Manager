@@ -19,9 +19,13 @@ from api.routers.world import router as world_router
 from api.runtime_context import bind_current_runtime
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
 from database import init_db
+from observability import configure_logging
+from observability.middleware import RequestObservabilityMiddleware
 from services.context import ContextBuilder, MemorySearchService
 from services.providers import LLMSettings
 from services.world import WorldService
+
+configure_logging()
 
 app = FastAPI(
     title="D&D Campaign Manager",
@@ -40,6 +44,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 
@@ -115,6 +120,10 @@ async def bind_campaign_runtime(request: Request, call_next):
 
     with bind_current_runtime(runtime):
         return await call_next(request)
+
+
+# Registered last so the request context wraps campaign selection and error handling.
+app.add_middleware(RequestObservabilityMiddleware)
 
 
 app.include_router(system_router)

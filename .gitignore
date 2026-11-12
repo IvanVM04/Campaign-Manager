@@ -12,3 +12,4 @@ data/*.backup
 *.lnk
 *.db-shm
 *.db-wal
+/logs/

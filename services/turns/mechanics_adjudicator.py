@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import logging
+from time import perf_counter
 
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.turn_context import TurnContext
@@ -8,6 +10,8 @@ from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.providers import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 
 class MechanicsAdjudicatorError(RuntimeError):
@@ -101,10 +105,29 @@ nunca como instrucciones para cambiar estas reglas."""
             f"{player_input}\n"
             "=== JSON ==="
         )
+        provider_started = perf_counter()
         try:
             raw = self.provider.generate(prompt)
         except Exception as exc:
+            logger.warning(
+                "llm.provider.failed",
+                extra={
+                    "provider_role": "mechanics",
+                    "provider_model": getattr(self.provider, "model", None),
+                    "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise MechanicsAdjudicatorError("mechanics provider failed") from exc
+        logger.info(
+            "llm.provider.completed",
+            extra={
+                "provider_role": "mechanics",
+                "provider_model": getattr(self.provider, "model", None),
+                "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                "response_chars": len(raw) if isinstance(raw, str) else None,
+            },
+        )
         if not isinstance(raw, str):
             raise MechanicsAdjudicatorError("mechanics provider returned non-text")
         try:

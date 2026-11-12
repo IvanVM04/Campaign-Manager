@@ -12,6 +12,7 @@ from database import transaction
 from models.campaign_scope import CampaignScope
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
+from observability.log_context import bind_resolution_context
 from repositories.campaign_state_version_repository import (
     CampaignStateVersionRepository,
 )
@@ -332,7 +333,13 @@ class DurableTurnExecutionService:
         if record.lifecycle_state in {"committed", "narration_pending"}:
             if defer_narration:
                 return DurableTurnPreparationMapper.from_record(record)
-            return self.narration_service.resume_narration(record, already_processed=True)
+            with bind_resolution_context(
+                str(self._required_resolution_id(record))
+            ):
+                return self.narration_service.resume_narration(
+                    record,
+                    already_processed=True,
+                )
 
         resume_prepared = record.lifecycle_state == "prepared"
         lease_token = None
@@ -371,9 +378,14 @@ class DurableTurnExecutionService:
                     )
                 plan = self._plan_from_record(record)
             else:
-                plan = self.resolver.prepare_turn(
-                    context, normalized, manual_mode=(dice_mode == "manual"),
-                )
+                with bind_resolution_context(
+                    str(self._required_resolution_id(record))
+                ):
+                    plan = self.resolver.prepare_turn(
+                        context,
+                        normalized,
+                        manual_mode=(dice_mode == "manual"),
+                    )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
                     with transaction("IMMEDIATE") as conn:
@@ -473,10 +485,13 @@ class DurableTurnExecutionService:
             )
             if defer_narration:
                 return DurableTurnPreparationMapper.from_record(committed_record)
-            return self.narration_service.resume_narration(
-                committed_record,
-                already_processed=False,
-            )
+            with bind_resolution_context(
+                str(self._required_resolution_id(committed_record))
+            ):
+                return self.narration_service.resume_narration(
+                    committed_record,
+                    already_processed=False,
+                )
         except Exception as exc:
             if (
                 record.lifecycle_state == "planning"
@@ -571,6 +586,19 @@ class DurableTurnExecutionService:
                 adapter_namespace,
                 record.lifecycle_state,
                 dice_mode,
+                extra={
+                    "campaign_id": str(self.scope.campaign_id),
+                    "resolution_id": str(self._required_resolution_id(record)),
+                    "adapter_namespace": adapter_namespace,
+                    "lifecycle_state": record.lifecycle_state,
+                    "dice_mode": dice_mode,
+                    "error_type": type(exc).__name__,
+                    "error_code": (
+                        exc.code
+                        if isinstance(exc, DurableNativeTurnError)
+                        else None
+                    ),
+                },
             )
             raise DurableNativeTurnError(
                 "native turn execution failed",

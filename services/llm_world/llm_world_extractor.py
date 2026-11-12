@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from time import perf_counter
 
 from models.mechanics import MechanicsResult
 from models.turn_context import TurnContext
@@ -70,8 +71,31 @@ class LLMWorldExtractor:
         )
 
     def _provide(self, prompt: str) -> str:
-        """Resolve the current provider so runtime/test overrides stay in sync."""
-        return self.provider(prompt)
+        """Call the provider with timing and safe, correlation-aware diagnostics."""
+        provider_started = perf_counter()
+        try:
+            response = self.provider(prompt)
+        except Exception as exc:
+            logger.warning(
+                "llm.provider.failed",
+                extra={
+                    "provider_role": "extraction",
+                    "provider_model": getattr(self.provider, "model", None),
+                    "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                    "error_type": type(exc).__name__,
+                },
+            )
+            raise
+        logger.info(
+            "llm.provider.completed",
+            extra={
+                "provider_role": "extraction",
+                "provider_model": getattr(self.provider, "model", None),
+                "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                "response_chars": len(response) if isinstance(response, str) else None,
+            },
+        )
+        return response
 
     def propose(
         self,
@@ -150,11 +174,11 @@ class LLMWorldExtractor:
                 "excluded_records": diagnostics.excluded_records,
                 "selected_counts": dict(diagnostics.selected_counts),
             })
-        logger.debug(
-            "Prepared bounded LLM proposal prompt",
+        logger.info(
+            "llm.proposal.context_prepared",
             extra=log_fields,
         )
-        raw_response = self.provider(prompt)
+        raw_response = self._provide(prompt)
         return self.proposal_validator.parse_with_repair(prompt, raw_response)
 
     # ============================================================
