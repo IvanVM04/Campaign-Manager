@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import error_response, register_error_handlers
+from api.routers.activity import router as activity_router
 from api.routers.campaign import router as campaign_router
 from api.routers.character import router as character_router
 from api.routers.clock import router as clock_router
@@ -127,6 +128,7 @@ app.add_middleware(RequestObservabilityMiddleware)
 
 
 app.include_router(system_router)
+app.include_router(activity_router)
 app.include_router(campaign_router)
 app.include_router(turns_router)
 app.include_router(dice_router)
