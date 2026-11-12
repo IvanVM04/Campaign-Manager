@@ -1059,6 +1059,7 @@ def test_legacy_extraction_rejects_oversized_prompt_before_provider_call():
         provider=provider,
         operation_parser=parser,
         max_legacy_prompt_tokens=10,
+        max_legacy_context_tokens=10,
     )
 
     with pytest.raises(
