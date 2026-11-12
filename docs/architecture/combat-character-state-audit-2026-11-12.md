@@ -63,10 +63,13 @@ the canonical character row.
 - A short rest advances fictional time by 60 minutes. A character can spend
   available Hit Dice; each die heals `max(0, roll + Constitution modifier)`,
   capped at maximum HP. Dice can be rolled locally or supplied manually.
-- A long rest advances fictional time by 480 minutes, restores HP to maximum
+- A long rest always advances fictional time by 480 minutes. It restores HP
   and recovers up to half the character's total Hit Dice (minimum one, never
-  more than previously spent). A character cannot benefit from another long
-  rest until 24 campaign hours have elapsed since the prior rest started.
+  more than previously spent) only when the character starts above 0 HP and
+  24 campaign hours have elapsed since the previous beneficial long rest
+  started. A non-beneficial long rest still advances time and expires effects
+  but does not change HP, Hit Dice or the beneficial-rest marker. The API
+  exposes `benefits_applied`.
 - Both rest workflows compare the caller's expected campaign-clock value,
   reject a campaign with an active encounter and atomically persist character
   state, clock advancement and campaign-time effect expiry in one
