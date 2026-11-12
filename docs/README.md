@@ -5,15 +5,19 @@ This is the starting point for maintainers and coding agents. Prefer current ind
 ## Current engineering baseline
 
 1. [Architecture map](architecture/architecture-map-2026-11-12.md) — global package map, main execution paths, module ownership, protected compatibility surfaces and module-level improvements.
-2. [Current architecture and modularity audit](architecture/architecture-audit-2026-11-12.md) — verified findings, cleanup disposition and ordered refactoring plan.
-3. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries and the process for adding dependencies.
-4. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results, enforcement gap and quality-gate roadmap.
-5. [Test-suite audit](quality/test-suite-audit-2026-11-11.md) — suite composition, large modules, protected contracts and reorganization plan.
-6. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
-7. [Quality roadmap](quality/ci-quality-roadmap.md) — baseline and staged static-analysis policy.
+2. [Shared-layer module catalogue](architecture/module-catalog-2026-11-12.md) — API, models, operations, repositories, rules engine, tests and shared entrypoints.
+3. [Change-impact map](architecture/change-impact-map-2026-11-12.md) — which contracts and tests must be reviewed together for cross-layer changes.
+4. [Current architecture and modularity audit](architecture/architecture-audit-2026-11-12.md) — verified findings, cleanup disposition and ordered refactoring plan.
+5. [Capability dependency matrix](architecture/package-dependency-matrix.md) — enforced cross-package boundaries and the process for adding dependencies.
+6. [CI audit](quality/ci-audit-2026-11-11.md) — workflow inventory, observed check results, enforcement gap and quality-gate roadmap.
+7. [Test-suite audit](quality/test-suite-audit-2026-11-11.md) — suite composition, large modules, protected contracts and reorganization plan.
+8. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
+9. [Quality roadmap](quality/ci-quality-roadmap.md) — baseline and staged static-analysis policy.
 
 ## Active architectural contracts
 
+- [Shared-layer module catalogue — 2026-11-12](architecture/module-catalog-2026-11-12.md) — module-level navigation outside capability packages.
+- [Change-impact map — 2026-11-12](architecture/change-impact-map-2026-11-12.md) — cross-layer change/test dependencies.
 - [Architecture map — 2026-11-12](architecture/architecture-map-2026-11-12.md) — global entrypoint for coding agents and maintainers.
 - [Current architecture audit — 2026-11-12](architecture/architecture-audit-2026-11-12.md) — supersedes earlier migration-status snapshots.
 
@@ -44,7 +48,7 @@ This is the starting point for maintainers and coding agents. Prefer current ind
 
 ## Historical audits
 
-The architecture index retains the 2026-11-03, 2026-11-05 and 2026-11-06 snapshots. They are useful for rationale and decisions, but their migration status is not current unless confirmed by the 2026-11-11 audit and source code.
+The architecture index retains the 2026-11-03, 2026-11-05 and 2026-11-06 snapshots. They are useful for rationale and decisions, but their migration status is not current unless confirmed by the 2026-11-12 audit, maps and source code.
 
 ## Rules for updating documentation
 

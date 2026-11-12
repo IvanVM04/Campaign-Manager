@@ -20,6 +20,8 @@ The biggest current architectural risks are not the already-retired shims. They 
 
 ## Verified repository state
 
+The global navigation is split into complementary references: [architecture map](architecture-map-2026-11-12.md) for capability packages and end-to-end flows, [shared-layer module catalogue](module-catalog-2026-11-12.md) for transport, models, operations, persistence, rules, scripts and tests, and [change-impact map](change-impact-map-2026-11-12.md) for cross-layer consumers and regression requirements. All are linked from the documentation hub and coding-agent instructions.
+
 ### Capability boundaries
 
 The eight service packages and their ownership are documented in the architecture map. The former root-level services compatibility shims and RuntimeProxy surface are already retired. The external SillyTavern Python adapter now lives under integrations/adapters/silly_tavern. Bootstrap owns construction; API routers obtain request-scoped runtime services.

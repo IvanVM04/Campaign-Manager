@@ -18,6 +18,8 @@ Use code search only after identifying the owning package. Prefer canonical pack
 
 ## Repository shape
 
+For per-module detail outside the eight service packages, see [the shared-layer module catalogue](module-catalog-2026-11-12.md). For multi-layer edits, use the [change-impact map](change-impact-map-2026-11-12.md) to identify consumers, transaction participants and required regression tests.
+
 | Layer | Owns | Must not own |
 |---|---|---|
 | api | FastAPI routers, input/output mapping, HTTP error translation and request-bound runtime access | composition, repositories created per request, domain rules or long-running workflows |

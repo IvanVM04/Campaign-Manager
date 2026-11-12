@@ -5,7 +5,7 @@ Read this file before making repository changes.
 ## Start here
 
 1. Read [the documentation hub](docs/README.md).
-2. Read [the current architecture map](docs/architecture/architecture-map-2026-11-12.md) and [the current architecture audit](docs/architecture/architecture-audit-2026-11-12.md).
+2. Read [the current architecture map](docs/architecture/architecture-map-2026-11-12.md), [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [change-impact map](docs/architecture/change-impact-map-2026-11-12.md) and [the current architecture audit](docs/architecture/architecture-audit-2026-11-12.md).
 3. Read [the capability dependency matrix](docs/architecture/package-dependency-matrix.md).
 4. Read the relevant package `README.md` before changing a capability.
 5. Read [the CI audit](docs/quality/ci-audit-2026-11-11.md) and [test-suite audit](docs/quality/test-suite-audit-2026-11-11.md) before changing quality gates or tests.
