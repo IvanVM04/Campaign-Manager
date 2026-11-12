@@ -67,6 +67,7 @@ class ProposalContextSelector:
         max_estimated_tokens: int,
         mandatory_entity_ids: tuple[int, ...] | list[int] = (),
         supplemental_queries: tuple[str, ...] | list[str] = (),
+        character_entity_id: int | None = None,
     ) -> WorldContextProjection:
         if not isinstance(world, WorldState):
             raise TypeError("world must be a WorldState")
@@ -100,7 +101,10 @@ class ProposalContextSelector:
             if entity_id not in mandatory_ids:
                 mandatory_ids.append(entity_id)
 
-        public_records = self.memory_search_service.export(world)
+        public_records = self.memory_search_service.export(
+            world,
+            character_entity_id=character_entity_id,
+        )
         record_lookup: dict[str, dict[int | str, dict[str, Any]]] = {}
         object_lookup: dict[str, dict[int | str, Any]] = {}
 
@@ -117,9 +121,14 @@ class ProposalContextSelector:
             search_result = self.memory_search_service.search_many(
                 world,
                 (normalized_query, *normalized_supplemental_queries),
+                character_entity_id=character_entity_id,
             )
         else:
-            search_result = self.memory_search_service.search(world, normalized_query)
+            search_result = self.memory_search_service.search(
+                world,
+                normalized_query,
+                character_entity_id=character_entity_id,
+            )
         searched_entity_ids = {
             record.get("id")
             for record in search_result.get("entities", [])
