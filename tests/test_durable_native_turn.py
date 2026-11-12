@@ -1,8 +1,11 @@
 import json
+
 import pytest
+
+from durable_turn_test_support import service_with_fake_models
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turns.durable_native_turn_service import DurableNativeTurnError
-from durable_turn_test_support import service_with_fake_models
+
 
 def test_native_turn_commits_before_narration_and_completes_durably():
     service, proposal_calls, narrative_calls = service_with_fake_models()
