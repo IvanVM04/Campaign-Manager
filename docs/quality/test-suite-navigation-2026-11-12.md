@@ -1,7 +1,7 @@
 # Test-suite navigation — 2026-11-12
 
-**Baseline:** `main` after PR #204, commit `73b6fc627e4cf94cea5bb8ad97c36f596567c8dc`.  
-**Change set:** PR #205 reorganizes two large test modules. It changes test placement and shared fixture support only; application/runtime code and assertions are unchanged.
+**Baseline:** `main` after PR #205, commit `a14d1568ba852cd545caaf06e9efd48a4f925b03`.  
+**Change set:** PR #205 is merged. Its test-only reorganization changes test placement and shared fixture support; production behavior and assertions are unchanged.
 
 ## Durable turn lifecycle
 
@@ -36,11 +36,17 @@ All 35 original test functions and their assertions are preserved. The support m
 - Keep `real_llm` probes separate from deterministic CI. A green deterministic run does not validate Ollama model quality or the live SillyTavern extension.
 - Do not add a global coverage threshold solely to force the percentage upward. Use branch coverage to select missing failure paths.
 
-## Next coverage priorities
+## Remaining coverage priorities after PR #205
 
-1. **Provider contract matrix:** success, timeout, unavailable Ollama, malformed response and normalized error behavior. Keep retry ownership explicit between provider and caller.
-2. **Campaign runtime lifecycle:** invalidation after campaign deletion/configuration changes, shutdown semantics and safe cache bounds for the supported one-process deployment.
-3. **Critical transaction branches:** rollback after partial writes, stale revisions, lease fencing, restart recovery and campaign-time effect expiry.
-4. **Context scale probes:** representative medium/large campaign fixtures, stable ranking and budget exhaustion. Add live Ollama probes only as opt-in acceptance work.
+1. **Context scale probes:** representative medium/large campaign fixtures, stable ranking, mandatory character/location retention, dependency expansion, budget exhaustion and projection non-mutation.
+2. **Critical transaction branches:** continue targeting stale revisions, partial-write rollback, lease fencing/recovery and campaign-time effect expiry when a concrete uncovered path is identified.
+3. **Live Ollama + SillyTavern acceptance:** run the opt-in manual checklist and record backend/extension revisions, model and settings. Do not treat deterministic fake-provider tests as model-quality validation.
 
-No test deletion or production behavior change is part of this reorganization.
+Already covered deterministically:
+- Ollama request success, timeout, connection failure, HTTP errors with/without parseable error bodies, malformed/non-object JSON, malformed response payloads and no hidden transport retry.
+- Fake provider fixed/prompt-selected responses, failure injection and observable prompt/call tracking.
+- Campaign runtime reuse/isolation, selective invalidation, shutdown, idempotent shutdown and reconstruction after shutdown.
+
+Campaign deletion/configuration-triggered invalidation and cache eviction remain deferred because those lifecycle requirements are not part of the current single-process product contract. Do not add TTL/LRU without measured cache pressure and an explicit in-flight request policy.
+
+No test deletion or production behavior change was part of PR #205.
