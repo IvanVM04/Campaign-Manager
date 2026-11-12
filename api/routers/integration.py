@@ -12,7 +12,7 @@ from models.schemas import (
     SillyTavernTurnIn,
     SillyTavernTurnResolveIn,
 )
-from services.silly_tavern_integration_service import (
+from integrations.adapters.silly_tavern import (
     SillyTavernIntegrationServiceConflictError,
     SillyTavernIntegrationServiceError,
 )
