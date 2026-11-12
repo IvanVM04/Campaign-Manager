@@ -19,7 +19,6 @@ MIGRATED_PRODUCTION_MODULES = (
     "services/campaign/persistent_effect_service.py",
     "services/campaign/effective_condition_service.py",
     "services/turns/durable_native_turn_service.py",
-    "services/turns/legacy_silly_tavern_turn_service.py",
     "integrations/adapters/silly_tavern/context_adapter.py",
     "integrations/adapters/silly_tavern/service.py",
     "services/turns/turn_resolution_service.py",

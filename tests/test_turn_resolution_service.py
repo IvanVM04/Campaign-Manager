@@ -962,66 +962,34 @@ def test_world_state_compatibility_creates_typed_turn_context():
     assert player_input == "Exploro."
 
 
-def test_turn_resolution_separates_world_and_character_operations(
-    monkeypatch,
-):
-    from operations.character_operations import (
-        ChangeCharacterHpOperation,
-    )
-    from operations.world_operations import (
-        WorldOperation,
-    )
-    from services.llm_world import (
-        LLMWorldExtractor,
-    )
+def test_turn_resolution_rejects_character_changes_from_llm_proposal(monkeypatch):
+    from operations.character_operations import ChangeCharacterHpOperation
+    from services.llm_world import LLMWorldExtractor
 
-    world_operation = WorldOperation()
-
-    character_operation = ChangeCharacterHpOperation(
-        entity_id=1,
-        amount=-4,
-    )
-
+    character_operation = ChangeCharacterHpOperation(entity_id=1, amount=-4)
     service, dm, _, _ = make_service()
-
-    extractor = LLMWorldExtractor.__new__(
-        LLMWorldExtractor
-    )
-
-    def fake_propose(*args, **kwargs):
-        return [
-            world_operation,
-            character_operation,
-        ]
-
+    extractor = LLMWorldExtractor.__new__(LLMWorldExtractor)
     monkeypatch.setattr(
         extractor,
         "propose",
-        fake_propose,
+        lambda *args, **kwargs: [character_operation],
     )
-
     service = TurnResolutionService(
         dm_service=dm,
         extractor=extractor,
-        world_service=WorldService(
-            applier=RecordingApplier(),
-        ),
+        world_service=WorldService(applier=RecordingApplier()),
     )
 
-    result = service.resolve_turn(
-        turn_context=make_turn_context(),
-        player_input="Ataco al enemigo.",
-    )
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="character-state changes must come from deterministic mechanics",
+    ):
+        service.resolve_turn(
+            turn_context=make_turn_context(),
+            player_input="Ataco al enemigo.",
+        )
 
-    assert result.operations == (
-        world_operation,
-    )
 
-    assert result.character_operations == (
-        character_operation,
-    )
-
-    assert result.operation_count == 2
 
 def test_turn_resolution_uses_turn_context():
 
@@ -1244,10 +1212,6 @@ def test_resolve_turn_preserves_global_operation_order(
         CreateEntityOperation(
             name="Aldren",
             entity_type="npc",
-        ),
-        ChangeCharacterHpOperation(
-            entity_id=1,
-            amount=-2,
         ),
         UpdateEntityOperation(
             entity_id=1,

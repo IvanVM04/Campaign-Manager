@@ -370,10 +370,8 @@ def test_application_services_share_same_turn_execution_lock():
 
     runtime = runtime_factory.get_runtime(1)
     assert not hasattr(runtime, "campaign_turn_service")
-    assert (
-        runtime.silly_tavern_integration_service.legacy_turn_service.turn_execution_lock
-        is runtime.turn_execution_lock
-    )
+    assert not hasattr(runtime.silly_tavern_integration_service, "legacy_turn_service")
+    assert runtime.turn_execution_lock is not None
 
 def test_update_campaign_session_rejects_nonexistent_session(client):
     campaign_repository = CampaignRepository()

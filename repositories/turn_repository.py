@@ -102,7 +102,7 @@ class TurnRepository:
                 all_operations_succeeded, world_changed, external_turn_id,
                 version, status, campaign_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             turn.session_id, turn.player_input, turn.narrative,
