@@ -52,7 +52,7 @@ class WorldVisibilityPolicy:
         return frozenset(
             event.supersedes_event_id
             for event in events
-            if getattr(event, "supersedes_event_id", None)
+            if isinstance(getattr(event, "supersedes_event_id", None), str)
         )
 
     @classmethod
