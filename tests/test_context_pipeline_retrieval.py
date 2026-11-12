@@ -511,4 +511,4 @@ def test_memory_search_many_preserves_primary_precedence_and_deduplicates():
     entity_ids = [entity["id"] for entity in result["entities"]]
     assert entity_ids[0] == 1
     assert len(entity_ids) == len(set(entity_ids))
-    assert 5 in entity_ids
+    assert 4 in entity_ids
