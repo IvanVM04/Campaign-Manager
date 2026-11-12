@@ -7,8 +7,9 @@
 > primary retrieval query and configured campaign-scope wording is an independent
 > optional query. The context pipeline merges and deduplicates the two signals;
 > descriptive entity matching can resolve a role inside a longer player sentence
-> and still abstains on comparable candidates. Pronoun continuity and semantic
-> paraphrase matching remain open work. See the
+> and still reports ambiguity on comparable candidates while retaining their
+> descriptive evidence for retrieval (without resolving one canonical ID).
+> Pronoun continuity and semantic paraphrase matching remain open work. See the
 > [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md).
 
 ## How to work in this repository
