@@ -20,7 +20,7 @@ acceptance gate has passed.
 | Conversation context | Last six visible turns are bounded in both prompts; literal target mentions and recent text are supplemental deterministic retrieval signals. Existing resolver ambiguity abstention remains authoritative. | This is not full pronoun/coreference resolution. Test pronouns, ellipsis and corrections; clarify on multiple plausible references. |
 | Durable continuation | intent_json stores the analysis, exact source text and SHA-256 source fingerprint; migration 033 adds the column and protects committed evidence. Manual-roll continuation reuses the saved analysis; clarification answers are appended and re-interpreted. | Run restart/recovery and idempotency tests end-to-end, including SillyTavern. |
 | Deterministic tests | New model, adjudicator, proposal-prompt, turn-resolution, codec, repository and migration tests are included. | Final Python/JS/Ruff/Pyright/CodeQL checks must pass on the final PR head. |
-| Live acceptance | No live-model or manual SillyTavern success is asserted. | Version and run the 30-scenario corpus; repeat critical cases; complete the SillyTavern smoke checklist and record revisions. |
+| Live acceptance | A versioned 34-scenario corpus and opt-in real_llm test now exist; 12 critical cases run three times. No live-model or manual SillyTavern success is asserted. | Execute with the configured Ollama tag/version, preserve results and latency, then complete the SillyTavern smoke checklist and record revisions. |
 
 The intent_analysis object is evidence about language, not a domain write
 contract. The model cannot supply canonical entity IDs, permission grants,
@@ -295,7 +295,7 @@ Keep delivery in the single P0 implementation PR #215:
 3. [x] Return the interpretation and mechanics decision from one shared provider response; pass the exact interpretation into proposal generation.
 4. [~] Use literal mentions and bounded conversation history as deterministic retrieval signals; the resolver continues to abstain on ambiguity. Full pronoun/coreference resolution is not claimed.
 5. [x] Persist/recover interpretation through the durable lifecycle with migration 033 and source fingerprinting.
-6. [ ] Run the expanded live corpus and SillyTavern acceptance; record the actual model/runtime and extension revisions.
+6. [~] Version 34 live-model scenarios and repeat 12 critical cases three times in the opt-in suite; still must execute with Ollama and complete SillyTavern acceptance.
 7. [~] Update package guides, the AI roadmap and impact documentation; finish after the implementation review.
 
 A checked implementation block does not imply its live acceptance gate has passed. Only merge once the entire PR is green and all required non-CI acceptance results are recorded. The Character Builder becomes eligible to resume after this P0 gate, not before.
