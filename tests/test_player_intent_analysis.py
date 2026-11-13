@@ -3,9 +3,7 @@ import pytest
 from models.player_intent_analysis import (
     IntentActor,
     IntentModality,
-    IntentPolarity,
     PlayerIntentAnalysis,
-    PlayerReportedOutcome,
     UtteranceCategory,
 )
 
