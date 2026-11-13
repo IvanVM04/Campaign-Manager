@@ -7,7 +7,11 @@ from models.pending_intent_correction import (
     PendingIntentCorrection,
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.semantic_frames import SemanticArgumentRole, SemanticObjectKind, SemanticMention
+from models.semantic_frames import (
+    SemanticArgumentRole,
+    SemanticObjectKind,
+    SemanticMention,
+ )
 
 
 def analysis():
@@ -72,7 +76,9 @@ def test_target_correction_changes_only_the_selected_pending_step():
     )
     assert updated.steps[0].target_mentions == ("la llave de hierro", "Aldric")
     assert original.steps[0].target_mentions[-1] == "Mara"
-    assert updated.steps[0].action_frame.arguments[1].mention.text == "Aldric"
+    frame = updated.steps[0].action_frame
+    assert frame is not None
+    assert frame.arguments[1].mention.text == "Aldric"
     assert "Aldric" in updated.steps[0].source_excerpt
     assert "Aldric" in updated.steps[0].action
     restored = PlayerIntentAnalysis.from_payload(
@@ -101,7 +107,9 @@ def test_argument_correction_updates_role_and_keeps_other_arguments():
         resolution_pending=True,
         committed=False,
     )
-    args = updated.steps[0].action_frame.arguments
+    frame = updated.steps[0].action_frame
+    assert frame is not None
+    args = frame.arguments
     assert args[0].mention.text == "la llave de hierro"
     assert args[1].role is SemanticArgumentRole.RECIPIENT
     assert args[1].mention.text == "Aldric"
