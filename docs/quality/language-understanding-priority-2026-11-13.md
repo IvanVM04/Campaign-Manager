@@ -1,9 +1,9 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active language-quality priority  
-**Integrated foundation:** PRs #215–#218 are merged into `main`; PR #218's deterministic Tests and CodeQL checks passed. Live Ollama and SillyTavern acceptance remain separate gates.  
-**Next implementation:** PR #219 prepares evidence-backed discourse resolution and guarded pending corrections on `feat/219-discourse-resolution-corrections`.  
-**Baseline:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13, after PR #218).  
+**Integrated foundation:** PRs #215–#219 are merged into `main`; PR #219 merge commit is `cd701d11eb36666ab5ad33603095a2d95289882b`. Live Ollama and SillyTavern acceptance remain separate gates.  
+**Next implementation:** PR #220 adds a 110-scenario semantic evaluation corpus and quality gate on `feat/220-semantic-evaluation-corpus`.  
+**Baseline:** `main` at `cd701d11eb36666ab5ad33603095a2d95289882b` (2026-11-13, after PR #219).  
 **Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are distinct gates. This branch does not claim the live gates passed.
 
 ## 1. Integrated turn pipeline
@@ -113,10 +113,10 @@ The 34-case utterance corpus and six deterministic conversation-reference cases 
 
 The implementation work in PR #218 is not considered accepted until these gates are recorded. Live model and SillyTavern behavior are not inferred from deterministic schema tests.
 
-## 7. Next work after PR #218
+## 7. Next work after PR #219
 
-PR #219 should focus on discourse resolution and correction chains: typed antecedent evidence, speaker roles, semantic-type/grammatical constraints, topic continuity, pending-intent corrections and safe correction scope.
+PR #219 has integrated the typed discourse evidence resolver and immutable evidence-backed correction primitive. It does not yet connect model-emitted corrections to an automatic correction lifecycle.
 
-PR #220 should expand the corpus to at least 100 balanced labelled scenarios with a held-out tranche, and separately score frame slots, relation direction/polarity, entity linking, abstention, false persistent changes, secret leakage and latency.
+PR #220 is implementing the next measurable step: 110 distinct labelled scenarios (50 development + 60 held-out) across utterance intent, semantic action/relation frames and multi-turn entity references. It scores per-family case accuracy, slot recall, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Critical safety mismatches remain hard failures; non-critical family thresholds are set after a reproducible baseline is captured.
 
-Do not return to broad gameplay expansion while the live P0 acceptance gates remain unrecorded.
+After PR #220, use the hold-out results to prioritize correction-chain integration and only then decide whether prompt, ontology or retrieval changes are justified. Do not add embeddings or an extra normal-path provider call without measured benefit. Do not return to broad gameplay expansion while the live P0 acceptance gates remain unrecorded.
