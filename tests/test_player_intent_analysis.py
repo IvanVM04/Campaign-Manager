@@ -287,3 +287,25 @@ def test_legacy_reported_failure_or_success_does_not_remain_actionable(outcome):
     )
 
     assert analysis.is_actionable is False
+
+
+def test_attributed_direct_observation_of_npc_can_ground_a_world_proposal():
+    source = "Veo a Aldric dejar una bolsa sobre la mesa."
+    analysis = PlayerIntentAnalysis.from_payload(
+        payload(
+            category="report",
+            active=None,
+            steps=[step(
+                excerpt="Aldric dejar una bolsa sobre la mesa",
+                actor="npc",
+                action="dejar una bolsa sobre la mesa",
+                modality="observed",
+                attributed_to="Aldric",
+                targets=["una bolsa", "la mesa"],
+            )],
+        ),
+        source_text=source,
+    )
+
+    assert analysis.is_actionable is False
+    assert analysis.allows_world_proposal is True
