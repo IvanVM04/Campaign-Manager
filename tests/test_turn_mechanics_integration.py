@@ -1,7 +1,5 @@
 from dataclasses import replace
 
-from services.providers import FakeLLMProvider
-
 from models.character_state import CharacterState
 from rules_engine.dnd5e_2014.combat.conditions import Condition, ConditionSet
 from rules_engine.dnd5e_2014.core.abilities import Ability
@@ -9,6 +7,7 @@ from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor
+from services.providers import FakeLLMProvider
 from services.turns import DMService, MechanicsAdjudicator
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldApplier, WorldService
