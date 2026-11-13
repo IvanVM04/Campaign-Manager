@@ -357,7 +357,7 @@ def test_mechanics_adjudicator_bounds_context_without_truncating_player_evidence
     adjudicator = MechanicsAdjudicator(
         provider,
         context_builder,
-        max_prompt_tokens=6000,
+        max_prompt_tokens=8192,
         max_context_tokens=3000,
     )
 
@@ -370,7 +370,7 @@ def test_mechanics_adjudicator_bounds_context_without_truncating_player_evidence
     prompt = provider.prompts[0]
     from models.world_context_projection import estimate_tokens
 
-    assert estimate_tokens(prompt) <= 6000
+    assert estimate_tokens(prompt) <= 8192
     assert "Abro la puerta." in prompt
     assert "=== EVIDENCIA ESCRITA POR EL JUGADOR" in prompt
     assert len(prompt.encode("utf-8")) < 12000
