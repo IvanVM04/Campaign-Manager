@@ -5,6 +5,7 @@ from collections.abc import Callable
 from time import perf_counter
 
 from models.mechanics import MechanicsResult
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.world_context_projection import WorldContextProjection, estimate_tokens
 from operations.turn_operations import TurnOperation
@@ -103,6 +104,8 @@ class LLMWorldExtractor:
         context: TurnContext,
         *,
         mechanics_result: MechanicsResult | None = None,
+        intent_analysis: PlayerIntentAnalysis | None = None,
+        recent_turns: tuple | list | None = None,
         context_projection: WorldContextProjection | None = None,
     ) -> list[TurnOperation]:
         """Propose typed state operations from player intent, not DM prose.
@@ -117,6 +120,11 @@ class LLMWorldExtractor:
         intent = player_intent.strip()
         if not intent:
             return []
+
+        if intent_analysis is not None and not isinstance(intent_analysis, PlayerIntentAnalysis):
+            raise TypeError("intent_analysis must be a PlayerIntentAnalysis or None")
+        if recent_turns is not None and not isinstance(recent_turns, (tuple, list)):
+            raise TypeError("recent_turns must be a tuple, list or None")
 
         if context_projection is not None and not isinstance(
             context_projection,
@@ -149,6 +157,8 @@ class LLMWorldExtractor:
             intent,
             context,
             mechanics_result=mechanics_result,
+            intent_analysis=intent_analysis,
+            recent_turns=recent_turns,
             projection=context_projection,
             allowed_operation_types=allowed_operation_types,
             operation_registry=self.operation_registry,
