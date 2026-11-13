@@ -173,11 +173,16 @@ class DurableTurnClarificationSubmissionService:
                     + "\nRespuesta del jugador: " + item["answer"]
                     for item in history
                 )
+                clarified_evidence = record.player_input + "".join(
+                    "\n\n" + item["answer"]
+                    for item in history
+                )
                 plan = service.resolver.prepare_turn(
                     context,
                     clarified_input,
                     manual_mode=(pending_state.get("dice_mode") == "manual"),
                     recent_turns=recent,
+                    intent_evidence_text=clarified_evidence,
                 )
                 if plan.awaiting_manual_roll:
                     manual_pending = service._build_manual_roll_request(
