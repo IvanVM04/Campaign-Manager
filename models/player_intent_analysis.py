@@ -5,8 +5,8 @@ import dataclasses
 import enum
 import json
 import re
-import typing
 import unicodedata
+import typing
 
 
 SCHEMA_VERSION = 1
@@ -343,7 +343,7 @@ class PlayerIntentAnalysis:
         folded = unicodedata.normalize("NFKC", text).casefold()
         question = "?" in text or text.startswith("¿") or bool(re.match(r"^(qué|quién|como|cómo|cuando|cuándo|donde|dónde|por qué)\b", folded))
         conditional = bool(re.search(r"\b(si|cuando|en caso de que|if|when|suppose)\b", folded))
-        planned = bool(re.search(r"\b(mañana|luego|después|planeo|pienso|quiero|me gustaría|voy a|haré|tomorrow|later|plan to|i will|i want to)\b", folded))
+        planned = bool(re.search(r"\b(mañana|luego|después|planeo|pienso|me gustaría|voy a|haré|tomorrow|later|plan to|i will)\b", folded))
         quoted = any(mark in text for mark in ('"', "“", "”", "«", "»"))
         failure = bool(re.search(r"\b(no pude|no consigo|no logré|no logre|no conseguí|no consegui|fallé|falle|fracasé|fracase|falló|fallo|failed|could not|couldn't)\b", folded))
         negated = bool(re.search(r"\b(no|nunca|jamás|jamas|not|never)\b", folded)) and not failure
