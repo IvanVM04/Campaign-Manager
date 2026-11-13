@@ -490,6 +490,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     duplicate = service.prepare_external_turn(
         "Investigo el campanario.",
         external_turn_id="st-world-continuity-001",
+        conversation_id="st-chat-world-continuity",
     )
     assert duplicate.resolution_id == prepared.resolution_id
     assert len(proposal_calls) == 1
