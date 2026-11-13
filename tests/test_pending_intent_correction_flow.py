@@ -6,7 +6,7 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
-from models.mechanics import MechanicsDecisionType
+from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.pending_intent_correction import (
     PendingCorrectionSlot,
     PendingIntentCorrection,
@@ -27,7 +27,10 @@ from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
 )
-from services.turns.turn_resolution_service import TurnResolutionPlan
+from services.turns.turn_resolution_service import (
+    TurnResolutionPlan,
+    TurnResolutionServiceError,
+)
 from tests.durable_turn_test_support import service_with_fake_models
 
 
@@ -422,3 +425,53 @@ def test_failed_correction_releases_claim_back_to_awaiting_input(monkeypatch):
     assert saved.lease_token is None
     assert saved.lease_expires_at is None
     assert saved.last_error_code == "clarification_resolution_failed"
+
+def test_turn_planner_requires_correction_to_match_the_provider_reanalysis():
+    service, _proposal_calls, _narrative_calls = service_with_fake_models()
+    pending = _pending_analysis()
+    updated = _corrected_analysis(ORIGINAL + "\\n\\n" + CORRECTION)
+    correction = _correction()
+    service.resolver.context_builder = None
+
+    class FakeAdjudicator:
+        def understand_pending(self, *args, **kwargs):
+            return IntentUnderstandingResult(
+                analysis=pending,
+                mechanics_decision=MechanicsDecisionType.NONE,
+                corrections=(correction,),
+            )
+
+    # A malformed adjudicator result must be rejected before proposal extraction.
+    service.resolver.mechanics_adjudicator = FakeAdjudicator()
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="pending intent correction failed validation",
+    ):
+        service.resolver.prepare_turn(
+            _turn_context(),
+            ORIGINAL + "\\n\\nAclaración del DM: ¿A quién?\\n" + CORRECTION,
+            intent_evidence_text=ORIGINAL + "\\n\\n" + CORRECTION,
+            pending_intent_analysis=pending,
+            pending_correction_evidence_text=CORRECTION,
+        )
+
+    class ConsistentAdjudicator:
+        def understand_pending(self, *args, **kwargs):
+            assert kwargs["pending_analysis"] == pending
+            assert kwargs["correction_evidence_text"] == CORRECTION
+            return IntentUnderstandingResult(
+                analysis=updated,
+                mechanics_decision=MechanicsDecision(MechanicsDecisionType.NONE),
+                corrections=(correction,),
+            )
+
+    service.resolver.mechanics_adjudicator = ConsistentAdjudicator()
+    plan = service.resolver.prepare_turn(
+        _turn_context(),
+        ORIGINAL + "\\n\\nAclaración del DM: ¿A quién?\\n" + CORRECTION,
+        intent_evidence_text=ORIGINAL + "\\n\\n" + CORRECTION,
+        pending_intent_analysis=pending,
+        pending_correction_evidence_text=CORRECTION,
+    )
+    assert plan.intent_analysis == updated
+    assert plan.intent_corrections == (correction,)
