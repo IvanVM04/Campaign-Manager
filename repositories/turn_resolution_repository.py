@@ -61,7 +61,7 @@ class TurnResolutionRepository:
                 intent_json, adjudication_json, mechanics_json, operation_results_json,
                 narrative, attempt_count, lease_token, lease_expires_at,
                 last_error_code, committed_at, completed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             record.campaign_id, record.session_id, record.turn_id,
