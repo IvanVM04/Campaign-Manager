@@ -83,6 +83,8 @@ class RecordingExtractor(LLMWorldExtractor):
         context,
         *,
         mechanics_result=None,
+        intent_analysis=None,
+        recent_turns=None,
         context_projection=None,
     ):
         self.received_text = player_intent
@@ -421,6 +423,8 @@ def test_extractor_failure_is_wrapped():
             world,
             *,
             mechanics_result=None,
+            intent_analysis=None,
+            recent_turns=None,
             context_projection=None,
         ):
             raise RuntimeError("proposal failed")
@@ -464,6 +468,8 @@ def test_invalid_extractor_result_is_rejected():
             world,
             *,
             mechanics_result=None,
+            intent_analysis=None,
+            recent_turns=None,
             context_projection=None,
         ):
             return [
@@ -686,6 +692,8 @@ def test_turn_resolution_order():
         context,
         *,
         mechanics_result=None,
+        intent_analysis=None,
+        recent_turns=None,
         context_projection=None,
     ):
         order.append("proposer")
@@ -693,6 +701,8 @@ def test_turn_resolution_order():
             player_intent,
             context,
             mechanics_result=mechanics_result,
+            intent_analysis=intent_analysis,
+            recent_turns=recent_turns,
             context_projection=context_projection,
         )
 
