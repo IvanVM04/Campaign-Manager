@@ -33,7 +33,8 @@ def test_integration_context_endpoint_rejects_missing_query(
     response = client.post(
         "/integration/context",
         json={
-            "conversation_id": "st-chat-main",},
+            "conversation_id": "st-chat-main",
+        },
     )
 
     assert response.status_code == 422
@@ -158,7 +159,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         captured["player_input"] = player_input
         captured["external_turn_id"] = external_turn_id
         captured["dice_mode"] = dice_mode
-        captured["conversation_id"] = conversation_id
+        captured["prepare_conversation_id"] = conversation_id
         return SimpleNamespace(
             resolution_id=41,
             lifecycle_state="narration_pending",
@@ -176,7 +177,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         captured["query"] = query
         captured["additional_queries"] = additional_queries
         captured["exclude_external_turn_id"] = exclude_external_turn_id
-        captured["conversation_id"] = conversation_id
+        captured["context_conversation_id"] = conversation_id
         return {
             "campaign": {"id": 1, "name": "Campaña"},
             "session": None,
@@ -222,11 +223,11 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         "player_input": "Abro la puerta.",
         "external_turn_id": "st-chat-turn",
         "dice_mode": "manual",
-        "conversation_id": "st-chat-main",
+        "prepare_conversation_id": "st-chat-main",
         "query": "Abro la puerta.",
         "additional_queries": ("Estado general de campaña.",),
         "exclude_external_turn_id": "st-chat-turn",
-        "conversation_id": "st-chat-main",
+        "context_conversation_id": "st-chat-main",
     }
 
 def test_integration_turn_complete_endpoint_returns_processed_turn(
@@ -779,7 +780,8 @@ def test_integration_context_endpoint_maps_unexpected_service_failure(
     response = client.post(
         "/integration/context",
         json={
-            "conversation_id": "st-chat-main","query": "Estado de campaña."},
+            "conversation_id": "st-chat-main",
+            "query": "Estado de campaña."},
     )
 
     assert response.status_code == 500

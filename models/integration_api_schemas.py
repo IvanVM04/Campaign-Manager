@@ -26,6 +26,7 @@ class SillyTavernManualRollIn(ManualRollIn):
     def validate_manual_roll_additional_query(cls, value: str | None) -> str | None:
         normalized = value.strip() if value is not None else None
         return normalized or None
+
     @field_validator("conversation_id")
     @classmethod
     def validate_conversation_id(cls, value: str) -> str:
