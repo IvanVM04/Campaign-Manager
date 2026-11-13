@@ -439,3 +439,26 @@ def test_clarification_answer_is_valid_evidence_even_when_dm_question_is_not():
     )
 
     assert analysis.steps[0].source_excerpt == "la puerta de roble"
+
+
+
+def test_legacy_indirect_question_after_player_speech_verb_is_dialogue_not_plan():
+    analysis = PlayerIntentAnalysis.conservative_legacy(
+        "Le pregunto a Mara si sabe algo de la campana."
+    )
+
+    assert analysis.category is UtteranceCategory.DIALOGUE
+    assert analysis.steps[0].actor is IntentActor.PLAYER
+    assert analysis.steps[0].modality is IntentModality.DIALOGUE
+    assert analysis.is_actionable is False
+    assert analysis.allows_world_proposal is True
+
+
+def test_legacy_conditional_clause_is_not_reclassified_as_speech_act():
+    analysis = PlayerIntentAnalysis.conservative_legacy(
+        "Si el guardia se acerca, le pregunto qué quiere."
+    )
+
+    assert analysis.category is UtteranceCategory.PLAN
+    assert analysis.steps[0].modality is IntentModality.CONDITIONAL
+    assert analysis.allows_world_proposal is False
