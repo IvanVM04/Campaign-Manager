@@ -73,6 +73,14 @@ def test_target_correction_changes_only_the_selected_pending_step():
     assert updated.steps[0].target_mentions == ("la llave de hierro", "Aldric")
     assert original.steps[0].target_mentions[-1] == "Mara"
     assert updated.steps[0].action_frame.arguments[1].mention.text == "Aldric"
+    assert "Aldric" in updated.steps[0].source_excerpt
+    assert "Aldric" in updated.steps[0].action
+    restored = PlayerIntentAnalysis.from_payload(
+        updated.to_dict(),
+        source_text="Entrego la llave de hierro a Mara.",
+        evidence_text="Entrego la llave de hierro a Mara. No, quería decir Aldric.",
+    )
+    assert restored == updated
 
 
 def test_argument_correction_updates_role_and_keeps_other_arguments():
@@ -98,6 +106,16 @@ def test_argument_correction_updates_role_and_keeps_other_arguments():
     assert args[1].role is SemanticArgumentRole.RECIPIENT
     assert args[1].mention.text == "Aldric"
     assert updated.steps[0].target_mentions[-1] == "Aldric"
+    assert "Aldric" in updated.steps[0].source_excerpt
+    restored = PlayerIntentAnalysis.from_payload(
+        updated.to_dict(),
+        source_text="Entrego la llave de hierro a Mara.",
+        evidence_text=(
+            "Entrego la llave de hierro a Mara. "
+            "No, la destinataria es Aldric."
+        ),
+    )
+    assert restored == updated
 
 
 def test_correction_is_rejected_after_commit_or_outside_pending_resolution():
@@ -223,4 +241,13 @@ def test_relation_endpoint_correction_updates_only_the_selected_claim():
     )
     assert updated.relation_claims[0].subject.text == "Aldric"
     assert updated.relation_claims[0].object.text == "la llave"
+    assert "Aldric" in updated.steps[0].target_mentions
+    assert "Aldric" in updated.steps[0].source_excerpt
+    assert "Aldric" in updated.relation_claims[0].source_excerpt
     assert original.relation_claims[0].subject.text == "Mara"
+    restored = PlayerIntentAnalysis.from_payload(
+        updated.to_dict(),
+        source_text=source,
+        evidence_text=source + " No, Aldric es el dueño de la llave.",
+    )
+    assert restored == updated
