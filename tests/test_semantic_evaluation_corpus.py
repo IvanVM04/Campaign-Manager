@@ -38,7 +38,10 @@ def test_semantic_evaluation_corpus_has_at_least_one_hundred_unique_cases():
             scenario_id = scenario["id"]
             assert scenario_id not in identifiers, scenario_id
             identifiers.add(scenario_id)
-            assert isinstance(scenario.get("critical"), bool) if "critical" in scenario else held_out
+            if held_out:
+                assert isinstance(scenario.get("critical"), bool), scenario_id
+            elif "critical" in scenario:
+                assert isinstance(scenario["critical"], bool), scenario_id
             if held_out:
                 family = scenario.get("family")
                 assert isinstance(family, str) and family.strip(), scenario_id
