@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 
 from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
+from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.turn_context import TurnContext
@@ -46,6 +47,7 @@ class TurnResolutionPlan:
     intent_analysis: PlayerIntentAnalysis | None = None
     intent_evidence_text: str | None = None
     awaiting_manual_roll: bool = False
+    intent_corrections: tuple[PendingIntentCorrection, ...] = ()
 
 
 class TurnResolutionServiceError(RuntimeError):
@@ -196,6 +198,8 @@ class TurnResolutionService:
         intent_analysis_override: PlayerIntentAnalysis | None = None,
         recent_turns: list[TurnRecord] | None = None,
         intent_evidence_text: str | None = None,
+        pending_intent_analysis: PlayerIntentAnalysis | None = None,
+        pending_correction_evidence_text: str | None = None,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -248,11 +252,62 @@ class TurnResolutionService:
             )
         if recent_turns is not None and not isinstance(recent_turns, list):
             raise TypeError("recent_turns must be a list of TurnRecord values or None")
+        if pending_intent_analysis is not None and not isinstance(
+            pending_intent_analysis, PlayerIntentAnalysis
+        ):
+            raise TypeError("pending_intent_analysis must be a PlayerIntentAnalysis or None")
+        if pending_intent_analysis is not None:
+            if (
+                not isinstance(pending_correction_evidence_text, str)
+                or not pending_correction_evidence_text.strip()
+                or len(pending_correction_evidence_text) > 5000
+            ):
+                raise TurnResolutionServiceError(
+                    "pending correction evidence must contain 1 to 5000 characters"
+                )
+        elif pending_correction_evidence_text is not None:
+            raise ValueError(
+                "pending_correction_evidence_text requires pending_intent_analysis"
+            )
 
         mechanics_result = None
         decision = decision_override
         intent_analysis = intent_analysis_override
-        if (
+        intent_corrections: tuple[PendingIntentCorrection, ...] = ()
+        if pending_intent_analysis is not None:
+            if self.mechanics_adjudicator is None:
+                raise TurnResolutionServiceError(
+                    "pending correction requires the shared language adjudicator"
+                )
+            try:
+                correction_result = self.mechanics_adjudicator.understand_pending(
+                    context,
+                    normalized_input,
+                    pending_analysis=pending_intent_analysis,
+                    correction_evidence_text=pending_correction_evidence_text or "",
+                    recent_turns=recent_turns,
+                    evidence_text=normalized_evidence_text,
+                )
+                corrected_analysis = pending_intent_analysis
+                for correction in correction_result.corrections:
+                    corrected_analysis = correction.apply(
+                        corrected_analysis,
+                        player_evidence_text=normalized_evidence_text,
+                        resolution_pending=True,
+                        committed=False,
+                    )
+                    if not correction.matches_analysis(correction_result.analysis):
+                        raise ValueError(
+                            "provider re-analysis does not reflect its explicit correction"
+                        )
+                intent_analysis = correction_result.analysis
+                decision = correction_result.mechanics_decision
+                intent_corrections = correction_result.corrections
+            except Exception as exc:
+                raise TurnResolutionServiceError(
+                    "pending intent correction failed validation"
+                ) from exc
+        elif (
             intent_analysis is None
             and decision is None
             and self.mechanics_adjudicator is not None
@@ -286,6 +341,7 @@ class TurnResolutionService:
                 mechanics_decision=decision,
                 intent_analysis=intent_analysis,
                 intent_evidence_text=normalized_evidence_text,
+                intent_corrections=intent_corrections,
             )
         if not intent_analysis.is_actionable and not (
             decision is not None
@@ -305,6 +361,7 @@ class TurnResolutionService:
                     mechanics_decision=decision,
                     intent_analysis=intent_analysis,
                     intent_evidence_text=normalized_evidence_text,
+                intent_corrections=intent_corrections,
                 )
 
             character = context.active_character
@@ -341,6 +398,7 @@ class TurnResolutionService:
                     mechanics_decision=decision,
                     intent_analysis=intent_analysis,
                     intent_evidence_text=normalized_evidence_text,
+                intent_corrections=intent_corrections,
                     awaiting_manual_roll=True,
                 )
             if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
@@ -479,6 +537,7 @@ class TurnResolutionService:
                         mechanics_decision=decision,
                         intent_analysis=intent_analysis,
                         intent_evidence_text=normalized_evidence_text,
+                intent_corrections=intent_corrections,
                     )
             except Exception as exc:
                 raise TurnResolutionServiceError(
@@ -576,6 +635,7 @@ class TurnResolutionService:
             mechanics_decision=decision,
             intent_analysis=intent_analysis,
             intent_evidence_text=normalized_evidence_text,
+                intent_corrections=intent_corrections,
         )
 
     def generate_narrative(
