@@ -13,7 +13,7 @@ from models.pending_intent_correction import (
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.session_state import SessionState
-from models.semantic_frames import SemanticObjectKind, SemanticMention
+from models.semantic_frames import SemanticMention, SemanticObjectKind
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import FakeLLMProvider
