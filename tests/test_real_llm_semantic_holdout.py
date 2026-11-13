@@ -224,7 +224,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
                     analysis,
                     scenario["expected"],
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed evaluation cases
                 matched, total = 0, 3 + len(scenario["expected"].get("step", {}))
                 failures = [f"provider/decoder error: {type(exc).__name__}: {exc}"]
             elapsed = perf_counter() - case_started
@@ -291,7 +291,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     analysis,
                     scenario,
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed evaluation cases
                 matched, total = 0, 1
                 failures = [f"provider/decoder error: {type(exc).__name__}: {exc}"]
             elapsed = perf_counter() - case_started
