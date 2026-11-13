@@ -414,11 +414,39 @@ class ConversationReferenceResolver:
                             mention,
                             tuple(candidate.entity_id for candidate in ranked[:1]),
                         )
-                        role_candidates = tuple(
-                            candidate for candidate in ranked
-                            if candidate.entity_id in raw_ids
+                        antecedent_evidence = ranked[0].evidence if ranked else ()
+                        role_evidence = DiscourseEvidence(
+                            turn_id=None,
+                            source=DiscourseSource.PLAYER_INPUT,
+                            speaker=DiscourseSpeaker.PLAYER,
+                            mention=mention,
+                            excerpt=step.source_excerpt,
+                            recency_rank=1,
                         )
-                        ranked = role_candidates
+                        role_candidates = []
+                        for entity_id in raw_ids:
+                            entity = visible_world.entities.get(entity_id)
+                            if entity is None:
+                                continue
+                            role_candidates.append(
+                                DiscourseCandidate(
+                                    entity_id=entity_id,
+                                    entity_name=entity.name,
+                                    score=max(
+                                        35,
+                                        (ranked[0].score - 6) if ranked else 60,
+                                    ),
+                                    evidence=(*antecedent_evidence, role_evidence),
+                                    signals=(
+                                        "other_role_in_conversation",
+                                        "explicit_role_description",
+                                    ),
+                                )
+                            )
+                        ranked = tuple(sorted(
+                            role_candidates,
+                            key=lambda item: (-item.score, item.entity_id),
+                        ))
                         match_kind = "other_role_in_conversation"
                     else:
                         match_kind = "conversation_antecedent"
