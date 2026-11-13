@@ -129,3 +129,101 @@ def test_v2_semantic_frames_survive_durable_intent_codec_recovery():
     )
 
     assert restored == analysis
+
+
+@pytest.mark.parametrize(
+    ("polarity", "modality"),
+    [
+        ("negative", "negated"),
+        ("positive", "question"),
+        ("positive", "conditional"),
+        ("positive", "reported"),
+    ],
+)
+def test_relation_claim_preserves_non_confirming_polarity_and_modality(
+    polarity, modality
+):
+    source = "Mara no es dueña de la llave."
+    value = {
+        "schema_version": 2,
+        "category": "report",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "describir propiedad de la llave",
+            "modality": "observed",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["Mara", "la llave"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "es",
+                "family": "other",
+                "arguments": [
+                    {"role": "agent", "mention": {"text": "Mara", "kind_hint": "character"}},
+                    {"role": "theme", "mention": {"text": "la llave", "kind_hint": "item_instance"}},
+                ],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "Mara", "kind_hint": "character"},
+            "predicate": "dueña",
+            "object": {"text": "la llave", "kind_hint": "item_instance"},
+            "relation_family": "ownership",
+            "polarity": polarity,
+            "modality": modality,
+            "source_excerpt": "Mara no es dueña de la llave",
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    analysis = PlayerIntentAnalysis.from_payload(value, source_text=source)
+    claim = analysis.relation_claims[0]
+    assert claim.polarity.value == polarity
+    assert claim.modality.value == modality
+
+
+def test_relation_claim_cannot_escape_the_evidence_or_reference_missing_step():
+    source = "Mara es hermana de Aldric."
+    value = {
+        "schema_version": 2,
+        "category": "report",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "describir parentesco",
+            "modality": "observed",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["Mara", "Aldric"],
+            "attributed_to": None,
+            "action_frame": {"predicate": "es", "family": "other", "arguments": []},
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 1,
+            "subject": {"text": "Mara", "kind_hint": "character"},
+            "predicate": "hermana",
+            "object": {"text": "Aldric", "kind_hint": "character"},
+            "relation_family": "kinship",
+            "polarity": "positive",
+            "modality": "observed",
+            "source_excerpt": source,
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    with pytest.raises(ValueError, match="existing intent step"):
+        PlayerIntentAnalysis.from_payload(value, source_text=source)
+    value["relation_claims"][0]["step_index"] = 0
+    value["relation_claims"][0]["object"]["text"] = "Doran"
+    with pytest.raises(ValueError, match="not literal player evidence"):
+        PlayerIntentAnalysis.from_payload(value, source_text=source)
