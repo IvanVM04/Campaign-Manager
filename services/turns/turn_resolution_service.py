@@ -257,6 +257,10 @@ class TurnResolutionService:
         ):
             raise TypeError("pending_intent_analysis must be a PlayerIntentAnalysis or None")
         if pending_intent_analysis is not None:
+            if decision_override is not None or intent_analysis_override is not None:
+                raise ValueError(
+                    "pending semantic correction cannot be combined with interpretation overrides"
+                )
             if (
                 not isinstance(pending_correction_evidence_text, str)
                 or not pending_correction_evidence_text.strip()
@@ -361,7 +365,7 @@ class TurnResolutionService:
                     mechanics_decision=decision,
                     intent_analysis=intent_analysis,
                     intent_evidence_text=normalized_evidence_text,
-                intent_corrections=intent_corrections,
+                    intent_corrections=intent_corrections,
                 )
 
             character = context.active_character
@@ -398,7 +402,7 @@ class TurnResolutionService:
                     mechanics_decision=decision,
                     intent_analysis=intent_analysis,
                     intent_evidence_text=normalized_evidence_text,
-                intent_corrections=intent_corrections,
+                    intent_corrections=intent_corrections,
                     awaiting_manual_roll=True,
                 )
             if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
@@ -537,7 +541,7 @@ class TurnResolutionService:
                         mechanics_decision=decision,
                         intent_analysis=intent_analysis,
                         intent_evidence_text=normalized_evidence_text,
-                intent_corrections=intent_corrections,
+                        intent_corrections=intent_corrections,
                     )
             except Exception as exc:
                 raise TurnResolutionServiceError(
@@ -635,7 +639,7 @@ class TurnResolutionService:
             mechanics_decision=decision,
             intent_analysis=intent_analysis,
             intent_evidence_text=normalized_evidence_text,
-                intent_corrections=intent_corrections,
+            intent_corrections=intent_corrections,
         )
 
     def generate_narrative(
