@@ -218,7 +218,7 @@ class DurableTurnClarificationSubmissionService:
                             expected_lease_token=token,
                             updates={
                                 "context_revision": revision,
-                                "intent_json": service._intent_to_json(plan),
+                                "intent_json": TurnResolutionCodec.intent_to_json(plan),
                                 "adjudication_json": json.dumps(
                                     {
                                         "clarification": next_pending,
@@ -256,7 +256,7 @@ class DurableTurnClarificationSubmissionService:
                         updates={
                             "context_revision": revision,
                             "proposal_json": service._serialize_operations(plan),
-                            "intent_json": service._intent_to_json(plan),
+                            "intent_json": TurnResolutionCodec.intent_to_json(plan),
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,
