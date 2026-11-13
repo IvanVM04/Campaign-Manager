@@ -78,4 +78,5 @@ def test_silly_tavern_manual_roll_schema_rejects_invalid_roll_submission(rolls):
             rolls=rolls,
             query="Estado de la campaña.",
             answer_external_turn_id="answer-" + "d" * 24,
+            conversation_id="chat-invalid-rolls",
         )
