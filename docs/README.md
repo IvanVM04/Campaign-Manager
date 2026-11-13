@@ -3,6 +3,10 @@
 This is the starting point for maintainers and coding agents. Prefer current
 indexes over searching through dated audit history.
 
+## Shared contracts
+
+- [Models and shared contracts](../models/README.md) — canonical semantic and durable value contracts, trust rules and model-layer change guidance.
+
 ## Current engineering baseline
 
 1. [Architecture map](architecture/architecture-map-2026-11-12.md) — global package map, main execution paths and module ownership.
