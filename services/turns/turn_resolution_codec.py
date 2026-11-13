@@ -200,6 +200,10 @@ class TurnResolutionCodec:
                 "source_sha256": hashlib.sha256(
                     plan.player_input.encode("utf-8")
                 ).hexdigest(),
+                "evidence_text": plan.intent_evidence_text or plan.player_input,
+                "evidence_sha256": hashlib.sha256(
+                    (plan.intent_evidence_text or plan.player_input).encode("utf-8")
+                ).hexdigest(),
                 "analysis": analysis.to_dict(),
             },
             ensure_ascii=False,
@@ -219,7 +223,8 @@ class TurnResolutionCodec:
         try:
             envelope = json.loads(payload)
             if not isinstance(envelope, dict) or set(envelope) != {
-                "schema_version", "source_text", "source_sha256", "analysis"
+                "schema_version", "source_text", "source_sha256",
+                "evidence_text", "evidence_sha256", "analysis"
             }:
                 raise ValueError("invalid persisted intent envelope")
             envelope_version = envelope["schema_version"]
@@ -236,19 +241,47 @@ class TurnResolutionCodec:
                 or not source_text.startswith(original_input)
             ):
                 raise ValueError("persisted intent is not bound to the original input")
-            expected_digest = hashlib.sha256(
+            expected_source_digest = hashlib.sha256(
                 source_text.encode("utf-8")
             ).hexdigest()
-            if envelope["source_sha256"] != expected_digest:
+            if envelope["source_sha256"] != expected_source_digest:
                 raise ValueError("persisted intent source fingerprint does not match")
+            evidence_text = envelope["evidence_text"]
+            if (
+                not isinstance(evidence_text, str)
+                or not evidence_text.strip()
+                or len(evidence_text) > 20000
+            ):
+                raise ValueError("persisted intent evidence is invalid")
+            expected_evidence_digest = hashlib.sha256(
+                evidence_text.encode("utf-8")
+            ).hexdigest()
+            if envelope["evidence_sha256"] != expected_evidence_digest:
+                raise ValueError("persisted intent evidence fingerprint does not match")
             return PlayerIntentAnalysis.from_payload(
                 envelope["analysis"],
                 source_text=source_text,
+                evidence_text=evidence_text,
             )
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError(
                 f"persisted player intent analysis is invalid: {exc}"
             ) from exc
+
+    @staticmethod
+    def intent_evidence_text(
+        payload: str | None,
+        *,
+        original_input: str,
+    ) -> str:
+        """Return player-authored evidence after validating the persisted envelope."""
+        if payload is None:
+            return original_input
+        TurnResolutionCodec.intent_from_json(
+            payload,
+            original_input=original_input,
+        )
+        return json.loads(payload)["evidence_text"]
 
     @staticmethod
     def intent_source_text(
@@ -297,4 +330,8 @@ class TurnResolutionCodec:
             mechanics_result=mechanics_result,
             mechanics_decision=mechanics_result.decision if mechanics_result else None,
             intent_analysis=intent_analysis,
+            intent_evidence_text=cls.intent_evidence_text(
+                getattr(record, "intent_json", None),
+                original_input=record.player_input,
+            ),
         )
