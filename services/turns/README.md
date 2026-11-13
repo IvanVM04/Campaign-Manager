@@ -43,15 +43,21 @@ Questions, plans, quotations, negations and already-resolved outcomes do not
 trigger an action check. Non-actionable utterances skip proposal retrieval and
 world extraction. Compound actions may not skip an earlier unresolved step.
 
-The last six visible turns are bounded before inclusion in either prompt.
-Recent phrases and literal target mentions may add deterministic retrieval
-signals, but they are not canonical reference resolution. If the existing
-entity resolver cannot disambiguate a target, the model must ask; it must not
-guess an ID.
+The last six visible turns are bounded and scoped to the current
+`conversation_id`. PR #216 adds `ConversationReferenceResolver` for a narrow
+set of Spanish/English pronouns, demonstratives, same-object and curated
+other-role references against the caller's visibility-filtered world. It emits
+trusted `ResolvedConversationReference` values only for a unique visible
+canonical entity. Ambiguous/hidden antecedents request clarification; new
+proper names may remain eligible for new-entity proposals. This is not general
+coreference: grammatical agreement, semantic-type constraints, broad ellipsis,
+speaker-aware discourse and correction chains remain open.
 
 Durable resolutions store the complete conversation, separate player-authored
 evidence text, and independent SHA-256 fingerprints in
-`turn_resolutions.intent_json` (migration 033). DM clarification questions are
+`turn_resolutions.intent_json` (migration 033). Conversation identity is
+persisted on turns/resolutions through migration 034 and is required when
+loading or continuing SillyTavern history. DM clarification questions are
 context only; only the player's original message and answers can ground source
 excerpts, target mentions and attribution. Manual-roll
 continuations reuse the saved interpretation and do not call the adjudicator

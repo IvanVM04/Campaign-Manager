@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#214 are integrated (PR #214 merged 2026-11-13).  
-**Verified base:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` after PR #214.  
+**Status:** PRs #210–#216 are integrated. PRs #215–#216 deliver the shared typed intent contract, durable evidence and bounded chat-scoped reference resolution.  
+**Verified base:** `main` at `868ae7ae29c6c1c0cfb5b3aaf181b630a0039ff6` (2026-11-13; PR #216 merged).  
 **Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
@@ -21,7 +21,7 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The next implementation phase is P0 shared natural-language understanding and intent resolution. The current architecture does not yet expose one validated semantic interpretation shared by mechanics adjudication and consequence proposals. Do not begin the Character Builder or broad gameplay expansion until the P0 acceptance gates in [the implementation specification](language-understanding-priority-2026-11-13.md) are met.
+The P0 shared interpretation and conversation-scope implementation is now integrated. The blocking work is to record its live Ollama and real SillyTavern acceptance evidence. Do not begin the Character Builder or broad gameplay expansion until those gates are passed. The next language implementation after that baseline is structured semantic frames and grounded relation/object understanding; see the [next-phase plan](semantic-understanding-next-phase-2026-11-13.md).
 
 This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
@@ -67,7 +67,7 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow — PR #215 implementation
+### Active data flow — PRs #215 and #216 integrated
 
 `TurnResolutionService` now orchestrates a shared semantic interpretation:
 
@@ -92,10 +92,10 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - Retrieval is deterministic and largely lexical. It currently has one-hop relation expansion and a stable ranker; matching "the innkeeper" to a known NPC whose record contains only a proper name is not yet a guaranteed contract.
 - There is no explicit, typed provenance/epistemic model for confirmed, inferred, rumored, unknown and character-known facts. A boolean secret flag is not a full knowledge model.
 - The adjudicator and proposal stages now share the same typed interpretation. Narration remains a separate post-commit responsibility; the semantic contract is not a fact or write authority.
-- Conversation-level clues are bounded to six recent turns. This improves retrieval/context continuity but does not implement full pronoun/coreference resolution; the lexical resolver still abstains when candidates are ambiguous.
+- PR #216 adds a deterministic conversation resolver over at most six recent turns in the same chat. It handles a narrow set of Spanish/English pronouns, demonstratives, same-object and curated other-role patterns, and resolves only one visible candidate. Grammatical agreement, semantic-type constraints, speaker-aware discourse, broad ellipsis, arbitrary paraphrase and correction-chain reasoning remain open.
 - The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
 
-PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding. PR #215 now implements the shared typed intent contract, proposal hand-off and durable recovery. Its local Ollama corpus and SillyTavern acceptance remain mandatory and unrecorded.
+PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding; PR #215 delivers shared typed intent and durable evidence; PR #216 delivers chat isolation, bounded reference resolution and Ollama schema-constrained generation. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
@@ -273,7 +273,7 @@ gates and must not be marked passed until actually run.
 
 **Acceptance boundary:** deterministic tests and CI protect application privacy/authority invariants. Run and record the expanded local Ollama and manual SillyTavern acceptance separately; do not claim either passed before execution.
 
-**Consolidation note:** the original roadmap item #215 (cross-role consistency and narrative grounding) is delivered in this PR rather than a second PR. The next conditional model benchmark remains #216.
+**Consolidation note:** PRs #215 and #216 are integrated. The next understanding step is not another prompt-only pass; it is the evidence-bound semantic-frame work in the [next-phase plan](semantic-understanding-next-phase-2026-11-13.md). Model benchmarking remains conditional on a stable corpus and recorded baseline.
 
 ### Deferred follow-up — Benchmark hardening and model selection (after P0)
 
@@ -291,6 +291,10 @@ Only proceed when the expanded corpus is stable enough to compare models. Do not
 - keep the selected model configurable and do not silently change production defaults.
 
 **Acceptance criteria:** published comparison report with reproducible settings and explicit safety failures; no model change based on anecdotal output alone.
+
+### Next implementation after P0 acceptance — semantic frames and grounded relations
+
+The current v1 contract stores the action as free text and targets as an untyped list. It cannot directly express recipient/source/destination/instrument roles, typed object identity or a directed relation claim with modality, polarity, attribution and time. Add a versioned evidence-bound semantic frame, then improve speaker-aware discourse and correction resolution. See the [detailed next-phase plan](semantic-understanding-next-phase-2026-11-13.md). Do not add embeddings or another normal-path model call before measurement.
 
 ## 6. Evaluation corpus design
 
@@ -319,13 +323,7 @@ The corpus should include these families:
 
 A scenario's oracle should describe semantic constraints, not one exact JSON string. Several operation sequences may be valid if they preserve the same world invariants. Keep assertions strict about forbidden changes and required facts.
 
-The P0 implementation adds
-`tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled
-Spanish/English scenarios. The opt-in
-`test_real_ollama_meets_shared_player_intent_corpus_v1` evaluates the actual
-combined adjudication response; it runs 12 critical cases three times and the
-remaining cases once. This corpus is versioned but has not yet been run against
-the user's configured Ollama model in this environment.
+The P0 implementation adds `tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled Spanish/English scenarios (12 critical, repeated three times by the opt-in corpus test). PR #216 adds `tests/fixtures/conversation_understanding_corpus_v2.json` with six deterministic resolver scenarios. These validate application resolution, not live model coreference accuracy. Run and record both layers separately; neither corpus proves acceptance until executed.
 
 ## 7. Metrics and reporting
 

@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified base:** `main` at `60def5d19167ccd31ebce82d8f2d1fe4a72c26e0` (2026-11-13, PR #215 merged).  
+**Verified base:** `main` at `868ae7ae29c6c1c0cfb5b3aaf181b630a0039ff6` (2026-11-13, PR #216 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 > **Phase 1 retrieval update — PR #212:** the SillyTavern action is now the
@@ -9,21 +9,21 @@
 > descriptive entity matching can resolve a role inside a longer player sentence
 > and still reports ambiguity on comparable candidates while retaining their
 > descriptive evidence for retrieval (without resolving one canonical ID).
-> Pronoun continuity and semantic paraphrase matching remain open work. See the
+> PR #216 adds a narrow chat-scoped resolver for selected pronouns, demonstratives,
+> same-object and curated other-role references. General coreference, semantic
+> paraphrase, typed argument roles and correction chains remain open work. See the
 > [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md).
 
 ## Current P0 — shared language understanding
 
-PR #215 merged the versioned `PlayerIntentAnalysis` contract, shared
-mechanics/proposal interpretation and durable evidence persistence (migration
-033); its deterministic tests and CodeQL checks passed. Live Ollama and manual
-SillyTavern acceptance remain open. [PR #216](https://github.com/IvanVM04/Campaign-Manager/pull/216)
-extends this P0 work with a bounded visibility-filtered conversation resolver,
-chat-scoped durable history (migration 034) and native Ollama JSON Schema
-generation. It must pass complete deterministic CI before merge; live model
-and multi-chat SillyTavern acceptance remain separate gates. Do not start
-Character Builder or broad gameplay expansion until the P0 live gates are
-recorded. See the [P0 specification](../quality/language-understanding-priority-2026-11-13.md).
+PRs #215 and #216 are integrated. Together they deliver the versioned
+`PlayerIntentAnalysis` contract, one shared mechanics/proposal interpretation,
+durable evidence (migration 033), chat-scoped history/continuation (migration
+034), bounded visibility-filtered reference resolution and native Ollama JSON
+Schema generation. Live Ollama and manual multi-chat SillyTavern acceptance
+remain separate gates. Do not start Character Builder or broad gameplay
+expansion until those gates are recorded. See the [P0 specification]
+(../quality/language-understanding-priority-2026-11-13.md).
 
 ## How to work in this repository
 
