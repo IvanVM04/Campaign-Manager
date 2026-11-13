@@ -600,3 +600,50 @@ def test_ollama_provider_rejects_non_finite_timeout(timeout):
 def test_ollama_provider_rejects_boolean_timeout():
     with pytest.raises(TypeError, match="timeout must be a number"):
         OllamaProvider(timeout=True)
+
+
+
+def test_ollama_provider_generate_structured_sends_json_schema(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return b'{"response":"{\\"ok\\":true}"}'
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["timeout"] = timeout
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen",
+        fake_urlopen,
+    )
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["ok"],
+        "properties": {"ok": {"type": "boolean"}},
+    }
+
+    result = OllamaProvider().generate_structured("  Return JSON  ", schema=schema)
+
+    assert result == '{"ok":true}'
+    assert captured["payload"] == {
+        "model": "gemma4:26b",
+        "prompt": "Return JSON",
+        "stream": False,
+        "format": schema,
+    }
+
+
+def test_ollama_provider_generate_structured_rejects_invalid_schema():
+    with pytest.raises(TypeError, match="non-empty JSON Schema"):
+        OllamaProvider().generate_structured("hello", schema={})
