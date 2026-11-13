@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#217 are integrated. PR #218 implements semantic frames v2 on `feat/218-semantic-frames-v2`; it is not yet merged or live-accepted.  
-**Verified base:** `main` at `14070b007246d7a58243c58eadc66b9f54781472` (2026-11-13; PR #217 merged).  
+**Status:** PRs #210–#218 are integrated. PR #218's deterministic Tests and CodeQL workflows passed; live Ollama and SillyTavern acceptance remain separate gates. PR #219 is being prepared on `feat/219-discourse-resolution-corrections`.  
+**Verified base:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13; PR #218 merged).  
 **Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
@@ -21,7 +21,7 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The P0 shared interpretation and conversation-scope implementation is integrated; its live Ollama and real SillyTavern acceptance evidence is still required. PR #218 now implements the next representation layer: evidence-bound action frames, typed argument roles, object-kind hints and directed relation claims. It remains under review until CI and live acceptance are recorded. Do not begin the Character Builder or broad gameplay expansion while those P0 gates remain open; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
+The P0 shared interpretation, chat isolation and evidence-bound semantic-frame v2 implementation are integrated. PR #218's deterministic CI passed, but live Ollama and real SillyTavern acceptance evidence is still required. PR #219 adds a deterministic discourse-evidence layer and a guarded pending-correction primitive; it deliberately does not claim automatic model-driven correction chains. Do not begin the Character Builder or broad gameplay expansion while the live gates remain open; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
 
 This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
