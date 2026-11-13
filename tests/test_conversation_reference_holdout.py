@@ -2,8 +2,8 @@
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from time import perf_counter
+from types import SimpleNamespace
 
 from models.entity import Entity
 from models.player_intent_analysis import PlayerIntentAnalysis
