@@ -13,9 +13,9 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
+from models.semantic_frames import SemanticArgumentRole, SemanticObjectKind
 from models.turn_context import TurnContext
 from models.world_state import WorldState
-from models.semantic_frames import SemanticObjectKind, SemanticArgumentRole
 from services.providers import OllamaProvider
 from services.turns.mechanics_adjudicator import MechanicsAdjudicator
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
@@ -329,8 +329,8 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
 
 def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
     """The configured model must repair a wrong recipient from the latest answer."""
-    from models.player_intent_analysis import PlayerIntentAnalysis
     from models.pending_intent_correction import PendingCorrectionSlot
+    from models.player_intent_analysis import PlayerIntentAnalysis
 
     original = "Entrego la llave de hierro a Aldric."
     clarification_question = "¿A qué persona entregas la llave?"

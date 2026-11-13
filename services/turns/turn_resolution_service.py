@@ -23,7 +23,11 @@ from rules_engine.dnd5e_2014.character_checks import (
     saving_throw_for_character,
 )
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
-from services.context import ContextBuilder, ConversationReferenceResolver, WorldReferenceResolver
+from services.context import (
+    ContextBuilder,
+    ConversationReferenceResolver,
+    WorldReferenceResolver,
+)
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
 from services.turns.mechanics_adjudicator import (

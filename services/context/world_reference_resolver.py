@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
+from typing import ClassVar
 
 from models.discourse_evidence import (
     DiscourseEvidence,
@@ -46,7 +47,7 @@ class WorldReferenceResolver:
     entity id and prevents a definition from being confused with one physical copy.
     """
 
-    _KIND_CATEGORY = {
+    _KIND_CATEGORY: ClassVar[dict[SemanticObjectKind, WorldReferenceCategory]] = {
         SemanticObjectKind.ITEM_DEFINITION: WorldReferenceCategory.ITEM_DEFINITION,
         SemanticObjectKind.ITEM_INSTANCE: WorldReferenceCategory.ITEM_INSTANCE,
         SemanticObjectKind.RESOURCE: WorldReferenceCategory.RESOURCE,
@@ -146,7 +147,7 @@ class WorldReferenceResolver:
                     item.id,
                     item.name[:160],
                     (item.name,),
-                    " ".join((item.name, item.description, item.significance, item.notes)),
+                    f"{item.name} {item.description} {item.significance} {item.notes}",
                 )
             )
         for instance in world.item_instances.values():
@@ -170,7 +171,7 @@ class WorldReferenceResolver:
                     instance.id,
                     f"{item.name} (instancia #{instance.instance_number})"[:160],
                     tuple(aliases),
-                    " ".join((item.name, instance.condition, instance.notes)),
+                    f"{item.name} {instance.condition} {instance.notes}",
                 )
             )
         for resource in world.resources.values():
@@ -184,7 +185,7 @@ class WorldReferenceResolver:
                     resource.id,
                     resource.name[:160],
                     (resource.name,),
-                    " ".join((resource.name, resource.resource_type, resource.unit, resource.notes)),
+                    f"{resource.name} {resource.resource_type} {resource.unit} {resource.notes}",
                 )
             )
         for event in world.events.values():
@@ -203,7 +204,7 @@ class WorldReferenceResolver:
                     event.id,
                     event.title[:160],
                     (event.title,),
-                    " ".join((event.title, event.description)),
+                    f"{event.title} {event.description}",
                 )
             )
         return {
