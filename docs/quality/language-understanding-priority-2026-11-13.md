@@ -85,7 +85,7 @@ V2 can carry a literal temporal expression on a relation claim, but it does not 
 The current `Relation` domain model stores a directed `relation_type` string and endpoints. The v2 relation-family enum is a language hint. A future domain mapping must explicitly validate which predicates are supported; do not infer support from a matching family name.
 
 ### Evaluation depth
-The 34-case utterance corpus and six deterministic conversation-reference cases remain small. Existing live intent tests continue to check category/step fields while v2 parsing validates the presence and grounding of frames; they do not yet score semantic-role or relation extraction accuracy comprehensively. A larger held-out frame/relation corpus is planned for PR #220.
+The 34-case utterance corpus and six deterministic conversation-reference cases remain small. The existing 34-case intent corpus still checks category/step fields while v2 parsing validates frame structure and evidence. The additional ten-case `semantic_frame_corpus_v1.json` is evaluated by `test_real_ollama_meets_semantic_frame_corpus_v1`; four critical cases repeat three times. It checks selected role/kind slots and relation direction/polarity/modality/attribution, but remains a small smoke corpus rather than a broad benchmark. A larger held-out frame/relation corpus is planned for PR #220.
 
 ## 5. Safety boundaries that must remain
 
