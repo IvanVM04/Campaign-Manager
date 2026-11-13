@@ -63,7 +63,7 @@
     {
       "id": "other-guard",
       "utterance": "Le pregunto al otro guardia.",
-      "target_mention": "el otro guardia",
+      "target_mention": "otro guardia",
       "visible_entities": [
         {
           "id": 1,
