@@ -86,6 +86,7 @@ def test_intent_codec_round_trips_the_evidence_source_with_its_analysis():
         character_operations=(),
         ordered_operations=(),
         intent_analysis=analysis,
+        intent_evidence_text=source,
     )
 
     encoded = TurnResolutionCodec.intent_to_json(plan)
@@ -133,6 +134,7 @@ def test_intent_codec_preserves_clarification_source_on_recovery():
         character_operations=(),
         ordered_operations=(),
         intent_analysis=analysis,
+        intent_evidence_text=original + "\\nla puerta de roble.",
     )
     encoded = TurnResolutionCodec.intent_to_json(plan)
 
@@ -146,6 +148,10 @@ def test_intent_codec_preserves_clarification_source_on_recovery():
         encoded,
         original_input=original,
     ) == clarified
+    assert TurnResolutionCodec.intent_evidence_text(
+        encoded,
+        original_input=original,
+    ) == original + "\\nla puerta de roble."
 
 
 def test_intent_codec_rejects_analysis_not_bound_to_original_request():
