@@ -61,7 +61,7 @@ class ConversationReferenceResolver:
 
     @classmethod
     def _tokens(cls, value: str) -> tuple[str, ...]:
-        return tuple(cls.entity_resolver.normalize(value).split())
+        return tuple(EntityReferenceResolver.normalize(value).split())
 
     @classmethod
     def _is_anaphoric(cls, mention: str) -> bool:
