@@ -328,7 +328,9 @@ class PlayerIntentAnalysis:
         return cls(
             category=category,
             steps=(IntentStep(
-                index=0, source_excerpt=text[:300], actor=IntentActor.PLAYER,
+                index=0,
+                source_excerpt=text[:300],
+                actor=IntentActor.OTHER if quoted else IntentActor.PLAYER,
                 action=text[:500], modality=modality, polarity=polarity,
                 reported_outcome=PlayerReportedOutcome.FAILURE if failure else PlayerReportedOutcome.NOT_CLAIMED,
             ),),
