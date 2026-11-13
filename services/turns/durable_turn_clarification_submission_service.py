@@ -180,13 +180,44 @@ class DurableTurnClarificationSubmissionService:
                     "\n\n" + item["answer"]
                     for item in history
                 )
+                pending_analysis = TurnResolutionCodec.intent_from_json(
+                    record.intent_json,
+                    original_input=record.player_input,
+                )
+                previous_correction_history = pending_state.get(
+                    "intent_correction_history", []
+                )
+                if (
+                    not isinstance(previous_correction_history, list)
+                    or len(previous_correction_history) > 32
+                ):
+                    raise self.error_type("pending correction history is invalid")
+                if pending_analysis is not None and service.resolver.mechanics_adjudicator is None:
+                    raise self.error_type(
+                        "pending semantic correction requires the language adjudicator"
+                    )
                 plan = service.resolver.prepare_turn(
                     context,
                     clarified_input,
                     manual_mode=(pending_state.get("dice_mode") == "manual"),
                     recent_turns=recent,
                     intent_evidence_text=clarified_evidence,
+                    pending_intent_analysis=pending_analysis,
+                    pending_correction_evidence_text=(
+                        answer if pending_analysis is not None else None
+                    ),
                 )
+                correction_history = [
+                    *previous_correction_history,
+                    *[
+                        item.to_dict()
+                        for item in plan.intent_corrections
+                    ],
+                ]
+                if len(correction_history) > 32:
+                    raise self.error_type(
+                        "pending correction history exceeds the 32-entry safety limit"
+                    )
                 if plan.awaiting_manual_roll:
                     manual_pending = service._build_manual_roll_request(
                         record, plan.mechanics_decision, context, revision
@@ -202,6 +233,7 @@ class DurableTurnClarificationSubmissionService:
                                     "manual_roll": manual_pending,
                                     "dice_mode": "manual",
                                     "clarification_history": history,
+                                    "intent_correction_history": correction_history,
                                     "last_challenge_id": challenge_id,
                                     "last_answer": answer,
                                     "last_answer_external_turn_id": answer_external_turn_id,
@@ -233,6 +265,7 @@ class DurableTurnClarificationSubmissionService:
                                         "clarification": next_pending,
                                         "dice_mode": pending_state.get("dice_mode", "automatic"),
                                         "clarification_history": history,
+                                        "intent_correction_history": correction_history,
                                         "last_challenge_id": challenge_id,
                                         "last_answer": answer,
                                         "last_answer_external_turn_id": (
@@ -269,6 +302,7 @@ class DurableTurnClarificationSubmissionService:
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,
+                                    "intent_correction_history": correction_history,
                                     "dice_mode": pending_state.get("dice_mode", "automatic"),
                                     "resolved_player_input": clarified_input,
                                     "last_challenge_id": challenge_id,
@@ -315,6 +349,21 @@ class DurableTurnClarificationSubmissionService:
                 )
             except Exception as exc:
                 current = service.resolution_repository.get(record.id, scope=service.scope)
+                if current is not None and current.lifecycle_state == "planning":
+                    with transaction("IMMEDIATE") as conn:
+                        service.resolution_repository.transition(
+                            record.id,
+                            "awaiting_input",
+                            scope=service.scope,
+                            expected_state="planning",
+                            expected_lease_token=token,
+                            updates={
+                                "lease_token": None,
+                                "lease_expires_at": None,
+                                "last_error_code": "clarification_resolution_failed",
+                            },
+                            conn=conn,
+                        )
                 if current is not None and current.lifecycle_state == "prepared":
                     with transaction("IMMEDIATE") as conn:
                         service.resolution_repository.transition(
