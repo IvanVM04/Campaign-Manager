@@ -11,7 +11,7 @@ import unicodedata
 from dataclasses import dataclass, replace
 from enum import Enum
 
-from models.player_intent_analysis import IntentStep, PlayerIntentAnalysis
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.semantic_frames import (
     SemanticArgument,
     SemanticActionFrame,
@@ -155,9 +155,12 @@ class PendingIntentCorrection:
                 if _normalize(value) != _normalize(self.previous_value)
             ):
                 raise ValueError("replacement target is already present")
+            argument_role = self.argument_role
+            if not isinstance(argument_role, SemanticArgumentRole):
+                raise ValueError("action-argument correction requires an argument role")
             arguments = list(frame.arguments)
             arguments[matches[0]] = SemanticArgument(
-                role=self.argument_role,
+                role=argument_role,
                 mention=self.replacement,
             )
             corrected_frame = replace(frame, arguments=tuple(arguments))
@@ -195,11 +198,27 @@ class PendingIntentCorrection:
             if _normalize(current.text) != _normalize(self.previous_value):
                 raise ValueError("relation correction does not match the pending endpoint")
 
-            changes: dict[str, SemanticMention | str] = {
-                field_name: self.replacement,
-                "source_excerpt": _merge_excerpt(claim.source_excerpt, self.source_excerpt),
-            }
-            claims[self.relation_claim_index] = replace(claim, **changes)
+            corrected_subject = (
+                self.replacement if field_name == "subject" else claim.subject
+            )
+            corrected_object = (
+                self.replacement if field_name == "object" else claim.object
+            )
+            claims[self.relation_claim_index] = replace(
+                claim,
+                subject=corrected_subject,
+                object=corrected_object,
+                source_excerpt=_merge_excerpt(
+                    claim.source_excerpt,
+                    self.source_excerpt,
+                ),
+            )
+            if any(
+                _normalize(value) == _normalize(self.replacement.text)
+                for value in step.target_mentions
+                if _normalize(value) != _normalize(self.previous_value)
+            ):
+                raise ValueError("replacement target is already present")
             targets = tuple(
                 self.replacement.text if _normalize(value) == _normalize(self.previous_value) else value
                 for value in step.target_mentions
@@ -290,15 +309,24 @@ def _replace_claim_endpoints(
     for index, claim in enumerate(updated):
         if claim.step_index != step_index:
             continue
-        changes: dict[str, SemanticMention | str] = {}
-        if _normalize(claim.subject.text) == _normalize(previous_value):
-            changes["subject"] = replacement
-        if _normalize(claim.object.text) == _normalize(previous_value):
-            changes["object"] = replacement
-        if changes:
-            changes["source_excerpt"] = _merge_excerpt(
-                claim.source_excerpt,
-                correction_excerpt,
+        subject = (
+            replacement
+            if _normalize(claim.subject.text) == _normalize(previous_value)
+            else claim.subject
+        )
+        object_mention = (
+            replacement
+            if _normalize(claim.object.text) == _normalize(previous_value)
+            else claim.object
+        )
+        if subject != claim.subject or object_mention != claim.object:
+            updated[index] = replace(
+                claim,
+                subject=subject,
+                object=object_mention,
+                source_excerpt=_merge_excerpt(
+                    claim.source_excerpt,
+                    correction_excerpt,
+                ),
             )
-            updated[index] = replace(claim, **changes)
     return updated
