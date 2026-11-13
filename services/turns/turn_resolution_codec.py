@@ -234,6 +234,31 @@ class TurnResolutionCodec:
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("persisted player intent analysis is invalid") from exc
 
+    @staticmethod
+    def intent_source_text(
+        payload: str | None,
+        *,
+        original_input: str,
+    ) -> str:
+        """Return the validated source text bound to an optional stored analysis."""
+        if payload is None:
+            return original_input
+        envelope = json.loads(payload)
+        if not isinstance(envelope, dict):
+            raise ValueError("persisted intent envelope must be an object")
+        source_text = envelope.get("source_text")
+        PlayerIntentAnalysis.from_payload(
+            envelope.get("analysis"),
+            source_text=source_text if isinstance(source_text, str) else "",
+        )
+        if (
+            not isinstance(source_text, str)
+            or len(source_text) > 20000
+            or not source_text.startswith(original_input)
+        ):
+            raise ValueError("persisted intent is not bound to the original input")
+        return source_text
+
     @classmethod
     def plan_from_record(cls, record: TurnResolutionRecord, operation_parser):
         parsed = operation_parser.parse(record.proposal_json or '{"operations":[]}')
@@ -253,10 +278,9 @@ class TurnResolutionCodec:
             record.intent_json,
             original_input=record.player_input,
         )
-        intent_source_text = (
-            json.loads(record.intent_json)["source_text"]
-            if record.intent_json is not None
-            else record.player_input
+        intent_source_text = cls.intent_source_text(
+            record.intent_json,
+            original_input=record.player_input,
         )
         return TurnResolutionPlan(
             player_input=intent_source_text,
