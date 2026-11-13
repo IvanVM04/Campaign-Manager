@@ -32,6 +32,24 @@ def test_create_and_get_resolution(isolated_database):
     assert loaded == created
 
 
+def test_create_and_get_resolution_persists_shared_intent_json(isolated_database):
+    repository = TurnResolutionRepository()
+    intent_json = (
+        '{"schema_version":1,"source_text":"Abro la puerta.",'
+        '"analysis":{"schema_version":1}}'
+    )
+    created = repository.create(
+        make_record(intent_json=intent_json),
+        scope=CampaignScope(1),
+    )
+
+    loaded = repository.get(created.id, scope=CampaignScope(1))
+
+    assert created.intent_json == intent_json
+    assert loaded.intent_json == intent_json
+
+
+
 def test_idempotency_identity_is_unique_per_campaign_and_adapter(isolated_database):
     repository = TurnResolutionRepository()
     repository.create(make_record(), scope=CampaignScope(1))
