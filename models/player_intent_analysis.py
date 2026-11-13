@@ -232,11 +232,22 @@ class PlayerIntentAnalysis:
         return json.dumps(self.to_dict(), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
     @classmethod
-    def from_payload(cls, payload: Any, *, source_text: str) -> PlayerIntentAnalysis:
+    def from_payload(
+        cls,
+        payload: Any,
+        *,
+        source_text: str,
+        evidence_text: str | None = None,
+    ) -> PlayerIntentAnalysis:
         if not isinstance(source_text, str) or not source_text.strip():
             raise ValueError("source_text must be non-empty")
         if len(source_text) > 20000:
             raise ValueError("source_text must not exceed 20000 characters")
+        evidence = source_text if evidence_text is None else evidence_text
+        if not isinstance(evidence, str) or not evidence.strip():
+            raise ValueError("evidence_text must be non-empty")
+        if len(evidence) > 20000:
+            raise ValueError("evidence_text must not exceed 20000 characters")
         expected = {
             "schema_version", "category", "steps", "active_step_index",
             "requires_clarification", "clarification_question",
@@ -260,7 +271,7 @@ class PlayerIntentAnalysis:
             if isinstance(raw["index"], bool) or raw["index"] != index:
                 raise ValueError("step indices must be contiguous and ordered")
             excerpt = _text(raw["source_excerpt"], "source_excerpt", 300)
-            if not _evidence(source_text, excerpt):
+            if not _evidence(evidence, excerpt):
                 raise ValueError("source_excerpt is not grounded in player input")
             action = _text(raw["action"], "action", 500)
             targets = raw["target_mentions"]
@@ -269,13 +280,13 @@ class PlayerIntentAnalysis:
             target_values = []
             for value in targets:
                 value = _text(value, "target mention", 120)
-                if not _evidence(source_text, value):
+                if not _evidence(evidence, value):
                     raise ValueError("target mention is not literal utterance evidence")
                 target_values.append(value)
             attribution = raw["attributed_to"]
             if attribution is not None:
                 attribution = _text(attribution, "attributed_to", 120)
-                if not _evidence(source_text, attribution):
+                if not _evidence(evidence, attribution):
                     raise ValueError("attribution is not grounded in player input")
             steps.append(IntentStep(
                 index=index, source_excerpt=excerpt, actor=_enum(IntentActor, raw["actor"]),
@@ -294,12 +305,22 @@ class PlayerIntentAnalysis:
         )
 
     @classmethod
-    def from_json(cls, payload: str | None, *, source_text: str) -> PlayerIntentAnalysis | None:
+    def from_json(
+        cls,
+        payload: str | None,
+        *,
+        source_text: str,
+        evidence_text: str | None = None,
+    ) -> PlayerIntentAnalysis | None:
         if payload is None:
             return None
         if not isinstance(payload, str):
             raise TypeError("intent JSON must be text or None")
-        return cls.from_payload(json.loads(payload), source_text=source_text)
+        return cls.from_payload(
+            json.loads(payload),
+            source_text=source_text,
+            evidence_text=evidence_text,
+        )
 
     @classmethod
     def conservative_legacy(cls, source_text: str) -> PlayerIntentAnalysis:
