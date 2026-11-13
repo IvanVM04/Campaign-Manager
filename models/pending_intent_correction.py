@@ -11,11 +11,12 @@ import unicodedata
 from dataclasses import dataclass, replace
 from enum import Enum
 
-from models.player_intent_analysis import PlayerIntentAnalysis
+from models.player_intent_analysis import IntentStep, PlayerIntentAnalysis
 from models.semantic_frames import (
     SemanticArgument,
     SemanticArgumentRole,
     SemanticMention,
+    SemanticRelationClaim,
 )
 
 
@@ -92,51 +93,50 @@ class PendingIntentCorrection:
             raise ValueError("correction excerpt is not literal player evidence")
         if not _contains_literal(self.source_excerpt, self.replacement.text):
             raise ValueError("replacement mention is not grounded in correction evidence")
-        if self.previous_value.casefold() == self.replacement.text.casefold():
+        if _normalize(self.previous_value) == _normalize(self.replacement.text):
             raise ValueError("correction must change the targeted value")
 
         steps = list(analysis.steps)
         step = steps[self.step_index]
+        merged_step_excerpt = _merge_excerpt(step.source_excerpt, self.source_excerpt)
+        corrected_action = _replace_action_reference(
+            step.action,
+            self.previous_value,
+            self.replacement.text,
+        )
+        claims = list(analysis.relation_claims)
+
         if self.slot is PendingCorrectionSlot.TARGET_MENTION:
             matches = [
                 index for index, value in enumerate(step.target_mentions)
-                if value.casefold() == self.previous_value.casefold()
+                if _normalize(value) == _normalize(self.previous_value)
             ]
             if len(matches) != 1:
                 raise ValueError("target correction must identify exactly one existing mention")
             targets = list(step.target_mentions)
-            if any(value.casefold() == self.replacement.text.casefold() for value in targets):
+            if any(_normalize(value) == _normalize(self.replacement.text) for value in targets):
                 raise ValueError("replacement target is already present")
             targets[matches[0]] = self.replacement.text
-            corrected_frame = step.action_frame
-            if corrected_frame is not None:
-                corrected_arguments = tuple(
-                    replace(argument, mention=self.replacement)
-                    if argument.mention.text.casefold() == self.previous_value.casefold()
-                    else argument
-                    for argument in corrected_frame.arguments
-                )
-                corrected_frame = replace(
-                    corrected_frame,
-                    arguments=corrected_arguments,
-                )
-            corrected_claims = list(analysis.relation_claims)
-            for index, claim in enumerate(corrected_claims):
-                if claim.step_index != self.step_index:
-                    continue
-                changes = {}
-                if claim.subject.text.casefold() == self.previous_value.casefold():
-                    changes["subject"] = self.replacement
-                if claim.object.text.casefold() == self.previous_value.casefold():
-                    changes["object"] = self.replacement
-                if changes:
-                    corrected_claims[index] = replace(claim, **changes)
+            corrected_frame = _replace_frame_mention(
+                step.action_frame,
+                self.previous_value,
+                self.replacement,
+            )
+            claims = _replace_claim_endpoints(
+                claims,
+                step_index=self.step_index,
+                previous_value=self.previous_value,
+                replacement=self.replacement,
+                correction_excerpt=self.source_excerpt,
+            )
             steps[self.step_index] = replace(
                 step,
+                source_excerpt=merged_step_excerpt,
+                action=corrected_action,
                 target_mentions=tuple(targets),
                 action_frame=corrected_frame,
             )
-            analysis = replace(analysis, relation_claims=tuple(corrected_claims))
+
         elif self.slot is PendingCorrectionSlot.ACTION_ARGUMENT:
             frame = step.action_frame
             if frame is None:
@@ -144,7 +144,7 @@ class PendingIntentCorrection:
             matches = [
                 index for index, argument in enumerate(frame.arguments)
                 if argument.role is self.argument_role
-                and argument.mention.text.casefold() == self.previous_value.casefold()
+                and _normalize(argument.mention.text) == _normalize(self.previous_value)
             ]
             if len(matches) != 1:
                 raise ValueError("argument correction must identify exactly one role/value slot")
@@ -155,16 +155,25 @@ class PendingIntentCorrection:
             )
             corrected_frame = replace(frame, arguments=tuple(arguments))
             targets = tuple(
-                self.replacement.text if value.casefold() == self.previous_value.casefold() else value
+                self.replacement.text if _normalize(value) == _normalize(self.previous_value) else value
                 for value in step.target_mentions
+            )
+            claims = _replace_claim_endpoints(
+                claims,
+                step_index=self.step_index,
+                previous_value=self.previous_value,
+                replacement=self.replacement,
+                correction_excerpt=self.source_excerpt,
             )
             steps[self.step_index] = replace(
                 step,
+                source_excerpt=merged_step_excerpt,
+                action=corrected_action,
                 action_frame=corrected_frame,
                 target_mentions=targets,
             )
+
         else:
-            claims = list(analysis.relation_claims)
             if self.relation_claim_index is None or self.relation_claim_index >= len(claims):
                 raise ValueError("relation correction references a missing claim")
             claim = claims[self.relation_claim_index]
@@ -176,18 +185,36 @@ class PendingIntentCorrection:
                 else "object"
             )
             current = getattr(claim, field_name)
-            if current.text.casefold() != self.previous_value.casefold():
+            if _normalize(current.text) != _normalize(self.previous_value):
                 raise ValueError("relation correction does not match the pending endpoint")
-            claims[self.relation_claim_index] = replace(
-                claim,
-                **{field_name: self.replacement},
+
+            changes: dict[str, SemanticMention | str] = {
+                field_name: self.replacement,
+                "source_excerpt": _merge_excerpt(claim.source_excerpt, self.source_excerpt),
+            }
+            claims[self.relation_claim_index] = replace(claim, **changes)
+            targets = tuple(
+                self.replacement.text if _normalize(value) == _normalize(self.previous_value) else value
+                for value in step.target_mentions
             )
-            return replace(
-                analysis,
-                steps=tuple(steps),
-                relation_claims=tuple(claims),
+            corrected_frame = _replace_frame_mention(
+                step.action_frame,
+                self.previous_value,
+                self.replacement,
             )
-        return replace(analysis, steps=tuple(steps))
+            steps[self.step_index] = replace(
+                step,
+                source_excerpt=merged_step_excerpt,
+                action=corrected_action,
+                action_frame=corrected_frame,
+                target_mentions=targets,
+            )
+
+        return replace(
+            analysis,
+            steps=tuple(steps),
+            relation_claims=tuple(claims),
+        )
 
 
 def _validate_text(value: str, field_name: str, maximum: int) -> None:
@@ -195,17 +222,72 @@ def _validate_text(value: str, field_name: str, maximum: int) -> None:
         raise ValueError(f"{field_name} must contain 1-{maximum} characters")
 
 
-def _contains_literal(source: str, fragment: str) -> bool:
-    def normalize(value: str) -> str:
-        decomposed = unicodedata.normalize("NFKD", value.casefold())
-        plain = "".join(
-            character
-            for character in decomposed
-            if not unicodedata.combining(character)
-        )
-        return " ".join(re.findall(r"[a-z0-9]+", plain))
-
-    normalized_fragment = normalize(fragment)
-    return bool(normalized_fragment) and (
-        f" {normalized_fragment} " in f" {normalize(source)} "
+def _normalize(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    plain = "".join(
+        character
+        for character in decomposed
+        if not unicodedata.combining(character)
     )
+    return " ".join(re.findall(r"[a-z0-9]+", plain))
+
+
+def _contains_literal(source: str, fragment: str) -> bool:
+    normalized_fragment = _normalize(fragment)
+    return bool(normalized_fragment) and (
+        f" {normalized_fragment} " in f" {_normalize(source)} "
+    )
+
+
+def _merge_excerpt(original: str, correction: str) -> str:
+    merged = f"{original.rstrip()} {correction.strip()}".strip()
+    if len(merged) > 300:
+        raise ValueError(
+            "corrected evidence exceeds the 300-character semantic-step budget"
+        )
+    return merged
+
+
+def _replace_action_reference(action: str, previous: str, replacement: str) -> str:
+    updated = re.sub(re.escape(previous), lambda _match: replacement, action, flags=re.IGNORECASE)
+    if len(updated) > 500:
+        raise ValueError("corrected action exceeds the 500-character limit")
+    return updated
+
+
+def _replace_frame_mention(frame, previous: str, replacement: SemanticMention):
+    if frame is None:
+        return None
+    arguments = tuple(
+        replace(argument, mention=replacement)
+        if _normalize(argument.mention.text) == _normalize(previous)
+        else argument
+        for argument in frame.arguments
+    )
+    return replace(frame, arguments=arguments)
+
+
+def _replace_claim_endpoints(
+    claims: list[SemanticRelationClaim],
+    *,
+    step_index: int,
+    previous_value: str,
+    replacement: SemanticMention,
+    correction_excerpt: str,
+) -> list[SemanticRelationClaim]:
+    updated = list(claims)
+    for index, claim in enumerate(updated):
+        if claim.step_index != step_index:
+            continue
+        changes: dict[str, SemanticMention | str] = {}
+        if _normalize(claim.subject.text) == _normalize(previous_value):
+            changes["subject"] = replacement
+        if _normalize(claim.object.text) == _normalize(previous_value):
+            changes["object"] = replacement
+        if changes:
+            changes["source_excerpt"] = _merge_excerpt(
+                claim.source_excerpt,
+                correction_excerpt,
+            )
+            updated[index] = replace(claim, **changes)
+    return updated
