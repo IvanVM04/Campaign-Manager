@@ -6,8 +6,8 @@ from time import perf_counter
 
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.turn_record import TurnRecord
 from models.turn_context import TurnContext
+from models.turn_record import TurnRecord
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
