@@ -371,7 +371,7 @@ class TurnResolutionService:
                 mechanics_result = MechanicsResult(decision, check)
 
         context_projection = None
-        if self.context_builder is not None:
+        if self.context_builder is not None and intent_analysis.allows_world_proposal:
             mandatory_entity_ids: list[int] = []
             if context.active_character is not None:
                 entity_id = context.active_character.entity_id
