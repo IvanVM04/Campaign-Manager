@@ -1284,7 +1284,7 @@ def test_migration_031_persists_entity_aliases_and_is_idempotent():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    for definition in MIGRATIONS[:-1]:
+    for definition in MIGRATIONS[:-2]:
         definition.apply(conn)
 
     entity_id = conn.execute(
@@ -1322,7 +1322,7 @@ def test_migration_032_preserves_legacy_event_semantics_and_is_idempotent():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    for definition in MIGRATIONS[:-1]:
+    for definition in MIGRATIONS[:-2]:
         definition.apply(conn)
 
     entity_id = conn.execute(
