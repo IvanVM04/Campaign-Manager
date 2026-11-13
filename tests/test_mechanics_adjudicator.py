@@ -213,6 +213,53 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
     assert provider.call_count == 1
 
 
+def test_clarification_questions_are_context_but_not_player_source_evidence():
+    conversation = (
+        "Abro la puerta.\\n\\nAclaración del DM: ¿Qué puerta? "
+        "\\nRespuesta del jugador: la puerta de roble."
+    )
+    evidence = "Abro la puerta.\\nla puerta de roble."
+    response = json.dumps({
+        "intent_analysis": {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "la puerta de roble",
+                "actor": "player",
+                "action": "abrir la puerta de roble",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta de roble"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        "mechanics_decision": {"decision": "none"},
+    })
+    provider = FakeLLMProvider(response=response)
+
+    analysis, _decision = MechanicsAdjudicator(provider).understand(
+        make_turn_context(),
+        conversation,
+        evidence_text=evidence,
+    )
+
+    assert analysis.steps[0].source_excerpt == "la puerta de roble"
+    assert "¿Qué puerta?" in provider.prompts[0]
+    assert "¿Qué puerta?" in provider.prompts[0].split(
+        "EVIDENCIA ESCRITA POR EL JUGADOR", maxsplit=1
+    )[0]
+    evidence_section = provider.prompts[0].split(
+        "=== EVIDENCIA ESCRITA POR EL JUGADOR", maxsplit=1
+    )[1]
+    assert "¿Qué puerta?" not in evidence_section
+    assert "la puerta de roble" in evidence_section
+
+
 def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
     response = json.dumps({
         "intent_analysis": {
