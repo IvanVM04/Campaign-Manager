@@ -96,7 +96,11 @@ class PlayerIntentAnalysis:
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != SCHEMA_VERSION:
+        if (
+            isinstance(self.schema_version, bool)
+            or not isinstance(self.schema_version, int)
+            or self.schema_version != SCHEMA_VERSION
+        ):
             raise ValueError("unsupported player intent schema version")
         if not isinstance(self.category, UtteranceCategory):
             raise TypeError("category must be an UtteranceCategory")
@@ -189,6 +193,8 @@ class PlayerIntentAnalysis:
     def from_payload(cls, payload: Any, *, source_text: str) -> PlayerIntentAnalysis:
         if not isinstance(source_text, str) or not source_text.strip():
             raise ValueError("source_text must be non-empty")
+        if len(source_text) > 20000:
+            raise ValueError("source_text must not exceed 20000 characters")
         expected = {
             "schema_version", "category", "steps", "active_step_index",
             "requires_clarification", "clarification_question",
