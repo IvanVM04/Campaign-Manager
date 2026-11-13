@@ -15,16 +15,19 @@ and business workflows outside the model layer.
   - `from_payload()` is the strict trust boundary for model output. It rejects
     unsupported fields/enums, excessive steps/targets, non-contiguous order,
     invented source excerpts/target mentions, invalid active-step transitions
-    and a reported result that is still marked active.
+    and a reported result that is still marked active. Conversation context and
+    player-authored evidence are distinct inputs: DM clarification questions
+    can explain an answer but can never be cited as the player's words.
   - `is_actionable` is intentionally narrower than "contains an action":
     only a current, positive player attempt without an already-reported result
     is eligible for mechanics adjudication.
   - `allows_world_proposal` is a proposal gate, not write authorization.
     Canonical entity identity, visibility, provenance, permissions, dice and
     domain validity remain owned by their existing deterministic boundaries.
-  - `conservative_legacy()` is a migration/compatibility bridge for old
-    provider fixtures that do not return schema v1. It is not the live quality
-    contract and is deliberately conservative for obvious non-actions.
+  - `unrecognized()` returns a no-step clarification state when a production
+    provider omits the v1 contract. The durable production path fails closed.
+  - `conservative_legacy()` is retained only for the legacy `adjudicate()` API
+    and old fixtures. It is not used by the durable production turn pipeline.
 
 The model cannot assign canonical entity IDs or write-operation payloads.
 Literal mention strings are retrieval evidence only. Deterministic reference
