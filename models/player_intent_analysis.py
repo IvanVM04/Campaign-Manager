@@ -355,7 +355,7 @@ class PlayerIntentAnalysis:
         # An initial first-person speech verb makes "si" an indirect-question
         # complement ("le pregunto si sabe"), not a conditional clause.
         player_speech_act = bool(re.match(
-            r"^(?:le\\s+)?(?:pregunto|pregunt[eé]|consulto|consult[eé]|hablo|habl[eé]|digo|dije|cuento|cont[eé]|pido|ped[ií]|respondo|respond[ií])\\b",
+            r"^(?:le\s+)?(?:pregunto|pregunt[eé]|consulto|consult[eé]|hablo|habl[eé]|digo|dije|cuento|cont[eé]|pido|ped[ií]|respondo|respond[ií])\b",
             folded,
         ))
         failure = bool(re.search(r"\b(no pude|no consigo|no logré|no logre|no conseguí|no consegui|fallé|falle|fracasé|fracase|falló|fallo|failed|could not|couldn't)\b", folded))
