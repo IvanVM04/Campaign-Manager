@@ -13,10 +13,21 @@ from models.discourse_evidence import (
 )
 from models.event import Event
 from models.item import Item, ItemInstance
-from models.player_intent_analysis import IntentModality, IntentPolarity, PlayerIntentAnalysis
-from models.resolved_world_reference import ResolvedWorldReference, WorldReferenceCategory
+from models.player_intent_analysis import (
+    IntentModality,
+    IntentPolarity,
+    PlayerIntentAnalysis,
+)
+from models.resolved_world_reference import (
+    ResolvedWorldReference,
+    WorldReferenceCategory,
+)
 from models.resource import Resource
-from models.semantic_frames import SemanticModality, SemanticObjectKind, SemanticPolarity
+from models.semantic_frames import (
+    SemanticModality,
+    SemanticObjectKind,
+    SemanticPolarity,
+)
 from models.world_state import WorldState
 
 from .entity_reference_resolver import EntityReferenceResolver
