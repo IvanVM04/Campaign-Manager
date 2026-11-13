@@ -28,7 +28,7 @@
       "id": "holdout-transfer-ring",
       "family": "action_roles_transfer",
       "input": "Mara entrega el anillo de plata a Aldric.",
-      "critical": false,
+      "critical": true,
       "expected_action_frame": {
         "family": "transfer",
         "arguments": [
