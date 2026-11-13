@@ -344,7 +344,10 @@ def _validate_text(value: typing.Any, field_name: str, maximum: int) -> str:
     return normalized
 
 
-def _enum(enum_type: type[enum.Enum], value: typing.Any):
+_EnumT = typing.TypeVar("_EnumT", bound=enum.Enum)
+
+
+def _enum(enum_type: type[_EnumT], value: typing.Any) -> _EnumT:
     if not isinstance(value, str):
         raise TypeError("enum fields must be strings")
     try:

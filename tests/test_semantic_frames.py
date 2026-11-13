@@ -3,7 +3,11 @@ import json
 import pytest
 
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.semantic_frames import SemanticArgumentRole, SemanticModality, SemanticObjectKind
+from models.semantic_frames import (
+    SemanticArgumentRole,
+    SemanticModality,
+    SemanticObjectKind,
+)
 from services.turns import TurnResolutionCodec
 from services.turns.turn_resolution_service import TurnResolutionPlan
 

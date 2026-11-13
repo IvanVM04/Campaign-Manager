@@ -9,8 +9,8 @@ from models.player_intent_analysis import (
     IntentPolarity,
     PlayerIntentAnalysis,
 )
-from models.semantic_frames import SemanticModality, SemanticPolarity
 from models.resolved_conversation_reference import ResolvedConversationReference
+from models.semantic_frames import SemanticModality, SemanticPolarity
 from models.world_state import WorldState
 
 from .entity_reference_resolver import EntityReferenceResolver
