@@ -362,9 +362,7 @@ class PlayerIntentAnalysis:
         negated = bool(re.search(r"\b(no|nunca|jamás|jamas|not|never)\b", folded)) and not failure
         if question:
             category, modality = UtteranceCategory.QUESTION, IntentModality.QUESTION
-        elif quoted:
-            category, modality = UtteranceCategory.DIALOGUE, IntentModality.DIALOGUE
-        elif player_speech_act:
+        elif quoted or player_speech_act:
             category, modality = UtteranceCategory.DIALOGUE, IntentModality.DIALOGUE
         elif conditional:
             category, modality = UtteranceCategory.PLAN, IntentModality.CONDITIONAL
