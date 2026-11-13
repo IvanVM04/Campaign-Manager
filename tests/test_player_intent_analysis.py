@@ -240,3 +240,22 @@ def test_legacy_fallback_fails_closed_for_obvious_non_actions(
     assert analysis.category is category
     assert analysis.steps[0].modality is modality
     assert analysis.is_actionable is actionable
+
+
+def test_active_step_cannot_skip_an_earlier_attempt():
+    value = payload(steps=[
+        step(index=0, excerpt="Ataco al guardia", modality="attempted"),
+        step(
+            index=1,
+            excerpt="cierro la puerta",
+            action="cerrar la puerta",
+            modality="attempted",
+            targets=["la puerta"],
+        ),
+    ], active=1)
+
+    with pytest.raises(ValueError, match="skip an earlier unresolved"):
+        PlayerIntentAnalysis.from_payload(
+            value,
+            source_text="Ataco al guardia y cierro la puerta.",
+        )
