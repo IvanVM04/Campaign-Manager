@@ -133,37 +133,71 @@ def test_v2_semantic_frames_survive_durable_intent_codec_recovery():
 
 
 @pytest.mark.parametrize(
-    ("polarity", "modality"),
+    ("source", "frame_predicate", "polarity", "modality", "attributed_to"),
     [
-        ("negative", "negated"),
-        ("positive", "question"),
-        ("positive", "conditional"),
-        ("positive", "reported"),
+        (
+            "Mara no es dueña de la llave.",
+            "es",
+            "negative",
+            "negated",
+            None,
+        ),
+        (
+            "¿Es Mara dueña de la llave?",
+            "Es",
+            "positive",
+            "question",
+            None,
+        ),
+        (
+            "Si Mara fuera dueña de la llave, podría abrir el cofre.",
+            "fuera",
+            "positive",
+            "conditional",
+            None,
+        ),
+        (
+            "Aldric dice que Mara es dueña de la llave.",
+            "dice",
+            "positive",
+            "reported",
+            "Aldric",
+        ),
     ],
 )
 def test_relation_claim_preserves_non_confirming_polarity_and_modality(
-    polarity, modality
+    source, frame_predicate, polarity, modality, attributed_to
 ):
-    source = "Mara no es dueña de la llave."
+    mentions = ["Mara", "la llave"]
+    actor = "player"
+    if attributed_to is not None:
+        mentions.append(attributed_to)
+        actor = "npc"
     value = {
         "schema_version": 2,
         "category": "report",
         "steps": [{
             "index": 0,
             "source_excerpt": source,
-            "actor": "player",
+            "actor": actor,
             "action": "describir propiedad de la llave",
-            "modality": "observed",
-            "polarity": "positive",
+            "modality": modality,
+            "polarity": polarity,
             "reported_outcome": "not_claimed",
-            "target_mentions": ["Mara", "la llave"],
-            "attributed_to": None,
+            "target_mentions": mentions,
+            "attributed_to": attributed_to,
             "action_frame": {
-                "predicate": "es",
+                "predicate": frame_predicate,
                 "family": "other",
                 "arguments": [
-                    {"role": "agent", "mention": {"text": "Mara", "kind_hint": "character"}},
-                    {"role": "theme", "mention": {"text": "la llave", "kind_hint": "item_instance"}},
+                    {
+                        "role": "agent",
+                        "mention": {"text": "Mara", "kind_hint": "character"},
+                    },
+                    {
+                        "role": "theme",
+                        "mention": {"text": "la llave", "kind_hint": "item_instance"},
+                    },
                 ],
             },
         }],
@@ -178,8 +212,15 @@ def test_relation_claim_preserves_non_confirming_polarity_and_modality(
             "relation_family": "ownership",
             "polarity": polarity,
             "modality": modality,
-            "source_excerpt": "Mara no es dueña de la llave",
-            "attributed_to": None,
+            "source_excerpt": source,
+            "attributed_to": (
+                None
+                if attributed_to is None
+                else {
+                    "text": attributed_to,
+                    "kind_hint": "character",
+                }
+            ),
             "temporal_expression": None,
         }],
     }
@@ -187,6 +228,9 @@ def test_relation_claim_preserves_non_confirming_polarity_and_modality(
     claim = analysis.relation_claims[0]
     assert claim.polarity.value == polarity
     assert claim.modality.value == modality
+    if attributed_to is not None:
+        assert claim.attributed_to is not None
+        assert claim.attributed_to.text == attributed_to
 
 
 def test_relation_claim_cannot_escape_the_evidence_or_reference_missing_step():
