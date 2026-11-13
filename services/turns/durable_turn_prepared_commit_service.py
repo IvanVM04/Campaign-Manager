@@ -48,6 +48,7 @@ class DurableTurnPreparedCommitService:
         revision,
         revision_error_message,
         context_error_message,
+        conversation_id: str | None = None,
     ):
         """Apply a prepared plan only if its campaign snapshot is still current."""
         with transaction("IMMEDIATE") as conn:
@@ -61,7 +62,9 @@ class DurableTurnPreparedCommitService:
                     code=DurableTurnErrorCode.STALE_CONTEXT,
                 )
 
-            current_context, current_recent = self.context_loader(conn)
+            current_context, current_recent = self.context_loader(
+                conn, conversation_id=conversation_id
+            )
             if current_context != context or current_recent != recent:
                 raise DurableTurnCommitError(
                     context_error_message,
