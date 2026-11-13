@@ -1,51 +1,45 @@
 # Shared models and contracts
 
-This package contains immutable and mutable domain records shared across
+This package contains domain records and immutable value contracts shared across
 service boundaries. Keep provider-specific parsing, persistence orchestration
 and business workflows outside the model layer.
 
-## Language-understanding contract
+## Player-language understanding
 
-- `player_intent_analysis.py` — versioned schema v1 for an untrusted semantic
-  interpretation of one player utterance.
-  - `PlayerIntentAnalysis` stores utterance category, ordered steps, the
-    currently active step and optional clarification state.
-  - `IntentStep` distinguishes actor, action, modality, polarity,
-    player-reported outcome, exact literal target mentions and attribution.
-  - `from_payload()` is the strict trust boundary for model output. It rejects
-    unsupported fields/enums, excessive steps/targets, non-contiguous order,
-    invented source excerpts/target mentions, invalid active-step transitions
-    and a reported result that is still marked active. Conversation context and
-    player-authored evidence are distinct inputs: DM clarification questions
-    can explain an answer but can never be cited as the player's words.
-  - `is_actionable` is intentionally narrower than "contains an action":
-    only a current, positive player attempt without an already-reported result
-    is eligible for mechanics adjudication.
-  - `allows_world_proposal` is a proposal gate, not write authorization.
-    Canonical entity identity, visibility, provenance, permissions, dice and
-    domain validity remain owned by their existing deterministic boundaries.
-  - `unrecognized()` returns a no-step clarification state when a production
-    provider omits the v1 contract. The durable production path fails closed.
-  - `conservative_legacy()` is retained only for the legacy `adjudicate()` API
-    and old fixtures. It is not used by the durable production turn pipeline.
+`player_intent_analysis.py` provides the versioned `PlayerIntentAnalysis`
+contract:
 
-The model cannot assign canonical entity IDs or write-operation payloads.
-Literal mention strings are retrieval evidence only. Deterministic reference
-resolution may select a unique visible target; ambiguity must remain
-unresolved and be clarified rather than guessed. PR #216 adds
-`resolved_conversation_reference.py`, a trusted application-produced match
-that records the literal mention, canonical visible entity and optional
-antecedent turn. The model never constructs this record or supplies its ID.
+- **V1 compatibility:** original category/step/action/target/attribution shape
+  remains decodable and serializes back to its original shape.
+- **V2:** each step requires a `SemanticActionFrame`; the analysis may also
+  carry bounded directed `SemanticRelationClaim` records.
+- Both versions preserve ordered steps, active-step and clarification state,
+  actor, modality, polarity, player-reported outcome and literal evidence.
 
-The v1 contract still lacks typed semantic arguments, relation assertions,
-object-kind hints and structured correction links. Those require a new schema
-version, not a silent change to persisted v1 interpretations.
+`semantic_frames.py` defines untrusted, ID-free semantic value objects:
 
-The language pipeline is coordinated in `services/turns`: the mechanics
-adjudicator returns this analysis together with the mechanics decision in one
-provider response, and the exact object is passed into the world proposal
-prompt. The model package remains independent of providers, services and
-SQLite.
+- `SemanticMention` — exact text and coarse `kind_hint` (character, creature,
+  location, item definition/instance, event, faction, resource, world entity or
+  unknown). A hint is not canonical identity.
+- `SemanticArgument` — a semantic role plus its mention.
+- `SemanticActionFrame` — literal predicate, bounded family and typed
+  arguments such as agent, patient/theme, recipient, source, destination,
+  instrument, location/path, beneficiary, experiencer, owner, holder or
+  container.
+- `SemanticRelationClaim` — step index, directed subject/predicate/object,
+  family hint, polarity, modality, literal source excerpt, optional attribution
+  and temporal expression.
+
+`PlayerIntentAnalysis.from_payload()` is the trust boundary for model output.
+It rejects unsupported fields/enums, over-budget arrays/text, invalid step
+ordering, missing frames in v2, relation claims referencing missing steps,
+non-literal source/mentions/predicates/attributions/temporal expressions and
+attempts to attach canonical IDs.
+
+The interpretation is language evidence, not authorization. It cannot assign
+canonical IDs, permissions, visibility, provenance, dice or write operations.
+Application code resolves visible canonical references; world services and
+rules remain authoritative for mutation and mechanics.
 
 ## Related durable contracts
 
@@ -61,7 +55,8 @@ SQLite.
 ## Change rules
 
 - Version the semantic schema; never silently reinterpret a persisted schema.
-- Add deterministic parser and lifecycle tests with schema changes.
+- Preserve v1 decoding whenever evolving v2.
+- Add deterministic parser, prompt, codec and lifecycle tests with schema changes.
 - Keep untrusted interpretation distinct from confirmed facts and committed
   consequences.
 - Update the P0 specification and package guides when semantics or bounds
