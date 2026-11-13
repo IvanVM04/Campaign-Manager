@@ -18,6 +18,31 @@ class LLMWorldProposalPromptBuilder:
     DEFAULT_MAX_PROMPT_TOKENS = 8192
 
     @staticmethod
+    def _compact_context_block(value: str, max_chars: int) -> str:
+        """Retain the highest-ranked leading records and omit only the tail."""
+        if len(value) <= max_chars:
+            return value
+        suffix = "\n… (registros adicionales omitidos por presupuesto)"
+        if max_chars <= len(suffix) + 40:
+            return value[:max_chars]
+        remaining = max_chars - len(suffix)
+        kept: list[str] = []
+        for line in value.splitlines():
+            if len(line) <= remaining:
+                kept.append(line)
+                remaining -= len(line) + 1
+                continue
+            if remaining > 40:
+                kept.append(line[: remaining - 1] + "…")
+            break
+        if not kept:
+            return value[:max_chars]
+        compacted = "\n".join(kept)
+        if len(compacted) + len(suffix) > max_chars:
+            return compacted[:max_chars]
+        return compacted + suffix
+
+    @staticmethod
     def build_prompt(
         player_intent: str,
         context: TurnContext,
@@ -193,6 +218,49 @@ class LLMWorldProposalPromptBuilder:
             )
         )
         estimated = estimate_tokens(prompt)
+        if estimated > max_prompt_tokens:
+            # Recent transcript is useful but replaceable; the shared semantic
+            # contract and current player-authored evidence are not.
+            compact_history = history_block[-800:] or "(sin historial reciente)"
+            if compact_history != history_block:
+                prompt = prompt.replace(history_block, compact_history, 1)
+                estimated = estimate_tokens(prompt)
+
+            # The projection is ranked. Preserve its leading/highest-ranked
+            # records while dropping only optional lower-ranked tail records.
+            optional_sections = (
+                "known_relations",
+                "known_resource_balances",
+                "known_item_instances",
+                "known_resources",
+                "known_items",
+                "known_events",
+                "known_entities",
+            )
+            for section in optional_sections:
+                if estimated <= max_prompt_tokens:
+                    break
+                original = context_blocks[section]
+                if len(original) <= 80 or original in {"- Ninguno", "- Ninguna"}:
+                    continue
+                excess = estimated - max_prompt_tokens
+                target_chars = max(80, len(original) - excess - 24)
+                compacted = LLMWorldProposalPromptBuilder._compact_context_block(
+                    original,
+                    target_chars,
+                )
+                if compacted != original:
+                    prompt = prompt.replace(original, compacted, 1)
+                    estimated = estimate_tokens(prompt)
+
+            if estimated > max_prompt_tokens and compact_history != "(sin historial reciente)":
+                prompt = prompt.replace(
+                    compact_history,
+                    "(sin historial reciente)",
+                    1,
+                )
+                estimated = estimate_tokens(prompt)
+
         if estimated > max_prompt_tokens:
             raise LLMExtractionError(
                 "structured proposal prompt exceeds the configured estimated token budget"
