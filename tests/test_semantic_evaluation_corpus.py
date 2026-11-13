@@ -32,7 +32,7 @@ def test_semantic_evaluation_corpus_has_at_least_one_hundred_unique_cases():
             assert corpus["split"] == "held_out", corpus_name
             assert any(
                 marker in corpus["description"].casefold()
-                for marker in ("reserved for measurement", "not be copied", "do not turn")
+                for marker in ("reserved for measurement", "not be copied", "do not turn", "not prompt")
             ), corpus_name
         for scenario in corpus["scenarios"]:
             scenario_id = scenario["id"]
