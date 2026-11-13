@@ -1,7 +1,6 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#219 are integrated. PR #219 merged as `cd701d11eb36666ab5ad33603095a2d95289882b`. PR #220 builds the held-out semantic evaluation corpus and quality gate on `feat/220-semantic-evaluation-corpus`. Live Ollama and SillyTavern acceptance remain separate gates.  
-**Verified base:** `main` at `cd701d11eb36666ab5ad33603095a2d95289882b` (2026-11-13; PR #219 merged).  
+**Status (2026-11-13):** PRs #210–#221 are integrated into `main`. The current implementation baseline is `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (PR #221). PR #222 extends typed world-reference resolution and semantic false-positive evaluation on `feat/222-typed-world-reference-evaluation`. Live Ollama and manual SillyTavern acceptance remain separate gates.  
 **Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
@@ -21,7 +20,7 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The P0 shared interpretation, chat isolation, evidence-bound semantic-frame v2 and discourse evidence/correction primitive are integrated through PR #219. Deterministic CI results do not replace live Ollama or real SillyTavern acceptance. PR #219 deliberately does not claim automatic model-driven correction chains. PR #220 is now measuring semantic quality on a separate 110-scenario corpus with a held-out tranche. Do not begin the Character Builder or broad gameplay expansion while the live gates remain open; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
+The P0 shared interpretation, chat isolation, evidence-bound semantic-frame v2, discourse evidence and pending-correction lifecycle are integrated through PR #221. PR #220 supplies 110 labelled development/held-out scenarios; PR #222 adds typed references for item definitions, physical instances, resources and visible events, plus semantic-slot precision/recall/F1 so unsupported extra arguments and relations are penalized. CI validates deterministic contracts; live Ollama and real SillyTavern remain separate acceptance gates. Do not begin broad gameplay expansion until those gates are recorded; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
 
 This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
@@ -67,7 +66,7 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow — PRs #215/#216 integrated; PR #218 v2 in review
+### Active data flow — PRs #215–#221 integrated; PR #222 adds typed non-entity references
 
 `TurnResolutionService` now orchestrates a shared semantic interpretation:
 
@@ -292,13 +291,11 @@ Only proceed when the expanded corpus is stable enough to compare models. Do not
 
 **Acceptance criteria:** published comparison report with reproducible settings and explicit safety failures; no model change based on anecdotal output alone.
 
-### PR #218 — semantic frames v2 (implementation branch)
+### PR #218 — semantic frames v2 (merged)
 
-The branch adds `models/semantic_frames.py`, v2 action frames with typed argument roles, object-kind hints, directed relation claims, strict literal-evidence validation, a v2 Ollama JSON Schema and proposal-prompt guidance. The turn service adds frame arguments and relation endpoints as supplemental retrieval signals. V1 payloads retain their original decoding/serialization shape, and the durable codec stores v2 inside its existing fingerprinted envelope without a database migration. The same shared interpretation still feeds mechanics and consequences; no extra normal-path provider call is introduced.
+The merged implementation adds typed action arguments, object-kind hints, directed relation claims, strict literal-evidence validation, a v2 Ollama JSON Schema and proposal-prompt guidance. V1 durable payloads remain compatible. The same shared interpretation feeds mechanics and consequences; no extra normal-path provider call is introduced. Parser tests protect schema and evidence invariants, not general model accuracy. Live model and SillyTavern acceptance remain separate gates.
 
-**Acceptance is pending:** deterministic CI and live Ollama/SillyTavern gates must be run on the final branch head. V2 parser tests prove schema/evidence invariants, not general model accuracy. The detailed implementation and remaining work are in the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
-
-### Next after PR #219 — evaluation and quality gate
+### PRs #220–#222 — evaluation, correction lifecycle and typed references
 
 PR #219 is merged and adds typed discourse evidence plus a guarded immutable correction primitive. PR #220 now builds a 110-scenario labelled battery (50 development + 60 held-out) for intent interpretation, action roles/relations and cross-turn references. It reports per-family slot/case accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Do not add embeddings, broad prompt changes or another normal-path model call before the baseline is measured.
 

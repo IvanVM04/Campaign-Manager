@@ -278,3 +278,23 @@ def test_antecedents_older_than_six_turns_are_not_considered():
     )
     assert result.references == ()
     assert result.clarification_question is not None
+
+
+def test_typed_item_pronoun_is_not_stolen_by_a_same_named_entity_candidate():
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="La llave", entity_type="npc"),
+        }
+    )
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis(
+            "La guardo en la mochila.",
+            "La",
+            kind_hint=SemanticObjectKind.ITEM_INSTANCE,
+        ),
+        recent_turns=[turn(81, "Encuentro la llave bajo la mesa.")],
+    )
+
+    assert result.references == ()
+    assert result.clarification_question is None

@@ -414,6 +414,16 @@ class ConversationReferenceResolver:
                     conflicting_kinds.add(mention_key)
 
             for mention, kind_hint in merged_mentions.values():
+                # Non-entity namespaces are resolved by WorldReferenceResolver.
+                # Never interpret an item/resource/event id as an entity id, and
+                # never let an untyped entity candidate steal a typed object pronoun.
+                if kind_hint in {
+                    SemanticObjectKind.ITEM_DEFINITION,
+                    SemanticObjectKind.ITEM_INSTANCE,
+                    SemanticObjectKind.RESOURCE,
+                    SemanticObjectKind.EVENT,
+                }:
+                    continue
                 match = self.entity_resolver.resolve(visible_world, mention)
                 candidate_ids: tuple[int, ...] = ()
                 antecedent_turn_id = None

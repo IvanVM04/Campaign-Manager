@@ -1,9 +1,9 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active language-quality priority  
-**Integrated foundation:** PRs #215–#220 are merged into `main`; PR #220 merge commit is `75786eaa5e5a67f1199f99beff4772bbf2935c33`. PR #221 implements pending semantic correction integration. Live Ollama and SillyTavern acceptance remain separate gates.  
-**Next implementation:** PR #221 connects evidence-bound corrections to multi-round durable clarifications on `feat/221-evidence-bound-correction-loop`.  
-**Baseline:** `main` at `75786eaa5e5a67f1199f99beff4772bbf2935c33` (2026-11-13, after PR #220).  
+**Integrated foundation:** PRs #215–#221 are merged into `main`, including the durable evidence-bound correction lifecycle. Current base: `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (2026-11-13).  
+**Next implementation:** PR #222 adds typed non-entity world references and false-positive-aware semantic evaluation on `feat/222-typed-world-reference-evaluation`.  
+**Acceptance:** deterministic CI, live Ollama and real SillyTavern remain separate gates; the latter two are not inferred from CI.  
 **Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are distinct gates. This branch does not claim the live gates passed.
 
 ## 1. Integrated turn pipeline
@@ -115,8 +115,8 @@ The implementation work in PR #218 is not considered accepted until these gates 
 
 ## 7. Next work after PR #219
 
-PR #219 has integrated the typed discourse evidence resolver and immutable evidence-backed correction primitive. It does not yet connect model-emitted corrections to an automatic correction lifecycle.
+PR #219 integrated typed discourse evidence and an immutable correction primitive. PR #221 has since connected model-emitted, evidence-bound corrections to pending durable clarifications, including re-analysis consistency and an audit trail.
 
 PR #220 has merged the 110-scenario evaluation tranche (50 development + 60 held-out). PR #221 now implements the correction hand-off through a correction-only response contract, immutable edit application, re-analysis consistency checks and durable audit. Its acceptance requires tests for ungrounded values, wrong slots, multi-round clarification, lease recovery, stale/committed resolutions and SillyTavern replay.
 
-After PR #221, use both the held-out semantic corpus and correction failures to prioritize ellipsis, topic shifts and time-aware relation modelling. Only then decide whether prompt, ontology or retrieval changes are justified. Do not add embeddings or an extra normal-path provider call without measured benefit. Do not return to broad gameplay expansion while the live P0 acceptance gates remain unrecorded.
+PR #222 is the next implementation tranche: close the non-entity reference namespace gap (item definition vs physical instance, resources and visible events), penalize extra semantic arguments/relations, and evaluate a real pending-recipient correction with Ollama. After that, use recorded per-family live failures to prioritize ellipsis, topic shifts, relation ontology and temporal modelling. Do not add embeddings or extra normal-path provider calls without measured benefit. Keep broad gameplay expansion behind the live P0 and SillyTavern acceptance gates.

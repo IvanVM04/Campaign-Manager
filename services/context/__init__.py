@@ -14,6 +14,7 @@ from .entity_reference_resolver import (
     EntityReferenceResolver,
 )
 from .memory_search_service import MemorySearchService
+from .world_reference_resolver import WorldReferenceResolution, WorldReferenceResolver
 from .proposal_context_selector import (
     ProposalContextBudgetError,
     ProposalContextSelector,
@@ -30,6 +31,8 @@ __all__ = [
     "EntityReferenceResolution",
     "EntityReferenceResolver",
     "MemorySearchService",
+    "WorldReferenceResolution",
+    "WorldReferenceResolver",
     "ProposalContextBudgetError",
     "ProposalContextSelector",
 ]

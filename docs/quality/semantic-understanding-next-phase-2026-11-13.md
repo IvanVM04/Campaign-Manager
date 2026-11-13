@@ -1,9 +1,9 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
-**Status:** PRs #219 and #220 are merged into `main`; PR #220 merge commit is `75786eaa5e5a67f1199f99beff4772bbf2935c33`. PR #221 is under implementation on `feat/221-evidence-bound-correction-loop`. Live Ollama and manual SillyTavern acceptance remain separate gates and are not implied by deterministic CI.  
-**Priority:** P0.4 — evidence-bound correction lifecycle for pending clarifications.  
-**Baseline:** `main` at `75786eaa5e5a67f1199f99beff4772bbf2935c33` (2026-11-13, after PR #220).  
-**Implementation branch:** `feat/221-evidence-bound-correction-loop`.
+**Status:** PRs #219–#221 are merged into `main`; PR #221 integrated evidence-bound corrections into durable clarification resumption. PR #222 is the active implementation on `feat/222-typed-world-reference-evaluation`. Live Ollama and manual SillyTavern acceptance remain separate gates and are not implied by deterministic CI.  
+**Priority:** P0.5 — typed world-reference resolution and false-positive-aware semantic evaluation.  
+**Baseline:** `main` at `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (2026-11-13).  
+**Implementation branch:** `feat/222-typed-world-reference-evaluation`.
 
 ## 1. Why this phase exists
 
@@ -79,7 +79,7 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 - Requires zero critical false persistent changes and zero secret leaks. Per-family quality targets for non-critical cases are set only after the first reproducible baseline; never collapse results into a misleading aggregate score.
 - Detailed protocol: [semantic evaluation corpus](semantic-understanding-evaluation-corpus-2026-11-13.md).
 
-### PR #221 — evidence-bound correction lifecycle (current implementation)
+### PR #221 — evidence-bound correction lifecycle (merged)
 
 - Adds a correction-only extension of the combined provider schema. The normal turn schema and normal provider-call count stay unchanged.
 - Supplies the prior pending analysis and the latest player clarification as separate prompt evidence; the DM's question remains context, never correction evidence.
@@ -89,10 +89,21 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 - Releases the planning lease back to `awaiting_input` if correction validation fails, allowing a safe retry instead of leaving a stranded claim.
 - Adds deterministic tests for strict decoding, ungrounded/extra fields, no-op or mismatched edits, and multi-round durable recovery. Live model/SillyTavern acceptance remains separate.
 - No database migration, extra normal-path provider call, embedding or vector store is added.
+- The merged implementation is documented in `services/turns/README.md`; the live correction-model probe remains an opt-in acceptance test.
 
-### Next after PR #221 — measure richer discourse and event semantics
+### PR #222 — typed world-reference resolution and semantic precision (active)
 
-Use the expanded held-out corpus to prioritize the next language limitations: correction chains across multiple clauses, elliptical references, topic shifts and relation changes over time. Extend the hold-out set before changing prompt or retrieval behavior. Consider grammatical agreement or additional relation ontology only when the canonical world model exposes reliable supporting fields. Keep embeddings and extra normal-path calls gated on reproducible gains.
+- Adds a separate typed resolver for item definitions, physical item instances, resources and visible events. Entity IDs, item-definition IDs, physical-instance IDs, resource IDs and event string IDs remain separate namespaces.
+- Resolves direct typed mentions and conservative cross-turn anaphora from the same bounded six-turn evidence window. Multiple physical copies remain ambiguous; inactive instances and hidden/GM-only events are excluded.
+- Keeps entity coreference on `ConversationReferenceResolver`; typed object mentions are deliberately skipped there and routed to `WorldReferenceResolver`.
+- Passes trusted typed references to the proposal prompt as evidence, never as write authority. The prompt explicitly forbids swapping ID namespaces.
+- Adds semantic argument/relation slot precision, recall and F1 using multiset matching so duplicate or unsupported output counts as a false positive.
+- Adds an opt-in real-Ollama test for correcting a pending recipient from the latest player clarification.
+- Live Ollama and SillyTavern acceptance remain separate gates.
+
+### Next after PR #222 — measure richer discourse and event semantics
+
+Use the expanded held-out corpus and the new typed-reference failures to prioritize broad ellipsis, topic shifts, long-distance references, grammar agreement and time-aware relation modelling. Add embedding retrieval only if held-out measurements demonstrate a material precision/recall gain over the typed deterministic baseline.
 
 ### Later — retrieval/model selection only when measured
 

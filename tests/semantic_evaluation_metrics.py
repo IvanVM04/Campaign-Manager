@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 
 
@@ -31,6 +31,9 @@ class SemanticEvaluationLedger:
         self._operation_fn = 0
         self._critical_false_persistent_changes = 0
         self._secret_leaks = 0
+        self._semantic_slots: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"true_positive": 0, "false_positive": 0, "false_negative": 0}
+        )
 
     def record_case(
         self,
@@ -52,6 +55,31 @@ class SemanticEvaluationLedger:
         values["expected_slots"] += expected_slots
         values["matched_slots"] += matched_slots
         values["latency_seconds"] += elapsed_seconds
+
+    def record_semantic_slots(
+        self,
+        family: str,
+        *,
+        expected_slots: Iterable[str],
+        predicted_slots: Iterable[str],
+    ) -> None:
+        """Measure semantic-slot precision/recall, including unsupported extras.
+
+        Counter-based matching preserves multiplicity: a model cannot receive
+        full precision by returning every expected role plus duplicate or
+        invented arguments/relations.
+        """
+        if not isinstance(family, str) or not family.strip():
+            raise ValueError("family must not be empty")
+        expected = Counter(expected_slots)
+        predicted = Counter(predicted_slots)
+        if any(not isinstance(item, str) or not item.strip() for item in (*expected, *predicted)):
+            raise ValueError("semantic slot signatures must be non-empty strings")
+        matched = expected & predicted
+        values = self._semantic_slots[family]
+        values["true_positive"] += sum(matched.values())
+        values["false_positive"] += sum((predicted - expected).values())
+        values["false_negative"] += sum((expected - predicted).values())
 
     def record_entity_resolution(
         self,
@@ -131,8 +159,45 @@ class SemanticEvaluationLedger:
                     else None
                 ),
             }
+        semantic_slot_quality: dict[str, dict[str, float | int | None]] = {}
+        overall_tp = overall_fp = overall_fn = 0
+        for family, values in sorted(self._semantic_slots.items()):
+            tp, fp, fn = (
+                values["true_positive"],
+                values["false_positive"],
+                values["false_negative"],
+            )
+            precision = self._ratio(tp, tp + fp)
+            recall = self._ratio(tp, tp + fn)
+            f1 = (
+                None
+                if precision is None or recall is None or precision + recall == 0
+                else round(2 * precision * recall / (precision + recall), 4)
+            )
+            semantic_slot_quality[family] = {
+                "true_positive": tp,
+                "false_positive": fp,
+                "false_negative": fn,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+            overall_tp += tp
+            overall_fp += fp
+            overall_fn += fn
+        overall_precision = self._ratio(overall_tp, overall_tp + overall_fp)
+        overall_recall = self._ratio(overall_tp, overall_tp + overall_fn)
+        overall_f1 = (
+            None
+            if overall_precision is None or overall_recall is None or overall_precision + overall_recall == 0
+            else round(2 * overall_precision * overall_recall / (overall_precision + overall_recall), 4)
+        )
         return {
             "families": families,
+            "semantic_slot_quality": semantic_slot_quality,
+            "semantic_slot_precision": overall_precision,
+            "semantic_slot_recall": overall_recall,
+            "semantic_slot_f1": overall_f1,
             "entity_link_precision": self._ratio(
                 self._entity_tp, self._entity_tp + self._entity_fp
             ),
@@ -164,7 +229,17 @@ class SemanticEvaluationLedger:
                 f"slot_recall={values['slot_recall']}, "
                 f"mean_latency_seconds={values['mean_latency_seconds']}"
             )
+        for family, values in report["semantic_slot_quality"].items():
+            lines.append(
+                f"- semantic_slots[{family}]: "
+                f"precision={values['precision']}, recall={values['recall']}, "
+                f"f1={values['f1']}, fp={values['false_positive']}, "
+                f"fn={values['false_negative']}"
+            )
         for name in (
+            "semantic_slot_precision",
+            "semantic_slot_recall",
+            "semantic_slot_f1",
             "entity_link_precision",
             "entity_link_recall",
             "correct_abstentions",
@@ -193,8 +268,15 @@ class SemanticEvaluationLedger:
                     f"{prefix}_{safe_family}_{metric}",
                     value if value is not None else "not_measured",
                 )
+        for family, values in report["semantic_slot_quality"].items():
+            safe_family = family.replace("-", "_")
+            for name, value in values.items():
+                record_property(
+                    f"{prefix}_{safe_family}_semantic_slots_{name}",
+                    value if value is not None else "not_measured",
+                )
         for metric, value in report.items():
-            if metric == "families":
+            if metric in {"families", "semantic_slot_quality"}:
                 continue
             record_property(
                 f"{prefix}_{metric}",

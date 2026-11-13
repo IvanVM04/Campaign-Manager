@@ -7,6 +7,7 @@ from time import perf_counter
 from models.mechanics import MechanicsResult
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection, estimate_tokens
@@ -110,6 +111,7 @@ class LLMWorldExtractor:
         recent_turns: list[TurnRecord] | None = None,
         context_projection: WorldContextProjection | None = None,
         resolved_references: tuple[ResolvedConversationReference, ...] = (),
+        resolved_world_references: tuple[ResolvedWorldReference, ...] = (),
     ) -> list[TurnOperation]:
         """Propose typed state operations from player intent, not DM prose.
 
@@ -133,6 +135,12 @@ class LLMWorldExtractor:
             not isinstance(item, ResolvedConversationReference) for item in resolved_references
         ):
             raise TypeError("resolved_references must be a tuple of trusted references")
+
+        if not isinstance(resolved_world_references, tuple) or any(
+            not isinstance(item, ResolvedWorldReference)
+            for item in resolved_world_references
+        ):
+            raise TypeError("resolved_world_references must be a tuple of trusted typed references")
 
         if context_projection is not None and not isinstance(
             context_projection,
@@ -169,6 +177,7 @@ class LLMWorldExtractor:
             recent_turns=recent_turns,
             projection=context_projection,
             resolved_references=resolved_references,
+            resolved_world_references=resolved_world_references,
             allowed_operation_types=allowed_operation_types,
             operation_registry=self.operation_registry,
             max_prompt_tokens=self.max_prompt_tokens,
