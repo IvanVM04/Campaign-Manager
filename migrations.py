@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 32
+CURRENT_VERSION = 33
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2404,6 +2404,33 @@ def migration_032(conn: sqlite3.Connection) -> None:
         raise
 
 
+def migration_033(conn: sqlite3.Connection) -> None:
+    """Persist versioned shared player-intent evidence with commit immutability."""
+    conn.execute("SAVEPOINT migration_033")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(turn_resolutions)").fetchall()
+        }
+        if "intent_json" not in columns:
+            conn.execute("ALTER TABLE turn_resolutions ADD COLUMN intent_json TEXT")
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS trg_turn_resolutions_committed_intent_immutable
+            BEFORE UPDATE OF intent_json ON turn_resolutions
+            FOR EACH ROW
+            WHEN OLD.lifecycle_state IN ('committed', 'narration_pending', 'completed')
+              AND NEW.intent_json IS NOT OLD.intent_json
+            BEGIN
+                SELECT RAISE(ABORT, 'committed resolution intent is immutable');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_033")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_033")
+        conn.execute("RELEASE SAVEPOINT migration_033")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2598,5 +2625,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_032",
         description="Persist typed event provenance, player perspective and campaign-time continuity.",
         apply=migration_032,
+    ),
+    MigrationDefinition(
+        version=33,
+        name="migration_033",
+        description="Persist shared, versioned player-intent evidence on durable turns.",
+        apply=migration_033,
     ),
 )
