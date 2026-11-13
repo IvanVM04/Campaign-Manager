@@ -1,3 +1,4 @@
+import hashlib
 import json
 from types import SimpleNamespace
 
@@ -151,6 +152,9 @@ def test_intent_codec_rejects_analysis_not_bound_to_original_request():
     payload = json.dumps({
         "schema_version": 1,
         "source_text": "Abro una ventana.",
+        "source_sha256": hashlib.sha256(
+            "Abro una ventana.".encode("utf-8")
+        ).hexdigest(),
         "analysis": {
             "schema_version": 1,
             "category": "action",
