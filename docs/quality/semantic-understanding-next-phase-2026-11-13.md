@@ -1,105 +1,95 @@
-# Next phase — structured semantic frames and grounded world relations
+# Semantic-understanding next phase — delivery status and remaining roadmap
 
-**Status:** proposed; not yet implemented  
-**Priority:** P0.1 — next language-understanding phase after recording the PR #215/#216 acceptance baseline  
-**Baseline:** `main` at `868ae7ae29c6c1c0cfb5b3aaf181b630a0039ff6` (2026-11-13)
+**Status:** PR #218 implementation is present on `feat/218-semantic-frames-v2`; it is not yet merged or accepted.  
+**Priority:** P0.1 — semantic representation and grounding.  
+**Baseline:** `main` at `14070b007246d7a58243c58eadc66b9f54781472` (2026-11-13).  
+**Implementation branch:** `feat/218-semantic-frames-v2`.
 
-## Why this is the next step
+## 1. Why this phase exists
 
-PRs #215/#216 provide a shared typed interpretation, evidence validation, durable continuations, chat isolation and narrow cross-turn reference resolution. The remaining gap is the representation of meaning: `IntentStep.action` is free text, `target_mentions` is a flat list, and there are no structured semantic argument roles, relation claims, typed object mentions or correction links. Improving only the prompt cannot reliably recover information the contract has nowhere to store.
+PRs #215/#216 established the shared typed intent, durable evidence, chat isolation and a narrow cross-turn resolver. V1 still represented the action as free text and targets as a flat list. That representation could not explicitly distinguish the transferred object from its recipient, or a directed relationship from a mere mention.
 
-## Target contract (new schema version)
+PR #218 introduces semantic frames v2 without changing the authority boundaries or adding another normal-path model call.
 
-Preserve v1 decoding for existing durable records; never silently reinterpret persisted v1 data.
+## 2. V2 contract implemented on the branch
 
-### 1. Action frames
+### Action frames
 
-Represent each step as a predicate/action family plus evidence-bound arguments. Candidate roles:
+Every v2 intent step carries an `action_frame`:
 
-| Role | Meaning |
-|---|---|
-| agent | who performs the action |
-| patient/theme | entity affected or moved |
-| recipient | who receives something |
-| source / destination | transfer or movement origin and endpoint |
-| instrument | tool used |
-| location / path | where the action happens or movement passes |
-| beneficiary / companion | who benefits or participates |
-| experiencer | who perceives or feels something |
+- literal predicate and bounded action-family hint;
+- bounded list of typed semantic arguments;
+- each argument has a role and an exact literal mention;
+- each mention has an untrusted kind hint, including a distinction between item definition and item instance.
 
-Keep the literal surface mention and excerpt/span for every argument. These are not IDs. Application code resolves them after campaign, visibility, active-state and semantic-type checks. Missing roles stay missing; the model must not invent a recipient/object/location. Action families should be a small vocabulary mapped to existing domain capabilities, while preserving the original predicate as evidence.
+Roles include agent, patient/theme, recipient, source, destination, instrument, location/path, beneficiary/companion, experiencer, owner, holder, container, cause and result.
 
-### 2. Directed relation assertions
+The example “Entrego la llave de hierro a Mara” can represent the key as theme/item instance and Mara as recipient/character. Neither role is assigned a canonical ID by the model.
 
-Represent a claim as subject–predicate–object, with literal endpoints, supported relation predicate, polarity, modality, attribution/source, temporal applicability and grounded excerpt.
+### Directed relations
 
-Distinguish “Mara is Aldric's sister” (assertion), “Mara says Aldric is her brother” (attributed claim), “Are they related?” (question), “If they were related…” (hypothesis), “Mara is not his sister” (negative assertion), and “Mara used to work for the captain” (historical relation).
+V2 supports bounded relation claims with step index, literal subject, predicate and object, relation-family hint, polarity, modality, source excerpt, optional attribution and temporal expression. Direction and epistemic modality remain explicit. A reported/negative/question/conditional claim is not automatically a positive confirmed relation.
 
-Derive allowed predicates from the existing relation model and operation registry. Unknown relation kinds abstain or request clarification; no free-form relation writes.
+### Validation and compatibility
 
-### 3. Typed object mentions
+- V1 and v2 analysis payloads are both decoded.
+- V1 serializes back to its original shape; v1 durable rows are not rewritten as v2.
+- V2 requires an action frame for each step and a relation-claims array.
+- Literal evidence is checked for predicate, arguments, endpoints, attribution, temporal expression and source excerpt.
+- Unknown fields/enums, oversized arrays, nonliteral mentions, model-supplied IDs and references to nonexistent steps fail closed.
+- The durable intent codec round-trips v2 inside the existing fingerprinted JSON envelope; no migration is currently required.
+- The turn service uses action-frame arguments and relation endpoints as supplemental retrieval signals.
+- The proposal prompt receives the same shared analysis and is instructed to preserve roles/direction/modality without promoting evidence to authority.
 
-Add untrusted type hints such as character/NPC, location, item definition, item instance, event, faction, relation or unknown. Keep separate: item definition vs unique instance; owner vs holder; carried/equipped/stored; container/current location; condition; observed/discovered/used/transferred. The application remains responsible for canonical resolution and state changes.
+### Files changed
 
-### 4. Discourse and corrections
+- `models/semantic_frames.py` — semantic mention, argument, action-frame and relation-claim value objects.
+- `models/player_intent_analysis.py` — v1/v2 decoder, serializer and invariants.
+- `services/turns/intent_response_schema.py` — combined structured-output schema v2.
+- `services/turns/mechanics_adjudicator.py` — v2 interpretation instructions and schema example.
+- `services/turns/turn_resolution_service.py` — supplemental retrieval from typed frame/claim mentions.
+- `services/llm_world/llm_world_proposal_prompt_builder.py` — proposal guidance for semantic roles, object kinds and relation claims.
+- `tests/test_semantic_frames.py` — frame parsing, evidence grounding, relation semantics, v1 compatibility and durable recovery.
+- `tests/test_mechanics_adjudicator.py` — regression for the v2 structured schema contract.
 
-Resolve references using chat/turn identity, speaker/role, mention order, grammatical number/gender where reliable, semantic-type compatibility, recency/topic focus and active-character visibility. Keep ambiguity when evidence conflicts.
+## 3. PR #218 acceptance still required
 
-A correction must identify what is corrected, the replacement mention/value and whether it changes a pending intent or reports a world-knowledge correction. Never rewrite already committed history because the player later corrects their wording. Distinguish “I meant the red door, not the blue one” from “the door used to be red” and “Mara says the door is red”.
+Before merge, run the full deterministic suite and all required quality checks on the final commit. Review the real diff for typing, prompt budgets, structured-generation compatibility and accidental changes to the v1 durable representation.
 
-### 5. Sequence, time and causality
+Then run both live Ollama suites with pinned model/version/settings. The 34 utterance scenarios validate category/step interpretation and v2 structural constraints; the ten-case semantic-frame corpus evaluates selected argument roles and relation direction/polarity/modality/attribution (four critical cases repeated three times). Neither is a comprehensive benchmark. Preserve all live failures.
 
-Preserve step dependencies and conditional boundaries. Capture before/after/while/then and because/therefore only as evidence-backed temporal/causal relations. A stated cause is not automatically proven; intended future events are not completed events.
+The SillyTavern multi-chat/recovery smoke test also remains a separate gate. Do not infer it from unit/API tests.
 
-## Delivery sequence
-
-### Immediate prerequisite — baseline
-
-1. Run the existing live Ollama suite with pinned model/version/settings.
-2. Save per-scenario outcomes for the 34-case intent corpus and seven current real-LLM test functions.
-3. Record the six-case conversation corpus as deterministic resolver coverage, not live model accuracy.
-4. Complete the SillyTavern multi-chat and recovery smoke test.
-5. Classify failures as intent, relation, object identity, semantic role, attribution, reference, retrieval, mechanics or narration.
-
-### PR #218 — semantic frame v2 and typed arguments
-
-- Review the schema against actual `Relation`, `Item`, `ItemInstance`, `Event`, location and operation models before implementation.
-- Add typed action arguments and typed mention hints with literal evidence.
-- Add relation assertions only for predicates supported by domain validation.
-- Keep canonical ID resolution and authorization outside the model.
-- Preserve v1 decoding, durable recovery and the single shared interpretation; do not add another normal-path call.
-- Add deterministic schema, prompt, codec, repository, migration (only if required), integration and live corpus regressions.
+## 4. Remaining PR roadmap
 
 ### PR #219 — discourse resolution and correction chains
 
-- Replace string-only antecedent heuristics with a typed evidence-producing resolver.
-- Add semantic-type and grammatical constraints where reliable, speaker-aware turn structure and topic continuity.
-- Resolve corrections to pending target/action/argument slots without rewriting committed facts.
-- Expand Spanish-first and English-control multi-turn cases, with explicit ambiguity/abstention controls.
-- Preserve chat isolation, visibility and durable clarification/manual-roll behavior.
+- Replace string-only antecedent heuristics with typed, evidence-producing candidates.
+- Add speaker role and turn identity, semantic-type agreement, grammatical gender/number where reliable, recency, topic continuity and explicit discourse focus.
+- Support corrections to pending action/target/argument slots without rewriting committed world history.
+- Keep ambiguity explicit and ask the player when multiple candidates remain plausible.
+- Expand Spanish-first and English-control multi-turn sequences, including topic shifts, competing referents, ellipsis and correction loops.
+- Preserve chat isolation, active-character visibility, durable clarification and manual-roll behavior.
 
 ### PR #220 — evaluation corpus and quality gate
 
-- Expand from 34 intent and six resolver cases to at least 100 balanced labelled scenarios.
-- Cover action roles, relation direction/polarity, object identity/transfer/ownership, attribution, corrections, temporal language, compound actions, ambiguity, secrets and negative controls.
+- Expand from 34 utterance cases and six deterministic resolver cases to at least 100 labelled scenarios.
+- Include action roles, item definitions versus instances, inventory transfer, directed relation types, polarity/modality, attribution, correction, temporal language, compound actions, ambiguity, secrets and negative controls.
 - Keep a held-out tranche separate from prompt/schema tuning examples.
-- Report per-family frame/slot accuracy, relation accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, false persistent changes, secret leakage and latency.
-- Require zero critical false persistent changes and zero secret leakage. Set per-family accuracy targets after baseline measurement rather than inventing one aggregate score.
+- Report per-family frame/slot accuracy, relation direction/polarity accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, false persistent changes, secret leakage and latency.
+- Require zero critical false persistent changes and zero secret leakage. Set per-family accuracy targets after the baseline is measured; avoid a misleading single aggregate score.
 
-### Later — retrieval and model selection only when measured
+### Later — retrieval/model selection only when measured
 
-First test whether aliases, relation edges, dependency expansion and context ranking can satisfy the expanded cases. Consider embeddings only if a reproducible held-out evaluation shows a material gain over the deterministic baseline.
+Test whether aliases, relation edges, dependency expansion and ranking can satisfy the expanded corpus. Consider embeddings only if a reproducible held-out evaluation demonstrates a material improvement over the deterministic baseline.
 
-## Acceptance rules
+## 5. Non-negotiable acceptance rules
 
-- Every argument, relation endpoint and correction target has literal evidence.
-- The model never supplies canonical IDs or writes state.
-- References are active, visible, campaign-scoped and semantically compatible.
-- Direction, negation, attribution, conditionality and time are preserved.
-- Item definitions and instances are not conflated; transfer source/recipient/ownership are correct.
-- Earlier unresolved steps cannot be bypassed; reported outcomes are not authoritative mechanics.
-- Ambiguity asks for clarification; v1 durable records still recover.
-- Deterministic CI remains model/network independent; Ollama and SillyTavern acceptance is recorded separately.
-- No provider call, vector store or service is added without measured justification.
-
-**Recommendation:** after the baseline, make PR #218 the first implementation step: typed action arguments, object roles and evidence-bound relation assertions. This directly addresses the largest semantic gap found in the current code.
+- Semantic mentions and relation endpoints are literal evidence, not canonical IDs.
+- The model never writes world state or grants permissions.
+- Application code performs canonical resolution, visibility checks and domain validation.
+- Item definitions and instances remain separate.
+- Direction, negation, modality, attribution and temporal evidence are preserved.
+- Questions, rumours, hypotheses, quotations and negative claims are not promoted to positive canon.
+- Existing v1 durable records recover unchanged.
+- No extra provider call, vector store or service is added without measured justification.

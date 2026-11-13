@@ -8,7 +8,7 @@ from services.providers import FakeLLMProvider, LLMProviderError
 
 
 class CombinedMechanicsFakeProvider(FakeLLMProvider):
-    """Wrap a mechanics-only fixture in the strict combined v1 response."""
+    """Wrap a mechanics-only fixture in the strict combined v2 response."""
 
     def generate(self, prompt: str) -> str:
         if not isinstance(prompt, str):
@@ -45,9 +45,21 @@ class CombinedMechanicsFakeProvider(FakeLLMProvider):
             raise ValueError("mechanics prompt has empty player-authored evidence")
 
         analysis = PlayerIntentAnalysis.conservative_legacy(evidence_text)
+        # Keep the legacy lexical classifier as a test convenience, but emit
+        # the strict current envelope expected by the production turn path.
+        intent_payload = analysis.to_dict()
+        intent_payload["schema_version"] = 2
+        for step in intent_payload["steps"]:
+            excerpt = step["source_excerpt"]
+            step["action_frame"] = {
+                "predicate": excerpt[:120],
+                "family": "unknown",
+                "arguments": [],
+            }
+        intent_payload["relation_claims"] = []
         return json.dumps(
             {
-                "intent_analysis": analysis.to_dict(),
+                "intent_analysis": intent_payload,
                 "mechanics_decision": json.loads(self.response),
             },
             ensure_ascii=False,

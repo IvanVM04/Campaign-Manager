@@ -1,28 +1,29 @@
-# Prompt and semantic evaluation — deterministic contracts and live Ollama
+# Semantic prompt evaluation — deterministic contracts and live Ollama
 
-**Purpose:** evaluate whether the integrated pipeline understands player language, retrieves relevant world evidence, proposes only supported consequences and preserves durable/SillyTavern continuity. This is an evaluation guide, not a prompt snapshot test.
+**Purpose:** evaluate the integrated interpretation/proposal pipeline without confusing deterministic application guarantees with live model quality.
 
-## Deterministic CI
+## 1. Deterministic CI
 
 | Test / fixture | Contract |
 |---|---|
-| `tests/test_player_intent_analysis.py` | Strict v1 schema, enums, bounds, evidence grounding, step order and active-step invariants. |
-| `tests/test_mechanics_adjudicator.py`, `tests/test_turn_mechanics_integration.py` | Mechanics gating and shared interpretation hand-off. |
-| `tests/test_conversation_reference_resolver.py` | Conservative pronoun/same-object/other-role resolution against visible canonical entities; ambiguity abstention. |
-| `tests/test_conversation_understanding_corpus.py` + v2 fixture | Six deterministic resolver cases; not an LLM benchmark. |
+| `tests/test_player_intent_analysis.py` | V1 interpretation shape, enums, evidence grounding, order and active-step invariants. |
+| `tests/test_semantic_frames.py` | V2 typed action frames, role/kind validation, relation direction/modality, exact evidence, no model IDs, v1 compatibility and durable v2 codec round-trip. |
+| `tests/test_mechanics_adjudicator.py` | Combined adjudicator returns a shared interpretation; v2 schema requires action frames/relation claims while v1 payload decoding remains compatible. |
+| `tests/test_turn_mechanics_integration.py` | Shared interpretation is reused for mechanics and proposal hand-off. |
+| `tests/test_conversation_reference_resolver.py` and corpus test | Conservative multi-turn resolution against visible entities; ambiguity abstention. |
 | `tests/test_entity_reference_resolver.py` | Canonical names, aliases, descriptive matching and ambiguity. |
-| `tests/test_llm_world_proposal_prompt_builder.py`, `tests/test_llm_world_proposals.py` | Shared semantic input, bounded prompt, operation contract, parser and compact repair. |
-| Turn codec/repository/migration tests | Durable intent evidence, migrations 033/034, recovery and chat scope. |
+| LLM proposal prompt/parser tests | V2 frame guidance, shared semantic input, bounded prompt, typed operations and bounded repair. |
+| Turn codec/repository/migration tests | Fingerprinted durable evidence, v1/v2 analysis recovery, migrations 033/034 and chat scope. |
 | SillyTavern API/schema/adapter/extension tests | Required conversation identity and chat-scoped continuation paths. |
 | Context selector/retrieval/scale tests | Relevant context, dependencies, budgets, stable ordering and secret exclusion. |
 
 Keep deterministic tests independent of Ollama, network access and a running SillyTavern instance. Do not weaken them to accommodate model failures.
 
-## Live Ollama (explicit opt-in)
+## 2. Live Ollama (explicit opt-in)
 
 The `real_llm` suite uses the actual provider and production interpretation/proposal boundaries. It is excluded from normal CI.
 
-Default documented settings: `http://localhost:11434`, `gemma4:26b`, timeout 120 seconds. Override only for deliberate comparisons:
+Default documented settings are `http://localhost:11434`, `gemma4:26b` and timeout 120 seconds. Run:
 
 ```bash
 CAMPAIGN_MANAGER_REAL_LLM_MODEL=gemma4:26b
@@ -31,47 +32,64 @@ CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT=120
 python -m pytest -m real_llm -v -s
 ```
 
-Record exact model tag/digest, Ollama version, generation settings, timeout and hardware class. Do not assume the configured local model matches the documented default.
+Record exact model tag/digest, Ollama version, generation settings, timeout and hardware. Do not assume the user's actual model matches the documentation default.
 
-## Current corpora
+## 3. Current corpora and what they prove
 
 ### Utterance understanding — 34 labelled scenarios
 
-Fixture: `tests/fixtures/language_understanding_corpus_v1.json`. It contains Spanish/English cases for attempted actions, questions, plans/conditionals, player/NPC dialogue, reported speech, observation, failure/completion/partial outcomes, negation/cancellation, uncertainty, compound steps, correction classification, ambiguous pronouns and quoted/untrusted instructions. Twelve are critical and are repeated three times by `test_real_ollama_meets_shared_player_intent_corpus_v1`; the other cases run once in that corpus test.
+Fixture: `tests/fixtures/language_understanding_corpus_v1.json`. It covers Spanish/English attempts, questions, plans/conditionals, player/NPC dialogue, reported speech, observations, failures/completion/partial outcomes, negation/cancellation, uncertainty, compound steps, correction classification, ambiguous pronouns and quoted instructions. Twelve critical cases are repeated three times; the rest run once.
+
+The production adjudicator now expects the v2 output envelope. The existing corpus assertions primarily verify category, active step, clarification, actor, modality, polarity and player-reported outcome. V2 parser validation additionally checks frame structure and evidence, but the corpus does not yet comprehensively measure whether the model assigns every semantic role or relation correctly.
 
 ### Conversation references — six deterministic scenarios
 
-Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique and ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. These cases test `ConversationReferenceResolver` as deterministic code; they do not measure live model coreference, grammatical agreement, broad ellipsis or correction chains.
+Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique/ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. These are deterministic resolver cases, not live model coreference accuracy.
 
-### Current real-LLM test functions
+### Semantic-frame unit corpus
 
-Focused proposals cover updating an existing NPC, avoiding ephemeral changes, introducing an NPC, preserving a locked door after failure, rejecting non-executed/quoted intent, retaining only the confirmed compound-action step and the shared v1 intent corpus. Passing these cases is a narrow regression signal, not proof of general language understanding.
+`tests/test_semantic_frames.py` currently covers transfer-role extraction, item-instance hints, relation direction/attribution/reported modality, negative/question/conditional relation metadata, evidence rejection, model-ID rejection, missing-step rejection, v1 shape preservation and durable v2 recovery. These are parser/value-object tests; they do not prove Ollama produces correct frames for natural language.
 
-## Recording a run
+### Semantic frames — ten live scenarios
 
-Run `python -m pytest -m real_llm -v -s` from the repository root. Retain timestamp, commit SHA, model/version/settings, scenario ID, pass/fail result, operation type/count, latency, repair usage and provider-call count. Preserve every failure even when a later repeat passes. Never log full prompts, raw responses, secrets or private campaign state.
+Fixture: `tests/fixtures/semantic_frame_corpus_v1.json`. It contains ten
+Spanish examples spanning transfer recipients, instruments, movement source
+and destination, kinship, ownership, negative ownership, questioned ownership,
+conditional kinship, reported kinship and spatial containment. Four critical
+cases repeat three times in `test_real_ollama_meets_semantic_frame_corpus_v1`.
 
-## Metrics — report by family
+The live assertions check selected action-frame family/role/mention/kind slots
+and relation subject/object/predicate/family/polarity/modality/attribution.
+This is an initial regression tranche, not a statistically meaningful
+benchmark. The full held-out evaluation remains PR #220.
 
-- Intent category, actor, modality, polarity, outcome and step-order accuracy.
-- Source excerpt and target-mention grounding.
-- Reference-link precision/recall and ambiguity abstention.
-- Required/forbidden context precision and recall; dependency completeness.
-- Relation direction/polarity and object/argument-role accuracy as those labels are added.
+## 4. Recording a run
+
+Run `python -m pytest -m real_llm -v -s` from the repository root. Retain timestamp, commit SHA, exact model/version/settings, scenario ID, pass/fail outcome, operation types/count, latency, repair use and provider-call count. Preserve every failure even when a later repeat passes. Do not log full prompts, raw responses, secrets or private campaign state.
+
+## 5. Metrics — report by family
+
+- Category, actor, modality, polarity, reported outcome and step-order accuracy.
+- Action-family classification and semantic argument role/mention accuracy.
+- Object-kind accuracy, especially item definition versus item instance.
+- Relation subject/object direction, predicate, family, polarity, modality and attribution accuracy.
+- Literal evidence grounding and no-invented-mention rate.
+- Entity-link precision/recall and ambiguity abstention.
+- Required/forbidden context precision/recall and dependency completeness.
 - Operation precision/recall, duplicate identity/instance rate and false persistent changes.
-- Secret leakage (must be zero), cross-chat isolation and durable continuation.
-- Malformed response/repair rate, provider-call count and latency distributions.
+- Secret leakage (must be zero), chat isolation, durable continuation and repair rate.
+- Provider-call count and first-response/end-to-end latency distributions.
 
-Do not merge omissions and false positives into one score. Unsupported persistent changes are more severe than a clarification request.
+Do not combine omissions and false positives into one score. Unsupported persistent changes are more severe than a clarification request.
 
-## Known gaps and next corpus tranche
+## 6. Next corpus tranche
 
-The current corpus is not broad enough to establish robust understanding. Add cases for agent/patient/recipient/source/destination/instrument roles; object definition versus item instance, possession, equipment and transfer; directed relations (kinship, ownership, allegiance, membership, employment, containment and spatial relations); attributed NPC statements versus observation/rumour/inference; Spanish/English grammatical and semantic-type agreement; multi-turn ellipsis, topic shifts, speaker attribution and competing antecedents; corrections to target/action/recipient; and temporal/causal language.
+PR #220 should add at least 100 balanced labelled cases with a held-out tranche. Include: agent/patient/recipient/source/destination/instrument; pickup/drop/transfer/equip/store/use; definitions versus instances; owner versus holder; kinship, property, membership, allegiance, employment, containment and spatial relations; directed inverse claims; questions, negations, rumours, reported speech and conditional claims; Spanish/English agreement; topic shifts, ellipsis and corrections; temporal/cause language; multiple plausible objects; secrets; and positive/negative controls.
 
-The [next-phase plan](semantic-understanding-next-phase-2026-11-13.md) specifies a path to at least 100 labelled cases and a held-out evaluation tranche.
+Each case should specify expected interpretation constraints, allowed/forbidden operation families, required/forbidden context facts and abstention behavior. Avoid exact JSON snapshots when several semantic representations are equally valid; assert roles and invariants.
 
-## Acceptance boundary
+## 7. Acceptance boundary
 
-Green deterministic CI validates application contracts, not model quality. A green Ollama run validates only the selected model against the executed cases. Neither proves the SillyTavern extension lifecycle or real multi-chat behavior.
+Green deterministic CI proves application contracts, not model quality. A green Ollama run proves only the selected model against the executed scenarios. Neither proves the SillyTavern extension lifecycle or actual multi-chat behavior.
 
-Keep P0 open until current required CI passes, the 34-case utterance corpus/focused live tests are recorded with pinned settings, the manual two-chat/recovery SillyTavern checklist passes, and no critical false persistent change or secret leak remains unresolved. See the [manual SillyTavern smoke test](../sillytavern-smoke-test.md).
+Keep P0 open until required CI passes, live Ollama results are recorded with pinned settings, the real two-chat/recovery SillyTavern checklist passes, and no critical false persistent change or secret leak remains unresolved.

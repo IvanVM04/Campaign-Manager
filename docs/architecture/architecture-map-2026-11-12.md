@@ -20,10 +20,12 @@ PRs #215 and #216 are integrated. Together they deliver the versioned
 `PlayerIntentAnalysis` contract, one shared mechanics/proposal interpretation,
 durable evidence (migration 033), chat-scoped history/continuation (migration
 034), bounded visibility-filtered reference resolution and native Ollama JSON
-Schema generation. Live Ollama and manual multi-chat SillyTavern acceptance
-remain separate gates. Do not start Character Builder or broad gameplay
-expansion until those gates are recorded. See the [P0 specification]
-(../quality/language-understanding-priority-2026-11-13.md).
+Schema generation. PR #217 synchronizes the implementation docs. PR #218's
+branch introduces v2 evidence-bound action frames and directed relation claims,
+with v1 durable decoding preserved; it is not yet merged. Live Ollama and
+manual multi-chat SillyTavern acceptance remain separate gates. Do not start
+Character Builder or broad gameplay expansion until those gates are recorded.
+See the [P0 specification](../quality/language-understanding-priority-2026-11-13.md).
 
 ## How to work in this repository
 
@@ -250,7 +252,7 @@ for indicative module-readiness estimates and hour ranges.
 
 The PR #211 branch introduces `services/context/entity_reference_resolver.py` as the deterministic identity-matching collaborator used by memory retrieval and proposal projection diagnostics. See the [entity reference-resolution contract](../quality/entity-reference-resolution-2026-11-12.md).
 
-The AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PRs #210–#213 strengthen the evidence, references, retrieval and player-intent contract. PR #214 consolidates event provenance, active-character visibility, temporal supersession and committed-only narration grounding across the read/turn boundary. This does not justify a vector database, another extraction pipeline or a monolithic prompt.
+The AI-quality phase is tracked in the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md). PRs #210–#217 establish renderer/retrieval, shared interpretation, provenance, chat isolation and synchronized docs. PR #218's implementation branch adds typed action arguments, object-kind hints and directed evidence-bound relation claims. It preserves v1 decoding and the deterministic authority boundaries; it does not justify a vector database, another extraction pipeline or a monolithic prompt.
 
 ## Current proposal assessment
 

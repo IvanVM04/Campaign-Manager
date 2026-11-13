@@ -178,7 +178,7 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response(monkeypa
     player_input = "Cruzo la plaza."
     provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": {
-            "schema_version": 1,
+            "schema_version": 2,
             "category": "action",
             "steps": [{
                 "index": 0,
@@ -190,10 +190,18 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response(monkeypa
                 "reported_outcome": "not_claimed",
                 "target_mentions": ["la plaza"],
                 "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Cruzo",
+                    "family": "movement",
+                    "arguments": [
+                        {"role": "destination", "mention": {"text": "la plaza", "kind_hint": "location"}}
+                    ],
+                },
             }],
             "active_step_index": 0,
             "requires_clarification": False,
             "clarification_question": None,
+            "relation_claims": [],
         },
         "mechanics_decision": {"decision": "none"},
     }))
@@ -223,6 +231,11 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response(monkeypa
         "intent_analysis",
         "mechanics_decision",
     ]
+    intent_schema = structured_call["schema"]["properties"]["intent_analysis"]
+    assert intent_schema["properties"]["schema_version"]["const"] == 2
+    assert "relation_claims" in intent_schema["required"]
+    step_schema = intent_schema["properties"]["steps"]["items"]
+    assert "action_frame" in step_schema["required"]
 
 
 def test_clarification_questions_are_context_but_not_player_source_evidence():
@@ -233,7 +246,7 @@ def test_clarification_questions_are_context_but_not_player_source_evidence():
     evidence = "Abro la puerta.\\nla puerta de roble."
     response = json.dumps({
         "intent_analysis": {
-            "schema_version": 1,
+            "schema_version": 2,
             "category": "action",
             "steps": [{
                 "index": 0,
@@ -245,10 +258,18 @@ def test_clarification_questions_are_context_but_not_player_source_evidence():
                 "reported_outcome": "not_claimed",
                 "target_mentions": ["la puerta de roble"],
                 "attributed_to": None,
+                "action_frame": {
+                    "predicate": "puerta",
+                    "family": "interaction",
+                    "arguments": [
+                        {"role": "theme", "mention": {"text": "la puerta de roble", "kind_hint": "world_entity"}}
+                    ],
+                },
             }],
             "active_step_index": 0,
             "requires_clarification": False,
             "clarification_question": None,
+            "relation_claims": [],
         },
         "mechanics_decision": {"decision": "none"},
     })
@@ -295,7 +316,7 @@ def test_production_understand_fails_closed_when_provider_omits_intent_v1():
 def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
     response = json.dumps({
         "intent_analysis": {
-            "schema_version": 1,
+            "schema_version": 2,
             "category": "action",
             "steps": [{
                 "index": 0,
@@ -307,10 +328,18 @@ def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
                 "reported_outcome": "not_claimed",
                 "target_mentions": ["la puerta"],
                 "attributed_to": None,
+                "action_frame": {
+                    "predicate": "abre",
+                    "family": "interaction",
+                    "arguments": [
+                        {"role": "theme", "mention": {"text": "la puerta", "kind_hint": "world_entity"}}
+                    ],
+                },
             }],
             "active_step_index": 0,
             "requires_clarification": False,
             "clarification_question": None,
+            "relation_claims": [],
         },
         "mechanics_decision": {"decision": "none"},
     })
@@ -334,7 +363,7 @@ def test_mechanics_adjudicator_bounds_context_without_truncating_player_evidence
     )
     response = json.dumps({
         "intent_analysis": {
-            "schema_version": 1,
+            "schema_version": 2,
             "category": "action",
             "steps": [{
                 "index": 0,
@@ -346,10 +375,18 @@ def test_mechanics_adjudicator_bounds_context_without_truncating_player_evidence
                 "reported_outcome": "not_claimed",
                 "target_mentions": ["la puerta"],
                 "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Abro",
+                    "family": "interaction",
+                    "arguments": [
+                        {"role": "theme", "mention": {"text": "la puerta", "kind_hint": "world_entity"}}
+                    ],
+                },
             }],
             "active_step_index": 0,
             "requires_clarification": False,
             "clarification_question": None,
+            "relation_claims": [],
         },
         "mechanics_decision": {"decision": "none"},
     })

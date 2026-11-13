@@ -309,3 +309,112 @@ def test_real_ollama_meets_shared_player_intent_corpus_v1(record_property):
         f"provider_calls={provider_calls}; elapsed_seconds={elapsed:.3f}"
     )
 
+
+
+def test_real_ollama_meets_semantic_frame_corpus_v1(record_property):
+    """Evaluate action roles and relation semantics against the local model."""
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "semantic_frame_corpus_v1.json"
+    )
+    corpus = json.loads(fixture_path.read_text(encoding="utf-8"))
+    assert corpus["schema_version"] == 1
+    scenarios = corpus["scenarios"]
+    assert len(scenarios) >= 10
+
+    context = TurnContext(
+        campaign=CampaignState(),
+        current_session=None,
+        active_character=CharacterState(entity_id=99002),
+        world=WorldState(),
+    )
+    adjudicator = make_adjudicator()
+    model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
+    started = perf_counter()
+    provider_calls = 0
+
+    for scenario in scenarios:
+        repetitions = 3 if scenario["critical"] else 1
+        for _ in range(repetitions):
+            analysis, _decision = adjudicator.understand(
+                context,
+                scenario["input"],
+            )
+            provider_calls += 1
+            assert analysis.schema_version == 2, scenario["id"]
+
+            expected_frame = scenario.get("expected_action_frame")
+            if expected_frame is not None:
+                frames = [
+                    step.action_frame
+                    for step in analysis.steps
+                    if step.action_frame is not None
+                ]
+                assert frames, scenario["id"]
+                matching_frames = [
+                    frame
+                    for frame in frames
+                    if (
+                        "family" not in expected_frame
+                        or frame.family.value == expected_frame["family"]
+                    )
+                ]
+                assert matching_frames, scenario["id"]
+                for expected_argument in expected_frame["arguments"]:
+                    assert any(
+                        argument.role.value == expected_argument["role"]
+                        and argument.mention.text.casefold()
+                        == expected_argument["mention"].casefold()
+                        and argument.mention.kind_hint.value
+                        == expected_argument["kind_hint"]
+                        for frame in matching_frames
+                        for argument in frame.arguments
+                    ), f'{scenario["id"]}: {expected_argument}'
+
+            expected_relation = scenario.get("expected_relation")
+            if expected_relation is not None:
+                claims = analysis.relation_claims
+                assert claims, scenario["id"]
+                assert any(
+                    claim.subject.text.casefold()
+                    == expected_relation["subject"].casefold()
+                    and claim.object.text.casefold()
+                    == expected_relation["object"].casefold()
+                    and (
+                        "predicate" not in expected_relation
+                        or claim.predicate.casefold()
+                        == expected_relation["predicate"].casefold()
+                    )
+                    and (
+                        "relation_family" not in expected_relation
+                        or claim.relation_family.value
+                        == expected_relation["relation_family"]
+                    )
+                    and (
+                        "polarity" not in expected_relation
+                        or claim.polarity.value == expected_relation["polarity"]
+                    )
+                    and (
+                        "modality" not in expected_relation
+                        or claim.modality.value == expected_relation["modality"]
+                    )
+                    and (
+                        "attributed_to" not in expected_relation
+                        or (
+                            claim.attributed_to is not None
+                            and claim.attributed_to.text.casefold()
+                            == expected_relation["attributed_to"].casefold()
+                        )
+                    )
+                    for claim in claims
+                ), f'{scenario["id"]}: {expected_relation}'
+
+    elapsed = perf_counter() - started
+    record_property("semantic_frame_model", model)
+    record_property("semantic_frame_scenarios", len(scenarios))
+    record_property("semantic_frame_provider_calls", provider_calls)
+    record_property("semantic_frame_total_seconds", round(elapsed, 3))
+    print(
+        "Semantic-frame corpus: "
+        f"model={model}; scenarios={len(scenarios)}; "
+        f"provider_calls={provider_calls}; elapsed_seconds={elapsed:.3f}"
+    )

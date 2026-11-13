@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "description": "Spanish-first live semantic-frame evaluation corpus. Expected values are semantic constraints, not complete JSON snapshots. Run only with an explicitly configured local Ollama model.",
+  "scenarios": [
+    {
+      "id": "transfer-key-to-recipient",
+      "input": "Entrego la llave de hierro a Mara.",
+      "critical": true,
+      "expected_action_frame": {
+        "family": "transfer",
+        "arguments": [
+          {"role": "theme", "mention": "la llave de hierro", "kind_hint": "item_instance"},
+          {"role": "recipient", "mention": "Mara", "kind_hint": "character"}
+        ]
+      }
+    },
+    {
+      "id": "use-key-as-instrument",
+      "input": "Abro el cofre con la llave de hierro.",
+      "critical": false,
+      "expected_action_frame": {
+        "arguments": [
+          {"role": "theme", "mention": "el cofre", "kind_hint": "world_entity"},
+          {"role": "instrument", "mention": "la llave de hierro", "kind_hint": "item_instance"}
+        ]
+      }
+    },
+    {
+      "id": "movement-source-destination",
+      "input": "Camino desde el patio hasta la torre.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "movement",
+        "arguments": [
+          {"role": "source", "mention": "el patio", "kind_hint": "location"},
+          {"role": "destination", "mention": "la torre", "kind_hint": "location"}
+        ]
+      }
+    },
+    {
+      "id": "kinship-directed-relation",
+      "input": "Mara es hermana de Aldric.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "Mara",
+        "object": "Aldric",
+        "predicate": "hermana",
+        "relation_family": "kinship",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "ownership-directed-relation",
+      "input": "La llave de hierro pertenece a Mara.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "La llave de hierro",
+        "object": "Mara",
+        "relation_family": "ownership",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "negative-ownership-claim",
+      "input": "Mara no es dueña de la llave de hierro.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "Mara",
+        "object": "la llave de hierro",
+        "predicate": "dueña",
+        "relation_family": "ownership",
+        "polarity": "negative",
+        "modality": "negated"
+      }
+    },
+    {
+      "id": "questioned-ownership",
+      "input": "¿La llave de hierro pertenece a Mara?",
+      "critical": false,
+      "expected_relation": {
+        "subject": "La llave de hierro",
+        "object": "Mara",
+        "relation_family": "ownership",
+        "modality": "question"
+      }
+    },
+    {
+      "id": "conditional-kinship",
+      "input": "Si Mara fuera hermana de Aldric, podría heredar la posada.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "Mara",
+        "object": "Aldric",
+        "predicate": "hermana",
+        "relation_family": "kinship",
+        "modality": "conditional"
+      }
+    },
+    {
+      "id": "reported-kinship",
+      "input": "Aldric afirma que Mara es hermana de Bram.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "Mara",
+        "object": "Bram",
+        "predicate": "hermana",
+        "relation_family": "kinship",
+        "modality": "reported",
+        "attributed_to": "Aldric"
+      }
+    },
+    {
+      "id": "spatial-containment",
+      "input": "La llave de hierro está dentro del cofre.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "La llave de hierro",
+        "object": "el cofre",
+        "relation_family": "containment",
+        "polarity": "positive"
+      }
+    }
+  ]
+}
