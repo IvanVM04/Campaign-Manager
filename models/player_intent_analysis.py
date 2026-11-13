@@ -250,7 +250,7 @@ class PlayerIntentAnalysis:
         conditional = bool(re.search(r"\b(si|cuando|en caso de que|if|when|suppose)\b", folded))
         planned = bool(re.search(r"\b(mañana|luego|después|planeo|pienso|quiero|me gustaría|voy a|haré|tomorrow|later|plan to|i will|i want to)\b", folded))
         quoted = any(mark in text for mark in ('"', "“", "”", "«", "»"))
-        failure = bool(re.search(r"\b(no pude|no conseguí|no consegui|fallé|falle|fracasé|fracase|falló|fallo|failed|could not|couldn't)\b", folded))
+        failure = bool(re.search(r"\b(no pude|no consigo|no logré|no logre|no conseguí|no consegui|fallé|falle|fracasé|fracase|falló|fallo|failed|could not|couldn't)\b", folded))
         negated = bool(re.search(r"\b(no|nunca|jamás|jamas|not|never)\b", folded)) and not failure
         if question:
             category, modality = UtteranceCategory.QUESTION, IntentModality.QUESTION
