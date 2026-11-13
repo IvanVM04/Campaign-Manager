@@ -1,13 +1,12 @@
 """Versioned, evidence-bound semantic interpretation of a player utterance."""
 from __future__ import annotations
 
+import dataclasses
+import enum
 import json
 import re
+import typing
 import unicodedata
-
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any
 
 
 SCHEMA_VERSION = 1
@@ -15,7 +14,7 @@ MAX_STEPS = 8
 MAX_TARGETS_PER_STEP = 6
 
 
-class UtteranceCategory(str, Enum):
+class UtteranceCategory(str, enum.Enum):
     ACTION = "action"
     QUESTION = "question"
     DIALOGUE = "dialogue"
@@ -61,7 +60,7 @@ class PlayerReportedOutcome(str, Enum):
     UNCERTAIN = "uncertain"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class IntentStep:
     index: int
     source_excerpt: str
@@ -73,7 +72,7 @@ class IntentStep:
     target_mentions: tuple[str, ...] = ()
     attributed_to: str | None = None
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, typing.Any]:
         return {
             "index": self.index,
             "source_excerpt": self.source_excerpt,
