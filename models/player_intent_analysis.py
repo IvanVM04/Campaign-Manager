@@ -112,6 +112,18 @@ class PlayerIntentAnalysis:
             or not 0 <= self.active_step_index < len(self.steps)
         ):
             raise ValueError("active_step_index must reference an existing step")
+        resolved_modalities = {
+            IntentModality.COMPLETED,
+            IntentModality.OBSERVED,
+            IntentModality.REPORTED,
+            IntentModality.CORRECTION,
+        }
+        if self.active_step_index is not None and any(
+            previous.modality not in resolved_modalities
+            or previous.polarity is not IntentPolarity.POSITIVE
+            for previous in self.steps[: self.active_step_index]
+        ):
+            raise ValueError("active step cannot skip an earlier unresolved step")
         if not isinstance(self.requires_clarification, bool):
             raise TypeError("requires_clarification must be a boolean")
         if self.requires_clarification:
