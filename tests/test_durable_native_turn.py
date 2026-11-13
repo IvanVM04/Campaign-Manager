@@ -446,13 +446,13 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     original_context_and_history = service._context_and_history
     context_calls = {"count": 0}
 
-    def fail_once_after_commit(conn):
+    def fail_once_after_commit(conn, *, conversation_id=None):
         context_calls["count"] += 1
         # Calls 1 and 2 build/validate the plan; call 3 is the context
         # reload for narration, after the consequences have been committed.
         if context_calls["count"] == 3:
             raise RuntimeError("temporary context read failure")
-        return original_context_and_history(conn)
+        return original_context_and_history(conn, conversation_id=conversation_id)
 
     monkeypatch.setattr(service, "_context_and_history", fail_once_after_commit)
 
