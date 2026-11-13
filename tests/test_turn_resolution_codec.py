@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from models.player_intent_analysis import PlayerIntentAnalysis
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
-from models.player_intent_analysis import PlayerIntentAnalysis
 from operations.world_operations import CreateEntityOperation
 from services.llm_world.operation_parser import OperationParser
 from services.turns import TurnResolutionCodec
@@ -153,7 +153,7 @@ def test_intent_codec_rejects_analysis_not_bound_to_original_request():
         "schema_version": 1,
         "source_text": "Abro una ventana.",
         "source_sha256": hashlib.sha256(
-            "Abro una ventana.".encode("utf-8")
+            b"Abro una ventana."
         ).hexdigest(),
         "analysis": {
             "schema_version": 1,
