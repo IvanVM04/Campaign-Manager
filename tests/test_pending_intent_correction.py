@@ -72,7 +72,7 @@ def test_target_correction_changes_only_the_selected_pending_step():
     )
     assert updated.steps[0].target_mentions == ("la llave de hierro", "Aldric")
     assert original.steps[0].target_mentions[-1] == "Mara"
-    assert updated.steps[0].action_frame == original.steps[0].action_frame
+    assert updated.steps[0].action_frame.arguments[1].mention.text == "Aldric"
 
 
 def test_argument_correction_updates_role_and_keeps_other_arguments():
@@ -168,3 +168,59 @@ def test_correction_rejects_stale_step_and_ungrounded_excerpt():
             resolution_pending=True,
             committed=False,
         )
+
+def test_relation_endpoint_correction_updates_only_the_selected_claim():
+    source = "Mara es dueña de la llave."
+    payload = {
+        "schema_version": 2,
+        "category": "report",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "afirmar propiedad",
+            "modality": "observed",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["Mara", "la llave"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "es",
+                "family": "other",
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "Mara", "kind_hint": "character"},
+            "predicate": "dueña",
+            "object": {"text": "la llave", "kind_hint": "item_instance"},
+            "relation_family": "ownership",
+            "polarity": "positive",
+            "modality": "observed",
+            "source_excerpt": source,
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    original = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+    correction = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.RELATION_SUBJECT,
+        previous_value="Mara",
+        replacement=replacement("Aldric"),
+        source_excerpt="No, Aldric es el dueño de la llave.",
+        relation_claim_index=0,
+    )
+    updated = correction.apply(
+        original,
+        player_evidence_text=source + " No, Aldric es el dueño de la llave.",
+        resolution_pending=True,
+        committed=False,
+    )
+    assert updated.relation_claims[0].subject.text == "Aldric"
+    assert updated.relation_claims[0].object.text == "la llave"
+    assert original.relation_claims[0].subject.text == "Mara"
