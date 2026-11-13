@@ -223,6 +223,11 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response(monkeypa
         "intent_analysis",
         "mechanics_decision",
     ]
+    intent_schema = structured_call["schema"]["properties"]["intent_analysis"]
+    assert intent_schema["properties"]["schema_version"]["const"] == 2
+    assert "relation_claims" in intent_schema["required"]
+    step_schema = intent_schema["properties"]["steps"]["items"]
+    assert "action_frame" in step_schema["required"]
 
 
 def test_clarification_questions_are_context_but_not_player_source_evidence():
