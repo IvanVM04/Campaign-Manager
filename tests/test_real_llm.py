@@ -1,8 +1,12 @@
+import json
 import os
+from pathlib import Path
+from time import perf_counter
 
 import pytest
 
 from models.campaign_state import CampaignState
+from models.character_state import CharacterState
 from models.entity import Entity
 from models.turn_context import TurnContext
 from models.world_state import WorldState
@@ -13,6 +17,7 @@ from operations.world_operations import (
 from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
+from services.turns.mechanics_adjudicator import MechanicsAdjudicator
 
 pytestmark = pytest.mark.real_llm
 
@@ -207,3 +212,89 @@ def test_real_ollama_keeps_only_the_confirmed_step_in_a_compound_action():
     ).casefold()
     assert "cicatriz" in updated_facts
     assert "dragón" in updated_facts
+
+
+def make_adjudicator() -> MechanicsAdjudicator:
+    provider = OllamaProvider(
+        model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            OllamaProvider.DEFAULT_BASE_URL,
+        ),
+        timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+    )
+    return MechanicsAdjudicator(provider=provider)
+
+
+def test_real_ollama_meets_shared_player_intent_corpus_v1(record_property):
+    """Evaluate the actual combined mechanics/intent response, not only prompts."""
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "language_understanding_corpus_v1.json"
+    )
+    corpus = json.loads(fixture_path.read_text(encoding="utf-8"))
+    assert corpus["schema_version"] == 1
+    scenarios = corpus["scenarios"]
+    assert len(scenarios) >= 30
+
+    context = TurnContext(
+        campaign=CampaignState(),
+        current_session=None,
+        active_character=CharacterState(entity_id=99001),
+        world=WorldState(),
+    )
+    adjudicator = make_adjudicator()
+    model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
+    started = perf_counter()
+    provider_calls = 0
+
+    for scenario in scenarios:
+        repetitions = 3 if scenario["critical"] else 1
+        for _ in range(repetitions):
+            analysis, _decision = adjudicator.understand(
+                context,
+                scenario["input"],
+            )
+            provider_calls += 1
+            expected = scenario["expected"]
+
+            assert analysis.category.value == expected["category"], scenario["id"]
+            assert analysis.active_step_index == expected["active_step_index"], scenario["id"]
+            assert analysis.requires_clarification is expected["requires_clarification"], scenario["id"]
+
+            target_index = (
+                analysis.active_step_index
+                if analysis.active_step_index is not None
+                else 0
+            )
+            assert analysis.steps, scenario["id"]
+            step = analysis.steps[target_index]
+            for field, value in expected["step"].items():
+                observed = getattr(step, field)
+                observed = observed.value if hasattr(observed, "value") else observed
+                assert observed == value, f"{scenario['id']}: {field}"
+
+            if "first_step" in expected:
+                assert len(analysis.steps) >= 2, scenario["id"]
+                for field, value in expected["first_step"].items():
+                    observed = getattr(analysis.steps[0], field)
+                    observed = observed.value if hasattr(observed, "value") else observed
+                    assert observed == value, f"{scenario['id']}: first {field}"
+
+            if "later_step" in expected:
+                assert len(analysis.steps) >= 2, scenario["id"]
+                for field, value in expected["later_step"].items():
+                    observed = getattr(analysis.steps[1], field)
+                    observed = observed.value if hasattr(observed, "value") else observed
+                    assert observed == value, f"{scenario['id']}: later {field}"
+
+    elapsed = perf_counter() - started
+    record_property("language_understanding_model", model)
+    record_property("language_understanding_scenarios", len(scenarios))
+    record_property("language_understanding_provider_calls", provider_calls)
+    record_property("language_understanding_total_seconds", round(elapsed, 3))
+    print(
+        "Shared language corpus: "
+        f"model={model}; scenarios={len(scenarios)}; "
+        f"provider_calls={provider_calls}; elapsed_seconds={elapsed:.3f}"
+    )
+
