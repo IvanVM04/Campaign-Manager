@@ -188,7 +188,7 @@ class DurableTurnClarificationSubmissionService:
                             expected_state="planning", expected_lease_token=token,
                             updates={
                                 "context_revision": revision,
-                                "intent_json": service._intent_to_json(plan),
+                                "intent_json": TurnResolutionCodec.intent_to_json(plan),
                                 "adjudication_json": json.dumps({
                                     "manual_roll": manual_pending,
                                     "dice_mode": "manual",
