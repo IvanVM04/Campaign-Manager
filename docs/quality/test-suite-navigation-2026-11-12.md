@@ -78,3 +78,14 @@ Already covered deterministically:
 Campaign deletion/configuration-triggered invalidation and cache eviction remain deferred because those lifecycle requirements are not part of the current single-process product contract. Do not add TTL/LRU without measured cache pressure and an explicit in-flight request policy.
 
 No test deletion or production behavior change was part of PR #205.
+
+
+## Shared language understanding and conversation continuity
+
+| Module | Protected behavior |
+|---|---|
+| `tests/test_conversation_reference_resolver.py` | Deterministic multi-turn antecedent selection, same-object/other-role references, visibility filtering and ambiguity abstention. |
+| `tests/test_conversation_understanding_corpus.py` + `tests/fixtures/conversation_understanding_corpus_v2.json` | Versioned labelled scenarios for unique/ambiguous pronouns, same-object references, hidden antecedents and new proper names. Literal target mentions must occur in the player utterance. |
+| `tests/test_mechanics_adjudicator.py` | One shared typed intent/mechanics response and use of the combined Ollama JSON Schema capability. |
+| `tests/test_silly_tavern_api.py` + `tests/test_silly_tavern_schemas.py` | Required chat identity validation and propagation through context, resolve, clarification and manual-roll routes. |
+| `tests/test_migrations.py` | Normal registry runner reaches schema version 34 and creates conversation-scope columns/indexes. |

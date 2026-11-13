@@ -104,6 +104,7 @@ async function getCampaignManagerGenerationContext(
                     ...retrievalRequest,
                     player_input: normalizedPlayerInput,
                     external_turn_id: externalTurnId,
+                    conversation_id: getCurrentChatId(),
                     dice_mode: diceMode,
                 }),
             },
@@ -988,6 +989,7 @@ async function testConnection() {
 
                     body: JSON.stringify({
                         query: query,
+                        conversation_id: getCurrentChatId(),
                     }),
                 },
             );
@@ -1374,6 +1376,7 @@ async function submitCampaignManagerManualRoll(origin, answer) {
             pending_roll_id: origin.pendingRollId,
             rolls: origin.rolls,
             answer_external_turn_id: await createStableTurnId(getLatestUserMessage()),
+            conversation_id: getCurrentChatId(),
             ...retrievalRequest,
         }),
     });
@@ -1430,6 +1433,7 @@ async function getCampaignManagerClarificationContext(
                     clarificationOrigin.pendingClarificationId,
                 answer,
                 answer_external_turn_id: answerExternalTurnId,
+                conversation_id: getCurrentChatId(),
                 ...retrievalRequest,
             }),
         },

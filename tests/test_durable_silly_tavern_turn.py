@@ -482,6 +482,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     prepared = service.prepare_external_turn(
         "Investigo el campanario.",
         external_turn_id="st-world-continuity-001",
+        conversation_id="st-chat-world-continuity",
     )
     assert prepared.lifecycle_state == "narration_pending"
     assert len(proposal_calls) == 1
@@ -489,6 +490,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     duplicate = service.prepare_external_turn(
         "Investigo el campanario.",
         external_turn_id="st-world-continuity-001",
+        conversation_id="st-chat-world-continuity",
     )
     assert duplicate.resolution_id == prepared.resolution_id
     assert len(proposal_calls) == 1
@@ -521,6 +523,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     next_preparation = reloaded_service.prepare_external_turn(
         "Le pregunto a Mara si sabe algo de la campana.",
         external_turn_id="st-world-continuity-002",
+        conversation_id="st-chat-world-continuity",
     )
 
     assert next_preparation.lifecycle_state == "narration_pending"

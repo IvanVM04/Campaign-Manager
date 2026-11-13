@@ -4,6 +4,10 @@ from .context_builder import ContextBuilder
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
 from .context_renderer import ContextRenderer
+from .conversation_reference_resolver import (
+    ConversationReferenceResolution,
+    ConversationReferenceResolver,
+)
 from .entity_reference_resolver import (
     EntityReferenceCandidate,
     EntityReferenceResolution,
@@ -20,6 +24,8 @@ __all__ = [
     "ContextExpander",
     "ContextRanker",
     "ContextRenderer",
+    "ConversationReferenceResolution",
+    "ConversationReferenceResolver",
     "EntityReferenceCandidate",
     "EntityReferenceResolution",
     "EntityReferenceResolver",

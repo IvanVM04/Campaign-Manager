@@ -47,9 +47,14 @@ class SillyTavernContextAdapter:
         *,
         additional_queries: tuple[str, ...] | list[str] = (),
         exclude_external_turn_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> dict:
         """Build context from a primary action and independent supplemental signals."""
         normalized_query = self._validate_text(query, "query")
+        if conversation_id is not None:
+            conversation_id = self._validate_text(conversation_id, "conversation_id")
+            if len(conversation_id) > 500:
+                raise ValueError("conversation_id must not exceed 500 characters")
         normalized_additional_queries = self._validate_additional_queries(
             additional_queries,
             primary_query=normalized_query,
@@ -80,10 +85,15 @@ class SillyTavernContextAdapter:
         )
 
         try:
-            recent_turns = self.turn_repository.list_recent_active_turns(
-                session_id=session_id,
-                limit=10,
-                scope=self.campaign_scope,
+            recent_turns = (
+                self.turn_repository.list_recent_active_turns(
+                    session_id=session_id,
+                    conversation_id=conversation_id,
+                    limit=10,
+                    scope=self.campaign_scope,
+                )
+                if conversation_id is not None
+                else []
             )
             if exclude_external_turn_id is not None:
                 recent_turns = [

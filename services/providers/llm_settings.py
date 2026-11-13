@@ -23,6 +23,8 @@ class LLMSettings:
     narrative_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     extraction_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     mechanics_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
+    mechanics_prompt_max_tokens: int = 8192
+    mechanics_context_max_tokens: int = 4096
     extraction_prompt_max_tokens: int = 8192
     extraction_context_max_tokens: int = 4096
     extraction_max_response_chars: int = 16000
@@ -79,6 +81,8 @@ class LLMSettings:
             "extraction_context_max_tokens",
             "extraction_max_response_chars",
             "extraction_repair_max_tokens",
+            "mechanics_prompt_max_tokens",
+            "mechanics_context_max_tokens",
         ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
@@ -89,6 +93,10 @@ class LLMSettings:
         if self.extraction_context_max_tokens > self.extraction_prompt_max_tokens:
             raise ValueError(
                 "extraction_context_max_tokens cannot exceed extraction_prompt_max_tokens"
+            )
+        if self.mechanics_context_max_tokens > self.mechanics_prompt_max_tokens:
+            raise ValueError(
+                "mechanics_context_max_tokens cannot exceed mechanics_prompt_max_tokens"
             )
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> LLMSettings:
@@ -157,6 +165,14 @@ class LLMSettings:
             extraction_repair_max_tokens=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
                 defaults.extraction_repair_max_tokens,
+            ),
+            mechanics_prompt_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
+                defaults.mechanics_prompt_max_tokens,
+            ),
+            mechanics_context_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
+                defaults.mechanics_context_max_tokens,
             ),
         )
 

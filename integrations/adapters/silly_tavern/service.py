@@ -27,11 +27,13 @@ class SillyTavernIntegrationService:
         *,
         additional_queries: tuple[str, ...] | list[str] = (),
         exclude_external_turn_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> dict:
         return self.context_adapter.get_context(
             query,
             additional_queries=additional_queries,
             exclude_external_turn_id=exclude_external_turn_id,
+            conversation_id=conversation_id,
         )
 
     def get_external_turn_state(self, external_turn_id: str) -> dict:

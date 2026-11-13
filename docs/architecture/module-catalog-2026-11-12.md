@@ -21,7 +21,7 @@
 | `bootstrap/__init__.py` | Public package surface for runtime composition. | Export only stable composition contracts. |
 | `bootstrap/campaign_runtime.py` | `CampaignRuntimeFactory`, request runtime graph, per-campaign cache and dependency wiring. | Shutdown and selective invalidation are implemented/tested (PR #203). Preserve the single composition root; defer deletion/configuration hooks until those lifecycle operations exist, and defer LRU/TTL eviction until measured cache pressure and an in-flight request policy justify it. |
 | `database.py` | SQLite connection helpers, transaction boundaries and database initialization. | Keep connection and transaction ownership explicit. Review nested transaction behavior and shared-connection assumptions before adding repository conveniences. |
-| `migrations.py` | Historical migration functions 001–030 plus contiguous `MIGRATIONS` metadata/runner registry. | Do not move or rewrite old functions casually. Use the [migration catalogue](migration-catalog-2026-11-12.md); preserve idempotency, foreign keys and historical data. |
+| `migrations.py` | Historical migration functions 001–034 plus contiguous `MIGRATIONS` metadata/runner registry. | Do not move or rewrite old functions casually. Use the [migration catalogue](migration-catalog-2026-11-12.md); preserve idempotency, foreign keys and historical data. |
 | `start.bat` | Local Windows startup entrypoint. | Keep aligned with the documented install/run path; avoid embedding configuration defaults that differ from application settings. |
 | `scripts/bootstrap_demo.py` | Creates deterministic demo campaign/world content. | Keep demo data reproducible and safe to run against an explicitly selected database. Add assertions for idempotency/reset semantics before changing it. |
 | `scripts/ci/coverage_summary.py` | Converts coverage XML into package-level CI summary data. | Keep report-only policy separate from test execution. Validate missing/empty coverage inputs and keep package aggregation deterministic. |
@@ -244,3 +244,10 @@ character-state/rest slice is PR #204; test organization is PR #205. The
 [engineering readiness and gameplay roadmap](engineering-readiness-and-gameplay-roadmap-2026-11-12.md)
 records the planning estimates and the distinction between structural
 readiness and functional breadth.
+
+
+## Conversation understanding — new context service
+
+| Path | Current responsibility | Improvement / guard |
+|---|---|---|
+| `services/context/conversation_reference_resolver.py` | Resolves a bounded set of pronoun, same-object and other-role references against recent turns and a visibility-filtered world. | Caller must supply history isolated by conversation and a world projection filtered for the active character. Never accept model-provided entity IDs; abstain on ambiguous, hidden or unsupported references. |

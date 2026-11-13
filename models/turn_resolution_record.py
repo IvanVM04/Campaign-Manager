@@ -27,6 +27,7 @@ class TurnResolutionRecord:
 
     player_input: str = ""
     adapter_namespace: str = "native"
+    conversation_id: str | None = None
     idempotency_key: str = ""
     request_fingerprint: str = ""
 
@@ -81,6 +82,11 @@ class TurnResolutionRecord:
             raise ValueError("idempotency_key must not exceed 500 characters")
         if len(self.request_fingerprint) > 128:
             raise ValueError("request_fingerprint must not exceed 128 characters")
+        if self.conversation_id is not None:
+            if not isinstance(self.conversation_id, str) or not self.conversation_id.strip():
+                raise ValueError("conversation_id must be a non-empty string or None")
+            if len(self.conversation_id) > 500:
+                raise ValueError("conversation_id must not exceed 500 characters")
         if not isinstance(self.lifecycle_state, str) or self.lifecycle_state not in VALID_LIFECYCLE_STATES:
             raise ValueError("invalid lifecycle_state")
         if not isinstance(self.attempt_count, int) or isinstance(self.attempt_count, bool):

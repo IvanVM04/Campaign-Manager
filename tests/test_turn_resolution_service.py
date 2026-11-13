@@ -88,6 +88,7 @@ class RecordingExtractor(LLMWorldExtractor):
         intent_analysis=None,
         recent_turns=None,
         context_projection=None,
+        resolved_references=(),
     ):
         self.received_text = player_intent
         self.received_context = context
@@ -430,6 +431,7 @@ def test_extractor_failure_is_wrapped():
             intent_analysis=None,
             recent_turns=None,
             context_projection=None,
+            resolved_references=(),
         ):
             raise RuntimeError("proposal failed")
 
@@ -475,6 +477,7 @@ def test_invalid_extractor_result_is_rejected():
             intent_analysis=None,
             recent_turns=None,
             context_projection=None,
+            resolved_references=(),
         ):
             return [
                 "not an operation"
@@ -699,6 +702,7 @@ def test_turn_resolution_order():
         intent_analysis=None,
         recent_turns=None,
         context_projection=None,
+        resolved_references=(),
     ):
         order.append("proposer")
         return original_propose(
@@ -820,6 +824,7 @@ def test_turn_resolution_order_with_operation():
         intent_analysis=None,
         recent_turns=None,
         context_projection=None,
+        resolved_references=(),
     ):
         order.append("proposer")
         return original_propose(

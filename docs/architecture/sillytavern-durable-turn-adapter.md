@@ -5,8 +5,10 @@ service. The former narrative-first compatibility route has been removed.
 
 ## Request sequence
 
-1. The generation interceptor identifies the latest user message and derives
-   the stable external turn ID from chat identity and message index.
+1. The generation interceptor identifies the latest user message, reads the
+   current SillyTavern chat ID and derives the stable external turn ID from
+   chat identity and message index. Every context/resolve/continuation request
+   also carries the required `conversation_id`.
 2. Before SillyTavern generates prose, it calls
    `POST /integration/turn/resolve`, including the configured `dice_mode`
    (`automatic` by default, or `manual`).
@@ -58,9 +60,9 @@ skipping a version is rejected.
    original action and checks durable clarification state through
    `GET /integration/turn/{external_turn_id}/clarification`.
 3. It submits the answer to `POST /integration/turn/clarification`, using the
-   original challenge ID. The endpoint resumes the same resolution record and
-   returns either another clarification question or committed resolution
-   evidence.
+   original challenge ID and current `conversation_id`. The backend verifies
+   the challenge belongs to that chat before resuming the resolution and
+   returns another clarification or committed resolution evidence.
 4. Once the resolution is committed, SillyTavern generates the narrative. The
    extension completes the transcript using the original external turn ID and
    original player input, not the clarification answer as a new action.
@@ -109,3 +111,8 @@ opaque submission ID.
 - A generation failure after consequence commit leaves the resolution in
   `narration_pending`; retrying the same external action safely resumes
   narration without applying consequences again.
+
+
+## Conversation isolation
+
+The API requires and propagates the stable `conversation_id` for context retrieval, turn resolution, clarification and manual-roll submissions. Migration 034 stores it on transcript turns and durable resolutions; recent history is filtered by campaign, session and chat. Clarification/manual-roll continuations reject a challenge submitted from another chat. Legacy rows remain nullable and are never assigned a guessed chat identity. The extension must fail closed when it cannot supply the current chat ID.

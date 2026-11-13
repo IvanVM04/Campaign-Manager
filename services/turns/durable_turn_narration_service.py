@@ -159,6 +159,7 @@ class DurableTurnNarrationService:
             all_operations_succeeded=(failed_count == 0),
             world_changed=world_changed,
             external_turn_id=external_turn_id,
+            conversation_id=record.conversation_id,
             version=turn_version,
             status="active",
         )

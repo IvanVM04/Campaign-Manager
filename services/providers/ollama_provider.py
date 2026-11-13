@@ -117,6 +117,38 @@ class OllamaProvider(LLMProvider):
             response
         )
 
+    def generate_structured(
+        self,
+        prompt: str,
+        *,
+        schema: dict[str, Any],
+    ) -> str:
+        """Generate a response constrained by an Ollama JSON Schema.
+
+        This constrains formatting only; callers must still validate semantic
+        content and trust boundaries in their own typed domain models.
+        """
+        if not isinstance(prompt, str):
+            raise TypeError("prompt must be a string")
+        normalized_prompt = prompt.strip()
+        if not normalized_prompt:
+            raise ValueError("prompt must not be empty")
+        if not isinstance(schema, dict) or not schema:
+            raise TypeError("schema must be a non-empty JSON Schema object")
+        try:
+            json.dumps(schema)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("schema must be JSON serializable") from exc
+
+        payload = {
+            "model": self.model,
+            "prompt": normalized_prompt,
+            "stream": False,
+            "format": schema,
+        }
+        response = self._request(payload)
+        return self._extract_response_text(response)
+
     # ============================================================
     # HTTP
     # ============================================================

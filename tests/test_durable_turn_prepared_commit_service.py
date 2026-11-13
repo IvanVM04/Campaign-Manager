@@ -53,7 +53,7 @@ def test_prepared_commit_service_advances_resolution_atomically(monkeypatch):
         resolver=Resolver(),
         revision_repository=RevisionRepository(),
         resolution_repository=ResolutionRepository(),
-        context_loader=lambda _conn: (context, recent),
+        context_loader=lambda _conn, conversation_id=None: (context, recent),
         operation_results_serializer=lambda _result: "[]",
         error_type=DurableNativeTurnError,
     )
@@ -114,7 +114,7 @@ def test_prepared_commit_service_rejects_stale_revision_before_applying(monkeypa
         resolver=Resolver(),
         revision_repository=RevisionRepository(),
         resolution_repository=ResolutionRepository(),
-        context_loader=lambda _conn: (object(), []),
+        context_loader=lambda _conn, conversation_id=None: (object(), []),
         operation_results_serializer=lambda _result: "[]",
         error_type=DurableNativeTurnError,
     )
@@ -170,7 +170,7 @@ def test_prepared_commit_service_does_not_advance_failed_consequences(monkeypatc
         resolver=Resolver(),
         revision_repository=RevisionRepository(),
         resolution_repository=ResolutionRepository(),
-        context_loader=lambda _conn: (context, recent),
+        context_loader=lambda _conn, conversation_id=None: (context, recent),
         operation_results_serializer=lambda _result: "[]",
         error_type=DurableNativeTurnError,
     )
@@ -233,7 +233,7 @@ def test_prepared_commit_service_rejects_stale_context_or_history(
         resolver=Resolver(),
         revision_repository=RevisionRepository(),
         resolution_repository=ResolutionRepository(),
-        context_loader=lambda _conn: (current_context, current_recent),
+        context_loader=lambda _conn, conversation_id=None: (current_context, current_recent),
         operation_results_serializer=lambda _result: "[]",
         error_type=DurableNativeTurnError,
     )

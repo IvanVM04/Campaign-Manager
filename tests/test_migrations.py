@@ -31,6 +31,7 @@ from migrations import (
     migration_031,
     migration_032,
     migration_033,
+    migration_034,
     run_migrations,
 )
 
@@ -1189,6 +1190,11 @@ def test_run_migrations_uses_registry_and_leaves_current_database_unchanged():
 
     run_migrations(conn)
     schema_version = conn.execute("PRAGMA user_version").fetchone()[0]
+    for table in ("turns", "turn_resolutions"):
+        columns = {
+            row["name"] for row in conn.execute(f"PRAGMA table_info({table})")
+        }
+        assert "conversation_id" in columns
     table_count = conn.execute(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
     ).fetchone()[0]
@@ -1210,7 +1216,7 @@ def test_migration_030_backfills_class_hit_dice_without_losing_character_state()
 
     from migrations import MIGRATIONS
 
-    for definition in MIGRATIONS[:-4]:
+    for definition in MIGRATIONS[:-5]:
         definition.apply(conn)
 
     for name, class_name in (
@@ -1489,4 +1495,31 @@ def test_migration_033_persists_intent_json_and_freezes_committed_evidence():
             "UPDATE turn_resolutions SET intent_json='{}' WHERE id=1"
         )
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()
+
+
+def test_migration_034_adds_conversation_scope_columns_and_indexes_idempotently():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    for definition in MIGRATIONS[:-1]:
+        definition.apply(conn)
+
+    migration_034(conn)
+    migration_034(conn)
+
+    for table in ("turns", "turn_resolutions"):
+        columns = {
+            row["name"] for row in conn.execute(f"PRAGMA table_info({table})")
+        }
+        assert "conversation_id" in columns
+
+    turn_indexes = {
+        row["name"] for row in conn.execute("PRAGMA index_list(turns)")
+    }
+    resolution_indexes = {
+        row["name"] for row in conn.execute("PRAGMA index_list(turn_resolutions)")
+    }
+    assert "idx_turns_conversation_history" in turn_indexes
+    assert "idx_turn_resolutions_conversation" in resolution_indexes
     conn.close()

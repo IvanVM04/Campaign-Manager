@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from models.schemas import (
     SillyTavernClarificationIn,
     SillyTavernContextIn,
+    SillyTavernManualRollIn,
     SillyTavernTurnCompleteIn,
 )
 
@@ -14,18 +15,19 @@ def test_silly_tavern_clarification_schema_requires_stable_answer_identity():
         answer="La puerta de roble.",
         answer_external_turn_id="stable-answer-message-id",
         query="Estado actual de la campaña.",
+        conversation_id="st-chat-main",
     )
     assert data.answer_external_turn_id == "stable-answer-message-id"
 
 
 def test_silly_tavern_context_schema_strips_query():
-    data = SillyTavernContextIn(query="  Entro en la taberna.  ")
+    data = SillyTavernContextIn(query="  Entro en la taberna.  ", conversation_id="st-chat-main")
     assert data.query == "Entro en la taberna."
 
 
 def test_silly_tavern_context_schema_rejects_empty_query():
     with pytest.raises(ValidationError):
-        SillyTavernContextIn(query="   ")
+        SillyTavernContextIn(query="   ", conversation_id="st-chat-main")
 
 
 def test_silly_tavern_completion_requires_external_turn_identity():
@@ -60,6 +62,7 @@ def test_silly_tavern_context_schema_normalizes_optional_additional_query():
     data = SillyTavernContextIn(
         query="Me acerco al tabernero.",
         additional_query="  Estado general de campaña.  ",
+        conversation_id="st-chat-main",
     )
     assert data.query == "Me acerco al tabernero."
     assert data.additional_query == "Estado general de campaña."
@@ -69,6 +72,7 @@ def test_silly_tavern_context_schema_omits_blank_additional_query():
     data = SillyTavernContextIn(
         query="Me acerco al tabernero.",
         additional_query="   ",
+        conversation_id="st-chat-main",
     )
     assert data.additional_query is None
 
@@ -81,6 +85,7 @@ def test_silly_tavern_resolve_schema_preserves_primary_and_optional_scope_querie
         external_turn_id="stable-turn-1",
         query="Abro la puerta.",
         additional_query="  Estado general de campaña.  ",
+        conversation_id="st-chat-main",
     )
     assert data.query == "Abro la puerta."
     assert data.additional_query == "Estado general de campaña."
@@ -94,5 +99,17 @@ def test_silly_tavern_resolve_schema_omits_blank_supplemental_query():
         external_turn_id="stable-turn-1",
         query="Abro la puerta.",
         additional_query=" ",
+        conversation_id="st-chat-main",
     )
     assert data.additional_query is None
+
+
+
+def test_silly_tavern_manual_roll_schema_requires_conversation_identity():
+    with pytest.raises(ValidationError):
+        SillyTavernManualRollIn(
+            pending_roll_id="42:challenge-token-long-enough",
+            rolls=[15],
+            query="Estado actual.",
+            answer_external_turn_id="answer-message-id",
+        )

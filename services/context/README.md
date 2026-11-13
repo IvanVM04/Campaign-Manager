@@ -6,6 +6,7 @@ Retrieve, expand, rank, select and render campaign context for application and L
 ## Modules (migrated into this package)
 - memory_search_service.py — deterministic retrieval and active-character-scoped player export.
 - entity_reference_resolver.py — explicit name/alias/role matching with ambiguity abstention.
+- conversation_reference_resolver.py — resolves a bounded subset of pronouns, same-object and other-role references against recent visible turns; abstains on ambiguity.
 - context_builder.py — orchestration facade.
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
@@ -41,7 +42,8 @@ The byte-based budget is an upper bound rather than a model-specific token count
 - [x] Add explicit, bounded entity aliases through the domain, bootstrap API, read model, structured operations and SQLite migration 031 (roadmap PR #211).
 - [x] Resolve canonical names and explicit aliases with accent-insensitive normalization; descriptions and notes remain lower-confidence fallbacks, and ambiguous references return no selected entity IDs.
 - [x] Record resolution status, match kind and candidate count in the detached proposal projection without storing the raw player query.
-- [ ] Add conversation-scoped pronoun/ellipsis resolution only after speaker, visibility and recency rules have an explicit contract.
+- [x] Add conversation-scoped, visibility-filtered deterministic reference resolution with bounded recency and ambiguity abstention (PR #216).
+- [ ] Expand labelled coverage for speaker attribution, correction chains, broader ellipsis and semantic paraphrases; do not claim general coreference.
 - [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
 - [ ] Consider tokenizer-aware accounting only after a provider exposes a reliable tokenizer contract.
 - [x] Keep rendering independent from transport response formatting.
@@ -76,11 +78,12 @@ entity ID. The memory search may still retain the descriptive candidates as
 retrieval evidence; that is not a resolved identity. Explicit name/alias
 collisions remain fail-closed and return no candidate records.
 
-The turn resolver now supplies literal target mentions and a bounded
-selection of recent visible turn text as supplemental retrieval signals. This
-can preserve candidate entities for references such as "the same door", but
-does not make a pronoun a resolved identity. The resolver remains lexical and
-conservative: when several candidates remain plausible, it returns ambiguity
-and the turn must clarify instead of selecting a canonical ID. General
-paraphrase matching and full cross-turn pronoun/ellipsis resolution remain
-open work and require their own labelled evaluation corpus.
+The turn resolver supplies literal target mentions and a bounded selection of
+recent visible turns. The dedicated conversation resolver supports a narrow
+subset of Spanish/English pronouns, same-object references and “other
+[role]” references. It selects only active entities present in the caller's
+visibility-filtered world and only when recent history yields one unique
+antecedent. Multiple candidates, hidden entities and missing evidence remain
+unresolved and require clarification. This is not general natural-language
+coreference: broader ellipsis, correction chains and paraphrases remain open
+and require a labelled evaluation corpus.

@@ -1,6 +1,6 @@
 # Migration catalogue
 
-**Current schema version:** 32  
+**Current schema version:** 34  
 **Execution registry:** `MIGRATIONS` in `migrations.py`  
 **Historical source:** the numbered `migration_NNN` functions remain in their existing chronological order in `migrations.py`.
 
@@ -41,10 +41,13 @@ The registry is the discoverability and execution index. It does not move, rewri
 | 031 | `migration_031` | Persist explicit entity aliases for deterministic reference resolution. |
 | 032 | `migration_032` | Persist event epistemic status, provenance, character visibility, campaign time and supersession references. |
 | 033 | `migration_033` | Persist versioned player-intent analysis plus its exact source text/fingerprint on durable turn resolutions; prevent edits after commit. |
+| 034 | `migration_034` | Persist SillyTavern conversation identity on transcript turns and durable resolutions, with chat-scoped history indexes. |
 
 Migration 031 adds `entities.aliases` as JSON text with an empty-list default; historical entities do not receive inferred aliases. Migration 032 adds typed event metadata with safe legacy defaults (`confirmed`, `gm_authored`, `public`), converts legacy secret events to `gm_only`, and protects source/superseded-event references from crossing campaign boundaries.
 
 Migration 033 adds nullable `turn_resolutions.intent_json` so existing durable records remain readable. New prepared/challenge states store a versioned analysis envelope containing the full source text, a SHA-256 fingerprint and the strict analysis object. A trigger prevents changing intent evidence after a resolution is committed, narration-pending or completed.
+
+Migration 034 adds nullable `conversation_id` columns to `turns` and `turn_resolutions`, preserving historical rows while binding new SillyTavern turns and continuations to one chat. It adds campaign/chat/session history and durable-resolution lookup indexes. The normal registry runner now declares schema version 34.
 
 ## Runner invariants
 

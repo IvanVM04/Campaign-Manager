@@ -19,6 +19,8 @@ def test_llm_settings_preserve_current_defaults():
     assert settings.extraction_context_max_tokens == 4096
     assert settings.extraction_max_response_chars == 16000
     assert settings.extraction_repair_max_tokens == 2048
+    assert settings.mechanics_prompt_max_tokens == 8192
+    assert settings.mechanics_context_max_tokens == 4096
 
 
 def test_llm_settings_read_role_models_and_timeouts_from_environment():
@@ -34,6 +36,8 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS": "5000",
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS": "18000",
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS": "2500",
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS": "7000",
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS": "3000",
     })
 
     assert settings.base_url == "http://127.0.0.1:11435"
@@ -47,6 +51,8 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
     assert settings.extraction_context_max_tokens == 5000
     assert settings.extraction_max_response_chars == 18000
     assert settings.extraction_repair_max_tokens == 2500
+    assert settings.mechanics_prompt_max_tokens == 7000
+    assert settings.mechanics_context_max_tokens == 3000
 
 
 def test_llm_settings_create_distinct_role_providers():
@@ -144,3 +150,12 @@ def test_llm_settings_reject_non_integer_extraction_budget_environment_value():
         LLMSettings.from_env({
             "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS": "many",
         })
+
+
+
+def test_llm_settings_reject_mechanics_context_budget_larger_than_prompt():
+    with pytest.raises(ValueError, match="mechanics_context_max_tokens cannot exceed"):
+        LLMSettings(
+            mechanics_prompt_max_tokens=2048,
+            mechanics_context_max_tokens=4096,
+        )

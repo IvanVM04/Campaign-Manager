@@ -164,7 +164,12 @@ class CampaignRuntimeFactory:
             max_response_chars=self._llm_settings.extraction_max_response_chars,
             max_repair_prompt_tokens=self._llm_settings.extraction_repair_max_tokens,
         )
-        mechanics_adjudicator = MechanicsAdjudicator(mechanics_provider, context_builder)
+        mechanics_adjudicator = MechanicsAdjudicator(
+            mechanics_provider,
+            context_builder,
+            max_prompt_tokens=self._llm_settings.mechanics_prompt_max_tokens,
+            max_context_tokens=self._llm_settings.mechanics_context_max_tokens,
+        )
         turn_resolution_service = TurnResolutionService(
             dm_service=dm_service,
             world_service=world_service,

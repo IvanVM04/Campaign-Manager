@@ -123,9 +123,17 @@ class DurableTurnExecutionService:
 
 
     @staticmethod
-    def _fingerprint(player_input: str, session_id, dice_mode: str) -> str:
+    def _fingerprint(
+        player_input: str,
+        session_id,
+        dice_mode: str,
+        conversation_id: str | None = None,
+    ) -> str:
+        identity = [player_input, session_id, dice_mode]
+        if conversation_id is not None:
+            identity.append(conversation_id)
         raw = json.dumps(
-            [player_input, session_id, dice_mode],
+            identity,
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -152,6 +160,7 @@ class DurableTurnExecutionService:
         *,
         external_turn_id: str,
         dice_mode: str = "automatic",
+        conversation_id: str | None = None,
     ) -> DurableTurnPreparation:
         if not isinstance(external_turn_id, str) or not external_turn_id.strip():
             raise DurableNativeTurnError("external_turn_id must not be empty")
@@ -160,6 +169,18 @@ class DurableTurnExecutionService:
             raise DurableNativeTurnError("dice_mode must be automatic or manual")
         if len(external_turn_id) > 500:
             raise DurableNativeTurnError("external_turn_id must not exceed 500 characters")
+        if conversation_id is None:
+            # Old extensions do not send chat identity. Give each external
+            # turn an isolated scope rather than mixing campaign-wide chats.
+            conversation_id = "legacy-isolated:" + hashlib.sha256(
+                external_turn_id.encode("utf-8")
+            ).hexdigest()
+        if conversation_id is not None:
+            if not isinstance(conversation_id, str) or not conversation_id.strip():
+                raise DurableNativeTurnError("conversation_id must be a non-empty string")
+            conversation_id = conversation_id.strip()
+            if len(conversation_id) > 500:
+                raise DurableNativeTurnError("conversation_id must not exceed 500 characters")
 
         def prepare():
             effective_dice_mode = dice_mode
@@ -193,6 +214,7 @@ class DurableTurnExecutionService:
                 adapter_namespace="sillytavern",
                 defer_narration=True,
                 dice_mode=effective_dice_mode,
+                conversation_id=conversation_id,
             )
             if isinstance(result, TurnResolutionResult) and result.pending_roll_id:
                 record = self.resolution_repository.get_by_idempotency_key(
@@ -241,13 +263,20 @@ class DurableTurnExecutionService:
         adapter_namespace: str = "native",
         defer_narration: bool = False,
         dice_mode: str = "automatic",
+        conversation_id: str | None = None,
     ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
             raise DurableNativeTurnError("player_input must not be empty")
 
         with transaction("DEFERRED") as conn:
-            context, recent = self.context_loader(conn)
+            if conversation_id is None:
+                context, recent = self.context_loader(conn)
+            else:
+                context, recent = self.context_loader(
+                    conn,
+                    conversation_id=conversation_id,
+                )
             revision = self.revision_repository.get_revision(
                 self.scope.campaign_id, conn=conn
             )
@@ -258,7 +287,7 @@ class DurableTurnExecutionService:
         )
         previous_turn_id = recent[-1].id if recent else 0
         fingerprint = self._fingerprint(
-            normalized, session_id, dice_mode
+            normalized, session_id, dice_mode, conversation_id
         )
         fallback_identity = hashlib.sha256(
             f"{fingerprint}:{previous_turn_id}".encode()
@@ -272,8 +301,12 @@ class DurableTurnExecutionService:
                 adapter_namespace, key, scope=self.scope, conn=conn
             )
             if record is not None:
+                if record.conversation_id != conversation_id:
+                    raise DurableNativeTurnError(
+                        "external turn belongs to a different conversation"
+                    )
                 fingerprint = self._fingerprint(
-                    normalized, record.session_id, dice_mode
+                    normalized, record.session_id, dice_mode, record.conversation_id
                 )
                 if record.request_fingerprint != fingerprint:
                     raise DurableNativeTurnError(
@@ -323,6 +356,7 @@ class DurableTurnExecutionService:
                         session_id=session_id,
                         player_input=normalized,
                         adapter_namespace=adapter_namespace,
+                        conversation_id=conversation_id,
                         idempotency_key=key,
                         request_fingerprint=fingerprint,
                     ),
@@ -481,6 +515,7 @@ class DurableTurnExecutionService:
                 context_error_message=(
                     "campaign context changed while the turn was being prepared; retry"
                 ),
+                conversation_id=conversation_id,
             )
             committed_record = self._require_resolution_record(
                 self.resolution_repository.get(

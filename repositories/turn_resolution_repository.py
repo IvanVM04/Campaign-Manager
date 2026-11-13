@@ -12,7 +12,7 @@ class TurnResolutionRepository:
 
     _FIELDS = """
         id, campaign_id, session_id, turn_id, player_input,
-        adapter_namespace, idempotency_key, request_fingerprint,
+        adapter_namespace, conversation_id, idempotency_key, request_fingerprint,
         lifecycle_state, context_revision, resulting_revision, proposal_json, intent_json, adjudication_json,
         mechanics_json, operation_results_json, narrative, attempt_count,
         lease_token, lease_expires_at, last_error_code, created_at,
@@ -56,16 +56,16 @@ class TurnResolutionRepository:
         query = """
             INSERT INTO turn_resolutions (
                 campaign_id, session_id, turn_id, player_input,
-                adapter_namespace, idempotency_key, request_fingerprint,
+                adapter_namespace, conversation_id, idempotency_key, request_fingerprint,
                 lifecycle_state, context_revision, resulting_revision, proposal_json,
                 intent_json, adjudication_json, mechanics_json, operation_results_json,
                 narrative, attempt_count, lease_token, lease_expires_at,
                 last_error_code, committed_at, completed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             record.campaign_id, record.session_id, record.turn_id,
-            record.player_input, record.adapter_namespace,
+            record.player_input, record.adapter_namespace, record.conversation_id,
             record.idempotency_key, record.request_fingerprint,
             record.lifecycle_state, record.context_revision,
             record.resulting_revision, record.proposal_json, record.intent_json,

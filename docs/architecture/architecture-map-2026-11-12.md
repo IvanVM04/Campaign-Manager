@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified base:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` (2026-11-13, PR #214 merged).  
+**Verified base:** `main` at `60def5d19167ccd31ebce82d8f2d1fe4a72c26e0` (2026-11-13, PR #215 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 > **Phase 1 retrieval update — PR #212:** the SillyTavern action is now the
@@ -14,14 +14,16 @@
 
 ## Current P0 — shared language understanding
 
-Implementation is in progress in draft [PR #215](https://github.com/IvanVM04/Campaign-Manager/pull/215)
-and is not yet part of `main`. It introduces the versioned
-`PlayerIntentAnalysis` contract, one shared interpretation for mechanics and
-world proposals, bounded conversation retrieval, and durable analysis
-persistence in migration 033. The 34-case local Ollama corpus exists but has
-not yet been executed; manual SillyTavern acceptance is also pending. Do not
-start Character Builder or broad gameplay expansion until both live gates and
-all CI checks pass. See the [P0 specification](../quality/language-understanding-priority-2026-11-13.md).
+PR #215 merged the versioned `PlayerIntentAnalysis` contract, shared
+mechanics/proposal interpretation and durable evidence persistence (migration
+033); its deterministic tests and CodeQL checks passed. Live Ollama and manual
+SillyTavern acceptance remain open. [PR #216](https://github.com/IvanVM04/Campaign-Manager/pull/216)
+extends this P0 work with a bounded visibility-filtered conversation resolver,
+chat-scoped durable history (migration 034) and native Ollama JSON Schema
+generation. It must pass complete deterministic CI before merge; live model
+and multi-chat SillyTavern acceptance remain separate gates. Do not start
+Character Builder or broad gameplay expansion until the P0 live gates are
+recorded. See the [P0 specification](../quality/language-understanding-priority-2026-11-13.md).
 
 ## How to work in this repository
 
@@ -84,7 +86,7 @@ Critical contracts: turn-resolution lifecycle, durable persistence, idempotency 
 - bootstrap/campaign_runtime.py wires the adapter; durable turn services own all state-changing operations.
 - The supported mutation lifecycle is resolve -> challenge continuation (if needed) -> complete.
 - The narrative-first POST /integration/turn route, LegacySillyTavernTurnService and snapshot restoration have been removed.
-- Migration 029 archives historical snapshots; migration 030 persists character Hit Dice and long-rest campaign-time state; migration 031 (PR #211) adds explicit entity aliases. The branch schema version is 31.
+- Migrations 029–034 archive legacy snapshots, persist character rest data, aliases and event epistemic metadata, save shared intent evidence, and add SillyTavern chat identity. The branch schema version is 34.
 
 ### Combat attack
 

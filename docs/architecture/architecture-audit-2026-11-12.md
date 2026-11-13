@@ -124,3 +124,12 @@ Do not recreate retired paths. Any future external integration must call the dur
 Every implementation PR starts from the latest integrated `main`, has one coherent architectural objective, searches production/tests/scripts/docs for all affected consumers, preserves contracts/campaign scope/idempotency/transaction ownership, updates package and global docs, and passes Ruff, deterministic Python tests, JavaScript tests, required Pyright scopes, repository-wide Pyright and both CodeQL checks. Live Ollama and manual SillyTavern smoke tests are reported separately.
 
 Do not merge while a required CI check is failed, pending, cancelled or skipped.
+
+
+## Revalidation addendum — 2026-11-13 (PRs #215 and #216)
+
+PR #215 is now merged. It delivered the typed `PlayerIntentAnalysis` contract, shared mechanics/proposal interpretation and durable evidence persistence in migration 033. Its last observed deterministic Python checks and CodeQL passed; live Ollama quality and manual SillyTavern acceptance remain separate gates.
+
+PR #216 extends the same P0 priority with a deterministic conversation-reference resolver, chat-scoped durable history and native Ollama JSON Schema generation. Review found and corrected several integration mismatches: literal evidence tests now use the actual Spanish clitic `Le`; `CURRENT_VERSION` is aligned with registered migration 034; API routes propagate the required `conversation_id`; manual-roll requests require it; and the mechanics adjudicator now invokes structured generation. The resolver is deliberately narrow and must abstain on ambiguous/hidden antecedents. General paraphrase, correction-chain and open-domain coreference remain unproven.
+
+Do not introduce new service boundaries, a vector store or infrastructure for this work. Do not merge PR #216 until deterministic CI is green and the live Ollama/multi-chat SillyTavern acceptance is either recorded or explicitly retained as a release gate.

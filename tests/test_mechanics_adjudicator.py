@@ -174,7 +174,7 @@ def test_system_prompt_does_not_treat_rumors_or_inferences_as_confirmed_facts():
     assert "pide aclaración" in prompt
 
 
-def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
+def test_adjudicator_returns_one_shared_analysis_and_mechanics_response(monkeypatch):
     player_input = "Cruzo la plaza."
     provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": {
@@ -197,6 +197,14 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
         },
         "mechanics_decision": {"decision": "none"},
     }))
+    structured_call = {}
+    original_generate = provider.generate
+
+    def generate_structured(prompt, *, schema):
+        structured_call["schema"] = schema
+        return original_generate(prompt)
+
+    monkeypatch.setattr(provider, "generate_structured", generate_structured)
     analysis, decision = MechanicsAdjudicator(provider).understand(
         make_turn_context(),
         player_input,
@@ -211,6 +219,10 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
     assert analysis.is_actionable is True
     assert decision.decision is MechanicsDecisionType.NONE
     assert provider.call_count == 1
+    assert structured_call["schema"]["required"] == [
+        "intent_analysis",
+        "mechanics_decision",
+    ]
 
 
 def test_clarification_questions_are_context_but_not_player_source_evidence():
@@ -308,3 +320,74 @@ def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
         adjudicator.understand(make_turn_context(), "Abro la puerta.")
 
 
+
+
+
+def test_mechanics_adjudicator_bounds_context_without_truncating_player_evidence(monkeypatch):
+    from services.context import ContextBuilder
+
+    context_builder = ContextBuilder()
+    monkeypatch.setattr(
+        context_builder,
+        "build",
+        lambda *args, **kwargs: {"context": "HECHO VISIBLE " * 2000},
+    )
+    response = json.dumps({
+        "intent_analysis": {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "Abro la puerta.",
+                "actor": "player",
+                "action": "abrir la puerta",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        "mechanics_decision": {"decision": "none"},
+    })
+    provider = FakeLLMProvider(response=response)
+    adjudicator = MechanicsAdjudicator(
+        provider,
+        context_builder,
+        max_prompt_tokens=8192,
+        max_context_tokens=3000,
+    )
+
+    adjudicator.understand(
+        make_turn_context(),
+        "Abro la puerta.",
+        evidence_text="Abro la puerta.",
+    )
+
+    prompt = provider.prompts[0]
+    from models.world_context_projection import estimate_tokens
+
+    assert estimate_tokens(prompt) <= 8192
+    assert "Abro la puerta." in prompt
+    assert "=== EVIDENCIA ESCRITA POR EL JUGADOR" in prompt
+    assert len(prompt.encode("utf-8")) < 12000
+
+
+def test_mechanics_adjudicator_rejects_fixed_evidence_that_cannot_fit_prompt_budget():
+    provider = FakeLLMProvider(response='{"decision":"none"}')
+    adjudicator = MechanicsAdjudicator(
+        provider,
+        max_prompt_tokens=128,
+        max_context_tokens=64,
+    )
+    huge_player_input = "Abro la puerta. " * 100
+
+    with pytest.raises(MechanicsAdjudicatorError, match="mechanics prompt exceeds"):
+        adjudicator.understand(
+            make_turn_context(),
+            huge_player_input,
+            evidence_text=huge_player_input,
+        )

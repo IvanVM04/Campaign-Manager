@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 33
+CURRENT_VERSION = 34
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2431,6 +2431,32 @@ def migration_033(conn: sqlite3.Connection) -> None:
         raise
 
 
+def migration_034(conn: sqlite3.Connection) -> None:
+    """Persist the SillyTavern conversation boundary on durable and transcript turns."""
+    conn.execute("SAVEPOINT migration_034")
+    try:
+        for table in ("turns", "turn_resolutions"):
+            columns = {
+                row["name"] if isinstance(row, sqlite3.Row) else row[1]
+                for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+            }
+            if "conversation_id" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN conversation_id TEXT")
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_turns_conversation_history
+            ON turns(campaign_id, conversation_id, session_id, id)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_turn_resolutions_conversation
+            ON turn_resolutions(campaign_id, adapter_namespace, conversation_id, id)
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_034")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_034")
+        conn.execute("RELEASE SAVEPOINT migration_034")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2631,5 +2657,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_033",
         description="Persist shared, versioned player-intent evidence on durable turns.",
         apply=migration_033,
+    ),
+    MigrationDefinition(
+        version=34,
+        name="migration_034",
+        description="Isolate durable and transcript history by external conversation.",
+        apply=migration_034,
     ),
 )
