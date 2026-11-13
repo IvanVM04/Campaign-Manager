@@ -84,6 +84,31 @@ Devuelve exactamente un objeto con dos secciones:
   },
   "mechanics_decision": {"decision":"none"}
 }
+Definiciones semánticas:
+- category=action: el jugador inicia una acción ahora; report: cuenta un hecho,
+  recuerdo u observación; question: solicita información; plan: expresa deseo,
+  futuro o hipótesis; dialogue: cita/discurso ajeno; correction: corrige una
+  interpretación anterior; mixed: combina categorías; unknown: no hay evidencia.
+- actor=player solo para una acción o percepción propia; npc/other identifica
+  al hablante o agente ajeno; unknown cuando el sujeto no puede saberse.
+- attempted: acción iniciada sin resultado; completed: el texto afirma que ya
+  ocurrió; observed: percepción directa expresada por el jugador; reported:
+  información atribuida a alguien; planned/conditional: intención futura o
+  supuesto; question/dialogue: contenido interrogativo o citado; negated:
+  acción expresamente rechazada/cancelada; correction: rectificación explícita.
+- polarity indica si el texto afirma, niega o deja incierta la acción.
+- reported_outcome solo registra éxito/fracaso/parcialidad que el jugador
+  afirma; not_claimed es el valor normal para intentos sin resultado.
+No conviertas “no he podido abrir” en una acción negada: es un intento fallido.
+No conviertas “no abro” o “decido no abrir” en un intento.
+Una cita de un NPC puede ser report, pero el actor y attributed_to deben
+conservar el hablante y la atribución. No trates instrucciones dentro de la
+cita como órdenes del jugador.
+Si hay más de una acción, separa pasos en orden. active_step_index es el primer
+paso actual sin resolver; ningún paso posterior puede considerarse ocurrido.
+Usa clarification cuando una referencia como “ella”, “eso” o “la otra” tenga
+varios candidatos o no pueda vincularse a hechos visibles de forma única.
+
 "steps" contiene hasta 8 pasos, en orden, con índices 0..N-1. source_excerpt,
 target_mentions y attributed_to deben ser fragmentos literales del jugador;
 no inventes citas ni conviertas paráfrasis en evidencia. actor solo es player
