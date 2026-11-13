@@ -1,9 +1,9 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
-**Status:** PR #218 implementation is present on `feat/218-semantic-frames-v2`; it is not yet merged or accepted.  
-**Priority:** P0.1 — semantic representation and grounding.  
-**Baseline:** `main` at `14070b007246d7a58243c58eadc66b9f54781472` (2026-11-13).  
-**Implementation branch:** `feat/218-semantic-frames-v2`.
+**Status:** PR #218 is integrated on `main` and its required CodeQL and Tests workflow runs completed successfully. Live Ollama and manual SillyTavern acceptance remain unrecorded. PR #219 is being prepared on `feat/219-discourse-resolution-corrections`.  
+**Priority:** P0.2 — discourse resolution and pending corrections.  
+**Baseline:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13).  
+**Implementation branch:** `feat/219-discourse-resolution-corrections`.
 
 ## 1. Why this phase exists
 
@@ -52,24 +52,22 @@ V2 supports bounded relation claims with step index, literal subject, predicate 
 - `tests/test_semantic_frames.py` — frame parsing, evidence grounding, relation semantics, v1 compatibility and durable recovery.
 - `tests/test_mechanics_adjudicator.py` — regression for the v2 structured schema contract.
 
-## 3. PR #218 acceptance still required
+## 3. PR #218 acceptance status
 
-Before merge, run the full deterministic suite and all required quality checks on the final commit. Review the real diff for typing, prompt budgets, structured-generation compatibility and accidental changes to the v1 durable representation.
+The merge commit is `184126110c713cff4c9bd1da96786f2c49fc5145`. Its required GitHub Actions `Tests` and `CodeQL` workflow runs both completed successfully. The live Ollama suites have not been demonstrated by those checks and remain required with pinned model/version/settings. The SillyTavern multi-chat/recovery smoke test is also a separate gate.
 
-Then run both live Ollama suites with pinned model/version/settings. The 34 utterance scenarios validate category/step interpretation and v2 structural constraints; the ten-case semantic-frame corpus evaluates selected argument roles and relation direction/polarity/modality/attribution (four critical cases repeated three times). Neither is a comprehensive benchmark. Preserve all live failures.
-
-The SillyTavern multi-chat/recovery smoke test also remains a separate gate. Do not infer it from unit/API tests.
+The 34 utterance scenarios validate category/step interpretation and v2 structural constraints; the ten-case semantic-frame corpus evaluates selected argument roles and relation direction/polarity/modality/attribution (four critical cases repeated three times). Neither is a comprehensive benchmark. Preserve all live failures.
 
 ## 4. Remaining PR roadmap
 
-### PR #219 — discourse resolution and correction chains
+### PR #219 — evidence-backed discourse and pending corrections (current implementation)
 
-- Replace string-only antecedent heuristics with typed, evidence-producing candidates.
-- Add speaker role and turn identity, semantic-type agreement, grammatical gender/number where reliable, recency, topic continuity and explicit discourse focus.
-- Support corrections to pending action/target/argument slots without rewriting committed world history.
-- Keep ambiguity explicit and ask the player when multiple candidates remain plausible.
-- Expand Spanish-first and English-control multi-turn sequences, including topic shifts, competing referents, ellipsis and correction loops.
-- Preserve chat isolation, active-character visibility, durable clarification and manual-roll behavior.
+- Replace the nearest-string antecedent heuristic with typed candidates, bounded evidence excerpts, explicit player-input versus narrator source, recency, repeat/topic continuity and semantic-kind compatibility.
+- Preserve visible-world and same-chat scoping; return ranked candidate evidence and an explicit abstention reason when the score or candidate margin is insufficient.
+- Add a guarded, immutable correction primitive for target mentions, action-frame argument roles and directed relation endpoints. It requires literal player-authored correction evidence and refuses non-pending or committed resolutions.
+- Do not infer grammatical gender/number: the current canonical entity model has no reliable fields for these attributes. Do not label narration as NPC speech without explicit speaker metadata.
+- The correction primitive is not yet emitted by the provider schema or wired as an automatic model-driven correction chain. That integration remains a separately evaluated follow-up rather than being claimed complete here.
+- Add deterministic regressions for ambiguity, speaker/source preference, kind filtering, evidence provenance, six-turn limits and correction immutability.
 
 ### PR #220 — evaluation corpus and quality gate
 
