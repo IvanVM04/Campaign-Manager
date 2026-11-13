@@ -17,6 +17,7 @@ from models.semantic_frames import SemanticMention, SemanticObjectKind
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import FakeLLMProvider
+from services.turns.durable_native_turn_service import DurableNativeTurnError
 from services.turns.intent_response_schema import (
     INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA,
     INTENT_MECHANICS_RESPONSE_SCHEMA,
@@ -367,3 +368,57 @@ def test_durable_clarification_persists_correction_audit_across_multiple_rounds(
         },
     ]
     assert record.player_input == ORIGINAL
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="clarification request is no longer pending",
+    ):
+        service.submit_clarification(
+            second.pending_clarification_id,
+            "Corrijo otra vez después de confirmar la entrega.",
+        )
+
+
+def test_failed_correction_releases_claim_back_to_awaiting_input(monkeypatch):
+    service, _proposal_calls, _narrative_calls = service_with_fake_models()
+    service.resolver.mechanics_adjudicator = object()
+    pending = _pending_analysis()
+    attempts = []
+
+    def fail_after_claim(_context, player_input, **kwargs):
+        attempts.append((player_input, kwargs))
+        if len(attempts) == 1:
+            return TurnResolutionPlan(
+                player_input=player_input,
+                narrative="¿A quién entregas la llave?",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                clarification_question="¿A quién entregas la llave?",
+                intent_analysis=pending,
+                intent_evidence_text=ORIGINAL,
+            )
+        raise RuntimeError("simulated correction provider failure")
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", fail_after_claim)
+    first = service.play_turn(
+        ORIGINAL,
+        idempotency_key="pending-correction-release-lease-001",
+    )
+
+    with pytest.raises(
+        DurableNativeTurnError,
+        match="clarification resolution failed",
+    ):
+        service.submit_clarification(
+            first.pending_clarification_id,
+            CORRECTION,
+        )
+
+    resolution_id = int(first.pending_clarification_id.split(":", 1)[0])
+    saved = service.resolution_repository.get(resolution_id, scope=service.scope)
+    assert saved is not None
+    assert saved.lifecycle_state == "awaiting_input"
+    assert saved.lease_token is None
+    assert saved.lease_expires_at is None
+    assert saved.last_error_code == "clarification_resolution_failed"
