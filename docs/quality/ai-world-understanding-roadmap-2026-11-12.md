@@ -319,6 +319,14 @@ The corpus should include these families:
 
 A scenario's oracle should describe semantic constraints, not one exact JSON string. Several operation sequences may be valid if they preserve the same world invariants. Keep assertions strict about forbidden changes and required facts.
 
+The P0 implementation adds
+`tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled
+Spanish/English scenarios. The opt-in
+`test_real_ollama_meets_shared_player_intent_corpus_v1` evaluates the actual
+combined adjudication response; it runs 12 critical cases three times and the
+remaining cases once. This corpus is versioned but has not yet been run against
+the user's configured Ollama model in this environment.
+
 ## 7. Metrics and reporting
 
 Report each metric by scenario family and model:
