@@ -34,6 +34,7 @@ class TurnResolutionRecord:
     context_revision: int | None = None
     resulting_revision: int | None = None
     proposal_json: str | None = None
+    intent_json: str | None = None
     adjudication_json: str | None = None
     mechanics_json: str | None = None
     operation_results_json: str | None = None
@@ -107,7 +108,7 @@ class TurnResolutionRecord:
         ):
             raise ValueError("completed state requires narrative and completed_at")
         for field_name in (
-            "proposal_json", "adjudication_json", "mechanics_json",
+            "proposal_json", "intent_json", "adjudication_json", "mechanics_json",
             "operation_results_json",
         ):
             value = getattr(self, field_name)
