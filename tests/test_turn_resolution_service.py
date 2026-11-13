@@ -813,6 +813,8 @@ def test_turn_resolution_order_with_operation():
         context,
         *,
         mechanics_result=None,
+        intent_analysis=None,
+        recent_turns=None,
         context_projection=None,
     ):
         order.append("proposer")
@@ -820,6 +822,8 @@ def test_turn_resolution_order_with_operation():
             player_intent,
             context,
             mechanics_result=mechanics_result,
+            intent_analysis=intent_analysis,
+            recent_turns=recent_turns,
             context_projection=context_projection,
         )
 
