@@ -1,16 +1,28 @@
-"""Conservative coreference resolution over a chat-scoped, visible transcript."""
+"""Conservative, evidence-producing coreference resolution over a chat-scoped transcript."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
+from models.discourse_evidence import (
+    DiscourseCandidate,
+    DiscourseEvidence,
+    DiscourseSource,
+    DiscourseSpeaker,
+)
+from models.entity import Entity
 from models.player_intent_analysis import (
     IntentModality,
     IntentPolarity,
     PlayerIntentAnalysis,
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
-from models.semantic_frames import SemanticModality, SemanticPolarity
+from models.semantic_frames import (
+    SemanticModality,
+    SemanticObjectKind,
+    SemanticPolarity,
+)
 from models.world_state import WorldState
 
 from .entity_reference_resolver import EntityReferenceResolver
@@ -20,14 +32,16 @@ from .entity_reference_resolver import EntityReferenceResolver
 class ConversationReferenceResolution:
     references: tuple[ResolvedConversationReference, ...] = ()
     clarification_question: str | None = None
+    candidates: tuple[DiscourseCandidate, ...] = ()
+    abstention_reason: str | None = None
 
 
 class ConversationReferenceResolver:
-    """Resolve explicit references and unique recent-turn antecedents.
+    """Resolve visible references using explicit evidence, type hints and discourse focus.
 
-    The caller supplies the active-character-filtered proposal projection and
-    history already isolated to the current conversation. No model-selected
-    entity identifiers are accepted; ambiguous references are clarified.
+    The caller must provide history already filtered to the current conversation
+    and the active character's visibility. Player input and narrator prose remain
+    separate evidence sources; narrator text is never treated as player speech.
     """
 
     _PRONOUNS = frozenset({
@@ -54,6 +68,16 @@ class ConversationReferenceResolver:
         IntentModality.CORRECTION,
         IntentModality.DIALOGUE,
     })
+    _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
+        SemanticObjectKind.CHARACTER: frozenset({"npc", "character", "person", "humanoid", "player"}),
+        SemanticObjectKind.CREATURE: frozenset({"creature", "monster", "beast", "animal"}),
+        SemanticObjectKind.LOCATION: frozenset({"location", "place", "room", "building", "area"}),
+        SemanticObjectKind.FACTION: frozenset({"faction", "guild", "organization", "group"}),
+        SemanticObjectKind.RESOURCE: frozenset({"resource", "currency", "consumable"}),
+    }
+
+    MIN_RESOLUTION_SCORE = 35
+    MIN_RESOLUTION_MARGIN = 12
 
     def __init__(self, entity_resolver: EntityReferenceResolver | None = None) -> None:
         if entity_resolver is not None and not isinstance(entity_resolver, EntityReferenceResolver):
@@ -77,7 +101,7 @@ class ConversationReferenceResolver:
         )
 
     @staticmethod
-    def _turn_text(turn) -> tuple[str, int | None]:
+    def _turn_parts(turn):
         if isinstance(turn, dict):
             player_input = turn.get("player_input", "")
             narrative = turn.get("narrative", "")
@@ -86,65 +110,169 @@ class ConversationReferenceResolver:
             player_input = getattr(turn, "player_input", "")
             narrative = getattr(turn, "narrative", "")
             turn_id = getattr(turn, "id", None)
-        parts = [
-            value[:1200]
-            for value in (player_input, narrative)
-            if isinstance(value, str) and value.strip()
-        ]
         valid_id = (
             turn_id
             if isinstance(turn_id, int) and not isinstance(turn_id, bool) and turn_id > 0
             else None
         )
-        return " ".join(parts), valid_id
+        parts = []
+        if isinstance(player_input, str) and player_input.strip():
+            parts.append((player_input[:1200], DiscourseSource.PLAYER_INPUT, DiscourseSpeaker.PLAYER))
+        if isinstance(narrative, str) and narrative.strip():
+            parts.append((narrative[:1200], DiscourseSource.NARRATIVE, DiscourseSpeaker.NARRATOR))
+        return tuple(parts), valid_id
 
     @staticmethod
-    def _visible_entities(world: WorldState):
-        visible = []
+    def _visible_entities(world: WorldState) -> tuple[Entity, ...]:
+        visible: list[Entity] = []
         for entity in world.entities.values():
-            entity_id = getattr(entity, "id", None)
+            if not isinstance(entity, Entity) or not entity.active:
+                continue
+            entity_id = entity.id
             if (
-                not getattr(entity, "active", False)
+                isinstance(entity_id, bool)
                 or not isinstance(entity_id, int)
-                or isinstance(entity_id, bool)
-                or entity_id <= 0
+                or entity_id < 1
+                or not entity.name.strip()
+                or len(entity.name) > 120
             ):
                 continue
             visible.append(entity)
-        return visible
+        return tuple(visible)
 
-    def _entities_mentioned_in_turn(self, world: WorldState, turn_text: str) -> tuple[int, ...]:
-        normalized = " " + self.entity_resolver.normalize(turn_text) + " "
-        found: list[tuple[int, int]] = []
-        for entity in self._visible_entities(world):
-            positions = []
-            for alias in [entity.name, *(getattr(entity, "aliases", []) or [])]:
-                if not isinstance(alias, str) or not alias.strip():
-                    continue
-                normalized_alias = self.entity_resolver.normalize(alias)
-                marker = " " + normalized_alias + " "
-                position = normalized.rfind(marker) if normalized_alias else -1
-                if position >= 0:
-                    positions.append(position)
-            entity_id = getattr(entity, "id", None)
-            if positions and isinstance(entity_id, int) and not isinstance(entity_id, bool):
-                found.append((max(positions), entity_id))
-        found.sort(reverse=True)
-        return tuple(entity_id for _position, entity_id in found)
+    def _kind_compatible(self, entity, kind_hint: SemanticObjectKind) -> bool | None:
+        expected = self._KIND_TYPES.get(kind_hint)
+        if expected is None or kind_hint is SemanticObjectKind.UNKNOWN:
+            return None
+        entity_type = EntityReferenceResolver.normalize(
+            getattr(entity, "entity_type", "")
+        )
+        type_tokens = set(entity_type.split())
+        if not type_tokens:
+            return None
+        return bool(type_tokens & expected)
 
-    def _nearest_antecedent(
+    def _mentions_in_part(
+        self,
+        entity,
+        text: str,
+        *,
+        turn_id: int | None,
+        source: DiscourseSource,
+        speaker: DiscourseSpeaker,
+        recency_rank: int,
+    ) -> tuple[DiscourseEvidence, ...]:
+        normalized = " " + self.entity_resolver.normalize(text) + " "
+        mentions = []
+        aliases = [getattr(entity, "name", ""), *(getattr(entity, "aliases", []) or [])]
+        seen = set()
+        for alias in aliases:
+            if not isinstance(alias, str) or not alias.strip() or len(alias) > 120:
+                continue
+            normalized_alias = self.entity_resolver.normalize(alias)
+            marker = " " + normalized_alias + " "
+            if not normalized_alias or marker not in normalized:
+                continue
+            key = normalized_alias
+            if key in seen:
+                continue
+            seen.add(key)
+            mentions.append(
+                DiscourseEvidence(
+                    turn_id=turn_id,
+                    source=source,
+                    speaker=speaker,
+                    mention=alias[:120],
+                    excerpt=text,
+                    recency_rank=recency_rank,
+                )
+            )
+        return tuple(mentions)
+
+    def _history_evidence(self, world: WorldState, recent_turns) -> dict[int, tuple[DiscourseEvidence, ...]]:
+        evidence: dict[int, list[DiscourseEvidence]] = {}
+        turns = recent_turns[-6:]
+        for recency_rank, turn in enumerate(reversed(turns), start=1):
+            parts, turn_id = self._turn_parts(turn)
+            for text, source, speaker in parts:
+                for entity in self._visible_entities(world):
+                    mentions = self._mentions_in_part(
+                        entity,
+                        text,
+                        turn_id=turn_id,
+                        source=source,
+                        speaker=speaker,
+                        recency_rank=recency_rank,
+                    )
+                    entity_id = entity.id
+                    if mentions and isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                        evidence.setdefault(entity_id, []).extend(mentions)
+        return {entity_id: tuple(items) for entity_id, items in evidence.items()}
+
+    def _candidate_score(
+        self,
+        evidence: tuple[DiscourseEvidence, ...],
+        *,
+        kind_hint: SemanticObjectKind,
+        entity,
+    ) -> tuple[int, tuple[str, ...]]:
+        score = 0
+        signals = []
+        best_rank = min(item.recency_rank for item in evidence)
+        score += max(10, 70 - (best_rank - 1) * 12)
+        signals.append("recency")
+        if any(item.source is DiscourseSource.PLAYER_INPUT for item in evidence):
+            score += 22
+            signals.append("player_authored_focus")
+        else:
+            score += 8
+            signals.append("narrator_context")
+        distinct_turns = {item.turn_id for item in evidence if item.turn_id is not None}
+        repeat_bonus = min(15, max(0, len(distinct_turns) - 1) * 5)
+        if repeat_bonus:
+            score += repeat_bonus
+            signals.append("topic_continuity")
+        kind_match = self._kind_compatible(entity, kind_hint)
+        if kind_match is True:
+            score += 24
+            signals.append("semantic_kind_match")
+        elif kind_match is False:
+            signals.append("semantic_kind_mismatch")
+        return min(1000, score), tuple(signals)
+
+    def _rank_candidates(
         self,
         world: WorldState,
         recent_turns,
-    ) -> tuple[tuple[int, ...], int | None]:
-        for turn in reversed(recent_turns[-6:]):
-            text, turn_id = self._turn_text(turn)
-            if not text:
+        *,
+        kind_hint: SemanticObjectKind,
+    ) -> tuple[DiscourseCandidate, ...]:
+        history = self._history_evidence(world, recent_turns)
+        candidates = []
+        for entity in self._visible_entities(world):
+            entity_id = entity.id
+            if not isinstance(entity_id, int) or isinstance(entity_id, bool):
                 continue
-            ids = self._entities_mentioned_in_turn(world, text)
-            if ids:
-                return ids, turn_id
-        return (), None
+            evidence = history.get(entity_id, ())
+            if not evidence:
+                continue
+            if self._kind_compatible(entity, kind_hint) is False:
+                continue
+            score, signals = self._candidate_score(
+                evidence,
+                kind_hint=kind_hint,
+                entity=entity,
+            )
+            candidates.append(
+                DiscourseCandidate(
+                    entity_id=entity_id,
+                    entity_name=entity.name,
+                    score=score,
+                    evidence=evidence,
+                    signals=signals,
+                )
+            )
+        return tuple(sorted(candidates, key=lambda item: (-item.score, item.entity_id)))
 
     def _other_role_candidates(
         self,
@@ -157,7 +285,10 @@ class ConversationReferenceResolver:
             return ()
         matches = []
         for entity in self._visible_entities(world):
-            if entity.id in excluded_ids:
+            entity_id = entity.id
+            if not isinstance(entity_id, int) or isinstance(entity_id, bool):
+                continue
+            if entity_id in excluded_ids:
                 continue
             evidence = " ".join(
                 value
@@ -170,17 +301,24 @@ class ConversationReferenceResolver:
                 if isinstance(value, str)
             )
             if role_terms & set(self._tokens(evidence)):
-                matches.append(entity.id)
+                matches.append(entity_id)
         return tuple(matches)
 
     @staticmethod
-    def _candidate_names(world: WorldState, ids: tuple[int, ...]) -> tuple[str, ...]:
-        names = []
-        for entity_id in ids:
-            entity = world.entities.get(entity_id)
-            if entity is not None and isinstance(entity.name, str) and entity.name.strip():
-                names.append(entity.name.strip())
-        return tuple(dict.fromkeys(names))[:4]
+    def _candidate_names(candidates: tuple[DiscourseCandidate, ...]) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(candidate.entity_name for candidate in candidates))[:4]
+
+    @staticmethod
+    def _entity_names(world: WorldState, entity_ids: tuple[int, ...]) -> tuple[str, ...]:
+        return tuple(
+            dict.fromkeys(
+                entity.name
+                for entity_id in entity_ids
+                if (entity := world.entities.get(entity_id)) is not None
+                and isinstance(entity.name, str)
+                and entity.name.strip()
+            )
+        )[:4]
 
     @classmethod
     def _question(cls, mention: str, candidates: tuple[str, ...]) -> str:
@@ -219,14 +357,17 @@ class ConversationReferenceResolver:
                 or step.modality not in self._ELIGIBLE_MODALITIES
             ):
                 continue
-            mention_values = list(step.target_mentions)
+            mentions: list[tuple[str, SemanticObjectKind]] = [
+                (mention, SemanticObjectKind.UNKNOWN)
+                for mention in step.target_mentions
+            ]
             if step.action_frame is not None:
-                mention_values.extend(
-                    argument.mention.text
+                mentions.extend(
+                    (argument.mention.text, argument.mention.kind_hint)
                     for argument in step.action_frame.arguments
                 )
-            mention_values.extend(
-                mention
+            mentions.extend(
+                (mention.text, mention.kind_hint)
                 for claim in analysis.relation_claims
                 if claim.step_index == step.index
                 and claim.polarity is SemanticPolarity.POSITIVE
@@ -237,63 +378,219 @@ class ConversationReferenceResolver:
                     SemanticModality.DIALOGUE,
                 }
                 for mention in (
-                    claim.subject.text,
-                    claim.object.text,
-                    (
-                        claim.attributed_to.text
-                        if claim.attributed_to is not None
-                        else None
-                    ),
+                    claim.subject,
+                    claim.object,
+                    *((claim.attributed_to,) if claim.attributed_to is not None else ()),
                 )
-                if mention is not None
             )
-            for mention in dict.fromkeys(mention_values):
+
+            # A v1-style flat target and its v2 semantic argument may describe
+            # the same surface mention. Merge those records before resolution so
+            # an untyped compatibility mention cannot trigger premature ambiguity.
+            merged_mentions: dict[str, tuple[str, SemanticObjectKind]] = {}
+            conflicting_kinds: set[str] = set()
+            for mention, kind_hint in mentions:
+                mention_key = self.entity_resolver.normalize(mention)
+                if not mention_key:
+                    continue
+                existing = merged_mentions.get(mention_key)
+                if existing is None:
+                    merged_mentions[mention_key] = (mention, kind_hint)
+                    continue
+                existing_kind = existing[1]
+                if existing_kind is SemanticObjectKind.UNKNOWN:
+                    if mention_key not in conflicting_kinds:
+                        merged_mentions[mention_key] = (existing[0], kind_hint)
+                elif (
+                    kind_hint is not SemanticObjectKind.UNKNOWN
+                    and kind_hint is not existing_kind
+                ):
+                    # Contradictory typed roles must not be resolved by choosing
+                    # whichever interpretation happened to appear first.
+                    merged_mentions[mention_key] = (
+                        existing[0],
+                        SemanticObjectKind.UNKNOWN,
+                    )
+                    conflicting_kinds.add(mention_key)
+
+            for mention, kind_hint in merged_mentions.values():
                 match = self.entity_resolver.resolve(visible_world, mention)
                 candidate_ids: tuple[int, ...] = ()
                 antecedent_turn_id = None
                 match_kind = "explicit"
+                selected_evidence: tuple[DiscourseEvidence, ...] = ()
+                selected_score = 0
+                signals: tuple[str, ...] = ()
 
                 if match.status == "resolved":
                     candidate_ids = tuple(candidate.entity_id for candidate in match.candidates)
                     if len(candidate_ids) != 1:
                         return ConversationReferenceResolution(
                             tuple(references),
-                            self._question(mention, self._candidate_names(visible_world, candidate_ids)),
+                            self._question(
+                                mention,
+                                self._entity_names(visible_world, candidate_ids),
+                            ),
+                            abstention_reason="explicit_reference_not_unique",
                         )
                     if match.candidates:
                         match_kind = match.candidates[0].match_kind
                 elif match.status == "ambiguous" and not self._is_anaphoric(mention):
                     ids = tuple(candidate.entity_id for candidate in match.candidates)
+                    names = tuple(
+                        visible_world.entities[item].name
+                        for item in ids if item in visible_world.entities
+                    )
                     return ConversationReferenceResolution(
                         tuple(references),
-                        self._question(mention, self._candidate_names(visible_world, ids)),
+                        self._question(mention, names),
+                        abstention_reason="explicit_reference_ambiguous",
                     )
 
                 if not candidate_ids and self._is_anaphoric(mention):
-                    antecedents, antecedent_turn_id = self._nearest_antecedent(
+                    ranked = self._rank_candidates(
                         visible_world,
                         recent_turns,
+                        kind_hint=kind_hint,
                     )
                     if any(token in self._OTHER_MARKERS for token in self._tokens(mention)):
-                        candidate_ids = self._other_role_candidates(
+                        if not ranked:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, ()),
+                                abstention_reason="other_role_antecedent_not_established",
+                            )
+                        antecedent = next(iter(ranked), None)
+                        if antecedent is None:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, ()),
+                                abstention_reason="other_role_antecedent_not_established",
+                            )
+                        if antecedent.score < self.MIN_RESOLUTION_SCORE:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, self._candidate_names(ranked)),
+                                candidates=ranked[:4],
+                                abstention_reason="other_role_antecedent_not_established",
+                            )
+                        second_antecedent = next(iter(ranked[1:]), None)
+                        antecedent_margin = (
+                            antecedent.score - second_antecedent.score
+                            if second_antecedent is not None
+                            else antecedent.score
+                        )
+                        if (
+                            second_antecedent is not None
+                            and antecedent_margin < self.MIN_RESOLUTION_MARGIN
+                        ):
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, self._candidate_names(ranked)),
+                                candidates=ranked[:4],
+                                abstention_reason="other_role_antecedent_ambiguous",
+                            )
+                        antecedent_turn_id = next(
+                            (
+                                item.turn_id
+                                for item in antecedent.evidence
+                                if item.turn_id is not None
+                                and item.recency_rank == min(
+                                    evidence.recency_rank
+                                    for evidence in antecedent.evidence
+                                )
+                            ),
+                            None,
+                        )
+                        raw_ids = self._other_role_candidates(
                             visible_world,
                             mention,
-                            antecedents,
+                            (antecedent.entity_id,),
                         )
+                        role_evidence = DiscourseEvidence(
+                            turn_id=None,
+                            source=DiscourseSource.PLAYER_INPUT,
+                            speaker=DiscourseSpeaker.PLAYER,
+                            mention=mention,
+                            excerpt=step.source_excerpt,
+                            recency_rank=1,
+                        )
+                        role_candidates = []
+                        for entity_id in raw_ids:
+                            entity = visible_world.entities.get(entity_id)
+                            if (
+                                not isinstance(entity, Entity)
+                                or self._kind_compatible(entity, kind_hint) is False
+                            ):
+                                continue
+                            role_candidates.append(
+                                DiscourseCandidate(
+                                    entity_id=entity_id,
+                                    entity_name=entity.name,
+                                    score=max(35, antecedent.score - 6),
+                                    evidence=(role_evidence,),
+                                    signals=(
+                                        "other_role_in_conversation",
+                                        "explicit_role_description",
+                                        "contrasted_with_recent_antecedent",
+                                    ),
+                                )
+                            )
+                        ranked = tuple(sorted(
+                            role_candidates,
+                            key=lambda item: (-item.score, item.entity_id),
+                        ))
                         match_kind = "other_role_in_conversation"
                     else:
-                        candidate_ids = antecedents if len(antecedents) == 1 else ()
                         match_kind = "conversation_antecedent"
-                    if len(candidate_ids) != 1:
+
+                    selected = next(iter(ranked), None)
+                    if selected is None:
                         return ConversationReferenceResolution(
                             tuple(references),
-                            self._question(
-                                mention,
-                                self._candidate_names(visible_world, candidate_ids or antecedents),
-                            ),
+                            self._question(mention, ()),
+                            candidates=(),
+                            abstention_reason="no_visible_antecedent_evidence",
                         )
+                    second_candidate = next(iter(ranked[1:]), None)
+                    margin = (
+                        selected.score - second_candidate.score
+                        if second_candidate is not None
+                        else selected.score
+                    )
+                    if (
+                        selected.score < self.MIN_RESOLUTION_SCORE
+                        or (
+                            second_candidate is not None
+                            and margin < self.MIN_RESOLUTION_MARGIN
+                        )
+                    ):
+                        names = self._candidate_names(ranked)
+                        return ConversationReferenceResolution(
+                            tuple(references),
+                            self._question(mention, names),
+                            candidates=ranked[:4],
+                            abstention_reason="discourse_candidates_ambiguous",
+                        )
+                    candidate_ids = (selected.entity_id,)
+                    selected_evidence = selected.evidence
+                    selected_score = selected.score
+                    signals = selected.signals
+                    selected_turn_id = next(
+                        (
+                            item.turn_id for item in selected.evidence
+                            if item.turn_id is not None
+                            and item.recency_rank == min(
+                                evidence.recency_rank for evidence in selected.evidence
+                            )
+                        ),
+                        None,
+                    )
+                    if selected_turn_id is not None:
+                        antecedent_turn_id = selected_turn_id
+
                 elif not candidate_ids:
-                    # A genuinely new proper name may be an intentional new NPC/item.
+                    # A genuinely new proper name may be an intentional new entity.
                     continue
 
                 entity_id = candidate_ids[0]
@@ -302,6 +599,7 @@ class ConversationReferenceResolver:
                     return ConversationReferenceResolution(
                         tuple(references),
                         self._question(mention, ()),
+                        abstention_reason="resolved_entity_not_visible",
                     )
                 key = (self.entity_resolver.normalize(mention), entity_id)
                 if key not in seen:
@@ -312,6 +610,9 @@ class ConversationReferenceResolver:
                             entity_name=entity.name,
                             match_kind=match_kind,
                             antecedent_turn_id=antecedent_turn_id,
+                            evidence=selected_evidence,
+                            confidence_score=selected_score,
+                            resolution_signals=signals,
                         )
                     )
                     seen.add(key)

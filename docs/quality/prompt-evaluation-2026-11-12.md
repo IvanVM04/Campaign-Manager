@@ -42,9 +42,11 @@ Fixture: `tests/fixtures/language_understanding_corpus_v1.json`. It covers Spani
 
 The production adjudicator now expects the v2 output envelope. The existing corpus assertions primarily verify category, active step, clarification, actor, modality, polarity and player-reported outcome. V2 parser validation additionally checks frame structure and evidence, but the corpus does not yet comprehensively measure whether the model assigns every semantic role or relation correctly.
 
-### Conversation references — six deterministic scenarios
+### Conversation references — six deterministic corpus scenarios plus focused regressions
 
-Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique/ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. These are deterministic resolver cases, not live model coreference accuracy.
+Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique/ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. PR #219 adds focused deterministic regressions for player-input versus narrator evidence, semantic-kind filtering, six-turn bounds, auditable candidate scores and abstention reasons. These are application resolver cases, not live model coreference accuracy.
+
+The resolver does not infer grammatical gender/number because canonical entities do not currently expose reliable values, and it does not fabricate NPC speaker labels from unstructured narration. The pending-correction tests protect a pure application helper; they do not measure whether the model can emit corrections.
 
 ### Semantic-frame unit corpus
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.discourse_evidence import DiscourseEvidence
+
 
 @dataclass(frozen=True, slots=True)
 class ResolvedConversationReference:
@@ -14,6 +16,9 @@ class ResolvedConversationReference:
     entity_name: str
     match_kind: str
     antecedent_turn_id: int | None = None
+    evidence: tuple[DiscourseEvidence, ...] = ()
+    confidence_score: int = 0
+    resolution_signals: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for name, value, maximum in (
@@ -31,3 +36,18 @@ class ResolvedConversationReference:
             or self.antecedent_turn_id < 1
         ):
             raise ValueError("antecedent_turn_id must be a positive integer or None")
+        if not isinstance(self.evidence, tuple) or any(
+            not isinstance(item, DiscourseEvidence) for item in self.evidence
+        ):
+            raise TypeError("evidence must contain DiscourseEvidence values")
+        if (
+            isinstance(self.confidence_score, bool)
+            or not isinstance(self.confidence_score, int)
+            or not 0 <= self.confidence_score <= 1000
+        ):
+            raise ValueError("confidence_score must be between 0 and 1000")
+        if not isinstance(self.resolution_signals, tuple) or any(
+            not isinstance(item, str) or not item.strip() or len(item) > 40
+            for item in self.resolution_signals
+        ):
+            raise ValueError("resolution_signals must be a tuple of bounded strings")

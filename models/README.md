@@ -41,6 +41,21 @@ canonical IDs, permissions, visibility, provenance, dice or write operations.
 Application code resolves visible canonical references; world services and
 rules remain authoritative for mutation and mechanics.
 
+## Discourse and pending-correction contracts
+
+- `discourse_evidence.py` records where a candidate was mentioned (player input
+  or narrator prose), the scoped transcript turn, recency and a bounded excerpt.
+  `DiscourseCandidate` carries deterministic application scores and the
+  signals that contributed to ranking. These records are produced by
+  application code, never accepted from the model.
+- `pending_intent_correction.py` defines explicit corrections for a target,
+  action argument or directed relation endpoint. Applying one returns a new
+  immutable analysis and requires literal player evidence plus an explicitly
+  pending, uncommitted resolution. It never edits a committed turn or world row.
+- The correction value object is a guarded application primitive. The current
+  combined provider schema does not yet emit correction objects automatically;
+  this PR does not claim full model-driven correction-chain support.
+
 ## Related durable contracts
 
 - `turn_resolution_record.py` — durable in-flight resolution and its JSON

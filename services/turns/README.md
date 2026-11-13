@@ -45,11 +45,14 @@ Relation claims preserve reported/question/negative/conditional status and do
 not themselves authorize relation writes.
 
 The last six visible turns are bounded and scoped to the current
-`conversation_id`. PR #216's `ConversationReferenceResolver` handles a narrow
-set of Spanish/English pronouns, demonstratives, same-object and curated
-other-role references against the caller's visibility-filtered world. General
-coreference, broad ellipsis, speaker-aware discourse and correction chains
-remain open for PR #219.
+`conversation_id`. PR #219 enriches `ConversationReferenceResolver` with typed
+candidate evidence, a distinction between player-authored input and narrator
+prose, semantic-kind compatibility and explicit ambiguity margins. It does not
+infer grammatical gender/number or identify an NPC speaker when the transcript
+does not label one. The same PR adds a guarded `PendingIntentCorrection`
+application contract for target, action-argument and directed relation endpoint
+corrections. That helper is not yet emitted by the combined model schema;
+fully model-driven correction chains remain an explicit follow-up gate.
 
 Durable resolutions store the conversation and player-authored evidence with
 independent SHA-256 fingerprints in `turn_resolutions.intent_json` (migration

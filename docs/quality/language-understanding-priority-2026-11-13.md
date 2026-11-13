@@ -1,9 +1,9 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active language-quality priority  
-**Integrated foundation:** PRs #215 and #216 are merged into `main`.  
-**Next implementation:** PR #218 introduces the versioned semantic-frame v2 contract on `feat/218-semantic-frames-v2`; this branch is not yet merged.  
-**Baseline:** `main` at `14070b007246d7a58243c58eadc66b9f54781472` (2026-11-13, after documentation PR #217).  
+**Integrated foundation:** PRs #215–#218 are merged into `main`; PR #218's deterministic Tests and CodeQL checks passed. Live Ollama and SillyTavern acceptance remain separate gates.  
+**Next implementation:** PR #219 prepares evidence-backed discourse resolution and guarded pending corrections on `feat/219-discourse-resolution-corrections`.  
+**Baseline:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13, after PR #218).  
 **Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are distinct gates. This branch does not claim the live gates passed.
 
 ## 1. Integrated turn pipeline
@@ -75,8 +75,12 @@ The intent codec persists the nested analysis through the existing durable envel
 
 ## 4. Remaining semantic gaps
 
-### Discourse and corrections
-The PR #216 resolver remains deliberately narrow: six recent turns from the same chat, a curated set of Spanish/English pronouns/demonstratives, same-object and other-role patterns, and unique visible candidates. It does not yet provide robust grammatical agreement, semantic-type-aware coreference, speaker/salience modelling, broad ellipsis, distant references, paraphrase resolution or correction chains. V2 relation attribution is still a literal mention, not a resolved speaker identity.
+### Discourse and corrections — PR #219 implementation boundary
+PR #219 replaces the old nearest-turn string heuristic with typed evidence for visible candidates: player-authored input is kept separate from narrator prose, turn identity and six-turn recency are retained, semantic object-kind hints filter incompatible candidates where the canonical entity type is sufficiently explicit, and repeated topic mentions contribute a bounded continuity signal. A score threshold and minimum margin force clarification rather than a guess. The resolver deliberately does not infer grammatical gender/number because the canonical entity model does not currently store reliable values; it also does not invent NPC speaker identity from an unstructured narrative paragraph.
+
+The same PR adds an immutable `PendingIntentCorrection` application primitive for one target mention, role-labelled action argument or directed relation endpoint. It requires literal correction evidence and an uncommitted pending resolution, updates the semantic-step evidence excerpt for durable decoding, and leaves the original analysis untouched. It is not yet emitted by the combined provider JSON schema or wired as an automatic model-driven correction chain. That provider/lifecycle integration needs a separate measured design and corpus tranche; this PR must not be read as completing autonomous correction understanding.
+
+Remaining gaps include broad ellipsis, long-distance references, semantic paraphrase, topic-shift modelling, real grammatical agreement, explicit NPC-speaker attribution, and reliable model-emitted correction chains. V2 relation attribution remains a literal mention, not a resolved speaker identity.
 
 ### Time and causality
 V2 can carry a literal temporal expression on a relation claim, but it does not yet model a full temporal interval, causal graph, counterfactual state or dependency graph between arbitrary actions. A temporal expression is evidence, not proof of when an event occurred.
