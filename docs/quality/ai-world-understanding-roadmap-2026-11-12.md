@@ -329,7 +329,7 @@ The corpus should include these families:
 
 A scenario's oracle should describe semantic constraints, not one exact JSON string. Several operation sequences may be valid if they preserve the same world invariants. Keep assertions strict about forbidden changes and required facts.
 
-The P0 implementation adds `tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled Spanish/English scenarios (12 critical, repeated three times by the opt-in corpus test). PR #216 adds `tests/fixtures/conversation_understanding_corpus_v2.json` with six deterministic resolver scenarios. PR #218's `tests/test_semantic_frames.py` adds deterministic v2 parser/codec contracts. The 34 live intent cases now pass through v2 schema validation but do not comprehensively score role/relation correctness. Run and record live model behavior separately; neither fixture count nor deterministic CI proves semantic acceptance.
+The P0 implementation adds `tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled Spanish/English scenarios (12 critical, repeated three times by the opt-in corpus test). PR #216 adds `tests/fixtures/conversation_understanding_corpus_v2.json` with six deterministic resolver scenarios. PR #218's `tests/test_semantic_frames.py` adds deterministic v2 parser/codec contracts and `tests/fixtures/semantic_frame_corpus_v1.json` adds ten live Spanish role/relation cases (four critical repeated three times). The 34 live intent cases now pass through v2 schema validation but do not comprehensively score role/relation correctness. Run and record live model behavior separately; neither fixture count nor deterministic CI proves semantic acceptance.
 
 ## 7. Metrics and reporting
 
