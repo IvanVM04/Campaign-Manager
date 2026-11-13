@@ -308,3 +308,74 @@ def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
         adjudicator.understand(make_turn_context(), "Abro la puerta.")
 
 
+
+
+
+def test_mechanics_adjudicator_bounds_context_without_truncating_player_evidence(monkeypatch):
+    from services.context import ContextBuilder
+
+    context_builder = ContextBuilder()
+    monkeypatch.setattr(
+        context_builder,
+        "build",
+        lambda *args, **kwargs: {"context": "HECHO VISIBLE " * 2000},
+    )
+    response = json.dumps({
+        "intent_analysis": {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "Abro la puerta.",
+                "actor": "player",
+                "action": "abrir la puerta",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        "mechanics_decision": {"decision": "none"},
+    })
+    provider = FakeLLMProvider(response=response)
+    adjudicator = MechanicsAdjudicator(
+        provider,
+        context_builder,
+        max_prompt_tokens=6000,
+        max_context_tokens=3000,
+    )
+
+    adjudicator.understand(
+        make_turn_context(),
+        "Abro la puerta.",
+        evidence_text="Abro la puerta.",
+    )
+
+    prompt = provider.prompts[0]
+    from models.world_context_projection import estimate_tokens
+
+    assert estimate_tokens(prompt) <= 6000
+    assert "Abro la puerta." in prompt
+    assert "=== EVIDENCIA ESCRITA POR EL JUGADOR" in prompt
+    assert len(prompt.encode("utf-8")) < 12000
+
+
+def test_mechanics_adjudicator_rejects_fixed_evidence_that_cannot_fit_prompt_budget():
+    provider = FakeLLMProvider(response='{"decision":"none"}')
+    adjudicator = MechanicsAdjudicator(
+        provider,
+        max_prompt_tokens=128,
+        max_context_tokens=64,
+    )
+    huge_player_input = "Abro la puerta. " * 100
+
+    with pytest.raises(MechanicsAdjudicatorError, match="mechanics prompt exceeds"):
+        adjudicator.understand(
+            make_turn_context(),
+            huge_player_input,
+            evidence_text=huge_player_input,
+        )
