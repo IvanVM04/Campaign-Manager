@@ -11,8 +11,9 @@ class SillyTavernManualRollIn(ManualRollIn):
     query: str = Field(..., min_length=1, max_length=10000)
     additional_query: str | None = Field(default=None, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
+    conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("query", "answer_external_turn_id")
+    @field_validator("query", "answer_external_turn_id", "conversation_id")
     @classmethod
     def validate_manual_roll_text(cls, value: str) -> str:
         value = value.strip()
@@ -31,8 +32,9 @@ class SillyTavernClarificationIn(ClarificationIn):
     query: str = Field(..., min_length=1, max_length=10000)
     additional_query: str | None = Field(default=None, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
+    conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("answer_external_turn_id")
+    @field_validator("answer_external_turn_id", "conversation_id")
     @classmethod
     def validate_answer_external_turn_id(cls, value: str) -> str:
         value = value.strip()
@@ -70,8 +72,9 @@ class SillyTavernContextIn(BaseModel):
         max_length=10000,
     )
     additional_query: str | None = Field(default=None, max_length=10000)
+    conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("query")
+    @field_validator("query", "conversation_id")
     @classmethod
     def validate_query(
         cls,
@@ -101,8 +104,9 @@ class SillyTavernTurnResolveIn(BaseModel):
     query: str = Field(..., min_length=1, max_length=10000)
     additional_query: str | None = Field(default=None, max_length=10000)
     dice_mode: Literal["automatic", "manual"] = "automatic"
+    conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("player_input", "external_turn_id", "query")
+    @field_validator("player_input", "external_turn_id", "query", "conversation_id")
     @classmethod
     def validate_required_text(cls, value: str) -> str:
         value = value.strip()
