@@ -56,7 +56,7 @@ V2 supports bounded relation claims with step index, literal subject, predicate 
 
 Before merge, run the full deterministic suite and all required quality checks on the final commit. Review the real diff for typing, prompt budgets, structured-generation compatibility and accidental changes to the v1 durable representation.
 
-Then run the live Ollama corpus with a pinned model/version/settings. The existing 34 utterance scenarios validate category/step interpretation and now pass through v2 structural validation, but they do not yet constitute a comprehensive semantic-role or relation benchmark. Preserve all live failures.
+Then run both live Ollama suites with pinned model/version/settings. The 34 utterance scenarios validate category/step interpretation and v2 structural constraints; the ten-case semantic-frame corpus evaluates selected argument roles and relation direction/polarity/modality/attribution (four critical cases repeated three times). Neither is a comprehensive benchmark. Preserve all live failures.
 
 The SillyTavern multi-chat/recovery smoke test also remains a separate gate. Do not infer it from unit/API tests.
 
