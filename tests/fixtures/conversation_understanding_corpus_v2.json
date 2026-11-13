@@ -1,0 +1,162 @@
+{
+  "schema_version": 2,
+  "description": "Labelled multi-turn conversation references evaluated against a visibility-filtered world projection.",
+  "scenarios": [
+    {
+      "id": "unique-pronoun",
+      "utterance": "Le pregunto dónde encontró la llave.",
+      "target_mention": "ella",
+      "visible_entities": [
+        {
+          "id": 1,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Cartógrafa de la posada."
+        },
+        {
+          "id": 2,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Tabernero del puerto."
+        }
+      ],
+      "recent_turns": [
+        {
+          "id": 14,
+          "player_input": "Hablo con Mara sobre el mapa."
+        }
+      ],
+      "expected": {
+        "entity_id": 1,
+        "entity_name": "Mara",
+        "clarification": false
+      }
+    },
+    {
+      "id": "ambiguous-pronoun",
+      "utterance": "Le pregunto qué ocurrió.",
+      "target_mention": "él",
+      "visible_entities": [
+        {
+          "id": 1,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Cartógrafa."
+        },
+        {
+          "id": 2,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Tabernero."
+        }
+      ],
+      "recent_turns": [
+        {
+          "id": 15,
+          "player_input": "Mara y Aldric llegan juntos a la posada."
+        }
+      ],
+      "expected": {
+        "clarification": true
+      }
+    },
+    {
+      "id": "other-guard",
+      "utterance": "Le pregunto al otro guardia.",
+      "target_mention": "el otro guardia",
+      "visible_entities": [
+        {
+          "id": 1,
+          "name": "Bram",
+          "entity_type": "npc",
+          "description": "Guardia del puente."
+        },
+        {
+          "id": 2,
+          "name": "Doran",
+          "entity_type": "npc",
+          "description": "Guardia de la puerta norte."
+        },
+        {
+          "id": 3,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Cartógrafa."
+        }
+      ],
+      "recent_turns": [
+        {
+          "id": 16,
+          "player_input": "Hablo con Bram, el guardia del puente."
+        }
+      ],
+      "expected": {
+        "entity_id": 2,
+        "entity_name": "Doran",
+        "clarification": false
+      }
+    },
+    {
+      "id": "same-object",
+      "utterance": "Intento abrir la misma puerta.",
+      "target_mention": "la misma puerta",
+      "visible_entities": [
+        {
+          "id": 7,
+          "name": "Puerta del establo",
+          "entity_type": "door",
+          "description": "Puerta de madera cerrada."
+        },
+        {
+          "id": 8,
+          "name": "Puerta del patio",
+          "entity_type": "door",
+          "description": "Puerta de hierro."
+        }
+      ],
+      "recent_turns": [
+        {
+          "id": 17,
+          "player_input": "Examino la puerta del establo."
+        }
+      ],
+      "expected": {
+        "entity_id": 7,
+        "entity_name": "Puerta del establo",
+        "clarification": false
+      }
+    },
+    {
+      "id": "invisible-antecedent",
+      "utterance": "Le pregunto por la carta.",
+      "target_mention": "él",
+      "visible_entities": [
+        {
+          "id": 1,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Cartógrafa."
+        }
+      ],
+      "recent_turns": [
+        {
+          "id": 18,
+          "player_input": "Hablo con el espía secreto."
+        }
+      ],
+      "expected": {
+        "clarification": true
+      }
+    },
+    {
+      "id": "new-proper-name",
+      "utterance": "Hablo con Tilda.",
+      "target_mention": "Tilda",
+      "visible_entities": [],
+      "recent_turns": [],
+      "expected": {
+        "clarification": false
+      }
+    }
+  ]
+}
