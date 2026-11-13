@@ -9,8 +9,8 @@ from models.pending_intent_correction import (
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.semantic_frames import (
     SemanticArgumentRole,
-    SemanticObjectKind,
     SemanticMention,
+    SemanticObjectKind,
  )
 
 
