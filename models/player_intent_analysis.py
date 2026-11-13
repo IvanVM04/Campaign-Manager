@@ -352,11 +352,19 @@ class PlayerIntentAnalysis:
         ) and not indirect_question
         planned = bool(re.search(r"\b(mañana|luego|después|planeo|pienso|me gustaría|voy a|haré|tomorrow|later|plan to|i will)\b", folded))
         quoted = any(mark in text for mark in ('"', "“", "”", "«", "»"))
+        # An initial first-person speech verb makes "si" an indirect-question
+        # complement ("le pregunto si sabe"), not a conditional clause.
+        player_speech_act = bool(re.match(
+            r"^(?:le\\s+)?(?:pregunto|pregunt[eé]|consulto|consult[eé]|hablo|habl[eé]|digo|dije|cuento|cont[eé]|pido|ped[ií]|respondo|respond[ií])\\b",
+            folded,
+        ))
         failure = bool(re.search(r"\b(no pude|no consigo|no logré|no logre|no conseguí|no consegui|fallé|falle|fracasé|fracase|falló|fallo|failed|could not|couldn't)\b", folded))
         negated = bool(re.search(r"\b(no|nunca|jamás|jamas|not|never)\b", folded)) and not failure
         if question:
             category, modality = UtteranceCategory.QUESTION, IntentModality.QUESTION
         elif quoted:
+            category, modality = UtteranceCategory.DIALOGUE, IntentModality.DIALOGUE
+        elif player_speech_act:
             category, modality = UtteranceCategory.DIALOGUE, IntentModality.DIALOGUE
         elif conditional:
             category, modality = UtteranceCategory.PLAN, IntentModality.CONDITIONAL
