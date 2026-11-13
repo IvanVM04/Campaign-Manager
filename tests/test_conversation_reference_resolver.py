@@ -172,6 +172,23 @@ def test_other_guard_resolves_only_when_one_other_visible_role_matches():
     assert len(result.references) == 1
     assert result.references[0].entity_id == 2
     assert result.references[0].match_kind == "other_role_in_conversation"
+    assert result.references[0].antecedent_turn_id == 19
+
+
+def test_other_guard_abstains_when_contrast_antecedent_is_ambiguous():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Bram", entity_type="npc", description="Guardia del puente."),
+        2: Entity(id=2, name="Eron", entity_type="npc", description="Guardia de la torre."),
+        3: Entity(id=3, name="Doran", entity_type="npc", description="Guardia de la puerta norte."),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Le pregunto al otro guardia.", "otro guardia"),
+        recent_turns=[turn(21, "Bram y Eron discuten frente a la puerta.")],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "other_role_antecedent_ambiguous"
 
 
 def test_hidden_entity_cannot_be_used_as_conversation_antecedent():
