@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#218 are integrated. PR #218's deterministic Tests and CodeQL workflows passed; live Ollama and SillyTavern acceptance remain separate gates. PR #219 is being prepared on `feat/219-discourse-resolution-corrections`.  
-**Verified base:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13; PR #218 merged).  
+**Status:** PRs #210–#219 are integrated. PR #219 merged as `cd701d11eb36666ab5ad33603095a2d95289882b`. PR #220 builds the held-out semantic evaluation corpus and quality gate on `feat/220-semantic-evaluation-corpus`. Live Ollama and SillyTavern acceptance remain separate gates.  
+**Verified base:** `main` at `cd701d11eb36666ab5ad33603095a2d95289882b` (2026-11-13; PR #219 merged).  
 **Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
@@ -21,7 +21,7 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The P0 shared interpretation, chat isolation and evidence-bound semantic-frame v2 implementation are integrated. PR #218's deterministic CI passed, but live Ollama and real SillyTavern acceptance evidence is still required. PR #219 adds a deterministic discourse-evidence layer and a guarded pending-correction primitive; it deliberately does not claim automatic model-driven correction chains. Do not begin the Character Builder or broad gameplay expansion while the live gates remain open; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
+The P0 shared interpretation, chat isolation, evidence-bound semantic-frame v2 and discourse evidence/correction primitive are integrated through PR #219. Deterministic CI results do not replace live Ollama or real SillyTavern acceptance. PR #219 deliberately does not claim automatic model-driven correction chains. PR #220 is now measuring semantic quality on a separate 110-scenario corpus with a held-out tranche. Do not begin the Character Builder or broad gameplay expansion while the live gates remain open; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
 
 This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
@@ -298,9 +298,9 @@ The branch adds `models/semantic_frames.py`, v2 action frames with typed argumen
 
 **Acceptance is pending:** deterministic CI and live Ollama/SillyTavern gates must be run on the final branch head. V2 parser tests prove schema/evidence invariants, not general model accuracy. The detailed implementation and remaining work are in the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
 
-### Next after PR #218 — discourse and evaluation
+### Next after PR #219 — evaluation and quality gate
 
-PR #219 should improve speaker-aware coreference, semantic-type/grammatical constraints, topic focus, ellipsis and correction chains. PR #220 should build a held-out corpus of at least 100 scenarios to measure frame slots, relation direction/modality, entity linking, abstention, persistent false positives, secret leakage and latency. Do not add embeddings or another normal-path model call before measurement.
+PR #219 is merged and adds typed discourse evidence plus a guarded immutable correction primitive. PR #220 now builds a 110-scenario labelled battery (50 development + 60 held-out) for intent interpretation, action roles/relations and cross-turn references. It reports per-family slot/case accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Do not add embeddings, broad prompt changes or another normal-path model call before the baseline is measured.
 
 ## 6. Evaluation corpus design
 
@@ -329,7 +329,7 @@ The corpus should include these families:
 
 A scenario's oracle should describe semantic constraints, not one exact JSON string. Several operation sequences may be valid if they preserve the same world invariants. Keep assertions strict about forbidden changes and required facts.
 
-The P0 implementation adds `tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled Spanish/English scenarios (12 critical, repeated three times by the opt-in corpus test). PR #216 adds `tests/fixtures/conversation_understanding_corpus_v2.json` with six deterministic resolver scenarios. PR #218's `tests/test_semantic_frames.py` adds deterministic v2 parser/codec contracts and `tests/fixtures/semantic_frame_corpus_v1.json` adds ten live Spanish role/relation cases (four critical repeated three times). The 34 live intent cases now pass through v2 schema validation but do not comprehensively score role/relation correctness. Run and record live model behavior separately; neither fixture count nor deterministic CI proves semantic acceptance.
+The original development corpus contains 34 labelled Spanish/English utterance scenarios, six deterministic conversation-reference scenarios and ten semantic-frame/relation cases. PR #220 adds separate held-out files with 26 intent, 14 discourse and 20 semantic-frame scenarios (60 new examples; 110 total). The new evaluator records per-family results and keeps critical hard-gate cases distinct from non-critical baseline measurement. role/relation correctness. Run and record live model behavior separately; neither fixture count nor deterministic CI proves semantic acceptance.
 
 ## 7. Metrics and reporting
 
