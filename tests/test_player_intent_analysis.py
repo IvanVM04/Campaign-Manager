@@ -227,6 +227,8 @@ def test_analysis_json_round_trip_is_stable():
     [
         ("¿Dónde está el guardia?", UtteranceCategory.QUESTION, IntentModality.QUESTION, False),
         ("Si el guardia se acerca, me escondo.", UtteranceCategory.PLAN, IntentModality.CONDITIONAL, False),
+        ("Me escondo si el guardia se acerca.", UtteranceCategory.PLAN, IntentModality.CONDITIONAL, False),
+        ("Le pregunto a Mara si sabe algo de la campana.", UtteranceCategory.ACTION, IntentModality.ATTEMPTED, True),
         ("Mañana hablaré con el capitán.", UtteranceCategory.PLAN, IntentModality.PLANNED, False),
         ("No ataco al guardia.", UtteranceCategory.ACTION, IntentModality.NEGATED, False),
         ("No consigo abrir la puerta.", UtteranceCategory.ACTION, IntentModality.ATTEMPTED, False),
