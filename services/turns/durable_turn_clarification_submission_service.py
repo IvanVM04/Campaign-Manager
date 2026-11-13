@@ -74,16 +74,11 @@ class DurableTurnClarificationSubmissionService:
                     str(pending_state.get("last_challenge_id", "")),
                     challenge_id,
                 )
-                and secrets.compare_digest(
-                    str(pending_state.get("last_answer", "")),
-                    answer,
-                )
+                and pending_state.get("last_answer", "") == answer
                 and (
                     answer_external_turn_id is None
-                    or secrets.compare_digest(
-                        str(pending_state.get("last_answer_external_turn_id", "")),
-                        answer_external_turn_id,
-                    )
+                    or pending_state.get("last_answer_external_turn_id", "")
+                    == answer_external_turn_id
                 )
             ):
                 if record.lifecycle_state == "awaiting_input":
