@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from models.campaign_state import CampaignState
@@ -92,7 +94,7 @@ def test_adjudicator_rejects_invalid_or_unexpected_output(payload):
         adjudicator.adjudicate(make_turn_context(), "Intento algo.")
 
 
-def test_adjudicator_skips_llm_without_active_character():
+def test_adjudicator_still_extracts_intent_without_active_character():
     context = make_turn_context()
     context = TurnContext(
         campaign=context.campaign,
@@ -105,7 +107,7 @@ def test_adjudicator_skips_llm_without_active_character():
     decision = MechanicsAdjudicator(provider).adjudicate(context, "Miro.")
 
     assert decision.decision is MechanicsDecisionType.NONE
-    assert provider.call_count == 0
+    assert provider.call_count == 1
 
 
 def make_turn_context():
@@ -169,3 +171,72 @@ def test_system_prompt_does_not_treat_rumors_or_inferences_as_confirmed_facts():
     assert "una inferencia es una posibilidad" in prompt
     assert "no bases una cd" in prompt
     assert "pide aclaración" in prompt
+
+
+def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
+    player_input = "Cruzo la plaza."
+    provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "Cruzo la plaza",
+                "actor": "player",
+                "action": "cruzar la plaza",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la plaza"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        "mechanics_decision": {"decision": "none"},
+    }))
+    analysis, decision = MechanicsAdjudicator(provider).understand(
+        make_turn_context(),
+        player_input,
+        recent_turns=[{
+            "player_input": "He visto a Aldric en la entrada.",
+            "narrative": "Aldric se aparta para dejarte pasar.",
+        }],
+    )
+
+    assert analysis.steps[0].source_excerpt == "Cruzo la plaza"
+    assert analysis.steps[0].target_mentions == ("la plaza",)
+    assert analysis.is_actionable is True
+    assert decision.decision is MechanicsDecisionType.NONE
+    assert provider.call_count == 1
+
+
+def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
+    response = json.dumps({
+        "intent_analysis": {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "El personaje abre la puerta",
+                "actor": "player",
+                "action": "abrir la puerta",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        "mechanics_decision": {"decision": "none"},
+    })
+    adjudicator = MechanicsAdjudicator(FakeLLMProvider(response=response))
+
+    with pytest.raises(MechanicsAdjudicatorError, match="source_excerpt"):
+        adjudicator.understand(make_turn_context(), "Abro la puerta.")
+
+
