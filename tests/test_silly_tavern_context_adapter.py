@@ -86,7 +86,7 @@ def test_context_adapter_wraps_recent_turn_repository_failure(adapter, monkeypat
     with pytest.raises(
         SillyTavernIntegrationServiceError, match="recent active turn history"
     ):
-        adapter.get_context("Miro alrededor.")
+        adapter.get_context("Miro alrededor.", conversation_id="test-chat")
 
 
 def test_context_adapter_wraps_context_builder_failure(adapter, monkeypatch):
