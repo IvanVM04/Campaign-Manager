@@ -243,6 +243,7 @@ class TurnResolutionService:
         if not intent_analysis.is_actionable:
             decision = MechanicsDecision(decision=MechanicsDecisionType.NONE)
 
+        if decision is not None:
             if decision.decision is MechanicsDecisionType.CLARIFICATION:
                 return TurnResolutionPlan(
                     player_input=normalized_input,
