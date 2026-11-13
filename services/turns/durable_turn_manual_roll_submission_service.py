@@ -133,6 +133,10 @@ class DurableTurnManualRollSubmissionService:
                 record.intent_json,
                 original_input=record.player_input,
             )
+            persisted_evidence_text = TurnResolutionCodec.intent_evidence_text(
+                record.intent_json,
+                original_input=record.player_input,
+            )
             persisted_intent = TurnResolutionCodec.intent_from_json(
                 record.intent_json,
                 original_input=record.player_input,
@@ -145,6 +149,7 @@ class DurableTurnManualRollSubmissionService:
                 decision_override=decision,
                 intent_analysis_override=persisted_intent,
                 recent_turns=recent,
+                intent_evidence_text=persisted_evidence_text,
             )
             if plan.awaiting_manual_roll or plan.clarification_question:
                 raise self.error_type("manual roll could not be resolved")
