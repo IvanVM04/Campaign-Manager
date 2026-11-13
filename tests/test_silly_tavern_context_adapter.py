@@ -141,7 +141,7 @@ def test_context_adapter_excludes_requested_turn_and_serializes_optional_state(
     monkeypatch.setattr(adapter.context_builder, "build", build)
 
     result = adapter.get_context(
-        "Aldric", exclude_external_turn_id="current-turn"
+        "Aldric", exclude_external_turn_id="current-turn", conversation_id="test-chat"
     )
 
     assert [turn.external_turn_id for turn in captured["recent_turns"]] == [
