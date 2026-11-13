@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "description": "Held-out action-frame and directed-relation cases. Reserved for measurement; do not turn these exact utterances into few-shot prompt examples.",
+  "scenarios": [
+    {
+      "id": "holdout-transfer-scroll",
+      "family": "action_roles_transfer",
+      "input": "Entrego el pergamino sellado a la capitana.",
+      "critical": true,
+      "expected_action_frame": {
+        "family": "transfer",
+        "arguments": [
+          {
+            "role": "theme",
+            "mention": "el pergamino sellado",
+            "kind_hint": "item_instance"
+          },
+          {
+            "role": "recipient",
+            "mention": "la capitana",
+            "kind_hint": "character"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-transfer-ring",
+      "family": "action_roles_transfer",
+      "input": "Mara entrega el anillo de plata a Aldric.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "transfer",
+        "arguments": [
+          {
+            "role": "agent",
+            "mention": "Mara",
+            "kind_hint": "character"
+          },
+          {
+            "role": "theme",
+            "mention": "el anillo de plata",
+            "kind_hint": "item_instance"
+          },
+          {
+            "role": "recipient",
+            "mention": "Aldric",
+            "kind_hint": "character"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-item-definition-vs-instance",
+      "family": "item_definition_instance",
+      "input": "Compro una poción de curación y guardo esa poción en mi mochila.",
+      "critical": true,
+      "expected_action_frame": {
+        "family": "transfer",
+        "arguments": [
+          {
+            "role": "theme",
+            "mention": "una poción de curación",
+            "kind_hint": "item_instance"
+          },
+          {
+            "role": "destination",
+            "mention": "mi mochila",
+            "kind_hint": "item_instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-item-use-instrument",
+      "family": "item_definition_instance",
+      "input": "Abro el cofre utilizando la llave de cobre.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "item_use",
+        "arguments": [
+          {
+            "role": "theme",
+            "mention": "el cofre",
+            "kind_hint": "world_entity"
+          },
+          {
+            "role": "instrument",
+            "mention": "la llave de cobre",
+            "kind_hint": "item_instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-movement-path",
+      "family": "action_roles_movement",
+      "input": "Camino desde el molino por el sendero hasta la torre.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "movement",
+        "arguments": [
+          {
+            "role": "source",
+            "mention": "el molino",
+            "kind_hint": "location"
+          },
+          {
+            "role": "path",
+            "mention": "el sendero",
+            "kind_hint": "location"
+          },
+          {
+            "role": "destination",
+            "mention": "la torre",
+            "kind_hint": "location"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-movement-companion",
+      "family": "action_roles_movement",
+      "input": "Acompaño a Bram hasta la puerta norte.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "movement",
+        "arguments": [
+          {
+            "role": "companion",
+            "mention": "Bram",
+            "kind_hint": "character"
+          },
+          {
+            "role": "destination",
+            "mention": "la puerta norte",
+            "kind_hint": "location"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-combat-patient-tool",
+      "family": "action_roles_combat",
+      "input": "Golpeo al ogro con el martillo de guerra.",
+      "critical": true,
+      "expected_action_frame": {
+        "family": "combat",
+        "arguments": [
+          {
+            "role": "patient",
+            "mention": "al ogro",
+            "kind_hint": "creature"
+          },
+          {
+            "role": "instrument",
+            "mention": "el martillo de guerra",
+            "kind_hint": "item_instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-containment",
+      "family": "action_roles_containment",
+      "input": "Guardo la carta dentro del cofre de roble.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "transfer",
+        "arguments": [
+          {
+            "role": "theme",
+            "mention": "la carta",
+            "kind_hint": "item_instance"
+          },
+          {
+            "role": "container",
+            "mention": "el cofre de roble",
+            "kind_hint": "world_entity"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-hide-location",
+      "family": "action_roles_containment",
+      "input": "Escondo la moneda bajo la alfombra del dormitorio.",
+      "critical": false,
+      "expected_action_frame": {
+        "arguments": [
+          {
+            "role": "theme",
+            "mention": "la moneda",
+            "kind_hint": "item_instance"
+          },
+          {
+            "role": "location",
+            "mention": "bajo la alfombra del dormitorio",
+            "kind_hint": "location"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-perception-target",
+      "family": "action_roles_perception",
+      "input": "Observo el mapa antiguo con una lupa.",
+      "critical": false,
+      "expected_action_frame": {
+        "family": "perception",
+        "arguments": [
+          {
+            "role": "theme",
+            "mention": "el mapa antiguo",
+            "kind_hint": "item_instance"
+          },
+          {
+            "role": "instrument",
+            "mention": "una lupa",
+            "kind_hint": "item_instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "holdout-relation-employment",
+      "family": "relation_direction",
+      "input": "Mara trabaja para la guardia de Puerto Gris.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "Mara",
+        "object": "la guardia de Puerto Gris",
+        "predicate": "trabaja",
+        "relation_family": "employment",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-membership",
+      "family": "relation_direction",
+      "input": "Bram pertenece al gremio de cartógrafos.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "Bram",
+        "object": "el gremio de cartógrafos",
+        "relation_family": "membership",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-allegiance",
+      "family": "relation_direction",
+      "input": "Aldric jura lealtad a la reina.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "Aldric",
+        "object": "la reina",
+        "relation_family": "allegiance",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-protection",
+      "family": "relation_direction",
+      "input": "La orden protege a los habitantes del puerto.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "La orden",
+        "object": "los habitantes del puerto",
+        "relation_family": "protection",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-friendship",
+      "family": "relation_direction",
+      "input": "Mara y Aldric son amigos.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "Mara",
+        "object": "Aldric",
+        "relation_family": "friendship",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-hostility",
+      "family": "relation_direction",
+      "input": "El ogro odia al capitán.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "El ogro",
+        "object": "el capitán",
+        "relation_family": "hostility",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-part-of",
+      "family": "relation_direction",
+      "input": "La gema azul forma parte del tesoro real.",
+      "critical": false,
+      "expected_relation": {
+        "subject": "La gema azul",
+        "object": "el tesoro real",
+        "relation_family": "part_of",
+        "polarity": "positive"
+      }
+    },
+    {
+      "id": "holdout-relation-negative",
+      "family": "relation_epistemic",
+      "input": "El anillo de plata no pertenece a Aldric.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "El anillo de plata",
+        "object": "Aldric",
+        "predicate": "pertenece",
+        "relation_family": "ownership",
+        "polarity": "negative",
+        "modality": "negated"
+      }
+    },
+    {
+      "id": "holdout-relation-reported",
+      "family": "relation_epistemic",
+      "input": "El mercader afirma que el mapa pertenece a Mara.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "el mapa",
+        "object": "Mara",
+        "relation_family": "ownership",
+        "modality": "reported",
+        "attributed_to": "El mercader"
+      }
+    },
+    {
+      "id": "holdout-relation-temporal",
+      "family": "relation_temporal",
+      "input": "Desde ayer, la llave de cobre pertenece a Mara.",
+      "critical": true,
+      "expected_relation": {
+        "subject": "la llave de cobre",
+        "object": "Mara",
+        "relation_family": "ownership",
+        "polarity": "positive",
+        "temporal_expression": "Desde ayer"
+      }
+    }
+  ]
+}
