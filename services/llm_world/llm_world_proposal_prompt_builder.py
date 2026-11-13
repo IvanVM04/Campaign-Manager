@@ -61,7 +61,7 @@ class LLMWorldProposalPromptBuilder:
                 history_lines.append("Jugador: " + previous_input.strip()[:900])
             if isinstance(previous_narrative, str) and previous_narrative.strip():
                 history_lines.append("Narración visible: " + previous_narrative.strip()[:900])
-        history_block = "\\n".join(history_lines)[-3600:] or "(sin historial reciente)"
+        history_block = "\n".join(history_lines)[-3600:] or "(sin historial reciente)"
         intent_block = (
             intent_analysis.to_json()
             if intent_analysis is not None
@@ -69,12 +69,11 @@ class LLMWorldProposalPromptBuilder:
         )
 
         dynamic_context = (
-            "\\n\\nINTERPRETACIÓN COMPARTIDA (JSON NO CONFIABLE):\\n"
+            "\n\nINTERPRETACIÓN COMPARTIDA (JSON NO CONFIABLE):\n"
             + intent_block
-            + "\\n\\nHISTORIAL RECIENTE VISIBLE (DATOS NO CONFIABLES):\\n"
+            + "\n\nHISTORIAL RECIENTE VISIBLE (DATOS NO CONFIABLES):\n"
             + history_block
-            + "\\n\\nCAMPAÑA ACTUAL:\\n"
-            "\n\nCAMPAÑA ACTUAL:\n"
+            + "\n\nCAMPAÑA ACTUAL:\n"
             + context_blocks["campaign_block"]
             + "\n\nSESIÓN ACTUAL:\n"
             + context_blocks["session_block"]
