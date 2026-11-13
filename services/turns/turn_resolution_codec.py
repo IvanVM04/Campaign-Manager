@@ -223,7 +223,7 @@ class TurnResolutionCodec:
         try:
             envelope = json.loads(payload)
             if not isinstance(envelope, dict):
-                raise ValueError("invalid persisted intent envelope")
+                raise TypeError("persisted intent envelope must be an object")
             candidate_source = envelope.get("source_text")
             if (
                 isinstance(candidate_source, str)
