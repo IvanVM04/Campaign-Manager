@@ -385,6 +385,7 @@ class DurableTurnExecutionService:
                         context,
                         normalized,
                         manual_mode=(dice_mode == "manual"),
+                        recent_turns=recent,
                     )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
@@ -394,6 +395,7 @@ class DurableTurnExecutionService:
                             expected_state="planning", expected_lease_token=lease_token,
                             updates={
                                 "context_revision": revision,
+                                "intent_json": TurnResolutionCodec.intent_to_json(plan),
                                 "adjudication_json": json.dumps({"manual_roll": pending, "dice_mode": dice_mode}, separators=(",", ":"), sort_keys=True),
                                 "lease_token": None, "lease_expires_at": None,
                             }, conn=conn,
@@ -420,6 +422,7 @@ class DurableTurnExecutionService:
                             expected_lease_token=lease_token,
                             updates={
                                 "context_revision": revision,
+                                "intent_json": TurnResolutionCodec.intent_to_json(plan),
                                 "adjudication_json": json.dumps(
                                     {"clarification": pending, "dice_mode": dice_mode},
                                     ensure_ascii=False,
@@ -450,6 +453,7 @@ class DurableTurnExecutionService:
                         updates={
                             "context_revision": revision,
                             "proposal_json": proposal_json,
+                            "intent_json": TurnResolutionCodec.intent_to_json(plan),
                             "adjudication_json": json.dumps(
                                 {
                                     "decision": plan.mechanics_decision.decision.value,
