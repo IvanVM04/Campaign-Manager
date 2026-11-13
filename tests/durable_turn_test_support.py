@@ -1,6 +1,51 @@
 """Shared deterministic providers for durable turn application tests."""
 
+import json
+
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
+from models.player_intent_analysis import PlayerIntentAnalysis
+from services.providers import FakeLLMProvider, LLMProviderError
+
+
+class CombinedMechanicsFakeProvider(FakeLLMProvider):
+    """Wrap a mechanics-only fixture in the strict combined v1 response."""
+
+    def generate(self, prompt: str) -> str:
+        if not isinstance(prompt, str):
+            raise TypeError("prompt must be a string")
+        self.prompts.append(prompt)
+        if self.error is not None:
+            raise LLMProviderError("Fake LLM provider error") from self.error
+        if self.response is None:
+            raise ValueError("a fixed mechanics response is required")
+
+        marker = "=== EVIDENCIA ESCRITA POR EL JUGADOR"
+        marker_index = prompt.find(marker)
+        if marker_index < 0:
+            raise ValueError("mechanics prompt is missing player-authored evidence")
+        header_end = prompt.find(") ===\n", marker_index)
+        if header_end < 0:
+            raise ValueError("mechanics prompt has an invalid evidence section")
+        evidence_start = header_end + len(") ===\n")
+        evidence_end = prompt.find(
+            "\nEl contexto completo puede contener",
+            evidence_start,
+        )
+        if evidence_end < 0:
+            raise ValueError("mechanics prompt has an unterminated evidence section")
+        evidence_text = prompt[evidence_start:evidence_end].strip()
+        if not evidence_text:
+            raise ValueError("mechanics prompt has empty player-authored evidence")
+
+        analysis = PlayerIntentAnalysis.conservative_legacy(evidence_text)
+        return json.dumps(
+            {
+                "intent_analysis": analysis.to_dict(),
+                "mechanics_decision": json.loads(self.response),
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
 
 
 def service_with_fake_models():
