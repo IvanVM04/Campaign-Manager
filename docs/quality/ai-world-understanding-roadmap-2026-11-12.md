@@ -67,17 +67,19 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow
+### Active data flow — PR #215 implementation
 
-`TurnResolutionService` orchestrates the existing flow:
+`TurnResolutionService` now orchestrates a shared semantic interpretation:
 
-1. receive the player's original input;
-2. ask `MechanicsAdjudicator` whether a deterministic check/clarification is needed;
-3. construct a bounded `WorldContextProjection` through `ContextBuilder` / `ProposalContextSelector`;
-4. render the projection and operation contract with `LLMWorldProposalPromptBuilder`;
-5. call `LLMWorldExtractor` and parse/validate the structured operations;
-6. validate and apply operations through the world application boundary;
+1. receive and validate the player's original input, with bounded recent visible turns;
+2. call `MechanicsAdjudicator.understand()` once; the structured response contains both a versioned `PlayerIntentAnalysis` and a mechanics decision;
+3. validate literal source excerpts/target mentions and the active step; skip mechanics adjudication for questions, plans, dialogue, negations and already-reported outcomes;
+4. build a bounded `WorldContextProjection` only when the analysis permits a world proposal, using literal target mentions and recent turns as supplemental retrieval signals;
+5. pass the exact same analysis object and bounded visible history to `LLMWorldExtractor`; the proposal prompt must not independently reinterpret the raw utterance or execute future steps;
+6. parse/validate typed operations and apply them through the existing world application boundary;
 7. narrate from the committed resolution through `DMService`.
+
+The durable resolution stores the analysis and exact source text in `intent_json`, with a SHA-256 source fingerprint. Manual-roll continuation reuses the saved analysis; clarification continuation appends its answer to the original source and produces a new analysis. Migration 033 adds the column and protects committed evidence.
 
 The dependency direction remains: `services/turns` can orchestrate `services/context`; `services/llm_world` must not import `services/context`.
 
@@ -89,12 +91,11 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - The initial real-model corpus allowed a vacuous "valid list" pass and used an empty world for the failed-door case, so the model could create a new door entity without contradicting existing state.
 - Retrieval is deterministic and largely lexical. It currently has one-hop relation expansion and a stable ranker; matching "the innkeeper" to a known NPC whose record contains only a proper name is not yet a guaranteed contract.
 - There is no explicit, typed provenance/epistemic model for confirmed, inferred, rumored, unknown and character-known facts. A boolean secret flag is not a full knowledge model.
-- The adjudicator, world proposer and narrator have distinct roles, but their semantic decisions need a shared evaluation corpus to expose disagreements and continuity failures.
+- The adjudicator and proposal stages now share the same typed interpretation. Narration remains a separate post-commit responsibility; the semantic contract is not a fact or write authority.
+- Conversation-level clues are bounded to six recent turns. This improves retrieval/context continuity but does not implement full pronoun/coreference resolution; the lexical resolver still abstains when candidates are ambiguous.
+- The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
 
-PR #210 addresses the renderer/contract gaps and corrects the live-test fixtures.
-PR #211 adds explicit alias data and conservative entity resolution. PR #212
-hardens multi-signal retrieval and SillyTavern integration. Conversation-level
-intent, knowledge perspective and cross-role grounding remain later work.
+PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding. PR #215 now implements the shared typed intent contract, proposal hand-off and durable recovery. Its local Ollama corpus and SillyTavern acceptance remain mandatory and unrecorded.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
