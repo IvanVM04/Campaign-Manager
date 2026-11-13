@@ -39,6 +39,7 @@ class TurnRecord:
     created_at: str | None = None
 
     external_turn_id: str | None = None
+    conversation_id: str | None = None
 
     version: int = 1
     status: str = "active"
@@ -154,6 +155,14 @@ class TurnRecord:
                 raise ValueError(
                     "external_turn_id must not be longer than 500 characters"
                 )
+
+        if self.conversation_id is not None:
+            if not isinstance(self.conversation_id, str):
+                raise TypeError("conversation_id must be a string or None")
+            if not self.conversation_id.strip():
+                raise ValueError("conversation_id must not be empty")
+            if len(self.conversation_id) > 500:
+                raise ValueError("conversation_id must not exceed 500 characters")
 
         if (
             self.successful_operation_count

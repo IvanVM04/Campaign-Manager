@@ -12,7 +12,7 @@ class TurnRepository:
         id, session_id, player_input, narrative, operation_count,
         successful_operation_count, failed_operation_count,
         all_operations_succeeded, world_changed, created_at,
-        external_turn_id, version, status
+        external_turn_id, conversation_id, version, status
     """
 
     @staticmethod
@@ -44,6 +44,15 @@ class TurnRepository:
             raise ValueError("limit must not be greater than 100")
 
     @staticmethod
+    def _validate_optional_conversation_id(value: str | None) -> None:
+        if value is None:
+            return
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("conversation_id must be a non-empty string or None")
+        if len(value) > 500:
+            raise ValueError("conversation_id must not exceed 500 characters")
+
+    @staticmethod
     def _validate_external_turn_id(value: str) -> str:
         if not isinstance(value, str):
             raise TypeError("external_turn_id must be a string")
@@ -70,6 +79,7 @@ class TurnRepository:
             world_changed=bool(row["world_changed"]),
             created_at=row["created_at"],
             external_turn_id=row["external_turn_id"],
+            conversation_id=row["conversation_id"],
             version=row["version"],
             status=row["status"],
         )
@@ -100,16 +110,16 @@ class TurnRepository:
                 session_id, player_input, narrative, operation_count,
                 successful_operation_count, failed_operation_count,
                 all_operations_succeeded, world_changed, external_turn_id,
-                version, status, campaign_id
+                conversation_id, version, status, campaign_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             turn.session_id, turn.player_input, turn.narrative,
             turn.operation_count, turn.successful_operation_count,
             turn.failed_operation_count, int(turn.all_operations_succeeded),
-            int(turn.world_changed), external_turn_id, turn.version,
-            turn.status, scope.campaign_id,
+            int(turn.world_changed), external_turn_id, turn.conversation_id,
+            turn.version, turn.status, scope.campaign_id,
         )
 
         if conn is None:
@@ -215,16 +225,21 @@ class TurnRepository:
         scope: CampaignScope,
         session_id: int | None = None,
         limit: int = 10,
+        conversation_id: str | None = None,
         conn=None,
     ) -> list[TurnRecord]:
         self._validate_scope(scope)
         self._validate_optional_positive_int(session_id, "session_id")
+        self._validate_optional_conversation_id(conversation_id)
         self._validate_limit(limit)
         clauses = ["campaign_id=?"]
         params: list[int] = [scope.campaign_id]
         if session_id is not None:
             clauses.append("session_id=?")
             params.append(session_id)
+        if conversation_id is not None:
+            clauses.append("conversation_id=?")
+            params.append(conversation_id)
         query = f"SELECT {self._SELECT_FIELDS} FROM turns WHERE " + " AND ".join(clauses)
         query += " ORDER BY id DESC LIMIT ?"
         params.append(limit)
@@ -237,16 +252,21 @@ class TurnRepository:
         scope: CampaignScope,
         session_id: int | None = None,
         limit: int = 10,
+        conversation_id: str | None = None,
         conn=None,
     ) -> list[TurnRecord]:
         self._validate_scope(scope)
         self._validate_optional_positive_int(session_id, "session_id")
+        self._validate_optional_conversation_id(conversation_id)
         self._validate_limit(limit)
         clauses = ["campaign_id=?", "status='active'"]
         params: list[int] = [scope.campaign_id]
         if session_id is not None:
             clauses.append("session_id=?")
             params.append(session_id)
+        if conversation_id is not None:
+            clauses.append("conversation_id=?")
+            params.append(conversation_id)
         query = f"SELECT {self._SELECT_FIELDS} FROM turns WHERE " + " AND ".join(clauses)
         query += " ORDER BY id DESC LIMIT ?"
         params.append(limit)
