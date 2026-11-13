@@ -397,3 +397,43 @@ def test_legacy_quoted_instruction_never_becomes_a_player_speech_act():
     assert analysis.steps[0].actor is IntentActor.OTHER
     assert analysis.allows_world_proposal is False
     assert analysis.is_actionable is False
+
+
+def test_dm_clarification_question_is_not_accepted_as_player_evidence():
+    conversation = (
+        "Abro la puerta.\\n\\nAclaración del DM: ¿Qué puerta? "
+        "\\nRespuesta del jugador: la puerta de roble."
+    )
+    player_evidence = "Abro la puerta.\\nla puerta de roble."
+    value = payload(steps=[step(
+        excerpt="¿Qué puerta?",
+        targets=["¿Qué puerta?"],
+    )])
+
+    with pytest.raises(ValueError, match="not grounded"):
+        PlayerIntentAnalysis.from_payload(
+            value,
+            source_text=conversation,
+            evidence_text=player_evidence,
+        )
+
+
+def test_clarification_answer_is_valid_evidence_even_when_dm_question_is_not():
+    conversation = (
+        "Abro la puerta.\\n\\nAclaración del DM: ¿Qué puerta? "
+        "\\nRespuesta del jugador: la puerta de roble."
+    )
+    player_evidence = "Abro la puerta.\\nla puerta de roble."
+    value = payload(steps=[step(
+        excerpt="la puerta de roble",
+        action="abrir la puerta de roble",
+        targets=["la puerta de roble"],
+    )])
+
+    analysis = PlayerIntentAnalysis.from_payload(
+        value,
+        source_text=conversation,
+        evidence_text=player_evidence,
+    )
+
+    assert analysis.steps[0].source_excerpt == "la puerta de roble"
