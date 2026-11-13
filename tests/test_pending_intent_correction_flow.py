@@ -33,7 +33,6 @@ from services.turns.turn_resolution_service import (
 )
 from tests.durable_turn_test_support import service_with_fake_models
 
-
 ORIGINAL = "Entrego la llave de hierro a Mara."
 CORRECTION = "No, quería decir Aldric."
 SECOND_ANSWER = "La destinataria sigue siendo Aldric."
