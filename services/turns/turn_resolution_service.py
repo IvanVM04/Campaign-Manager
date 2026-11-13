@@ -6,6 +6,7 @@ from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
+from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
 from operations.character_operations import (
