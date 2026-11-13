@@ -175,7 +175,8 @@ class TurnResolutionService:
             return ()
         queries: list[str] = []
         seen: set[str] = set()
-        for item in recent_turns[-3:]:
+        # The resolver uses six turns; retrieval must search the same window.
+        for item in recent_turns[-6:]:
             if isinstance(item, dict):
                 values = (item.get("player_input", ""), item.get("narrative", ""))
             else:

@@ -76,6 +76,7 @@ class WorldReferenceResolver:
         "unos", "unas", "mi", "mis", "su", "sus", "ese", "esa", "eso",
         "estos", "estas", "este", "esta", "the", "an", "of", "to",
         "my", "his", "her", "their", "this", "that", "same",
+        "mismo", "misma", "mismos", "mismas",
     })
     _ELIGIBLE_STEP_MODALITIES = frozenset({
         IntentModality.ATTEMPTED,
@@ -365,17 +366,30 @@ class WorldReferenceResolver:
                 for mention in (claim.subject, claim.object)
             )
 
-        references: list[ResolvedWorldReference] = []
-        seen: set[tuple[WorldReferenceCategory, int | str, str]] = set()
-        processed: set[str] = set()
+        typed_mentions: dict[str, tuple[str, set[WorldReferenceCategory]]] = {}
         for mention, kind_hint in mentions:
             category = self._KIND_CATEGORY.get(kind_hint)
             if category is None:
                 continue
             mention_key = self._normalize(mention)
-            if not mention_key or mention_key in processed:
+            if not mention_key:
                 continue
-            processed.add(mention_key)
+            current = typed_mentions.get(mention_key)
+            if current is None:
+                typed_mentions[mention_key] = (mention, {category})
+            else:
+                current[1].add(category)
+
+        references: list[ResolvedWorldReference] = []
+        seen: set[tuple[WorldReferenceCategory, int | str, str]] = set()
+        for mention_key, (mention, categories) in typed_mentions.items():
+            if len(categories) > 1:
+                return WorldReferenceResolution(
+                    tuple(references),
+                    self._question(mention, ()),
+                    "semantic_kind_conflict",
+                )
+            category = next(iter(categories))
             candidates = grouped[category]
             explicit = self._explicit_matches(mention, candidates)
             selected: _WorldReferent | None = None

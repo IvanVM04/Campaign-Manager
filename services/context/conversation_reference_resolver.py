@@ -389,6 +389,7 @@ class ConversationReferenceResolver:
             # an untyped compatibility mention cannot trigger premature ambiguity.
             merged_mentions: dict[str, tuple[str, SemanticObjectKind]] = {}
             conflicting_kinds: set[str] = set()
+            conflicting_kind_values: dict[str, set[SemanticObjectKind]] = {}
             for mention, kind_hint in mentions:
                 mention_key = self.entity_resolver.normalize(mention)
                 if not mention_key:
@@ -399,7 +400,13 @@ class ConversationReferenceResolver:
                     continue
                 existing_kind = existing[1]
                 if existing_kind is SemanticObjectKind.UNKNOWN:
-                    if mention_key not in conflicting_kinds:
+                    if mention_key in conflicting_kinds:
+                        if kind_hint is not SemanticObjectKind.UNKNOWN:
+                            conflicting_kind_values.setdefault(
+                                mention_key,
+                                set(),
+                            ).add(kind_hint)
+                    else:
                         merged_mentions[mention_key] = (existing[0], kind_hint)
                 elif (
                     kind_hint is not SemanticObjectKind.UNKNOWN
@@ -412,8 +419,24 @@ class ConversationReferenceResolver:
                         SemanticObjectKind.UNKNOWN,
                     )
                     conflicting_kinds.add(mention_key)
+                    conflicting_kind_values.setdefault(
+                        mention_key,
+                        {existing_kind, kind_hint},
+                    ).update({existing_kind, kind_hint})
 
-            for mention, kind_hint in merged_mentions.values():
+            for mention_key, (mention, kind_hint) in merged_mentions.items():
+                non_entity_kinds = {
+                    SemanticObjectKind.ITEM_DEFINITION,
+                    SemanticObjectKind.ITEM_INSTANCE,
+                    SemanticObjectKind.RESOURCE,
+                    SemanticObjectKind.EVENT,
+                }
+                if conflicting_kind_values.get(mention_key, set()) & non_entity_kinds:
+                    return ConversationReferenceResolution(
+                        tuple(references),
+                        self._question(mention, ()),
+                        abstention_reason="semantic_kind_conflict",
+                    )
                 # Non-entity namespaces are resolved by WorldReferenceResolver.
                 # Never interpret an item/resource/event id as an entity id, and
                 # never let an untyped entity candidate steal a typed object pronoun.

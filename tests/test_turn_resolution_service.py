@@ -1565,3 +1565,21 @@ def test_conversation_reference_is_forwarded_with_proposal_context_projection():
     assert reference.match_kind == "conversation_antecedent"
     assert reference.antecedent_turn_id == 5
 
+
+
+def test_recent_context_queries_cover_six_turn_reference_window():
+    turns = [
+        SimpleNamespace(
+            id=index + 1,
+            player_input=f"Turno visible {index + 1}",
+            narrative="",
+        )
+        for index in range(7)
+    ]
+
+    queries = TurnResolutionService._recent_context_queries(turns)
+
+    assert len(queries) == 6
+    assert "Turno visible 1" not in queries
+    assert "Turno visible 2" in queries
+    assert "Turno visible 7" in queries

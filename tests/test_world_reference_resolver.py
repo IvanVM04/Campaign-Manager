@@ -339,3 +339,52 @@ def test_non_actionable_interpretation_does_not_resolve_world_references():
         source_text="¿Dónde está la espada?",
     )
     assert WorldReferenceResolver().resolve(sword_world(), query).references == ()
+
+
+def test_conflicting_world_reference_kinds_require_clarification():
+    utterance = "La guardo."
+    payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": utterance,
+            "actor": "player",
+            "action": "guardar el objeto",
+            "modality": "attempted",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["La"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "guardo",
+                "family": "interaction",
+                "arguments": [
+                    {
+                        "role": "theme",
+                        "mention": {"text": "La", "kind_hint": "item_instance"},
+                    },
+                    {
+                        "role": "instrument",
+                        "mention": {"text": "La", "kind_hint": "resource"},
+                    },
+                ],
+            },
+        }],
+        "active_step_index": 0,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    interpretation = PlayerIntentAnalysis.from_payload(
+        payload,
+        source_text=utterance,
+    )
+    result = WorldReferenceResolver().resolve(
+        sword_world(),
+        interpretation,
+    )
+
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "semantic_kind_conflict"
