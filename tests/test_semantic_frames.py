@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -341,3 +342,56 @@ def test_v2_relation_claim_must_be_grounded_in_its_referenced_step():
         match="relation claim is not grounded in its referenced intent step",
     ):
         PlayerIntentAnalysis.from_payload(value, source_text=source)
+
+
+def test_v2_constructor_rejects_untyped_action_frame_values():
+    source = "Abro la puerta."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": source,
+                "actor": "player",
+                "action": "abrir la puerta",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Abro",
+                    "family": "interaction",
+                    "arguments": [],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=source,
+    )
+    invalid_step = replace(analysis.steps[0], action_frame={"predicate": "Abro"})
+    with pytest.raises(TypeError, match="SemanticActionFrame"):
+        replace(analysis, steps=(invalid_step,))
+
+
+def test_semantic_action_frame_rejects_duplicate_role_and_mention_pair():
+    source = "Entrego la llave de hierro a Mara."
+    invalid = payload()
+    invalid["steps"][0]["action_frame"]["arguments"].append({
+        "role": "theme",
+        "mention": {"text": "la llave de hierro", "kind_hint": "item_instance"},
+    })
+    with pytest.raises(ValueError, match="must not repeat"):
+        PlayerIntentAnalysis.from_payload(invalid, source_text=source)
+
+
+def test_v2_rejects_unknown_semantic_object_kind_hint():
+    source = "Entrego la llave de hierro a Mara."
+    invalid = payload()
+    invalid["steps"][0]["action_frame"]["arguments"][0]["mention"]["kind_hint"] = "magic_artifact"
+    with pytest.raises(ValueError, match="unsupported SemanticObjectKind"):
+        PlayerIntentAnalysis.from_payload(invalid, source_text=source)

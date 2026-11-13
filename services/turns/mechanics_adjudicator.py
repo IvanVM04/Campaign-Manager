@@ -82,7 +82,8 @@ FORMA DE RESPUESTA
         "predicate": "Abro",
         "family": "interaction",
         "arguments": [
-          {"role": "agent", "mention": {"text": "la llave", "kind_hint": "item_instance"}}
+          {"role": "theme", "mention": {"text": "la puerta", "kind_hint": "world_entity"}},
+          {"role": "instrument", "mention": {"text": "la llave", "kind_hint": "item_instance"}}
         ]
       }
     }],

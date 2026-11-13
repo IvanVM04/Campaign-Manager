@@ -131,9 +131,10 @@ class PlayerIntentAnalysis:
         ):
             raise ValueError("v1 intent analysis cannot contain semantic frames")
         if self.schema_version == 2 and any(
-            step.action_frame is None for step in self.steps
+            not isinstance(step.action_frame, SemanticActionFrame)
+            for step in self.steps
         ):
-            raise ValueError("v2 intent steps require an action_frame")
+            raise TypeError("v2 intent steps require a SemanticActionFrame")
         if not isinstance(self.relation_claims, tuple) or len(self.relation_claims) > MAX_RELATION_CLAIMS:
             raise ValueError("relation_claims must be a tuple with at most 8 items")
         if any(
