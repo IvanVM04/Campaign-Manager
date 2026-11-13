@@ -121,6 +121,7 @@ class PlayerIntentAnalysis:
             IntentModality.OBSERVED,
             IntentModality.REPORTED,
             IntentModality.CORRECTION,
+            IntentModality.DIALOGUE,
         }
         if self.active_step_index is not None and any(
             previous.modality not in resolved_modalities
@@ -138,6 +139,24 @@ class PlayerIntentAnalysis:
             PlayerReportedOutcome.UNCERTAIN,
         }:
             raise ValueError("a resolved reported outcome cannot be the active step")
+        if active is not None and self.category not in {
+            UtteranceCategory.ACTION,
+            UtteranceCategory.MIXED,
+        }:
+            raise ValueError("only action or mixed utterances may have an active step")
+        if active is not None:
+            future_resolved = {
+                IntentModality.COMPLETED,
+                IntentModality.OBSERVED,
+                IntentModality.REPORTED,
+                IntentModality.CORRECTION,
+            }
+            if any(
+                later.modality in future_resolved
+                and later.polarity is IntentPolarity.POSITIVE
+                for later in self.steps[self.active_step_index + 1 :]
+            ):
+                raise ValueError("future steps cannot be reported as resolved evidence")
         if not isinstance(self.requires_clarification, bool):
             raise TypeError("requires_clarification must be a boolean")
         if self.requires_clarification:
@@ -179,6 +198,10 @@ class PlayerIntentAnalysis:
         return any(
             step.polarity is IntentPolarity.POSITIVE
             and step.modality in allowed
+            and (
+                step.modality is not IntentModality.ATTEMPTED
+                or step.index == self.active_step_index
+            )
             and (
                 step.actor is IntentActor.PLAYER
                 or (
