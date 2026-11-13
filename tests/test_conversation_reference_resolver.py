@@ -43,7 +43,7 @@ def test_resolves_pronoun_to_unique_visible_entity_in_previous_turn():
     })
     result = ConversationReferenceResolver().resolve(
         world,
-        make_analysis("Le pregunto por la llave.", "ella"),
+        make_analysis("Le pregunto por la llave.", "Le"),
         recent_turns=[turn(14, "Hablo con Mara sobre el mapa.")],
     )
     assert result.clarification_question is None
@@ -61,7 +61,7 @@ def test_ambiguous_recent_turn_requests_clarification_instead_of_guessing():
     })
     result = ConversationReferenceResolver().resolve(
         world,
-        make_analysis("Le pregunto qué ocurrió.", "él"),
+        make_analysis("Le pregunto qué ocurrió.", "Le"),
         recent_turns=[turn(15, "Mara y Aldric llegan juntos a la posada.")],
     )
     assert result.references == ()
@@ -91,7 +91,7 @@ def test_hidden_entity_cannot_be_used_as_conversation_antecedent():
     visible_world = WorldState(entities={1: Entity(id=1, name="Mara", entity_type="npc")})
     result = ConversationReferenceResolver().resolve(
         visible_world,
-        make_analysis("Le pregunto por la carta.", "él"),
+        make_analysis("Le pregunto por la carta.", "Le"),
         recent_turns=[turn(17, "Hablo con el espía secreto.")],
     )
     assert result.references == ()

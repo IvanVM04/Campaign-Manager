@@ -32,7 +32,8 @@ def test_integration_context_endpoint_rejects_missing_query(
 ):
     response = client.post(
         "/integration/context",
-        json={},
+        json={
+            "conversation_id": "st-chat-main",},
     )
 
     assert response.status_code == 422
@@ -43,6 +44,7 @@ def test_integration_context_endpoint_rejects_empty_query(
     response = client.post(
         "/integration/context",
         json={
+            "conversation_id": "st-chat-main",
             "query": "",
         },
     )
@@ -53,9 +55,10 @@ def test_integration_context_endpoint_returns_context(
     client,
     monkeypatch,
 ):
-    def fake_get_context(query, *, additional_queries=()):
+    def fake_get_context(query, *, additional_queries=(), conversation_id=None):
         assert query == "Entro en la taberna."
         assert additional_queries == ("Estado general de la campaña.",)
+        assert conversation_id == "st-chat-main"
 
         return {
             "campaign": {
@@ -85,6 +88,7 @@ def test_integration_context_endpoint_returns_context(
     response = client.post(
         "/integration/context",
         json={
+            "conversation_id": "st-chat-main",
             "query": "Entro en la taberna.",
             "additional_query": "Estado general de la campaña.",
         },
@@ -112,7 +116,8 @@ def test_integration_context_endpoint_returns_500_on_service_error(
         SillyTavernIntegrationServiceError,
     )
 
-    def fake_get_context(query):
+    def fake_get_context(query, *, conversation_id=None):
+        assert conversation_id == "st-chat-main"
         raise SillyTavernIntegrationServiceError(
             "context failed"
         )
@@ -128,6 +133,7 @@ def test_integration_context_endpoint_returns_500_on_service_error(
     response = client.post(
         "/integration/context",
         json={
+            "conversation_id": "st-chat-main",
             "query": "Entro en la taberna.",
         },
     )
@@ -148,10 +154,11 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
     runtime = __import__("app").runtime_factory.get_runtime(1)
     captured = {}
 
-    def fake_prepare(player_input, *, external_turn_id, dice_mode="automatic"):
+    def fake_prepare(player_input, *, external_turn_id, dice_mode="automatic", conversation_id=None):
         captured["player_input"] = player_input
         captured["external_turn_id"] = external_turn_id
         captured["dice_mode"] = dice_mode
+        captured["conversation_id"] = conversation_id
         return SimpleNamespace(
             resolution_id=41,
             lifecycle_state="narration_pending",
@@ -164,10 +171,12 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         *,
         additional_queries=(),
         exclude_external_turn_id=None,
+        conversation_id=None,
     ):
         captured["query"] = query
         captured["additional_queries"] = additional_queries
         captured["exclude_external_turn_id"] = exclude_external_turn_id
+        captured["conversation_id"] = conversation_id
         return {
             "campaign": {"id": 1, "name": "Campaña"},
             "session": None,
@@ -194,6 +203,7 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
     response = client.post(
         "/integration/turn/resolve",
         json={
+            "conversation_id": "st-chat-main",
             "player_input": "Abro la puerta.",
             "external_turn_id": "st-chat-turn",
             "query": "Abro la puerta.",
@@ -212,9 +222,11 @@ def test_integration_resolve_endpoint_commits_before_returning_context(
         "player_input": "Abro la puerta.",
         "external_turn_id": "st-chat-turn",
         "dice_mode": "manual",
+        "conversation_id": "st-chat-main",
         "query": "Abro la puerta.",
         "additional_queries": ("Estado general de campaña.",),
         "exclude_external_turn_id": "st-chat-turn",
+        "conversation_id": "st-chat-main",
     }
 
 def test_integration_turn_complete_endpoint_returns_processed_turn(
@@ -497,13 +509,17 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
     runtime = __import__("app").runtime_factory.get_runtime(1)
     captured = {}
 
-    def fake_submit(pending_roll_id, rolls, *, adapter_namespace, defer_narration, answer_external_turn_id):
+    def fake_submit(
+        pending_roll_id, rolls, *, adapter_namespace, defer_narration,
+        answer_external_turn_id, conversation_id
+    ):
         captured.update({
             "pending_roll_id": pending_roll_id,
             "rolls": rolls,
             "adapter_namespace": adapter_namespace,
             "defer_narration": defer_narration,
             "answer_external_turn_id": answer_external_turn_id,
+            "conversation_id": conversation_id,
         })
         return SimpleNamespace(
             resolution_id=42,
@@ -513,7 +529,8 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
             pending_roll=None,
         )
 
-    def fake_context(query):
+    def fake_context(query, *, conversation_id=None, **kwargs):
+        assert conversation_id == "st-chat-main"
         return {
             "campaign": {"id": 1, "name": "Campaña"},
             "session": None,
@@ -532,6 +549,7 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
     response = client.post(
         "/integration/turn/roll",
         json={
+            "conversation_id": "st-chat-main",
             "pending_roll_id": "42:" + "a" * 24,
             "rolls": [17, 8],
             "query": "Estado de campaña.",
@@ -548,12 +566,14 @@ def test_silly_tavern_manual_roll_endpoint_submits_results_and_returns_resolutio
         "adapter_namespace": "sillytavern",
         "defer_narration": True,
         "answer_external_turn_id": "answer-" + "b" * 24,
+        "conversation_id": "st-chat-main",
     }
 
 def test_silly_tavern_manual_roll_endpoint_rejects_invalid_dice_results(client):
     response = client.post(
         "/integration/turn/roll",
         json={
+            "conversation_id": "st-chat-main",
             "pending_roll_id": "42:" + "a" * 24,
             "rolls": [0, 21],
             "query": "Estado de campaña.",
@@ -591,7 +611,7 @@ def test_silly_tavern_clarification_endpoint_returns_manual_roll_challenge(clien
         turn_execution_lock=FakeLock(),
         durable_native_turn_service=SimpleNamespace(submit_clarification=fake_submit),
         silly_tavern_integration_service=SimpleNamespace(
-            get_context=lambda query: {
+            get_context=lambda query, **kwargs: {
                 "campaign": {"id": 1, "name": "Campaña"},
                 "session": None,
                 "active_character": None,
@@ -609,6 +629,7 @@ def test_silly_tavern_clarification_endpoint_returns_manual_roll_challenge(clien
     response = client.post(
         "/integration/turn/clarification",
         json={
+            "conversation_id": "st-chat-main",
             "pending_clarification_id": "41:" + "b" * 24,
             "answer": "La puerta de roble.",
             "answer_external_turn_id": "answer-" + "c" * 24,
@@ -621,6 +642,7 @@ def test_silly_tavern_clarification_endpoint_returns_manual_roll_challenge(clien
     assert response.json()["pending_roll"]["count"] == 1
     assert captured["adapter_namespace"] == "sillytavern"
     assert captured["defer_narration"] is True
+    assert captured["conversation_id"] == "st-chat-main"
 
 def test_integration_resolve_maps_wrapped_provider_failure_to_503(
     client,
@@ -650,6 +672,7 @@ def test_integration_resolve_maps_wrapped_provider_failure_to_503(
     response = client.post(
         "/integration/turn/resolve",
         json={
+            "conversation_id": "st-chat-main",
             "player_input": "Hablo con Mara.",
             "external_turn_id": "st-provider-outage",
             "query": "Contexto.",
@@ -690,6 +713,7 @@ def test_integration_resolve_maps_invalid_model_response_to_502(
     response = client.post(
         "/integration/turn/resolve",
         json={
+            "conversation_id": "st-chat-main",
             "player_input": "Hablo con Mara.",
             "external_turn_id": "st-invalid-model-response",
             "query": "Contexto.",
@@ -754,7 +778,8 @@ def test_integration_context_endpoint_maps_unexpected_service_failure(
 
     response = client.post(
         "/integration/context",
-        json={"query": "Estado de campaña."},
+        json={
+            "conversation_id": "st-chat-main","query": "Estado de campaña."},
     )
 
     assert response.status_code == 500
@@ -890,6 +915,7 @@ def test_integration_resolve_endpoint_maps_context_failures(
     response = client.post(
         "/integration/turn/resolve",
         json={
+            "conversation_id": "st-chat-main",
             "player_input": "Abro la puerta.",
             "external_turn_id": "st-context-error",
             "query": "Estado.",
@@ -925,7 +951,7 @@ def test_integration_manual_roll_endpoint_maps_submission_errors(
             submit_manual_roll=_raise_error(error)
         ),
         silly_tavern_integration_service=SimpleNamespace(
-            get_context=lambda query: {}
+            get_context=lambda query, **kwargs: {}
         ),
     )
     monkeypatch.setattr(
@@ -936,6 +962,7 @@ def test_integration_manual_roll_endpoint_maps_submission_errors(
     response = client.post(
         "/integration/turn/roll",
         json={
+            "conversation_id": "st-chat-main",
             "pending_roll_id": "42:" + "a" * 24,
             "rolls": [12],
             "query": "Estado.",
@@ -975,7 +1002,7 @@ def test_integration_clarification_endpoint_maps_submission_errors(
             submit_clarification=_raise_error(error)
         ),
         silly_tavern_integration_service=SimpleNamespace(
-            get_context=lambda query: {}
+            get_context=lambda query, **kwargs: {}
         ),
     )
     monkeypatch.setattr(
@@ -986,6 +1013,7 @@ def test_integration_clarification_endpoint_maps_submission_errors(
     response = client.post(
         "/integration/turn/clarification",
         json={
+            "conversation_id": "st-chat-main",
             "pending_clarification_id": "42:" + "c" * 24,
             "answer": "La puerta de roble.",
             "query": "Estado.",

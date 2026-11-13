@@ -5,7 +5,7 @@
     {
       "id": "unique-pronoun",
       "utterance": "Le pregunto dónde encontró la llave.",
-      "target_mention": "ella",
+      "target_mention": "Le",
       "visible_entities": [
         {
           "id": 1,
@@ -35,7 +35,7 @@
     {
       "id": "ambiguous-pronoun",
       "utterance": "Le pregunto qué ocurrió.",
-      "target_mention": "él",
+      "target_mention": "Le",
       "visible_entities": [
         {
           "id": 1,
@@ -129,7 +129,7 @@
     {
       "id": "invisible-antecedent",
       "utterance": "Le pregunto por la carta.",
-      "target_mention": "él",
+      "target_mention": "Le",
       "visible_entities": [
         {
           "id": 1,

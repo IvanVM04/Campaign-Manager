@@ -1190,6 +1190,11 @@ def test_run_migrations_uses_registry_and_leaves_current_database_unchanged():
 
     run_migrations(conn)
     schema_version = conn.execute("PRAGMA user_version").fetchone()[0]
+    for table in ("turns", "turn_resolutions"):
+        columns = {
+            row["name"] for row in conn.execute(f"PRAGMA table_info({table})")
+        }
+        assert "conversation_id" in columns
     table_count = conn.execute(
         "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
     ).fetchone()[0]

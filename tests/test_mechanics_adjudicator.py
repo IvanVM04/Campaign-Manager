@@ -174,7 +174,7 @@ def test_system_prompt_does_not_treat_rumors_or_inferences_as_confirmed_facts():
     assert "pide aclaración" in prompt
 
 
-def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
+def test_adjudicator_returns_one_shared_analysis_and_mechanics_response(monkeypatch):
     player_input = "Cruzo la plaza."
     provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": {
@@ -197,6 +197,14 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
         },
         "mechanics_decision": {"decision": "none"},
     }))
+    structured_call = {}
+    original_generate = provider.generate
+
+    def generate_structured(prompt, *, schema):
+        structured_call["schema"] = schema
+        return original_generate(prompt)
+
+    monkeypatch.setattr(provider, "generate_structured", generate_structured)
     analysis, decision = MechanicsAdjudicator(provider).understand(
         make_turn_context(),
         player_input,
@@ -211,6 +219,10 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
     assert analysis.is_actionable is True
     assert decision.decision is MechanicsDecisionType.NONE
     assert provider.call_count == 1
+    assert structured_call["schema"]["required"] == [
+        "intent_analysis",
+        "mechanics_decision",
+    ]
 
 
 def test_clarification_questions_are_context_but_not_player_source_evidence():
