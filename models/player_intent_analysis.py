@@ -144,7 +144,8 @@ class PlayerIntentAnalysis:
             UtteranceCategory.MIXED,
         }:
             raise ValueError("only action or mixed utterances may have an active step")
-        if active is not None:
+        active_index = self.active_step_index
+        if active_index is not None:
             future_resolved = {
                 IntentModality.COMPLETED,
                 IntentModality.OBSERVED,
@@ -154,7 +155,7 @@ class PlayerIntentAnalysis:
             if any(
                 later.modality in future_resolved
                 and later.polarity is IntentPolarity.POSITIVE
-                for later in self.steps[self.active_step_index + 1 :]
+                for later in self.steps[active_index + 1 :]
             ):
                 raise ValueError("future steps cannot be reported as resolved evidence")
         if not isinstance(self.requires_clarification, bool):
@@ -301,7 +302,7 @@ class PlayerIntentAnalysis:
         return cls.from_payload(json.loads(payload), source_text=source_text)
 
     @classmethod
-    def conservative_legacy(cls, source_text: str) -> "PlayerIntentAnalysis":
+    def conservative_legacy(cls, source_text: str) -> PlayerIntentAnalysis:
         """Fail-safe compatibility for legacy providers without the v1 envelope."""
         text = source_text.strip()
         folded = unicodedata.normalize("NFKC", text).casefold()
