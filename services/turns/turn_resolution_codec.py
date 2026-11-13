@@ -232,7 +232,9 @@ class TurnResolutionCodec:
                 source_text=source_text,
             )
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise ValueError("persisted player intent analysis is invalid") from exc
+            raise ValueError(
+                f"persisted player intent analysis is invalid: {exc}"
+            ) from exc
 
     @staticmethod
     def intent_source_text(
