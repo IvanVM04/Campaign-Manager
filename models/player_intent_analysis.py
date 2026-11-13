@@ -182,7 +182,10 @@ class PlayerIntentAnalysis:
             and (
                 step.actor is IntentActor.PLAYER
                 or (
-                    step.modality is IntentModality.REPORTED
+                    step.modality in {
+                        IntentModality.OBSERVED,
+                        IntentModality.REPORTED,
+                    }
                     and step.actor in {IntentActor.NPC, IntentActor.OTHER}
                     and step.attributed_to is not None
                 )
