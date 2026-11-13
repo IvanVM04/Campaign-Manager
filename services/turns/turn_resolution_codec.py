@@ -251,8 +251,11 @@ class TurnResolutionCodec:
                 not isinstance(evidence_text, str)
                 or not evidence_text.strip()
                 or len(evidence_text) > 20000
+                or not evidence_text.startswith(original_input)
             ):
-                raise ValueError("persisted intent evidence is invalid")
+                raise ValueError(
+                    "persisted player evidence is not bound to the original input"
+                )
             expected_evidence_digest = hashlib.sha256(
                 evidence_text.encode("utf-8")
             ).hexdigest()
