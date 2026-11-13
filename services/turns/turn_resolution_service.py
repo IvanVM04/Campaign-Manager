@@ -157,9 +157,9 @@ class TurnResolutionService:
     # ============================================================
 
     @staticmethod
-    def _recent_context_queries(recent_turns) -> tuple[str, ...]:
+    def _recent_context_queries(recent_turns: list[TurnRecord] | None) -> tuple[str, ...]:
         """Build bounded, player-visible retrieval signals for conversational references."""
-        if not isinstance(recent_turns, (tuple, list)):
+        if not isinstance(recent_turns, list):
             return ()
         queries: list[str] = []
         seen: set[str] = set()
@@ -190,7 +190,7 @@ class TurnResolutionService:
         manual_rolls: tuple[int, ...] | None = None,
         decision_override: MechanicsDecision | None = None,
         intent_analysis_override: PlayerIntentAnalysis | None = None,
-        recent_turns: tuple | list | None = None,
+        recent_turns: list[TurnRecord] | None = None,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -232,8 +232,8 @@ class TurnResolutionService:
             raise TypeError(
                 "intent_analysis_override must be a PlayerIntentAnalysis or None"
             )
-        if recent_turns is not None and not isinstance(recent_turns, (tuple, list)):
-            raise TypeError("recent_turns must be a tuple, list or None")
+        if recent_turns is not None and not isinstance(recent_turns, list):
+            raise TypeError("recent_turns must be a list of TurnRecord values or None")
 
         mechanics_result = None
         decision = decision_override
