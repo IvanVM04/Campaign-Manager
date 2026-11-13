@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 
 from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
@@ -40,6 +41,7 @@ class TurnResolutionPlan:
     mechanics_result: MechanicsResult | None = None
     clarification_question: str | None = None
     mechanics_decision: MechanicsDecision | None = None
+    intent_analysis: PlayerIntentAnalysis | None = None
     awaiting_manual_roll: bool = False
 
 
@@ -162,6 +164,8 @@ class TurnResolutionService:
         manual_mode: bool = False,
         manual_rolls: tuple[int, ...] | None = None,
         decision_override: MechanicsDecision | None = None,
+        intent_analysis_override: PlayerIntentAnalysis | None = None,
+        recent_turns: tuple | list | None = None,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -197,22 +201,47 @@ class TurnResolutionService:
             raise TypeError("decision_override must be a MechanicsDecision or None")
         if manual_rolls is not None and not isinstance(manual_rolls, tuple):
             raise TypeError("manual_rolls must be a tuple or None")
+        if intent_analysis_override is not None and not isinstance(
+            intent_analysis_override, PlayerIntentAnalysis
+        ):
+            raise TypeError(
+                "intent_analysis_override must be a PlayerIntentAnalysis or None"
+            )
+        if recent_turns is not None and not isinstance(recent_turns, (tuple, list)):
+            raise TypeError("recent_turns must be a tuple, list or None")
 
         mechanics_result = None
         decision = decision_override
-        if decision is not None or self.mechanics_adjudicator is not None:
+        intent_analysis = intent_analysis_override
+        if intent_analysis is None and self.mechanics_adjudicator is not None:
             try:
+                intent_analysis, inferred_decision = self.mechanics_adjudicator.understand(
+                    context,
+                    normalized_input,
+                    recent_turns=recent_turns,
+                )
                 if decision is None:
-                    adjudicator = self.mechanics_adjudicator
-                    if adjudicator is None:
-                        raise TurnResolutionServiceError(
-                            "mechanics adjudicator is required to produce a decision"
-                        )
-                    decision = adjudicator.adjudicate(context, normalized_input)
+                    decision = inferred_decision
             except MechanicsAdjudicatorError as exc:
                 raise TurnResolutionServiceError(
-                    "mechanics adjudication failed"
+                    "shared language understanding failed"
                 ) from exc
+        elif intent_analysis is None:
+            intent_analysis = PlayerIntentAnalysis.conservative_legacy(normalized_input)
+
+        if intent_analysis.requires_clarification:
+            return TurnResolutionPlan(
+                player_input=normalized_input,
+                narrative=intent_analysis.clarification_question or "",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                clarification_question=intent_analysis.clarification_question,
+                mechanics_decision=decision,
+                intent_analysis=intent_analysis,
+            )
+        if not intent_analysis.is_actionable:
+            decision = MechanicsDecision(decision=MechanicsDecisionType.NONE)
 
             if decision.decision is MechanicsDecisionType.CLARIFICATION:
                 return TurnResolutionPlan(
@@ -222,6 +251,8 @@ class TurnResolutionService:
                     character_operations=(),
                     ordered_operations=(),
                     clarification_question=decision.question,
+                    mechanics_decision=decision,
+                    intent_analysis=intent_analysis,
                 )
 
             character = context.active_character
@@ -256,6 +287,7 @@ class TurnResolutionService:
                     character_operations=(),
                     ordered_operations=(),
                     mechanics_decision=decision,
+                    intent_analysis=intent_analysis,
                     awaiting_manual_roll=True,
                 )
             if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
@@ -348,17 +380,23 @@ class TurnResolutionService:
                 ) from exc
 
         try:
-            if context_projection is None:
+            if not intent_analysis.allows_world_proposal:
+                operations = []
+            elif context_projection is None:
                 operations = self.extractor.propose(
                     normalized_input,
                     context,
                     mechanics_result=mechanics_result,
+                    intent_analysis=intent_analysis,
+                    recent_turns=recent_turns,
                 )
             else:
                 operations = self.extractor.propose(
                     normalized_input,
                     context,
                     mechanics_result=mechanics_result,
+                    intent_analysis=intent_analysis,
+                    recent_turns=recent_turns,
                     context_projection=context_projection,
                 )
         except Exception as exc:
@@ -428,6 +466,7 @@ class TurnResolutionService:
             ordered_operations=ordered_operations,
             mechanics_result=mechanics_result,
             mechanics_decision=decision,
+            intent_analysis=intent_analysis,
         )
 
     def generate_narrative(
