@@ -428,7 +428,7 @@ def test_failed_correction_releases_claim_back_to_awaiting_input(monkeypatch):
 def test_turn_planner_requires_correction_to_match_the_provider_reanalysis():
     service, _proposal_calls, _narrative_calls = service_with_fake_models()
     pending = _pending_analysis()
-    updated = _corrected_analysis(ORIGINAL + "\\n\\n" + CORRECTION)
+    updated = _corrected_analysis(ORIGINAL + "\n\n" + CORRECTION)
     correction = _correction()
     service.resolver.context_builder = None
 
@@ -448,8 +448,8 @@ def test_turn_planner_requires_correction_to_match_the_provider_reanalysis():
     ):
         service.resolver.prepare_turn(
             _turn_context(),
-            ORIGINAL + "\\n\\nAclaración del DM: ¿A quién?\\n" + CORRECTION,
-            intent_evidence_text=ORIGINAL + "\\n\\n" + CORRECTION,
+            ORIGINAL + "\n\nAclaración del DM: ¿A quién?\n" + CORRECTION,
+            intent_evidence_text=ORIGINAL + "\n\n" + CORRECTION,
             pending_intent_analysis=pending,
             pending_correction_evidence_text=CORRECTION,
         )
@@ -467,8 +467,8 @@ def test_turn_planner_requires_correction_to_match_the_provider_reanalysis():
     service.resolver.mechanics_adjudicator = ConsistentAdjudicator()
     plan = service.resolver.prepare_turn(
         _turn_context(),
-        ORIGINAL + "\\n\\nAclaración del DM: ¿A quién?\\n" + CORRECTION,
-        intent_evidence_text=ORIGINAL + "\\n\\n" + CORRECTION,
+        ORIGINAL + "\n\nAclaración del DM: ¿A quién?\n" + CORRECTION,
+        intent_evidence_text=ORIGINAL + "\n\n" + CORRECTION,
         pending_intent_analysis=pending,
         pending_correction_evidence_text=CORRECTION,
     )
