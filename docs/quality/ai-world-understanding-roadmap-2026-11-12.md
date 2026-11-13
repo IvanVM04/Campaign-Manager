@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#216 are integrated. PRs #215–#216 deliver the shared typed intent contract, durable evidence and bounded chat-scoped reference resolution.  
-**Verified base:** `main` at `868ae7ae29c6c1c0cfb5b3aaf181b630a0039ff6` (2026-11-13; PR #216 merged).  
+**Status:** PRs #210–#217 are integrated. PR #218 implements semantic frames v2 on `feat/218-semantic-frames-v2`; it is not yet merged or live-accepted.  
+**Verified base:** `main` at `14070b007246d7a58243c58eadc66b9f54781472` (2026-11-13; PR #217 merged).  
 **Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
@@ -21,7 +21,7 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The P0 shared interpretation and conversation-scope implementation is now integrated. The blocking work is to record its live Ollama and real SillyTavern acceptance evidence. Do not begin the Character Builder or broad gameplay expansion until those gates are passed. The next language implementation after that baseline is structured semantic frames and grounded relation/object understanding; see the [next-phase plan](semantic-understanding-next-phase-2026-11-13.md).
+The P0 shared interpretation and conversation-scope implementation is integrated; its live Ollama and real SillyTavern acceptance evidence is still required. PR #218 now implements the next representation layer: evidence-bound action frames, typed argument roles, object-kind hints and directed relation claims. It remains under review until CI and live acceptance are recorded. Do not begin the Character Builder or broad gameplay expansion while those P0 gates remain open; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
 
 This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
@@ -67,7 +67,7 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow — PRs #215 and #216 integrated
+### Active data flow — PRs #215/#216 integrated; PR #218 v2 in review
 
 `TurnResolutionService` now orchestrates a shared semantic interpretation:
 
@@ -95,7 +95,7 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - PR #216 adds a deterministic conversation resolver over at most six recent turns in the same chat. It handles a narrow set of Spanish/English pronouns, demonstratives, same-object and curated other-role patterns, and resolves only one visible candidate. Grammatical agreement, semantic-type constraints, speaker-aware discourse, broad ellipsis, arbitrary paraphrase and correction-chain reasoning remain open.
 - The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
 
-PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding; PR #215 delivers shared typed intent and durable evidence; PR #216 delivers chat isolation, bounded reference resolution and Ollama schema-constrained generation. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
+PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding; PR #215 delivers shared typed intent and durable evidence; PR #216 delivers chat isolation, bounded reference resolution and Ollama schema-constrained generation; PR #217 synchronizes the documentation. PR #218 adds semantic frames v2 while preserving v1 durable decoding. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
@@ -292,9 +292,15 @@ Only proceed when the expanded corpus is stable enough to compare models. Do not
 
 **Acceptance criteria:** published comparison report with reproducible settings and explicit safety failures; no model change based on anecdotal output alone.
 
-### Next implementation after P0 acceptance — semantic frames and grounded relations
+### PR #218 — semantic frames v2 (implementation branch)
 
-The current v1 contract stores the action as free text and targets as an untyped list. It cannot directly express recipient/source/destination/instrument roles, typed object identity or a directed relation claim with modality, polarity, attribution and time. Add a versioned evidence-bound semantic frame, then improve speaker-aware discourse and correction resolution. See the [detailed next-phase plan](semantic-understanding-next-phase-2026-11-13.md). Do not add embeddings or another normal-path model call before measurement.
+The branch adds `models/semantic_frames.py`, v2 action frames with typed argument roles, object-kind hints, directed relation claims, strict literal-evidence validation, a v2 Ollama JSON Schema and proposal-prompt guidance. The turn service adds frame arguments and relation endpoints as supplemental retrieval signals. V1 payloads retain their original decoding/serialization shape, and the durable codec stores v2 inside its existing fingerprinted envelope without a database migration. The same shared interpretation still feeds mechanics and consequences; no extra normal-path provider call is introduced.
+
+**Acceptance is pending:** deterministic CI and live Ollama/SillyTavern gates must be run on the final branch head. V2 parser tests prove schema/evidence invariants, not general model accuracy. The detailed implementation and remaining work are in the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
+
+### Next after PR #218 — discourse and evaluation
+
+PR #219 should improve speaker-aware coreference, semantic-type/grammatical constraints, topic focus, ellipsis and correction chains. PR #220 should build a held-out corpus of at least 100 scenarios to measure frame slots, relation direction/modality, entity linking, abstention, persistent false positives, secret leakage and latency. Do not add embeddings or another normal-path model call before measurement.
 
 ## 6. Evaluation corpus design
 
@@ -323,7 +329,7 @@ The corpus should include these families:
 
 A scenario's oracle should describe semantic constraints, not one exact JSON string. Several operation sequences may be valid if they preserve the same world invariants. Keep assertions strict about forbidden changes and required facts.
 
-The P0 implementation adds `tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled Spanish/English scenarios (12 critical, repeated three times by the opt-in corpus test). PR #216 adds `tests/fixtures/conversation_understanding_corpus_v2.json` with six deterministic resolver scenarios. These validate application resolution, not live model coreference accuracy. Run and record both layers separately; neither corpus proves acceptance until executed.
+The P0 implementation adds `tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled Spanish/English scenarios (12 critical, repeated three times by the opt-in corpus test). PR #216 adds `tests/fixtures/conversation_understanding_corpus_v2.json` with six deterministic resolver scenarios. PR #218's `tests/test_semantic_frames.py` adds deterministic v2 parser/codec contracts. The 34 live intent cases now pass through v2 schema validation but do not comprehensively score role/relation correctness. Run and record live model behavior separately; neither fixture count nor deterministic CI proves semantic acceptance.
 
 ## 7. Metrics and reporting
 
