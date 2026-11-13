@@ -324,6 +324,20 @@ class PlayerIntentAnalysis:
         )
 
     @classmethod
+    def unrecognized(cls) -> PlayerIntentAnalysis:
+        """Fail closed when a provider does not return the required v1 contract."""
+        return cls(
+            category=UtteranceCategory.UNKNOWN,
+            steps=(),
+            active_step_index=None,
+            requires_clarification=True,
+            clarification_question=(
+                "No he podido identificar con seguridad la acción. "
+                "¿Puedes reformular qué intentas hacer ahora?"
+            ),
+        )
+
+    @classmethod
     def conservative_legacy(cls, source_text: str) -> PlayerIntentAnalysis:
         """Fail-safe compatibility for legacy providers without the v1 envelope."""
         text = source_text.strip()
