@@ -228,7 +228,7 @@ def test_analysis_json_round_trip_is_stable():
         ("¿Dónde está el guardia?", UtteranceCategory.QUESTION, IntentModality.QUESTION, False),
         ("Si el guardia se acerca, me escondo.", UtteranceCategory.PLAN, IntentModality.CONDITIONAL, False),
         ("Me escondo si el guardia se acerca.", UtteranceCategory.PLAN, IntentModality.CONDITIONAL, False),
-        ("Le pregunto a Mara si sabe algo de la campana.", UtteranceCategory.ACTION, IntentModality.ATTEMPTED, True),
+        ("Le pregunto a Mara si sabe algo de la campana.", UtteranceCategory.DIALOGUE, IntentModality.DIALOGUE, False),
         ("Mañana hablaré con el capitán.", UtteranceCategory.PLAN, IntentModality.PLANNED, False),
         ("No ataco al guardia.", UtteranceCategory.ACTION, IntentModality.NEGATED, False),
         ("No consigo abrir la puerta.", UtteranceCategory.ACTION, IntentModality.ATTEMPTED, False),
@@ -462,3 +462,16 @@ def test_legacy_conditional_clause_is_not_reclassified_as_speech_act():
     assert analysis.category is UtteranceCategory.PLAN
     assert analysis.steps[0].modality is IntentModality.CONDITIONAL
     assert analysis.allows_world_proposal is False
+
+
+
+def test_legacy_indirect_question_is_a_proposable_player_speech_act():
+    analysis = PlayerIntentAnalysis.conservative_legacy(
+        "Le pregunto a Mara si sabe algo de la campana."
+    )
+
+    assert analysis.category is UtteranceCategory.DIALOGUE
+    assert analysis.steps[0].modality is IntentModality.DIALOGUE
+    assert analysis.steps[0].actor is IntentActor.PLAYER
+    assert analysis.is_actionable is False
+    assert analysis.allows_world_proposal is True
