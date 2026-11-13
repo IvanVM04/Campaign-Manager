@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
@@ -263,14 +265,14 @@ def test_pending_adjudication_rejects_corrections_not_reflected_by_reanalysis(
         lambda prompt, *, schema: original_generate(prompt),
     )
 
-    result = MechanicsAdjudicator(provider).understand_pending(
-        _turn_context(),
-        conversation,
-        pending_analysis=pending,
-        correction_evidence_text=CORRECTION,
-        evidence_text=evidence,
-    )
-    assert result.corrections[0].matches_analysis(result.analysis) is False
+    with pytest.raises(Exception, match="does not reflect its explicit correction"):
+        MechanicsAdjudicator(provider).understand_pending(
+            _turn_context(),
+            conversation,
+            pending_analysis=pending,
+            correction_evidence_text=CORRECTION,
+            evidence_text=evidence,
+        )
 
 
 def test_durable_clarification_persists_correction_audit_across_multiple_rounds(
@@ -343,8 +345,9 @@ def test_durable_clarification_persists_correction_audit_across_multiple_rounds(
 
     assert third.narrative == "El personaje observa su entorno."
     assert len(calls) == 3
+    resolution_id = int(first.pending_clarification_id.split(":", 1)[0])
     record = service.resolution_repository.get(
-        1,
+        resolution_id,
         scope=service.scope,
     )
     assert record is not None
