@@ -213,7 +213,11 @@ class TurnResolutionService:
         mechanics_result = None
         decision = decision_override
         intent_analysis = intent_analysis_override
-        if intent_analysis is None and self.mechanics_adjudicator is not None:
+        if (
+            intent_analysis is None
+            and decision is None
+            and self.mechanics_adjudicator is not None
+        ):
             try:
                 intent_analysis, inferred_decision = self.mechanics_adjudicator.understand(
                     context,
