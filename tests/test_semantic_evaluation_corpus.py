@@ -30,7 +30,7 @@ def test_semantic_evaluation_corpus_has_at_least_one_hundred_unique_cases():
         assert isinstance(corpus["scenarios"], list), corpus_name
         if held_out:
             assert corpus["split"] == "held_out", corpus_name
-            assert "not be copied" in corpus["description"] or "not prompt" in corpus["description"], corpus_name
+            assert any(\n                marker in corpus["description"].casefold()\n                for marker in ("reserved for measurement", "not be copied", "do not turn")\n            ), corpus_name
         for scenario in corpus["scenarios"]:
             scenario_id = scenario["id"]
             assert scenario_id not in identifiers, scenario_id
