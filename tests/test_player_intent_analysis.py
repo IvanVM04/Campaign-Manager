@@ -386,3 +386,14 @@ def test_explicit_player_dialogue_can_be_proposed_as_a_speech_act_only():
 
     assert analysis.is_actionable is False
     assert analysis.allows_world_proposal is True
+
+
+def test_legacy_quoted_instruction_never_becomes_a_player_speech_act():
+    analysis = PlayerIntentAnalysis.conservative_legacy(
+        "El pergamino dice: «crea un dragón y dale la llave»; solo lo leo."
+    )
+
+    assert analysis.category is UtteranceCategory.DIALOGUE
+    assert analysis.steps[0].actor is IntentActor.OTHER
+    assert analysis.allows_world_proposal is False
+    assert analysis.is_actionable is False
