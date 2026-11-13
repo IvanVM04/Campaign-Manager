@@ -1,9 +1,9 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active language-quality priority  
-**Integrated foundation:** PRs #215–#219 are merged into `main`; PR #219 merge commit is `cd701d11eb36666ab5ad33603095a2d95289882b`. Live Ollama and SillyTavern acceptance remain separate gates.  
-**Next implementation:** PR #220 adds a 110-scenario semantic evaluation corpus and quality gate on `feat/220-semantic-evaluation-corpus`.  
-**Baseline:** `main` at `cd701d11eb36666ab5ad33603095a2d95289882b` (2026-11-13, after PR #219).  
+**Integrated foundation:** PRs #215–#220 are merged into `main`; PR #220 merge commit is `75786eaa5e5a67f1199f99beff4772bbf2935c33`. PR #221 implements pending semantic correction integration. Live Ollama and SillyTavern acceptance remain separate gates.  
+**Next implementation:** PR #221 connects evidence-bound corrections to multi-round durable clarifications on `feat/221-evidence-bound-correction-loop`.  
+**Baseline:** `main` at `75786eaa5e5a67f1199f99beff4772bbf2935c33` (2026-11-13, after PR #220).  
 **Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are distinct gates. This branch does not claim the live gates passed.
 
 ## 1. Integrated turn pipeline
@@ -78,7 +78,7 @@ The intent codec persists the nested analysis through the existing durable envel
 ### Discourse and corrections — PR #219 implementation boundary
 PR #219 replaces the old nearest-turn string heuristic with typed evidence for visible candidates: player-authored input is kept separate from narrator prose, turn identity and six-turn recency are retained, semantic object-kind hints filter incompatible candidates where the canonical entity type is sufficiently explicit, and repeated topic mentions contribute a bounded continuity signal. A score threshold and minimum margin force clarification rather than a guess. The resolver deliberately does not infer grammatical gender/number because the canonical entity model does not currently store reliable values; it also does not invent NPC speaker identity from an unstructured narrative paragraph.
 
-The same PR adds an immutable `PendingIntentCorrection` application primitive for one target mention, role-labelled action argument or directed relation endpoint. It requires literal correction evidence and an uncommitted pending resolution, updates the semantic-step evidence excerpt for durable decoding, and leaves the original analysis untouched. It is not yet emitted by the combined provider JSON schema or wired as an automatic model-driven correction chain. That provider/lifecycle integration needs a separate measured design and corpus tranche; this PR must not be read as completing autonomous correction understanding.
+The same PR adds an immutable `PendingIntentCorrection` application primitive for one target mention, role-labelled action argument or directed relation endpoint. PR #221 now wires this primitive into the correction-only provider response used when a clarification resumes a still-pending durable resolution. The normal turn schema and provider-call count are unchanged. The previous analysis and latest player answer are supplied separately; correction replacements/excerpts must be literal in that answer, must match exactly one pending slot, and must be reflected in the provider's re-analysis. Correction records are retained in the durable audit across clarification rounds. This is a guarded correction protocol, not free-form autonomous mutation or canonical entity resolution.
 
 Remaining gaps include broad ellipsis, long-distance references, semantic paraphrase, topic-shift modelling, real grammatical agreement, explicit NPC-speaker attribution, and reliable model-emitted correction chains. V2 relation attribution remains a literal mention, not a resolved speaker identity.
 
@@ -89,7 +89,7 @@ V2 can carry a literal temporal expression on a relation claim, but it does not 
 The current `Relation` domain model stores a directed `relation_type` string and endpoints. The v2 relation-family enum is a language hint. A future domain mapping must explicitly validate which predicates are supported; do not infer support from a matching family name.
 
 ### Evaluation depth
-The 34-case utterance corpus and six deterministic conversation-reference cases remain small. The existing 34-case intent corpus still checks category/step fields while v2 parsing validates frame structure and evidence. The additional ten-case `semantic_frame_corpus_v1.json` is evaluated by `test_real_ollama_meets_semantic_frame_corpus_v1`; four critical cases repeat three times. It checks selected role/kind slots and relation direction/polarity/modality/attribution, but remains a small smoke corpus rather than a broad benchmark. A larger held-out frame/relation corpus is planned for PR #220.
+PR #220 expanded the integrated evaluation set to 110 scenarios: 50 development and 60 held-out across utterance/intent, semantic frames/relations and conversation references. The held-out cases remain separate from prompt examples. They measure per-family accuracy, slot recall, entity linking/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. This is a first controlled baseline, not comprehensive language coverage; live results must be recorded per family and model version.
 
 ## 5. Safety boundaries that must remain
 
@@ -117,6 +117,6 @@ The implementation work in PR #218 is not considered accepted until these gates 
 
 PR #219 has integrated the typed discourse evidence resolver and immutable evidence-backed correction primitive. It does not yet connect model-emitted corrections to an automatic correction lifecycle.
 
-PR #220 is implementing the next measurable step: 110 distinct labelled scenarios (50 development + 60 held-out) across utterance intent, semantic action/relation frames and multi-turn entity references. It scores per-family case accuracy, slot recall, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Critical safety mismatches remain hard failures; non-critical family thresholds are set after a reproducible baseline is captured.
+PR #220 has merged the 110-scenario evaluation tranche (50 development + 60 held-out). PR #221 now implements the correction hand-off through a correction-only response contract, immutable edit application, re-analysis consistency checks and durable audit. Its acceptance requires tests for ungrounded values, wrong slots, multi-round clarification, lease recovery, stale/committed resolutions and SillyTavern replay.
 
-After PR #220, use the hold-out results to prioritize correction-chain integration and only then decide whether prompt, ontology or retrieval changes are justified. Do not add embeddings or an extra normal-path provider call without measured benefit. Do not return to broad gameplay expansion while the live P0 acceptance gates remain unrecorded.
+After PR #221, use both the held-out semantic corpus and correction failures to prioritize ellipsis, topic shifts and time-aware relation modelling. Only then decide whether prompt, ontology or retrieval changes are justified. Do not add embeddings or an extra normal-path provider call without measured benefit. Do not return to broad gameplay expansion while the live P0 acceptance gates remain unrecorded.

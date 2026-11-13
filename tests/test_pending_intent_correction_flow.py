@@ -6,7 +6,7 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
-from models.mechanics import MechanicsDecision, MechanicsDecisionType
+from models.mechanics import MechanicsDecisionType
 from models.pending_intent_correction import (
     PendingCorrectionSlot,
     PendingIntentCorrection,
@@ -15,7 +15,6 @@ from models.player_intent_analysis import PlayerIntentAnalysis
 from models.session_state import SessionState
 from models.semantic_frames import SemanticObjectKind, SemanticMention
 from models.turn_context import TurnContext
-from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
 from services.providers import FakeLLMProvider
 from services.turns.intent_response_schema import (
@@ -25,6 +24,7 @@ from services.turns.intent_response_schema import (
 from services.turns.mechanics_adjudicator import (
     IntentUnderstandingResult,
     MechanicsAdjudicator,
+    MechanicsAdjudicatorError,
 )
 from services.turns.turn_resolution_service import TurnResolutionPlan
 from tests.durable_turn_test_support import service_with_fake_models
@@ -265,7 +265,10 @@ def test_pending_adjudication_rejects_corrections_not_reflected_by_reanalysis(
         lambda prompt, *, schema: original_generate(prompt),
     )
 
-    with pytest.raises(Exception, match="does not reflect its explicit correction"):
+    with pytest.raises(
+        MechanicsAdjudicatorError,
+        match="does not reflect its explicit correction",
+    ):
         MechanicsAdjudicator(provider).understand_pending(
             _turn_context(),
             conversation,
