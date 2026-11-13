@@ -4,6 +4,8 @@ import pytest
 
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.semantic_frames import SemanticArgumentRole, SemanticModality, SemanticObjectKind
+from services.turns import TurnResolutionCodec
+from services.turns.turn_resolution_service import TurnResolutionPlan
 
 
 def payload():
@@ -105,3 +107,25 @@ def test_v1_persisted_contract_remains_decodable():
     assert analysis.schema_version == 1
     assert analysis.steps[0].action_frame is None
     assert json.loads(analysis.to_json()) == v1
+
+
+def test_v2_semantic_frames_survive_durable_intent_codec_recovery():
+    source = "Entrego la llave de hierro a Mara."
+    analysis = PlayerIntentAnalysis.from_payload(payload(), source_text=source)
+    plan = TurnResolutionPlan(
+        player_input=source,
+        narrative="",
+        world_operations=(),
+        character_operations=(),
+        ordered_operations=(),
+        intent_analysis=analysis,
+        intent_evidence_text=source,
+    )
+
+    encoded = TurnResolutionCodec.intent_to_json(plan)
+    restored = TurnResolutionCodec.intent_from_json(
+        encoded,
+        original_input=source,
+    )
+
+    assert restored == analysis
