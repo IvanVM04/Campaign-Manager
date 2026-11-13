@@ -309,3 +309,77 @@ def test_attributed_direct_observation_of_npc_can_ground_a_world_proposal():
 
     assert analysis.is_actionable is False
     assert analysis.allows_world_proposal is True
+
+
+def test_question_category_cannot_claim_an_active_mechanical_step():
+    value = payload(
+        category="question",
+        steps=[step(modality="attempted")],
+        active=0,
+    )
+
+    with pytest.raises(ValueError, match="only action or mixed"):
+        PlayerIntentAnalysis.from_payload(
+            value,
+            source_text="Ataco al guardia.",
+        )
+
+
+def test_future_completed_step_cannot_be_evidence_before_active_step_resolves():
+    value = payload(steps=[
+        step(index=0, excerpt="Ataco al guardia", modality="attempted"),
+        step(
+            index=1,
+            excerpt="abro la puerta",
+            action="abrir la puerta",
+            modality="completed",
+            outcome="success",
+            targets=["la puerta"],
+        ),
+    ], active=0)
+
+    with pytest.raises(ValueError, match="future steps cannot be reported"):
+        PlayerIntentAnalysis.from_payload(
+            value,
+            source_text="Ataco al guardia y abro la puerta.",
+        )
+
+
+def test_future_attempt_after_active_step_does_not_authorize_its_proposal():
+    analysis = PlayerIntentAnalysis.from_payload(
+        payload(steps=[
+            step(index=0, excerpt="Ataco al guardia", modality="attempted"),
+            step(
+                index=1,
+                excerpt="abro la puerta",
+                action="abrir la puerta",
+                modality="attempted",
+                targets=["la puerta"],
+            ),
+        ], active=0),
+        source_text="Ataco al guardia y abro la puerta.",
+    )
+
+    assert analysis.allows_world_proposal is True
+    assert analysis.is_actionable is True
+    assert analysis.steps[1].index != analysis.active_step_index
+
+
+def test_explicit_player_dialogue_can_be_proposed_as_a_speech_act_only():
+    analysis = PlayerIntentAnalysis.from_payload(
+        payload(
+            category="dialogue",
+            active=None,
+            steps=[step(
+                excerpt="Le digo a Aldric",
+                actor="player",
+                action="hablar con Aldric",
+                modality="dialogue",
+                targets=["Aldric"],
+            )],
+        ),
+        source_text="Le digo a Aldric: «Quiero viajar al norte».",
+    )
+
+    assert analysis.is_actionable is False
+    assert analysis.allows_world_proposal is True
