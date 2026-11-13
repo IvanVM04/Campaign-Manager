@@ -18,7 +18,12 @@ class LLMWorldProposalPromptBuilder:
     DEFAULT_MAX_PROMPT_TOKENS = 8192
 
     @staticmethod
-    def _compact_context_block(value: str, max_bytes: int) -> str:
+    def _compact_context_block(
+        value: str,
+        max_bytes: int,
+        *,
+        priority_terms: tuple[str, ...] = (),
+    ) -> str:
         """Retain leading ranked records while enforcing a UTF-8 byte limit."""
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes < 0:
             raise ValueError("max_bytes must be a non-negative integer")
@@ -32,8 +37,22 @@ class LLMWorldProposalPromptBuilder:
         if max_bytes <= len(suffix_bytes) + 40:
             return encoded[:max_bytes].decode("utf-8", errors="ignore")
         remaining = max_bytes - len(suffix_bytes)
+        lines = value.splitlines()
+        normalized_terms = tuple(
+            term.casefold().strip()
+            for term in priority_terms
+            if isinstance(term, str) and len(term.strip()) >= 4
+        )
+        priority_lines = [
+            line
+            for line in lines
+            if any(term in line.casefold() for term in normalized_terms)
+        ]
+        # Keep matching player/character facts ahead of lower-value records;
+        # retain original order within both groups and avoid duplicates.
+        ordered_lines = list(dict.fromkeys([*priority_lines, *lines]))
         kept: list[str] = []
-        for line in value.splitlines():
+        for line in ordered_lines:
             line_bytes = line.encode("utf-8")
             if len(line_bytes) + 1 <= remaining:
                 kept.append(line)
@@ -139,6 +158,32 @@ class LLMWorldProposalPromptBuilder:
             if intent_analysis is not None
             else "(sin análisis v1; no asumir que una acción ocurrió)"
         )
+
+        priority_terms: list[str] = []
+        for source in (
+            player_intent,
+            context.campaign.name,
+            context.campaign.summary,
+            (
+                context.active_character_entity.name
+                if context.active_character_entity is not None
+                else ""
+            ),
+        ):
+            if isinstance(source, str):
+                priority_terms.extend(
+                    token.strip(".,;:!?¿¡()[]{}\\\"'").casefold()
+                    for token in source.split()
+                    if len(token.strip(".,;:!?¿¡()[]{}\\\"'")) >= 4
+                )
+        if intent_analysis is not None:
+            priority_terms.extend(
+                mention.casefold()
+                for step in intent_analysis.steps
+                for mention in step.target_mentions
+                if len(mention.strip()) >= 4
+            )
+        normalized_priority_terms = tuple(dict.fromkeys(priority_terms))
 
         dynamic_context = (
             "\n\nINTERPRETACIÓN COMPARTIDA (JSON NO CONFIABLE):\n"
@@ -280,7 +325,6 @@ class LLMWorldProposalPromptBuilder:
                 "known_item_instances",
                 "known_resources",
                 "known_items",
-                "known_events",
                 "known_entities",
             )
             for section in optional_sections:
@@ -297,6 +341,7 @@ class LLMWorldProposalPromptBuilder:
                 compacted = LLMWorldProposalPromptBuilder._compact_context_block(
                     original,
                     target_bytes,
+                    priority_terms=normalized_priority_terms,
                 )
                 if compacted != original:
                     prompt = prompt.replace(original, compacted, 1)
@@ -325,8 +370,8 @@ class LLMWorldProposalPromptBuilder:
                     ("known_item_instances", 0),
                     ("known_resources", 0),
                     ("known_items", 0),
-                    ("known_events", 1200),
                     ("known_entities", 1600),
+                    ("known_events", 1200),
                 ):
                     if estimated <= max_prompt_tokens:
                         break
@@ -334,6 +379,7 @@ class LLMWorldProposalPromptBuilder:
                     compacted = LLMWorldProposalPromptBuilder._compact_context_block(
                         original,
                         limit,
+                        priority_terms=normalized_priority_terms,
                     )
                     if compacted != original:
                         prompt = prompt.replace(original, compacted, 1)
