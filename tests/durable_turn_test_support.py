@@ -27,11 +27,12 @@ class CombinedMechanicsFakeProvider(FakeLLMProvider):
         if header_end < 0:
             raise ValueError("mechanics prompt has an invalid evidence section")
         evidence_start = header_end + len(") ===")
+        escaped_newline = chr(92) + "n"
         while evidence_start < len(prompt) and (
             prompt[evidence_start].isspace()
-            or prompt.startswith("\\n", evidence_start)
+            or prompt.startswith(escaped_newline, evidence_start)
         ):
-            evidence_start += 2 if prompt.startswith("\\n", evidence_start) else 1
+            evidence_start += 2 if prompt.startswith(escaped_newline, evidence_start) else 1
         evidence_end = prompt.find(
             "El contexto completo puede contener",
             evidence_start,
@@ -39,7 +40,7 @@ class CombinedMechanicsFakeProvider(FakeLLMProvider):
         if evidence_end < 0:
             raise ValueError("mechanics prompt has an unterminated evidence section")
         evidence_text = prompt[evidence_start:evidence_end]
-        evidence_text = evidence_text.replace("\\n", " ").strip()
+        evidence_text = evidence_text.replace(escaped_newline, " ").strip()
         if not evidence_text:
             raise ValueError("mechanics prompt has empty player-authored evidence")
 
