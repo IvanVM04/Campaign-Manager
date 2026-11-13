@@ -30,6 +30,7 @@ from migrations import (
     migration_030,
     migration_031,
     migration_032,
+    migration_033,
     run_migrations,
 )
 
@@ -1449,4 +1450,43 @@ def test_migration_032_rejects_cross_campaign_event_provenance_references():
             ) VALUES ('bad-history', 'fact', 'Bad history', 1, 'foreign-event')
             """
         )
+    conn.close()
+
+
+
+def test_migration_033_persists_intent_json_and_freezes_committed_evidence():
+    import pytest
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    for definition in MIGRATIONS[:-1]:
+        definition.apply(conn)
+
+    migration_033(conn)
+    migration_033(conn)
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(turn_resolutions)")
+    }
+    assert "intent_json" in columns
+
+    conn.execute(
+        """
+        INSERT INTO turn_resolutions (
+            campaign_id, player_input, adapter_namespace, idempotency_key,
+            request_fingerprint, lifecycle_state, context_revision,
+            resulting_revision, proposal_json, intent_json, committed_at
+        ) VALUES (1, 'Abro la puerta', 'native', 'intent-1', 'fingerprint',
+                  'committed', 1, 2, '{"operations":[]}', '{"schema_version":1}',
+                  CURRENT_TIMESTAMP)
+        """
+    )
+    with pytest.raises(
+        sqlite3.IntegrityError,
+        match="committed resolution intent is immutable",
+    ):
+        conn.execute(
+            "UPDATE turn_resolutions SET intent_json='{}' WHERE id=1"
+        )
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     conn.close()
