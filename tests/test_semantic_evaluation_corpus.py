@@ -63,3 +63,61 @@ def test_held_out_scenarios_are_not_repeated_across_evaluation_families():
             previous = seen.get(normalized)
             assert previous is None, f"{scenario['id']} duplicates {previous}"
             seen[normalized] = scenario["id"]
+
+
+def test_context_recall_and_secret_exclusion_are_measured_separately(record_property):
+    import json
+
+    from models.campaign_state import CampaignState
+    from models.turn_context import TurnContext
+    from services.context import ContextBuilder
+    from services.llm_world.llm_world_context_renderer import (
+        LLMWorldContextRenderer,
+    )
+    from tests.context_scale_test_support import build_large_campaign_world
+    from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
+
+    world = build_large_campaign_world(entity_count=750)
+    context = TurnContext(
+        campaign=CampaignState(
+            name="La guardia de Puerto Gris",
+            current_location_id=2,
+            summary="Investigación en una ciudad portuaria.",
+        ),
+        current_session=None,
+        active_character=None,
+        active_character_entity=world.entities[1],
+        world=world,
+    )
+    projection = ContextBuilder().build_proposal_context(
+        world,
+        "Fungoso",
+        max_estimated_tokens=5000,
+        mandatory_entity_ids=(1, 2),
+    )
+    rendered = json.dumps(
+        LLMWorldContextRenderer.build_context(context, projection),
+        ensure_ascii=False,
+    )
+    ledger = SemanticEvaluationLedger()
+    ledger.record_context_recall(
+        expected_entity_ids=(1, 2),
+        retrieved_entity_ids=projection.world.entities,
+    )
+    ledger.record_secret_visibility(
+        rendered,
+        (
+            "ruta secreta de contrabando",
+            "La capitana trabaja para los contrabandistas",
+            "Los guardias protegen la ruta oculta",
+        ),
+    )
+    ledger.emit(record_property, prefix="semantic_context")
+
+    summary = ledger.summary()
+    assert summary["context_recall"] == 1.0
+    assert summary["secret_leaks"] == 0
+    assert "Fungoso recibe aviso: cambio de turno de la guardia" in rendered
+    assert "ruta secreta de contrabando" not in rendered
+    assert "La capitana trabaja para los contrabandistas" not in rendered
+    assert "Los guardias protegen la ruta oculta" not in rendered
