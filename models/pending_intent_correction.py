@@ -106,7 +106,35 @@ class PendingIntentCorrection:
             if any(value.casefold() == self.replacement.text.casefold() for value in targets):
                 raise ValueError("replacement target is already present")
             targets[matches[0]] = self.replacement.text
-            steps[self.step_index] = replace(step, target_mentions=tuple(targets))
+            corrected_frame = step.action_frame
+            if corrected_frame is not None:
+                corrected_arguments = tuple(
+                    replace(argument, mention=self.replacement)
+                    if argument.mention.text.casefold() == self.previous_value.casefold()
+                    else argument
+                    for argument in corrected_frame.arguments
+                )
+                corrected_frame = replace(
+                    corrected_frame,
+                    arguments=corrected_arguments,
+                )
+            corrected_claims = list(analysis.relation_claims)
+            for index, claim in enumerate(corrected_claims):
+                if claim.step_index != self.step_index:
+                    continue
+                changes = {}
+                if claim.subject.text.casefold() == self.previous_value.casefold():
+                    changes["subject"] = self.replacement
+                if claim.object.text.casefold() == self.previous_value.casefold():
+                    changes["object"] = self.replacement
+                if changes:
+                    corrected_claims[index] = replace(claim, **changes)
+            steps[self.step_index] = replace(
+                step,
+                target_mentions=tuple(targets),
+                action_frame=corrected_frame,
+            )
+            analysis = replace(analysis, relation_claims=tuple(corrected_claims))
         elif self.slot is PendingCorrectionSlot.ACTION_ARGUMENT:
             frame = step.action_frame
             if frame is None:
