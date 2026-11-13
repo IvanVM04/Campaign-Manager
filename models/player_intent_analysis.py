@@ -341,7 +341,15 @@ class PlayerIntentAnalysis:
         text = source_text.strip()
         folded = unicodedata.normalize("NFKC", text).casefold()
         question = "?" in text or text.startswith("¿") or bool(re.match(r"^(qué|quién|como|cómo|cuando|cuándo|donde|dónde|por qué)\b", folded))
-        conditional = bool(re.search(r"\b(si|cuando|en caso de que|if|when|suppose)\b", folded))
+        indirect_question = bool(
+            re.search(
+                r"\b(pregunt\w*|averigu\w*|comprobar\w*|confirmar\w*|saber)\b.{0,120}\bsi\b",
+                folded,
+            )
+        )
+        conditional = bool(
+            re.search(r"\b(si|cuando|en caso de que|if|when|suppose)\b", folded)
+        ) and not indirect_question
         planned = bool(re.search(r"\b(mañana|luego|después|planeo|pienso|me gustaría|voy a|haré|tomorrow|later|plan to|i will)\b", folded))
         quoted = any(mark in text for mark in ('"', "“", "”", "«", "»"))
         failure = bool(re.search(r"\b(no pude|no consigo|no logré|no logre|no conseguí|no consegui|fallé|falle|fracasé|fracase|falló|fallo|failed|could not|couldn't)\b", folded))
