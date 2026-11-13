@@ -431,25 +431,36 @@ class ConversationReferenceResolver:
                                 self._question(mention, ()),
                                 abstention_reason="other_role_antecedent_not_established",
                             )
-                        if ranked[0].score < self.MIN_RESOLUTION_SCORE:
+                        antecedent = next(iter(ranked), None)
+                        if antecedent is None:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, ()),
+                                abstention_reason="other_role_antecedent_not_established",
+                            )
+                        if antecedent.score < self.MIN_RESOLUTION_SCORE:
                             return ConversationReferenceResolution(
                                 tuple(references),
                                 self._question(mention, self._candidate_names(ranked)),
                                 candidates=ranked[:4],
                                 abstention_reason="other_role_antecedent_not_established",
                             )
+                        second_antecedent = next(iter(ranked[1:]), None)
                         antecedent_margin = (
-                            ranked[0].score - ranked[1].score
-                            if len(ranked) > 1 else ranked[0].score
+                            antecedent.score - second_antecedent.score
+                            if second_antecedent is not None
+                            else antecedent.score
                         )
-                        if len(ranked) > 1 and antecedent_margin < self.MIN_RESOLUTION_MARGIN:
+                        if (
+                            second_antecedent is not None
+                            and antecedent_margin < self.MIN_RESOLUTION_MARGIN
+                        ):
                             return ConversationReferenceResolution(
                                 tuple(references),
                                 self._question(mention, self._candidate_names(ranked)),
                                 candidates=ranked[:4],
                                 abstention_reason="other_role_antecedent_ambiguous",
                             )
-                        antecedent = ranked[0]
                         antecedent_turn_id = next(
                             (
                                 item.turn_id
@@ -504,21 +515,26 @@ class ConversationReferenceResolver:
                     else:
                         match_kind = "conversation_antecedent"
 
-                    if not ranked:
+                    selected = next(iter(ranked), None)
+                    if selected is None:
                         return ConversationReferenceResolution(
                             tuple(references),
                             self._question(mention, ()),
                             candidates=(),
                             abstention_reason="no_visible_antecedent_evidence",
                         )
-                    selected = ranked[0]
+                    second_candidate = next(iter(ranked[1:]), None)
                     margin = (
-                        selected.score - ranked[1].score
-                        if len(ranked) > 1 else selected.score
+                        selected.score - second_candidate.score
+                        if second_candidate is not None
+                        else selected.score
                     )
                     if (
                         selected.score < self.MIN_RESOLUTION_SCORE
-                        or (len(ranked) > 1 and margin < self.MIN_RESOLUTION_MARGIN)
+                        or (
+                            second_candidate is not None
+                            and margin < self.MIN_RESOLUTION_MARGIN
+                        )
                     ):
                         names = self._candidate_names(ranked)
                         return ConversationReferenceResolution(
