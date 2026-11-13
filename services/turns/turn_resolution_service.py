@@ -156,6 +156,31 @@ class TurnResolutionService:
     # PUBLIC API
     # ============================================================
 
+    @staticmethod
+    def _recent_context_queries(recent_turns) -> tuple[str, ...]:
+        """Build bounded, player-visible retrieval signals for conversational references."""
+        if not isinstance(recent_turns, (tuple, list)):
+            return ()
+        queries: list[str] = []
+        seen: set[str] = set()
+        for item in recent_turns[-3:]:
+            if isinstance(item, dict):
+                values = (item.get("player_input", ""), item.get("narrative", ""))
+            else:
+                values = (
+                    getattr(item, "player_input", ""),
+                    getattr(item, "narrative", ""),
+                )
+            for value in values:
+                if not isinstance(value, str):
+                    continue
+                normalized = value.strip()[:300]
+                key = normalized.casefold()
+                if normalized and key not in seen:
+                    queries.append(normalized)
+                    seen.add(key)
+        return tuple(queries)
+
     def prepare_turn(
         self,
         turn_context: TurnContext | WorldState,
@@ -368,11 +393,24 @@ class TurnResolutionService:
             ):
                 mandatory_entity_ids.append(current_location_id)
             try:
+                semantic_queries = tuple(
+                    dict.fromkeys(
+                        [
+                            *(
+                                mention
+                                for step in intent_analysis.steps
+                                for mention in step.target_mentions
+                            ),
+                            *self._recent_context_queries(recent_turns),
+                        ]
+                    )
+                )
                 context_projection = self.context_builder.build_proposal_context(
                     context.world,
                     normalized_input,
                     max_estimated_tokens=self.proposal_context_max_tokens,
                     mandatory_entity_ids=mandatory_entity_ids,
+                    supplemental_queries=semantic_queries,
                     character_entity_id=(
                         context.active_character.entity_id
                         if context.active_character is not None
