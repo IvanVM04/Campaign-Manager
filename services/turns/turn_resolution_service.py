@@ -43,6 +43,7 @@ class TurnResolutionPlan:
     clarification_question: str | None = None
     mechanics_decision: MechanicsDecision | None = None
     intent_analysis: PlayerIntentAnalysis | None = None
+    intent_evidence_text: str | None = None
     awaiting_manual_roll: bool = False
 
 
@@ -192,6 +193,7 @@ class TurnResolutionService:
         decision_override: MechanicsDecision | None = None,
         intent_analysis_override: PlayerIntentAnalysis | None = None,
         recent_turns: list[TurnRecord] | None = None,
+        intent_evidence_text: str | None = None,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -217,6 +219,15 @@ class TurnResolutionService:
         if not normalized_input:
             raise TurnResolutionServiceError(
                 "player_input must not be empty"
+            )
+        normalized_evidence_text = (
+            normalized_input
+            if intent_evidence_text is None
+            else self._validate_player_input(intent_evidence_text)
+        )
+        if not normalized_evidence_text or len(normalized_evidence_text) > 20000:
+            raise TurnResolutionServiceError(
+                "intent evidence must contain 1 to 20000 characters"
             )
 
         if not isinstance(manual_mode, bool):
@@ -249,6 +260,7 @@ class TurnResolutionService:
                     context,
                     normalized_input,
                     recent_turns=recent_turns,
+                    evidence_text=normalized_evidence_text,
                 )
                 if decision is None:
                     decision = inferred_decision
@@ -257,7 +269,9 @@ class TurnResolutionService:
                     "shared language understanding failed"
                 ) from exc
         elif intent_analysis is None:
-            intent_analysis = PlayerIntentAnalysis.conservative_legacy(normalized_input)
+            intent_analysis = PlayerIntentAnalysis.conservative_legacy(
+                normalized_evidence_text
+            )
 
         if intent_analysis.requires_clarification:
             return TurnResolutionPlan(
@@ -269,6 +283,7 @@ class TurnResolutionService:
                 clarification_question=intent_analysis.clarification_question,
                 mechanics_decision=decision,
                 intent_analysis=intent_analysis,
+                intent_evidence_text=normalized_evidence_text,
             )
         if not intent_analysis.is_actionable and not (
             decision is not None
@@ -287,6 +302,7 @@ class TurnResolutionService:
                     clarification_question=decision.question,
                     mechanics_decision=decision,
                     intent_analysis=intent_analysis,
+                    intent_evidence_text=normalized_evidence_text,
                 )
 
             character = context.active_character
@@ -322,6 +338,7 @@ class TurnResolutionService:
                     ordered_operations=(),
                     mechanics_decision=decision,
                     intent_analysis=intent_analysis,
+                    intent_evidence_text=normalized_evidence_text,
                     awaiting_manual_roll=True,
                 )
             if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
@@ -514,6 +531,7 @@ class TurnResolutionService:
             mechanics_result=mechanics_result,
             mechanics_decision=decision,
             intent_analysis=intent_analysis,
+            intent_evidence_text=normalized_evidence_text,
         )
 
     def generate_narrative(
