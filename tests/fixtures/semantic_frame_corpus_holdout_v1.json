@@ -53,14 +53,14 @@
     {
       "id": "holdout-item-definition-vs-instance",
       "family": "item_definition_instance",
-      "input": "Compro una poción de curación y guardo esa poción en mi mochila.",
+      "input": "Guardo una poción de curación concreta en mi mochila.",
       "critical": true,
       "expected_action_frame": {
         "family": "transfer",
         "arguments": [
           {
             "role": "theme",
-            "mention": "una poción de curación",
+            "mention": "una poción de curación concreta",
             "kind_hint": "item_instance"
           },
           {
