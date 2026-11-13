@@ -1,4 +1,6 @@
-"""Ollama JSON Schema for the combined semantic-understanding/mechanics v2 response."""
+"""Ollama JSON Schemas for shared understanding and pending corrections."""
+
+from copy import deepcopy
 
 _MENTION_SCHEMA = {
     "type": "object",
@@ -207,4 +209,58 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
             },
         },
     },
+}
+
+_PENDING_CORRECTION_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "step_index", "slot", "previous_value", "replacement",
+        "source_excerpt", "argument_role", "relation_claim_index",
+    ],
+    "properties": {
+        "step_index": {"type": "integer", "minimum": 0, "maximum": 7},
+        "slot": {
+            "type": "string",
+            "enum": [
+                "target_mention", "action_argument",
+                "relation_subject", "relation_object",
+            ],
+        },
+        "previous_value": {"type": "string", "minLength": 1, "maxLength": 120},
+        "replacement": _MENTION_SCHEMA,
+        "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 300},
+        "argument_role": {
+            "type": ["string", "null"],
+            "enum": [
+                "agent", "patient", "theme", "recipient", "source",
+                "destination", "instrument", "location", "path",
+                "beneficiary", "companion", "experiencer", "owner",
+                "holder", "container", "cause", "result", None,
+            ],
+        },
+        "relation_claim_index": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 7,
+        },
+    },
+}
+
+# Used only while resolving an uncommitted clarification. The ordinary turn
+# path keeps the original schema and provider-call shape unchanged.
+INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA = deepcopy(
+    INTENT_MECHANICS_RESPONSE_SCHEMA
+)
+INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA["required"] = [
+    "intent_analysis",
+    "mechanics_decision",
+    "pending_corrections",
+]
+INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA["properties"][
+    "pending_corrections"
+] = {
+    "type": "array",
+    "maxItems": 4,
+    "items": _PENDING_CORRECTION_SCHEMA,
 }

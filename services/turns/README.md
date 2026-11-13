@@ -49,10 +49,20 @@ The last six visible turns are bounded and scoped to the current
 candidate evidence, a distinction between player-authored input and narrator
 prose, semantic-kind compatibility and explicit ambiguity margins. It does not
 infer grammatical gender/number or identify an NPC speaker when the transcript
-does not label one. The same PR adds a guarded `PendingIntentCorrection`
-application contract for target, action-argument and directed relation endpoint
-corrections. That helper is not yet emitted by the combined model schema;
-fully model-driven correction chains remain an explicit follow-up gate.
+does not label one.
+
+PR #221 connects the guarded `PendingIntentCorrection` primitive to clarification
+resumption. Only a still-pending durable resolution with a validated stored
+analysis enters correction mode. That mode reuses the clarification's existing
+provider call with a correction-only schema; it does not add a provider call to
+normal turns. The model must emit an explicit bounded correction record whose
+replacement and excerpt are literal in the latest player answer. Application
+code checks the previous value, target step, role or directed relation endpoint,
+applies the immutable correction against the stored interpretation, and requires
+the provider's re-analysis to reflect the same edit. Corrections are recorded in
+the durable adjudication history across clarification rounds. They remain
+untrusted language evidence and do not resolve canonical IDs, bypass visibility,
+or authorize world writes.
 
 Durable resolutions store the conversation and player-authored evidence with
 independent SHA-256 fingerprints in `turn_resolutions.intent_json` (migration
@@ -66,6 +76,7 @@ manual-roll continuations reuse the saved interpretation.
 - `tests/test_semantic_frames.py` protects v2 frames, relations, evidence and durable recovery.
 - `tests/test_player_intent_analysis.py` protects the v1 compatibility contract.
 - `tests/test_mechanics_adjudicator.py` protects the combined provider/schema boundary.
+- `tests/test_pending_intent_correction_flow.py` protects correction parsing, evidence grounding and multi-round durable clarification recovery.
 - `tests/test_durable_native_turn.py` and `tests/test_durable_silly_tavern_turn.py` protect the durable lifecycle.
 - `tests/test_silly_tavern_context_adapter.py` protects history filtering and adapter behavior.
 - Live model behavior is evaluated separately by `python -m pytest -m real_llm -v -s`; see the [prompt evaluation guide](../../docs/quality/prompt-evaluation-2026-11-12.md).

@@ -71,6 +71,100 @@ class PendingIntentCorrection:
         elif self.relation_claim_index is not None:
             raise ValueError("relation_claim_index is only valid for relation corrections")
 
+    @classmethod
+    def from_payload(
+        cls,
+        payload: object,
+        *,
+        evidence_text: str,
+    ) -> PendingIntentCorrection:
+        """Decode one strict provider proposal using only the latest answer as evidence."""
+        expected = {
+            "step_index",
+            "slot",
+            "previous_value",
+            "replacement",
+            "source_excerpt",
+            "argument_role",
+            "relation_claim_index",
+        }
+        if not isinstance(payload, dict) or set(payload) != expected:
+            raise ValueError("pending correction has missing or unexpected fields")
+        replacement = SemanticMention.from_payload(
+            payload["replacement"],
+            evidence_text=evidence_text,
+            field_name="correction replacement",
+        )
+        role_value = payload["argument_role"]
+        role = (
+            SemanticArgumentRole(role_value)
+            if role_value is not None
+            else None
+        )
+        slot = PendingCorrectionSlot(payload["slot"])
+        return cls(
+            step_index=payload["step_index"],
+            slot=slot,
+            previous_value=payload["previous_value"],
+            replacement=replacement,
+            source_excerpt=payload["source_excerpt"],
+            argument_role=role,
+            relation_claim_index=payload["relation_claim_index"],
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the bounded typed correction for durable audit history."""
+        return {
+            "step_index": self.step_index,
+            "slot": self.slot.value,
+            "previous_value": self.previous_value,
+            "replacement": self.replacement.to_dict(),
+            "source_excerpt": self.source_excerpt,
+            "argument_role": (
+                self.argument_role.value
+                if self.argument_role is not None
+                else None
+            ),
+            "relation_claim_index": self.relation_claim_index,
+        }
+
+    def matches_analysis(self, analysis: PlayerIntentAnalysis) -> bool:
+        """Check that the model's full re-analysis reflects this exact edit."""
+        if self.step_index >= len(analysis.steps):
+            return False
+        step = analysis.steps[self.step_index]
+        previous = _normalize(self.previous_value)
+        replacement = _normalize(self.replacement.text)
+        if self.slot is PendingCorrectionSlot.TARGET_MENTION:
+            values = {_normalize(value) for value in step.target_mentions}
+            return replacement in values and previous not in values
+        if self.slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+            frame = step.action_frame
+            if frame is None or self.argument_role is None:
+                return False
+            values = {
+                _normalize(argument.mention.text)
+                for argument in frame.arguments
+                if argument.role is self.argument_role
+            }
+            return replacement in values and previous not in values
+        if self.relation_claim_index is None:
+            return False
+        if self.relation_claim_index >= len(analysis.relation_claims):
+            return False
+        claim = analysis.relation_claims[self.relation_claim_index]
+        if claim.step_index != self.step_index:
+            return False
+        endpoint = (
+            claim.subject
+            if self.slot is PendingCorrectionSlot.RELATION_SUBJECT
+            else claim.object
+        )
+        return (
+            _normalize(endpoint.text) == replacement
+            and previous != replacement
+        )
+
     def apply(
         self,
         analysis: PlayerIntentAnalysis,

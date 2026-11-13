@@ -1,9 +1,9 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
-**Status:** PR #219 is merged into `main` at `cd701d11eb36666ab5ad33603095a2d95289882b`. PR #220 is under implementation on `feat/220-semantic-evaluation-corpus`. Live Ollama and manual SillyTavern acceptance remain separate gates and are not implied by deterministic CI.  
-**Priority:** P0.3 — semantic evaluation corpus and quality gate.  
-**Baseline:** `main` at `cd701d11eb36666ab5ad33603095a2d95289882b` (2026-11-13).  
-**Implementation branch:** `feat/220-semantic-evaluation-corpus`.
+**Status:** PRs #219 and #220 are merged into `main`; PR #220 merge commit is `75786eaa5e5a67f1199f99beff4772bbf2935c33`. PR #221 is under implementation on `feat/221-evidence-bound-correction-loop`. Live Ollama and manual SillyTavern acceptance remain separate gates and are not implied by deterministic CI.  
+**Priority:** P0.4 — evidence-bound correction lifecycle for pending clarifications.  
+**Baseline:** `main` at `75786eaa5e5a67f1199f99beff4772bbf2935c33` (2026-11-13, after PR #220).  
+**Implementation branch:** `feat/221-evidence-bound-correction-loop`.
 
 ## 1. Why this phase exists
 
@@ -69,7 +69,7 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 - **Remaining boundary:** the correction primitive is not emitted by the provider schema or connected to an automatic correction loop. Do not describe autonomous model-driven correction as implemented.
 - Added deterministic regressions for ambiguity, source preference, kind filtering, evidence provenance, six-turn limits and correction immutability.
 
-### PR #220 — evaluation corpus and quality gate (current implementation)
+### PR #220 — evaluation corpus and quality gate (merged into main)
 
 - Adds 60 held-out scenarios to the 50 existing development cases: 26 utterance/intent, 20 semantic-frame/relation and 14 conversation-reference cases (110 distinct cases total).
 - Covers action roles, item definition versus physical instance, transfer, directed relations, polarity/modality, attribution, correction, temporal expressions, compound actions, ambiguity, visibility, narrator/player evidence and negative controls.
@@ -79,9 +79,20 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 - Requires zero critical false persistent changes and zero secret leaks. Per-family quality targets for non-critical cases are set only after the first reproducible baseline; never collapse results into a misleading aggregate score.
 - Detailed protocol: [semantic evaluation corpus](semantic-understanding-evaluation-corpus-2026-11-13.md).
 
-### Next after PR #220 — close the correction loop with evidence
+### PR #221 — evidence-bound correction lifecycle (current implementation)
 
-Once the held-out baseline is recorded, design the provider/lifecycle integration for player-issued corrections. The follow-up must represent correction intent explicitly, bind it only to an uncommitted pending resolution, preserve the original request and appended player evidence, revalidate canonical references/visibility and avoid a normal-path extra provider call unless measurements justify one. It must test correction target/role/relation endpoint, explicit rejection of already-committed correction, multi-round clarification and SillyTavern restart/replay.
+- Adds a correction-only extension of the combined provider schema. The normal turn schema and normal provider-call count stay unchanged.
+- Supplies the prior pending analysis and the latest player clarification as separate prompt evidence; the DM's question remains context, never correction evidence.
+- Parses at most four typed corrections with target, role-labelled argument and directed relation endpoint slots. Replacements and excerpts must be literal in the latest answer.
+- Applies each edit to an immutable copy of the stored analysis only while its durable resolution is pending and uncommitted. The model's full re-analysis must reflect the exact same edit; otherwise the clarification fails closed.
+- Preserves the original request, cumulative player evidence, existing lease/revision checks, and a bounded durable correction audit across multi-round clarifications.
+- Releases the planning lease back to `awaiting_input` if correction validation fails, allowing a safe retry instead of leaving a stranded claim.
+- Adds deterministic tests for strict decoding, ungrounded/extra fields, no-op or mismatched edits, and multi-round durable recovery. Live model/SillyTavern acceptance remains separate.
+- No database migration, extra normal-path provider call, embedding or vector store is added.
+
+### Next after PR #221 — measure richer discourse and event semantics
+
+Use the expanded held-out corpus to prioritize the next language limitations: correction chains across multiple clauses, elliptical references, topic shifts and relation changes over time. Extend the hold-out set before changing prompt or retrieval behavior. Consider grammatical agreement or additional relation ontology only when the canonical world model exposes reliable supporting fields. Keep embeddings and extra normal-path calls gated on reproducible gains.
 
 ### Later — retrieval/model selection only when measured
 
