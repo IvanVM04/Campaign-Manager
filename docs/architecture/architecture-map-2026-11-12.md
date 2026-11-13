@@ -1,30 +1,29 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified base:** `main` at `868ae7ae29c6c1c0cfb5b3aaf181b630a0039ff6` (2026-11-13, PR #216 merged).  
+**Verified base:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13, PR #218 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 > **Phase 1 retrieval update — PR #212:** the SillyTavern action is now the
 > primary retrieval query and configured campaign-scope wording is an independent
-> optional query. The context pipeline merges and deduplicates the two signals;
-> descriptive entity matching can resolve a role inside a longer player sentence
-> and still reports ambiguity on comparable candidates while retaining their
-> descriptive evidence for retrieval (without resolving one canonical ID).
-> PR #216 adds a narrow chat-scoped resolver for selected pronouns, demonstratives,
-> same-object and curated other-role references. General coreference, semantic
-> paraphrase, typed argument roles and correction chains remain open work. See the
-> [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md).
+> optional query. PR #216 adds a narrow chat-scoped resolver; PR #218 adds typed
+> action frames and directed evidence-bound relation claims. PR #219 now adds
+> typed discourse evidence, source separation, recency/topic ranking and explicit
+> ambiguity abstention, plus a guarded pending-intent correction primitive. It
+> does not yet provide model-emitted correction objects, grammatical agreement or
+> NPC speaker attribution. See the [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md).
 
 ## Current P0 — shared language understanding
 
-PRs #215 and #216 are integrated. Together they deliver the versioned
-`PlayerIntentAnalysis` contract, one shared mechanics/proposal interpretation,
-durable evidence (migration 033), chat-scoped history/continuation (migration
-034), bounded visibility-filtered reference resolution and native Ollama JSON
-Schema generation. PR #217 synchronizes the implementation docs. PR #218's
-branch introduces v2 evidence-bound action frames and directed relation claims,
-with v1 durable decoding preserved; it is not yet merged. Live Ollama and
-manual multi-chat SillyTavern acceptance remain separate gates. Do not start
-Character Builder or broad gameplay expansion until those gates are recorded.
+PRs #215–#218 are integrated. Together they deliver the shared versioned
+`PlayerIntentAnalysis` contract, action-frame v2, directed evidence-bound
+relation claims, durable evidence (migration 033), chat-scoped history and
+continuation (migration 034), and bounded visibility-filtered reference
+resolution. PR #218's deterministic Tests and CodeQL workflows passed; live
+Ollama and manual multi-chat SillyTavern acceptance remain separate gates.
+PR #219 is in preparation on `feat/219-discourse-resolution-corrections` and
+adds typed discourse evidence and a guarded pending-intent correction contract.
+Do not start Character Builder or broad gameplay expansion until the live gates
+are recorded.
 See the [P0 specification](../quality/language-understanding-priority-2026-11-13.md).
 
 ## How to work in this repository
