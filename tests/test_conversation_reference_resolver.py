@@ -80,7 +80,7 @@ def test_other_guard_resolves_only_when_one_other_visible_role_matches():
     })
     result = ConversationReferenceResolver().resolve(
         world,
-        make_analysis("Le pregunto al otro guardia.", "el otro guardia"),
+        make_analysis("Le pregunto al otro guardia.", "otro guardia"),
         recent_turns=[turn(16, "Hablo con Bram, el guardia del puente.")],
     )
     assert result.clarification_question is None
