@@ -43,6 +43,7 @@ def test_silly_tavern_turn_resolve_schema_defaults_to_automatic_mode():
         player_input="Me escondo.",
         external_turn_id="turn-" + "a" * 24,
         query="Estado de la campaña.",
+        conversation_id="chat-schema-1",
     )
     assert request.dice_mode == "automatic"
 
@@ -53,6 +54,7 @@ def test_silly_tavern_turn_resolve_schema_accepts_manual_mode():
         external_turn_id="turn-" + "b" * 24,
         query="Estado de la campaña.",
         dice_mode="manual",
+        conversation_id="chat-schema-2",
     )
     assert request.dice_mode == "manual"
 
@@ -63,6 +65,7 @@ def test_silly_tavern_manual_roll_schema_accepts_valid_roll_submission():
         rolls=[7, 18],
         query="Estado de la campaña.",
         answer_external_turn_id="answer-" + "d" * 24,
+        conversation_id="chat-schema-3",
     )
     assert request.rolls == [7, 18]
 
