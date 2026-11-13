@@ -8,7 +8,6 @@ import re
 import typing
 import unicodedata
 
-
 SCHEMA_VERSION = 1
 MAX_STEPS = 8
 MAX_TARGETS_PER_STEP = 6
