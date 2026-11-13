@@ -58,7 +58,7 @@ def test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact():
             )
         }
     )
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Aldric me muestra una cicatriz con forma de dragón en el antebrazo; "
         "es un detalle visible que no conocíamos.",
         make_context(world),
@@ -86,7 +86,7 @@ def test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact():
 
 
 def test_real_ollama_proposal_avoids_ephemeral_scene_changes():
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Me siento en una mesa, observo la chimenea y espero tranquilamente.",
         make_context(),
     )
@@ -94,7 +94,7 @@ def test_real_ollama_proposal_avoids_ephemeral_scene_changes():
 
 
 def test_real_ollama_proposal_records_an_explicitly_introduced_npc():
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "En la posada conozco al tabernero Aldric. Se presenta por su nombre, "
         "me atiende detrás de la barra y explica que trabaja allí.",
         make_context(),
@@ -123,7 +123,7 @@ def test_real_ollama_keeps_existing_locked_door_after_failed_attempt():
             )
         }
     )
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Intento abrir la puerta de piedra con la llave que llevo, pero no encaja. "
         "No consigo abrirla y la puerta permanece cerrada con llave.",
         make_context(world),
@@ -173,7 +173,7 @@ def test_real_ollama_does_not_persist_non_executed_or_quoted_intent(
         }
     )
 
-    operations = make_extractor().propose(player_input, make_context(world))
+    operations = propose_with_shared_intent(player_input, make_context(world))
 
     assert operations == []
 
@@ -197,7 +197,7 @@ def test_real_ollama_keeps_only_the_confirmed_step_in_a_compound_action():
             ),
         }
     )
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Aldric me muestra una cicatriz con forma de dragón en el antebrazo, "
         "un detalle visible que no conocíamos. Después intento abrir la puerta "
         "de piedra, pero la llave no encaja y la puerta permanece cerrada.",
@@ -212,6 +212,17 @@ def test_real_ollama_keeps_only_the_confirmed_step_in_a_compound_action():
     ).casefold()
     assert "cicatriz" in updated_facts
     assert "dragón" in updated_facts
+
+
+def propose_with_shared_intent(player_input: str, context: TurnContext):
+    analysis, _decision = make_adjudicator().understand(context, player_input)
+    if not analysis.allows_world_proposal:
+        return []
+    return make_extractor().propose(
+        player_input,
+        context,
+        intent_analysis=analysis,
+    )
 
 
 def make_adjudicator() -> MechanicsAdjudicator:
