@@ -292,6 +292,18 @@ class ConversationReferenceResolver:
     def _candidate_names(candidates: tuple[DiscourseCandidate, ...]) -> tuple[str, ...]:
         return tuple(dict.fromkeys(candidate.entity_name for candidate in candidates))[:4]
 
+    @staticmethod
+    def _entity_names(world: WorldState, entity_ids: tuple[int, ...]) -> tuple[str, ...]:
+        return tuple(
+            dict.fromkeys(
+                entity.name
+                for entity_id in entity_ids
+                if (entity := world.entities.get(entity_id)) is not None
+                and isinstance(entity.name, str)
+                and entity.name.strip()
+            )
+        )[:4]
+
     @classmethod
     def _question(cls, mention: str, candidates: tuple[str, ...]) -> str:
         safe = mention.strip()[:90]
@@ -370,11 +382,10 @@ class ConversationReferenceResolver:
                     if len(candidate_ids) != 1:
                         return ConversationReferenceResolution(
                             tuple(references),
-                            self._question(mention, self._candidate_names(tuple(
-                                candidate for candidate in self._rank_candidates(
-                                    visible_world, recent_turns, kind_hint=kind_hint
-                                ) if candidate.entity_id in candidate_ids
-                            ))),
+                            self._question(
+                                mention,
+                                self._entity_names(visible_world, candidate_ids),
+                            ),
                             abstention_reason="explicit_reference_not_unique",
                         )
                     if match.candidates:
