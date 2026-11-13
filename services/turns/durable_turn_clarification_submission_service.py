@@ -31,6 +31,7 @@ class DurableTurnClarificationSubmissionService:
         adapter_namespace: str = "native",
         defer_narration: bool = False,
         answer_external_turn_id: str | None = None,
+        conversation_id: str | None = None,
     ):
         service = self.turn_service
         if answer_external_turn_id is not None and (
@@ -65,6 +66,8 @@ class DurableTurnClarificationSubmissionService:
                 raise self.error_type(
                     "clarification challenge belongs to a different adapter"
                 )
+            if record.conversation_id != conversation_id:
+                raise self.error_type("clarification challenge belongs to a different conversation")
             pending_state = json.loads(record.adjudication_json or "{}")
             if (
                 secrets.compare_digest(
@@ -141,7 +144,7 @@ class DurableTurnClarificationSubmissionService:
 
             try:
                 with transaction("DEFERRED") as conn:
-                    context, recent = service._context_and_history(conn)
+                    context, recent = service._context_and_history(conn, conversation_id=record.conversation_id)
                     revision = service.revision_repository.get_revision(
                         service.scope.campaign_id, conn=conn
                     )

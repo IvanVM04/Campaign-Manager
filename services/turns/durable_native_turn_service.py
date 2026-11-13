@@ -64,7 +64,7 @@ class DurableNativeTurnService:
             resolver=resolver,
             revision_repository=self.revision_repository,
             resolution_repository=self.resolution_repository,
-            context_loader=lambda conn: self._context_and_history(conn),
+            context_loader=lambda conn, conversation_id=None: self._context_and_history(conn, conversation_id=conversation_id),
             operation_results_serializer=self._operation_results_json,
             error_type=DurableNativeTurnError,
         )
@@ -129,7 +129,7 @@ class DurableNativeTurnService:
     def _operation_results_json(result: TurnResolutionResult) -> str:
         return TurnResolutionCodec.operation_results_json(result)
 
-    def _context_and_history(self, conn):
+    def _context_and_history(self, conn, *, conversation_id: str | None = None):
         context = self.context_service.get_turn_context(
             campaign_id=self.scope.campaign_id,
             conn=conn,
@@ -148,6 +148,7 @@ class DurableNativeTurnService:
         recent = self.turn_repository.list_recent_turns(
             session_id=session_id,
             limit=10,
+            conversation_id=conversation_id,
             scope=self.scope,
             conn=conn,
         )
@@ -178,11 +179,13 @@ class DurableNativeTurnService:
         *,
         external_turn_id: str,
         dice_mode: str = "automatic",
+        conversation_id: str | None = None,
     ) -> DurableTurnPreparation:
         return self.execution_service.prepare_external_turn(
             player_input,
             external_turn_id=external_turn_id,
             dice_mode=dice_mode,
+            conversation_id=conversation_id,
         )
 
     def get_external_clarification_state(self, external_turn_id: str) -> dict:
@@ -224,6 +227,7 @@ class DurableNativeTurnService:
         adapter_namespace: str = "native",
         defer_narration: bool = False,
         answer_external_turn_id: str | None = None,
+        conversation_id: str | None = None,
     ):
         return self.clarification_submission_service.submit_clarification(
             pending_clarification_id,
@@ -231,6 +235,7 @@ class DurableNativeTurnService:
             adapter_namespace=adapter_namespace,
             defer_narration=defer_narration,
             answer_external_turn_id=answer_external_turn_id,
+            conversation_id=conversation_id,
         )
     def _build_manual_roll_request(self, record, decision, context, revision):
         return self.execution_service.build_manual_roll_request(
@@ -253,6 +258,7 @@ class DurableNativeTurnService:
         adapter_namespace: str | None = None,
         defer_narration: bool = False,
         answer_external_turn_id: str | None = None,
+        conversation_id: str | None = None,
     ):
         return self.manual_roll_submission_service.submit_manual_roll(
             pending_roll_id,
@@ -260,6 +266,7 @@ class DurableNativeTurnService:
             adapter_namespace=adapter_namespace,
             defer_narration=defer_narration,
             answer_external_turn_id=answer_external_turn_id,
+            conversation_id=conversation_id,
         )
 
     @staticmethod
