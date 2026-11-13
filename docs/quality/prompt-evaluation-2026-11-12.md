@@ -50,6 +50,19 @@ Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers u
 
 `tests/test_semantic_frames.py` currently covers transfer-role extraction, item-instance hints, relation direction/attribution/reported modality, negative/question/conditional relation metadata, evidence rejection, model-ID rejection, missing-step rejection, v1 shape preservation and durable v2 recovery. These are parser/value-object tests; they do not prove Ollama produces correct frames for natural language.
 
+### Semantic frames — ten live scenarios
+
+Fixture: `tests/fixtures/semantic_frame_corpus_v1.json`. It contains ten
+Spanish examples spanning transfer recipients, instruments, movement source
+and destination, kinship, ownership, negative ownership, questioned ownership,
+conditional kinship, reported kinship and spatial containment. Four critical
+cases repeat three times in `test_real_ollama_meets_semantic_frame_corpus_v1`.
+
+The live assertions check selected action-frame family/role/mention/kind slots
+and relation subject/object/predicate/family/polarity/modality/attribution.
+This is an initial regression tranche, not a statistically meaningful
+benchmark. The full held-out evaluation remains PR #220.
+
 ## 4. Recording a run
 
 Run `python -m pytest -m real_llm -v -s` from the repository root. Retain timestamp, commit SHA, exact model/version/settings, scenario ID, pass/fail outcome, operation types/count, latency, repair use and provider-call count. Preserve every failure even when a later repeat passes. Do not log full prompts, raw responses, secrets or private campaign state.
