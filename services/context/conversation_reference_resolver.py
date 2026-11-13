@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.entity import Entity
 from models.discourse_evidence import (
     DiscourseCandidate,
     DiscourseEvidence,
@@ -121,15 +122,21 @@ class ConversationReferenceResolver:
         return tuple(parts), valid_id
 
     @staticmethod
-    def _visible_entities(world: WorldState):
-        return tuple(
-            entity
-            for entity in world.entities.values()
-            if getattr(entity, "active", False)
-            and isinstance(getattr(entity, "id", None), int)
-            and not isinstance(getattr(entity, "id", None), bool)
-            and entity.id > 0
-        )
+    def _visible_entities(world: WorldState) -> tuple[Entity, ...]:
+        visible: list[Entity] = []
+        for entity in world.entities.values():
+            if not isinstance(entity, Entity) or not entity.active:
+                continue
+            entity_id = entity.id
+            if (
+                isinstance(entity_id, bool)
+                or not isinstance(entity_id, int)
+                or entity_id < 1
+                or not entity.name.strip()
+            ):
+                continue
+            visible.append(entity)
+        return tuple(visible)
 
     def _kind_compatible(self, entity, kind_hint: SemanticObjectKind) -> bool | None:
         expected = self._KIND_TYPES.get(kind_hint)
@@ -195,8 +202,9 @@ class ConversationReferenceResolver:
                         speaker=speaker,
                         recency_rank=recency_rank,
                     )
-                    if mentions:
-                        evidence.setdefault(entity.id, []).extend(mentions)
+                    entity_id = entity.id
+                    if mentions and isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                        evidence.setdefault(entity_id, []).extend(mentions)
         return {entity_id: tuple(items) for entity_id, items in evidence.items()}
 
     def _candidate_score(
@@ -240,7 +248,10 @@ class ConversationReferenceResolver:
         history = self._history_evidence(world, recent_turns)
         candidates = []
         for entity in self._visible_entities(world):
-            evidence = history.get(entity.id, ())
+            entity_id = entity.id
+            if not isinstance(entity_id, int) or isinstance(entity_id, bool):
+                continue
+            evidence = history.get(entity_id, ())
             if not evidence:
                 continue
             if self._kind_compatible(entity, kind_hint) is False:
@@ -252,7 +263,7 @@ class ConversationReferenceResolver:
             )
             candidates.append(
                 DiscourseCandidate(
-                    entity_id=entity.id,
+                    entity_id=entity_id,
                     entity_name=entity.name,
                     score=score,
                     evidence=evidence,
@@ -272,7 +283,10 @@ class ConversationReferenceResolver:
             return ()
         matches = []
         for entity in self._visible_entities(world):
-            if entity.id in excluded_ids:
+            entity_id = entity.id
+            if not isinstance(entity_id, int) or isinstance(entity_id, bool):
+                continue
+            if entity_id in excluded_ids:
                 continue
             evidence = " ".join(
                 value
@@ -285,7 +299,7 @@ class ConversationReferenceResolver:
                 if isinstance(value, str)
             )
             if role_terms & set(self._tokens(evidence)):
-                matches.append(entity.id)
+                matches.append(entity_id)
         return tuple(matches)
 
     @staticmethod
@@ -409,10 +423,13 @@ class ConversationReferenceResolver:
                         kind_hint=kind_hint,
                     )
                     if any(token in self._OTHER_MARKERS for token in self._tokens(mention)):
-                        raw_ids = self._other_role_candidates(
-                            visible_world,
-                            mention,
-                            tuple(candidate.entity_id for candidate in ranked[:1]),
+                        raw_ids = (
+                            self._other_role_candidates(
+                                visible_world,
+                                mention,
+                                (ranked[0].entity_id,),
+                            )
+                            if ranked else ()
                         )
                         antecedent_evidence = ranked[0].evidence if ranked else ()
                         role_evidence = DiscourseEvidence(
