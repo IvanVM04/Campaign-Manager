@@ -133,6 +133,7 @@ class ConversationReferenceResolver:
                 or not isinstance(entity_id, int)
                 or entity_id < 1
                 or not entity.name.strip()
+                or len(entity.name) > 120
             ):
                 continue
             visible.append(entity)
@@ -458,7 +459,10 @@ class ConversationReferenceResolver:
                         role_candidates = []
                         for entity_id in raw_ids:
                             entity = visible_world.entities.get(entity_id)
-                            if not isinstance(entity, Entity):
+                            if (
+                                not isinstance(entity, Entity)
+                                or self._kind_compatible(entity, kind_hint) is False
+                            ):
                                 continue
                             role_candidates.append(
                                 DiscourseCandidate(
