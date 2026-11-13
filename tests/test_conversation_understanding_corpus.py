@@ -1,15 +1,14 @@
 """Corpus-driven tests for multi-turn conversation reference resolution."""
 
 import json
-from pathlib import Path
-from types import SimpleNamespace
-
 from models.entity import Entity
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.world_state import WorldState
+from pathlib import Path
 from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
+from types import SimpleNamespace
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "conversation_understanding_corpus_v2.json"
