@@ -7,6 +7,7 @@ records must remain readable without a migration.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import fields, is_dataclass
 from enum import Enum
@@ -196,6 +197,9 @@ class TurnResolutionCodec:
             {
                 "schema_version": 1,
                 "source_text": plan.player_input,
+                "source_sha256": hashlib.sha256(
+                    plan.player_input.encode("utf-8")
+                ).hexdigest(),
                 "analysis": analysis.to_dict(),
             },
             ensure_ascii=False,
@@ -215,7 +219,7 @@ class TurnResolutionCodec:
         try:
             envelope = json.loads(payload)
             if not isinstance(envelope, dict) or set(envelope) != {
-                "schema_version", "source_text", "analysis"
+                "schema_version", "source_text", "source_sha256", "analysis"
             }:
                 raise ValueError("invalid persisted intent envelope")
             if envelope["schema_version"] != 1:
@@ -227,6 +231,11 @@ class TurnResolutionCodec:
                 or not source_text.startswith(original_input)
             ):
                 raise ValueError("persisted intent is not bound to the original input")
+            expected_digest = hashlib.sha256(
+                source_text.encode("utf-8")
+            ).hexdigest()
+            if envelope["source_sha256"] != expected_digest:
+                raise ValueError("persisted intent source fingerprint does not match")
             return PlayerIntentAnalysis.from_payload(
                 envelope["analysis"],
                 source_text=source_text,
@@ -245,21 +254,11 @@ class TurnResolutionCodec:
         """Return the validated source text bound to an optional stored analysis."""
         if payload is None:
             return original_input
-        envelope = json.loads(payload)
-        if not isinstance(envelope, dict):
-            raise ValueError("persisted intent envelope must be an object")
-        source_text = envelope.get("source_text")
-        PlayerIntentAnalysis.from_payload(
-            envelope.get("analysis"),
-            source_text=source_text if isinstance(source_text, str) else "",
+        TurnResolutionCodec.intent_from_json(
+            payload,
+            original_input=original_input,
         )
-        if (
-            not isinstance(source_text, str)
-            or len(source_text) > 20000
-            or not source_text.startswith(original_input)
-        ):
-            raise ValueError("persisted intent is not bound to the original input")
-        return source_text
+        return json.loads(payload)["source_text"]
 
     @classmethod
     def plan_from_record(cls, record: TurnResolutionRecord, operation_parser):
