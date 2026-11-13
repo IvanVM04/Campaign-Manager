@@ -188,12 +188,13 @@ class PlayerIntentAnalysis:
         if self.category not in {
             UtteranceCategory.ACTION, UtteranceCategory.CORRECTION,
             UtteranceCategory.MIXED, UtteranceCategory.REPORT,
+            UtteranceCategory.DIALOGUE,
         }:
             return False
         allowed = {
             IntentModality.ATTEMPTED, IntentModality.COMPLETED,
             IntentModality.OBSERVED, IntentModality.REPORTED,
-            IntentModality.CORRECTION,
+            IntentModality.CORRECTION, IntentModality.DIALOGUE,
         }
         return any(
             step.polarity is IntentPolarity.POSITIVE
