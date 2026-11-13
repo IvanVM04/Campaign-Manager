@@ -188,3 +188,39 @@ def test_intent_codec_rejects_analysis_not_bound_to_original_request():
         )
 
 
+
+
+def test_intent_codec_rejects_player_evidence_not_bound_to_original_input():
+    source = "Abro la puerta.\\n\\nAclaración del DM: ¿Qué puerta?"
+    evidence = "La puerta de roble."
+    payload = json.dumps({
+        "schema_version": 1,
+        "source_text": source,
+        "source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        "evidence_text": evidence,
+        "evidence_sha256": hashlib.sha256(evidence.encode("utf-8")).hexdigest(),
+        "analysis": {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "La puerta de roble",
+                "actor": "player",
+                "action": "abrir la puerta de roble",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta de roble"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+    })
+
+    with pytest.raises(ValueError, match="not bound"):
+        TurnResolutionCodec.intent_from_json(
+            payload,
+            original_input="Abro la puerta.",
+        )
