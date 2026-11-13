@@ -10,7 +10,6 @@ import enum
 import typing
 import unicodedata
 
-
 MAX_ACTION_ARGUMENTS = 12
 MAX_RELATION_CLAIMS = 8
 
@@ -344,10 +343,10 @@ def _validate_text(value: typing.Any, field_name: str, maximum: int) -> str:
     return normalized
 
 
-_EnumT = typing.TypeVar("_EnumT", bound=enum.Enum)
-
-
-def _enum(enum_type: type[_EnumT], value: typing.Any) -> _EnumT:
+def _enum[_EnumT: enum.Enum](
+    enum_type: type[_EnumT],
+    value: typing.Any,
+) -> _EnumT:
     if not isinstance(value, str):
         raise TypeError("enum fields must be strings")
     try:
