@@ -143,6 +143,60 @@ def test_semantic_kind_hint_filters_incompatible_antecedents():
     assert "semantic_kind_match" in result.references[0].resolution_signals
 
 
+def test_conflicting_semantic_kind_hints_do_not_pick_one_arbitrarily():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="La puerta", entity_type="location"),
+    })
+    utterance = "Le pregunto por eso."
+    payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": utterance,
+            "actor": "player",
+            "action": "preguntar al referente",
+            "modality": "attempted",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["Le"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "pregunto",
+                "family": "communication",
+                "arguments": [
+                    {
+                        "role": "recipient",
+                        "mention": {"text": "Le", "kind_hint": "character"},
+                    },
+                    {
+                        "role": "location",
+                        "mention": {"text": "Le", "kind_hint": "location"},
+                    },
+                ],
+            },
+        }],
+        "active_step_index": 0,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    analysis = PlayerIntentAnalysis.from_payload(
+        payload,
+        source_text=utterance,
+    )
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=[turn(22, "Mara y la puerta aparecen en la escena.")],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "discourse_candidates_ambiguous"
+    assert {candidate.entity_id for candidate in result.candidates} == {1, 2}
+
+
 def test_ambiguous_recent_turn_requests_clarification_instead_of_guessing():
     world = WorldState(entities={
         1: Entity(id=1, name="Mara", entity_type="npc"),
