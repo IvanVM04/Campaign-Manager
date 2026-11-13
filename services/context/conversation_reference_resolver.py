@@ -443,6 +443,18 @@ class ConversationReferenceResolver:
                                 abstention_reason="other_role_antecedent_ambiguous",
                             )
                         antecedent = ranked[0]
+                        antecedent_turn_id = next(
+                            (
+                                item.turn_id
+                                for item in antecedent.evidence
+                                if item.turn_id is not None
+                                and item.recency_rank == min(
+                                    evidence.recency_rank
+                                    for evidence in antecedent.evidence
+                                )
+                            ),
+                            None,
+                        )
                         raw_ids = self._other_role_candidates(
                             visible_world,
                             mention,
@@ -512,7 +524,7 @@ class ConversationReferenceResolver:
                     selected_evidence = selected.evidence
                     selected_score = selected.score
                     signals = selected.signals
-                    antecedent_turn_id = next(
+                    selected_turn_id = next(
                         (
                             item.turn_id for item in selected.evidence
                             if item.turn_id is not None
@@ -522,6 +534,8 @@ class ConversationReferenceResolver:
                         ),
                         None,
                     )
+                    if selected_turn_id is not None:
+                        antecedent_turn_id = selected_turn_id
 
                 elif not candidate_ids:
                     # A genuinely new proper name may be an intentional new entity.
