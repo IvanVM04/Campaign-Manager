@@ -4,7 +4,7 @@
 Define the external LLM boundary: provider contract, Ollama transport adapter, role-specific configuration and deterministic test double.
 
 ## Modules
-- `llm_provider.py` — minimal `generate(prompt) -> str` port and provider error.
+- `llm_provider.py` — text-generation port, optional structured-generation capability and provider error.
 - `ollama_provider.py` — concrete Ollama HTTP adapter.
 - `llm_settings.py` — validated URL, model and timeout configuration for narrative, extraction and mechanics roles.
 - `fake_llm_provider.py` — deterministic provider for tests.
@@ -19,16 +19,16 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 ## Current implementation
 - `LLMSettings` validates provider URL, model names and finite positive timeouts at startup.
 - Narrative, extraction and mechanics roles can use separate model and timeout settings.
-- `OllamaProvider` performs a non-streaming HTTP request and normalizes transport, HTTP and malformed-response failures to `LLMProviderError`.
+- `OllamaProvider` performs non-streaming text requests and supports native JSON Schema constraints through `generate_structured(prompt, schema=...)`; transport, HTTP and malformed-response failures normalize to `LLMProviderError`.
 - `FakeLLMProvider` supports fixed responses, prompt-matched responses and injected failures.
-- `LLMProvider` remains a deliberately small text-generation contract; it does not promise structured output, streaming or cancellation.
+- `LLMProvider.generate_structured()` is a backwards-compatible capability: text-only providers use the fallback, while Ollama overrides it with native constraints. The caller still validates semantic content and trust boundaries independently.
 
 ## Contract validation status
 - [x] Deterministic adapter tests cover successful requests, timeout, unavailable provider/connection failure, HTTP failures with and without provider error JSON, malformed/non-object JSON, malformed response payloads and prompt/config validation (`tests/test_ollama_provider.py`).
 - [x] The adapter performs one transport attempt and does not hide retries. Proposal repair remains a separate, bounded application-level behavior in `services/llm_world`.
 - [x] The fake provider contract is covered for fixed/prompt-selected results, injected errors and call/prompt tracking (`tests/test_llm_provider.py`).
 - [ ] Run live Ollama acceptance with the configured local model. Unit tests do not prove model availability, model quality, latency or compatibility with local hardware.
-- [ ] Add structured-output/streaming/cancellation capabilities only when an actual provider or gameplay use case requires them.
+- [x] Structured JSON Schema generation is used for the combined intent/mechanics response; streaming/cancellation remain deferred until an actual use case requires them.
 
 Ollama error normalization and timeout handling were strengthened in PR #203. Keep deterministic provider tests in CI and live model checks opt-in.
 
