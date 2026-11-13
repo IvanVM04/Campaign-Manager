@@ -186,7 +186,10 @@ def test_questions_plans_and_dialogue_do_not_authorize_world_proposals():
         value = payload(
             category=category,
             active=None,
-            steps=[step(modality=modality)],
+            steps=[step(
+                actor="other" if category == "dialogue" else "player",
+                modality=modality,
+            )],
         )
         analysis = PlayerIntentAnalysis.from_payload(
             value,
