@@ -49,11 +49,15 @@ signals, but they are not canonical reference resolution. If the existing
 entity resolver cannot disambiguate a target, the model must ask; it must not
 guess an ID.
 
-Durable resolutions store the analysis, exact source text and a SHA-256
-fingerprint in `turn_resolutions.intent_json` (migration 033). Manual-roll
+Durable resolutions store the complete conversation, separate player-authored
+evidence text, and independent SHA-256 fingerprints in
+`turn_resolutions.intent_json` (migration 033). DM clarification questions are
+context only; only the player's original message and answers can ground source
+excerpts, target mentions and attribution. Manual-roll
 continuations reuse the saved interpretation and do not call the adjudicator
-again. Clarification answers are appended to the original source and the
-complete clarified text is interpreted again. Committed intent evidence is
+again. Clarification answers are appended to the conversation source and the
+complete clarified text is interpreted again, while only player-authored
+answers are added to the separate evidence source. Committed intent evidence is
 immutable.
 
 ## SillyTavern adapter
