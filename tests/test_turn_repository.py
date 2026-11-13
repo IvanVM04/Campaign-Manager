@@ -1344,3 +1344,33 @@ def test_list_turns_rejects_invalid_offset(isolated_database):
         repository.list_turns(scope=CampaignScope(1), offset=-1)
     with pytest.raises(TypeError, match="offset must be an integer"):
         repository.list_turns(scope=CampaignScope(1), offset=True)
+
+
+
+def test_recent_turn_history_is_isolated_by_conversation(isolated_database):
+    repository = TurnRepository()
+    for conversation_id, player_input in (
+        ("chat-a", "Mara abre la puerta."),
+        ("chat-b", "Aldric cierra el cofre."),
+        ("chat-a", "Le pregunto por la llave."),
+    ):
+        repository.save_turn(
+            TurnRecord(
+                player_input=player_input,
+                narrative="Narración visible.",
+                conversation_id=conversation_id,
+            ),
+            scope=CampaignScope(1),
+        )
+
+    history = repository.list_recent_turns(
+        scope=CampaignScope(1),
+        conversation_id="chat-a",
+        limit=10,
+    )
+
+    assert [turn.player_input for turn in history] == [
+        "Mara abre la puerta.",
+        "Le pregunto por la llave.",
+    ]
+    assert all(turn.conversation_id == "chat-a" for turn in history)

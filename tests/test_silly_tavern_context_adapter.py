@@ -426,3 +426,51 @@ def test_context_adapter_deduplicates_additional_queries(
 
     assert captured["supplemental_queries"] == ("Campaña general",)
     assert result["retrieval_diagnostics"]["query_count"] == 2
+
+
+
+def test_context_adapter_filters_history_by_conversation(adapter):
+    from models.turn_record import TurnRecord
+
+    adapter.turn_repository.save_turn(
+        TurnRecord(
+            player_input="Mara está aquí.",
+            narrative="Mara saluda.",
+            conversation_id="chat-a",
+        ),
+        scope=adapter.campaign_scope,
+    )
+    adapter.turn_repository.save_turn(
+        TurnRecord(
+            player_input="Aldric está aquí.",
+            narrative="Aldric saluda.",
+            conversation_id="chat-b",
+        ),
+        scope=adapter.campaign_scope,
+    )
+
+    result = adapter.get_context(
+        "Le pregunto por el mapa.",
+        conversation_id="chat-a",
+    )
+
+    recent = result["context"]["recent_turns"]
+    assert [turn.player_input for turn in recent] == ["Mara está aquí."]
+    assert all(turn.conversation_id == "chat-a" for turn in recent)
+
+
+def test_context_adapter_fails_closed_when_conversation_id_is_missing(adapter):
+    from models.turn_record import TurnRecord
+
+    adapter.turn_repository.save_turn(
+        TurnRecord(
+            player_input="Mara está aquí.",
+            narrative="Mara saluda.",
+            conversation_id="chat-a",
+        ),
+        scope=adapter.campaign_scope,
+    )
+
+    result = adapter.get_context("Le pregunto por el mapa.")
+
+    assert result["context"]["recent_turns"] == []
