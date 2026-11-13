@@ -1,10 +1,35 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active product/engineering priority  
-**Status:** implementation specification; production implementation is the next large PR  
+**Status:** implementation in progress in draft PR #215; deterministic CI and local acceptance are not yet complete  
 **Date:** 2026-11-13  
 **Verified baseline:** main at 746f40b4e715741a43e5a0a19ae069236c19b7d1, after PR #214  
 **Primary model for acceptance:** the configured local Ollama model (currently documented as gemma4:26b); exact tag and Ollama version must be recorded per run.
+
+## Implementation progress — PR #215
+
+The implementation has started in the same large P0 PR. The current branch now
+contains the following code-level work; this is not yet a claim that the P0
+acceptance gate has passed.
+
+| Area | Delivered in the current branch | Remaining acceptance |
+|---|---|---|
+| Semantic contract | PlayerIntentAnalysis v1 with ordered steps, actor, modality, polarity, reported outcome, literal target evidence and clarification state; strict bounds and schema validation. | Expand negative/edge-case corpus and validate behaviour with the configured live model. |
+| Shared interpretation | MechanicsAdjudicator.understand() returns intent and mechanics in one provider response; TurnResolutionService passes that exact object into LLMWorldExtractor. No third call was added. | Record actual latency and repeatability against the prior provider-call baseline. |
+| Proposal safety | Non-actionable questions, plans, dialogue and negations skip proposal retrieval and extraction. The proposal prompt receives the shared analysis and is instructed not to execute future steps. | Verify false-positive/false-negative rates in live scenarios, including mixed multi-step actions. |
+| Conversation context | Last six visible turns are bounded in both prompts; literal target mentions and recent text are supplemental deterministic retrieval signals. Existing resolver ambiguity abstention remains authoritative. | This is not full pronoun/coreference resolution. Test pronouns, ellipsis and corrections; clarify on multiple plausible references. |
+| Durable continuation | intent_json stores the analysis, exact source text and SHA-256 source fingerprint; migration 033 adds the column and protects committed evidence. Manual-roll continuation reuses the saved analysis; clarification answers are appended and re-interpreted. | Run restart/recovery and idempotency tests end-to-end, including SillyTavern. |
+| Deterministic tests | New model, adjudicator, proposal-prompt, turn-resolution, codec, repository and migration tests are included. | Final Python/JS/Ruff/Pyright/CodeQL checks must pass on the final PR head. |
+| Live acceptance | No live-model or manual SillyTavern success is asserted. | Version and run the 30-scenario corpus; repeat critical cases; complete the SillyTavern smoke checklist and record revisions. |
+
+The intent_analysis object is evidence about language, not a domain write
+contract. The model cannot supply canonical entity IDs, permission grants,
+provenance, visibility or dice results. The existing resolver, operation
+parser, WorldService and deterministic rules engine remain authoritative.
+
+The bounded conversation history improves retrieval and reference clues; it
+does not magically resolve arbitrary pronouns. When the lexical resolver cannot
+distinguish candidates, the system must abstain and ask rather than guess.
 
 ## Decision
 
@@ -261,16 +286,16 @@ Do not merge with failed, pending, cancelled or skipped required CI. Do not call
 - A new model call solely to make the architecture look cleaner.
 - Prompt shortening as the primary success criterion.
 
-## 11. Suggested implementation blocks inside one large PR
+## 11. Implementation blocks and delivery status
 
-Keep the delivery in one coherent implementation PR, but group commits/review into these blocks:
+Keep delivery in the single P0 implementation PR #215:
 
-1. Freeze the baseline corpus, model settings, current provider-call count and latency.
-2. Add the typed interpretation contract, strict parser and deterministic examples.
-3. Implement the shared understanding/adjudication response and connect one interpretation to mechanics and proposal.
-4. Add deterministic target resolution and bounded multi-turn reference/correction context.
-5. Persist/recover the interpretation through the durable lifecycle and migration 033 if required.
-6. Expand live evaluation and SillyTavern acceptance documentation; record actual results rather than assumed passes.
-7. Update module guides, architecture map, dependency matrix and AI roadmap.
+1. [ ] Freeze and record the baseline corpus, provider-call count, model tag and latency.
+2. [x] Add the typed interpretation contract, strict parser and deterministic tests.
+3. [x] Return the interpretation and mechanics decision from one shared provider response; pass the exact interpretation into proposal generation.
+4. [~] Use literal mentions and bounded conversation history as deterministic retrieval signals; the resolver continues to abstain on ambiguity. Full pronoun/coreference resolution is not claimed.
+5. [x] Persist/recover interpretation through the durable lifecycle with migration 033 and source fingerprinting.
+6. [ ] Run the expanded live corpus and SillyTavern acceptance; record the actual model/runtime and extension revisions.
+7. [~] Update package guides, the AI roadmap and impact documentation; finish after the implementation review.
 
-Only merge once the entire PR is green and its non-CI acceptance results are recorded. The Character Builder becomes eligible to resume after this P0 gate, not before.
+A checked implementation block does not imply its live acceptance gate has passed. Only merge once the entire PR is green and all required non-CI acceptance results are recorded. The Character Builder becomes eligible to resume after this P0 gate, not before.
