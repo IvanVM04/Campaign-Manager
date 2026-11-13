@@ -1,6 +1,6 @@
 # Campaign Manager — architecture map for maintainers and coding agents
 
-**Verified base:** `main` at `01ffcb7f94df105454b241ce142c9694016da741` (2026-11-12, PR #211 merged).  
+**Verified base:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` (2026-11-13, PR #214 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 
 > **Phase 1 retrieval update — PR #212:** the SillyTavern action is now the
@@ -11,6 +11,17 @@
 > descriptive evidence for retrieval (without resolving one canonical ID).
 > Pronoun continuity and semantic paraphrase matching remain open work. See the
 > [AI world-understanding roadmap](../quality/ai-world-understanding-roadmap-2026-11-12.md).
+
+## Current P0 — shared language understanding
+
+Implementation is in progress in draft [PR #215](https://github.com/IvanVM04/Campaign-Manager/pull/215)
+and is not yet part of `main`. It introduces the versioned
+`PlayerIntentAnalysis` contract, one shared interpretation for mechanics and
+world proposals, bounded conversation retrieval, and durable analysis
+persistence in migration 033. The 34-case local Ollama corpus exists but has
+not yet been executed; manual SillyTavern acceptance is also pending. Do not
+start Character Builder or broad gameplay expansion until both live gates and
+all CI checks pass. See the [P0 specification](../quality/language-understanding-priority-2026-11-13.md).
 
 ## How to work in this repository
 

@@ -11,6 +11,7 @@ from services.providers import FakeLLMProvider
 from services.turns import DMService, MechanicsAdjudicator
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldApplier, WorldService
+from tests.durable_turn_test_support import CombinedMechanicsFakeProvider
 
 
 class FixedRandom:
@@ -28,7 +29,10 @@ class EmptyExtractor(LLMWorldExtractor):
         self.received = []
         self.mechanics_results = []
 
-    def propose(self, player_intent, context, *, mechanics_result=None, context_projection=None):
+    def propose(
+        self, player_intent, context, *, mechanics_result=None,
+        intent_analysis=None, recent_turns=None, context_projection=None,
+    ):
         self.received.append(player_intent)
         self.mechanics_results.append(mechanics_result)
         return []
@@ -36,7 +40,7 @@ class EmptyExtractor(LLMWorldExtractor):
 
 def make_service(adjudication_json, roll):
     adjudicator = MechanicsAdjudicator(
-        FakeLLMProvider(response=adjudication_json)
+        CombinedMechanicsFakeProvider(response=adjudication_json)
     )
     narrative_provider = FakeLLMProvider(
         response="La acción se resuelve según el resultado de la prueba."

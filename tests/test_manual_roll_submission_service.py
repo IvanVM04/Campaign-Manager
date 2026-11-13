@@ -6,10 +6,12 @@ from models.character_state import CharacterState
 from models.entity import Entity
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
-from services.providers import FakeLLMProvider
 from services.turns import MechanicsAdjudicator
 from services.turns.durable_native_turn_service import DurableNativeTurnError
-from tests.durable_turn_test_support import service_with_fake_models
+from tests.durable_turn_test_support import (
+    CombinedMechanicsFakeProvider,
+    service_with_fake_models,
+)
 
 
 def _activate_character(service):
@@ -34,7 +36,7 @@ def _activate_character(service):
 
 def _install_manual_skill_check(service, *, advantage=False):
     service.resolver.mechanics_adjudicator = MechanicsAdjudicator(
-        FakeLLMProvider(
+        CombinedMechanicsFakeProvider(
             response=json.dumps(
                 {
                     "decision": "skill_check",

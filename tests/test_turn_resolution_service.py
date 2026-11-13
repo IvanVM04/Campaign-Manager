@@ -75,6 +75,8 @@ class RecordingExtractor(LLMWorldExtractor):
         self.received_text = None
         self.received_context = None
         self.received_projection = None
+        self.received_intent = None
+        self.received_recent_turns = None
         self.calls = []
 
     def propose(
@@ -83,11 +85,15 @@ class RecordingExtractor(LLMWorldExtractor):
         context,
         *,
         mechanics_result=None,
+        intent_analysis=None,
+        recent_turns=None,
         context_projection=None,
     ):
         self.received_text = player_intent
         self.received_context = context
         self.received_projection = context_projection
+        self.received_intent = intent_analysis
+        self.received_recent_turns = recent_turns
         self.calls.append(("propose", player_intent))
         return self.operations
 
@@ -421,6 +427,8 @@ def test_extractor_failure_is_wrapped():
             world,
             *,
             mechanics_result=None,
+            intent_analysis=None,
+            recent_turns=None,
             context_projection=None,
         ):
             raise RuntimeError("proposal failed")
@@ -464,6 +472,8 @@ def test_invalid_extractor_result_is_rejected():
             world,
             *,
             mechanics_result=None,
+            intent_analysis=None,
+            recent_turns=None,
             context_projection=None,
         ):
             return [
@@ -686,6 +696,8 @@ def test_turn_resolution_order():
         context,
         *,
         mechanics_result=None,
+        intent_analysis=None,
+        recent_turns=None,
         context_projection=None,
     ):
         order.append("proposer")
@@ -693,6 +705,8 @@ def test_turn_resolution_order():
             player_intent,
             context,
             mechanics_result=mechanics_result,
+            intent_analysis=intent_analysis,
+            recent_turns=recent_turns,
             context_projection=context_projection,
         )
 
@@ -803,6 +817,8 @@ def test_turn_resolution_order_with_operation():
         context,
         *,
         mechanics_result=None,
+        intent_analysis=None,
+        recent_turns=None,
         context_projection=None,
     ):
         order.append("proposer")
@@ -810,6 +826,8 @@ def test_turn_resolution_order_with_operation():
             player_intent,
             context,
             mechanics_result=mechanics_result,
+            intent_analysis=intent_analysis,
+            recent_turns=recent_turns,
             context_projection=context_projection,
         )
 
@@ -1401,3 +1419,36 @@ def test_prepare_turn_builds_bounded_context_for_structured_proposal():
     assert projection is not None
     assert set(projection.world.entities) == {20, 21, 23}
     assert projection.diagnostics.estimated_tokens <= 500
+
+
+def test_non_actionable_question_skips_proposal_and_context_mutation():
+    service, _dm, extractor, _applier = make_service()
+
+    plan = service.prepare_turn(
+        make_turn_context(),
+        "¿Dónde está Aldric?",
+    )
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.category.value == "question"
+    assert plan.world_operations == ()
+    assert extractor.calls == []
+
+
+def test_shared_intent_is_forwarded_to_proposal_without_reinterpretation():
+    service, _dm, extractor, _applier = make_service()
+    recent = [{
+        "player_input": "Aldric señala la puerta de roble.",
+        "narrative": "La puerta se encuentra al fondo del pasillo.",
+    }]
+
+    plan = service.prepare_turn(
+        make_turn_context(),
+        "Abro la misma puerta.",
+        recent_turns=recent,
+    )
+
+    assert plan.intent_analysis is not None
+    assert extractor.received_intent is plan.intent_analysis
+    assert extractor.received_recent_turns == recent
+    assert extractor.received_text == "Abro la misma puerta."

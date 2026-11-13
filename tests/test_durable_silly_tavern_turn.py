@@ -3,7 +3,10 @@ import json
 import pytest
 
 from services.turns.durable_native_turn_service import DurableNativeTurnError
-from tests.durable_turn_test_support import service_with_fake_models
+from tests.durable_turn_test_support import (
+    CombinedMechanicsFakeProvider,
+    service_with_fake_models,
+)
 
 
 def test_silly_tavern_commits_before_external_narration_and_swipes_do_not_reapply():
@@ -451,6 +454,11 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
 
     factory = CampaignRuntimeFactory()
     service = factory.get_runtime(1).durable_native_turn_service
+    # This test replaces the proposal provider below; the shared understanding
+    # provider must also remain deterministic and must not contact local Ollama.
+    service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
+        response='{"decision":"none"}'
+    )
     event_id = "bridge-bell-discovery"
     event_title = "La campana rota de Puenteviejo"
     proposal_payload = json.dumps({
@@ -500,6 +508,9 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     # context from persisted campaign state, not an in-memory world snapshot.
     factory.invalidate(1)
     reloaded_service = factory.get_runtime(1).durable_native_turn_service
+    reloaded_service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
+        response='{"decision":"none"}'
+    )
     reloaded_world = reloaded_service.world_service.repository.load_world(campaign_id=1)
     assert event_id in reloaded_world.events
 

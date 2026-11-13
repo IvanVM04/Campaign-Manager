@@ -1,7 +1,8 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status:** PRs #210–#213 are integrated; PR #214 consolidates knowledge provenance/perspective (#214) and cross-role narrative grounding (#215).  
-**Verified base:** `main` at `3ba5e485fdf89259a3341b50b16d5e36300af634` after PR #213.  
+**Status:** PRs #210–#214 are integrated (PR #214 merged 2026-11-13).  
+**Verified base:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` after PR #214.  
+**Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -20,7 +21,9 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The next phase should improve the quality of each boundary without replacing the architecture or introducing a second proposal pipeline.
+The next implementation phase is P0 shared natural-language understanding and intent resolution. The current architecture does not yet expose one validated semantic interpretation shared by mechanics adjudication and consequence proposals. Do not begin the Character Builder or broad gameplay expansion until the P0 acceptance gates in [the implementation specification](language-understanding-priority-2026-11-13.md) are met.
+
+This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
 **Do not solve comprehension by creating one enormous prompt.** Keep static rules, world facts, player intent, confirmed mechanics, operation schemas and narration evidence as separate, explicit inputs. Give each model role the smallest context sufficient for its responsibility.
 
@@ -64,17 +67,19 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow
+### Active data flow — PR #215 implementation
 
-`TurnResolutionService` orchestrates the existing flow:
+`TurnResolutionService` now orchestrates a shared semantic interpretation:
 
-1. receive the player's original input;
-2. ask `MechanicsAdjudicator` whether a deterministic check/clarification is needed;
-3. construct a bounded `WorldContextProjection` through `ContextBuilder` / `ProposalContextSelector`;
-4. render the projection and operation contract with `LLMWorldProposalPromptBuilder`;
-5. call `LLMWorldExtractor` and parse/validate the structured operations;
-6. validate and apply operations through the world application boundary;
+1. receive and validate the player's original input, with bounded recent visible turns;
+2. call `MechanicsAdjudicator.understand()` once; the structured response contains both a versioned `PlayerIntentAnalysis` and a mechanics decision;
+3. validate literal source excerpts/target mentions and the active step; skip mechanics adjudication for questions, plans, dialogue, negations and already-reported outcomes;
+4. build a bounded `WorldContextProjection` only when the analysis permits a world proposal, using literal target mentions and recent turns as supplemental retrieval signals;
+5. pass the exact same analysis object and bounded visible history to `LLMWorldExtractor`; the proposal prompt must not independently reinterpret the raw utterance or execute future steps;
+6. parse/validate typed operations and apply them through the existing world application boundary;
 7. narrate from the committed resolution through `DMService`.
+
+The durable resolution stores the analysis and exact source text in `intent_json`, with a SHA-256 source fingerprint. Manual-roll continuation reuses the saved analysis; clarification continuation appends its answer to the original source and produces a new analysis. Migration 033 adds the column and protects committed evidence.
 
 The dependency direction remains: `services/turns` can orchestrate `services/context`; `services/llm_world` must not import `services/context`.
 
@@ -86,12 +91,11 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - The initial real-model corpus allowed a vacuous "valid list" pass and used an empty world for the failed-door case, so the model could create a new door entity without contradicting existing state.
 - Retrieval is deterministic and largely lexical. It currently has one-hop relation expansion and a stable ranker; matching "the innkeeper" to a known NPC whose record contains only a proper name is not yet a guaranteed contract.
 - There is no explicit, typed provenance/epistemic model for confirmed, inferred, rumored, unknown and character-known facts. A boolean secret flag is not a full knowledge model.
-- The adjudicator, world proposer and narrator have distinct roles, but their semantic decisions need a shared evaluation corpus to expose disagreements and continuity failures.
+- The adjudicator and proposal stages now share the same typed interpretation. Narration remains a separate post-commit responsibility; the semantic contract is not a fact or write authority.
+- Conversation-level clues are bounded to six recent turns. This improves retrieval/context continuity but does not implement full pronoun/coreference resolution; the lexical resolver still abstains when candidates are ambiguous.
+- The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
 
-PR #210 addresses the renderer/contract gaps and corrects the live-test fixtures.
-PR #211 adds explicit alias data and conservative entity resolution. PR #212
-hardens multi-signal retrieval and SillyTavern integration. Conversation-level
-intent, knowledge perspective and cross-role grounding remain later work.
+PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding. PR #215 now implements the shared typed intent contract, proposal hand-off and durable recovery. Its local Ollama corpus and SillyTavern acceptance remain mandatory and unrecorded.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
@@ -271,11 +275,13 @@ gates and must not be marked passed until actually run.
 
 **Consolidation note:** the original roadmap item #215 (cross-role consistency and narrative grounding) is delivered in this PR rather than a second PR. The next conditional model benchmark remains #216.
 
-### PR #216 — Benchmark hardening and model selection (conditional)
+### Deferred follow-up — Benchmark hardening and model selection (after P0)
+
+**Priority:** P2 / conditional. This work is intentionally behind the shared language-understanding P0 implementation and acceptance gate.
 
 **Goal:** establish evidence for a default local model and regression policy.
 
-Only proceed when the corpus is large and stable enough to compare models.
+Only proceed when the expanded corpus is stable enough to compare models. Do not let model selection distract from fixing the shared interpretation contract.
 
 - run the same versioned corpus against candidate Ollama models;
 - record model digest/tag, Ollama version, sampling parameters, hardware class, duration, token/character counts and per-scenario outcomes;
@@ -312,6 +318,14 @@ The corpus should include these families:
 | Scale | high-signal facts survive a larger world and bounded context | irrelevant candidates do not crowd out mandatory facts |
 
 A scenario's oracle should describe semantic constraints, not one exact JSON string. Several operation sequences may be valid if they preserve the same world invariants. Keep assertions strict about forbidden changes and required facts.
+
+The P0 implementation adds
+`tests/fixtures/language_understanding_corpus_v1.json` with 34 labelled
+Spanish/English scenarios. The opt-in
+`test_real_ollama_meets_shared_player_intent_corpus_v1` evaluates the actual
+combined adjudication response; it runs 12 critical cases three times and the
+remaining cases once. This corpus is versioned but has not yet been run against
+the user's configured Ollama model in this environment.
 
 ## 7. Metrics and reporting
 

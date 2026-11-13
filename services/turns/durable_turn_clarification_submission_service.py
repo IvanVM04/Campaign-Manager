@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.turn_resolution_record import TurnResolutionRecord
+from services.turns.turn_resolution_codec import TurnResolutionCodec
 
 
 class DurableTurnClarificationSubmissionService:
@@ -172,10 +173,16 @@ class DurableTurnClarificationSubmissionService:
                     + "\nRespuesta del jugador: " + item["answer"]
                     for item in history
                 )
+                clarified_evidence = record.player_input + "".join(
+                    "\n\n" + item["answer"]
+                    for item in history
+                )
                 plan = service.resolver.prepare_turn(
                     context,
                     clarified_input,
                     manual_mode=(pending_state.get("dice_mode") == "manual"),
+                    recent_turns=recent,
+                    intent_evidence_text=clarified_evidence,
                 )
                 if plan.awaiting_manual_roll:
                     manual_pending = service._build_manual_roll_request(
@@ -187,6 +194,7 @@ class DurableTurnClarificationSubmissionService:
                             expected_state="planning", expected_lease_token=token,
                             updates={
                                 "context_revision": revision,
+                                "intent_json": TurnResolutionCodec.intent_to_json(plan),
                                 "adjudication_json": json.dumps({
                                     "manual_roll": manual_pending,
                                     "dice_mode": "manual",
@@ -216,6 +224,7 @@ class DurableTurnClarificationSubmissionService:
                             expected_lease_token=token,
                             updates={
                                 "context_revision": revision,
+                                "intent_json": TurnResolutionCodec.intent_to_json(plan),
                                 "adjudication_json": json.dumps(
                                     {
                                         "clarification": next_pending,
@@ -253,6 +262,7 @@ class DurableTurnClarificationSubmissionService:
                         updates={
                             "context_revision": revision,
                             "proposal_json": service._serialize_operations(plan),
+                            "intent_json": TurnResolutionCodec.intent_to_json(plan),
                             "adjudication_json": json.dumps(
                                 {
                                     "clarification_history": history,

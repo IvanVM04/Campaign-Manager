@@ -4,7 +4,9 @@ from dataclasses import dataclass, replace
 
 from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
+from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
 from operations.character_operations import (
@@ -40,6 +42,8 @@ class TurnResolutionPlan:
     mechanics_result: MechanicsResult | None = None
     clarification_question: str | None = None
     mechanics_decision: MechanicsDecision | None = None
+    intent_analysis: PlayerIntentAnalysis | None = None
+    intent_evidence_text: str | None = None
     awaiting_manual_roll: bool = False
 
 
@@ -154,6 +158,31 @@ class TurnResolutionService:
     # PUBLIC API
     # ============================================================
 
+    @staticmethod
+    def _recent_context_queries(recent_turns: list[TurnRecord] | None) -> tuple[str, ...]:
+        """Build bounded, player-visible retrieval signals for conversational references."""
+        if not isinstance(recent_turns, list):
+            return ()
+        queries: list[str] = []
+        seen: set[str] = set()
+        for item in recent_turns[-3:]:
+            if isinstance(item, dict):
+                values = (item.get("player_input", ""), item.get("narrative", ""))
+            else:
+                values = (
+                    getattr(item, "player_input", ""),
+                    getattr(item, "narrative", ""),
+                )
+            for value in values:
+                if not isinstance(value, str):
+                    continue
+                normalized = value.strip()[:300]
+                key = normalized.casefold()
+                if normalized and key not in seen:
+                    queries.append(normalized)
+                    seen.add(key)
+        return tuple(queries)
+
     def prepare_turn(
         self,
         turn_context: TurnContext | WorldState,
@@ -162,6 +191,9 @@ class TurnResolutionService:
         manual_mode: bool = False,
         manual_rolls: tuple[int, ...] | None = None,
         decision_override: MechanicsDecision | None = None,
+        intent_analysis_override: PlayerIntentAnalysis | None = None,
+        recent_turns: list[TurnRecord] | None = None,
+        intent_evidence_text: str | None = None,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -188,6 +220,15 @@ class TurnResolutionService:
             raise TurnResolutionServiceError(
                 "player_input must not be empty"
             )
+        normalized_evidence_text = (
+            normalized_input
+            if intent_evidence_text is None
+            else self._validate_player_input(intent_evidence_text)
+        )
+        if not normalized_evidence_text or len(normalized_evidence_text) > 20000:
+            raise TurnResolutionServiceError(
+                "intent evidence must contain 1 to 20000 characters"
+            )
 
         if not isinstance(manual_mode, bool):
             raise TypeError("manual_mode must be a boolean")
@@ -197,23 +238,60 @@ class TurnResolutionService:
             raise TypeError("decision_override must be a MechanicsDecision or None")
         if manual_rolls is not None and not isinstance(manual_rolls, tuple):
             raise TypeError("manual_rolls must be a tuple or None")
+        if intent_analysis_override is not None and not isinstance(
+            intent_analysis_override, PlayerIntentAnalysis
+        ):
+            raise TypeError(
+                "intent_analysis_override must be a PlayerIntentAnalysis or None"
+            )
+        if recent_turns is not None and not isinstance(recent_turns, list):
+            raise TypeError("recent_turns must be a list of TurnRecord values or None")
 
         mechanics_result = None
         decision = decision_override
-        if decision is not None or self.mechanics_adjudicator is not None:
+        intent_analysis = intent_analysis_override
+        if (
+            intent_analysis is None
+            and decision is None
+            and self.mechanics_adjudicator is not None
+        ):
             try:
+                intent_analysis, inferred_decision = self.mechanics_adjudicator.understand(
+                    context,
+                    normalized_input,
+                    recent_turns=recent_turns,
+                    evidence_text=normalized_evidence_text,
+                )
                 if decision is None:
-                    adjudicator = self.mechanics_adjudicator
-                    if adjudicator is None:
-                        raise TurnResolutionServiceError(
-                            "mechanics adjudicator is required to produce a decision"
-                        )
-                    decision = adjudicator.adjudicate(context, normalized_input)
+                    decision = inferred_decision
             except MechanicsAdjudicatorError as exc:
                 raise TurnResolutionServiceError(
-                    "mechanics adjudication failed"
+                    "shared language understanding failed"
                 ) from exc
+        elif intent_analysis is None:
+            intent_analysis = PlayerIntentAnalysis.conservative_legacy(
+                normalized_evidence_text
+            )
 
+        if intent_analysis.requires_clarification:
+            return TurnResolutionPlan(
+                player_input=normalized_input,
+                narrative=intent_analysis.clarification_question or "",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                clarification_question=intent_analysis.clarification_question,
+                mechanics_decision=decision,
+                intent_analysis=intent_analysis,
+                intent_evidence_text=normalized_evidence_text,
+            )
+        if not intent_analysis.is_actionable and not (
+            decision is not None
+            and decision.decision is MechanicsDecisionType.CLARIFICATION
+        ):
+            decision = MechanicsDecision(decision=MechanicsDecisionType.NONE)
+
+        if decision is not None:
             if decision.decision is MechanicsDecisionType.CLARIFICATION:
                 return TurnResolutionPlan(
                     player_input=normalized_input,
@@ -222,6 +300,9 @@ class TurnResolutionService:
                     character_operations=(),
                     ordered_operations=(),
                     clarification_question=decision.question,
+                    mechanics_decision=decision,
+                    intent_analysis=intent_analysis,
+                    intent_evidence_text=normalized_evidence_text,
                 )
 
             character = context.active_character
@@ -256,6 +337,8 @@ class TurnResolutionService:
                     character_operations=(),
                     ordered_operations=(),
                     mechanics_decision=decision,
+                    intent_analysis=intent_analysis,
+                    intent_evidence_text=normalized_evidence_text,
                     awaiting_manual_roll=True,
                 )
             if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
@@ -309,7 +392,7 @@ class TurnResolutionService:
                 mechanics_result = MechanicsResult(decision, check)
 
         context_projection = None
-        if self.context_builder is not None:
+        if self.context_builder is not None and intent_analysis.allows_world_proposal:
             mandatory_entity_ids: list[int] = []
             if context.active_character is not None:
                 entity_id = context.active_character.entity_id
@@ -331,11 +414,24 @@ class TurnResolutionService:
             ):
                 mandatory_entity_ids.append(current_location_id)
             try:
+                semantic_queries = tuple(
+                    dict.fromkeys(
+                        [
+                            *(
+                                mention
+                                for step in intent_analysis.steps
+                                for mention in step.target_mentions
+                            ),
+                            *self._recent_context_queries(recent_turns),
+                        ]
+                    )
+                )
                 context_projection = self.context_builder.build_proposal_context(
                     context.world,
                     normalized_input,
                     max_estimated_tokens=self.proposal_context_max_tokens,
                     mandatory_entity_ids=mandatory_entity_ids,
+                    supplemental_queries=semantic_queries,
                     character_entity_id=(
                         context.active_character.entity_id
                         if context.active_character is not None
@@ -348,17 +444,23 @@ class TurnResolutionService:
                 ) from exc
 
         try:
-            if context_projection is None:
+            if not intent_analysis.allows_world_proposal:
+                operations = []
+            elif context_projection is None:
                 operations = self.extractor.propose(
                     normalized_input,
                     context,
                     mechanics_result=mechanics_result,
+                    intent_analysis=intent_analysis,
+                    recent_turns=recent_turns,
                 )
             else:
                 operations = self.extractor.propose(
                     normalized_input,
                     context,
                     mechanics_result=mechanics_result,
+                    intent_analysis=intent_analysis,
+                    recent_turns=recent_turns,
                     context_projection=context_projection,
                 )
         except Exception as exc:
@@ -428,6 +530,8 @@ class TurnResolutionService:
             ordered_operations=ordered_operations,
             mechanics_result=mechanics_result,
             mechanics_decision=decision,
+            intent_analysis=intent_analysis,
+            intent_evidence_text=normalized_evidence_text,
         )
 
     def generate_narrative(

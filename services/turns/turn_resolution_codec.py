@@ -7,10 +7,12 @@ records must remain readable without a migration.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import fields, is_dataclass
 from enum import Enum
 
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from operations.character_operations import CharacterOperation
@@ -185,6 +187,128 @@ class TurnResolutionCodec:
             for item in result.operation_results
         ], separators=(",", ":"), sort_keys=True)
 
+    @staticmethod
+    def intent_to_json(plan: TurnResolutionPlan) -> str | None:
+        """Persist the exact source text with its evidence-bound interpretation."""
+        analysis = plan.intent_analysis
+        if analysis is None:
+            return None
+        return json.dumps(
+            {
+                "schema_version": 1,
+                "source_text": plan.player_input,
+                "source_sha256": hashlib.sha256(
+                    plan.player_input.encode("utf-8")
+                ).hexdigest(),
+                "evidence_text": plan.intent_evidence_text or plan.player_input,
+                "evidence_sha256": hashlib.sha256(
+                    (plan.intent_evidence_text or plan.player_input).encode("utf-8")
+                ).hexdigest(),
+                "analysis": analysis.to_dict(),
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @staticmethod
+    def intent_from_json(
+        payload: str | None,
+        *,
+        original_input: str,
+    ) -> PlayerIntentAnalysis | None:
+        """Rebuild an analysis only when it remains bound to original input."""
+        if payload is None:
+            return None
+        try:
+            envelope = json.loads(payload)
+            if not isinstance(envelope, dict):
+                raise TypeError("persisted intent envelope must be an object")
+            candidate_source = envelope.get("source_text")
+            if (
+                isinstance(candidate_source, str)
+                and not candidate_source.startswith(original_input)
+            ):
+                raise ValueError("persisted intent is not bound to the original input")
+            if set(envelope) != {
+                "schema_version", "source_text", "source_sha256",
+                "evidence_text", "evidence_sha256", "analysis"
+            }:
+                raise ValueError("invalid persisted intent envelope")
+            envelope_version = envelope["schema_version"]
+            if (
+                isinstance(envelope_version, bool)
+                or not isinstance(envelope_version, int)
+                or envelope_version != 1
+            ):
+                raise ValueError("unsupported persisted intent envelope version")
+            source_text = envelope["source_text"]
+            if (
+                not isinstance(source_text, str)
+                or len(source_text) > 20000
+                or not source_text.startswith(original_input)
+            ):
+                raise ValueError("persisted intent is not bound to the original input")
+            expected_source_digest = hashlib.sha256(
+                source_text.encode("utf-8")
+            ).hexdigest()
+            if envelope["source_sha256"] != expected_source_digest:
+                raise ValueError("persisted intent source fingerprint does not match")
+            evidence_text = envelope["evidence_text"]
+            if (
+                not isinstance(evidence_text, str)
+                or not evidence_text.strip()
+                or len(evidence_text) > 20000
+                or not evidence_text.startswith(original_input)
+            ):
+                raise ValueError(
+                    "persisted player evidence is not bound to the original input"
+                )
+            expected_evidence_digest = hashlib.sha256(
+                evidence_text.encode("utf-8")
+            ).hexdigest()
+            if envelope["evidence_sha256"] != expected_evidence_digest:
+                raise ValueError("persisted intent evidence fingerprint does not match")
+            return PlayerIntentAnalysis.from_payload(
+                envelope["analysis"],
+                source_text=source_text,
+                evidence_text=evidence_text,
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"persisted player intent analysis is invalid: {exc}"
+            ) from exc
+
+    @staticmethod
+    def intent_evidence_text(
+        payload: str | None,
+        *,
+        original_input: str,
+    ) -> str:
+        """Return player-authored evidence after validating the persisted envelope."""
+        if payload is None:
+            return original_input
+        TurnResolutionCodec.intent_from_json(
+            payload,
+            original_input=original_input,
+        )
+        return json.loads(payload)["evidence_text"]
+
+    @staticmethod
+    def intent_source_text(
+        payload: str | None,
+        *,
+        original_input: str,
+    ) -> str:
+        """Return the validated source text bound to an optional stored analysis."""
+        if payload is None:
+            return original_input
+        TurnResolutionCodec.intent_from_json(
+            payload,
+            original_input=original_input,
+        )
+        return json.loads(payload)["source_text"]
+
     @classmethod
     def plan_from_record(cls, record: TurnResolutionRecord, operation_parser):
         parsed = operation_parser.parse(record.proposal_json or '{"operations":[]}')
@@ -200,12 +324,25 @@ class TurnResolutionCodec:
             raw for raw in ordered if isinstance(unwrap(raw), CharacterOperation)
         )
         mechanics_result = cls.mechanics_from_json(record.mechanics_json)
+        intent_analysis = cls.intent_from_json(
+            getattr(record, "intent_json", None),
+            original_input=record.player_input,
+        )
+        intent_source_text = cls.intent_source_text(
+            getattr(record, "intent_json", None),
+            original_input=record.player_input,
+        )
         return TurnResolutionPlan(
-            player_input=record.player_input,
+            player_input=intent_source_text,
             narrative="",
             world_operations=world_operations,
             character_operations=character_operations,
             ordered_operations=ordered,
             mechanics_result=mechanics_result,
             mechanics_decision=mechanics_result.decision if mechanics_result else None,
+            intent_analysis=intent_analysis,
+            intent_evidence_text=cls.intent_evidence_text(
+                getattr(record, "intent_json", None),
+                original_input=record.player_input,
+            ),
         )

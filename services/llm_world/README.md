@@ -41,6 +41,24 @@ world-mutation path.
 `services.context`. The application/turn boundary owns context retrieval and
 passes a typed projection inward.
 
+## Shared semantic input
+
+The active turn path provides `PlayerIntentAnalysis` from
+`services/turns/MechanicsAdjudicator`. The extractor does not ask the model
+to independently re-interpret the utterance: the proposal prompt receives the
+same validated analysis object used for mechanics gating, along with the
+bounded recent visible turns.
+
+The analysis is untrusted language evidence, not an operation or authorization
+contract. Literal target mentions can help select relevant context but never
+become canonical IDs. The prompt must respect step order, actor, modality,
+polarity and attribution; future steps cannot produce operations before the
+active step resolves. Non-actionable questions/plans/dialogue/negations are
+filtered by the turn service before this package is called.
+
+This package still does not import `services.context`; the application layer
+selects a bounded projection and passes it inward.
+
 ## Budgets
 
 | Environment variable | Default | Meaning |
@@ -73,7 +91,7 @@ campaign facts.
 - [x] Improve deterministic multi-signal context retrieval and natural-language reference matching (PR #212).
 - [x] Strengthen single-pass player-intent semantics for negation, attempts, outcomes, hypotheses, quoted dialogue and ordered compound actions (PR #213).
 - [ ] Run and record the expanded local Ollama corpus; deterministic CI does not certify model quality or provide a confusion matrix.
-- [ ] Reconsider a typed intermediate intent contract only if live quality/latency evidence justifies an extra model stage.
+- [x] Add a versioned, untrusted shared intent contract and pass one interpretation from mechanics adjudication into consequence proposals without another provider call (PR #215).
 - [x] Add typed event epistemic/provenance/visibility/temporal metadata and apply active-character perspective across retrieval and narration (consolidated roadmap PR #214).
 - [x] Keep provenance out of the model operation schema; the world applier assigns non-canonical inference to model-created events (consolidated roadmap PR #214).
 - [ ] Extend provenance to individual entity/item assertions only when a real authoring workflow can maintain it.

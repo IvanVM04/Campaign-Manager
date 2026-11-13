@@ -76,6 +76,11 @@ entity ID. The memory search may still retain the descriptive candidates as
 retrieval evidence; that is not a resolved identity. Explicit name/alias
 collisions remain fail-closed and return no candidate records.
 
-This is still lexical evidence, not general semantic retrieval. Paraphrases
-without shared words, cross-turn pronouns, ellipsis and speaker continuity
-remain deferred to later roadmap phases.
+The turn resolver now supplies literal target mentions and a bounded
+selection of recent visible turn text as supplemental retrieval signals. This
+can preserve candidate entities for references such as "the same door", but
+does not make a pronoun a resolved identity. The resolver remains lexical and
+conservative: when several candidates remain plausible, it returns ambiguity
+and the turn must clarify instead of selecting a canonical ID. General
+paraphrase matching and full cross-turn pronoun/ellipsis resolution remain
+open work and require their own labelled evaluation corpus.

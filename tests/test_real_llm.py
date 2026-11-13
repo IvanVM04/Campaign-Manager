@@ -1,8 +1,12 @@
+import json
 import os
+from pathlib import Path
+from time import perf_counter
 
 import pytest
 
 from models.campaign_state import CampaignState
+from models.character_state import CharacterState
 from models.entity import Entity
 from models.turn_context import TurnContext
 from models.world_state import WorldState
@@ -13,6 +17,7 @@ from operations.world_operations import (
 from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
+from services.turns.mechanics_adjudicator import MechanicsAdjudicator
 
 pytestmark = pytest.mark.real_llm
 
@@ -53,7 +58,7 @@ def test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact():
             )
         }
     )
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Aldric me muestra una cicatriz con forma de dragón en el antebrazo; "
         "es un detalle visible que no conocíamos.",
         make_context(world),
@@ -81,7 +86,7 @@ def test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact():
 
 
 def test_real_ollama_proposal_avoids_ephemeral_scene_changes():
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Me siento en una mesa, observo la chimenea y espero tranquilamente.",
         make_context(),
     )
@@ -89,7 +94,7 @@ def test_real_ollama_proposal_avoids_ephemeral_scene_changes():
 
 
 def test_real_ollama_proposal_records_an_explicitly_introduced_npc():
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "En la posada conozco al tabernero Aldric. Se presenta por su nombre, "
         "me atiende detrás de la barra y explica que trabaja allí.",
         make_context(),
@@ -118,7 +123,7 @@ def test_real_ollama_keeps_existing_locked_door_after_failed_attempt():
             )
         }
     )
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Intento abrir la puerta de piedra con la llave que llevo, pero no encaja. "
         "No consigo abrirla y la puerta permanece cerrada con llave.",
         make_context(world),
@@ -168,7 +173,7 @@ def test_real_ollama_does_not_persist_non_executed_or_quoted_intent(
         }
     )
 
-    operations = make_extractor().propose(player_input, make_context(world))
+    operations = propose_with_shared_intent(player_input, make_context(world))
 
     assert operations == []
 
@@ -192,7 +197,7 @@ def test_real_ollama_keeps_only_the_confirmed_step_in_a_compound_action():
             ),
         }
     )
-    operations = make_extractor().propose(
+    operations = propose_with_shared_intent(
         "Aldric me muestra una cicatriz con forma de dragón en el antebrazo, "
         "un detalle visible que no conocíamos. Después intento abrir la puerta "
         "de piedra, pero la llave no encaja y la puerta permanece cerrada.",
@@ -207,3 +212,100 @@ def test_real_ollama_keeps_only_the_confirmed_step_in_a_compound_action():
     ).casefold()
     assert "cicatriz" in updated_facts
     assert "dragón" in updated_facts
+
+
+def propose_with_shared_intent(player_input: str, context: TurnContext):
+    analysis, _decision = make_adjudicator().understand(context, player_input)
+    if not analysis.allows_world_proposal:
+        return []
+    return make_extractor().propose(
+        player_input,
+        context,
+        intent_analysis=analysis,
+    )
+
+
+def make_adjudicator() -> MechanicsAdjudicator:
+    provider = OllamaProvider(
+        model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            OllamaProvider.DEFAULT_BASE_URL,
+        ),
+        timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+    )
+    return MechanicsAdjudicator(provider=provider)
+
+
+def test_real_ollama_meets_shared_player_intent_corpus_v1(record_property):
+    """Evaluate the actual combined mechanics/intent response, not only prompts."""
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "language_understanding_corpus_v1.json"
+    )
+    corpus = json.loads(fixture_path.read_text(encoding="utf-8"))
+    assert corpus["schema_version"] == 1
+    scenarios = corpus["scenarios"]
+    assert len(scenarios) >= 30
+
+    context = TurnContext(
+        campaign=CampaignState(),
+        current_session=None,
+        active_character=CharacterState(entity_id=99001),
+        world=WorldState(),
+    )
+    adjudicator = make_adjudicator()
+    model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
+    started = perf_counter()
+    provider_calls = 0
+
+    for scenario in scenarios:
+        repetitions = 3 if scenario["critical"] else 1
+        for _ in range(repetitions):
+            analysis, _decision = adjudicator.understand(
+                context,
+                scenario["input"],
+            )
+            provider_calls += 1
+            expected = scenario["expected"]
+
+            assert analysis.category.value == expected["category"], scenario["id"]
+            assert analysis.active_step_index == expected["active_step_index"], scenario["id"]
+            assert analysis.requires_clarification is expected["requires_clarification"], scenario["id"]
+
+            target_index = (
+                analysis.active_step_index
+                if analysis.active_step_index is not None
+                else 0
+            )
+            assert analysis.steps, scenario["id"]
+            step = analysis.steps[target_index]
+            for field, value in expected["step"].items():
+                observed = getattr(step, field)
+                observed = observed.value if hasattr(observed, "value") else observed
+                assert observed == value, f"{scenario['id']}: {field}"
+
+            if "first_step" in expected:
+                assert len(analysis.steps) >= 2, scenario["id"]
+                for field, value in expected["first_step"].items():
+                    observed = getattr(analysis.steps[0], field)
+                    observed = observed.value if hasattr(observed, "value") else observed
+                    assert observed == value, f"{scenario['id']}: first {field}"
+
+            if "later_step" in expected:
+                assert len(analysis.steps) >= 2, scenario["id"]
+                for field, value in expected["later_step"].items():
+                    observed = getattr(analysis.steps[1], field)
+                    observed = observed.value if hasattr(observed, "value") else observed
+                    assert observed == value, f"{scenario['id']}: later {field}"
+
+    elapsed = perf_counter() - started
+    record_property("language_understanding_model", model)
+    record_property("language_understanding_scenarios", len(scenarios))
+    record_property("language_understanding_provider_calls", provider_calls)
+    record_property("language_understanding_total_seconds", round(elapsed, 3))
+    print(
+        "Shared language corpus: "
+        f"model={model}; scenarios={len(scenarios)}; "
+        f"provider_calls={provider_calls}; elapsed_seconds={elapsed:.3f}"
+    )
+
