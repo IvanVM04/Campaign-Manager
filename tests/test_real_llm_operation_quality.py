@@ -93,7 +93,7 @@ def test_real_ollama_operation_quality_and_critical_negative_controls(record_pro
             "id": "newly-introduced-npc",
             "family": "positive_entity_creation",
             "input": (
-                "En la posada conozco al tabernero Tilda. Se presenta por su "
+                "En la posada conozco a Tilda, la nueva tabernera. Se presenta por su "
                 "nombre, me atiende detrás de la barra y explica que trabaja allí."
             ),
             "world": WorldState(),
