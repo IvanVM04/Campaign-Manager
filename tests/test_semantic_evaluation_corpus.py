@@ -30,7 +30,10 @@ def test_semantic_evaluation_corpus_has_at_least_one_hundred_unique_cases():
         assert isinstance(corpus["scenarios"], list), corpus_name
         if held_out:
             assert corpus["split"] == "held_out", corpus_name
-            assert any(\n                marker in corpus["description"].casefold()\n                for marker in ("reserved for measurement", "not be copied", "do not turn")\n            ), corpus_name
+            assert any(
+                marker in corpus["description"].casefold()
+                for marker in ("reserved for measurement", "not be copied", "do not turn")
+            ), corpus_name
         for scenario in corpus["scenarios"]:
             scenario_id = scenario["id"]
             assert scenario_id not in identifiers, scenario_id
@@ -66,8 +69,6 @@ def test_held_out_scenarios_are_not_repeated_across_evaluation_families():
 
 
 def test_context_recall_and_secret_exclusion_are_measured_separately(record_property):
-    import json
-
     from models.campaign_state import CampaignState
     from models.turn_context import TurnContext
     from services.context import ContextBuilder
