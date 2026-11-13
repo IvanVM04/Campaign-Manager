@@ -128,6 +128,16 @@ class PlayerIntentAnalysis:
             for previous in self.steps[: self.active_step_index]
         ):
             raise ValueError("active step cannot skip an earlier unresolved step")
+        active = (
+            self.steps[self.active_step_index]
+            if self.active_step_index is not None
+            else None
+        )
+        if active is not None and active.reported_outcome not in {
+            PlayerReportedOutcome.NOT_CLAIMED,
+            PlayerReportedOutcome.UNCERTAIN,
+        }:
+            raise ValueError("a resolved reported outcome cannot be the active step")
         if not isinstance(self.requires_clarification, bool):
             raise TypeError("requires_clarification must be a boolean")
         if self.requires_clarification:
@@ -148,6 +158,10 @@ class PlayerIntentAnalysis:
             and step.actor is IntentActor.PLAYER
             and step.modality is IntentModality.ATTEMPTED
             and step.polarity is IntentPolarity.POSITIVE
+            and step.reported_outcome in {
+                PlayerReportedOutcome.NOT_CLAIMED,
+                PlayerReportedOutcome.UNCERTAIN,
+            }
         )
 
     @property
