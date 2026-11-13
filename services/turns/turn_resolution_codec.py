@@ -222,7 +222,15 @@ class TurnResolutionCodec:
             return None
         try:
             envelope = json.loads(payload)
-            if not isinstance(envelope, dict) or set(envelope) != {
+            if not isinstance(envelope, dict):
+                raise ValueError("invalid persisted intent envelope")
+            candidate_source = envelope.get("source_text")
+            if (
+                isinstance(candidate_source, str)
+                and not candidate_source.startswith(original_input)
+            ):
+                raise ValueError("persisted intent is not bound to the original input")
+            if set(envelope) != {
                 "schema_version", "source_text", "source_sha256",
                 "evidence_text", "evidence_sha256", "analysis"
             }:
