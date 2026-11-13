@@ -8,7 +8,14 @@ import re
 import typing
 import unicodedata
 
-SCHEMA_VERSION = 1
+from models.semantic_frames import (
+    MAX_RELATION_CLAIMS,
+    SemanticActionFrame,
+    SemanticRelationClaim,
+)
+
+SCHEMA_VERSION = 2
+SUPPORTED_SCHEMA_VERSIONS = frozenset({1, 2})
 MAX_STEPS = 8
 MAX_TARGETS_PER_STEP = 6
 
@@ -70,9 +77,14 @@ class IntentStep:
     reported_outcome: PlayerReportedOutcome
     target_mentions: tuple[str, ...] = ()
     attributed_to: str | None = None
+    action_frame: SemanticActionFrame | None = None
 
-    def to_dict(self) -> dict[str, typing.Any]:
-        return {
+    def to_dict(
+        self,
+        *,
+        include_action_frame: bool = False,
+    ) -> dict[str, typing.Any]:
+        payload = {
             "index": self.index,
             "source_excerpt": self.source_excerpt,
             "actor": self.actor.value,
@@ -83,6 +95,11 @@ class IntentStep:
             "target_mentions": list(self.target_mentions),
             "attributed_to": self.attributed_to,
         }
+        if include_action_frame:
+            payload["action_frame"] = (
+                None if self.action_frame is None else self.action_frame.to_dict()
+            )
+        return payload
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -93,12 +110,13 @@ class PlayerIntentAnalysis:
     requires_clarification: bool = False
     clarification_question: str | None = None
     schema_version: int = SCHEMA_VERSION
+    relation_claims: tuple[SemanticRelationClaim, ...] = ()
 
     def __post_init__(self) -> None:
         if (
             isinstance(self.schema_version, bool)
             or not isinstance(self.schema_version, int)
-            or self.schema_version != SCHEMA_VERSION
+            or self.schema_version not in SUPPORTED_SCHEMA_VERSIONS
         ):
             raise ValueError("unsupported player intent schema version")
         if not isinstance(self.category, UtteranceCategory):
@@ -107,6 +125,23 @@ class PlayerIntentAnalysis:
             raise ValueError("steps must be a tuple with at most 8 items")
         if any(not isinstance(step, IntentStep) for step in self.steps):
             raise TypeError("steps must contain IntentStep values")
+        if self.schema_version == 1 and (
+            self.relation_claims
+            or any(step.action_frame is not None for step in self.steps)
+        ):
+            raise ValueError("v1 intent analysis cannot contain semantic frames")
+        if self.schema_version == 2 and any(
+            step.action_frame is None for step in self.steps
+        ):
+            raise ValueError("v2 intent steps require an action_frame")
+        if not isinstance(self.relation_claims, tuple) or len(self.relation_claims) > MAX_RELATION_CLAIMS:
+            raise ValueError("relation_claims must be a tuple with at most 8 items")
+        if any(
+            not isinstance(claim, SemanticRelationClaim)
+            or claim.step_index >= len(self.steps)
+            for claim in self.relation_claims
+        ):
+            raise ValueError("relation_claims must reference an existing intent step")
         if tuple(step.index for step in self.steps) != tuple(range(len(self.steps))):
             raise ValueError("step indices must be contiguous and ordered")
         if self.active_step_index is not None and (
@@ -218,14 +253,22 @@ class PlayerIntentAnalysis:
         )
 
     def to_dict(self) -> dict[str, typing.Any]:
-        return {
+        payload = {
             "schema_version": self.schema_version,
             "category": self.category.value,
-            "steps": [step.to_dict() for step in self.steps],
+            "steps": [
+                step.to_dict(include_action_frame=self.schema_version >= 2)
+                for step in self.steps
+            ],
             "active_step_index": self.active_step_index,
             "requires_clarification": self.requires_clarification,
             "clarification_question": self.clarification_question,
         }
+        if self.schema_version >= 2:
+            payload["relation_claims"] = [
+                claim.to_dict() for claim in self.relation_claims
+            ]
+        return payload
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
@@ -247,15 +290,26 @@ class PlayerIntentAnalysis:
             raise ValueError("evidence_text must be non-empty")
         if len(evidence) > 20000:
             raise ValueError("evidence_text must not exceed 20000 characters")
-        expected = {
+        base_expected = {
             "schema_version", "category", "steps", "active_step_index",
             "requires_clarification", "clarification_question",
         }
-        if not isinstance(payload, dict) or set(payload) != expected:
+        if not isinstance(payload, dict) or not base_expected.issubset(payload):
             raise ValueError("intent_analysis has missing or unexpected fields")
         version = payload["schema_version"]
-        if isinstance(version, bool) or version != SCHEMA_VERSION:
+        if (
+            isinstance(version, bool)
+            or not isinstance(version, int)
+            or version not in SUPPORTED_SCHEMA_VERSIONS
+        ):
             raise ValueError("unsupported player intent schema version")
+        expected = (
+            base_expected
+            if version == 1
+            else base_expected | {"relation_claims"}
+        )
+        if set(payload) != expected:
+            raise ValueError("intent_analysis has missing or unexpected fields")
         raw_steps = payload["steps"]
         if not isinstance(raw_steps, list) or len(raw_steps) > MAX_STEPS:
             raise ValueError("steps must be a bounded array")
@@ -265,6 +319,8 @@ class PlayerIntentAnalysis:
                 "index", "source_excerpt", "actor", "action", "modality",
                 "polarity", "reported_outcome", "target_mentions", "attributed_to",
             }
+            if version >= 2:
+                required.add("action_frame")
             if not isinstance(raw, dict) or set(raw) != required:
                 raise ValueError("intent step has missing or unexpected fields")
             if isinstance(raw["index"], bool) or raw["index"] != index:
@@ -287,13 +343,32 @@ class PlayerIntentAnalysis:
                 attribution = _text(attribution, "attributed_to", 120)
                 if not _evidence(evidence, attribution):
                     raise ValueError("attribution is not grounded in player input")
+            action_frame = None
+            if version >= 2:
+                raw_frame = raw["action_frame"]
+                if raw_frame is None:
+                    raise ValueError("v2 intent step requires an action_frame")
+                action_frame = SemanticActionFrame.from_payload(
+                    raw_frame,
+                    evidence_text=evidence,
+                )
             steps.append(IntentStep(
                 index=index, source_excerpt=excerpt, actor=_enum(IntentActor, raw["actor"]),
                 action=action, modality=_enum(IntentModality, raw["modality"]),
                 polarity=_enum(IntentPolarity, raw["polarity"]),
                 reported_outcome=_enum(PlayerReportedOutcome, raw["reported_outcome"]),
                 target_mentions=tuple(target_values), attributed_to=attribution,
+                action_frame=action_frame,
             ))
+        relation_claims: tuple[SemanticRelationClaim, ...] = ()
+        if version >= 2:
+            raw_claims = payload["relation_claims"]
+            if not isinstance(raw_claims, list) or len(raw_claims) > MAX_RELATION_CLAIMS:
+                raise ValueError("relation_claims must be a bounded array")
+            relation_claims = tuple(
+                SemanticRelationClaim.from_payload(item, evidence_text=evidence)
+                for item in raw_claims
+            )
         return cls(
             category=_enum(UtteranceCategory, payload["category"]),
             steps=tuple(steps),
@@ -301,6 +376,7 @@ class PlayerIntentAnalysis:
             requires_clarification=payload["requires_clarification"],
             clarification_question=payload["clarification_question"],
             schema_version=version,
+            relation_claims=relation_claims,
         )
 
     @classmethod
@@ -333,6 +409,8 @@ class PlayerIntentAnalysis:
                 "No he podido identificar con seguridad la acción. "
                 "¿Puedes reformular qué intentas hacer ahora?"
             ),
+            schema_version=2,
+            relation_claims=(),
         )
 
     @classmethod
@@ -384,6 +462,7 @@ class PlayerIntentAnalysis:
                 reported_outcome=PlayerReportedOutcome.FAILURE if failure else PlayerReportedOutcome.NOT_CLAIMED,
             ),),
             active_step_index=active,
+            schema_version=1,
         )
 
 
