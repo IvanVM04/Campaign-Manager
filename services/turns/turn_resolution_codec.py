@@ -222,7 +222,12 @@ class TurnResolutionCodec:
                 "schema_version", "source_text", "source_sha256", "analysis"
             }:
                 raise ValueError("invalid persisted intent envelope")
-            if envelope["schema_version"] != 1:
+            envelope_version = envelope["schema_version"]
+            if (
+                isinstance(envelope_version, bool)
+                or not isinstance(envelope_version, int)
+                or envelope_version != 1
+            ):
                 raise ValueError("unsupported persisted intent envelope version")
             source_text = envelope["source_text"]
             if (
