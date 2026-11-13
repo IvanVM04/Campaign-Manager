@@ -269,7 +269,10 @@ class TurnResolutionService:
                 mechanics_decision=decision,
                 intent_analysis=intent_analysis,
             )
-        if not intent_analysis.is_actionable:
+        if not intent_analysis.is_actionable and not (
+            decision is not None
+            and decision.decision is MechanicsDecisionType.CLARIFICATION
+        ):
             decision = MechanicsDecision(decision=MechanicsDecisionType.NONE)
 
         if decision is not None:
