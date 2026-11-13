@@ -162,6 +162,9 @@ def test_correction_rejects_unmentioned_replacement_and_wrong_previous_slot():
             committed=False,
         )
 
+    wrong_slot_evidence = (
+        "Entrego la llave de hierro a Mara. No, quería decir Aldric y Bram."
+    )
     wrong_slot = PendingIntentCorrection(
         step_index=0,
         slot=PendingCorrectionSlot.ACTION_ARGUMENT,
@@ -173,7 +176,7 @@ def test_correction_rejects_unmentioned_replacement_and_wrong_previous_slot():
     with pytest.raises(ValueError, match="exactly one"):
         wrong_slot.apply(
             analysis(),
-            player_evidence_text=source,
+            player_evidence_text=wrong_slot_evidence,
             resolution_pending=True,
             committed=False,
         )
