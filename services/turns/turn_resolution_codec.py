@@ -275,11 +275,11 @@ class TurnResolutionCodec:
         )
         mechanics_result = cls.mechanics_from_json(record.mechanics_json)
         intent_analysis = cls.intent_from_json(
-            record.intent_json,
+            getattr(record, "intent_json", None),
             original_input=record.player_input,
         )
         intent_source_text = cls.intent_source_text(
-            record.intent_json,
+            getattr(record, "intent_json", None),
             original_input=record.player_input,
         )
         return TurnResolutionPlan(
