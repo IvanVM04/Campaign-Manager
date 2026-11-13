@@ -212,7 +212,7 @@ class ConversationReferenceResolver:
         score += max(10, 70 - (best_rank - 1) * 12)
         signals.append("recency")
         if any(item.source is DiscourseSource.PLAYER_INPUT for item in evidence):
-            score += 18
+            score += 22
             signals.append("player_authored_focus")
         else:
             score += 8
