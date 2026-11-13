@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 33
+CURRENT_VERSION = 34
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(

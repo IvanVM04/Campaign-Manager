@@ -11,7 +11,7 @@ class SillyTavernManualRollIn(ManualRollIn):
     query: str = Field(..., min_length=1, max_length=10000)
     additional_query: str | None = Field(default=None, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
-    conversation_id: str | None = Field(default=None, max_length=500)
+    conversation_id: str = Field(..., min_length=1, max_length=500)
 
     @field_validator("query", "answer_external_turn_id")
     @classmethod
@@ -28,9 +28,9 @@ class SillyTavernManualRollIn(ManualRollIn):
         return normalized or None
     @field_validator("conversation_id")
     @classmethod
-    def validate_conversation_id(cls, value: str | None) -> str | None:
-        normalized = value.strip() if value is not None else None
-        if normalized is not None and not normalized:
+    def validate_conversation_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
             raise ValueError("conversation_id must not be empty")
         return normalized
 
@@ -90,7 +90,7 @@ class SillyTavernContextIn(BaseModel):
     additional_query: str | None = Field(default=None, max_length=10000)
     conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("query", "conversation_id")
+    @field_validator("query")
     @classmethod
     def validate_query(
         cls,

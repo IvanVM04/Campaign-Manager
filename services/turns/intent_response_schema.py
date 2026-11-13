@@ -38,9 +38,9 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                         ],
                         "properties": {
                             "index": {"type": "integer", "minimum": 0, "maximum": 7},
-                            "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 500},
+                            "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 300},
                             "actor": {"type": "string", "enum": ["player", "npc", "other", "unknown"]},
-                            "action": {"type": "string", "maxLength": 300},
+                            "action": {"type": "string", "maxLength": 500},
                             "modality": {
                                 "type": "string",
                                 "enum": [
@@ -56,7 +56,7 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             },
                             "target_mentions": {
                                 "type": "array",
-                                "maxItems": 8,
+                                "maxItems": 6,
                                 "items": {"type": "string", "minLength": 1, "maxLength": 120},
                             },
                             "attributed_to": {"type": ["string", "null"], "maxLength": 120},
@@ -84,7 +84,7 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                 "modifier": {"type": "integer", "minimum": -10, "maximum": 10},
                 "reason": {"type": "string", "maxLength": 500},
                 "skill": {"type": "string", "maxLength": 80},
-                "ability": {"type": "string", "maxLength": 40},
+                "ability": {"type": ["string", "null"], "maxLength": 40},
             },
         },
     },

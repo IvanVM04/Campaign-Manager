@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class LLMProviderError(RuntimeError):
@@ -33,6 +34,19 @@ class LLMProvider(ABC):
         """
 
         raise NotImplementedError
+
+    def generate_structured(
+        self,
+        prompt: str,
+        *,
+        schema: dict[str, Any],
+    ) -> str:
+        """Generate structured output; adapters may override with native constraints.
+
+        The fallback preserves compatibility for text-only providers. Callers
+        remain responsible for validating semantic content and trust boundaries.
+        """
+        return self.generate(prompt)
 
     def __call__(self, prompt: str) -> str:
         """
