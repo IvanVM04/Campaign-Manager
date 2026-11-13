@@ -9,6 +9,7 @@ from models.player_intent_analysis import (
     IntentPolarity,
     PlayerIntentAnalysis,
 )
+from models.semantic_frames import SemanticModality, SemanticPolarity
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.world_state import WorldState
 
@@ -218,7 +219,35 @@ class ConversationReferenceResolver:
                 or step.modality not in self._ELIGIBLE_MODALITIES
             ):
                 continue
-            for mention in step.target_mentions:
+            mention_values = list(step.target_mentions)
+            if step.action_frame is not None:
+                mention_values.extend(
+                    argument.mention.text
+                    for argument in step.action_frame.arguments
+                )
+            mention_values.extend(
+                mention
+                for claim in analysis.relation_claims
+                if claim.step_index == step.index
+                and claim.polarity is SemanticPolarity.POSITIVE
+                and claim.modality in {
+                    SemanticModality.COMPLETED,
+                    SemanticModality.OBSERVED,
+                    SemanticModality.REPORTED,
+                    SemanticModality.DIALOGUE,
+                }
+                for mention in (
+                    claim.subject.text,
+                    claim.object.text,
+                    (
+                        claim.attributed_to.text
+                        if claim.attributed_to is not None
+                        else None
+                    ),
+                )
+                if mention is not None
+            )
+            for mention in dict.fromkeys(mention_values):
                 match = self.entity_resolver.resolve(visible_world, mention)
                 candidate_ids: tuple[int, ...] = ()
                 antecedent_turn_id = None
