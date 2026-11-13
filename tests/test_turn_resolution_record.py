@@ -95,3 +95,8 @@ def test_record_enforces_state_specific_requirements():
             resulting_revision=2,
             completed_at="2026-11-04T00:01:00Z",
         )
+
+
+def test_record_rejects_invalid_json_intent_analysis():
+    with pytest.raises(ValueError, match="intent_json"):
+        make_record(intent_json="{broken")
