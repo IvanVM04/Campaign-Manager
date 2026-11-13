@@ -3,8 +3,7 @@
 **Priority:** P0 — highest active language-quality priority  
 **Integrated foundation:** PRs #215–#221 are merged into `main`, including the durable evidence-bound correction lifecycle. Current base: `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (2026-11-13).  
 **Next implementation:** PR #222 adds typed non-entity world references and false-positive-aware semantic evaluation on `feat/222-typed-world-reference-evaluation`.  
-**Acceptance:** deterministic CI, live Ollama and real SillyTavern remain separate gates; the latter two are not inferred from CI.  
-**Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are distinct gates. This branch does not claim the live gates passed.
+**Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are separate gates. Neither live gate is inferred from deterministic CI.
 
 ## 1. Integrated turn pipeline
 

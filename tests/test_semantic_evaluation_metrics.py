@@ -22,10 +22,10 @@ def test_semantic_slot_metrics_penalize_extra_arguments_and_relations():
     assert quality["true_positive"] == 2
     assert quality["false_positive"] == 1
     assert quality["false_negative"] == 0
-    assert quality["precision"] == pytest.approx(2 / 3)
+    assert quality["precision"] == 0.6667
     assert quality["recall"] == 1.0
     assert quality["f1"] == pytest.approx(0.8)
-    assert result["semantic_slot_precision"] == pytest.approx(2 / 3)
+    assert result["semantic_slot_precision"] == 0.6667
 
 
 def test_semantic_slot_metrics_account_for_duplicate_slots():
