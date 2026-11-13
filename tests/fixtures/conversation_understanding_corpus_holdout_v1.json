@@ -32,7 +32,8 @@
         "entity_id": 11,
         "entity_name": "Mara",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-demonstrative-door",
@@ -63,7 +64,8 @@
         "entity_id": 21,
         "entity_name": "Puerta del establo",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-same-referent",
@@ -94,7 +96,8 @@
         "entity_id": 31,
         "entity_name": "Cofre de roble",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-other-guard",
@@ -125,7 +128,8 @@
         "entity_id": 42,
         "entity_name": "Doran",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-ambiguous-player-focus",
@@ -154,7 +158,8 @@
       ],
       "expected": {
         "clarification": true
-      }
+      },
+      "critical": true
     },
     {
       "id": "holdout-no-visible-antecedent",
@@ -177,7 +182,8 @@
       ],
       "expected": {
         "clarification": true
-      }
+      },
+      "critical": true
     },
     {
       "id": "holdout-narrator-only-evidence",
@@ -203,7 +209,8 @@
         "entity_id": 71,
         "entity_name": "Aldric",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-player-beats-narrator",
@@ -235,7 +242,8 @@
         "entity_id": 81,
         "entity_name": "Mara",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-six-turn-window",
@@ -282,7 +290,8 @@
       ],
       "expected": {
         "clarification": true
-      }
+      },
+      "critical": true
     },
     {
       "id": "holdout-recency-margin",
@@ -317,7 +326,8 @@
         "entity_id": 101,
         "entity_name": "Mara",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-explicit-entity",
@@ -337,7 +347,8 @@
         "entity_id": 111,
         "entity_name": "Tilda",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-other-role-ambiguous",
@@ -372,7 +383,8 @@
       ],
       "expected": {
         "clarification": true
-      }
+      },
+      "critical": true
     },
     {
       "id": "holdout-repeated-topic",
@@ -401,7 +413,8 @@
         "entity_id": 131,
         "entity_name": "Mapa antiguo",
         "clarification": false
-      }
+      },
+      "critical": false
     },
     {
       "id": "holdout-narrator-not-player-quote",
@@ -431,7 +444,8 @@
       ],
       "expected": {
         "clarification": true
-      }
+      },
+      "critical": true
     }
   ]
 }
