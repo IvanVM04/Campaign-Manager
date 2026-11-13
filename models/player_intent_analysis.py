@@ -186,7 +186,7 @@ class PlayerIntentAnalysis:
         return json.dumps(self.to_dict(), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
     @classmethod
-    def from_payload(cls, payload: Any, *, source_text: str) -> "PlayerIntentAnalysis":
+    def from_payload(cls, payload: Any, *, source_text: str) -> PlayerIntentAnalysis:
         if not isinstance(source_text, str) or not source_text.strip():
             raise ValueError("source_text must be non-empty")
         expected = {
@@ -246,7 +246,7 @@ class PlayerIntentAnalysis:
         )
 
     @classmethod
-    def from_json(cls, payload: str | None, *, source_text: str) -> "PlayerIntentAnalysis | None":
+    def from_json(cls, payload: str | None, *, source_text: str) -> PlayerIntentAnalysis | None:
         if payload is None:
             return None
         if not isinstance(payload, str):
