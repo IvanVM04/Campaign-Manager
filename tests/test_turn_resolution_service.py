@@ -8,13 +8,13 @@ from models.entity import Entity
 from models.operation_result import (
     OperationStatus,
 )
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.session_state import SessionState
 from models.turn_context import TurnContext
 from models.world_context_projection import (
     ContextProjectionDiagnostics,
     WorldContextProjection,
 )
-from models.player_intent_analysis import PlayerIntentAnalysis
 from models.world_state import WorldState
 from operations.character_operations import ChangeCharacterHpOperation
 from operations.operation_reference import OperationReference
@@ -1483,14 +1483,14 @@ def test_conversation_reference_is_forwarded_with_proposal_context_projection():
     class VisibleProjectionContextBuilder(ContextBuilder):
         def build_proposal_context(
             self,
-            world,
-            query,
+            world: WorldState,
+            query: str,
             *,
-            max_estimated_tokens,
-            mandatory_entity_ids=(),
-            supplemental_queries=(),
-            character_entity_id=None,
-        ):
+            max_estimated_tokens: int,
+            mandatory_entity_ids: tuple[int, ...] | list[int] = (),
+            supplemental_queries: tuple[str, ...] | list[str] = (),
+            character_entity_id: int | None = None,
+        ) -> WorldContextProjection:
             return WorldContextProjection(
                 world=world,
                 diagnostics=ContextProjectionDiagnostics(
