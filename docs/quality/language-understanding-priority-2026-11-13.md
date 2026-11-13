@@ -1,25 +1,27 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active product/engineering priority  
-**Status:** implementation in progress in draft PR #215; deterministic CI and local acceptance are not yet complete  
+**Status:** P0 semantic foundation merged in PR #215; conversation/reference hardening is under review in PR #216. Live Ollama and manual SillyTavern acceptance remain pending.  
 **Date:** 2026-11-13  
-**Verified baseline:** main at 746f40b4e715741a43e5a0a19ae069236c19b7d1, after PR #214  
+**Verified baseline:** main at 60def5d19167ccd31ebce82d8f2d1fe4a72c26e0, after PR #215  
 **Primary model for acceptance:** the configured local Ollama model (currently documented as gemma4:26b); exact tag and Ollama version must be recorded per run.
 
-## Implementation progress — PR #215
+## Implementation progress — PRs #215 and #216
 
-The implementation has started in the same large P0 PR. The current branch now
-contains the following code-level work; this is not yet a claim that the P0
-acceptance gate has passed.
+PR #215 merged the P0 shared semantic contract and durable evidence foundation.
+PR #216 extends the same highest-priority work rather than starting a separate
+gameplay feature. The implementation status below is code-level only; live
+Ollama and real SillyTavern acceptance remain open.
 
 | Area | Delivered in the current branch | Remaining acceptance |
 |---|---|---|
 | Semantic contract | PlayerIntentAnalysis v1 with ordered steps, actor, modality, polarity, reported outcome, literal target evidence and clarification state; strict bounds and schema validation. | Expand negative/edge-case corpus and validate behaviour with the configured live model. |
 | Shared interpretation | MechanicsAdjudicator.understand() returns intent and mechanics in one provider response; TurnResolutionService passes that exact object into LLMWorldExtractor. No third call was added. | Record actual latency and repeatability against the prior provider-call baseline. |
 | Proposal safety | Non-actionable questions, plans, quoted/read dialogue and negations skip proposal retrieval and extraction. An explicit player speech act may be proposed as an interaction, but its quoted content is never an instruction to the model. Future steps are excluded. | Verify false-positive/false-negative rates in live scenarios, including speech, reports and mixed multi-step actions. |
-| Conversation context | Last six visible turns are bounded in both prompts; literal target mentions and recent text are supplemental deterministic retrieval signals. Existing resolver ambiguity abstention remains authoritative. | This is not full pronoun/coreference resolution. Test pronouns, ellipsis and corrections; clarify on multiple plausible references. |
-| Durable continuation | intent_json stores the complete conversation, player-authored evidence text and separate SHA-256 fingerprints; migration 033 protects committed evidence. Manual-roll continuation reuses the saved analysis; clarification questions remain context while only the answers are added to player evidence. | Run restart/recovery and idempotency tests end-to-end, including SillyTavern. |
-| Deterministic tests | New model, adjudicator, proposal-prompt, turn-resolution, codec, repository and migration tests are included. | Final Python/JS/Ruff/Pyright/CodeQL checks must pass on the final PR head. |
+| Conversation context | PR #215 bounds recent visible turns. PR #216 adds an explicit SillyTavern chat ID through context, resolve and continuation APIs, chat-scoped durable history, and deterministic pronoun/same-object/other-role resolution against visible recent turns. | Verify multi-chat isolation with CI and the labelled corpus; broad ellipsis, correction chains and semantic paraphrases remain unsupported. |
+| Durable continuation | Migration 033 persists validated intent evidence; migration 034 adds nullable chat identity to transcript and resolution records, with chat-scoped history indexes. Clarification/manual-roll submissions verify the same chat. | Verify schema-33 upgrade, restart recovery and cross-chat challenge rejection. |
+| Structured generation | PR #216 wires the combined intent/mechanics response through the Ollama JSON Schema capability; semantic parsing and evidence validation remain authoritative. | Verify schema contract CI and live compatibility with the configured Ollama model. |
+| Deterministic tests | Model, adjudicator, proposal, turn-resolution, codec, repository, resolver, API and migration regressions are included. | Full Python/JS/Ruff/Pyright/CodeQL checks must pass on the final PR head. |
 | Live acceptance | A versioned 34-scenario corpus and opt-in real_llm test now exist; 12 critical cases run three times. No live-model or manual SillyTavern success is asserted. | Execute with the configured Ollama tag/version, preserve results and latency, then complete the SillyTavern smoke checklist and record revisions. |
 
 The intent_analysis object is evidence about language, not a domain write
@@ -27,9 +29,10 @@ contract. The model cannot supply canonical entity IDs, permission grants,
 provenance, visibility or dice results. The existing resolver, operation
 parser, WorldService and deterministic rules engine remain authoritative.
 
-The bounded conversation history improves retrieval and reference clues; it
-does not magically resolve arbitrary pronouns. When the lexical resolver cannot
-distinguish candidates, the system must abstain and ask rather than guess.
+Conversation history is scoped to one SillyTavern chat and filtered through
+the active character's visible world. The deterministic resolver handles only
+a limited set of anaphoric patterns; it must abstain when recency, visibility
+or uniqueness is insufficient. It is not a general language coreference engine.
 
 ## Decision
 
@@ -41,15 +44,15 @@ This work must not become another prompt-only cleanup. It introduces a shared, t
 
 ## 1. Verified current state
 
-The active pipeline is currently:
+The active pipeline is now:
 
-1. Preserve and validate the incoming player text.
-2. Ask MechanicsAdjudicator to propose a mechanics decision.
-3. Build a bounded, visibility-filtered WorldContextProjection.
-4. Ask LLMWorldExtractor to propose typed world operations from the raw player text and projection.
-5. Parse and validate the proposed operations.
-6. Apply them through WorldService and deterministic domain rules.
-7. Narrate after commit through DMService, using committed operation evidence.
+1. Preserve exact player text, external-turn identity and SillyTavern chat identity.
+2. Build bounded conversation history scoped to that chat and the active character's visible world.
+3. Run one combined structured understanding/mechanics call. Ollama receives the versioned JSON Schema; text-only providers retain a compatibility fallback.
+4. Validate PlayerIntentAnalysis against literal source evidence, then resolve supported references deterministically against visible canonical entities and recent turns.
+5. Build the bounded WorldContextProjection and pass the same validated interpretation into consequence proposal.
+6. Parse and validate typed operations; apply them through WorldService and deterministic domain rules.
+7. Commit the resolution and transcript evidence, then narrate only the committed result.
 
 The existing design already protects important invariants:
 
@@ -62,8 +65,8 @@ The existing design already protects important invariants:
 
 The gaps that remain are different:
 
-- MechanicsAdjudicator and LLMWorldExtractor receive the same raw utterance and independently infer its meaning. There is no common typed semantic result between them.
-- Much of the meaning contract exists as prompt instructions rather than a validated domain object.
+- The shared typed interpretation now connects mechanics and proposal generation, but semantic quality remains unproven until the configured local model runs the labelled live corpus repeatedly.
+- Multi-chat API/history scope is explicit in PR #216, but the end-to-end SillyTavern smoke test must verify that two actual chats cannot see or resume each other's turns.
 - The deterministic EntityReferenceResolver is lexical. It does not provide general cross-turn pronoun/ellipsis resolution, arbitrary paraphrase understanding or a complete player-correction contract.
 - The current live Ollama corpus is useful but small. Normal CI tests prompt construction, parsing and application invariants; it does not prove that the configured model consistently understands natural language.
 - The full manual SillyTavern acceptance checklist has not been recorded as passed.
@@ -288,14 +291,17 @@ Do not merge with failed, pending, cancelled or skipped required CI. Do not call
 
 ## 11. Implementation blocks and delivery status
 
-Keep delivery in the single P0 implementation PR #215:
+PR #215 merged the shared-intent contract and durable evidence foundation.
+PR #216 is the next implementation block:
 
-1. [ ] Freeze and record the baseline corpus, provider-call count, model tag and latency.
-2. [x] Add the typed interpretation contract, strict parser and deterministic tests.
-3. [x] Return the interpretation and mechanics decision from one shared provider response; pass the exact interpretation into proposal generation.
-4. [~] Use literal mentions and bounded conversation history as deterministic retrieval signals; the resolver continues to abstain on ambiguity. Full pronoun/coreference resolution is not claimed.
-5. [x] Persist/recover interpretation through the durable lifecycle with migration 033 and source fingerprinting.
-6. [~] Version 34 live-model scenarios and repeat 12 critical cases three times in the opt-in suite; still must execute with Ollama and complete SillyTavern acceptance.
-7. [~] Update package guides, the AI roadmap and impact documentation; finish after the implementation review.
+1. [x] Add PlayerIntentAnalysis, strict parsing and deterministic contracts (PR #215).
+2. [x] Share one validated interpretation between mechanics and proposal generation without adding a normal-path model call (PR #215).
+3. [x] Persist/recover intent evidence through the durable lifecycle with migration 033 (PR #215).
+4. [x] Add a bounded, visibility-filtered conversation reference resolver and literal-evidence corpus cases (PR #216; broader language coverage remains open).
+5. [x] Bind SillyTavern context, resolution, clarification and manual-roll continuation to a required chat identity; persist it in migration 034 (PR #216).
+6. [x] Wire native Ollama JSON Schema generation into the combined understanding/mechanics call (PR #216; live model compatibility remains unverified).
+7. [ ] Run live Ollama scenarios and record exact model/version/settings, provider-call count and latency.
+8. [ ] Complete a real multi-chat SillyTavern smoke test and record extension/backend revisions.
+9. [ ] Pass all required deterministic Python, JS, Ruff, Pyright and CodeQL checks on the final PR #216 head.
 
 A checked implementation block does not imply its live acceptance gate has passed. Only merge once the entire PR is green and all required non-CI acceptance results are recorded. The Character Builder becomes eligible to resume after this P0 gate, not before.
