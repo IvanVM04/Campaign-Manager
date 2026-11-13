@@ -86,7 +86,9 @@ class DurableNativeTurnService:
             turn_repository=self.turn_repository,
             resolution_repository=self.resolution_repository,
             turn_execution_lock=turn_execution_lock,
-            context_loader=lambda conn: self._context_and_history(conn),
+            context_loader=lambda conn, conversation_id=None: self._context_and_history(
+                conn, conversation_id=conversation_id
+            ),
             error_type=DurableNativeTurnError,
         )
 
@@ -98,7 +100,9 @@ class DurableNativeTurnService:
             revision_repository=self.revision_repository,
             prepared_commit_service=self.prepared_commit_service,
             narration_service=self.narration_service,
-            context_loader=lambda conn: self._context_and_history(conn),
+            context_loader=lambda conn, conversation_id=None: self._context_and_history(
+                conn, conversation_id=conversation_id
+            ),
             turn_execution_lock=turn_execution_lock,
             error_type=DurableNativeTurnError,
         )
