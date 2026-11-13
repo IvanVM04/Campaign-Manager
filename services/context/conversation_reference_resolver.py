@@ -165,7 +165,7 @@ class ConversationReferenceResolver:
         aliases = [getattr(entity, "name", ""), *(getattr(entity, "aliases", []) or [])]
         seen = set()
         for alias in aliases:
-            if not isinstance(alias, str) or not alias.strip():
+            if not isinstance(alias, str) or not alias.strip() or len(alias) > 120:
                 continue
             normalized_alias = self.entity_resolver.normalize(alias)
             marker = " " + normalized_alias + " "
@@ -423,15 +423,30 @@ class ConversationReferenceResolver:
                         kind_hint=kind_hint,
                     )
                     if any(token in self._OTHER_MARKERS for token in self._tokens(mention)):
-                        raw_ids = (
-                            self._other_role_candidates(
-                                visible_world,
-                                mention,
-                                (ranked[0].entity_id,),
+                        if not ranked or ranked[0].score < self.MIN_RESOLUTION_SCORE:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, self._candidate_names(ranked)),
+                                candidates=ranked[:4],
+                                abstention_reason="other_role_antecedent_not_established",
                             )
-                            if ranked else ()
+                        antecedent_margin = (
+                            ranked[0].score - ranked[1].score
+                            if len(ranked) > 1 else ranked[0].score
                         )
-                        antecedent_evidence = ranked[0].evidence if ranked else ()
+                        if len(ranked) > 1 and antecedent_margin < self.MIN_RESOLUTION_MARGIN:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, self._candidate_names(ranked)),
+                                candidates=ranked[:4],
+                                abstention_reason="other_role_antecedent_ambiguous",
+                            )
+                        antecedent = ranked[0]
+                        raw_ids = self._other_role_candidates(
+                            visible_world,
+                            mention,
+                            (antecedent.entity_id,),
+                        )
                         role_evidence = DiscourseEvidence(
                             turn_id=None,
                             source=DiscourseSource.PLAYER_INPUT,
@@ -443,20 +458,18 @@ class ConversationReferenceResolver:
                         role_candidates = []
                         for entity_id in raw_ids:
                             entity = visible_world.entities.get(entity_id)
-                            if entity is None:
+                            if not isinstance(entity, Entity):
                                 continue
                             role_candidates.append(
                                 DiscourseCandidate(
                                     entity_id=entity_id,
                                     entity_name=entity.name,
-                                    score=max(
-                                        35,
-                                        (ranked[0].score - 6) if ranked else 60,
-                                    ),
-                                    evidence=(*antecedent_evidence, role_evidence),
+                                    score=max(35, antecedent.score - 6),
+                                    evidence=(role_evidence,),
                                     signals=(
                                         "other_role_in_conversation",
                                         "explicit_role_description",
+                                        "contrasted_with_recent_antecedent",
                                     ),
                                 )
                             )
