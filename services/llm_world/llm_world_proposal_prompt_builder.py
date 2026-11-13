@@ -3,6 +3,7 @@
 from typing import Any
 
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.turn_record import TurnRecord
 from models.turn_context import TurnContext
 from models.world_context_projection import WorldContextProjection, estimate_tokens
 
@@ -23,7 +24,7 @@ class LLMWorldProposalPromptBuilder:
         *,
         mechanics_result: Any = None,
         intent_analysis: PlayerIntentAnalysis | None = None,
-        recent_turns: tuple | list | None = None,
+        recent_turns: list[TurnRecord] | None = None,
         projection: WorldContextProjection | None = None,
         allowed_operation_types: tuple[str, ...] = (),
         operation_registry: OperationMetadataRegistry | None = None,
@@ -47,8 +48,8 @@ class LLMWorldProposalPromptBuilder:
 
         if intent_analysis is not None and not isinstance(intent_analysis, PlayerIntentAnalysis):
             raise TypeError("intent_analysis must be a PlayerIntentAnalysis or None")
-        if recent_turns is not None and not isinstance(recent_turns, (tuple, list)):
-            raise TypeError("recent_turns must be a tuple, list or None")
+        if recent_turns is not None and not isinstance(recent_turns, list):
+            raise TypeError("recent_turns must be a list of TurnRecord values or None")
         history_lines: list[str] = []
         for item in (recent_turns or ())[-6:]:
             if isinstance(item, dict):
