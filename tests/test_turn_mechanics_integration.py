@@ -7,7 +7,7 @@ from rules_engine.dnd5e_2014.core.dice import DiceRoller
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor
-from services.providers import FakeLLMProvider
+from tests.durable_turn_test_support import CombinedMechanicsFakeProvider
 from services.turns import DMService, MechanicsAdjudicator
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldApplier, WorldService
@@ -39,7 +39,7 @@ class EmptyExtractor(LLMWorldExtractor):
 
 def make_service(adjudication_json, roll):
     adjudicator = MechanicsAdjudicator(
-        FakeLLMProvider(response=adjudication_json)
+        CombinedMechanicsFakeProvider(response=adjudication_json)
     )
     narrative_provider = FakeLLMProvider(
         response="La acción se resuelve según el resultado de la prueba."
