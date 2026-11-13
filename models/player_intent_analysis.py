@@ -25,14 +25,14 @@ class UtteranceCategory(str, enum.Enum):
     UNKNOWN = "unknown"
 
 
-class IntentActor(str, Enum):
+class IntentActor(str, enum.Enum):
     PLAYER = "player"
     NPC = "npc"
     OTHER = "other"
     UNKNOWN = "unknown"
 
 
-class IntentModality(str, Enum):
+class IntentModality(str, enum.Enum):
     ATTEMPTED = "attempted"
     COMPLETED = "completed"
     OBSERVED = "observed"
@@ -46,13 +46,13 @@ class IntentModality(str, Enum):
     UNKNOWN = "unknown"
 
 
-class IntentPolarity(str, Enum):
+class IntentPolarity(str, enum.Enum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     UNCERTAIN = "uncertain"
 
 
-class PlayerReportedOutcome(str, Enum):
+class PlayerReportedOutcome(str, enum.Enum):
     SUCCESS = "success"
     FAILURE = "failure"
     PARTIAL = "partial"
@@ -86,7 +86,7 @@ class IntentStep:
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class PlayerIntentAnalysis:
     category: UtteranceCategory
     steps: tuple[IntentStep, ...]
@@ -218,7 +218,7 @@ class PlayerIntentAnalysis:
             for step in self.steps
         )
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, typing.Any]:
         return {
             "schema_version": self.schema_version,
             "category": self.category.value,
@@ -234,7 +234,7 @@ class PlayerIntentAnalysis:
     @classmethod
     def from_payload(
         cls,
-        payload: Any,
+        payload: typing.Any,
         *,
         source_text: str,
         evidence_text: str | None = None,
@@ -374,7 +374,7 @@ class PlayerIntentAnalysis:
         )
 
 
-def _text(value: Any, field: str, limit: int) -> str:
+def _text(value: typing.Any, field: str, limit: int) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must be non-empty text")
     value = value.strip()
@@ -383,7 +383,7 @@ def _text(value: Any, field: str, limit: int) -> str:
     return value
 
 
-def _enum(enum_type, value: Any):
+def _enum(enum_type, value: typing.Any):
     if not isinstance(value, str):
         raise TypeError("enum fields must be strings")
     try:
