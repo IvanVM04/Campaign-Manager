@@ -84,7 +84,7 @@ class IntentStep:
         *,
         include_action_frame: bool = False,
     ) -> dict[str, typing.Any]:
-        payload = {
+        payload: dict[str, typing.Any] = {
             "index": self.index,
             "source_excerpt": self.source_excerpt,
             "actor": self.actor.value,
@@ -253,7 +253,7 @@ class PlayerIntentAnalysis:
         )
 
     def to_dict(self) -> dict[str, typing.Any]:
-        payload = {
+        payload: dict[str, typing.Any] = {
             "schema_version": self.schema_version,
             "category": self.category.value,
             "steps": [
