@@ -50,7 +50,7 @@ The corpus is Spanish-first. Existing English cases remain in the development co
 
 The conversation hold-out suite additionally reports entity-link precision/recall and correct versus incorrect abstentions. A candidate that should remain unresolved must not be counted as a successful link.
 
-The ledger also exposes recorders for context recall, operation precision/recall, critical false persistent changes and secret visibility. These are deliberately separate from parser slot accuracy: a correctly parsed utterance does not prove that retrieval supplied the right facts or that a proposed operation is safe. Only report those metrics when a test has actually supplied expected and observed context/operation sets; never fill them with inferred values.
+The ledger also exposes recorders for context recall, operation precision/recall, critical false persistent changes and secret visibility. The deterministic projection test uses a 750-entity synthetic world to prove mandatory visible entities survive selection and secret event markers stay out of rendered model context. The live operation-quality test adds positive controls (a genuinely new fact on a known NPC and an explicitly introduced NPC) and critical negative controls (failed attempt on a known locked door, ephemeral observation, conditional plan, negation, question and quoted instruction). These are deliberately separate from parser slot accuracy: a correctly parsed utterance does not prove retrieval quality or safe consequences.
 
 ## 4. Quality-gate policy
 
@@ -68,7 +68,7 @@ This is a measurement gate, not a claim that the corpus already passes on `gemma
 
 Questions, future plans, conditionals, uncertainty, rumours, quotations, negations and failed attempts must not be upgraded to confirmed world facts. The operation layer remains the authority for writes; a semantic frame or relation claim is only evidence.
 
-A future operation-evaluation tranche must pair positive controls with negative controls and report:
+Operation evaluation in this tranche pairs positive controls with negative controls and reports:
 
 - operation precision/recall by operation family;
 - false persistent changes on critical negative controls (required: zero);
