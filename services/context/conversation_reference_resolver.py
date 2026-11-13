@@ -384,7 +384,36 @@ class ConversationReferenceResolver:
                 )
             )
 
-            for mention, kind_hint in dict.fromkeys(mentions):
+            # A v1-style flat target and its v2 semantic argument may describe
+            # the same surface mention. Merge those records before resolution so
+            # an untyped compatibility mention cannot trigger premature ambiguity.
+            merged_mentions: dict[str, tuple[str, SemanticObjectKind]] = {}
+            conflicting_kinds: set[str] = set()
+            for mention, kind_hint in mentions:
+                mention_key = self.entity_resolver.normalize(mention)
+                if not mention_key:
+                    continue
+                existing = merged_mentions.get(mention_key)
+                if existing is None:
+                    merged_mentions[mention_key] = (mention, kind_hint)
+                    continue
+                existing_kind = existing[1]
+                if existing_kind is SemanticObjectKind.UNKNOWN:
+                    if mention_key not in conflicting_kinds:
+                        merged_mentions[mention_key] = (existing[0], kind_hint)
+                elif (
+                    kind_hint is not SemanticObjectKind.UNKNOWN
+                    and kind_hint is not existing_kind
+                ):
+                    # Contradictory typed roles must not be resolved by choosing
+                    # whichever interpretation happened to appear first.
+                    merged_mentions[mention_key] = (
+                        existing[0],
+                        SemanticObjectKind.UNKNOWN,
+                    )
+                    conflicting_kinds.add(mention_key)
+
+            for mention, kind_hint in merged_mentions.values():
                 match = self.entity_resolver.resolve(visible_world, mention)
                 candidate_ids: tuple[int, ...] = ()
                 antecedent_turn_id = None
