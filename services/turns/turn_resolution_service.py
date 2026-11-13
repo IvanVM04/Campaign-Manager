@@ -505,6 +505,7 @@ class TurnResolutionService:
                     intent_analysis=intent_analysis,
                     recent_turns=recent_turns,
                     context_projection=context_projection,
+                    resolved_references=resolved_references,
                 )
         except Exception as exc:
             raise TurnResolutionServiceError(

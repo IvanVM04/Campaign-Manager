@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from models.campaign_state import CampaignState
@@ -8,6 +10,11 @@ from models.operation_result import (
 )
 from models.session_state import SessionState
 from models.turn_context import TurnContext
+from models.world_context_projection import (
+    ContextProjectionDiagnostics,
+    WorldContextProjection,
+)
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.world_state import WorldState
 from operations.character_operations import ChangeCharacterHpOperation
 from operations.operation_reference import OperationReference
@@ -77,6 +84,7 @@ class RecordingExtractor(LLMWorldExtractor):
         self.received_projection = None
         self.received_intent = None
         self.received_recent_turns = None
+        self.received_references = ()
         self.calls = []
 
     def propose(
@@ -95,6 +103,7 @@ class RecordingExtractor(LLMWorldExtractor):
         self.received_projection = context_projection
         self.received_intent = intent_analysis
         self.received_recent_turns = recent_turns
+        self.received_references = resolved_references
         self.calls.append(("propose", player_intent))
         return self.operations
 
@@ -1457,3 +1466,97 @@ def test_shared_intent_is_forwarded_to_proposal_without_reinterpretation():
     assert extractor.received_intent is plan.intent_analysis
     assert extractor.received_recent_turns == recent
     assert extractor.received_text == "Abro la misma puerta."
+
+def test_conversation_reference_is_forwarded_with_proposal_context_projection():
+    world = WorldState(
+        entities={
+            1: Entity(
+                id=1,
+                name="Mara",
+                entity_type="npc",
+                description="Cartógrafa.",
+                active=True,
+            )
+        }
+    )
+
+    class VisibleProjectionContextBuilder(ContextBuilder):
+        def build_proposal_context(
+            self,
+            world,
+            query,
+            *,
+            max_estimated_tokens,
+            mandatory_entity_ids=(),
+            supplemental_queries=(),
+            character_entity_id=None,
+        ):
+            return WorldContextProjection(
+                world=world,
+                diagnostics=ContextProjectionDiagnostics(
+                    estimated_tokens=1,
+                    budget_tokens=max_estimated_tokens,
+                    available_counts=(),
+                    candidate_counts=(),
+                    selected_counts=(),
+                ),
+            )
+
+    extractor = RecordingExtractor()
+    service, _dm, _extractor, _applier = make_service(
+        extractor=extractor,
+        context_builder=VisibleProjectionContextBuilder(),
+    )
+    utterance = "Le pregunto por la llave."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": utterance,
+                "actor": "player",
+                "action": "preguntar por la llave",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["Le"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "pregunto",
+                    "family": "communication",
+                    "arguments": [{
+                        "role": "recipient",
+                        "mention": {"text": "Le", "kind_hint": "character"},
+                    }],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=utterance,
+    )
+
+    service.prepare_turn(
+        make_turn_context(world),
+        utterance,
+        intent_analysis_override=analysis,
+        recent_turns=[
+            SimpleNamespace(
+                id=5,
+                player_input="Hablo con Mara sobre el mapa.",
+                narrative="",
+            )
+        ],
+    )
+
+    assert extractor.received_projection is not None
+    assert len(extractor.received_references) == 1
+    reference = extractor.received_references[0]
+    assert reference.entity_id == 1
+    assert reference.entity_name == "Mara"
+    assert reference.match_kind == "conversation_antecedent"
+    assert reference.antecedent_turn_id == 5
+
