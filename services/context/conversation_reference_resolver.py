@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
-from models.entity import Entity
 from models.discourse_evidence import (
     DiscourseCandidate,
     DiscourseEvidence,
     DiscourseSource,
     DiscourseSpeaker,
 )
+from models.entity import Entity
 from models.player_intent_analysis import (
     IntentModality,
     IntentPolarity,
@@ -67,7 +68,7 @@ class ConversationReferenceResolver:
         IntentModality.CORRECTION,
         IntentModality.DIALOGUE,
     })
-    _KIND_TYPES = {
+    _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
         SemanticObjectKind.CHARACTER: frozenset({"npc", "character", "person", "humanoid", "player"}),
         SemanticObjectKind.CREATURE: frozenset({"creature", "monster", "beast", "animal"}),
         SemanticObjectKind.LOCATION: frozenset({"location", "place", "room", "building", "area"}),
@@ -424,7 +425,13 @@ class ConversationReferenceResolver:
                         kind_hint=kind_hint,
                     )
                     if any(token in self._OTHER_MARKERS for token in self._tokens(mention)):
-                        if not ranked or ranked[0].score < self.MIN_RESOLUTION_SCORE:
+                        if not ranked:
+                            return ConversationReferenceResolution(
+                                tuple(references),
+                                self._question(mention, ()),
+                                abstention_reason="other_role_antecedent_not_established",
+                            )
+                        if ranked[0].score < self.MIN_RESOLUTION_SCORE:
                             return ConversationReferenceResolution(
                                 tuple(references),
                                 self._question(mention, self._candidate_names(ranked)),
