@@ -32,7 +32,14 @@ and business workflows outside the model layer.
 The model cannot assign canonical entity IDs or write-operation payloads.
 Literal mention strings are retrieval evidence only. Deterministic reference
 resolution may select a unique visible target; ambiguity must remain
-unresolved and be clarified rather than guessed.
+unresolved and be clarified rather than guessed. PR #216 adds
+`resolved_conversation_reference.py`, a trusted application-produced match
+that records the literal mention, canonical visible entity and optional
+antecedent turn. The model never constructs this record or supplies its ID.
+
+The v1 contract still lacks typed semantic arguments, relation assertions,
+object-kind hints and structured correction links. Those require a new schema
+version, not a silent change to persisted v1 interpretations.
 
 The language pipeline is coordinated in `services/turns`: the mechanics
 adjudicator returns this analysis together with the mechanics decision in one
