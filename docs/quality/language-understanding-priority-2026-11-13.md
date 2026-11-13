@@ -1,67 +1,118 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active language-quality priority  
-**Implementation:** the shared semantic foundation and conversation-scope hardening are integrated in PRs #215 and #216.  
-**Verified baseline:** `main` at `868ae7ae29c6c1c0cfb5b3aaf181b630a0039ff6` (2026-11-13; PR #216 merge commit).  
-**Acceptance:** live Ollama evaluation and full manual SillyTavern acceptance remain separate gates; this document does not mark them passed.
+**Integrated foundation:** PRs #215 and #216 are merged into `main`.  
+**Next implementation:** PR #218 introduces the versioned semantic-frame v2 contract on `feat/218-semantic-frames-v2`; this branch is not yet merged.  
+**Baseline:** `main` at `14070b007246d7a58243c58eadc66b9f54781472` (2026-11-13, after documentation PR #217).  
+**Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are distinct gates. This branch does not claim the live gates passed.
 
-## 1. Implemented pipeline
+## 1. Integrated turn pipeline
 
-1. Preserve the exact player utterance, request identity, active-character perspective and SillyTavern `conversation_id`.
-2. Load bounded recent history from that same chat and filter world context through character visibility.
-3. `MechanicsAdjudicator.understand()` makes one combined structured call for `PlayerIntentAnalysis` and a mechanics decision. Ollama receives the combined JSON Schema; providers without native structured generation use the compatibility path.
-4. `PlayerIntentAnalysis.from_payload()` validates the response and grounds source excerpts, target mentions and attribution in player-authored evidence.
-5. Deterministic entity/conversation resolvers map supported mentions to unique visible canonical entities; they never accept model-generated IDs and abstain on ambiguity.
-6. The exact same analysis is passed to `LLMWorldExtractor`; future steps cannot skip unresolved earlier steps, and questions/plans/quotes/negations/reported outcomes are not treated as executed actions.
-7. Typed operations are validated/applied by world/domain services. Rules code remains authoritative for mechanics and outcomes.
-8. The durable resolution stores intent evidence. Clarification reinterprets the original input plus player answers; manual-roll continuation reuses the saved interpretation.
-9. SillyTavern history and continuation are scoped to one chat. Migration 034 stores chat identity; migration 033 stores intent analysis.
+1. Preserve exact player input, durable request identity, active-character perspective and SillyTavern `conversation_id`.
+2. Load bounded, same-chat history and character-visible world context.
+3. `MechanicsAdjudicator.understand()` returns one structured intent analysis and mechanics decision. The intended normal path remains one combined provider call; Ollama receives a native JSON Schema.
+4. Validate the interpretation against player-authored evidence. DM clarification text may provide context but cannot become a player quotation, mention, relation endpoint or attribution.
+5. Deterministic entity and conversation resolvers attach canonical identities only after visibility and ambiguity checks.
+6. Pass the exact same analysis to `LLMWorldExtractor`; the proposal stage uses it rather than independently reconstructing player intent.
+7. Parse proposed typed operations and apply them through deterministic world/domain services. Rules code remains authoritative for mechanics.
+8. Persist the validated interpretation and its evidence with the durable resolution. Clarification reinterprets the original request plus player answers; manual rolls reuse the stored interpretation.
+9. Narrate only committed consequences. SillyTavern history and continuation remain scoped to one chat.
 
-Key implementation references: `models/player_intent_analysis.py`, `services/turns/mechanics_adjudicator.py`, `services/turns/intent_response_schema.py`, `services/context/entity_reference_resolver.py`, `services/context/conversation_reference_resolver.py`, `models/resolved_conversation_reference.py`, `services/turns/turn_resolution_service.py`, and `services/llm_world/llm_world_proposal_prompt_builder.py`.
+## 2. Semantic contract v1 — persisted compatibility
 
-## 2. Current v1 semantic contract
+Schema v1 stores utterance category, ordered steps, active step, clarification state and, per step, actor, free-text action, modality, polarity, player-reported outcome, literal target mentions and literal attribution.
 
-`PlayerIntentAnalysis` records utterance category (action/question/dialogue/report/plan/correction/mixed/unknown), ordered steps, active step and clarification state. Each `IntentStep` stores actor (player/NPC/other/unknown), a natural-language `action` string, modality, polarity, player-reported outcome, literal `target_mentions` and optional literal `attributed_to`.
+The strict v1 decoder remains supported. Its serialized field shape is retained when a v1 record is read and written again. Existing `turn_resolutions.intent_json` envelopes are still fingerprinted and validated by the durable codec; v2 is a nested analysis schema, not a reinterpretation of an old v1 payload.
 
-The validator enforces version, exact field sets, enums, bounds, contiguous step order, source-evidence grounding and active-step constraints. This is an auditable untrusted interpretation, not a full semantic representation.
+## 3. Semantic contract v2 — implemented on the PR #218 branch
 
-## 3. Remaining gaps found in source review
+### 3.1 Action frames
 
-### Action and argument structure
-`action` is free text and `target_mentions` is a flat untyped list. There are no explicit semantic roles for agent, patient/theme, recipient, source, destination, instrument, beneficiary, companion, location/path, precondition or cause. “I give the key to Mara” therefore lacks a first-class representation of the transferred object, recipient, source and resulting ownership transition.
+Each step now has a required `action_frame` containing:
 
-### Relations
-The world supports typed relationships, but the intent contract does not yet represent a grounded directed subject–predicate–object assertion with polarity, modality, attribution and time. It must distinguish “Mara is Aldric's sister” from a question, rumour, inference, hypothetical, quote or negative assertion. Predicates must map to supported domain relation types; the model must not invent new relation kinds.
+- a literal `predicate` copied from the player's evidence;
+- a bounded `family` hint such as movement, communication, perception, transfer, item use, combat, social interaction or state change;
+- typed arguments with a semantic `role` and a `mention`.
 
-### Objects and identity
-A target mention does not say whether it denotes an NPC, place, item definition, unique item instance, event, faction or relation. Ownership, possession, equipment, container/location, condition, discovery, use and transfer are not explicit argument roles. Item templates and unique in-world instances must never be conflated.
+Supported roles include agent, patient, theme, recipient, source, destination, instrument, location, path, beneficiary, companion, experiencer, owner, holder, container, cause and result.
 
-### Discourse, references and corrections
-PR #216's resolver examines at most six turns in the same chat, scans player input/narrative for visible names or aliases, and supports a bounded set of Spanish/English pronouns, demonstratives, “same/again” and curated “other [role]” patterns. It resolves only a unique visible candidate. It does not robustly model grammatical gender/number, semantic-type agreement, speaker attribution, topic/salience, broad ellipsis, long-distance references, paraphrases or correction chains. V1's correction category has no structured old/new values, correction target or scope (pending intent versus committed world fact); `attributed_to` remains a literal string.
+Each mention contains exact surface text and an untrusted `kind_hint`: character, creature, location, item definition, item instance, event, faction, resource, world entity or unknown. These hints are not IDs. The application still resolves the mention against the visible canonical world.
 
-### Evaluation
-`language_understanding_corpus_v1.json` has 34 utterance cases (12 critical, repeated three times by the opt-in corpus test). `conversation_understanding_corpus_v2.json` has six deterministic resolver cases; these are not live-model coreference results. The live Ollama suite and full SillyTavern multi-chat workflow still require recorded acceptance evidence.
+Example interpretation of “Entrego la llave de hierro a Mara”:
 
-## 4. Safety boundaries to preserve
+- predicate: “Entrego”;
+- theme: “la llave de hierro” (hint: item instance);
+- recipient: “Mara” (hint: character).
+
+The frame makes those roles explicit; it does not prove that the transfer succeeded or authorize an inventory write.
+
+### 3.2 Directed relation claims
+
+V2 adds bounded `relation_claims`. Each claim contains:
+
+- existing intent step index;
+- literal subject, predicate and object;
+- a relation-family hint (kinship, ownership, possession, membership, employment, allegiance, friendship, hostility, spatial, containment, part-of, knowledge, obligation, protection, service, other or unknown);
+- polarity and modality;
+- a grounded source excerpt;
+- optional literal attribution and temporal expression.
+
+Direction is preserved. “Aldric is Mara's brother” and “Mara is Aldric's sister” must not be silently reversed. A reported statement remains reported; a question remains a question; a negative claim remains negative; a conditional is not a confirmed edge. The relation family is a semantic hint, not an authorization list or a replacement for the domain's supported relation types.
+
+### 3.3 Strict trust boundary
+
+V2 parsing rejects unknown fields, invalid enums, oversized arrays/text, non-literal predicates, endpoints, argument mentions, attribution or temporal expressions, and relation claims pointing to nonexistent steps. It accepts no model-supplied canonical IDs.
+
+The action frames and relation claims are untrusted evidence. They do not grant permissions, visibility, provenance, mechanical outcomes or write authority. No relation operation is created solely because a model emitted a claim. The proposal and world application layers must still compare the claim with the snapshot, supported operations, evidence, campaign scope and domain rules.
+
+### 3.4 Retrieval hand-off
+
+The turn service now includes action-frame argument mentions and relation subject/object/attribution mentions among supplemental context-retrieval signals. They add candidates to deterministic retrieval; they do not become canonical identities. The existing bounded selector, dependency expansion, active-character perspective and context budgets remain authoritative.
+
+### 3.5 Durable compatibility
+
+The intent codec persists the nested analysis through the existing durable envelope. V1 records continue to decode as v1; v2 records round-trip their action frames and relation claims. No database migration is introduced for this semantic-schema upgrade because the existing JSON envelope already stores the versioned payload.
+
+## 4. Remaining semantic gaps
+
+### Discourse and corrections
+The PR #216 resolver remains deliberately narrow: six recent turns from the same chat, a curated set of Spanish/English pronouns/demonstratives, same-object and other-role patterns, and unique visible candidates. It does not yet provide robust grammatical agreement, semantic-type-aware coreference, speaker/salience modelling, broad ellipsis, distant references, paraphrase resolution or correction chains. V2 relation attribution is still a literal mention, not a resolved speaker identity.
+
+### Time and causality
+V2 can carry a literal temporal expression on a relation claim, but it does not yet model a full temporal interval, causal graph, counterfactual state or dependency graph between arbitrary actions. A temporal expression is evidence, not proof of when an event occurred.
+
+### World relation ontology
+The current `Relation` domain model stores a directed `relation_type` string and endpoints. The v2 relation-family enum is a language hint. A future domain mapping must explicitly validate which predicates are supported; do not infer support from a matching family name.
+
+### Evaluation depth
+The 34-case utterance corpus and six deterministic conversation-reference cases remain small. Existing live intent tests continue to check category/step fields while v2 parsing validates the presence and grounding of frames; they do not yet score semantic-role or relation extraction accuracy comprehensively. A larger held-out frame/relation corpus is planned for PR #220.
+
+## 5. Safety boundaries that must remain
 
 - Model output is evidence, never a canonical ID, permission, visibility grant, provenance assignment, dice result or write authorization.
-- Every mention/relation endpoint must be grounded in player-authored evidence. Context may resolve an antecedent but cannot be cited as words the player said.
-- IDs are attached only by deterministic application code after campaign, visibility, activity and semantic-compatibility checks.
-- Unknown/hidden/ambiguous references remain unresolved; ask rather than guess.
-- Mechanics and state transitions remain owned by deterministic rules/domain services.
-- Preserve one shared interpretation. Do not add a third normal-path model call without measured evidence.
-- Do not add embeddings/vector storage until evaluation proves lexical/graph retrieval is the limiting factor.
+- Every action argument, relation endpoint and predicate must be grounded in player-authored evidence.
+- Context can resolve an antecedent but cannot be represented as text the player wrote.
+- Entity identity is attached only by deterministic application code after campaign, active-state, visibility and semantic-type checks.
+- Item definition and physical instance are separate domain records.
+- Unknown, hidden or ambiguous references remain unresolved.
+- Questions, hypotheticals, negations, rumours and reports cannot be promoted to positive confirmed relationships.
+- Keep one shared interpretation between mechanics and proposal generation. Do not add a third normal-path model call without measured evidence.
+- Do not add embeddings/vector storage until a held-out evaluation proves deterministic retrieval is insufficient.
 
-## 5. Acceptance gates
+## 6. Acceptance gates
 
-**CI:** re-run required Python/coverage, JavaScript, Ruff, Pyright and CodeQL checks on the current head. Keep migrations 033/034, cross-chat isolation, restart recovery, duplicate delivery, clarification and manual-roll tests in normal CI.
+**Deterministic CI:** required Python/coverage, JavaScript, Ruff, Pyright and CodeQL checks must pass on the final head. The semantic-frame suite must prove v1 compatibility, v2 schema validation, literal-evidence rejection, directed relation round-trip and durable v2 recovery. Existing migrations 033/034, cross-chat isolation, restart recovery, duplicate delivery, clarification and manual-roll tests must remain green.
 
-**Ollama:** run `python -m pytest -m real_llm -v -s` with exact model tag, Ollama version, generation settings, timeout and hardware recorded. Retain per-case outcome, latency, repair use and provider-call count. Do not log prompts, secrets or full responses; preserve every failure.
+**Live Ollama:** run `python -m pytest -m real_llm -v -s` with exact model tag/digest, Ollama version, generation settings, timeout and hardware recorded. Retain per-scenario outcomes, latency, repair use and provider-call count. Do not log prompts, secrets or full responses.
 
-**SillyTavern:** use two real chats to prove neither can read/continue the other's history. Also verify same-chat references, ambiguous antecedents, multi-round clarification, correction, manual roll after restart, duplicate delivery and regeneration. Record backend SHA, extension revision and model details.
+**SillyTavern:** use two real chats to prove neither can read or continue the other's history. Verify same-chat references, ambiguous antecedents, multi-round clarification, corrections, manual rolls after restart, duplicate delivery and regeneration. Record backend SHA, extension revision and model details.
 
-The implementation is integrated; the P0 language-quality phase is not accepted until live model and SillyTavern gates are documented as passed.
+The implementation work in PR #218 is not considered accepted until these gates are recorded. Live model and SillyTavern behavior are not inferred from deterministic schema tests.
 
-## 6. Recommended next implementation
+## 7. Next work after PR #218
 
-After capturing that baseline, move to **structured semantic frames and grounded relations**, then richer discourse/reference resolution. See the [semantic-understanding next-phase plan](semantic-understanding-next-phase-2026-11-13.md). Do not resume broad gameplay expansion yet.
+PR #219 should focus on discourse resolution and correction chains: typed antecedent evidence, speaker roles, semantic-type/grammatical constraints, topic continuity, pending-intent corrections and safe correction scope.
+
+PR #220 should expand the corpus to at least 100 balanced labelled scenarios with a held-out tranche, and separately score frame slots, relation direction/polarity, entity linking, abstention, false persistent changes, secret leakage and latency.
+
+Do not return to broad gameplay expansion while the live P0 acceptance gates remain unrecorded.
