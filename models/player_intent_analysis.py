@@ -5,8 +5,8 @@ import dataclasses
 import enum
 import json
 import re
-import unicodedata
 import typing
+import unicodedata
 
 
 SCHEMA_VERSION = 1
