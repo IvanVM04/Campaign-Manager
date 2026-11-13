@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.turn_resolution_record import TurnResolutionRecord
+from services.turns.turn_resolution_codec import TurnResolutionCodec
 
 
 class DurableTurnClarificationSubmissionService:
