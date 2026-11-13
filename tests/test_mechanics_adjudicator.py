@@ -260,6 +260,26 @@ def test_clarification_questions_are_context_but_not_player_source_evidence():
     assert "la puerta de roble" in evidence_section
 
 
+def test_production_understand_fails_closed_when_provider_omits_intent_v1():
+    provider = FakeLLMProvider(
+        response=(
+            '{"decision":"skill_check","skill":"stealth","ability":null,'
+            '"dc":15,"advantage":false,"disadvantage":false,'
+            '"modifier":0,"reason":"legacy response"}'
+        )
+    )
+
+    analysis, decision = MechanicsAdjudicator(provider).understand(
+        make_turn_context(),
+        "Me escondo tras la columna.",
+    )
+
+    assert analysis.requires_clarification is True
+    assert analysis.category.value == "unknown"
+    assert analysis.steps == ()
+    assert decision.decision is MechanicsDecisionType.NONE
+
+
 def test_invalid_combined_analysis_is_rejected_before_mechanics_use():
     response = json.dumps({
         "intent_analysis": {
