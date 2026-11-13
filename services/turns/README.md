@@ -28,6 +28,34 @@ replay committed consequences.
 - `durable_turn_narration_service.py` — native and external narration completion.
 - `durable_native_turn_service.py` — public durable turn coordinator and lifecycle façade.
 
+## Shared language-understanding contract
+
+`MechanicsAdjudicator.understand()` returns a `PlayerIntentAnalysis` and a
+mechanics decision from one structured provider response. The interpretation
+is validated against the exact player utterance before it is used. It contains
+ordered steps, actor, modality, polarity, player-reported outcome and literal
+target mentions; it never grants entity IDs, permissions, provenance,
+visibility or mechanical outcomes.
+
+`TurnResolutionService.prepare_turn()` owns the hand-off: the same analysis
+object is used for mechanical gating and passed to `LLMWorldExtractor`.
+Questions, plans, quotations, negations and already-resolved outcomes do not
+trigger an action check. Non-actionable utterances skip proposal retrieval and
+world extraction. Compound actions may not skip an earlier unresolved step.
+
+The last six visible turns are bounded before inclusion in either prompt.
+Recent phrases and literal target mentions may add deterministic retrieval
+signals, but they are not canonical reference resolution. If the existing
+entity resolver cannot disambiguate a target, the model must ask; it must not
+guess an ID.
+
+Durable resolutions store the analysis, exact source text and a SHA-256
+fingerprint in `turn_resolutions.intent_json` (migration 033). Manual-roll
+continuations reuse the saved interpretation and do not call the adjudicator
+again. Clarification answers are appended to the original source and the
+complete clarified text is interpreted again. Committed intent evidence is
+immutable.
+
 ## SillyTavern adapter
 
 `integrations/adapters/silly_tavern/context_adapter.py` provides active
