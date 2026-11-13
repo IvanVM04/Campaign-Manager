@@ -169,6 +169,12 @@ class DurableTurnExecutionService:
             raise DurableNativeTurnError("dice_mode must be automatic or manual")
         if len(external_turn_id) > 500:
             raise DurableNativeTurnError("external_turn_id must not exceed 500 characters")
+        if conversation_id is None:
+            # Old extensions do not send chat identity. Give each external
+            # turn an isolated scope rather than mixing campaign-wide chats.
+            conversation_id = "legacy-isolated:" + hashlib.sha256(
+                external_turn_id.encode("utf-8")
+            ).hexdigest()
         if conversation_id is not None:
             if not isinstance(conversation_id, str) or not conversation_id.strip():
                 raise DurableNativeTurnError("conversation_id must be a non-empty string")

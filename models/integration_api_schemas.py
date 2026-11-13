@@ -11,9 +11,9 @@ class SillyTavernManualRollIn(ManualRollIn):
     query: str = Field(..., min_length=1, max_length=10000)
     additional_query: str | None = Field(default=None, max_length=10000)
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
-    conversation_id: str = Field(..., min_length=1, max_length=500)
+    conversation_id: str | None = Field(default=None, max_length=500)
 
-    @field_validator("query", "answer_external_turn_id", "conversation_id")
+    @field_validator("query", "answer_external_turn_id")
     @classmethod
     def validate_manual_roll_text(cls, value: str) -> str:
         value = value.strip()
@@ -26,6 +26,14 @@ class SillyTavernManualRollIn(ManualRollIn):
     def validate_manual_roll_additional_query(cls, value: str | None) -> str | None:
         normalized = value.strip() if value is not None else None
         return normalized or None
+    @field_validator("conversation_id")
+    @classmethod
+    def validate_conversation_id(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        if normalized is not None and not normalized:
+            raise ValueError("conversation_id must not be empty")
+        return normalized
+
 
 
 class SillyTavernClarificationIn(ClarificationIn):
@@ -34,7 +42,7 @@ class SillyTavernClarificationIn(ClarificationIn):
     answer_external_turn_id: str = Field(..., min_length=1, max_length=500)
     conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("answer_external_turn_id", "conversation_id")
+    @field_validator("answer_external_turn_id")
     @classmethod
     def validate_answer_external_turn_id(cls, value: str) -> str:
         value = value.strip()
@@ -55,6 +63,14 @@ class SillyTavernClarificationIn(ClarificationIn):
     def validate_clarification_additional_query(cls, value: str | None) -> str | None:
         normalized = value.strip() if value is not None else None
         return normalized or None
+    @field_validator("conversation_id")
+    @classmethod
+    def validate_conversation_id(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        if normalized is not None and not normalized:
+            raise ValueError("conversation_id must not be empty")
+        return normalized
+
 
 
 class SillyTavernContextIn(BaseModel):
@@ -94,6 +110,14 @@ class SillyTavernContextIn(BaseModel):
     def validate_context_additional_query(cls, value: str | None) -> str | None:
         normalized = value.strip() if value is not None else None
         return normalized or None
+    @field_validator("conversation_id")
+    @classmethod
+    def validate_conversation_id(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        if normalized is not None and not normalized:
+            raise ValueError("conversation_id must not be empty")
+        return normalized
+
 
 
 class SillyTavernTurnResolveIn(BaseModel):
@@ -106,7 +130,7 @@ class SillyTavernTurnResolveIn(BaseModel):
     dice_mode: Literal["automatic", "manual"] = "automatic"
     conversation_id: str = Field(..., min_length=1, max_length=500)
 
-    @field_validator("player_input", "external_turn_id", "query", "conversation_id")
+    @field_validator("player_input", "external_turn_id", "query")
     @classmethod
     def validate_required_text(cls, value: str) -> str:
         value = value.strip()
@@ -119,6 +143,14 @@ class SillyTavernTurnResolveIn(BaseModel):
     def validate_resolve_additional_query(cls, value: str | None) -> str | None:
         normalized = value.strip() if value is not None else None
         return normalized or None
+    @field_validator("conversation_id")
+    @classmethod
+    def validate_conversation_id(cls, value: str | None) -> str | None:
+        normalized = value.strip() if value is not None else None
+        if normalized is not None and not normalized:
+            raise ValueError("conversation_id must not be empty")
+        return normalized
+
 
 
 class SillyTavernTurnCompleteIn(BaseModel):

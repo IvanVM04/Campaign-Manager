@@ -66,7 +66,7 @@ class DurableTurnClarificationSubmissionService:
                 raise self.error_type(
                     "clarification challenge belongs to a different adapter"
                 )
-            if record.conversation_id != conversation_id:
+            if conversation_id is not None and record.conversation_id != conversation_id:
                 raise self.error_type("clarification challenge belongs to a different conversation")
             pending_state = json.loads(record.adjudication_json or "{}")
             if (

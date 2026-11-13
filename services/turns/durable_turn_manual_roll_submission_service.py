@@ -46,7 +46,7 @@ class DurableTurnManualRollSubmissionService:
                 raise self.error_type("manual roll request not found")
             if adapter_namespace is not None and record.adapter_namespace != adapter_namespace:
                 raise self.error_type("manual roll challenge belongs to a different adapter")
-            if record.conversation_id != conversation_id:
+            if conversation_id is not None and record.conversation_id != conversation_id:
                 raise self.error_type("manual roll challenge belongs to a different conversation")
             state = json.loads(record.adjudication_json or "{}")
             pending = state.get("manual_roll")
