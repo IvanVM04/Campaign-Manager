@@ -307,7 +307,7 @@ class TurnResolutionService:
                 intent_analysis = correction_result.analysis
                 decision = correction_result.mechanics_decision
                 intent_corrections = correction_result.corrections
-            except Exception as exc:
+            except (MechanicsAdjudicatorError, TypeError, ValueError) as exc:
                 raise TurnResolutionServiceError(
                     "pending intent correction failed validation"
                 ) from exc
