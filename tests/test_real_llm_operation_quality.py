@@ -208,7 +208,7 @@ def test_real_ollama_operation_quality_and_critical_negative_controls(record_pro
                     f"{scenario['id']}: expected={sorted(expected)!r} "
                     f"observed={sorted(observed)!r}"
                 )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed evaluation cases
             failures.append(
                 f"{scenario['id']}: {type(exc).__name__}: {exc}"
             )
