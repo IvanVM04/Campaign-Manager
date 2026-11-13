@@ -61,7 +61,7 @@ Preserve step dependencies and conditional boundaries. Capture before/after/whil
 4. Complete the SillyTavern multi-chat and recovery smoke test.
 5. Classify failures as intent, relation, object identity, semantic role, attribution, reference, retrieval, mechanics or narration.
 
-### PR #217 — semantic frame v2 and typed arguments
+### PR #218 — semantic frame v2 and typed arguments
 
 - Review the schema against actual `Relation`, `Item`, `ItemInstance`, `Event`, location and operation models before implementation.
 - Add typed action arguments and typed mention hints with literal evidence.
@@ -70,7 +70,7 @@ Preserve step dependencies and conditional boundaries. Capture before/after/whil
 - Preserve v1 decoding, durable recovery and the single shared interpretation; do not add another normal-path call.
 - Add deterministic schema, prompt, codec, repository, migration (only if required), integration and live corpus regressions.
 
-### PR #218 — discourse resolution and correction chains
+### PR #219 — discourse resolution and correction chains
 
 - Replace string-only antecedent heuristics with a typed evidence-producing resolver.
 - Add semantic-type and grammatical constraints where reliable, speaker-aware turn structure and topic continuity.
@@ -78,7 +78,7 @@ Preserve step dependencies and conditional boundaries. Capture before/after/whil
 - Expand Spanish-first and English-control multi-turn cases, with explicit ambiguity/abstention controls.
 - Preserve chat isolation, visibility and durable clarification/manual-roll behavior.
 
-### PR #219 — evaluation corpus and quality gate
+### PR #220 — evaluation corpus and quality gate
 
 - Expand from 34 intent and six resolver cases to at least 100 balanced labelled scenarios.
 - Cover action roles, relation direction/polarity, object identity/transfer/ownership, attribution, corrections, temporal language, compound actions, ambiguity, secrets and negative controls.
@@ -102,4 +102,4 @@ First test whether aliases, relation edges, dependency expansion and context ran
 - Deterministic CI remains model/network independent; Ollama and SillyTavern acceptance is recorded separately.
 - No provider call, vector store or service is added without measured justification.
 
-**Recommendation:** after the baseline, make PR #217 the first implementation step: typed action arguments, object roles and evidence-bound relation assertions. This directly addresses the largest semantic gap found in the current code.
+**Recommendation:** after the baseline, make PR #218 the first implementation step: typed action arguments, object roles and evidence-bound relation assertions. This directly addresses the largest semantic gap found in the current code.
