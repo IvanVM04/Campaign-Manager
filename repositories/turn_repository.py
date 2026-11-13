@@ -193,7 +193,7 @@ class TurnRepository:
         self._validate_offset(offset)
 
         clauses = ["campaign_id=?"]
-        params: list[int] = [scope.campaign_id]
+        params: list[int | str] = [scope.campaign_id]
         if session_id is not None:
             clauses.append("session_id=?")
             params.append(session_id)
@@ -233,7 +233,7 @@ class TurnRepository:
         self._validate_optional_conversation_id(conversation_id)
         self._validate_limit(limit)
         clauses = ["campaign_id=?"]
-        params: list[int] = [scope.campaign_id]
+        params: list[int | str] = [scope.campaign_id]
         if session_id is not None:
             clauses.append("session_id=?")
             params.append(session_id)
@@ -260,7 +260,7 @@ class TurnRepository:
         self._validate_optional_conversation_id(conversation_id)
         self._validate_limit(limit)
         clauses = ["campaign_id=?", "status='active'"]
-        params: list[int] = [scope.campaign_id]
+        params: list[int | str] = [scope.campaign_id]
         if session_id is not None:
             clauses.append("session_id=?")
             params.append(session_id)

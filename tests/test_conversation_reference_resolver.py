@@ -5,7 +5,9 @@ from types import SimpleNamespace
 from models.entity import Entity
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.world_state import WorldState
-from services.context.conversation_reference_resolver import ConversationReferenceResolver
+from services.context.conversation_reference_resolver import (
+    ConversationReferenceResolver,
+)
 
 
 def make_analysis(utterance: str, mention: str) -> PlayerIntentAnalysis:

@@ -99,14 +99,18 @@ class ConversationReferenceResolver:
 
     @staticmethod
     def _visible_entities(world: WorldState):
-        return [
-            entity
-            for entity in world.entities.values()
-            if getattr(entity, "active", False)
-            and isinstance(getattr(entity, "id", None), int)
-            and not isinstance(entity.id, bool)
-            and entity.id > 0
-        ]
+        visible = []
+        for entity in world.entities.values():
+            entity_id = getattr(entity, "id", None)
+            if (
+                not getattr(entity, "active", False)
+                or not isinstance(entity_id, int)
+                or isinstance(entity_id, bool)
+                or entity_id <= 0
+            ):
+                continue
+            visible.append(entity)
+        return visible
 
     def _entities_mentioned_in_turn(self, world: WorldState, turn_text: str) -> tuple[int, ...]:
         normalized = " " + self.entity_resolver.normalize(turn_text) + " "
@@ -121,8 +125,9 @@ class ConversationReferenceResolver:
                 position = normalized.rfind(marker) if normalized_alias else -1
                 if position >= 0:
                     positions.append(position)
-            if positions:
-                found.append((max(positions), entity.id))
+            entity_id = getattr(entity, "id", None)
+            if positions and isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                found.append((max(positions), entity_id))
         found.sort(reverse=True)
         return tuple(entity_id for _position, entity_id in found)
 
