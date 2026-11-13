@@ -272,3 +272,68 @@ def test_relation_claim_cannot_escape_the_evidence_or_reference_missing_step():
     value["relation_claims"][0]["object"]["text"] = "Doran"
     with pytest.raises(ValueError, match="not literal player evidence"):
         PlayerIntentAnalysis.from_payload(value, source_text=source)
+
+
+def test_v2_action_arguments_must_belong_to_their_own_step_excerpt():
+    source = "Abro la puerta. La llave está dentro del cofre."
+    value = payload()
+    value["steps"][0]["source_excerpt"] = "Abro la puerta"
+    value["steps"][0]["action"] = "abrir la puerta"
+    value["steps"][0]["target_mentions"] = ["la puerta"]
+    value["steps"][0]["action_frame"] = {
+        "predicate": "Abro",
+        "family": "interaction",
+        "arguments": [{
+            "role": "theme",
+            "mention": {"text": "el cofre", "kind_hint": "world_entity"},
+        }],
+    }
+    with pytest.raises(ValueError, match="action argument is not grounded in its intent step"):
+        PlayerIntentAnalysis.from_payload(value, source_text=source)
+
+
+def test_v2_relation_claim_must_be_grounded_in_its_referenced_step():
+    source = "Mara habla con Aldric. Bram pertenece a la guardia."
+    value = {
+        "schema_version": 2,
+        "category": "report",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": "Mara habla con Aldric",
+            "actor": "player",
+            "action": "hablar con Aldric",
+            "modality": "attempted",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["Mara", "Aldric"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "habla",
+                "family": "communication",
+                "arguments": [
+                    {"role": "agent", "mention": {"text": "Mara", "kind_hint": "character"}},
+                    {"role": "recipient", "mention": {"text": "Aldric", "kind_hint": "character"}},
+                ],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "Bram", "kind_hint": "character"},
+            "predicate": "pertenece",
+            "object": {"text": "la guardia", "kind_hint": "faction"},
+            "relation_family": "membership",
+            "polarity": "positive",
+            "modality": "observed",
+            "source_excerpt": "Bram pertenece a la guardia",
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    with pytest.raises(
+        ValueError,
+        match="relation claim is not grounded in its referenced intent step",
+    ):
+        PlayerIntentAnalysis.from_payload(value, source_text=source)
