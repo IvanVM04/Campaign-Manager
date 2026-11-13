@@ -7,6 +7,7 @@ from models.character_state import CharacterState
 from models.mechanics import MechanicsDecisionType
 from models.session_state import SessionState
 from models.turn_context import TurnContext
+from models.turn_record import TurnRecord
 from models.world_state import WorldState
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
@@ -199,10 +200,10 @@ def test_adjudicator_returns_one_shared_analysis_and_mechanics_response():
     analysis, decision = MechanicsAdjudicator(provider).understand(
         make_turn_context(),
         player_input,
-        recent_turns=[{
-            "player_input": "He visto a Aldric en la entrada.",
-            "narrative": "Aldric se aparta para dejarte pasar.",
-        }],
+        recent_turns=[TurnRecord(
+            player_input="He visto a Aldric en la entrada.",
+            narrative="Aldric se aparta para dejarte pasar.",
+        )],
     )
 
     assert analysis.steps[0].source_excerpt == "Cruzo la plaza"
