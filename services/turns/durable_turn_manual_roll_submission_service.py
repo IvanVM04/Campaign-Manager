@@ -129,13 +129,17 @@ class DurableTurnManualRollSubmissionService:
             from rules_engine.dnd5e_2014.core.skills import Skill
             d = pending["decision"]
             decision = MechanicsDecision(decision=MechanicsDecisionType(d["decision"]), skill=Skill(d["skill"]) if d["skill"] else None, ability=Ability(d["ability"]) if d["ability"] else None, dc=d["dc"], advantage=d["advantage"], disadvantage=d["disadvantage"], situational_modifier=d["situational_modifier"], reason=d["reason"], question=d["question"])
+            persisted_source_text = TurnResolutionCodec.intent_source_text(
+                record.intent_json,
+                original_input=record.player_input,
+            )
             persisted_intent = TurnResolutionCodec.intent_from_json(
                 record.intent_json,
                 original_input=record.player_input,
             )
             plan = service.resolver.prepare_turn(
                 context,
-                record.player_input,
+                persisted_source_text,
                 manual_mode=True,
                 manual_rolls=rolls,
                 decision_override=decision,
