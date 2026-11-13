@@ -1,12 +1,13 @@
 """Versioned, evidence-bound semantic interpretation of a player utterance."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import json
 import re
-from typing import Any
 import unicodedata
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 
 SCHEMA_VERSION = 1
