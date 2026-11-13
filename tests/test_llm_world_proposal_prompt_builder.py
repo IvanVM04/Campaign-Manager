@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from models.campaign_state import CampaignState
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.llm_world.llm_world_context_renderer import LLMWorldContextRenderer
@@ -162,3 +163,44 @@ def test_ambiguous_entity_reference_is_spelled_out_in_proposal_prompt():
 
     assert "coincide con varios registros" in prompt
     assert "no elijas uno al azar" in prompt.casefold()
+
+
+def test_proposal_prompt_uses_shared_analysis_and_bounded_conversation_history():
+    source = "Abro la misma puerta."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "Abro la misma puerta",
+                "actor": "player",
+                "action": "abrir la misma puerta",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la misma puerta"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        source_text=source,
+    )
+
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        source,
+        make_context(),
+        intent_analysis=analysis,
+        recent_turns=[{
+            "player_input": "Aldric señala una puerta de roble al fondo.",
+            "narrative": "La puerta de roble está junto a una lámpara.",
+        }],
+    )
+
+    assert analysis.to_json() in prompt
+    assert "Aldric señala una puerta de roble" in prompt
+    assert "La puerta de roble está junto a una lámpara" in prompt
+    assert "no vuelvas a inferir por separado" in prompt
+    assert "preguntas, citas, negaciones y condicionales" in prompt
