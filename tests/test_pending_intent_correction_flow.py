@@ -434,10 +434,10 @@ def test_turn_planner_requires_correction_to_match_the_provider_reanalysis():
     service.resolver.context_builder = None
 
     class FakeAdjudicator:
-        def understand_pending(self, *args, **kwargs):
+        def understand_pending(self, *args: object, **kwargs: object) -> IntentUnderstandingResult:
             return IntentUnderstandingResult(
                 analysis=pending,
-                mechanics_decision=MechanicsDecisionType.NONE,
+                mechanics_decision=MechanicsDecision(MechanicsDecisionType.NONE),
                 corrections=(correction,),
             )
 
