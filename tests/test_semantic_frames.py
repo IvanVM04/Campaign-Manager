@@ -87,6 +87,7 @@ def test_relation_claim_preserves_direction_attribution_and_reported_modality():
     claim = PlayerIntentAnalysis.from_payload(value, source_text=source).relation_claims[0]
     assert (claim.subject.text, claim.object.text) == ("Aldric", "Mara")
     assert claim.modality is SemanticModality.REPORTED
+    assert claim.attributed_to is not None
     assert claim.attributed_to.text == "Mara"
 
 
