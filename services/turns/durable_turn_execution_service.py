@@ -515,6 +515,7 @@ class DurableTurnExecutionService:
                 context_error_message=(
                     "campaign context changed while the turn was being prepared; retry"
                 ),
+                conversation_id=conversation_id,
             )
             committed_record = self._require_resolution_record(
                 self.resolution_repository.get(
