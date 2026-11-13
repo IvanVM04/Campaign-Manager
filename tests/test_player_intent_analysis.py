@@ -257,3 +257,33 @@ def test_active_step_cannot_skip_an_earlier_attempt():
             value,
             source_text="Ataco al guardia y cierro la puerta.",
         )
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    ["success", "failure", "partial"],
+)
+def test_reported_action_outcome_is_resolved_and_not_mechanically_actionable(outcome):
+    value = payload(steps=[step(outcome=outcome)])
+
+    with pytest.raises(ValueError, match="resolved reported outcome"):
+        PlayerIntentAnalysis.from_payload(
+            value,
+            source_text="Ataco al guardia.",
+        )
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    ["success", "failure", "partial"],
+)
+def test_legacy_reported_failure_or_success_does_not_remain_actionable(outcome):
+    analysis = PlayerIntentAnalysis.from_payload(
+        payload(
+            steps=[step(outcome=outcome)],
+            active=None,
+        ),
+        source_text="Ataco al guardia.",
+    )
+
+    assert analysis.is_actionable is False
