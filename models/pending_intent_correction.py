@@ -13,8 +13,8 @@ from enum import Enum
 
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.semantic_frames import (
-    SemanticArgument,
     SemanticActionFrame,
+    SemanticArgument,
     SemanticArgumentRole,
     SemanticMention,
     SemanticRelationClaim,
