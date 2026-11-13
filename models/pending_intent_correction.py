@@ -14,6 +14,7 @@ from enum import Enum
 from models.player_intent_analysis import IntentStep, PlayerIntentAnalysis
 from models.semantic_frames import (
     SemanticArgument,
+    SemanticActionFrame,
     SemanticArgumentRole,
     SemanticMention,
     SemanticRelationClaim,
@@ -148,6 +149,12 @@ class PendingIntentCorrection:
             ]
             if len(matches) != 1:
                 raise ValueError("argument correction must identify exactly one role/value slot")
+            if any(
+                _normalize(value) == _normalize(self.replacement.text)
+                for value in step.target_mentions
+                if _normalize(value) != _normalize(self.previous_value)
+            ):
+                raise ValueError("replacement target is already present")
             arguments = list(frame.arguments)
             arguments[matches[0]] = SemanticArgument(
                 role=self.argument_role,
@@ -255,7 +262,11 @@ def _replace_action_reference(action: str, previous: str, replacement: str) -> s
     return updated
 
 
-def _replace_frame_mention(frame, previous: str, replacement: SemanticMention):
+def _replace_frame_mention(
+    frame: SemanticActionFrame | None,
+    previous: str,
+    replacement: SemanticMention,
+) -> SemanticActionFrame | None:
     if frame is None:
         return None
     arguments = tuple(
@@ -275,7 +286,7 @@ def _replace_claim_endpoints(
     replacement: SemanticMention,
     correction_excerpt: str,
 ) -> list[SemanticRelationClaim]:
-    updated = list(claims)
+    updated: list[SemanticRelationClaim] = list(claims)
     for index, claim in enumerate(updated):
         if claim.step_index != step_index:
             continue
