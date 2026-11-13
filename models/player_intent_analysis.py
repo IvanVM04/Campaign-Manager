@@ -109,7 +109,7 @@ class PlayerIntentAnalysis:
     active_step_index: int | None
     requires_clarification: bool = False
     clarification_question: str | None = None
-    schema_version: int = SCHEMA_VERSION
+    schema_version: int = 1
     relation_claims: tuple[SemanticRelationClaim, ...] = ()
 
     def __post_init__(self) -> None:
@@ -142,6 +142,27 @@ class PlayerIntentAnalysis:
             for claim in self.relation_claims
         ):
             raise ValueError("relation_claims must reference an existing intent step")
+        for claim in self.relation_claims:
+            step_evidence = self.steps[claim.step_index].source_excerpt
+            grounded_values = (
+                claim.subject.text,
+                claim.predicate,
+                claim.object.text,
+                claim.source_excerpt,
+                (
+                    claim.attributed_to.text
+                    if claim.attributed_to is not None
+                    else None
+                ),
+                claim.temporal_expression,
+            )
+            if any(
+                value is not None and not _evidence(step_evidence, value)
+                for value in grounded_values
+            ):
+                raise ValueError(
+                    "relation claim is not grounded in its referenced intent step"
+                )
         if tuple(step.index for step in self.steps) != tuple(range(len(self.steps))):
             raise ValueError("step indices must be contiguous and ordered")
         if self.active_step_index is not None and (
@@ -337,12 +358,16 @@ class PlayerIntentAnalysis:
                 value = _text(value, "target mention", 120)
                 if not _evidence(evidence, value):
                     raise ValueError("target mention is not literal utterance evidence")
+                if version >= 2 and not _evidence(excerpt, value):
+                    raise ValueError("target mention is not grounded in its intent step")
                 target_values.append(value)
             attribution = raw["attributed_to"]
             if attribution is not None:
                 attribution = _text(attribution, "attributed_to", 120)
                 if not _evidence(evidence, attribution):
                     raise ValueError("attribution is not grounded in player input")
+                if version >= 2 and not _evidence(excerpt, attribution):
+                    raise ValueError("attribution is not grounded in its intent step")
             action_frame = None
             if version >= 2:
                 raw_frame = raw["action_frame"]
@@ -352,6 +377,15 @@ class PlayerIntentAnalysis:
                     raw_frame,
                     evidence_text=evidence,
                 )
+                if not _evidence(excerpt, action_frame.predicate):
+                    raise ValueError("action predicate is not grounded in its intent step")
+                if any(
+                    not _evidence(excerpt, argument.mention.text)
+                    for argument in action_frame.arguments
+                ):
+                    raise ValueError(
+                        "action argument is not grounded in its intent step"
+                    )
             steps.append(IntentStep(
                 index=index, source_excerpt=excerpt, actor=_enum(IntentActor, raw["actor"]),
                 action=action, modality=_enum(IntentModality, raw["modality"]),
