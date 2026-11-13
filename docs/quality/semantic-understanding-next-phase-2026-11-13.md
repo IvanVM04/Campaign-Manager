@@ -1,9 +1,9 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
-**Status:** PR #218 is integrated on `main` and its required CodeQL and Tests workflow runs completed successfully. Live Ollama and manual SillyTavern acceptance remain unrecorded. PR #219 is being prepared on `feat/219-discourse-resolution-corrections`.  
-**Priority:** P0.2 — discourse resolution and pending corrections.  
-**Baseline:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13).  
-**Implementation branch:** `feat/219-discourse-resolution-corrections`.
+**Status:** PR #219 is merged into `main` at `cd701d11eb36666ab5ad33603095a2d95289882b`. PR #220 is under implementation on `feat/220-semantic-evaluation-corpus`. Live Ollama and manual SillyTavern acceptance remain separate gates and are not implied by deterministic CI.  
+**Priority:** P0.3 — semantic evaluation corpus and quality gate.  
+**Baseline:** `main` at `cd701d11eb36666ab5ad33603095a2d95289882b` (2026-11-13).  
+**Implementation branch:** `feat/220-semantic-evaluation-corpus`.
 
 ## 1. Why this phase exists
 
@@ -60,22 +60,28 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 
 ## 4. Remaining PR roadmap
 
-### PR #219 — evidence-backed discourse and pending corrections (current implementation)
+### PR #219 — evidence-backed discourse and pending corrections (merged in `main`)
 
-- Replace the nearest-string antecedent heuristic with typed candidates, bounded evidence excerpts, explicit player-input versus narrator source, recency, repeat/topic continuity and semantic-kind compatibility.
-- Preserve visible-world and same-chat scoping; return ranked candidate evidence and an explicit abstention reason when the score or candidate margin is insufficient.
-- Add a guarded, immutable correction primitive for target mentions, action-frame argument roles and directed relation endpoints. It requires literal player-authored correction evidence and refuses non-pending or committed resolutions.
-- Do not infer grammatical gender/number: the current canonical entity model has no reliable fields for these attributes. Do not label narration as NPC speech without explicit speaker metadata.
-- The correction primitive is not yet emitted by the provider schema or wired as an automatic model-driven correction chain. That integration remains a separately evaluated follow-up rather than being claimed complete here.
-- Add deterministic regressions for ambiguity, speaker/source preference, kind filtering, evidence provenance, six-turn limits and correction immutability.
+- Replaced nearest-string antecedent selection with typed candidates, bounded evidence excerpts, player-input versus narrator source, recency, topic continuity and semantic-kind compatibility.
+- Preserved visible-world and same-chat scoping; uncertain scores and narrow margins abstain with explicit reasons.
+- Added an immutable, evidence-backed correction primitive for target mentions, action arguments and directed relation endpoints; it rejects stale, ambiguous, ungrounded and committed corrections.
+- Kept grammar inference conservative because the canonical entity model has no reliable gender/number fields; narration is not relabelled as NPC speech without speaker metadata.
+- **Remaining boundary:** the correction primitive is not emitted by the provider schema or connected to an automatic correction loop. Do not describe autonomous model-driven correction as implemented.
+- Added deterministic regressions for ambiguity, source preference, kind filtering, evidence provenance, six-turn limits and correction immutability.
 
-### PR #220 — evaluation corpus and quality gate
+### PR #220 — evaluation corpus and quality gate (current implementation)
 
-- Expand from 34 utterance cases and six deterministic resolver cases to at least 100 labelled scenarios.
-- Include action roles, item definitions versus instances, inventory transfer, directed relation types, polarity/modality, attribution, correction, temporal language, compound actions, ambiguity, secrets and negative controls.
-- Keep a held-out tranche separate from prompt/schema tuning examples.
-- Report per-family frame/slot accuracy, relation direction/polarity accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, false persistent changes, secret leakage and latency.
-- Require zero critical false persistent changes and zero secret leakage. Set per-family accuracy targets after the baseline is measured; avoid a misleading single aggregate score.
+- Adds 60 held-out scenarios to the 50 existing development cases: 26 utterance/intent, 20 semantic-frame/relation and 14 conversation-reference cases (110 distinct cases total).
+- Covers action roles, item definition versus physical instance, transfer, directed relations, polarity/modality, attribution, correction, temporal expressions, compound actions, ambiguity, visibility, narrator/player evidence and negative controls.
+- Keeps all hold-out examples in distinct fixture files marked `held_out`; they are not copied into prompts or schema examples.
+- Adds a provider-agnostic metrics ledger for per-family case accuracy/slot recall/latency, entity-link precision/recall/abstention, context recall, operation precision/recall, false persistent changes and secret leaks.
+- Adds deterministic corpus-integrity and discourse tests, live opt-in Ollama tests for the held-out language/frame cases, and positive/negative operation-quality controls.
+- Requires zero critical false persistent changes and zero secret leaks. Per-family quality targets for non-critical cases are set only after the first reproducible baseline; never collapse results into a misleading aggregate score.
+- Detailed protocol: [semantic evaluation corpus](semantic-understanding-evaluation-corpus-2026-11-13.md).
+
+### Next after PR #220 — close the correction loop with evidence
+
+Once the held-out baseline is recorded, design the provider/lifecycle integration for player-issued corrections. The follow-up must represent correction intent explicitly, bind it only to an uncommitted pending resolution, preserve the original request and appended player evidence, revalidate canonical references/visibility and avoid a normal-path extra provider call unless measurements justify one. It must test correction target/role/relation endpoint, explicit rejection of already-committed correction, multi-round clarification and SillyTavern restart/replay.
 
 ### Later — retrieval/model selection only when measured
 

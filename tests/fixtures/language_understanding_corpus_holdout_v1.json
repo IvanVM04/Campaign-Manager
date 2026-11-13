@@ -1,0 +1,414 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "description": "Held-out Spanish-first utterance cases. These examples are reserved for measurement and must not be copied into prompt instructions or few-shot examples.",
+  "scenarios": [
+    {
+      "id": "holdout-attempt-lever",
+      "family": "action_attempt",
+      "input": "Intento accionar la palanca de bronce junto a la puerta.",
+      "critical": false,
+      "expected": {
+        "category": "action",
+        "active_step_index": 0,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive",
+          "reported_outcome": "not_claimed"
+        }
+      }
+    },
+    {
+      "id": "holdout-attempt-climb",
+      "family": "action_attempt",
+      "input": "Trepo por la escalera de cuerda hasta el balcón.",
+      "critical": false,
+      "expected": {
+        "category": "action",
+        "active_step_index": 0,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive",
+          "reported_outcome": "not_claimed"
+        }
+      }
+    },
+    {
+      "id": "holdout-attempt-pickpocket",
+      "family": "action_attempt",
+      "input": "Intento sustraer discretamente la bolsa del mercader.",
+      "critical": true,
+      "expected": {
+        "category": "action",
+        "active_step_index": 0,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive",
+          "reported_outcome": "not_claimed"
+        }
+      }
+    },
+    {
+      "id": "holdout-attempt-light",
+      "family": "action_attempt",
+      "input": "Enciendo la antorcha con el pedernal que llevo.",
+      "critical": false,
+      "expected": {
+        "category": "action",
+        "active_step_index": 0,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive",
+          "reported_outcome": "not_claimed"
+        }
+      }
+    },
+    {
+      "id": "holdout-question-door",
+      "family": "question",
+      "input": "¿La puerta norte está vigilada ahora mismo?",
+      "critical": false,
+      "expected": {
+        "category": "question",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "question"
+        }
+      }
+    },
+    {
+      "id": "holdout-question-map",
+      "family": "question",
+      "input": "¿Qué camino conduce desde el molino hasta la torre?",
+      "critical": false,
+      "expected": {
+        "category": "question",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "question"
+        }
+      }
+    },
+    {
+      "id": "holdout-question-owner",
+      "family": "question",
+      "input": "¿De quién es el anillo que hay sobre la mesa?",
+      "critical": false,
+      "expected": {
+        "category": "question",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "question"
+        }
+      }
+    },
+    {
+      "id": "holdout-plan-dawn",
+      "family": "plan_conditional",
+      "input": "Al amanecer viajaré desde el puerto hasta la fortaleza.",
+      "critical": false,
+      "expected": {
+        "category": "plan",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "planned",
+          "polarity": "positive"
+        }
+      }
+    },
+    {
+      "id": "holdout-plan-if",
+      "family": "plan_conditional",
+      "input": "Si Mara acepta acompañarme, entraré en la cripta.",
+      "critical": true,
+      "expected": {
+        "category": "plan",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "conditional",
+          "polarity": "positive"
+        }
+      }
+    },
+    {
+      "id": "holdout-plan-after",
+      "family": "plan_conditional",
+      "input": "Cuando termine la patrulla, hablaré con el capitán.",
+      "critical": false,
+      "expected": {
+        "category": "plan",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "planned"
+        }
+      }
+    },
+    {
+      "id": "holdout-observation-tracks",
+      "family": "observation_report",
+      "input": "Observo tres huellas recientes bajo la ventana.",
+      "critical": false,
+      "expected": {
+        "category": "report",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "observed"
+        }
+      }
+    },
+    {
+      "id": "holdout-observation-lantern",
+      "family": "observation_report",
+      "input": "Veo una luz azul al otro lado del río.",
+      "critical": false,
+      "expected": {
+        "category": "report",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "observed"
+        }
+      }
+    },
+    {
+      "id": "holdout-npc-report",
+      "family": "observation_report",
+      "input": "Mara me cuenta que el puente fue reparado ayer.",
+      "critical": true,
+      "expected": {
+        "category": "report",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "npc",
+          "modality": "reported",
+          "attributed_to": "Mara"
+        }
+      }
+    },
+    {
+      "id": "holdout-negated-pickup",
+      "family": "negation_failure",
+      "input": "No recojo la moneda que está junto al pozo.",
+      "critical": true,
+      "expected": {
+        "category": "action",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "negated",
+          "polarity": "negative"
+        }
+      }
+    },
+    {
+      "id": "holdout-negated-entry",
+      "family": "negation_failure",
+      "input": "Decido no entrar en la torre y permanezco fuera.",
+      "critical": false,
+      "expected": {
+        "category": "action",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "negated",
+          "polarity": "negative"
+        }
+      }
+    },
+    {
+      "id": "holdout-failed-climb",
+      "family": "negation_failure",
+      "input": "Intento subir al muro, pero resbalo y no alcanzo la parte superior.",
+      "critical": true,
+      "expected": {
+        "category": "action",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "reported_outcome": "failure"
+        }
+      }
+    },
+    {
+      "id": "holdout-failed-lock",
+      "family": "negation_failure",
+      "input": "Pruebo la llave en la cerradura, pero no gira y el cofre sigue cerrado.",
+      "critical": true,
+      "expected": {
+        "category": "action",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "reported_outcome": "failure"
+        }
+      }
+    },
+    {
+      "id": "holdout-correction-location",
+      "family": "correction",
+      "input": "Rectifico: no voy al puente, voy a la torre.",
+      "critical": false,
+      "expected": {
+        "category": "correction",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "correction"
+        }
+      }
+    },
+    {
+      "id": "holdout-correction-person",
+      "family": "correction",
+      "input": "Me he equivocado de nombre: quería decir Aldric, no Bram.",
+      "critical": false,
+      "expected": {
+        "category": "correction",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "correction"
+        }
+      }
+    },
+    {
+      "id": "holdout-correction-object",
+      "family": "correction",
+      "input": "No era la llave de hierro, sino la llave de cobre.",
+      "critical": true,
+      "expected": {
+        "category": "correction",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "modality": "correction"
+        }
+      }
+    },
+    {
+      "id": "holdout-compound-observe-act",
+      "family": "compound_action",
+      "input": "Examino el sello de la carta y después intento abrir el cofre.",
+      "critical": true,
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "requires_clarification": false,
+        "first_step": {
+          "modality": "observed",
+          "polarity": "positive"
+        },
+        "step": {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      }
+    },
+    {
+      "id": "holdout-compound-success-act",
+      "family": "compound_action",
+      "input": "Abro la ventana y luego intento salir al tejado.",
+      "critical": false,
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "requires_clarification": false,
+        "first_step": {
+          "modality": "completed",
+          "reported_outcome": "success"
+        },
+        "step": {
+          "actor": "player",
+          "modality": "attempted"
+        }
+      }
+    },
+    {
+      "id": "holdout-compound-two-actions",
+      "family": "compound_action",
+      "input": "Recojo la cuerda y después intento alcanzar el balcón.",
+      "critical": false,
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "requires_clarification": false,
+        "first_step": {
+          "modality": "completed"
+        },
+        "step": {
+          "actor": "player",
+          "modality": "attempted"
+        }
+      }
+    },
+    {
+      "id": "holdout-uncertain-suspicion",
+      "family": "epistemic_uncertainty",
+      "input": "Sospecho que el capitán oculta información, pero no tengo pruebas.",
+      "critical": true,
+      "expected": {
+        "category": "report",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "polarity": "uncertain"
+        }
+      }
+    },
+    {
+      "id": "holdout-uncertain-rumour",
+      "family": "epistemic_uncertainty",
+      "input": "Un viajero asegura que vio un wyvern al este, aunque no sabe si era real.",
+      "critical": true,
+      "expected": {
+        "category": "report",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "other",
+          "modality": "reported",
+          "polarity": "uncertain",
+          "attributed_to": "Un viajero"
+        }
+      }
+    },
+    {
+      "id": "holdout-player-dialogue",
+      "family": "quoted_speech",
+      "input": "Le digo a Mara: «No entres en la cripta sin una antorcha».",
+      "critical": false,
+      "expected": {
+        "category": "dialogue",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "dialogue"
+        }
+      }
+    }
+  ]
+}
