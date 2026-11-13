@@ -6,6 +6,8 @@ correction can only be applied while its durable resolution is still pending.
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass, replace
 from enum import Enum
 
@@ -194,4 +196,16 @@ def _validate_text(value: str, field_name: str, maximum: int) -> None:
 
 
 def _contains_literal(source: str, fragment: str) -> bool:
-    return fragment.casefold() in source.casefold()
+    def normalize(value: str) -> str:
+        decomposed = unicodedata.normalize("NFKD", value.casefold())
+        plain = "".join(
+            character
+            for character in decomposed
+            if not unicodedata.combining(character)
+        )
+        return " ".join(re.findall(r"[a-z0-9]+", plain))
+
+    normalized_fragment = normalize(fragment)
+    return bool(normalized_fragment) and (
+        f" {normalized_fragment} " in f" {normalize(source)} "
+    )
