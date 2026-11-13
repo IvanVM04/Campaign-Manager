@@ -425,6 +425,26 @@ class TurnResolutionService:
                                 for step in intent_analysis.steps
                                 for mention in step.target_mentions
                             ),
+                            *(
+                                argument.mention.text
+                                for step in intent_analysis.steps
+                                if step.action_frame is not None
+                                for argument in step.action_frame.arguments
+                            ),
+                            *(
+                                mention
+                                for claim in intent_analysis.relation_claims
+                                for mention in (
+                                    claim.subject.text,
+                                    claim.object.text,
+                                    (
+                                        claim.attributed_to.text
+                                        if claim.attributed_to is not None
+                                        else None
+                                    ),
+                                )
+                                if mention is not None
+                            ),
                             *self._recent_context_queries(recent_turns),
                         ]
                     )
