@@ -508,6 +508,9 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     # context from persisted campaign state, not an in-memory world snapshot.
     factory.invalidate(1)
     reloaded_service = factory.get_runtime(1).durable_native_turn_service
+    reloaded_service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
+        response='{"decision":"none"}'
+    )
     reloaded_world = reloaded_service.world_service.repository.load_world(campaign_id=1)
     assert event_id in reloaded_world.events
 
