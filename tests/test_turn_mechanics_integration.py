@@ -32,6 +32,7 @@ class EmptyExtractor(LLMWorldExtractor):
     def propose(
         self, player_intent, context, *, mechanics_result=None,
         intent_analysis=None, recent_turns=None, context_projection=None,
+        resolved_references=(),
     ):
         self.received.append(player_intent)
         self.mechanics_results.append(mechanics_result)
