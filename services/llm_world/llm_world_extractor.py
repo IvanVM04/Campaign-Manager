@@ -244,7 +244,9 @@ class LLMWorldExtractor:
                 "operation_count": len(operations),
                 "operation_types": sorted({type(item).__name__ for item in operations}),
                 "mechanics_outcome": (
-                    mechanics_result.outcome if mechanics_result is not None else None
+                    getattr(mechanics_result, "outcome", None)
+                    if mechanics_result is not None
+                    else None
                 ),
             },
         )
