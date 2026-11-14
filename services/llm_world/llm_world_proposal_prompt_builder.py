@@ -382,12 +382,14 @@ class LLMWorldProposalPromptBuilder:
         if estimated > max_prompt_tokens:
             # First remove optional transcript context, then trim the tail of
             # ranked records using UTF-8 byte accounting (the estimator's unit).
-            prompt = prompt.replace(
-                history_block,
-                "(sin historial reciente)",
-                1,
-            )
-            estimated = estimate_tokens(prompt)
+            if history_prompt_section:
+                prompt = prompt.replace(
+                    history_prompt_section,
+                    "\n\nHISTORIAL RECIENTE VISIBLE (OMITIDO POR LÍMITE DE CONTEXTO):\n"
+                    "(sin historial reciente)",
+                    1,
+                )
+                estimated = estimate_tokens(prompt)
 
             if estimated > max_prompt_tokens and discourse_prompt_section:
                 prompt = prompt.replace(discourse_prompt_section, "", 1)
