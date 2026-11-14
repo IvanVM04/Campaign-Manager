@@ -17,7 +17,7 @@ from models.semantic_frames import SemanticArgumentRole, SemanticObjectKind
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import OllamaProvider
-from services.turns.mechanics_adjudicator import MechanicsAdjudicator
+from services.turns.intent_interpreter import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
@@ -25,7 +25,7 @@ pytestmark = pytest.mark.real_llm
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def _make_adjudicator() -> MechanicsAdjudicator:
+def _make_interpreter() -> IntentInterpreter:
     provider = OllamaProvider(
         model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
         base_url=os.getenv(
@@ -34,7 +34,7 @@ def _make_adjudicator() -> MechanicsAdjudicator:
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
     )
-    return MechanicsAdjudicator(provider=provider)
+    return IntentInterpreter(provider=provider)
 
 
 def _make_context() -> TurnContext:
@@ -204,7 +204,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 24
 
-    adjudicator = _make_adjudicator()
+    interpreter = _make_interpreter()
     context = _make_context()
     ledger = SemanticEvaluationLedger()
     critical_failures: list[str] = []
@@ -217,7 +217,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
         for repetition in range(repetitions):
             case_started = perf_counter()
             try:
-                analysis, _decision = adjudicator.understand(
+                analysis = interpreter.interpret(
                     context,
                     scenario["input"],
                 )
