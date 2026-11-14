@@ -18,6 +18,7 @@ class DiscourseSource(str, enum.Enum):
 class DiscourseSpeaker(str, enum.Enum):
     PLAYER = "player"
     NARRATOR = "narrator"
+    NPC = "npc"
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class DiscourseEvidence:
     mention: str
     excerpt: str
     recency_rank: int
+    speaker_entity_id: int | None = None
 
     def __post_init__(self) -> None:
         if self.turn_id is not None and (
@@ -47,9 +49,19 @@ class DiscourseEvidence:
         if (
             isinstance(self.recency_rank, bool)
             or not isinstance(self.recency_rank, int)
-            or not 1 <= self.recency_rank <= 6
+            or not 1 <= self.recency_rank <= 12
         ):
-            raise ValueError("recency_rank must be between 1 and 6")
+            raise ValueError("recency_rank must be between 1 and 12")
+        if self.speaker_entity_id is not None and (
+            isinstance(self.speaker_entity_id, bool)
+            or not isinstance(self.speaker_entity_id, int)
+            or self.speaker_entity_id < 1
+        ):
+            raise ValueError("speaker_entity_id must be a positive integer or None")
+        if self.speaker is DiscourseSpeaker.NPC and self.speaker_entity_id is None:
+            raise ValueError("NPC discourse evidence requires an explicit speaker entity id")
+        if self.speaker is not DiscourseSpeaker.NPC and self.speaker_entity_id is not None:
+            raise ValueError("speaker_entity_id is only valid for NPC discourse evidence")
         if not _contains_literal(self.excerpt, self.mention):
             raise ValueError("mention must occur in its evidence excerpt")
 

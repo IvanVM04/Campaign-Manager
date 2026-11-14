@@ -4,6 +4,7 @@ from .context_builder import ContextBuilder
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
 from .context_renderer import ContextRenderer
+from .discourse_context_builder import DiscourseContextBuilder
 from .conversation_reference_resolver import (
     ConversationReferenceResolution,
     ConversationReferenceResolver,
@@ -28,6 +29,7 @@ __all__ = [
     "ContextExpander",
     "ContextRanker",
     "ContextRenderer",
+    "DiscourseContextBuilder",
     "ConversationReferenceResolution",
     "ConversationReferenceResolver",
     "EntityReferenceCandidate",

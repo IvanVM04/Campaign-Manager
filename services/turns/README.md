@@ -44,12 +44,18 @@ unsupported checks. Compound actions may not skip an earlier unresolved step.
 Relation claims preserve reported/question/negative/conditional status and do
 not themselves authorize relation writes.
 
-The last six visible turns are bounded and scoped to the current
-`conversation_id`. PR #219 enriches `ConversationReferenceResolver` with typed
+The last twelve visible turns are bounded and scoped to the current
+`conversation_id`. PR #223 adds deterministic discourse hints for explicit topic
+changes/callbacks, ellipsis, explicit NPC quote labels and local grammatical
+agreement. Entity and typed-world reference resolvers share the same topic-scoped
+history. Explicit callbacks may inspect the bounded older window but still
+require a unique candidate. PR #219 enriches `ConversationReferenceResolver` with typed
 candidate evidence, a distinction between player-authored input and narrator
-prose, semantic-kind compatibility and explicit ambiguity margins. It does not
-infer grammatical gender/number or identify an NPC speaker when the transcript
-does not label one.
+prose, semantic-kind compatibility and explicit ambiguity margins. It does not infer gender/number from proper names and does not identify an NPC
+speaker when the transcript does not label one. PR #223 uses only explicit
+local article/apposition as agreement evidence (for example, `la guardia Mara`)
+and only attributes quoted dialogue to a uniquely labelled visible active NPC.
+The quote remains untrusted narrative evidence, never a player instruction.
 
 PR #221 connects the guarded `PendingIntentCorrection` primitive to clarification
 resumption. Only a still-pending durable resolution with a validated stored

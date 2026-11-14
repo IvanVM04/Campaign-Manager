@@ -388,3 +388,71 @@ def test_conflicting_world_reference_kinds_require_clarification():
     assert result.references == ()
     assert result.clarification_question is not None
     assert result.abstention_reason == "semantic_kind_conflict"
+
+
+
+def test_typed_reference_uses_explicit_local_grammatical_agreement():
+    world = WorldState(
+        items={
+            1: Item(id=1, name="Amuleto"),
+            2: Item(id=2, name="Llave"),
+        },
+        item_instances={
+            901: ItemInstance(id=901, item_id=1, instance_number=1, condition="intacto"),
+            902: ItemInstance(id=902, item_id=2, instance_number=1, condition="intacta"),
+        },
+    )
+    result = WorldReferenceResolver().resolve(
+        world,
+        analysis("La guardo en la mochila.", "La", SemanticObjectKind.ITEM_INSTANCE),
+        recent_turns=[
+            turn(19, "Encuentro el amuleto y la llave junto a la puerta.")
+        ],
+    )
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].referent_id == 902
+
+
+def test_typed_plural_pronoun_does_not_resolve_to_one_item_instance():
+    world = sword_world()
+    result = WorldReferenceResolver().resolve(
+        world,
+        analysis("Las guardo.", "Las", SemanticObjectKind.ITEM_INSTANCE),
+        recent_turns=[turn(20, "Encuentro la Espada de plata.")],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+
+
+
+def test_typed_reference_explicit_callback_reopens_prior_topic():
+    world = sword_world()
+    history = [
+        turn(21, "Encuentro la Espada de plata junto al pozo."),
+        turn(22, "Cambiando de tema, busco una salida."),
+    ]
+    result = WorldReferenceResolver().resolve(
+        world,
+        analysis("La guardo.", "La", SemanticObjectKind.ITEM_INSTANCE),
+        recent_turns=history,
+        current_input="Volviendo a la espada, la guardo.",
+    )
+    assert result.clarification_question is None
+    assert result.references[0].referent_id == 901
+
+
+def test_typed_reference_does_not_reuse_antecedent_after_topic_shift():
+    world = sword_world()
+    history = [
+        turn(23, "Encuentro la Espada de plata junto al pozo."),
+        turn(24, "Cambiando de tema, busco una salida."),
+    ]
+    result = WorldReferenceResolver().resolve(
+        world,
+        analysis("La guardo.", "La", SemanticObjectKind.ITEM_INSTANCE),
+        recent_turns=history,
+        current_input="Cambiando de tema, la guardo.",
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None

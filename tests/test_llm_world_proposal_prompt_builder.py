@@ -276,3 +276,28 @@ def test_proposal_prompt_includes_typed_world_references_without_merging_id_spac
     assert "'la llave' -> item_instance#901" in prompt
     assert "Llave de hierro (instancia #1)" in prompt
     assert "nunca intercambies un ID entre espacios de nombres" in prompt
+
+
+
+def test_proposal_prompt_includes_advanced_discourse_context():
+    history = [
+        SimpleNamespace(
+            id=1,
+            player_input="Hablo con Mara sobre la llave.",
+            narrative="",
+        ),
+        SimpleNamespace(
+            id=2,
+            player_input="Cambiando de tema, inspecciono la torre.",
+            narrative="",
+        ),
+    ]
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Volviendo a Mara, hazlo otra vez.",
+        make_context(),
+        recent_turns=history,
+    )
+    assert "ÍNDICE DISCURSIVO DETERMINISTA" in prompt
+    assert "reabre explícitamente un tema anterior" in prompt
+    assert "Posible elipsis" in prompt
+    assert "Cambios de tema explícitos" in prompt

@@ -267,10 +267,10 @@ def test_unresolved_proper_name_is_left_available_for_new_entity_creation():
     assert result.clarification_question is None
 
 
-def test_antecedents_older_than_six_turns_are_not_considered():
+def test_antecedents_older_than_twelve_turns_are_not_considered():
     world = WorldState(entities={1: Entity(id=1, name="Mara", entity_type="npc")})
     history = [turn(100, "Hablo con Mara.")]
-    history.extend(turn(index, "No menciono a nadie.") for index in range(101, 107))
+    history.extend(turn(index, "No menciono a nadie.") for index in range(101, 114))
     result = ConversationReferenceResolver().resolve(
         world,
         make_analysis("Le pregunto por la carta.", "Le"),
@@ -353,3 +353,132 @@ def test_entity_and_world_kinds_for_same_mention_abstain_instead_of_double_resol
     assert result.references == ()
     assert result.clarification_question is not None
     assert result.abstention_reason == "semantic_kind_conflict"
+
+    
+def test_antecedents_between_turns_seven_and_twelve_remain_available():
+    world = WorldState(entities={1: Entity(id=1, name="Mara", entity_type="npc")})
+    history = [turn(100, "Hablo con Mara.")]
+    history.extend(turn(index, "No menciono a nadie.") for index in range(101, 108))
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Le pregunto por la carta.", "Le"),
+        recent_turns=history,
+    )
+    assert result.clarification_question is None
+    assert result.references[0].entity_id == 1
+    assert result.references[0].antecedent_turn_id == 100
+
+
+def test_explicit_topic_shift_prevents_old_topic_antecedent_leakage():
+    world = WorldState(entities={1: Entity(id=1, name="Mara", entity_type="npc")})
+    history = [
+        turn(110, "Hablo con Mara."),
+        turn(111, "Cambiando de tema, inspecciono la torre."),
+    ]
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Ella me responde.", "Ella"),
+        recent_turns=history,
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+
+
+def test_explicit_callback_can_reopen_prior_topic_with_same_ambiguity_checks():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    history = [
+        turn(112, "Hablo con Mara sobre la llave."),
+        turn(113, "Cambiando de tema, busco una salida."),
+    ]
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Volviendo a Mara, ella me responde.", "ella"),
+        recent_turns=history,
+    )
+    assert result.references
+    assert result.references[0].entity_id == 1
+
+
+def test_explicit_local_grammatical_agreement_filters_incompatible_candidate():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Ella me responde.", "Ella", kind_hint=SemanticObjectKind.CHARACTER),
+        recent_turns=[
+            turn(114, "La guardia Mara espera. El capitán Aldric observa.")
+        ],
+    )
+    assert result.clarification_question is None
+    assert result.references[0].entity_id == 1
+
+
+def test_unknown_name_gender_is_not_used_as_grammatical_evidence():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Ella me responde.", "Ella", kind_hint=SemanticObjectKind.CHARACTER),
+        recent_turns=[turn(115, "Mara y Aldric esperan junto a la puerta.")],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+
+
+def test_plural_pronoun_does_not_collapse_to_one_individual():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Ellos se acercan.", "Ellos", kind_hint=SemanticObjectKind.CHARACTER),
+        recent_turns=[turn(116, "Mara y Aldric esperan junto a la puerta.")],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+
+
+def test_explicit_npc_quote_is_attributed_only_to_its_visible_speaker():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Le pregunto qué ocurrió.", "Le"),
+        recent_turns=[
+            turn(117, "No hago referencia al nombre en mi entrada.",
+                 "Mara dice: «Aldric está en la torre».")
+        ],
+    )
+    assert result.clarification_question is None
+    assert result.references[0].entity_id == 1
+    assert any(
+        evidence.speaker.value == "npc" and evidence.speaker_entity_id == 1
+        for evidence in result.references[0].evidence
+    )
+
+
+def test_ambiguous_npc_alias_does_not_create_speaker_identity():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Mara", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Le pregunto qué ocurrió.", "Le"),
+        recent_turns=[
+            turn(118, "¿Qué opinas?",
+                 "Mara dice: «No lo sé».")
+        ],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None

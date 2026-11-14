@@ -25,6 +25,7 @@ from models.semantic_frames import (
 )
 from models.world_state import WorldState
 
+from .discourse_context_builder import DiscourseContextBuilder
 from .entity_reference_resolver import EntityReferenceResolver
 
 
@@ -78,6 +79,7 @@ class ConversationReferenceResolver:
 
     MIN_RESOLUTION_SCORE = 35
     MIN_RESOLUTION_MARGIN = 12
+    MAX_HISTORY_TURNS = DiscourseContextBuilder.MAX_HISTORY_TURNS
 
     def __init__(self, entity_resolver: EntityReferenceResolver | None = None) -> None:
         if entity_resolver is not None and not isinstance(entity_resolver, EntityReferenceResolver):
@@ -101,7 +103,7 @@ class ConversationReferenceResolver:
         )
 
     @staticmethod
-    def _turn_parts(turn):
+    def _turn_parts(turn, world: WorldState | None = None):
         if isinstance(turn, dict):
             player_input = turn.get("player_input", "")
             narrative = turn.get("narrative", "")
@@ -117,9 +119,31 @@ class ConversationReferenceResolver:
         )
         parts = []
         if isinstance(player_input, str) and player_input.strip():
-            parts.append((player_input[:1200], DiscourseSource.PLAYER_INPUT, DiscourseSpeaker.PLAYER))
+            parts.append((
+                player_input[:1200],
+                DiscourseSource.PLAYER_INPUT,
+                DiscourseSpeaker.PLAYER,
+                None,
+            ))
         if isinstance(narrative, str) and narrative.strip():
-            parts.append((narrative[:1200], DiscourseSource.NARRATIVE, DiscourseSpeaker.NARRATOR))
+            parts.append((
+                narrative[:1200],
+                DiscourseSource.NARRATIVE,
+                DiscourseSpeaker.NARRATOR,
+                None,
+            ))
+            if world is not None:
+                for attributed in DiscourseContextBuilder.extract_npc_utterances(
+                    narrative,
+                    valid_id,
+                    ConversationReferenceResolver._visible_entities(world),
+                ):
+                    parts.append((
+                        attributed.excerpt,
+                        DiscourseSource.NARRATIVE,
+                        DiscourseSpeaker.NPC,
+                        attributed.speaker_entity_id,
+                    ))
         return tuple(parts), valid_id
 
     @staticmethod
@@ -161,6 +185,7 @@ class ConversationReferenceResolver:
         source: DiscourseSource,
         speaker: DiscourseSpeaker,
         recency_rank: int,
+        speaker_entity_id: int | None = None,
     ) -> tuple[DiscourseEvidence, ...]:
         normalized = " " + self.entity_resolver.normalize(text) + " "
         mentions = []
@@ -185,17 +210,31 @@ class ConversationReferenceResolver:
                     mention=alias[:120],
                     excerpt=text,
                     recency_rank=recency_rank,
+                    speaker_entity_id=speaker_entity_id,
                 )
             )
         return tuple(mentions)
 
-    def _history_evidence(self, world: WorldState, recent_turns) -> dict[int, tuple[DiscourseEvidence, ...]]:
+    def _history_evidence(
+        self,
+        world: WorldState,
+        recent_turns,
+        *,
+        current_input: str,
+    ) -> dict[int, tuple[DiscourseEvidence, ...]]:
         evidence: dict[int, list[DiscourseEvidence]] = {}
-        turns = recent_turns[-6:]
+        turns = DiscourseContextBuilder.scope_history(
+            recent_turns,
+            current_input,
+        )[-self.MAX_HISTORY_TURNS :]
+        visible_entities = self._visible_entities(world)
         for recency_rank, turn in enumerate(reversed(turns), start=1):
-            parts, turn_id = self._turn_parts(turn)
-            for text, source, speaker in parts:
-                for entity in self._visible_entities(world):
+            parts, turn_id = self._turn_parts(turn, world)
+            for text, source, speaker, speaker_entity_id in parts:
+                for entity in visible_entities:
+                    entity_id = entity.id
+                    if speaker is DiscourseSpeaker.NPC and entity_id != speaker_entity_id:
+                        continue
                     mentions = self._mentions_in_part(
                         entity,
                         text,
@@ -203,8 +242,8 @@ class ConversationReferenceResolver:
                         source=source,
                         speaker=speaker,
                         recency_rank=recency_rank,
+                        speaker_entity_id=speaker_entity_id,
                     )
-                    entity_id = entity.id
                     if mentions and isinstance(entity_id, int) and not isinstance(entity_id, bool):
                         evidence.setdefault(entity_id, []).extend(mentions)
         return {entity_id: tuple(items) for entity_id, items in evidence.items()}
@@ -224,6 +263,9 @@ class ConversationReferenceResolver:
         if any(item.source is DiscourseSource.PLAYER_INPUT for item in evidence):
             score += 22
             signals.append("player_authored_focus")
+        elif any(item.speaker is DiscourseSpeaker.NPC for item in evidence):
+            score += 24
+            signals.append("explicit_npc_speaker")
         else:
             score += 8
             signals.append("narrator_context")
@@ -246,8 +288,15 @@ class ConversationReferenceResolver:
         recent_turns,
         *,
         kind_hint: SemanticObjectKind,
+        mention: str,
+        current_input: str,
     ) -> tuple[DiscourseCandidate, ...]:
-        history = self._history_evidence(world, recent_turns)
+        history = self._history_evidence(
+            world,
+            recent_turns,
+            current_input=current_input,
+        )
+        pronoun_features = DiscourseContextBuilder.pronoun_agreement(mention)
         candidates = []
         for entity in self._visible_entities(world):
             entity_id = entity.id
@@ -258,6 +307,22 @@ class ConversationReferenceResolver:
                 continue
             if self._kind_compatible(entity, kind_hint) is False:
                 continue
+            if pronoun_features is not None:
+                gender, number = pronoun_features
+                if number == "plural":
+                    continue
+                observed_features = {
+                    DiscourseContextBuilder.grammatical_features(item.excerpt, alias)
+                    for item in evidence
+                    for alias in (
+                        getattr(entity, "name", ""),
+                        *(getattr(entity, "aliases", []) or []),
+                    )
+                    if isinstance(alias, str) and alias.strip()
+                }
+                observed_features.discard((None, None))
+                if observed_features and (gender, number) not in observed_features:
+                    continue
             score, signals = self._candidate_score(
                 evidence,
                 kind_hint=kind_hint,
@@ -333,6 +398,7 @@ class ConversationReferenceResolver:
         analysis: PlayerIntentAnalysis,
         *,
         recent_turns=(),
+        current_input: str | None = None,
     ) -> ConversationReferenceResolution:
         if not isinstance(visible_world, WorldState):
             raise TypeError("visible_world must be a WorldState")
@@ -340,6 +406,10 @@ class ConversationReferenceResolver:
             raise TypeError("analysis must be a PlayerIntentAnalysis")
         if not isinstance(recent_turns, (list, tuple)):
             raise TypeError("recent_turns must be a list or tuple")
+        if current_input is not None and (
+            not isinstance(current_input, str) or not current_input.strip()
+        ):
+            raise ValueError("current_input must be non-empty text or None")
         if not analysis.allows_world_proposal:
             return ConversationReferenceResolution()
 
@@ -485,6 +555,8 @@ class ConversationReferenceResolver:
                         visible_world,
                         recent_turns,
                         kind_hint=kind_hint,
+                        mention=mention,
+                        current_input=current_input or step.source_excerpt,
                     )
                     if any(token in self._OTHER_MARKERS for token in self._tokens(mention)):
                         if not ranked:

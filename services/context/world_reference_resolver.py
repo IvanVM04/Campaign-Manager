@@ -30,6 +30,7 @@ from models.semantic_frames import (
 )
 from models.world_state import WorldState
 
+from .discourse_context_builder import DiscourseContextBuilder
 from .entity_reference_resolver import EntityReferenceResolver
 
 
@@ -90,6 +91,7 @@ class WorldReferenceResolver:
     MIN_RESOLUTION_SCORE = 35
     MIN_RESOLUTION_MARGIN = 12
     MAX_REFERENCES = 16
+    MAX_HISTORY_TURNS = DiscourseContextBuilder.MAX_HISTORY_TURNS
 
     @staticmethod
     def _normalize(value: str) -> str:
@@ -252,9 +254,13 @@ class WorldReferenceResolver:
         cls,
         candidates: tuple[_WorldReferent, ...],
         recent_turns: Iterable[object],
+        *,
+        current_input: str = "",
     ) -> dict[tuple[WorldReferenceCategory, int | str], tuple[DiscourseEvidence, ...]]:
         evidence: dict[tuple[WorldReferenceCategory, int | str], list[DiscourseEvidence]] = {}
-        turns = list(recent_turns)[-6:]
+        turns = list(
+            DiscourseContextBuilder.scope_history(recent_turns, current_input)
+        )[-cls.MAX_HISTORY_TURNS :]
         for recency_rank, turn in enumerate(reversed(turns), start=1):
             parts, turn_id = cls._turn_parts(turn)
             for candidate in candidates:
@@ -321,6 +327,7 @@ class WorldReferenceResolver:
         *,
         recent_turns=(),
         character_entity_id: int | None = None,
+        current_input: str | None = None,
     ) -> WorldReferenceResolution:
         if not isinstance(visible_world, WorldState):
             raise TypeError("visible_world must be a WorldState")
@@ -328,6 +335,10 @@ class WorldReferenceResolver:
             raise TypeError("analysis must be a PlayerIntentAnalysis")
         if not isinstance(recent_turns, (list, tuple)):
             raise TypeError("recent_turns must be a list or tuple")
+        if current_input is not None and (
+            not isinstance(current_input, str) or not current_input.strip()
+        ):
+            raise ValueError("current_input must be non-empty text or None")
         if character_entity_id is not None and (
             isinstance(character_entity_id, bool)
             or not isinstance(character_entity_id, int)
@@ -339,8 +350,23 @@ class WorldReferenceResolver:
 
         grouped = self._collect(visible_world, character_entity_id=character_entity_id)
         history: dict[tuple[WorldReferenceCategory, int | str], tuple[DiscourseEvidence, ...]] = {}
+        discourse_input = current_input or (
+            analysis.steps[
+                analysis.active_step_index
+                if analysis.active_step_index is not None
+                else len(analysis.steps) - 1
+            ].source_excerpt
+            if analysis.steps
+            else ""
+        )
         for values in grouped.values():
-            history.update(self._history_candidates(values, recent_turns))
+            history.update(
+                self._history_candidates(
+                    values,
+                    recent_turns,
+                    current_input=discourse_input,
+                )
+            )
 
         last_step = analysis.active_step_index if analysis.active_step_index is not None else len(analysis.steps) - 1
         mentions: list[tuple[str, SemanticObjectKind]] = []
@@ -415,10 +441,28 @@ class WorldReferenceResolver:
                 signals = ("typed_explicit_match",)
             elif self._is_anaphoric(mention):
                 ranked = []
+                pronoun_features = DiscourseContextBuilder.pronoun_agreement(mention)
                 for candidate in candidates:
                     candidate_evidence = history.get((candidate.category, candidate.referent_id), ())
                     if not candidate_evidence:
                         continue
+                    if pronoun_features is not None:
+                        gender, number = pronoun_features
+                        if number == "plural":
+                            # A single physical instance/resource/event is not
+                            # a canonical group identity.
+                            continue
+                        observed_features = {
+                            DiscourseContextBuilder.grammatical_features(
+                                item.excerpt,
+                                alias,
+                            )
+                            for item in candidate_evidence
+                            for alias in candidate.aliases
+                        }
+                        observed_features.discard((None, None))
+                        if observed_features and (gender, number) not in observed_features:
+                            continue
                     score, candidate_signals = self._score(candidate_evidence)
                     ranked.append((candidate, score, candidate_signals, candidate_evidence))
                 ranked.sort(key=lambda item: (-item[1], item[0].name.casefold(), str(item[0].referent_id)))
