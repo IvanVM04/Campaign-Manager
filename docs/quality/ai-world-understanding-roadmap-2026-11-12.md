@@ -1,6 +1,6 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status (2026-11-13):** PRs #210–#221 are integrated into `main`. The current implementation baseline is `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (PR #221). PR #222 extends typed world-reference resolution and semantic false-positive evaluation on `feat/222-typed-world-reference-evaluation`. Live Ollama and manual SillyTavern acceptance remain separate gates.  
+**Status (2026-11-14):** PRs #210–#223 are merged into `main`. Audit baseline: `7f4f8b10a072665471370fab4493a338835b875c` (PR #223). Deterministic CI for #223 passed (1,774 passed, 15 deselected, 85.31% combined coverage); live Ollama and real SillyTavern acceptance are not evidenced and remain open.
 **Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
@@ -20,7 +20,7 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The P0 shared interpretation, chat isolation, evidence-bound semantic-frame v2, discourse evidence and pending-correction lifecycle are integrated through PR #221. PR #220 supplies 110 labelled development/held-out scenarios; PR #222 adds typed references for item definitions, physical instances, resources and visible events, plus semantic-slot precision/recall/F1 so unsupported extra arguments and relations are penalized. CI validates deterministic contracts; live Ollama and real SillyTavern remain separate acceptance gates. Do not begin broad gameplay expansion until those gates are recorded; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
+PRs #215–#223 now provide shared intent, semantic frames v2, durable corrections, typed world references, a 110-case development/held-out corpus and bounded discourse signals. The merged #223 implementation extends history to twelve turns and adds explicit topic boundaries/callbacks, ellipsis cues, locally evidenced grammatical agreement and labelled NPC quotations. These are implemented contracts, not proof of model accuracy. The independent [language-understanding audit](language-understanding-audit-2026-11-14.md) records the remaining gaps, prompt-budget risks, missing live evidence and estimated effort. Keep P0 open until live Ollama and real SillyTavern gates are recorded.
 
 This is a focused correctness/quality priority, not a return to broad architecture decomposition.
 
@@ -66,7 +66,7 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow — PRs #215–#221 integrated; PR #222 adds typed non-entity references
+### Active data flow — PRs #215–#223 integrated
 
 `TurnResolutionService` now orchestrates a shared semantic interpretation:
 
@@ -94,7 +94,7 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - PR #216 adds a deterministic conversation resolver over at most six recent turns in the same chat. It handles a narrow set of Spanish/English pronouns, demonstratives, same-object and curated other-role patterns, and resolves only one visible candidate. Grammatical agreement, semantic-type constraints, speaker-aware discourse, broad ellipsis, arbitrary paraphrase and correction-chain reasoning remain open.
 - The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
 
-PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding; PR #215 delivers shared typed intent and durable evidence; PR #216 delivers chat isolation, bounded reference resolution and Ollama schema-constrained generation; PR #217 synchronizes the documentation. PR #218 adds semantic frames v2 while preserving v1 durable decoding. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
+PRs #210–#223 are integrated. #223 adds deterministic discourse hints and a twelve-turn bounded history; it does not implement general discourse parsing. See the [independent audit](language-understanding-audit-2026-11-14.md) for the verified baseline and gaps. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
@@ -401,3 +401,8 @@ The phase is mature enough to return focus to gameplay when:
 9. SillyTavern's full durable integration smoke test passes on recorded revisions.
 
 **Guiding rule:** improve the evidence and the contracts first; add model complexity or infrastructure only when measured failures show that the simpler architecture is insufficient.
+
+
+## 11. Independent audit after PR #223
+
+The current status, risk register, acceptance gates and hour estimates are maintained in the [independent language-understanding audit](language-understanding-audit-2026-11-14.md). Do not use older dated checklists as the current completion status.
