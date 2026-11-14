@@ -301,3 +301,36 @@ def test_proposal_prompt_includes_advanced_discourse_context():
     assert "reabre explícitamente un tema anterior" in prompt
     assert "Posible elipsis" in prompt
     assert "Cambios de tema explícitos" in prompt
+
+
+
+def test_proposal_prompt_drops_optional_discourse_index_under_budget_pressure(monkeypatch):
+    import services.llm_world.llm_world_proposal_prompt_builder as builder_module
+
+    def estimate_with_optional_discourse(prompt: str) -> int:
+        return 101 if "ÍNDICE DISCURSIVO DETERMINISTA" in prompt else 50
+
+    monkeypatch.setattr(
+        builder_module,
+        "estimate_tokens",
+        estimate_with_optional_discourse,
+    )
+    history = [
+        SimpleNamespace(
+            id=1,
+            player_input="Hablo con Mara.",
+            narrative="",
+        ),
+        SimpleNamespace(
+            id=2,
+            player_input="Cambiando de tema, inspecciono la torre.",
+            narrative="",
+        ),
+    ]
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Volviendo a Mara, hazlo otra vez.",
+        make_context(),
+        recent_turns=history,
+        max_prompt_tokens=100,
+    )
+    assert "ÍNDICE DISCURSIVO DETERMINISTA" not in prompt

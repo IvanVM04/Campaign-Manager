@@ -298,7 +298,7 @@ class WorldReferenceResolver:
     @staticmethod
     def _score(evidence: tuple[DiscourseEvidence, ...]) -> tuple[int, tuple[str, ...]]:
         best_rank = min(item.recency_rank for item in evidence)
-        score = max(15, 70 - (best_rank - 1) * 5)
+        score = max(15, 70 - (best_rank - 1) * 12)
         signals = ["recency"]
         if any(item.source is DiscourseSource.PLAYER_INPUT for item in evidence):
             score += 22

@@ -246,7 +246,7 @@
       "critical": false
     },
     {
-      "id": "holdout-six-turn-window",
+      "id": "holdout-twelve-turn-window",
       "family": "evidence_window",
       "utterance": "Le pregunto por la carta.",
       "target_mention": "Le",
@@ -286,6 +286,30 @@
         {
           "id": 215,
           "player_input": "Escucho el viento."
+        },
+        {
+          "id": 216,
+          "player_input": "Examino la tienda."
+        },
+        {
+          "id": 217,
+          "player_input": "Reviso el mapa."
+        },
+        {
+          "id": 218,
+          "player_input": "Atiendo el caballo."
+        },
+        {
+          "id": 219,
+          "player_input": "Cuento las monedas."
+        },
+        {
+          "id": 220,
+          "player_input": "Camino al puente."
+        },
+        {
+          "id": 221,
+          "player_input": "Vuelvo a mirar el cielo."
         }
       ],
       "expected": {
