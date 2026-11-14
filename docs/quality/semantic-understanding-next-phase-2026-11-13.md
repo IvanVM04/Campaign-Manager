@@ -1,9 +1,9 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
-**Status:** PRs #219–#221 are merged into `main`; PR #221 integrated evidence-bound corrections into durable clarification resumption. PR #222 is the active implementation on `feat/222-typed-world-reference-evaluation`. Live Ollama and manual SillyTavern acceptance remain separate gates and are not implied by deterministic CI.  
-**Priority:** P0.5 — typed world-reference resolution and false-positive-aware semantic evaluation.  
-**Baseline:** `main` at `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (2026-11-13).  
-**Implementation branch:** `feat/222-typed-world-reference-evaluation`.
+**Status (2026-11-14):** PRs #219–#223 are merged into `main`. A focused real-Ollama run exposed a pre-provider prompt-budget rejection in the combined adjudicator. The immediate P0 response is the modular language-understanding pipeline; see the [architecture decision](modular-language-understanding-pipeline-2026-11-14.md) and [independent audit](language-understanding-audit-2026-11-14.md).
+**Priority:** P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability; live evaluation and SillyTavern acceptance follow after this refactor.  
+**Baseline:** `main` after PR #223, `7f4f8b10a072665471370fab4493a338835b875c` (2026-11-14).
+**Implementation history:** PR #222 (typed world references) and PR #223 (advanced discourse) are integrated; no active implementation branch is implied.
 
 ## 1. Why this phase exists
 
@@ -91,7 +91,7 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 - No database migration, extra normal-path provider call, embedding or vector store is added.
 - The merged implementation is documented in `services/turns/README.md`; the live correction-model probe remains an opt-in acceptance test.
 
-### PR #222 — typed world-reference resolution and semantic precision (active)
+### PR #222 — typed world-reference resolution and semantic precision (merged)
 
 - Adds a separate typed resolver for item definitions, physical item instances, resources and visible events. Entity IDs, item-definition IDs, physical-instance IDs, resource IDs and event string IDs remain separate namespaces.
 - Resolves direct typed mentions and conservative cross-turn anaphora from the same bounded six-turn evidence window. Multiple physical copies remain ambiguous; inactive instances and hidden/GM-only events are excluded.
@@ -101,13 +101,15 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 - Adds an opt-in real-Ollama test for correcting a pending recipient from the latest player clarification.
 - Live Ollama and SillyTavern acceptance remain separate gates.
 
-### Next after PR #222 — measure richer discourse and event semantics
+### PR #223 — advanced discourse understanding (merged)
 
 Use the expanded held-out corpus and the new typed-reference failures to prioritize broad ellipsis, topic shifts, long-distance references, grammar agreement and time-aware relation modelling. Add embedding retrieval only if held-out measurements demonstrate a material precision/recall gain over the typed deterministic baseline.
 
-### Later — retrieval/model selection only when measured
+### Next after PR #223 — modular pipeline (P0 / Priority #1)
 
-Test whether aliases, relation edges, dependency expansion and ranking can satisfy the expanded corpus. Consider embeddings only if a reproducible held-out evaluation demonstrates a material improvement over the deterministic baseline.
+Implement PR #225 using the [modular pipeline architecture decision](modular-language-understanding-pipeline-2026-11-14.md). Keep one coherent `PlayerIntentAnalysis`; separate the Intent Interpreter from conditional mechanics adjudication and consequence planning. Correct the prompt-budget preflight, avoid duplicating schema details in prose and instrument each role independently.
+
+Only after deterministic contracts pass should the unchanged 110-case Ollama corpus be rerun as the new live baseline. Then add held-out cases for #223 discourse behavior and complete real SillyTavern acceptance. Further action-family, discourse or retrieval features remain behind this gate.
 
 ## 5. Non-negotiable acceptance rules
 
@@ -118,4 +120,7 @@ Test whether aliases, relation edges, dependency expansion and ranking can satis
 - Direction, negation, modality, attribution and temporal evidence are preserved.
 - Questions, rumours, hypotheses, quotations and negative claims are not promoted to positive canon.
 - Existing v1 durable records recover unchanged.
-- No extra provider call, vector store or service is added without measured justification.
+- Do not split semantic interpretation into independent per-field calls or add vector infrastructure without held-out evidence. The conditional mechanics call and separate consequence-planner contract are now approved as distinct responsibilities in PR #225; they must be justified by call-routing tests and measured quality/latency.
+
+
+PR #223 is merged with successful deterministic CI. Its discourse index is a bounded hint, not a general parser; the 650-character cap and prompt-budget fallback can omit it. The immediate next phase is PR #225: modularize interpretation, mechanics and consequence planning, then establish the live corpus baseline, extend held-out discourse coverage and run SillyTavern acceptance. The independent [audit](language-understanding-audit-2026-11-14.md) records risks and effort.

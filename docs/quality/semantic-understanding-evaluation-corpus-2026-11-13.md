@@ -35,7 +35,7 @@ The utterance tranche covers attempted actions, questions, plans/conditionals, o
 
 The semantic-frame tranche covers transfer roles, item-definition/instance distinction, movement source/path/destination, combat patient/instrument, containment, perception/instrument, directed relation types, negative/reported relations and temporal expressions.
 
-The conversation tranche covers player-authored focus, narrator-only evidence, speaker precedence, demonstratives, same-object references, other-role references, repeated topics, recency, the six-turn evidence window, ambiguity and visibility-based abstention.
+The original conversation tranche covers player-authored focus, narrator-only evidence, speaker precedence, demonstratives, same-object references, other-role references, repeated topics, recency, the original six-turn evidence window, ambiguity and visibility-based abstention. PR #223 expands runtime history to twelve turns; that new behavior is not yet represented by a dedicated held-out tranche.
 
 The corpus is Spanish-first. Existing English cases remain in the development corpus as cross-language controls. The new held-out tranche does not claim broad multilingual coverage.
 
@@ -101,3 +101,8 @@ CAMPAIGN_MANAGER_REAL_LLM_MODEL=<pinned-model-tag> python -m pytest -m real_llm 
 ```
 
 Record the exact model digest, Ollama version, timeout, temperature/top-p/seed where supported, hardware, run SHA and the complete per-family output. Keep failed utterances and mismatches intact as regression evidence.
+
+
+## 8. PR #223 coverage gap
+
+The 110-case corpus predates the advanced discourse implementation. PR #223 adds deterministic tests for explicit topic boundaries and callbacks, ellipsis cues, twelve-turn references, local grammatical agreement, plural abstention and labelled NPC dialogue. These tests do not provide a live model accuracy score for the new behaviors. Add a separate held-out discourse tranche and report its metrics by family; do not fold new examples into prompt examples or the original hold-out. Also measure when the 650-character discourse index is compacted or dropped under prompt-budget pressure. Current implementation and effort estimates are in the [independent audit](language-understanding-audit-2026-11-14.md).

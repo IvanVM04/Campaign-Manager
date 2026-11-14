@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status (2026-11-13):** PRs #210–#221 are integrated into `main`. The current implementation baseline is `fd3e90039cc2f3409bec3917f5a34cc7bdaca696` (PR #221). PR #222 extends typed world-reference resolution and semantic false-positive evaluation on `feat/222-typed-world-reference-evaluation`. Live Ollama and manual SillyTavern acceptance remain separate gates.  
-**Priority override (2026-11-13): P0 — shared natural-language understanding and intent resolution.** This is the highest active priority and blocks the Character Builder/gameplay expansion until its live-model and SillyTavern gates are recorded. See [the P0 implementation specification](language-understanding-priority-2026-11-13.md).  
+**Status (2026-11-14):** PRs #210–#223 are merged into `main`. Audit baseline: `7f4f8b10a072665471370fab4493a338835b875c` (PR #223). Deterministic CI for #223 passed (1,774 passed, 15 deselected, 85.31% combined coverage); live Ollama and real SillyTavern acceptance are not evidenced and remain open.
+**Priority override (2026-11-14): P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability.** This is the highest active priority. It blocks additional semantic feature work and the Character Builder/gameplay expansion until the interpreter, mechanics adjudicator and consequence planner have separate contracts, bounded prompts and passing regression gates. See the [modular pipeline decision](modular-language-understanding-pipeline-2026-11-14.md) and [P0 implementation specification](language-understanding-priority-2026-11-13.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -20,9 +20,9 @@ The project already has a strong modular foundation:
 - durable turn idempotency, revision checks, recovery and transaction boundaries;
 - deterministic CI and opt-in live Ollama probes.
 
-The P0 shared interpretation, chat isolation, evidence-bound semantic-frame v2, discourse evidence and pending-correction lifecycle are integrated through PR #221. PR #220 supplies 110 labelled development/held-out scenarios; PR #222 adds typed references for item definitions, physical instances, resources and visible events, plus semantic-slot precision/recall/F1 so unsupported extra arguments and relations are penalized. CI validates deterministic contracts; live Ollama and real SillyTavern remain separate acceptance gates. Do not begin broad gameplay expansion until those gates are recorded; see the [semantic-understanding plan](semantic-understanding-next-phase-2026-11-13.md).
+PRs #215–#223 now provide shared intent, semantic frames v2, durable corrections, typed world references, a 110-case development/held-out corpus and bounded discourse signals. The merged #223 implementation extends history to twelve turns and adds explicit topic boundaries/callbacks, ellipsis cues, locally evidenced grammatical agreement and labelled NPC quotations. These are implemented contracts, not proof of model accuracy. The independent [language-understanding audit](language-understanding-audit-2026-11-14.md) records the remaining gaps, prompt-budget risks and missing live evidence. A focused real-Ollama test on 2026-11-14 exposed a pre-provider prompt-budget rejection in the current combined adjudicator; the immediate task is to decompose responsibilities and make every stage's prompt budget observable before establishing the new live baseline.
 
-This is a focused correctness/quality priority, not a return to broad architecture decomposition.
+This is a focused architecture-and-correctness priority, not a return to broad infrastructure decomposition. The first deliverable is a narrow refactor of the language pipeline; new semantic feature families remain paused until it is complete.
 
 **Do not solve comprehension by creating one enormous prompt.** Keep static rules, world facts, player intent, confirmed mechanics, operation schemas and narration evidence as separate, explicit inputs. Give each model role the smallest context sufficient for its responsibility.
 
@@ -66,7 +66,7 @@ The target is not that the model "knows everything". The target is that it:
 
 ## 3. Current architecture and observed gaps
 
-### Active data flow — PRs #215–#221 integrated; PR #222 adds typed non-entity references
+### Active data flow — PRs #215–#223 integrated
 
 `TurnResolutionService` now orchestrates a shared semantic interpretation:
 
@@ -94,23 +94,44 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - PR #216 adds a deterministic conversation resolver over at most six recent turns in the same chat. It handles a narrow set of Spanish/English pronouns, demonstratives, same-object and curated other-role patterns, and resolves only one visible candidate. Grammatical agreement, semantic-type constraints, speaker-aware discourse, broad ellipsis, arbitrary paraphrase and correction-chain reasoning remain open.
 - The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
 
-PR #210 addresses renderer/operation-manifest gaps; PRs #211–#213 add alias resolution, multi-signal retrieval and single-pass semantic prompt rules; PR #214 adds event provenance/perspective and narrative grounding; PR #215 delivers shared typed intent and durable evidence; PR #216 delivers chat isolation, bounded reference resolution and Ollama schema-constrained generation; PR #217 synchronizes the documentation. PR #218 adds semantic frames v2 while preserving v1 durable decoding. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
+PRs #210–#223 are integrated. #223 adds deterministic discourse hints and a twelve-turn bounded history; it does not implement general discourse parsing. See the [independent audit](language-understanding-audit-2026-11-14.md) for the verified baseline and gaps. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
 
 ## 4. Target architecture: shared evidence, specialized responsibilities
 
-The intended shape is:
+The target architecture keeps one coherent semantic interpretation and separates downstream responsibilities that need different policies, evidence and output contracts. It is not a multi-agent framework and does not split individual semantic fields into separate model calls.
 
-1. **Canonical campaign state** — typed world, character, campaign, session and durable resolution data.
-2. **Context retrieval** — deterministic candidate retrieval, relation/dependency expansion, ranking, mandatory facts, visibility filtering and bounded projection.
-3. **Semantic interpretation** — identify the action, target, references, modality, negation, explicit outcome and uncertainties. This stage is a proposal, never an authority.
-4. **Mechanics adjudication** — determine whether a check or clarification is required; deterministic rules resolve the actual result.
-5. **World proposal** — produce the smallest set of typed, grounded operations, or an empty list.
-6. **Domain validation and commit** — validate against current state/revision and apply atomically.
-7. **Narration** — present committed facts and mechanics without adding uncommitted consequences.
+1. **Deterministic evidence preparation** — preserve exact player text/chat identity; retrieve bounded same-chat history and character-visible world facts; create compact role-specific context.
+2. **Intent Interpreter (one coherent LLM call)** — produce the authoritative `PlayerIntentAnalysis` v2: ordered steps, actor, modality, polarity, outcomes reported by the player, action frames, argument roles, directed relation claims, attribution, discourse references and clarification state. This one call understands the utterance as a whole.
+3. **Deterministic validation and reference resolution** — validate literal evidence and schema; resolve canonical references with existing typed resolvers; abstain on ambiguity. No provider call.
+4. **Mechanics Adjudicator (conditional LLM call)** — run only for an active, positive, unresolved attempt that needs a mechanical decision. It receives only the active step, relevant obstacle/world facts and required character statistics. It returns `MechanicsDecision` only. The rules engine continues to calculate and apply results.
+5. **World Consequence Planner (conditional LLM call)** — run only when a persistent consequence is justified and ready to propose. It receives the same validated analysis, trusted resolved references, a bounded world projection and confirmed mechanics outcomes. It returns typed operation proposals or an empty list.
+6. **Deterministic domain validation and commit** — enforce existence, visibility, permissions, referential integrity, revisions and atomic persistence.
+7. **Narration** — present committed consequences and confirmed mechanics outcomes only.
 
-This does not require seven model calls. Several stages may share one call where evidence demonstrates that quality remains acceptable. The boundaries describe ownership and evaluation, not a mandated number of providers.
+The number of model calls is conditional, not fixed. Questions, hypotheses, negations and completed observations should not trigger an unnecessary mechanics call. A routine observed fact may need interpretation and a proposal but no mechanics call. An unresolved attempt may additionally need adjudication. A question with no persistent consequence may need interpretation only.
+
+Do not fragment interpretation into separate LLM calls for actions, roles, relations, dialogue attribution or ellipsis: these fields are interdependent and must remain one coherent `PlayerIntentAnalysis`. The boundaries describe ownership and evaluation, not a mandated number of providers.
+
+Detailed contract, prompt-budget design and acceptance criteria: [Modular language-understanding pipeline](modular-language-understanding-pipeline-2026-11-14.md).
 
 ## 5. PR roadmap
+
+### Immediate P0 / Priority #1 — PR #225: modular language-understanding pipeline (proposed)
+
+**Status:** approved priority; implementation not started.
+
+Before more semantic feature work or the next valid live-model baseline:
+
+- extract a dedicated `IntentInterpreter` with one coherent v2 analysis response;
+- separate mechanics adjudication into a conditional, mechanics-only response using the active unresolved step and compact mechanical context;
+- retain the exact same validated `PlayerIntentAnalysis` for the proposal planner;
+- make proposal generation conditional on a justified persistent consequence and confirmed prerequisites;
+- separate common safety instructions from role-specific policies and avoid duplicating the schema in prose;
+- measure prompt bytes, actual token usage when available, section retention, provider calls and failure categories;
+- preserve durable v1/v2 analysis, clarification/correction, chat isolation and domain-authority contracts.
+
+Acceptance is defined in [the modular pipeline decision](modular-language-understanding-pipeline-2026-11-14.md). This replaces the previous next-step order that put a full live baseline ahead of correcting the combined prompt architecture. After the refactor passes deterministic contracts, rerun the unchanged Ollama corpora as the live baseline.
+
 
 ### PR #210 — Semantic prompt contract and evaluation baseline
 
@@ -297,7 +318,7 @@ The merged implementation adds typed action arguments, object-kind hints, direct
 
 ### PRs #220–#222 — evaluation, correction lifecycle and typed references
 
-PR #219 is merged and adds typed discourse evidence plus a guarded immutable correction primitive. PR #220 now builds a 110-scenario labelled battery (50 development + 60 held-out) for intent interpretation, action roles/relations and cross-turn references. It reports per-family slot/case accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Do not add embeddings, broad prompt changes or another normal-path model call before the baseline is measured.
+PR #219 is merged and adds typed discourse evidence plus a guarded immutable correction primitive. PR #220 now builds a 110-scenario labelled battery (50 development + 60 held-out) for intent interpretation, action roles/relations and cross-turn references. It reports per-family slot/case accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Do not add embeddings or split semantic interpretation into per-field calls. The separately approved conditional mechanics call and consequence-planner contract are the P0 / Priority #1 architecture tranche; the full live baseline follows after this refactor.
 
 ## 6. Evaluation corpus design
 
@@ -401,3 +422,8 @@ The phase is mature enough to return focus to gameplay when:
 9. SillyTavern's full durable integration smoke test passes on recorded revisions.
 
 **Guiding rule:** improve the evidence and the contracts first; add model complexity or infrastructure only when measured failures show that the simpler architecture is insufficient.
+
+
+## 11. Independent audit after PR #223
+
+The current status, risk register, acceptance gates and hour estimates are maintained in the [independent language-understanding audit](language-understanding-audit-2026-11-14.md). Do not use older dated checklists as the current completion status.
