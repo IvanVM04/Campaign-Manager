@@ -57,9 +57,11 @@ def test_runtime_factory_uses_role_specific_llm_settings(isolated_database):
         narrative_model="narrator",
         extraction_model="extractor",
         mechanics_model="adjudicator",
+        intent_model="interpreter",
         narrative_timeout_seconds=90,
         extraction_timeout_seconds=45,
         mechanics_timeout_seconds=30,
+        intent_timeout_seconds=25,
     )
     runtime = CampaignRuntimeFactory(llm_settings=settings).get_runtime(1)
     resolver = runtime.durable_native_turn_service.resolver
@@ -67,9 +69,13 @@ def test_runtime_factory_uses_role_specific_llm_settings(isolated_database):
     assert resolver.dm_service.provider.model == "narrator"
     assert resolver.extractor.provider.model == "extractor"
     assert resolver.mechanics_adjudicator.provider.model == "adjudicator"
+    assert resolver.intent_interpreter.provider.model == "interpreter"
     assert resolver.dm_service.provider.timeout == 90.0
     assert resolver.extractor.provider.timeout == 45.0
     assert resolver.mechanics_adjudicator.provider.timeout == 30.0
+    assert resolver.intent_interpreter.provider.timeout == 25.0
+    assert resolver.intent_interpreter.max_prompt_bytes == settings.intent_prompt_max_bytes
+    assert resolver.intent_interpreter.max_context_bytes == settings.intent_context_max_bytes
     assert resolver.context_builder is runtime.context_builder
     assert resolver.proposal_context_max_tokens == settings.extraction_context_max_tokens
     assert resolver.extractor.max_prompt_tokens == settings.extraction_prompt_max_tokens
