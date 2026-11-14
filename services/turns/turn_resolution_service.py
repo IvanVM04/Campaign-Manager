@@ -177,7 +177,7 @@ class TurnResolutionService:
         queries: list[str] = []
         seen: set[str] = set()
         # Retrieval and discourse resolution share one bounded history window.
-        for item in recent_turns[-DiscourseContextBuilder.MAX_HISTORY_TURNS :]
+        for item in recent_turns[-DiscourseContextBuilder.MAX_HISTORY_TURNS :]:
             if isinstance(item, dict):
                 values = (item.get("player_input", ""), item.get("narrative", ""))
             else:

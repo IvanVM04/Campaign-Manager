@@ -6,6 +6,7 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import ClassVar
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +50,7 @@ class DiscourseContextBuilder:
         "murmura|murmuró|murmuro|añade|anade|comenta|comentó|comento|"
         "says|said|asks|replies|replied|whispers|shouts"
     )
-    _ARTICLES = {
+    _ARTICLES: ClassVar[dict[str, tuple[str, str]]] = {
         "el": ("masculine", "singular"), "un": ("masculine", "singular"),
         "este": ("masculine", "singular"), "aquel": ("masculine", "singular"),
         "la": ("feminine", "singular"), "una": ("feminine", "singular"),
@@ -59,7 +60,7 @@ class DiscourseContextBuilder:
         "las": ("feminine", "plural"), "unas": ("feminine", "plural"),
         "estas": ("feminine", "plural"), "aquellas": ("feminine", "plural"),
     }
-    _PRONOUNS = {
+    _PRONOUNS: ClassVar[dict[str, tuple[str, str]]] = {
         "el": ("masculine", "singular"), "él": ("masculine", "singular"),
         "lo": ("masculine", "singular"), "ese": ("masculine", "singular"),
         "este": ("masculine", "singular"), "aquel": ("masculine", "singular"),
@@ -186,7 +187,7 @@ class DiscourseContextBuilder:
         """Extract quoted speech only when a unique visible active NPC labels it."""
         if not isinstance(narrative, str) or not narrative.strip():
             return ()
-        aliases: dict[str, tuple[object, str] | None] = {}
+        aliases: dict[str, tuple[object, str, int] | None] = {}
         for entity in visible_entities:
             entity_id = getattr(entity, "id", None)
             raw_type = str(getattr(entity, "entity_type", ""))
@@ -205,15 +206,15 @@ class DiscourseContextBuilder:
                 if not key:
                     continue
                 if key not in aliases:
-                    aliases[key] = (entity, alias.strip())
-                elif aliases[key] is not None and getattr(aliases[key][0], "id", None) != entity_id:
+                    aliases[key] = (entity, alias.strip(), entity_id)
+                elif aliases[key] is not None and aliases[key][2] != entity_id:
                     aliases[key] = None
 
         results: dict[tuple[int, str], AttributedNpcUtterance] = {}
         for value in aliases.values():
             if value is None:
                 continue
-            entity, alias = value
+            entity, alias, speaker_entity_id = value
             escaped = re.escape(alias)
             patterns = (
                 re.compile(
@@ -236,7 +237,7 @@ class DiscourseContextBuilder:
                         continue
                     item = AttributedNpcUtterance(
                         turn_id=turn_id,
-                        speaker_entity_id=getattr(entity, "id"),
+                        speaker_entity_id=speaker_entity_id,
                         speaker_name=str(getattr(entity, "name", alias))[:120],
                         excerpt=match.group(0).strip()[:1200],
                         utterance=utterance[:600],
