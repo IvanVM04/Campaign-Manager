@@ -1080,7 +1080,7 @@
           681
         ],
         "correction": {
-          "slot": "relation_endpoint",
+          "slot": "relation_object",
           "role": "object",
           "previous_value": "Bram",
           "replacement": "Aldric",
