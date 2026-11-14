@@ -454,8 +454,9 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
 
     factory = CampaignRuntimeFactory()
     service = factory.get_runtime(1).durable_native_turn_service
-    # This test replaces the proposal provider below; the shared understanding
-    # provider must also remain deterministic and must not contact local Ollama.
+    # Exercise the legacy combined compatibility path with a deterministic
+    # provider; the production modular interpreter is not part of this fixture.
+    service.resolver.intent_interpreter = None
     service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
         response='{"decision":"none"}'
     )
@@ -510,6 +511,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     # context from persisted campaign state, not an in-memory world snapshot.
     factory.invalidate(1)
     reloaded_service = factory.get_runtime(1).durable_native_turn_service
+    reloaded_service.resolver.intent_interpreter = None
     reloaded_service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
         response='{"decision":"none"}'
     )
