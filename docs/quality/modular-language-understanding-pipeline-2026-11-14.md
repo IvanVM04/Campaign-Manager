@@ -1,9 +1,9 @@
 # Modular language-understanding pipeline — P0 architecture decision
 
-**Status:** approved as the next architectural priority; implementation not yet started.  
+**Status:** implementation in PR #225 on `feat/225-modular-language-understanding-pipeline`; deterministic CI and live-model acceptance are pending.  
 **Priority:** P0 / Priority #1 — blocks additional semantic feature work until the pipeline and prompt-budget contracts are reliable.  
 **Decision date:** 2026-11-14.  
-**Current implementation baseline:** PR #223 merge `7f4f8b10a072665471370fab4493a338835b875c`.  
+**Current implementation baseline:** PR #223 merge `7f4f8b10a072665471370fab4493a338835b875c`. PR #224 documentation baseline is merged at `ed65d62269ccf8a86f523d2224d5c33f4d5c7055`.  
 **Related audit:** [Independent language-understanding audit](language-understanding-audit-2026-11-14.md).  
 **Current priority register:** [P0 language-understanding implementation specification](language-understanding-priority-2026-11-13.md).
 
@@ -185,3 +185,31 @@ A larger cap may be a configuration adjustment after the prompt is decomposed an
 7. Run deterministic regressions, then the full local Ollama baseline and SillyTavern acceptance.
 
 **Do not resume broader semantic feature PRs until this P0 architecture tranche is implemented and its deterministic contracts pass.** The baseline live suite follows immediately after that tranche; the focused Aldric budget failure must no longer block the provider call.
+
+
+## 9. Implementation status — PR #225
+
+The first implementation pass on `feat/225-modular-language-understanding-pipeline` currently includes:
+
+- [x] Dedicated `IntentInterpreter` with one coherent v2 analysis response; its own exception/result types and a correction-only response contract.
+- [x] Dedicated mechanics-only `MechanicsAdjudicator.adjudicate_analysis()` that accepts a validated `PlayerIntentAnalysis` and returns `MechanicsDecision` only.
+- [x] Shared common trust contract composed into intent, mechanics and proposal prompts, with role-specific instructions retained separately.
+- [x] Production composition root creates distinct intent and mechanics providers; `TurnResolutionService` uses the interpreter first and conditionally adjudicates only a positive active attempt with no pending semantic clarification and an active character.
+- [x] The same analysis object is passed to `LLMWorldExtractor`; the proposal prompt is now consequence-planning focused and no longer owns the full semantic interpretation policy.
+- [x] Pending clarification/correction flow uses the new interpreter result without requiring a mechanics decision, then optionally adjudicates the corrected active step.
+- [x] Role-specific intent/mechanics/extraction prompt and context byte budgets; legacy `*_MAX_TOKENS` configuration names remain supported as byte aliases.
+- [x] UTF-8 byte diagnostics for intent, mechanics and proposal context/prompt, plus safe role/model/duration/error metadata. No prompt or full model output is logged.
+- [x] Deterministic tests added for schema separation, exact provider-call routing, shared-analysis hand-off, pending corrections, byte budgets and API error classification; live intent corpus moved to the dedicated interpreter and a mechanics-only live probe added.
+- [ ] GitHub deterministic tests, coverage, lint, type checks and CodeQL must pass on the final PR head.
+- [ ] Full local Ollama corpus and operation-quality runs must be executed with the pinned model/configuration; adding the test code does not constitute a live pass.
+- [ ] Manual SillyTavern multi-chat, clarification and durable recovery acceptance remains open.
+
+**Compatibility note:** the old combined `MechanicsAdjudicator.understand()` API remains temporarily for external/legacy callers and historical unit tests. Production runtime composition injects the dedicated interpreter and does not use that combined path. It should be retired only after callers and durable fixtures have migrated.
+
+**Byte-budget configuration:**
+
+- `CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES` / `...INTENT_CONTEXT_MAX_BYTES`
+- `CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES` / `...MECHANICS_CONTEXT_MAX_BYTES`
+- `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES` / `...EXTRACTION_CONTEXT_MAX_BYTES` / `...EXTRACTION_REPAIR_MAX_BYTES`
+
+The old extraction/mechanics `*_MAX_TOKENS` environment names are accepted as compatibility aliases. They are interpreted as UTF-8 byte budgets, not model-token counts.
