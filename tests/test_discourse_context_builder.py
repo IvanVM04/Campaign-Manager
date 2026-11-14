@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 
 from models.entity import Entity
-from services.context.discourse_context_builder import DiscourseContextBuilder
+from services.discourse_context import DiscourseContextBuilder
 
 
 def turn(turn_id: int, player_input: str = "", narrative: str = ""):

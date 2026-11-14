@@ -28,7 +28,7 @@ from services.context import (
     ConversationReferenceResolver,
     WorldReferenceResolver,
 )
-from services.context.discourse_context_builder import DiscourseContextBuilder
+from services.discourse_context import DiscourseContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
 from services.turns.mechanics_adjudicator import (

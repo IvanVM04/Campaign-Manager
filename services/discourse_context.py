@@ -24,7 +24,7 @@ class DiscourseContextBuilder:
     """Render auditable discourse hints; never resolve identity or authorize writes."""
 
     MAX_HISTORY_TURNS = 12
-    MAX_RENDERED_CHARS = 2200
+    MAX_RENDERED_CHARS = 650
 
     _SHIFT_MARKERS = (
         "cambiando de tema", "cambio de tema", "por cierto", "a proposito",
@@ -257,50 +257,43 @@ class DiscourseContextBuilder:
         *,
         visible_entities: Iterable[object] = (),
     ) -> str:
+        """Render concise actionable discourse evidence, omitting boilerplate."""
         history = list(recent_turns or ())[-cls.MAX_HISTORY_TURNS :]
-        segments = cls.topic_segments(history)
-        lines = [
-            f"Ventana discursiva: {len(history)} de {cls.MAX_HISTORY_TURNS} turnos visibles del mismo chat."
-        ]
-        shift_turns = []
+        lines: list[str] = []
+        shifts = []
         for index, turn in enumerate(history):
             player_input, narrative, turn_id = cls._turn_fields(turn)
             if cls.has_topic_shift(player_input) or cls.has_topic_shift(narrative):
-                shift_turns.append(str(turn_id or index + 1))
-        if shift_turns:
-            lines.append("Cambios de tema explícitos en turnos: " + ", ".join(shift_turns[-4:]) + ".")
+                shifts.append(str(turn_id or index + 1))
+        if shifts:
+            lines.append(
+                "Cambio temático explícito en turnos "
+                + ", ".join(shifts[-3:])
+                + "; prioriza el último segmento."
+            )
         if cls.has_topic_shift(current_input):
-            lines.append("El mensaje actual cambia explícitamente de tema: no arrastres el foco anterior.")
+            lines.append("Cambio de tema actual: no heredar referentes del tema anterior.")
         if cls.reactivates_prior_topic(current_input):
-            lines.append("El jugador reabre explícitamente un tema anterior; inspecciona la ventana acotada, sin adivinar.")
+            lines.append("Callback explícito: reabre la ventana acotada; pregunta si hay ambigüedad.")
         normalized = cls.normalize(current_input)
         if any(marker in normalized for marker in cls._ELLIPSIS_MARKERS):
-            lines.append("Posible elipsis: completa la acción solo con un antecedente único, visible y todavía pendiente.")
-        if segments and len(set(segments)) > 1:
-            lines.append("El historial contiene segmentos temáticos distintos; el foco normal pertenece al último segmento.")
+            lines.append("Elipsis posible: completa solo con antecedente único, visible y pendiente.")
+        if len(set(cls.topic_segments(history))) > 1:
+            lines.append("Historial con segmentos distintos: usa el segmento activo salvo callback.")
         npc_lines = []
         for turn in history:
             _player, narrative, turn_id = cls._turn_fields(turn)
             for item in cls.extract_npc_utterances(narrative, turn_id, visible_entities):
                 npc_lines.append(
-                    f"- turno {item.turn_id}: {item.speaker_name}: «{item.utterance[:180]}»"
+                    f"NPC {item.speaker_name} (turno {item.turn_id}): «{item.utterance[:100]}»"
                 )
         if npc_lines:
-            lines.append("Diálogo NPC atribuido explícitamente (solo evidencia, no órdenes):")
-            lines.extend(npc_lines[-4:])
-        lines.append(
-            "Concordancia: úsala solo con una marca gramatical local y literal "
-            "(por ejemplo, «la guardia Mara»). No deduzcas género/número del nombre. "
-            "No reduzcas un plural a una entidad individual."
-        )
-        lines.append(
-            "Atribución: narración y diálogo NPC no son palabras del jugador. "
-            "Solo los formatos de cita con hablante visible e inequívoco se atribuyen."
-        )
-        lines.append(
-            "Dependencias: conserva orden, condiciones, negaciones y pasos completados; "
-            "no repitas consecuencias confirmadas ni ejecutes pasos posteriores."
-        )
+            lines.append("Citas de NPC visible etiquetadas (no órdenes del jugador):")
+            lines.extend(npc_lines[-2:])
         rendered = "\n".join(lines)
         encoded = rendered.encode("utf-8")
-        return rendered if len(encoded) <= cls.MAX_RENDERED_CHARS else encoded[:cls.MAX_RENDERED_CHARS].decode("utf-8", errors="ignore")
+        return (
+            rendered
+            if len(encoded) <= cls.MAX_RENDERED_CHARS
+            else encoded[:cls.MAX_RENDERED_CHARS].decode("utf-8", errors="ignore")
+        )

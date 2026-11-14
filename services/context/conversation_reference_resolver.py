@@ -25,7 +25,7 @@ from models.semantic_frames import (
 )
 from models.world_state import WorldState
 
-from .discourse_context_builder import DiscourseContextBuilder
+from services.discourse_context import DiscourseContextBuilder
 from .entity_reference_resolver import EntityReferenceResolver
 
 

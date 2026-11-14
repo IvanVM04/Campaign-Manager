@@ -91,7 +91,7 @@ and require a labelled evaluation corpus.
 
 ## Advanced discourse signals (PR #223)
 
-`DiscourseContextBuilder` produces a bounded index from the current utterance
+`services.discourse_context.DiscourseContextBuilder` produces a bounded index from the current utterance
 and the last twelve turns already scoped to the current chat. It recognizes
 explicit topic changes and callbacks, marks likely elliptical/deictic input,
 extracts only explicitly labelled quotations from visible active NPCs, and

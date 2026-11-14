@@ -38,7 +38,7 @@ remained fragile.
 
 ## Files and tests
 
-- `services/context/discourse_context_builder.py`
+- `services/discourse_context.py`
 - `models/discourse_evidence.py`
 - `services/context/conversation_reference_resolver.py`
 - `services/context/world_reference_resolver.py`

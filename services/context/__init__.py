@@ -8,7 +8,7 @@ from .conversation_reference_resolver import (
     ConversationReferenceResolution,
     ConversationReferenceResolver,
 )
-from .discourse_context_builder import DiscourseContextBuilder
+from services.discourse_context import DiscourseContextBuilder
 from .entity_reference_resolver import (
     EntityReferenceCandidate,
     EntityReferenceResolution,

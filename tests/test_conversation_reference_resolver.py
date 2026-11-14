@@ -249,7 +249,7 @@ def test_hidden_entity_cannot_be_used_as_conversation_antecedent():
     visible_world = WorldState(entities={1: Entity(id=1, name="Mara", entity_type="npc")})
     result = ConversationReferenceResolver().resolve(
         visible_world,
-        make_analysis("Le pregunto por la carta.", "Le"),
+        make_analysis("Le pregunto por la carta.", "Le", kind_hint=SemanticObjectKind.CHARACTER),
         recent_turns=[turn(20, "Hablo con el espía secreto.")],
     )
     assert result.references == ()
