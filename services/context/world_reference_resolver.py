@@ -29,8 +29,8 @@ from models.semantic_frames import (
     SemanticPolarity,
 )
 from models.world_state import WorldState
-
 from services.discourse_context import DiscourseContextBuilder
+
 from .entity_reference_resolver import EntityReferenceResolver
 
 
