@@ -15,8 +15,8 @@ from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.discourse_context import DiscourseContextBuilder
-from services.providers import LLMProvider
 from services.llm_prompt_contracts import COMMON_LLM_TRUST_CONTRACT
+from services.providers import LLMProvider
 
 from .intent_response_schema import (
     INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA,
@@ -317,13 +317,13 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             "=== JSON ==="
         )
         prompt_bytes = len(prompt.encode("utf-8"))
+        section_sizes = {
+            "instructions": len(self.MECHANICS_ONLY_SYSTEM_PROMPT.encode("utf-8")),
+            "active_step": len(active_step.encode("utf-8")),
+            "world_context": len(world_context.encode("utf-8")),
+            "character": len(character_context.encode("utf-8")),
+        }
         if prompt_bytes > self.max_prompt_tokens:
-            section_sizes = {
-                "instructions": len(self.MECHANICS_ONLY_SYSTEM_PROMPT.encode("utf-8")),
-                "active_step": len(active_step.encode("utf-8")),
-                "world_context": len(world_context.encode("utf-8")),
-                "character": len(character_context.encode("utf-8")),
-            }
             raise MechanicsAdjudicatorError(
                 "mechanics prompt exceeds byte budget "
                 f"(prompt_bytes={prompt_bytes}, budget_bytes={self.max_prompt_tokens}, "
@@ -355,6 +355,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
                 "provider_model": getattr(self.provider, "model", None),
                 "duration_ms": round((perf_counter() - started) * 1000, 3),
                 "prompt_bytes": prompt_bytes,
+                "prompt_section_bytes": section_sizes,
                 "response_chars": len(raw) if isinstance(raw, str) else None,
             },
         )
