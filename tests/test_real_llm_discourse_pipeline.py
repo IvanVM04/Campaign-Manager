@@ -646,6 +646,7 @@ def test_real_ollama_discourse_callback_survives_integrated_turn_pipeline(
     from services.llm_world.operation_parser import OperationParser
     from services.world import WorldApplier, WorldService
 
+    operation_ledger = SemanticEvaluationLedger()
     settings = LLMSettings.from_env()
     common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
     common_timeout_raw = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT")
@@ -798,6 +799,17 @@ def test_real_ollama_discourse_callback_survives_integrated_turn_pipeline(
     assert not plan.mechanics_result.check.success
     assert plan.world_operations == ()
     assert plan.ordered_operations == ()
+    operation_ledger.record_operations(
+        expected_operations=(),
+        predicted_operations=(
+            f"{type(operation).__name__}:{index}"
+            for index, operation in enumerate(plan.ordered_operations)
+        ),
+        critical_negative_control=True,
+    )
+    operation_summary = operation_ledger.summary()
+    assert operation_summary["critical_false_persistent_changes"] == 0
+    operation_ledger.emit(record_property, prefix="discourse_integrated_operations")
 
     record_property(
         "discourse_integrated_ollama_version",
