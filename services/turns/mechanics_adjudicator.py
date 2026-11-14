@@ -9,10 +9,7 @@ from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
-from models.resolved_world_reference import (
-    ResolvedWorldReference,
-    WorldReferenceCategory,
-)
+from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection, estimate_tokens
