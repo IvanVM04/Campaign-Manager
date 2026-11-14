@@ -482,3 +482,18 @@ def test_ambiguous_npc_alias_does_not_create_speaker_identity():
     )
     assert result.references == ()
     assert result.clarification_question is not None
+
+
+
+def test_antecedent_at_the_twelfth_visible_turn_can_still_resolve():
+    world = WorldState(entities={1: Entity(id=1, name="Mara", entity_type="npc")})
+    history = [turn(200, "Hablo con Mara.")]
+    history.extend(turn(index, "No menciono a nadie.") for index in range(201, 212))
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Le pregunto por la carta.", "Le"),
+        recent_turns=history,
+    )
+    assert result.clarification_question is None
+    assert result.references[0].entity_id == 1
+    assert result.references[0].antecedent_turn_id == 200

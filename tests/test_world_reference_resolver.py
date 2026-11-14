@@ -456,3 +456,18 @@ def test_typed_reference_does_not_reuse_antecedent_after_topic_shift():
     )
     assert result.references == ()
     assert result.clarification_question is not None
+
+
+
+def test_typed_antecedent_at_the_twelfth_visible_turn_can_still_resolve():
+    world = sword_world()
+    history = [turn(300, "Encuentro la Espada de plata.")]
+    history.extend(turn(index, "No veo ningún objeto relevante.") for index in range(301, 312))
+    result = WorldReferenceResolver().resolve(
+        world,
+        analysis("La guardo.", "La", SemanticObjectKind.ITEM_INSTANCE),
+        recent_turns=history,
+    )
+    assert result.clarification_question is None
+    assert result.references[0].referent_id == 901
+    assert result.references[0].antecedent_turn_id == 300
