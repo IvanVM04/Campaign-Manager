@@ -64,11 +64,14 @@ class ProposalContextSelector:
         world: WorldState,
         query: str,
         *,
-        max_estimated_tokens: int,
+        max_estimated_tokens: int | None = None,
         mandatory_entity_ids: tuple[int, ...] | list[int] = (),
         supplemental_queries: tuple[str, ...] | list[str] = (),
         character_entity_id: int | None = None,
+        max_estimated_bytes: int | None = None,
     ) -> WorldContextProjection:
+        if max_estimated_bytes is not None:
+            max_estimated_tokens = max_estimated_bytes
         if not isinstance(world, WorldState):
             raise TypeError("world must be a WorldState")
         if not isinstance(query, str):
@@ -78,7 +81,7 @@ class ProposalContextSelector:
             or not isinstance(max_estimated_tokens, int)
             or max_estimated_tokens <= 0
         ):
-            raise ValueError("max_estimated_tokens must be a positive integer")
+            raise ValueError("max_estimated_bytes must be a positive integer")
         if not isinstance(mandatory_entity_ids, (tuple, list)):
             raise TypeError("mandatory_entity_ids must be a tuple or list")
 
