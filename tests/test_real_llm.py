@@ -434,8 +434,25 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
 
     settings = LLMSettings.from_env()
     common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
+    common_timeout_raw = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT")
+    common_timeout = (
+        float(common_timeout_raw) if common_timeout_raw is not None else None
+    )
+
+    def role_timeout(role: str, configured: float) -> float:
+        # Preserve role-specific LLM settings when present; otherwise honor the
+        # same REAL_LLM_TIMEOUT override used by the other live probes.
+        env_name = f"CAMPAIGN_MANAGER_LLM_{role.upper()}_TIMEOUT_SECONDS"
+        if env_name in os.environ or common_timeout is None:
+            return configured
+        return common_timeout
+
     settings = replace(
         settings,
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            settings.base_url,
+        ),
         intent_model=os.getenv(
             "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
             common_model or settings.intent_model,
@@ -448,6 +465,18 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
             "CAMPAIGN_MANAGER_LLM_EXTRACTION_MODEL",
             common_model or settings.extraction_model,
         ),
+        intent_timeout_seconds=role_timeout(
+            "intent",
+            settings.intent_timeout_seconds,
+        ),
+        mechanics_timeout_seconds=role_timeout(
+            "mechanics",
+            settings.mechanics_timeout_seconds,
+        ),
+        extraction_timeout_seconds=role_timeout(
+            "extraction",
+            settings.extraction_timeout_seconds,
+        ),
     )
     usage_events = []
     providers = {
@@ -455,7 +484,10 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
         for role in ("intent", "mechanics", "extraction")
     }
     ollama_version = providers["intent"].get_server_version()
-    model_digest = providers["intent"].get_model_digest()
+    model_digests = {
+        role: provider.get_model_digest()
+        for role, provider in providers.items()
+    }
     context_builder = ContextBuilder()
     intent_interpreter = IntentInterpreter(
         provider=providers["intent"],
@@ -529,7 +561,6 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
     assert plan.ordered_operations == ()
 
     record_property("integrated_ollama_version", ollama_version or "unavailable")
-    record_property("integrated_ollama_model_digest", model_digest or "unavailable")
     record_property("integrated_elapsed_ms", round(elapsed_ms, 3))
     record_property("integrated_intent_model", providers["intent"].model)
     record_property("integrated_mechanics_model", providers["mechanics"].model)
@@ -549,6 +580,11 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
         ]
         assert role_events, f"no Ollama usage telemetry captured for {role}"
         assert all(event.get("prompt_bytes", 0) > 0 for event in role_events)
+        record_property(
+            f"integrated_{role}_model_digest",
+            model_digests[role] or "unavailable",
+        )
+        record_property(f"integrated_{role}_timeout_seconds", providers[role].timeout)
         record_property(f"integrated_{role}_provider_calls", len(role_events))
         for field in (
             "prompt_bytes",
