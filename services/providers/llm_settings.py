@@ -54,6 +54,10 @@ class LLMSettings:
             byte_value = getattr(self, byte_name)
             if byte_value == default and legacy_value != default:
                 object.__setattr__(self, byte_name, legacy_value)
+            # Public legacy attributes mirror the authoritative byte value.
+            # This keeps existing callers/tests coherent when both env names
+            # are supplied; new *_MAX_BYTES values take precedence.
+            object.__setattr__(self, legacy_name, getattr(self, byte_name))
 
         if not isinstance(self.base_url, str):
             raise TypeError("LLM base_url must be a string")
