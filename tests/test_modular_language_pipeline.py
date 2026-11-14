@@ -291,13 +291,22 @@ def test_mechanics_context_retrieval_uses_only_active_resolved_reference_names()
             return {"context": "Hechos mecánicos de las referencias activas."}
 
     player_text = "Abro la puerta con la llave."
+    payload = _analysis_payload(
+        source_excerpt=player_text,
+        action="abrir la puerta con la llave",
+        predicate="Abro",
+    )
+    payload["steps"][0]["target_mentions"].append("la llave")
+    payload["steps"][0]["action_frame"]["arguments"].append({
+        "role": "instrument",
+        "mention": {
+            "text": "la llave",
+            "kind_hint": "item_instance",
+        },
+    })
     analysis = IntentInterpreter(
         FakeLLMProvider(response=json.dumps({
-            "intent_analysis": _analysis_payload(
-                source_excerpt=player_text,
-                action="abrir la puerta con la llave",
-                predicate="Abro",
-            ),
+            "intent_analysis": payload,
         }))
     ).interpret(_context(), player_text)
     context_builder = RecordingContextBuilder()
