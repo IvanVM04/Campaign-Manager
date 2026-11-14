@@ -185,14 +185,12 @@ def test_llm_settings_reject_non_integer_extraction_budget_environment_value():
         })
 
 
-
 def test_llm_settings_reject_mechanics_context_budget_larger_than_prompt():
     with pytest.raises(ValueError, match="mechanics_context_max_tokens cannot exceed"):
         LLMSettings(
             mechanics_prompt_max_tokens=2048,
             mechanics_context_max_tokens=4096,
         )
-
 
 
 @pytest.mark.parametrize(
@@ -233,7 +231,6 @@ def test_legacy_mechanics_budget_environment_variables_remain_supported():
 
     assert settings.mechanics_prompt_max_bytes == 7000
     assert settings.mechanics_context_max_bytes == 3000
-
 
 
 def test_llm_settings_reject_extraction_context_byte_budget_larger_than_prompt():
