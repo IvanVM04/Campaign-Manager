@@ -184,7 +184,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
     @staticmethod
     def _mechanics_decision_from_payload(payload: object) -> MechanicsDecision:
         if not isinstance(payload, dict):
-            raise ValueError("mechanics decision must be an object")
+            raise TypeError("mechanics decision must be an object")
         if not isinstance(payload.get("decision"), str):
             raise TypeError("mechanics decision must include decision")
         decision_type = MechanicsDecisionType(payload["decision"])
