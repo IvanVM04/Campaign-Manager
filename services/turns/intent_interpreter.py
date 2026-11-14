@@ -33,7 +33,6 @@ class IntentInterpretationResult:
     corrections: tuple[PendingIntentCorrection, ...] = ()
 
 
-
 class IntentInterpreter:
     """Produce one coherent, evidence-bound PlayerIntentAnalysis v2.
 
@@ -127,6 +126,8 @@ resultados mecánicos. El esquema es el contrato estructural."""
             return value
         suffix = "\n… (contexto omitido por presupuesto)"
         suffix_bytes = suffix.encode("utf-8")
+        if max_bytes <= len(suffix_bytes):
+            return encoded[:max_bytes].decode("utf-8", errors="ignore")
         prefix = encoded[: max(0, max_bytes - len(suffix_bytes))]
         return prefix.decode("utf-8", errors="ignore") + suffix
 
@@ -378,6 +379,9 @@ resultados mecánicos. El esquema es el contrato estructural."""
         pending_analysis: PlayerIntentAnalysis | None = None,
         correction_evidence_text: str | None = None,
         return_corrections: bool = False,
+    ) -> (
+        PlayerIntentAnalysis
+        | tuple[PlayerIntentAnalysis, tuple[PendingIntentCorrection, ...]]
     ):
         if not isinstance(context, TurnContext):
             raise TypeError("context must be a TurnContext")
@@ -415,6 +419,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     "duration_ms": round((perf_counter() - started) * 1000, 3),
                     "prompt_bytes": len(prompt.encode("utf-8")),
                     "error_type": type(exc).__name__,
+                    "prompt_section_bytes": section_sizes,
                 },
             )
             raise IntentInterpreterError("intent provider failed") from exc
