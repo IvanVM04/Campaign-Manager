@@ -161,6 +161,10 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     "index": step.index,
                     "action": step.action,
                     "source_excerpt": step.source_excerpt,
+                    "actor": step.actor.value,
+                    "modality": step.modality.value,
+                    "polarity": step.polarity.value,
+                    "reported_outcome": step.reported_outcome.value,
                     "target_mentions": list(step.target_mentions),
                     "attributed_to": step.attributed_to,
                     "action_frame": (
@@ -172,6 +176,8 @@ resultados mecánicos. El esquema es el contrato estructural."""
                 for step in analysis.steps
             ],
             "active_step_index": analysis.active_step_index,
+            "requires_clarification": analysis.requires_clarification,
+            "clarification_question": analysis.clarification_question,
             "relation_claims": [
                 claim.to_dict() for claim in analysis.relation_claims
             ],
