@@ -337,11 +337,22 @@ def test_proposal_prompt_drops_optional_discourse_index_under_budget_pressure(mo
 
 
 
-def test_proposal_prompt_fits_full_registry_under_default_budget():
-    from models.world_context_projection import estimate_tokens
+def test_proposal_prompt_compacts_full_registry_under_budget_pressure(monkeypatch):
+    from models.world_context_projection import estimate_tokens as byte_estimate
     from services.llm_world.operation_parser import OperationParser
     from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
+    import services.llm_world.llm_world_proposal_prompt_builder as builder_module
 
+    def force_manifest_compaction(prompt: str) -> int:
+        if '"examples"' in prompt:
+            return 9000
+        return byte_estimate(prompt)
+
+    monkeypatch.setattr(
+        builder_module,
+        "estimate_tokens",
+        force_manifest_compaction,
+    )
     registry = DEFAULT_OPERATION_REGISTRY
     allowed = OperationParser(registry).model_proposable_operation_types()
     prompt = LLMWorldProposalPromptBuilder.build_prompt(
@@ -352,7 +363,7 @@ def test_proposal_prompt_fits_full_registry_under_default_budget():
         max_prompt_tokens=8192,
     )
 
-    assert estimate_tokens(prompt) <= 8192
+    assert byte_estimate(prompt) <= 8192
     assert "create_entity" in prompt
     assert "create_event" in prompt
     assert '"required"' in prompt

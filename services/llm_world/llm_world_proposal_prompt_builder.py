@@ -510,7 +510,11 @@ class LLMWorldProposalPromptBuilder:
                         prompt = prompt.replace(original, compacted, 1)
                         estimated = estimate_tokens(prompt)
 
-        if estimated > max_prompt_tokens and operation_contract and operation_registry is not None:
+        if (
+            estimated > max_prompt_tokens
+            and operation_contract
+            and operation_registry is not None
+        ):
             compact_contract = LLMWorldProposalPromptBuilder._compact_operation_contract(
                 operation_contract
             )
@@ -550,7 +554,11 @@ class LLMWorldProposalPromptBuilder:
                     prompt = prompt.replace(original, compacted, 1)
                     estimated = estimate_tokens(prompt)
 
-        if estimated > max_prompt_tokens and operation_contract and operation_registry is not None:
+        if (
+            estimated > max_prompt_tokens
+            and operation_contract
+            and operation_registry is not None
+        ):
             compact_contract = LLMWorldProposalPromptBuilder._compact_operation_contract(
                 operation_contract
             )
