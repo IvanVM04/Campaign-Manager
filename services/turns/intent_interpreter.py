@@ -133,6 +133,18 @@ resultados mecánicos. El esquema es el contrato estructural."""
         return prefix.decode("utf-8", errors="ignore") + suffix
 
     @staticmethod
+    def _recent_context_queries(
+        recent_turns: list[TurnRecord] | None,
+    ) -> tuple[str, ...]:
+        """Search only recent same-chat text for visible antecedent entities."""
+        queries: list[str] = []
+        for turn in (recent_turns or ())[-DiscourseContextBuilder.MAX_HISTORY_TURNS :]:
+            for value in (turn.player_input, turn.narrative):
+                if isinstance(value, str) and value.strip():
+                    queries.append(value.strip()[:700])
+        return tuple(dict.fromkeys(queries))
+
+    @staticmethod
     def _format_recent_turns(recent_turns) -> str:
         if recent_turns is None:
             return "(sin historial reciente)"
@@ -195,14 +207,19 @@ resultados mecánicos. El esquema es el contrato estructural."""
         correction_evidence_text: str | None = None,
     ) -> tuple[str, dict[str, int]]:
         character = context.active_character
-        projection = self.context_builder.build(
+        context_data = self.context_builder.build(
             context.world,
             player_input,
             recent_turns=list(recent_turns) if recent_turns is not None else None,
+            supplemental_queries=self._recent_context_queries(recent_turns),
             character_entity_id=(character.entity_id if character is not None else None),
-        ).get("context", "")
+        )
+        projection = context_data.get("context", "")
+        visible_entities = context_data.get("entities", [])
         if not isinstance(projection, str):
             raise IntentInterpreterError("intent context must be text")
+        if not isinstance(visible_entities, list):
+            visible_entities = []
 
         world_context = self._compact_text(projection, self.max_context_bytes)
         history = self._compact_text(
@@ -210,7 +227,11 @@ resultados mecánicos. El esquema es el contrato estructural."""
             min(1800, self.max_context_bytes // 2),
         )
         discourse = self._compact_text(
-            DiscourseContextBuilder.render(player_input, recent_turns),
+            DiscourseContextBuilder.render(
+                player_input,
+                recent_turns,
+                visible_entities=visible_entities,
+            ),
             min(650, self.max_context_bytes // 8),
         )
         instructions = (
