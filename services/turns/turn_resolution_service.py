@@ -425,7 +425,9 @@ class TurnResolutionService:
             and pending_intent_analysis is None
             and decision is None
             and intent_analysis is not None
+            and not intent_analysis.requires_clarification
             and intent_analysis.is_actionable
+            and context.active_character is not None
             and self.mechanics_adjudicator is not None
         ):
             try:
