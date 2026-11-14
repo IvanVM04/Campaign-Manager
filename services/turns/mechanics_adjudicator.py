@@ -10,7 +10,7 @@ from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
-from models.world_context_projection import estimate_tokens
+from models.world_context_projection import WorldContextProjection, estimate_tokens
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
@@ -265,12 +265,19 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         self,
         context: TurnContext,
         analysis: PlayerIntentAnalysis,
+        *,
+        context_projection: WorldContextProjection | None = None,
     ) -> MechanicsDecision:
-        """Adjudicate only the validated active attempt, never re-parse intent."""
+        """Adjudicate the validated active attempt using the selected world snapshot."""
         if not isinstance(context, TurnContext):
             raise TypeError("context must be a TurnContext")
         if not isinstance(analysis, PlayerIntentAnalysis):
             raise TypeError("analysis must be a PlayerIntentAnalysis")
+        if context_projection is not None and not isinstance(
+            context_projection,
+            WorldContextProjection,
+        ):
+            raise TypeError("context_projection must be a WorldContextProjection or None")
         if (
             analysis.requires_clarification
             or not analysis.is_actionable
@@ -282,8 +289,13 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         if step is None:
             return MechanicsDecision(decision=MechanicsDecisionType.NONE)
         character = context.active_character
+        mechanics_world = (
+            context_projection.world
+            if context_projection is not None
+            else context.world
+        )
         world_context = self.context_builder.build(
-            context.world,
+            mechanics_world,
             step.source_excerpt,
             character_entity_id=character.entity_id,
         ).get("context", "")
