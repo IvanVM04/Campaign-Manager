@@ -241,7 +241,8 @@ This section is the source of truth when work is interrupted.
 - **Branch:** `feat/227-held-out-discourse-pipeline-evaluation`
 - **Base:** `main` at `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`, containing the PR #226 merge.
 - **PR:** [#227 — held-out discourse and staged pipeline evaluation](https://github.com/IvanVM04/Campaign-Manager/pull/227); open, Draft, base `main`.
-- **Current branch head at preparation checkpoint:** `d83e6a0eaa19e6668d61477224eb53ef91940960`.
+- **Current branch head at preparation checkpoint:** `577ed60be63d028639bfcc6f1cfb4ee6a93114de`.
+- **Documentation synchronization:** corrected the historical PR #226 execution checkpoint to reflect its merge into main, final deterministic workflow results and remaining post-merge live acceptance.
 - **Current implementation status:** WP0 complete (branch, execution specification, four documentation links and Draft PR); no runtime code, new fixture cases or evaluator implementation has been started.
 - **Completed audit:** existing baseline confirmed as 26 intent held-out + 20 semantic-frame held-out + 14 conversation resolver held-out = 60 held-out, plus 50 development scenarios. Live held-out tests currently evaluate intent/frame and one pending-recipient correction; no dedicated live discourse pipeline corpus exists.
 - **Open work:** WP1–WP6 above.
