@@ -269,7 +269,11 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             raise TypeError("context must be a TurnContext")
         if not isinstance(analysis, PlayerIntentAnalysis):
             raise TypeError("analysis must be a PlayerIntentAnalysis")
-        if not analysis.is_actionable or context.active_character is None:
+        if (
+            analysis.requires_clarification
+            or not analysis.is_actionable
+            or context.active_character is None
+        ):
             return MechanicsDecision(decision=MechanicsDecisionType.NONE)
 
         step = analysis.active_step
