@@ -404,6 +404,7 @@ class TurnResolutionService:
             and self.intent_interpreter is not None
             and decision is None
             and intent_analysis is not None
+            and not intent_analysis.requires_clarification
             and intent_analysis.is_actionable
             and self.mechanics_adjudicator is not None
         ):
