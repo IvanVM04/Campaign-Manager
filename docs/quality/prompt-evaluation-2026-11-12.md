@@ -9,6 +9,7 @@
 | `tests/test_player_intent_analysis.py` | V1 interpretation shape, enums, evidence grounding, order and active-step invariants. |
 | `tests/test_semantic_frames.py` | V2 typed action frames, role/kind validation, relation direction/modality, exact evidence, no model IDs, v1 compatibility and durable v2 codec round-trip. |
 | `tests/test_modular_language_pipeline.py` | One `IntentInterpreter` analysis is handed unchanged through deterministic resolution to mechanics and the planner; non-actionable/ambiguous routes and failed compound prerequisites are fail-closed. |
+| `tests/test_discourse_pipeline_holdout.py` | PR #227 28-case held-out discourse fixture integrity, quote-safe topic/callback/ellipsis markers, twelve-turn scoping, grammar, NPC attribution, reference/abstention, correction evidence and prompt/mechanics-context boundaries. |
 | `tests/test_mechanics_adjudicator.py` | Mechanics-only `adjudicate_analysis()` accepts a validated v2 active step and returns only `MechanicsDecision`; legacy combined parser tests are compatibility-contract tests. |
 | `tests/test_ollama_provider.py` and `tests/test_observability_logging.py` | Content-free Ollama token/timing telemetry and its JSONL safe-field allowlist are preserved without serializing prompts or completions. |
 | `tests/test_turn_mechanics_integration.py` | Shared interpretation is reused for mechanics and proposal hand-off. |
@@ -90,9 +91,9 @@ Do not combine omissions and false positives into one score. Unsupported persist
 
 PR #220's 110-scenario baseline is already integrated (50 development and 60 held-out cases). Do not recreate or rewrite it. The remaining evaluation gap is the live measurement of the discourse behavior added by PR #223 and the role-separated Intent → Resolution → Mechanics → Planner path hardened by PR #226.
 
-PR #227 adds a separate 28-case Spanish-first held-out discourse/pipeline fixture across seven families: topic boundaries, explicit callbacks, ellipsis/pending-action continuity, long-distance references/recency, local grammatical agreement, NPC attribution/quoted speech and multi-turn corrections. It also adds stage-attributed evaluation so intent accuracy is not confused with resolver links, context recall, mechanics routing or persistent operation quality.
+PR #227 implementation now includes a separate 28-case Spanish-first held-out discourse/pipeline fixture across seven balanced families, a deterministic builder/resolver/prompt harness, a quote-safe discourse-marker regression and an opt-in live evaluator. The live tests score Intent/action-frame slots, deterministic reference links/abstentions, context recall and discourse-index retention by family; a correction evaluator checks evidence-bound multi-round edits; integrated probes cover both a failed conditional action (no persistent operation) and a positive explicit NPC fact (one update, no duplicate create).
 
-See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) for the fixture contract, work packages, acceptance criteria and resumable checkpoint.
+The total corpus is now 138 scenarios (50 development + 88 held-out). The original 110 remain unchanged. Live Ollama tests have not yet been executed with a pinned local model; code presence and deterministic CI are not a live accuracy result. See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) for the fixture contract, work packages, acceptance criteria and resumable checkpoint.
 
 ## 7. Acceptance boundary
 
@@ -110,3 +111,13 @@ The deterministic suite now covers explicit topic segmentation and callbacks, el
 PR #226 is merged into `main`. The production runtime now uses role-specific Intent, Mechanics and Extraction providers, with one shared `PlayerIntentAnalysis v2`; mechanics receives the validated active step, and the planner consumes the same analysis plus trusted references/confirmed mechanics. Deterministic CI for the merged PR passed (1,826 passed, 17 deselected, 85.13% combined coverage). This result is not a live Ollama or SillyTavern pass.
 
 The focused integrated live probe is `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`. PR #227 extends live evaluation beyond that single integrated negative control and reports results by stage/family.
+
+### PR #227 live modules
+
+Run the new opt-in discourse/pipeline evaluators with:
+
+```bash
+python -m pytest tests/test_real_llm_discourse_pipeline.py -m real_llm -v -s
+```
+
+The module includes live Intent/resolution/context scoring, pending multi-turn correction validation, a full callback → Intent → Resolution → Mechanics → Planner failed-prerequisite probe, and a positive completed-observation → Planner update of a known NPC. It records model digests and safe per-role token/timing diagnostics. The user-run pinned-model report must preserve the exact Ollama version, resolved role models/digests, timeout, generation settings, hardware, commit SHA, all failures and per-family results.
