@@ -123,3 +123,47 @@ def test_narrative_without_explicit_speaker_label_is_not_npc_dialogue():
         (mara,),
     )
     assert found == ()
+
+
+
+def test_quoted_topic_shift_marker_does_not_split_the_current_topic():
+    history = [
+        turn(30, "Hablo con Mara sobre el contrato."),
+        turn(31, "Mara dice: «cambiando de tema» y señala la puerta."),
+    ]
+
+    assert DiscourseContextBuilder.has_topic_shift(
+        "Mara susurra: «cambiando de tema» y después se ríe."
+    ) is False
+    assert DiscourseContextBuilder.topic_segments(history) == (0, 0)
+    assert [
+        item.id
+        for item in DiscourseContextBuilder.scope_history(
+            history,
+            "¿Qué quiso decir con esa frase?",
+        )
+    ] == [30, 31]
+
+
+def test_quoted_callback_marker_does_not_reopen_an_older_topic():
+    history = [
+        turn(40, "Hablo con Mara sobre el mapa."),
+        turn(41, "Cambiando de tema, entro en la torre."),
+        turn(42, "Busco una escalera."),
+    ]
+
+    current_input = "Mara repite: «volviendo a lo de antes» y se marcha."
+    assert DiscourseContextBuilder.reactivates_prior_topic(current_input) is False
+    assert [
+        item.id
+        for item in DiscourseContextBuilder.scope_history(history, current_input)
+    ] == [41, 42]
+
+
+def test_quoted_ellipsis_marker_is_not_rendered_as_a_current_action_cue():
+    rendered = DiscourseContextBuilder.render(
+        "Mara repite: «hazlo otra vez» y después se marcha.",
+        [turn(50, "Intento abrir la puerta.")],
+    )
+
+    assert "Posible elipsis" not in rendered
