@@ -80,7 +80,6 @@ def test_runtime_factory_uses_role_specific_llm_settings(isolated_database):
     assert resolver.proposal_context_max_bytes == settings.extraction_context_max_bytes
     assert resolver.extractor.max_prompt_bytes == settings.extraction_prompt_max_bytes
     assert resolver.extractor.max_repair_prompt_bytes == settings.extraction_repair_max_bytes
-    assert resolver.proposal_context_max_bytes == settings.extraction_context_max_bytes
     assert resolver.extractor.max_response_chars == settings.extraction_max_response_chars
     assert (
         resolver.extractor.proposal_validator.max_repair_prompt_bytes
