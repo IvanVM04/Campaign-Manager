@@ -44,6 +44,8 @@ class LLMWorldExtractor:
         max_prompt_tokens: int = LLMWorldProposalPromptBuilder.DEFAULT_MAX_PROMPT_TOKENS,
         max_response_chars: int = LLMWorldProposalValidator.DEFAULT_MAX_RESPONSE_CHARS,
         max_repair_prompt_tokens: int = LLMWorldProposalValidator.DEFAULT_MAX_REPAIR_PROMPT_TOKENS,
+        max_prompt_bytes: int | None = None,
+        max_repair_prompt_bytes: int | None = None,
     ) -> None:
         if not callable(provider):
             raise TypeError(
@@ -58,9 +60,21 @@ class LLMWorldExtractor:
         self.provider = provider
         self.operation_parser = operation_parser
         self.operation_registry = getattr(operation_parser, "registry", None)
+        if max_prompt_bytes is not None:
+            max_prompt_tokens = max_prompt_bytes
+        if max_repair_prompt_bytes is not None:
+            max_repair_prompt_tokens = max_repair_prompt_bytes
         if isinstance(max_prompt_tokens, bool) or not isinstance(max_prompt_tokens, int) or max_prompt_tokens <= 0:
-            raise ValueError("max_prompt_tokens must be a positive integer")
+            raise ValueError("max_prompt_bytes must be a positive integer")
+        if (
+            isinstance(max_repair_prompt_tokens, bool)
+            or not isinstance(max_repair_prompt_tokens, int)
+            or max_repair_prompt_tokens <= 0
+        ):
+            raise ValueError("max_repair_prompt_bytes must be a positive integer")
+        self.max_prompt_bytes = max_prompt_tokens
         self.max_prompt_tokens = max_prompt_tokens
+        self.max_repair_prompt_bytes = max_repair_prompt_tokens
         self.max_response_chars = max_response_chars
         self.response_parser = LLMWorldResponseParser(operation_parser)
         self.proposal_prompt_builder = LLMWorldProposalPromptBuilder()
@@ -180,22 +194,22 @@ class LLMWorldExtractor:
             resolved_world_references=resolved_world_references,
             allowed_operation_types=allowed_operation_types,
             operation_registry=self.operation_registry,
-            max_prompt_tokens=self.max_prompt_tokens,
+            max_prompt_bytes=self.max_prompt_bytes,
         )
-        prompt_estimated_tokens = estimate_tokens(prompt)
+        prompt_estimated_bytes = estimate_tokens(prompt)
         log_fields = {
             "prompt_chars": len(prompt),
-            "prompt_estimated_tokens": prompt_estimated_tokens,
-            "prompt_budget_tokens": self.max_prompt_tokens,
+            "prompt_estimated_bytes": prompt_estimated_bytes,
+            "prompt_budget_bytes": self.max_prompt_bytes,
             "prompt_budget_utilization": (
-                prompt_estimated_tokens / self.max_prompt_tokens
+                prompt_estimated_bytes / self.max_prompt_bytes
             ),
         }
         if context_projection is not None:
             diagnostics = context_projection.diagnostics
             log_fields.update({
-                "context_estimated_tokens": diagnostics.estimated_tokens,
-                "context_budget_tokens": diagnostics.budget_tokens,
+                "context_estimated_bytes": diagnostics.estimated_bytes,
+                "context_budget_bytes": diagnostics.budget_bytes,
                 "available_records": diagnostics.available_records,
                 "candidate_records": diagnostics.candidate_records,
                 "selected_records": diagnostics.selected_records,
