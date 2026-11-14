@@ -268,6 +268,90 @@ def test_mechanics_adjudicator_receives_only_active_step_resolved_references():
     assert '"canonical_id":74' not in prompt
 
 
+def test_mechanics_context_retrieval_uses_only_active_resolved_reference_names():
+    from services.context import ContextBuilder
+
+    class RecordingContextBuilder(ContextBuilder):
+        def __init__(self):
+            super().__init__()
+            self.received_query = None
+            self.received_supplemental_queries = ()
+
+        def build(
+            self,
+            world,
+            query,
+            recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
+        ):
+            self.received_query = query
+            self.received_supplemental_queries = tuple(supplemental_queries)
+            return {"context": "Hechos mecánicos de las referencias activas."}
+
+    player_text = "Abro la puerta con la llave."
+    analysis = IntentInterpreter(
+        FakeLLMProvider(response=json.dumps({
+            "intent_analysis": _analysis_payload(
+                source_excerpt=player_text,
+                action="abrir la puerta con la llave",
+                predicate="Abro",
+            ),
+        }))
+    ).interpret(_context(), player_text)
+    context_builder = RecordingContextBuilder()
+    provider = FakeLLMProvider(response='{"decision":"none"}')
+    adjudicator = MechanicsAdjudicator(provider, context_builder)
+
+    active_entity = ResolvedConversationReference(
+        mention="la puerta",
+        entity_id=42,
+        entity_name="Puerta de piedra",
+        match_kind="explicit_alias",
+    )
+    active_item = ResolvedWorldReference(
+        mention="la llave",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=73,
+        name="Llave oxidada",
+        match_kind="direct_name",
+    )
+    unrelated_entity = ResolvedConversationReference(
+        mention="el guardia",
+        entity_id=99,
+        entity_name="Guardia del norte",
+        match_kind="direct_name",
+    )
+    unrelated_item = ResolvedWorldReference(
+        mention="el anillo",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=74,
+        name="Anillo de plata",
+        match_kind="direct_name",
+    )
+
+    adjudicator.adjudicate_analysis(
+        _context(),
+        analysis,
+        resolved_references=(active_entity, unrelated_entity),
+        resolved_world_references=(active_item, unrelated_item),
+    )
+
+    queries = context_builder.received_supplemental_queries
+    assert context_builder.received_query == "Abro la puerta con la llave."
+    assert "Puerta de piedra" in queries
+    assert "la puerta" in queries
+    assert "Llave oxidada" in queries
+    assert "la llave" in queries
+    assert "Guardia del norte" not in queries
+    assert "el guardia" not in queries
+    assert "Anillo de plata" not in queries
+    assert "el anillo" not in queries
+    assert len(queries) == len(set(queries))
+    assert provider.call_count == 1
+
+
 def test_mechanics_only_parser_applies_safe_defaults_for_optional_modifiers():
     provider = FakeLLMProvider(response=json.dumps({
         "decision": "ability_check",
