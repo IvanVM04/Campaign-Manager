@@ -223,6 +223,18 @@ def test_llm_settings_reject_mechanics_byte_context_larger_than_prompt():
         )
 
 
+def test_explicit_byte_environment_value_wins_even_when_equal_to_default():
+    settings = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES": "8192",
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS": "7000",
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES": "4096",
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS": "3000",
+    })
+
+    assert settings.mechanics_prompt_max_bytes == 8192
+    assert settings.extraction_context_max_bytes == 4096
+
+
 def test_direct_legacy_budget_constructor_values_map_to_byte_aliases():
     settings = LLMSettings(
         mechanics_prompt_max_tokens=7000,
