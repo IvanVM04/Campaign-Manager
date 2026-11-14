@@ -162,9 +162,9 @@ class CampaignRuntimeFactory:
         extractor = LLMWorldExtractor(
             provider=extraction_provider,
             operation_parser=operation_parser,
-            max_prompt_tokens=self._llm_settings.extraction_prompt_max_tokens,
+            max_prompt_bytes=self._llm_settings.extraction_prompt_max_bytes,
             max_response_chars=self._llm_settings.extraction_max_response_chars,
-            max_repair_prompt_tokens=self._llm_settings.extraction_repair_max_tokens,
+            max_repair_prompt_bytes=self._llm_settings.extraction_repair_max_bytes,
         )
         intent_interpreter = IntentInterpreter(
             intent_provider,
@@ -184,7 +184,7 @@ class CampaignRuntimeFactory:
             extractor=extractor,
             mechanics_adjudicator=mechanics_adjudicator,
             context_builder=context_builder,
-            proposal_context_max_tokens=self._llm_settings.extraction_context_max_tokens,
+            proposal_context_max_bytes=self._llm_settings.extraction_context_max_bytes,
             intent_interpreter=intent_interpreter,
         )
 
