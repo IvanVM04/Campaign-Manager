@@ -318,7 +318,7 @@ The merged implementation adds typed action arguments, object-kind hints, direct
 
 ### PRs #220–#222 — evaluation, correction lifecycle and typed references
 
-PR #219 is merged and adds typed discourse evidence plus a guarded immutable correction primitive. PR #220 now builds a 110-scenario labelled battery (50 development + 60 held-out) for intent interpretation, action roles/relations and cross-turn references. It reports per-family slot/case accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Do not add embeddings, broad prompt changes or another normal-path model call before the baseline is measured.
+PR #219 is merged and adds typed discourse evidence plus a guarded immutable correction primitive. PR #220 now builds a 110-scenario labelled battery (50 development + 60 held-out) for intent interpretation, action roles/relations and cross-turn references. It reports per-family slot/case accuracy, entity-link precision/recall/abstention, context recall, operation precision/recall, critical false persistent changes, secret leakage and latency. Do not add embeddings or split semantic interpretation into per-field calls. The separately approved conditional mechanics call and consequence-planner contract are the P0 / Priority #1 architecture tranche; the full live baseline follows after this refactor.
 
 ## 6. Evaluation corpus design
 
