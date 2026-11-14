@@ -128,3 +128,37 @@ def test_repair_prompt_respects_configured_estimated_token_budget():
 
     assert estimate_tokens(calls[0]) <= 1400
     assert "TAIL_SENTINEL" not in calls[0]
+
+
+def test_repair_prompt_accepts_explicit_byte_budget_alias():
+    validator, calls = make_validator(
+        iter(['{"operations": []}'])
+    )
+    validator.max_repair_prompt_bytes = 1400
+    invalid_response = (
+        '{"operations": [{"type": "unknown"}]}'
+        + "invalid-output-" * 300
+        + "TAIL_SENTINEL"
+    )
+
+    validator.parse_with_repair("prompt", invalid_response)
+
+    from models.world_context_projection import estimate_tokens
+
+    assert estimate_tokens(calls[0]) <= 1400
+    assert "TAIL_SENTINEL" not in calls[0]
+
+
+def test_repair_validator_constructor_accepts_explicit_byte_budget():
+    calls = []
+
+    validator = LLMWorldProposalValidator(
+        provider=lambda prompt: calls.append(prompt) or '{"operations": []}',
+        operation_parser=FakeParser(),
+        parse_response=parse_response,
+        parse_operations=lambda payload: payload["operations"],
+        max_repair_prompt_bytes=1200,
+    )
+
+    assert validator.max_repair_prompt_bytes == 1200
+    assert validator.max_repair_prompt_tokens == 1200
