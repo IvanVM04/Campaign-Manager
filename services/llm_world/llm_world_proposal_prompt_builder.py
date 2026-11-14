@@ -120,7 +120,7 @@ class LLMWorldProposalPromptBuilder:
         """Role-specific policy for planning consequences from validated intent."""
         return (
             COMMON_LLM_TRUST_CONTRACT
-            + "\\nEres un planificador de consecuencias para un motor de campaña D&D 5e. "
+            + "Eres un planificador de consecuencias para un motor de campaña D&D 5e. "
             "Devuelve exclusivamente JSON con la forma "
             '{"operations": [...]} .\n'
             "La INTERPRETACIÓN COMPARTIDA v2 es la fuente semántica principal: "
@@ -134,7 +134,7 @@ class LLMWorldProposalPromptBuilder:
             "Una intención no es resultado. Un plan, futuro condicional o hipótesis "
             "no ejecutada no cambia el mundo. Una pregunta, deseo, diálogo, cita "
             "o relato de terceros no es una acción propia ni un hecho canónico. "
-            "Un intento en curso sin resultado no implica éxito. Negación, "
+            "Un intento en curso sin resultado no implica éxito. Además, negación, "
             "cancelación, interrupción o fracaso explícito no justifican el "
             "resultado opuesto. Solo refleja un resultado explícito y ya ocurrido "
             "cuando sea observable y compatible con el snapshot. Las acciones "
@@ -154,7 +154,7 @@ class LLMWorldProposalPromptBuilder:
             "IDs entre entidades, definiciones de objetos, instancias físicas, "
             "recursos y eventos; nunca intercambies un ID entre espacios de nombres. "
             "Ante ambigüedad no elijas uno al azar; pide "
-            "aclaración o devuelve operaciones vacías. No dupliques registros "
+            "aclaración o devuelve operaciones vacías; no dupliques registros "
             "conocidos.\n"
             "PERSISTENCIA Y AUTORIDAD\n"
             "Relaciones requieren evidencia explícita y dirección correcta. "
