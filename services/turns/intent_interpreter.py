@@ -9,7 +9,6 @@ from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
-from models.world_context_projection import estimate_tokens
 from services.context import ContextBuilder
 from services.discourse_context import DiscourseContextBuilder
 from services.providers import LLMProvider
@@ -264,9 +263,17 @@ resultados mecánicos. El esquema es el contrato estructural."""
         for section_name in ("world_context", "history", "discourse"):
             if len(prompt.encode("utf-8")) <= self.max_prompt_bytes:
                 break
-            current = locals()[section_name]
+            if section_name == "world_context":
+                current = world_context
+            elif section_name == "history":
+                current = history
+            else:
+                current = discourse
             excess = len(prompt.encode("utf-8")) - self.max_prompt_bytes
-            reduced = self._compact_text(current, max(0, len(current.encode("utf-8")) - excess - 64))
+            reduced = self._compact_text(
+                current,
+                max(0, len(current.encode("utf-8")) - excess - 64),
+            )
             if section_name == "world_context":
                 world_context = reduced
             elif section_name == "history":
