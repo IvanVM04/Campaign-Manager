@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from .ollama_provider import OllamaProvider
 
-LLMRole = Literal["narrative", "extraction", "mechanics"]
+LLMRole = Literal["narrative", "extraction", "mechanics", "intent"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,9 +20,15 @@ class LLMSettings:
     narrative_model: str = OllamaProvider.DEFAULT_MODEL
     extraction_model: str = OllamaProvider.DEFAULT_MODEL
     mechanics_model: str = OllamaProvider.DEFAULT_MODEL
+    intent_model: str = OllamaProvider.DEFAULT_MODEL
     narrative_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     extraction_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     mechanics_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
+    intent_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
+    intent_prompt_max_bytes: int = 24000
+    intent_context_max_bytes: int = 4096
+    mechanics_prompt_max_bytes: int = 8192
+    mechanics_context_max_bytes: int = 4096
     mechanics_prompt_max_tokens: int = 8192
     mechanics_context_max_tokens: int = 4096
     extraction_prompt_max_tokens: int = 8192
@@ -55,6 +61,7 @@ class LLMSettings:
             "narrative_model",
             "extraction_model",
             "mechanics_model",
+            "intent_model",
         ):
             value = getattr(self, field_name)
             if not isinstance(value, str):
@@ -68,6 +75,7 @@ class LLMSettings:
             "narrative_timeout_seconds",
             "extraction_timeout_seconds",
             "mechanics_timeout_seconds",
+            "intent_timeout_seconds",
         ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -83,6 +91,10 @@ class LLMSettings:
             "extraction_repair_max_tokens",
             "mechanics_prompt_max_tokens",
             "mechanics_context_max_tokens",
+            "intent_prompt_max_bytes",
+            "intent_context_max_bytes",
+            "mechanics_prompt_max_bytes",
+            "mechanics_context_max_bytes",
         ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
@@ -97,6 +109,14 @@ class LLMSettings:
         if self.mechanics_context_max_tokens > self.mechanics_prompt_max_tokens:
             raise ValueError(
                 "mechanics_context_max_tokens cannot exceed mechanics_prompt_max_tokens"
+            )
+        if self.intent_context_max_bytes > self.intent_prompt_max_bytes:
+            raise ValueError(
+                "intent_context_max_bytes cannot exceed intent_prompt_max_bytes"
+            )
+        if self.mechanics_context_max_bytes > self.mechanics_prompt_max_bytes:
+            raise ValueError(
+                "mechanics_context_max_bytes cannot exceed mechanics_prompt_max_bytes"
             )
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> LLMSettings:
@@ -150,6 +170,30 @@ class LLMSettings:
                 "CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS",
                 defaults.mechanics_timeout_seconds,
             ),
+            intent_model=values.get(
+                "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
+                defaults.intent_model,
+            ),
+            intent_timeout_seconds=timeout_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_TIMEOUT_SECONDS",
+                defaults.intent_timeout_seconds,
+            ),
+            intent_prompt_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES",
+                defaults.intent_prompt_max_bytes,
+            ),
+            intent_context_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES",
+                defaults.intent_context_max_bytes,
+            ),
+            mechanics_prompt_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES",
+                defaults.mechanics_prompt_max_bytes,
+            ),
+            mechanics_context_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES",
+                defaults.mechanics_context_max_bytes,
+            ),
             extraction_prompt_max_tokens=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
                 defaults.extraction_prompt_max_tokens,
@@ -183,6 +227,7 @@ class LLMSettings:
             "narrative": (self.narrative_model, self.narrative_timeout_seconds),
             "extraction": (self.extraction_model, self.extraction_timeout_seconds),
             "mechanics": (self.mechanics_model, self.mechanics_timeout_seconds),
+            "intent": (self.intent_model, self.intent_timeout_seconds),
         }
         try:
             model, timeout = configuration[role]
