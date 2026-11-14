@@ -21,6 +21,9 @@ def test_llm_settings_preserve_current_defaults():
     assert settings.intent_context_max_bytes == 4096
     assert settings.mechanics_prompt_max_bytes == 8192
     assert settings.mechanics_context_max_bytes == 4096
+    assert settings.extraction_prompt_max_bytes == 8192
+    assert settings.extraction_context_max_bytes == 4096
+    assert settings.extraction_repair_max_bytes == 2048
     assert settings.extraction_prompt_max_tokens == 8192
     assert settings.extraction_context_max_tokens == 4096
     assert settings.extraction_max_response_chars == 16000
@@ -65,6 +68,9 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
     assert settings.intent_context_max_bytes == 3500
     assert settings.mechanics_prompt_max_bytes == 7000
     assert settings.mechanics_context_max_bytes == 2500
+    assert settings.extraction_prompt_max_bytes == 9000
+    assert settings.extraction_context_max_bytes == 5000
+    assert settings.extraction_repair_max_bytes == 2500
     assert settings.extraction_prompt_max_tokens == 9000
     assert settings.extraction_context_max_tokens == 5000
     assert settings.extraction_max_response_chars == 18000
@@ -196,6 +202,9 @@ def test_llm_settings_reject_mechanics_context_budget_larger_than_prompt():
         ("intent_context_max_bytes", True, TypeError),
         ("mechanics_prompt_max_bytes", -1, ValueError),
         ("mechanics_context_max_bytes", 1.5, TypeError),
+        ("extraction_prompt_max_bytes", 0, ValueError),
+        ("extraction_context_max_bytes", True, TypeError),
+        ("extraction_repair_max_bytes", -1, ValueError),
     ],
 )
 def test_llm_settings_validate_role_specific_byte_budgets(field, value, error):
@@ -224,3 +233,24 @@ def test_legacy_mechanics_budget_environment_variables_remain_supported():
 
     assert settings.mechanics_prompt_max_bytes == 7000
     assert settings.mechanics_context_max_bytes == 3000
+
+
+
+def test_llm_settings_reject_extraction_context_byte_budget_larger_than_prompt():
+    with pytest.raises(ValueError, match="extraction_context_max_bytes cannot exceed"):
+        LLMSettings(
+            extraction_prompt_max_bytes=2048,
+            extraction_context_max_bytes=4096,
+        )
+
+
+def test_explicit_extraction_byte_settings_override_legacy_environment_aliases():
+    settings = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES": "12000",
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES": "6000",
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS": "9000",
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS": "4500",
+    })
+
+    assert settings.extraction_prompt_max_bytes == 12000
+    assert settings.extraction_context_max_bytes == 6000
