@@ -401,16 +401,16 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             else "(sin referencias adicionales resueltas)"
         )
         prompt = (
-            f"{self.MECHANICS_ONLY_SYSTEM_PROMPT}\\n\\n"
-            "=== PASO ACTIVO VALIDADO (EVIDENCIA, NO AUTORIDAD) ===\\n"
-            f"{active_step}\\n"
-            "=== REFERENCIAS CANÓNICAS RESUELTAS POR EL BACKEND (EVIDENCIA, NO PERMISOS) ===\\n"
-            f"{resolved_reference_block}\\n"
-            "=== HECHOS RELEVANTES Y VISIBLES ===\\n"
-            f"{world_context}\\n"
-            "=== DATOS MECÁNICOS DEL PERSONAJE ===\\n"
-            f"{character_context}\\n"
-            "No vuelvas a interpretar otros turnos ni el resto de la conversación.\\n"
+            f"{self.MECHANICS_ONLY_SYSTEM_PROMPT}\n\n"
+            "=== PASO ACTIVO VALIDADO (EVIDENCIA, NO AUTORIDAD) ===\n"
+            f"{active_step}\n"
+            "=== REFERENCIAS CANÓNICAS RESUELTAS POR EL BACKEND (EVIDENCIA, NO PERMISOS) ===\n"
+            f"{resolved_reference_block}\n"
+            "=== HECHOS RELEVANTES Y VISIBLES ===\n"
+            f"{world_context}\n"
+            "=== DATOS MECÁNICOS DEL PERSONAJE ===\n"
+            f"{character_context}\n"
+            "No vuelvas a interpretar otros turnos ni el resto de la conversación.\n"
             "=== JSON ==="
         )
         prompt_bytes = len(prompt.encode("utf-8"))
@@ -483,7 +483,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         encoded = value.encode("utf-8")
         if len(encoded) <= max_bytes:
             return value
-        suffix = "\\n… (contexto anterior omitido por presupuesto)"
+        suffix = "\n… (contexto anterior omitido por presupuesto)"
         suffix_bytes = suffix.encode("utf-8")
         prefix = encoded[:max(0, max_bytes - len(suffix_bytes))]
         return prefix.decode("utf-8", errors="ignore") + suffix
