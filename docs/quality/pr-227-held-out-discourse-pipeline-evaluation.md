@@ -1,6 +1,6 @@
 # PR #227 — Held-out discourse and staged pipeline evaluation
 
-**Status:** prepared; implementation has not started.  
+**Status:** Draft PR #227 opened; preparation slice committed; runtime implementation has not started.  
 **Branch:** `feat/227-held-out-discourse-pipeline-evaluation`  
 **Base:** `main` at `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28` (includes merged PR #226).  
 **Dependency:** PR #226 is merged at `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`. This PR is independent of the former #226 feature branch.  
@@ -121,7 +121,7 @@ This is a contract example, not a literal required payload for every case. Keep 
 - [x] Confirm PR #226 merged and use current `main` as the base.
 - [x] Create `feat/227-held-out-discourse-pipeline-evaluation` from main.
 - [x] Add this implementation specification and durable checkpoint.
-- [ ] Open a Draft PR and record its number/URL here.
+- [x] Open [Draft PR #227](https://github.com/IvanVM04/Campaign-Manager/pull/227) and record its number/URL here.
 - [ ] Link this work from the active evaluation guide and roadmap.
 
 ### WP1 — Corpus gap analysis and fixture design
@@ -240,11 +240,12 @@ This section is the source of truth when work is interrupted.
 
 - **Branch:** `feat/227-held-out-discourse-pipeline-evaluation`
 - **Base:** `main` at `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`, containing the PR #226 merge.
-- **PR:** not yet opened; create it as Draft after this specification and evaluation-guide links are committed.
-- **Current implementation status:** WP0 branch/specification prepared; no runtime code, fixture cases or evaluator implementation has been started.
+- **PR:** [#227 — held-out discourse and staged pipeline evaluation](https://github.com/IvanVM04/Campaign-Manager/pull/227); open, Draft, base `main`.
+- **Current branch head at preparation checkpoint:** `d83e6a0eaa19e6668d61477224eb53ef91940960`.
+- **Current implementation status:** WP0 complete (branch, execution specification, four documentation links and Draft PR); no runtime code, new fixture cases or evaluator implementation has been started.
 - **Completed audit:** existing baseline confirmed as 26 intent held-out + 20 semantic-frame held-out + 14 conversation resolver held-out = 60 held-out, plus 50 development scenarios. Live held-out tests currently evaluate intent/frame and one pending-recipient correction; no dedicated live discourse pipeline corpus exists.
 - **Open work:** WP1–WP6 above.
-- **Next exact action:** inspect and update `docs/quality/prompt-evaluation-2026-11-12.md` and `docs/quality/ai-world-understanding-roadmap-2026-11-12.md` with the #227 scope, then open the Draft PR. Afterward start WP1 by creating the 28-case fixture and duplicate/integrity checks. Do not tune prompts before the first held-out baseline is run.
+- **Next exact action:** start WP1. Reconcile the proposed 28 cases against all current held-out fixtures, write the fixture schema and seven-family case matrix, then add the JSON fixture and integrity/de-dup tests. Do not tune prompts before the first held-out baseline is run.
 - **Resumption rule:** when asked to continue PR #227, first inspect this checkpoint, current branch head, PR status and CI. Continue from the first unchecked work package; do not recreate the branch or repeat completed inventory.
 
 ### Estimated implementation effort
