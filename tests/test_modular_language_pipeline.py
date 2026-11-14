@@ -169,7 +169,7 @@ def test_intent_interpreter_prompt_does_not_include_mechanics_or_character_stat_
     assert "cd:" not in prompt
     assert "salvaciones competentes" not in prompt
     assert "ventaja" not in prompt
-    assert prompt.count("Abro la puerta.") == 1
+    assert prompt.count("abro la puerta.") == 1
 
 
 def test_intent_interpreter_keeps_player_evidence_and_reports_byte_budget_failure():
