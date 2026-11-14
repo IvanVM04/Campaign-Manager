@@ -46,8 +46,10 @@ class MechanicsAdjudicator:
     """Adjudicate one validated active attempt; never re-interpret the full turn.
 
     `adjudicate_analysis()` is the modular production API. The older
-    `understand()` method remains temporarily for integrations migrating from
-    the former combined intent/mechanics response.
+    `understand()`, `understand_pending()` and `adjudicate()` APIs are
+    deprecated compatibility shims for integrations that still consume the
+    former combined intent/mechanics response. They are not used by the
+    application runtime.
     """
 
     CORRECTION_SYSTEM_PROMPT = """Eres el intérprete semántico de una aclaración pendiente de D&D 5e 2014.
@@ -312,14 +314,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             if context_projection is not None
             else context.world
         )
-        world_context = self.context_builder.build(
-            mechanics_world,
-            step.source_excerpt,
-            character_entity_id=character.entity_id,
-        ).get("context", "")
-        if not isinstance(world_context, str):
-            raise MechanicsAdjudicatorError("mechanics context must be text")
-        world_context = self._compact_text(world_context, self.max_context_tokens)
+        world_context = ""
         character_context = (
             f"Nivel: {character.level}; FUE {character.strength}; "
             f"DES {character.dexterity}; CON {character.constitution}; "
@@ -367,6 +362,36 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             for item in resolved_world_references
             if item.mention.strip().casefold() in active_mentions
         )[:16]
+
+        # References were resolved deterministically before adjudication.
+        # Search their canonical names as well as the player's literal mentions:
+        # a pronoun/ellipsis may identify a known obstacle correctly while the
+        # current sentence alone contains too little vocabulary to retrieve it.
+        supplemental_queries = tuple(dict.fromkeys(
+            value
+            for reference in (
+                *active_resolved_references,
+                *active_resolved_world_references,
+            )
+            for value in (
+                (
+                    reference.entity_name
+                    if isinstance(reference, ResolvedConversationReference)
+                    else reference.name
+                ),
+                reference.mention,
+            )
+            if isinstance(value, str) and value.strip()
+        ))[:32]
+        world_context = self.context_builder.build(
+            mechanics_world,
+            step.source_excerpt,
+            supplemental_queries=supplemental_queries,
+            character_entity_id=character.entity_id,
+        ).get("context", "")
+        if not isinstance(world_context, str):
+            raise MechanicsAdjudicatorError("mechanics context must be text")
+        world_context = self._compact_text(world_context, self.max_context_tokens)
         resolved_reference_payload = {
             "entities": [
                 {
@@ -419,6 +444,9 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             "active_step": len(active_step.encode("utf-8")),
             "resolved_references": len(resolved_reference_block.encode("utf-8")),
             "world_context": len(world_context.encode("utf-8")),
+            "reference_queries": len(
+                json.dumps(supplemental_queries, ensure_ascii=False).encode("utf-8")
+            ),
             "character": len(character_context.encode("utf-8")),
         }
         if prompt_bytes > self.max_prompt_tokens:
@@ -461,7 +489,17 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             raise MechanicsAdjudicatorError("mechanics provider returned non-text")
         try:
             payload = json.loads(raw)
-            return self._mechanics_decision_from_payload(payload)
+            decision = self._mechanics_decision_from_payload(payload)
+            logger.info(
+                "llm.mechanics.decision_completed",
+                extra={
+                    "provider_role": "mechanics",
+                    "provider_model": getattr(self.provider, "model", None),
+                    "result_family": decision.decision.value,
+                    "active_step_index": analysis.active_step_index,
+                },
+            )
+            return decision
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             raise MechanicsAdjudicatorError(
                 f"invalid mechanics-only response: {exc}"
@@ -472,7 +510,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         context: TurnContext,
         player_input: str,
     ) -> MechanicsDecision:
-        """Legacy API for older callers; the production turn path is strict."""
+        """Deprecated compatibility facade; use adjudicate_analysis for production."""
         return self.understand(context, player_input, allow_legacy=True)[1]
 
     @staticmethod
@@ -517,6 +555,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         evidence_text: str | None = None,
         allow_legacy: bool = False,
     ) -> tuple[PlayerIntentAnalysis, MechanicsDecision]:
+        """Deprecated combined response shim; use IntentInterpreter + adjudicate_analysis."""
         result = self._understand(
             context,
             player_input,
@@ -540,6 +579,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         recent_turns: list[TurnRecord] | None = None,
         evidence_text: str | None = None,
     ) -> IntentUnderstandingResult:
+        """Deprecated combined correction shim; use IntentInterpreter.understand_pending."""
         result = self._understand(
             context,
             player_input,

@@ -26,13 +26,15 @@ The production runtime composes role-specific providers and follows this sequenc
 
 1. `IntentInterpreter.interpret()` receives exact player evidence, bounded same-chat history and a compact visible world context. It returns one coherent `PlayerIntentAnalysis` v2. It does not return a mechanics decision.
 2. Literal evidence, schema and canonical references are validated by the existing model/resolvers and deterministic application code.
-3. `MechanicsAdjudicator.adjudicate_analysis()` is called only when `analysis.is_actionable` is true, `analysis.requires_clarification` is false and an active character exists. Its input is the validated active step and compact character/world facts; its output schema contains only `MechanicsDecision`.
+3. `MechanicsAdjudicator.adjudicate_analysis()` is called only when `analysis.is_actionable` is true, `analysis.requires_clarification` is false and an active character exists. Its input is the validated active step and compact character/world facts; its output schema contains only `MechanicsDecision`. The mechanics context lookup also uses canonical names and literal mentions from references already resolved for that active step, while excluding unrelated resolved references.
 4. `LLMWorldExtractor` receives the exact same analysis object, trusted resolved references, bounded projection and confirmed mechanics results. It must not independently reinterpret the raw utterance.
 5. Domain services remain the authority for validation, persistence and world mutation. Narration follows committed results.
 
 A question, hypothesis, negation, completed observation or non-actionable report does not trigger mechanics adjudication. A consequence proposal is made only when `analysis.allows_world_proposal` permits it.
 
 The semantic interpretation is deliberately not split into calls for action extraction, argument roles, relations, attribution or discourse. These are interdependent fields in one response contract. The stage boundaries separate responsibilities, not pieces of one meaning representation.
+
+Follow-up hardening and its resumable implementation checkpoint are tracked in [`PR #226 — integrated LLM pipeline hardening`](../../docs/quality/pr-226-integrated-llm-pipeline-hardening.md).
 
 ## Semantic compatibility and corrections
 
@@ -53,10 +55,17 @@ latest player answer, corrections are immutable and bounded, and the
 provider's re-analysis must reflect the same edit. Manual-roll continuation
 reuses persisted analysis and does not call the interpreter again.
 
-The old combined `MechanicsAdjudicator.understand()` API remains temporarily
-as a compatibility path for older callers and deterministic legacy tests. The
-application runtime injects `IntentInterpreter` and uses only
-`adjudicate_analysis()`; new production code must not use the combined path.
+The old combined `MechanicsAdjudicator.understand()`,
+`understand_pending()` and `adjudicate()` APIs remain only as deprecated
+compatibility shims for older integrations and compatibility tests.
+`TurnResolutionService` exposes the explicit
+`allow_legacy_combined_understanding` switch, which defaults to `False`; callers
+must opt in to use the fallback. The application composition root also sets it
+to `False`, injects a distinct `IntentInterpreter` provider, and routes
+mechanics through `adjudicate_analysis()`. New production services must not
+enable the combined path. The remaining combined prompt/schema are retained
+only until external compatibility consumers have migrated; compatibility
+tests opt in explicitly and do not establish the production architecture.
 
 ## Prompt budgets and diagnostics
 

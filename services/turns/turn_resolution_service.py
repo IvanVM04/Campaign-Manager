@@ -120,6 +120,7 @@ class TurnResolutionService:
         proposal_context_max_tokens: int = 4096,
         intent_interpreter: IntentInterpreter | None = None,
         proposal_context_max_bytes: int | None = None,
+        allow_legacy_combined_understanding: bool = False,
     ) -> None:
 
         if not isinstance(
@@ -154,6 +155,8 @@ class TurnResolutionService:
             intent_interpreter, IntentInterpreter
         ):
             raise TypeError("intent_interpreter must be an IntentInterpreter or None")
+        if not isinstance(allow_legacy_combined_understanding, bool):
+            raise TypeError("allow_legacy_combined_understanding must be a boolean")
         if dice_roller is not None and not isinstance(dice_roller, DiceRoller):
             raise TypeError("dice_roller must be a DiceRoller or None")
         if context_builder is not None and not isinstance(context_builder, ContextBuilder):
@@ -172,6 +175,7 @@ class TurnResolutionService:
         self.world_service = world_service
         self.mechanics_adjudicator = mechanics_adjudicator
         self.intent_interpreter = intent_interpreter
+        self.allow_legacy_combined_understanding = allow_legacy_combined_understanding
         self.dice_roller = dice_roller or DiceRoller()
         self.context_builder = context_builder
         self.conversation_reference_resolver = ConversationReferenceResolver()
@@ -320,6 +324,10 @@ class TurnResolutionService:
                     )
                     decision = None
                 else:
+                    if not self.allow_legacy_combined_understanding:
+                        raise TurnResolutionServiceError(
+                            "legacy combined understanding is disabled; inject IntentInterpreter"
+                        )
                     adjudicator = self.mechanics_adjudicator
                     if adjudicator is None:
                         raise TurnResolutionServiceError(
@@ -378,9 +386,12 @@ class TurnResolutionService:
             and decision is None
             and self.mechanics_adjudicator is not None
         ):
-            # Compatibility path for callers that have not yet injected the
-            # role-specific interpreter. The application runtime uses the
-            # modular path above.
+            if not self.allow_legacy_combined_understanding:
+                raise TurnResolutionServiceError(
+                    "legacy combined understanding is disabled; inject IntentInterpreter"
+                )
+            # Compatibility path for older callers that explicitly retain the
+            # combined contract. The application runtime disables this fallback.
             try:
                 intent_analysis, inferred_decision = self.mechanics_adjudicator.understand(
                     context,

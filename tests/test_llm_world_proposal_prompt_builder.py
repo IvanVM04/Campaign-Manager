@@ -207,6 +207,63 @@ def test_proposal_prompt_uses_shared_analysis_and_bounded_conversation_history()
 
 
 
+def test_v2_shared_analysis_omits_duplicate_untrusted_history_and_discourse():
+    source = "Abro la puerta de roble."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": source,
+                "actor": "player",
+                "action": "abrir la puerta de roble",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta de roble"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Abro",
+                    "family": "interaction",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "la puerta de roble",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=source,
+    )
+    history = [{
+        "player_input": "Hablo con Mara sobre el guardia del norte.",
+        "narrative": "Mara revela un rumor no confirmado del castillo.",
+    }]
+
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        source,
+        make_context(),
+        intent_analysis=analysis,
+        recent_turns=history,
+    )
+
+    assert analysis.to_json() in prompt
+    assert "EVIDENCIA ORIGINAL DEL JUGADOR" in prompt
+    assert source in prompt
+    assert "HISTORIAL RECIENTE VISIBLE" not in prompt
+    assert "ÍNDICE DISCURSIVO DETERMINISTA" not in prompt
+    assert "Hablo con Mara" not in prompt
+    assert "rumor no confirmado del castillo" not in prompt
+    assert "no reconstruyas ni sobrescribas" in prompt
+
+
 def test_proposal_prompt_builder_compacts_optional_context_with_utf8_byte_budget(monkeypatch):
     import pytest
 
@@ -368,3 +425,56 @@ def test_proposal_prompt_compacts_full_registry_under_budget_pressure(monkeypatc
     assert "create_event" in prompt
     assert '"required"' in prompt
     assert '"examples"' not in prompt
+
+def test_v2_prompt_budget_compaction_does_not_reference_omitted_history():
+    import pytest
+
+    from services.llm_world.llm_extraction_errors import LLMExtractionError
+
+    source = "Abro la puerta de roble."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": source,
+                "actor": "player",
+                "action": "abrir la puerta de roble",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta de roble"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Abro",
+                    "family": "interaction",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "la puerta de roble",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=source,
+    )
+
+    with pytest.raises(LLMExtractionError, match="exceeds the configured"):
+        LLMWorldProposalPromptBuilder.build_prompt(
+            source,
+            make_context(),
+            intent_analysis=analysis,
+            recent_turns=[{
+                "player_input": "No debe reinyectarse en el contexto v2.",
+                "narrative": "Tampoco debe añadirse un índice discursivo duplicado.",
+            }],
+            max_prompt_tokens=1,
+        )
+

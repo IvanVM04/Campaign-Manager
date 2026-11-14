@@ -8,7 +8,9 @@
 |---|---|
 | `tests/test_player_intent_analysis.py` | V1 interpretation shape, enums, evidence grounding, order and active-step invariants. |
 | `tests/test_semantic_frames.py` | V2 typed action frames, role/kind validation, relation direction/modality, exact evidence, no model IDs, v1 compatibility and durable v2 codec round-trip. |
-| `tests/test_mechanics_adjudicator.py` | Combined adjudicator returns a shared interpretation; v2 schema requires action frames/relation claims while v1 payload decoding remains compatible. |
+| `tests/test_modular_language_pipeline.py` | One `IntentInterpreter` analysis is handed unchanged through deterministic resolution to mechanics and the planner; non-actionable/ambiguous routes and failed compound prerequisites are fail-closed. |
+| `tests/test_mechanics_adjudicator.py` | Mechanics-only `adjudicate_analysis()` accepts a validated v2 active step and returns only `MechanicsDecision`; legacy combined parser tests are compatibility-contract tests. |
+| `tests/test_ollama_provider.py` and `tests/test_observability_logging.py` | Content-free Ollama token/timing telemetry and its JSONL safe-field allowlist are preserved without serializing prompts or completions. |
 | `tests/test_turn_mechanics_integration.py` | Shared interpretation is reused for mechanics and proposal hand-off. |
 | `tests/test_conversation_reference_resolver.py` and corpus test | Conservative multi-turn resolution against visible entities; ambiguity abstention. |
 | `tests/test_entity_reference_resolver.py` | Canonical names, aliases, descriptive matching and ambiguity. |
@@ -21,7 +23,7 @@ Keep deterministic tests independent of Ollama, network access and a running Sil
 
 ## 2. Live Ollama (explicit opt-in)
 
-The `real_llm` suite uses the actual provider and production interpretation/proposal boundaries. It is excluded from normal CI.
+The `real_llm` suite uses the actual provider and production role-specific interpretation/mechanics/proposal boundaries. It is excluded from normal CI. The integrated acceptance probe `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action` exercises the full `TurnResolutionService` path: live intent, live mechanics, deterministic natural-1 failure, downstream proposal validation, and no advancement of a conditional step.
 
 Default documented settings are `http://localhost:11434`, `gemma4:26b` and timeout 120 seconds. Run:
 
@@ -32,7 +34,7 @@ CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT=120
 python -m pytest -m real_llm -v -s
 ```
 
-Record exact model tag/digest, Ollama version, generation settings, timeout and hardware. Do not assume the user's actual model matches the documentation default.
+The integrated probe records exact configured role models, local Ollama version/model digest when available, per-role call count, prompt bytes, server prompt/evaluation token counts and latency. Also record sampling/generation settings, timeout and hardware for a reproducible run. Do not assume the user's actual model matches the documentation default.
 
 ## 3. Current corpora and what they prove
 
@@ -40,7 +42,7 @@ Record exact model tag/digest, Ollama version, generation settings, timeout and 
 
 Fixture: `tests/fixtures/language_understanding_corpus_v1.json`. It covers Spanish/English attempts, questions, plans/conditionals, player/NPC dialogue, reported speech, observations, failures/completion/partial outcomes, negation/cancellation, uncertainty, compound steps, correction classification, ambiguous pronouns and quoted instructions. Twelve critical cases are repeated three times; the rest run once.
 
-The production adjudicator now expects the v2 output envelope. The existing corpus assertions primarily verify category, active step, clarification, actor, modality, polarity and player-reported outcome. V2 parser validation additionally checks frame structure and evidence, but the corpus does not yet comprehensively measure whether the model assigns every semantic role or relation correctly.
+The dedicated `IntentInterpreter` now emits the v2 analysis envelope independently of mechanics. The existing corpus assertions primarily verify category, active step, clarification, actor, modality, polarity and player-reported outcome. V2 parser validation additionally checks frame structure and evidence, but the corpus does not yet comprehensively measure whether the model assigns every semantic role or relation correctly. Mechanics is separately evaluated against the validated active step.
 
 ### Conversation references — six deterministic corpus scenarios plus focused regressions
 
@@ -67,7 +69,7 @@ benchmark. The full held-out evaluation remains PR #220.
 
 ## 4. Recording a run
 
-Run `python -m pytest -m real_llm -v -s` from the repository root. Retain timestamp, commit SHA, exact model/version/settings, scenario ID, pass/fail outcome, operation types/count, latency, repair use and provider-call count. Preserve every failure even when a later repeat passes. Do not log full prompts, raw responses, secrets or private campaign state.
+Run `python -m pytest -m real_llm -v -s` from the repository root. For the integrated pipeline first, run `python -m pytest tests/test_real_llm.py -m real_llm -k integrated_pipeline -v -s`. Retain timestamp, commit SHA, exact role model tags/digests, Ollama version/settings, scenario ID, pass/fail outcome, operation types/count, input/output tokens, per-role latency, repair use and provider-call count. Preserve every failure even when a later repeat passes. Do not log full prompts, raw responses, secrets or private campaign state.
 
 ## 5. Metrics — report by family
 

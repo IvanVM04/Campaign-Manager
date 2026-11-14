@@ -108,6 +108,10 @@ def test_llm_settings_create_distinct_role_providers():
     assert extraction.timeout == 45.0
     assert mechanics.timeout == 30.0
     assert intent.timeout == 25.0
+    assert narrative.role == "narrative"
+    assert extraction.role == "extraction"
+    assert mechanics.role == "mechanics"
+    assert intent.role == "intent"
     assert {
         narrative.base_url,
         extraction.base_url,

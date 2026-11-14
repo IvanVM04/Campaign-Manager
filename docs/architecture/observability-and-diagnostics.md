@@ -24,11 +24,20 @@ The `observability` package owns:
   one, binds request/campaign correlation, records request duration/status and
   returns the ID in the `X-Request-ID` response header.
 
-The three model-facing roles emit provider success/failure events with role,
-configured model (when available), duration, response character count and
-error type. The structured proposal path separately records prompt/context
-sizes, budget utilization, record counts and repair-attempt outcome. It does
-not store prompt or raw response content.
+The model-facing intent, mechanics and extraction roles emit provider
+success/failure events with role, configured/response model, UTF-8 prompt byte
+count, response character count, stable error type and request duration. When
+Ollama returns them, the adapter also records prompt/evaluation token counts,
+raw server durations and derived millisecond timings, completion status and
+done reason. The optional live-evaluation callback receives the same
+content-free metadata in memory. Optional Ollama version and model-digest
+lookups identify the local runtime without logging its prompts or outputs.
+
+The structured proposal path separately records prompt/context sizes, budget
+utilization, selected/excluded record counts, validated operation family/count
+and repair outcome. The JSON-lines formatter has an explicit allowlist for
+these bounded diagnostic fields. It does not store prompts, raw completions,
+player input or campaign prose.
 
 ## Configuration
 

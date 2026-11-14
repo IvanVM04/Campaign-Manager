@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import math
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from .ollama_provider import OllamaProvider
@@ -331,7 +331,12 @@ class LLMSettings:
 
         return settings
 
-    def create_provider(self, role: LLMRole) -> OllamaProvider:
+    def create_provider(
+        self,
+        role: LLMRole,
+        *,
+        metrics_callback: Callable[[dict[str, Any]], None] | None = None,
+    ) -> OllamaProvider:
         """Build an Ollama adapter configured for one model responsibility."""
 
         configuration = {
@@ -349,4 +354,6 @@ class LLMSettings:
             model=model,
             base_url=self.base_url,
             timeout=timeout,
+            role=role,
+            metrics_callback=metrics_callback,
         )

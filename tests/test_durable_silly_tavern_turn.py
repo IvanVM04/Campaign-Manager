@@ -457,6 +457,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     # Exercise the legacy combined compatibility path with a deterministic
     # provider; the production modular interpreter is not part of this fixture.
     service.resolver.intent_interpreter = None
+    service.resolver.allow_legacy_combined_understanding = True
     service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
         response='{"decision":"none"}'
     )
@@ -512,6 +513,7 @@ def test_silly_tavern_world_event_survives_duplicate_delivery_and_runtime_reload
     factory.invalidate(1)
     reloaded_service = factory.get_runtime(1).durable_native_turn_service
     reloaded_service.resolver.intent_interpreter = None
+    reloaded_service.resolver.allow_legacy_combined_understanding = True
     reloaded_service.resolver.mechanics_adjudicator.provider = CombinedMechanicsFakeProvider(
         response='{"decision":"none"}'
     )

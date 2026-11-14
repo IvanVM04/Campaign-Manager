@@ -73,6 +73,8 @@ def service_with_fake_models():
     service = runtime.durable_native_turn_service
     service.resolver.intent_interpreter = None
     service.resolver.mechanics_adjudicator = None
+    # These fixtures exercise the deprecated combined compatibility contract.
+    service.resolver.allow_legacy_combined_understanding = True
     proposal_calls = []
     service.resolver.extractor.provider = lambda prompt: (
         proposal_calls.append(prompt) or '{"operations": []}'

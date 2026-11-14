@@ -110,6 +110,7 @@ class LLMWorldExtractor:
                 "provider_role": "extraction",
                 "provider_model": getattr(self.provider, "model", None),
                 "duration_ms": round((perf_counter() - provider_started) * 1000, 3),
+                "prompt_bytes": len(prompt.encode("utf-8")),
                 "response_chars": len(response) if isinstance(response, str) else None,
             },
         )
@@ -221,7 +222,35 @@ class LLMWorldExtractor:
             extra=log_fields,
         )
         raw_response = self._provide(prompt)
-        return self.proposal_validator.parse_with_repair(prompt, raw_response)
+        try:
+            operations = self.proposal_validator.parse_with_repair(prompt, raw_response)
+        except Exception as exc:
+            logger.warning(
+                "llm.proposal.validation_failed",
+                extra={
+                    "provider_role": "extraction",
+                    "provider_model": getattr(self.provider, "model", None),
+                    "result_family": "invalid_proposal",
+                    "error_type": type(exc).__name__,
+                },
+            )
+            raise
+        logger.info(
+            "llm.proposal.validated",
+            extra={
+                "provider_role": "extraction",
+                "provider_model": getattr(self.provider, "model", None),
+                "result_family": "world_operations",
+                "operation_count": len(operations),
+                "operation_types": sorted({type(item).__name__ for item in operations}),
+                "mechanics_outcome": (
+                    getattr(mechanics_result, "outcome", None)
+                    if mechanics_result is not None
+                    else None
+                ),
+            },
+        )
+        return operations
 
     # ============================================================
     # RESPONSE PARSING

@@ -186,6 +186,7 @@ class CampaignRuntimeFactory:
             context_builder=context_builder,
             proposal_context_max_bytes=self._llm_settings.extraction_context_max_bytes,
             intent_interpreter=intent_interpreter,
+            allow_legacy_combined_understanding=False,
         )
 
         durable_native_turn_service = DurableNativeTurnService(

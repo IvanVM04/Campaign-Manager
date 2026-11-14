@@ -1,6 +1,6 @@
 # Modular language-understanding pipeline — P0 architecture decision
 
-**Status:** implementation in PR #225 on `feat/225-modular-language-understanding-pipeline`; deterministic CI and live-model acceptance are pending.  
+**Status:** PR #225 merged at `e59bc47e85edb8efa4d02e5eb9990de0438d3486`. PR #226 remains open in draft on `feat/226-integrated-llm-pipeline-hardening`; its latest fully validated head before this documentation/allowlist update passed 1,826 tests (17 deselected), 85.13% combined coverage, Ruff, both Pyright scopes, JavaScript and CodeQL. Live Ollama and manual SillyTavern acceptance remain separate pending gates.  
 **Priority:** P0 / Priority #1 — blocks additional semantic feature work until the pipeline and prompt-budget contracts are reliable.  
 **Decision date:** 2026-11-14.  
 **Current implementation baseline:** PR #223 merge `7f4f8b10a072665471370fab4493a338835b875c`. PR #224 documentation baseline is merged at `ed65d62269ccf8a86f523d2224d5c33f4d5c7055`.  
@@ -187,7 +187,7 @@ A larger cap may be a configuration adjustment after the prompt is decomposed an
 **Do not resume broader semantic feature PRs until this P0 architecture tranche is implemented and its deterministic contracts pass.** The baseline live suite follows immediately after that tranche; the focused Aldric budget failure must no longer block the provider call.
 
 
-## 9. Implementation status — PR #225
+## 9. Implementation status — PR #225 (merged)
 
 The first implementation pass on `feat/225-modular-language-understanding-pipeline` currently includes:
 
@@ -200,11 +200,17 @@ The first implementation pass on `feat/225-modular-language-understanding-pipeli
 - [x] Role-specific intent/mechanics/extraction prompt and context byte budgets; legacy `*_MAX_TOKENS` configuration names remain supported as byte aliases.
 - [x] UTF-8 byte diagnostics for intent, mechanics and proposal context/prompt, plus safe role/model/duration/error metadata. No prompt or full model output is logged.
 - [x] Deterministic tests added for schema separation, exact provider-call routing, shared-analysis hand-off, pending corrections, byte budgets and API error classification; live intent corpus moved to the dedicated interpreter and a mechanics-only live probe added.
-- [ ] GitHub deterministic tests, coverage, lint, type checks and CodeQL must pass on the final PR head.
+- [x] GitHub deterministic tests, coverage, lint, type checks and CodeQL passed on the final PR #225 head (`eecad52fb8b2fd79d3b11750795eaa8e6e91e8f9`): 1,810 passed, 16 deselected, 85.05% coverage; lint, both Pyright jobs, JavaScript and CodeQL passed.
 - [ ] Full local Ollama corpus and operation-quality runs must be executed with the pinned model/configuration; adding the test code does not constitute a live pass.
 - [ ] Manual SillyTavern multi-chat, clarification and durable recovery acceptance remains open.
 
-**Compatibility note:** the old combined `MechanicsAdjudicator.understand()` API remains temporarily for external/legacy callers and historical unit tests. Production runtime composition injects the dedicated interpreter and does not use that combined path. It should be retired only after callers and durable fixtures have migrated.
+**Compatibility note:** the old combined `MechanicsAdjudicator.understand()`,
+`understand_pending()` and `adjudicate()` methods remain deprecated shims for
+older external consumers and compatibility tests. PR #226 gates the
+`TurnResolutionService` fallback with `allow_legacy_combined_understanding`,
+which defaults to `False`; the application runtime explicitly keeps it
+disabled. Legacy fixtures must opt in. Remove the combined prompt/schema only
+after external consumers migrate and their tests prove the migration.
 
 **Byte-budget configuration:**
 
@@ -213,3 +219,22 @@ The first implementation pass on `feat/225-modular-language-understanding-pipeli
 - `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES` / `...EXTRACTION_CONTEXT_MAX_BYTES` / `...EXTRACTION_REPAIR_MAX_BYTES`
 
 The old extraction/mechanics `*_MAX_TOKENS` environment names are accepted as compatibility aliases. They are interpreted as UTF-8 byte budgets, not model-token counts.
+
+
+## 10. Follow-up hardening — PR #226
+
+PR #225 establishes the modular production architecture and has passed deterministic CI. PR #226 continues with context hardening and integrated validation rather than adding more semantic feature breadth.
+
+The first identified improvement is mechanics context retrieval: canonical names from deterministic references resolved for the active step should be supplemental retrieval signals, so pronouns/ellipsis can still retrieve the obstacle/item details needed for adjudication. This work is tracked with explicit packages and a durable continuation checkpoint in [PR #226 integrated pipeline hardening](pr-226-integrated-llm-pipeline-hardening.md).
+
+PR #226 implementation status (branch remains open and unmerged):
+- [x] Mechanics retrieval uses canonical names and literal mentions only from references resolved for the active step.
+- [x] The v2 planner consumes the shared analysis without duplicate transcript/discourse blocks; original player text remains grounding evidence only.
+- [x] Integrated deterministic tests cover same-analysis hand-off, clarification/ambiguity routing, completed observations, mechanics failure propagation, blocked compound progression, plans and negations.
+- [x] Ollama usage telemetry captures role/model, prompt bytes, token counts and timing metadata when supplied; server version/model digest are optional; JSONL allowlist tests protect safe diagnostic persistence.
+- [x] Legacy combined fallback is disabled by default and explicitly disabled in the production runtime; old APIs remain deprecated compatibility shims only.
+- [x] Latest validated WP5 baseline: 1,826 tests passed, 17 deselected, 85.13% combined coverage; Ruff, both Pyright jobs, JavaScript and CodeQL green.
+- [ ] Run the integrated opt-in Ollama probe and the unchanged live corpora with the user's pinned local model/configuration; record the result rather than inferring it from CI.
+- [ ] Complete the full manual SillyTavern multi-chat, clarification, restart, duplicate-delivery and durable replay checklist.
+
+Deterministic CI, live Ollama and SillyTavern acceptance remain distinct gates.

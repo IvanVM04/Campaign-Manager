@@ -268,6 +268,99 @@ def test_mechanics_adjudicator_receives_only_active_step_resolved_references():
     assert '"canonical_id":74' not in prompt
 
 
+def test_mechanics_context_retrieval_uses_only_active_resolved_reference_names():
+    from services.context import ContextBuilder
+
+    class RecordingContextBuilder(ContextBuilder):
+        def __init__(self):
+            super().__init__()
+            self.received_query = None
+            self.received_supplemental_queries = ()
+
+        def build(
+            self,
+            world,
+            query,
+            recent_turns=None,
+            *,
+            supplemental_queries=(),
+            character_entity_id=None,
+        ):
+            self.received_query = query
+            self.received_supplemental_queries = tuple(supplemental_queries)
+            return {"context": "Hechos mecánicos de las referencias activas."}
+
+    player_text = "Abro la puerta con la llave."
+    payload = _analysis_payload(
+        source_excerpt=player_text,
+        action="abrir la puerta con la llave",
+        predicate="Abro",
+    )
+    payload["steps"][0]["target_mentions"].append("la llave")
+    payload["steps"][0]["action_frame"]["arguments"].append({
+        "role": "instrument",
+        "mention": {
+            "text": "la llave",
+            "kind_hint": "item_instance",
+        },
+    })
+    analysis = IntentInterpreter(
+        FakeLLMProvider(response=json.dumps({
+            "intent_analysis": payload,
+        }))
+    ).interpret(_context(), player_text)
+    context_builder = RecordingContextBuilder()
+    provider = FakeLLMProvider(response='{"decision":"none"}')
+    adjudicator = MechanicsAdjudicator(provider, context_builder)
+
+    active_entity = ResolvedConversationReference(
+        mention="la puerta",
+        entity_id=42,
+        entity_name="Puerta de piedra",
+        match_kind="explicit_alias",
+    )
+    active_item = ResolvedWorldReference(
+        mention="la llave",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=73,
+        name="Llave oxidada",
+        match_kind="direct_name",
+    )
+    unrelated_entity = ResolvedConversationReference(
+        mention="el guardia",
+        entity_id=99,
+        entity_name="Guardia del norte",
+        match_kind="direct_name",
+    )
+    unrelated_item = ResolvedWorldReference(
+        mention="el anillo",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=74,
+        name="Anillo de plata",
+        match_kind="direct_name",
+    )
+
+    adjudicator.adjudicate_analysis(
+        _context(),
+        analysis,
+        resolved_references=(active_entity, unrelated_entity),
+        resolved_world_references=(active_item, unrelated_item),
+    )
+
+    queries = context_builder.received_supplemental_queries
+    assert context_builder.received_query == "Abro la puerta con la llave."
+    assert "Puerta de piedra" in queries
+    assert "la puerta" in queries
+    assert "Llave oxidada" in queries
+    assert "la llave" in queries
+    assert "Guardia del norte" not in queries
+    assert "el guardia" not in queries
+    assert "Anillo de plata" not in queries
+    assert "el anillo" not in queries
+    assert len(queries) == len(set(queries))
+    assert provider.call_count == 1
+
+
 def test_mechanics_only_parser_applies_safe_defaults_for_optional_modifiers():
     provider = FakeLLMProvider(response=json.dumps({
         "decision": "ability_check",
@@ -474,6 +567,151 @@ def test_turn_pipeline_reuses_one_analysis_and_calls_mechanics_only_for_active_a
     assert intent_provider.call_count == 1
     assert mechanics_provider.call_count == 1
     assert extractor.call_count == 1
+
+
+def test_turn_pipeline_passes_same_analysis_and_world_projection_to_mechanics_and_planner(
+    monkeypatch,
+):
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.turns import DMService
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.received_analysis = None
+            self.received_projection = None
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            self.received_analysis = kwargs["intent_analysis"]
+            self.received_projection = kwargs["context_projection"]
+            return []
+
+    class RecordingMechanicsAdjudicator(MechanicsAdjudicator):
+        def __init__(self, provider, context_builder):
+            super().__init__(provider, context_builder)
+            self.received_analysis = None
+            self.received_projection = None
+
+        def adjudicate_analysis(self, context, analysis, **kwargs):
+            self.received_analysis = analysis
+            self.received_projection = kwargs["context_projection"]
+            return super().adjudicate_analysis(context, analysis, **kwargs)
+
+    context_builder = ContextBuilder()
+    projection = WorldContextProjection(
+        world=WorldState(),
+        diagnostics=ContextProjectionDiagnostics(
+            estimated_tokens=0,
+            budget_tokens=4096,
+            available_counts=(),
+            candidate_counts=(),
+            selected_counts=(),
+        ),
+    )
+    monkeypatch.setattr(
+        context_builder,
+        "build",
+        lambda *args, **kwargs: {"context": "Hechos visibles del mundo.", "entities": []},
+    )
+    monkeypatch.setattr(
+        context_builder,
+        "build_proposal_context",
+        lambda *args, **kwargs: projection,
+    )
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": _analysis_payload(),
+    }))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    intent_interpreter = IntentInterpreter(intent_provider, context_builder)
+    mechanics_adjudicator = RecordingMechanicsAdjudicator(
+        mechanics_provider,
+        context_builder,
+    )
+    extractor = RecordingExtractor()
+    dm_service = DMService(
+        FakeLLMProvider(response="La acción queda registrada."),
+        context_builder,
+    )
+    service = TurnResolutionService(
+        dm_service=dm_service,
+        extractor=extractor,
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=mechanics_adjudicator,
+        intent_interpreter=intent_interpreter,
+        context_builder=context_builder,
+    )
+    no_references = SimpleNamespace(
+        references=(),
+        clarification_question=None,
+    )
+    monkeypatch.setattr(
+        service.conversation_reference_resolver,
+        "resolve",
+        lambda *args, **kwargs: no_references,
+    )
+    monkeypatch.setattr(
+        service.world_reference_resolver,
+        "resolve",
+        lambda *args, **kwargs: no_references,
+    )
+
+    plan = service.prepare_turn(_context(), "Abro la puerta.")
+
+    assert plan.intent_analysis is not None
+    assert mechanics_adjudicator.received_analysis is plan.intent_analysis
+    assert extractor.received_analysis is plan.intent_analysis
+    assert mechanics_adjudicator.received_projection is projection
+    assert extractor.received_projection is projection
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 1
+    assert extractor.call_count == 1
+
+
+def test_turn_pipeline_stops_before_planner_when_mechanics_requests_clarification():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            return []
+
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": _analysis_payload(),
+    }))
+    mechanics_provider = FakeLLMProvider(response=json.dumps({
+        "decision": "clarification",
+        "question": "¿Con qué herramienta intentas abrirla?",
+    }))
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(_context(), "Abro la puerta.")
+
+    assert plan.clarification_question == "¿Con qué herramienta intentas abrirla?"
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 1
+    assert extractor.call_count == 0
 
 
 def test_turn_pipeline_skips_mechanics_for_completed_observation_but_keeps_proposal():
@@ -756,3 +994,291 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "mechanics_decision" not in provider.prompts[0]
+
+def test_turn_pipeline_failed_compound_prerequisite_reaches_planner_without_advancing():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    source = (
+        "Ya he examinado el sello del portón. "
+        "Después intento forzar la cerradura. "
+        "Si lo consigo, entro en la cripta."
+    )
+    analysis_payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [
+            {
+                "index": 0,
+                "source_excerpt": "Ya he examinado el sello del portón.",
+                "actor": "player",
+                "action": "examinar el sello del portón",
+                "modality": "completed",
+                "polarity": "positive",
+                "reported_outcome": "success",
+                "target_mentions": ["el sello del portón"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "examinado",
+                    "family": "perception",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "el sello del portón",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            },
+            {
+                "index": 1,
+                "source_excerpt": "intento forzar la cerradura",
+                "actor": "player",
+                "action": "forzar la cerradura",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la cerradura"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "forzar",
+                    "family": "interaction",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "la cerradura",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            },
+            {
+                "index": 2,
+                "source_excerpt": "Si lo consigo, entro en la cripta.",
+                "actor": "player",
+                "action": "entrar en la cripta",
+                "modality": "conditional",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la cripta"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "entro",
+                    "family": "movement",
+                    "arguments": [{
+                        "role": "destination",
+                        "mention": {
+                            "text": "la cripta",
+                            "kind_hint": "location",
+                        },
+                    }],
+                },
+            },
+        ],
+        "active_step_index": 1,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": analysis_payload,
+    }, ensure_ascii=False))
+    mechanics_provider = FakeLLMProvider(response=json.dumps({
+        "decision": "skill_check",
+        "dc": 30,
+        "advantage": False,
+        "disadvantage": False,
+        "modifier": 0,
+        "reason": "Forzar la cerradura",
+        "skill": "athletics",
+        "ability": "strength",
+    }))
+    proposal_provider = FakeLLMProvider(response='{"operations": []}')
+    extractor = LLMWorldExtractor(
+        provider=proposal_provider,
+        operation_parser=OperationParser(),
+    )
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(
+        _context(),
+        source,
+        manual_rolls=(1,),
+    )
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.active_step_index == 1
+    assert plan.intent_analysis.steps[2].modality.value == "conditional"
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_result.check.success is False
+    assert plan.mechanics_result.outcome == "failure"
+    assert mechanics_provider.call_count == 1
+    assert proposal_provider.call_count == 1
+    assert plan.intent_analysis.to_json() in proposal_provider.last_prompt
+    assert "Resultado: failure" in proposal_provider.last_prompt
+    assert "Las acciones compuestas se evalúan en orden" in proposal_provider.last_prompt
+    assert "Un fracaso no modifica el objetivo" in proposal_provider.last_prompt
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
+
+
+@pytest.mark.parametrize(
+    ("source", "category", "modality", "polarity", "action", "predicate", "family"),
+    [
+        (
+            "Mañana hablaré con el capitán.",
+            "plan",
+            "planned",
+            "positive",
+            "hablar con el capitán",
+            "hablaré",
+            "communication",
+        ),
+        (
+            "No ataco al guardia.",
+            "action",
+            "negated",
+            "negative",
+            "atacar al guardia",
+            "ataco",
+            "combat",
+        ),
+    ],
+)
+def test_turn_pipeline_does_not_adjudicate_or_propose_plans_and_negations(
+    source,
+    category,
+    modality,
+    polarity,
+    action,
+    predicate,
+    family,
+):
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    analysis_payload = {
+        "schema_version": 2,
+        "category": category,
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": action,
+            "modality": modality,
+            "polarity": polarity,
+            "reported_outcome": "not_claimed",
+            "target_mentions": [],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": predicate,
+                "family": family,
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": analysis_payload,
+    }, ensure_ascii=False))
+    mechanics_provider = FakeLLMProvider(response='{"decision": "none"}')
+    proposal_provider = FakeLLMProvider(response='{"operations": []}')
+    extractor = LLMWorldExtractor(
+        provider=proposal_provider,
+        operation_parser=OperationParser(),
+    )
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(_context(), source)
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.active_step_index is None
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 0
+    assert proposal_provider.call_count == 0
+
+
+def test_turn_resolution_disables_legacy_combined_understanding_by_default():
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.turns import DMService
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    context_builder = ContextBuilder()
+    service = TurnResolutionService(
+        dm_service=DMService(
+            FakeLLMProvider(response="Narración."),
+            context_builder,
+        ),
+        extractor=LLMWorldExtractor(
+            provider=FakeLLMProvider(response='{"operations": []}'),
+            operation_parser=OperationParser(),
+        ),
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=MechanicsAdjudicator(
+            FakeLLMProvider(response='{"decision": "none"}'),
+            context_builder,
+        ),
+    )
+
+    assert service.allow_legacy_combined_understanding is False
+
+
+def test_production_runtime_disables_legacy_combined_understanding():
+    from bootstrap.campaign_runtime import CampaignRuntimeFactory
+
+    runtime = CampaignRuntimeFactory().get_runtime(1)
+    resolver = runtime.durable_native_turn_service.resolver
+
+    assert isinstance(resolver.intent_interpreter, IntentInterpreter)
+    assert isinstance(resolver.mechanics_adjudicator, MechanicsAdjudicator)
+    assert resolver.allow_legacy_combined_understanding is False
+    assert resolver.intent_interpreter.provider is not resolver.mechanics_adjudicator.provider
+    assert resolver.intent_interpreter.provider.role == "intent"
+    assert resolver.mechanics_adjudicator.provider.role == "mechanics"
+    assert runtime.durable_native_turn_service.resolver.extractor.provider.role == "extraction"
+
+
+def test_turn_pipeline_fails_closed_when_legacy_combined_understanding_is_disabled():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
+
+    intent_provider = FakeLLMProvider(response='{"intent_analysis": {}}')
+    mechanics_provider = FakeLLMProvider(response='{"decision": "none"}')
+    extractor = LLMWorldExtractor(
+        provider=FakeLLMProvider(response='{"operations": []}'),
+        operation_parser=OperationParser(),
+    )
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+    service.intent_interpreter = None
+    service.allow_legacy_combined_understanding = False
+
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="legacy combined understanding is disabled",
+    ):
+        service.prepare_turn(_context(), "Abro la puerta.")
+
+    assert mechanics_provider.call_count == 0
+    assert intent_provider.call_count == 0
+

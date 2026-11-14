@@ -418,3 +418,182 @@ def test_real_ollama_meets_semantic_frame_corpus_v1(record_property):
         f"model={model}; scenarios={len(scenarios)}; "
         f"provider_calls={provider_calls}; elapsed_seconds={elapsed:.3f}"
     )
+
+def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action(
+    record_property,
+):
+    """Exercise the production interpreter -> mechanics -> proposal handoff."""
+    from dataclasses import replace
+
+    from models.mechanics import MechanicsDecisionType
+    from services.context import ContextBuilder
+    from services.providers import FakeLLMProvider, LLMSettings
+    from services.turns import DMService, MechanicsAdjudicator
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    settings = LLMSettings.from_env()
+    common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
+    common_timeout_raw = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT")
+    common_timeout = (
+        float(common_timeout_raw) if common_timeout_raw is not None else None
+    )
+
+    def role_timeout(role: str, configured: float) -> float:
+        # Preserve role-specific LLM settings when present; otherwise honor the
+        # same REAL_LLM_TIMEOUT override used by the other live probes.
+        env_name = f"CAMPAIGN_MANAGER_LLM_{role.upper()}_TIMEOUT_SECONDS"
+        if env_name in os.environ or common_timeout is None:
+            return configured
+        return common_timeout
+
+    settings = replace(
+        settings,
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            settings.base_url,
+        ),
+        intent_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
+            common_model or settings.intent_model,
+        ),
+        mechanics_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_MECHANICS_MODEL",
+            common_model or settings.mechanics_model,
+        ),
+        extraction_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_EXTRACTION_MODEL",
+            common_model or settings.extraction_model,
+        ),
+        intent_timeout_seconds=role_timeout(
+            "intent",
+            settings.intent_timeout_seconds,
+        ),
+        mechanics_timeout_seconds=role_timeout(
+            "mechanics",
+            settings.mechanics_timeout_seconds,
+        ),
+        extraction_timeout_seconds=role_timeout(
+            "extraction",
+            settings.extraction_timeout_seconds,
+        ),
+    )
+    usage_events = []
+    providers = {
+        role: settings.create_provider(role, metrics_callback=usage_events.append)
+        for role in ("intent", "mechanics", "extraction")
+    }
+    ollama_version = providers["intent"].get_server_version()
+    model_digests = {
+        role: provider.get_model_digest()
+        for role, provider in providers.items()
+    }
+    context_builder = ContextBuilder()
+    intent_interpreter = IntentInterpreter(
+        provider=providers["intent"],
+        context_builder=context_builder,
+    )
+    mechanics_adjudicator = MechanicsAdjudicator(
+        provider=providers["mechanics"],
+        context_builder=context_builder,
+    )
+    extractor = LLMWorldExtractor(
+        provider=providers["extraction"],
+        operation_parser=OperationParser(),
+    )
+    service = TurnResolutionService(
+        dm_service=DMService(
+            provider=FakeLLMProvider(response="No se genera narración en esta sonda."),
+            context_builder=context_builder,
+        ),
+        extractor=extractor,
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=mechanics_adjudicator,
+        intent_interpreter=intent_interpreter,
+        context_builder=context_builder,
+    )
+    context = TurnContext(
+        campaign=CampaignState(
+            campaign_id=99026,
+            name="Sonda de pipeline integrado",
+            system="D&D 5e 2014",
+        ),
+        current_session=None,
+        # A natural 1 with these weak scores fails even with ordinary proficiency.
+        active_character=CharacterState(
+            entity_id=99026,
+            strength=3,
+            dexterity=3,
+            constitution=3,
+            intelligence=3,
+            wisdom=3,
+            charisma=3,
+        ),
+        world=WorldState(),
+    )
+    source = (
+        "Intento escalar una pared lisa de piedra usando Atletismo. "
+        "Si alcanzo la cornisa, entro en la torre."
+    )
+
+    started = perf_counter()
+    plan = service.prepare_turn(context, source, manual_rolls=(1,))
+    elapsed_ms = (perf_counter() - started) * 1000
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.active_step_index == 0
+    assert plan.intent_analysis.is_actionable
+    assert len(plan.intent_analysis.steps) >= 2
+    assert plan.intent_analysis.steps[1].modality.value in {
+        "conditional",
+        "planned",
+    }
+    assert plan.mechanics_decision is not None
+    assert plan.mechanics_decision.decision in {
+        MechanicsDecisionType.SKILL_CHECK,
+        MechanicsDecisionType.ABILITY_CHECK,
+        MechanicsDecisionType.SAVING_THROW,
+    }
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_result.outcome == "failure"
+    assert not plan.mechanics_result.check.success
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
+
+    record_property("integrated_ollama_version", ollama_version or "unavailable")
+    record_property("integrated_elapsed_ms", round(elapsed_ms, 3))
+    record_property("integrated_intent_model", providers["intent"].model)
+    record_property("integrated_mechanics_model", providers["mechanics"].model)
+    record_property("integrated_extraction_model", providers["extraction"].model)
+    record_property("integrated_schema_version", plan.intent_analysis.schema_version)
+    record_property("integrated_step_count", len(plan.intent_analysis.steps))
+    record_property("integrated_active_step_index", plan.intent_analysis.active_step_index)
+    record_property("integrated_mechanics_result", plan.mechanics_result.outcome)
+    record_property(
+        "integrated_proposal_operation_types",
+        json.dumps([type(item).__name__ for item in plan.ordered_operations]),
+    )
+    for role in ("intent", "mechanics", "extraction"):
+        role_events = [
+            event for event in usage_events
+            if event.get("provider_role") == role
+        ]
+        assert role_events, f"no Ollama usage telemetry captured for {role}"
+        assert all(event.get("prompt_bytes", 0) > 0 for event in role_events)
+        record_property(
+            f"integrated_{role}_model_digest",
+            model_digests[role] or "unavailable",
+        )
+        record_property(f"integrated_{role}_timeout_seconds", providers[role].timeout)
+        record_property(f"integrated_{role}_provider_calls", len(role_events))
+        for field in (
+            "prompt_bytes",
+            "prompt_eval_count",
+            "eval_count",
+            "duration_ms",
+        ):
+            record_property(
+                f"integrated_{role}_{field}",
+                json.dumps([event.get(field) for event in role_events]),
+            )
+

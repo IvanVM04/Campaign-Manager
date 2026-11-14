@@ -54,6 +54,7 @@ def make_service(adjudication_json, roll):
         extractor=extractor,
         world_service=WorldService(applier=WorldApplier()),
         mechanics_adjudicator=adjudicator,
+        allow_legacy_combined_understanding=True,
         dice_roller=DiceRoller(FixedRandom(roll, roll)),
     )
     return resolver, narrative_provider, extractor
