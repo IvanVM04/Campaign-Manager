@@ -205,9 +205,10 @@ class DiscourseContextBuilder:
                 key = cls.normalize(alias)
                 if not key:
                     continue
+                existing = aliases.get(key)
                 if key not in aliases:
                     aliases[key] = (entity, alias.strip(), entity_id)
-                elif aliases[key] is not None and aliases[key][2] != entity_id:
+                elif existing is not None and existing[2] != entity_id:
                     aliases[key] = None
 
         results: dict[tuple[int, str], AttributedNpcUtterance] = {}
