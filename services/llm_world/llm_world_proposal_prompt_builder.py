@@ -124,8 +124,10 @@ class LLMWorldProposalPromptBuilder:
             + "Eres un planificador de consecuencias para un motor de campaña D&D 5e. "
             "Devuelve exclusivamente JSON con la forma "
             '{"operations": [...]} .\n'
-            "La INTERPRETACIÓN COMPARTIDA v2 es la fuente semántica principal: "
-            "no vuelvas a inferir por separado el significado del texto bruto. "
+            "Cuando se proporciona la INTERPRETACIÓN COMPARTIDA v2, es la fuente "
+            "semántica principal: no vuelvas a inferir por separado el significado "
+            "del texto bruto. Si no se proporciona, utiliza con cautela el texto "
+            "del jugador y no inventes una interpretación ausente. "
             "Conserva el orden, actor, modalidad, polaridad, atribución, "
             "action_frame, roles de argumentos y dirección de relation_claims. "
             "Los pasos posteriores no se ejecutan antes de resolver los previos. "
