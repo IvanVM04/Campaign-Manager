@@ -150,8 +150,8 @@ resultados mecánicos. El esquema es el contrato estructural."""
                 queries.extend(
                     match.group(0)
                     for match in re.finditer(
-                        r"(?<!\\w)[A-ZÁÉÍÓÚÜÑ][\\wÁÉÍÓÚÜÑáéíóúüñ-]{2,}"
-                        r"(?:\\s+[A-ZÁÉÍÓÚÜÑ][\\wÁÉÍÓÚÜÑáéíóúüñ-]{2,}){0,2}",
+                        r"(?<!\w)[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ-]{2,}"
+                        r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ-]{2,}){0,2}",
                         value,
                     )
                 )
