@@ -312,9 +312,30 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             if context_projection is not None
             else context.world
         )
+        # References were resolved deterministically before adjudication.
+        # Search their canonical names as well as the player's literal mentions:
+        # a pronoun/ellipsis may identify a known obstacle correctly while the
+        # current sentence alone contains too little vocabulary to retrieve it.
+        supplemental_queries = tuple(dict.fromkeys(
+            value
+            for reference in (
+                *active_resolved_references,
+                *active_resolved_world_references,
+            )
+            for value in (
+                (
+                    reference.entity_name
+                    if isinstance(reference, ResolvedConversationReference)
+                    else reference.name
+                ),
+                reference.mention,
+            )
+            if isinstance(value, str) and value.strip()
+        ))[:32]
         world_context = self.context_builder.build(
             mechanics_world,
             step.source_excerpt,
+            supplemental_queries=supplemental_queries,
             character_entity_id=character.entity_id,
         ).get("context", "")
         if not isinstance(world_context, str):
@@ -419,6 +440,9 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             "active_step": len(active_step.encode("utf-8")),
             "resolved_references": len(resolved_reference_block.encode("utf-8")),
             "world_context": len(world_context.encode("utf-8")),
+            "reference_queries": len(
+                json.dumps(supplemental_queries, ensure_ascii=False).encode("utf-8")
+            ),
             "character": len(character_context.encode("utf-8")),
         }
         if prompt_bytes > self.max_prompt_tokens:
