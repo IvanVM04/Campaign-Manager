@@ -319,12 +319,17 @@ resultados mecánicos. El esquema es el contrato estructural."""
         recent_turns: list[TurnRecord] | None = None,
         evidence_text: str | None = None,
     ) -> PlayerIntentAnalysis:
-        return self._interpret(
+        result = self._interpret(
             context,
             player_input,
             recent_turns=recent_turns,
             evidence_text=evidence_text,
         )
+        if not isinstance(result, PlayerIntentAnalysis):
+            raise IntentInterpreterError(
+                "normal intent interpretation returned correction metadata"
+            )
+        return result
 
     def understand_pending(
         self,
@@ -344,7 +349,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
             or len(correction_evidence_text) > 5000
         ):
             raise ValueError("correction_evidence_text must contain 1-5000 characters")
-        analysis, corrections = self._interpret(
+        result = self._interpret(
             context,
             player_input,
             recent_turns=recent_turns,
@@ -353,6 +358,11 @@ resultados mecánicos. El esquema es el contrato estructural."""
             correction_evidence_text=correction_evidence_text,
             return_corrections=True,
         )
+        if not isinstance(result, tuple):
+            raise IntentInterpreterError(
+                "pending correction returned no correction metadata"
+            )
+        analysis, corrections = result
         correction_evidence = evidence_text or player_input
         for correction in corrections:
             try:
