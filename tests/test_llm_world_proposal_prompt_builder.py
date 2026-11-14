@@ -338,10 +338,10 @@ def test_proposal_prompt_drops_optional_discourse_index_under_budget_pressure(mo
 
 
 def test_proposal_prompt_compacts_full_registry_under_budget_pressure(monkeypatch):
+    import services.llm_world.llm_world_proposal_prompt_builder as builder_module
     from models.world_context_projection import estimate_tokens as byte_estimate
     from services.llm_world.operation_parser import OperationParser
     from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
-    import services.llm_world.llm_world_proposal_prompt_builder as builder_module
 
     def force_manifest_compaction(prompt: str) -> int:
         if '"examples"' in prompt:
