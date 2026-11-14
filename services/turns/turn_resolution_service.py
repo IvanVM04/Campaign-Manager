@@ -294,9 +294,12 @@ class TurnResolutionService:
         intent_analysis = intent_analysis_override
         intent_corrections: tuple[PendingIntentCorrection, ...] = ()
         if pending_intent_analysis is not None:
-            if self.mechanics_adjudicator is None:
+            if (
+                self.intent_interpreter is None
+                and self.mechanics_adjudicator is None
+            ):
                 raise TurnResolutionServiceError(
-                    "pending correction requires the shared language adjudicator"
+                    "pending correction requires the intent interpreter"
                 )
             try:
                 correction_result = (
