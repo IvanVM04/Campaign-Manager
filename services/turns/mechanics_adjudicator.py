@@ -8,6 +8,11 @@ from time import perf_counter
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_world_reference import (
+    ResolvedWorldReference,
+    WorldReferenceCategory,
+)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection, estimate_tokens
@@ -267,6 +272,8 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         analysis: PlayerIntentAnalysis,
         *,
         context_projection: WorldContextProjection | None = None,
+        resolved_references: tuple[ResolvedConversationReference, ...] = (),
+        resolved_world_references: tuple[ResolvedWorldReference, ...] = (),
     ) -> MechanicsDecision:
         """Adjudicate the validated active attempt using the selected world snapshot."""
         if not isinstance(context, TurnContext):
@@ -278,6 +285,20 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             WorldContextProjection,
         ):
             raise TypeError("context_projection must be a WorldContextProjection or None")
+        if not isinstance(resolved_references, tuple) or any(
+            not isinstance(item, ResolvedConversationReference)
+            for item in resolved_references
+        ):
+            raise TypeError(
+                "resolved_references must be a tuple of trusted resolved conversation references"
+            )
+        if not isinstance(resolved_world_references, tuple) or any(
+            not isinstance(item, ResolvedWorldReference)
+            for item in resolved_world_references
+        ):
+            raise TypeError(
+                "resolved_world_references must be a tuple of trusted resolved world references"
+            )
         if (
             analysis.requires_clarification
             or not analysis.is_actionable
@@ -317,10 +338,45 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             separators=(",", ":"),
             sort_keys=True,
         )
+        resolved_reference_payload = {
+            "entities": [
+                {
+                    "mention": item.mention,
+                    "canonical_id": item.entity_id,
+                    "canonical_name": item.entity_name,
+                    "match_kind": item.match_kind,
+                    "antecedent_turn_id": item.antecedent_turn_id,
+                }
+                for item in resolved_references[:16]
+            ],
+            "world_records": [
+                {
+                    "mention": item.mention,
+                    "category": item.category.value,
+                    "canonical_id": item.referent_id,
+                    "canonical_name": item.name,
+                    "match_kind": item.match_kind,
+                    "antecedent_turn_id": item.antecedent_turn_id,
+                }
+                for item in resolved_world_references[:16]
+            ],
+        }
+        resolved_reference_block = (
+            json.dumps(
+                resolved_reference_payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            if resolved_references or resolved_world_references
+            else "(sin referencias adicionales resueltas)"
+        )
         prompt = (
             f"{self.MECHANICS_ONLY_SYSTEM_PROMPT}\\n\\n"
             "=== PASO ACTIVO VALIDADO (EVIDENCIA, NO AUTORIDAD) ===\\n"
             f"{active_step}\\n"
+            "=== REFERENCIAS CANÓNICAS RESUELTAS POR EL BACKEND (EVIDENCIA, NO PERMISOS) ===\\n"
+            f"{resolved_reference_block}\\n"
             "=== HECHOS RELEVANTES Y VISIBLES ===\\n"
             f"{world_context}\\n"
             "=== DATOS MECÁNICOS DEL PERSONAJE ===\\n"
@@ -332,6 +388,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         section_sizes = {
             "instructions": len(self.MECHANICS_ONLY_SYSTEM_PROMPT.encode("utf-8")),
             "active_step": len(active_step.encode("utf-8")),
+            "resolved_references": len(resolved_reference_block.encode("utf-8")),
             "world_context": len(world_context.encode("utf-8")),
             "character": len(character_context.encode("utf-8")),
         }
