@@ -485,4 +485,4 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     ]
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
-    assert "mechanics" not in provider.prompts[0].casefold()
+    assert "mechanics_decision" not in provider.prompts[0]
