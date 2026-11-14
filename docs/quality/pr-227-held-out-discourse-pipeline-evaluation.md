@@ -1,6 +1,6 @@
 # PR #227 — Held-out discourse and staged pipeline evaluation
 
-**Status:** Draft PR #227 opened; preparation slice committed; runtime implementation has not started.  
+**Status:** Draft PR #227; WP0–WP6 implementation and documentation are in place. Final CI on the latest head and user-run Ollama/SillyTavern acceptance remain open.  
 **Branch:** `feat/227-held-out-discourse-pipeline-evaluation`  
 **Base:** `main` at `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28` (includes merged PR #226).  
 **Dependency:** PR #226 is merged at `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`. This PR is independent of the former #226 feature branch.  
@@ -152,16 +152,16 @@ This is a contract example, not a literal required payload for every case. Keep 
 
 ### WP5 — Consequence planner and integrated pipeline subset
 - [x] Add a live full-orchestrator callback scenario using the role-specific extraction provider through TurnResolutionService.
-- [x] Record integrated operation false-positive metrics and assert zero persistent operations after a failed prerequisite; existing deterministic context tests retain the zero-secret-leak gate. Broader operation-family P/R still needs a successful-action positive live set.
-- [x] Add a full-orchestrator live callback probe with per-role model digests, provider calls, prompt/token/timing properties, conditional-step and final-operation assertions.
+- [x] Record integrated operation false-positive metrics for a failed prerequisite and add a positive explicit-NPC-fact probe that expects exactly one `update_entity:1`, no duplicate create, 1.0 operation precision/recall, and no Mechanics call for a completed observation.
+- [x] Add full-orchestrator live probes for both a failed compound action (Intent → Resolution → Mechanics → Planner, no operations) and a completed NPC observation (Intent → Resolution → Planner, exactly one justified update and Mechanics skipped). Both record role-specific model digests/calls and prompt/token/timing properties.
 - [x] Assert failed compound prerequisites produce no world operations; preserve the deterministic no-op route matrix for non-actionable/quoted/negative inputs.
 - [x] Keep the original PR #226 integrated failed-compound-action probe as a separate test.
 
 ### WP6 — Reporting, documentation and handoff
 - [x] Emit shared-ledger per-family intent/resolution/slot metrics and machine-readable prompt, provider, correction and integrated-operation properties.
-- [ ] Update the prompt-evaluation guide, corpus index and AI-understanding roadmap with exact fixture/test names and acceptance boundaries.
+- [x] Update the prompt-evaluation guide, corpus index and AI-understanding roadmap with exact fixture/test names, new 138-case inventory and acceptance boundaries.
 - [ ] Record the first pinned-model baseline; do not claim a pass until the user runs the configured local Ollama model.
-- [ ] Synchronize this checkpoint and provide the exact commands, current head and next action.
+- [x] Synchronize this checkpoint with completed WP status, exact commands, live-acceptance boundary and next action.
 
 ## 6. Acceptance criteria
 
@@ -200,7 +200,8 @@ Deterministic corpus/resolver/integrity, discourse builder, prompt and mechanics
 python -m pytest \
   tests/test_semantic_evaluation_corpus.py \
   tests/test_conversation_reference_holdout.py \
-  tests/test_discourse_pipeline_holdout.py \\\n  tests/test_discourse_context_builder.py -q
+  tests/test_discourse_pipeline_holdout.py \
+  tests/test_discourse_context_builder.py -q
 ```
 
 Focused deterministic pipeline tests:
@@ -243,17 +244,17 @@ This section is the source of truth when work is interrupted.
 - **PR:** [#227 — held-out discourse and staged pipeline evaluation](https://github.com/IvanVM04/Campaign-Manager/pull/227); open, Draft, base `main`.
 - **Branch tip:** resolve the live SHA from the PR head or branch URL when resuming; do not pin a self-referential hash inside this checkpoint.
 - **WP0:** complete. Branch, execution spec, Draft PR and documentation links are in place.
-- **WP1:** implementation complete. The new `discourse_pipeline_corpus_holdout_v1.json` contains 28 scenarios across seven balanced families. Tests prove family balance, normalized input uniqueness and cross-held-out ID uniqueness.
-- **WP2:** implementation complete. `test_discourse_pipeline_holdout.py` exercises real topic/callback scoping, quote-safe discourse markers, ellipsis hints, twelve-turn references, grammar agreement, NPC attribution, reference links/abstentions and correction-evidence fixture separation. A false-positive fix in `DiscourseContextBuilder` ignores topic/callback/ellipsis control phrases contained only inside quotes.
-- **WP3:** live harness implemented, not executed here. `test_real_llm_discourse_pipeline.py` evaluates 24 non-correction held-out cases through the actual Intent Interpreter, uses the same analysis with the deterministic reference resolver, scores intent/frame/argument slots and records family-level prompt/discourse retention and Ollama usage metadata. Critical cases repeat three times. A second opt-in test evaluates evidence-bound multi-round corrections.
-- **WP4:** implementation complete for this tranche. Deterministic tests verify NPC discourse reaches the Intent prompt and Mechanics receives only active-step resolved canonical references. The live harness records Intent history/discourse compaction; the integrated probe records all-role prompt/token/timing metrics and decision routing.
-- **WP5:** implementation added, live acceptance pending. The integrated callback probe exercises the role-specific Intent → resolution → Mechanics → Planner path, a failed deterministic roll, blocked conditional progression and zero persistent operations. The original #226 probe remains independent. Successful-action operation-family precision/recall is still a follow-up gap; the current integrated control measures unsupported operations on a failed prerequisite.
-- **WP6:** implementation/reporting helpers exist; final guide/roadmap synchronization and current checkpoint update are being completed. First local Ollama baseline and SillyTavern acceptance are intentionally not claimed.
-- **Latest code/test files added:** `tests/fixtures/discourse_pipeline_corpus_holdout_v1.json`, `tests/test_discourse_pipeline_holdout.py`, `tests/test_real_llm_discourse_pipeline.py`; updated `services/discourse_context.py`, `tests/test_discourse_context_builder.py`, and `tests/test_semantic_evaluation_corpus.py`.
-- **Current CI:** check the Tests and CodeQL runs attached to the current PR head. The last observed runs were still executing; do not mark the latest head green until both are complete.
-- **Next exact action:** finish WP6 doc links/checkpoint; inspect and fix any CI failures on the final head. Then hand off the opt-in local Ollama command to record the first pinned-model baseline. Do not tune prompts before saving that baseline.
-- **Live acceptance not executed:** no Ollama model, digest, hardware or sampling settings were available in this GitHub-only work session. SillyTavern is also not run here.
-- **Resumption rule:** when asked to continue PR #227, inspect this checkpoint, current branch head, PR status and CI first. Continue from the first unchecked task; do not recreate the branch or repeat completed packages.
+- **WP1:** complete. The new `discourse_pipeline_corpus_holdout_v1.json` contains 28 Spanish-first scenarios across seven balanced families. Integrity tests prove family balance, stable IDs, normalized input uniqueness and cross-held-out ID uniqueness.
+- **WP2:** complete. `test_discourse_pipeline_holdout.py` exercises topic/callback scoping, quote-safe discourse markers, ellipsis cues, twelve-turn history, local grammar, NPC attribution, reference links/abstentions and correction evidence separation. A false-positive fix in `DiscourseContextBuilder` ignores control phrases that occur only inside quoted speech.
+- **WP3:** live harness implemented, not executed here. `test_real_llm_discourse_pipeline.py` evaluates 24 non-correction cases through the actual Intent Interpreter, sends the same analysis to deterministic reference resolution, scores intent/action-frame/argument slots and records family-level prompt/discourse retention and usage metadata. Critical cases repeat three times. Another opt-in test evaluates evidence-bound multi-round corrections.
+- **WP4:** implementation complete for this tranche. Deterministic tests verify NPC discourse reaches the Intent prompt and Mechanics receives only active-step canonical references. Live evaluation records context retrieval recall and discourse-index retention/omission. The integrated failed-action probe records all role metrics and mechanics routing.
+- **WP5:** implementation complete for this tranche; live acceptance pending. The negative integrated probe exercises Intent → Resolution → Mechanics → Planner, a failed deterministic roll, blocked conditional progression and zero persistent operations. The positive integrated probe exercises a completed observation → Intent → Resolution → Planner, asserts exactly one explicit update to known NPC `Aldric`, no duplicate create, and Mechanics skipped. Both collect operation and per-role metrics. The original #226 probe remains independent.
+- **WP6:** documentation and reporting implementation complete. The prompt-evaluation guide, 138-case corpus inventory (50 development + 88 held-out), AI roadmap and docs hub are synchronized. Live Ollama baseline and SillyTavern acceptance are not claimed.
+- **Latest code/test files:** `tests/fixtures/discourse_pipeline_corpus_holdout_v1.json`, `tests/test_discourse_pipeline_holdout.py`, `tests/test_real_llm_discourse_pipeline.py`; updated `services/discourse_context.py`, `tests/test_discourse_context_builder.py`, and `tests/test_semantic_evaluation_corpus.py`.
+- **Current CI:** inspect the Tests and CodeQL runs attached to the current PR head. Earlier Ruff findings (unused imports and one unused binding) were corrected; do not mark the newest head green until its complete workflows pass.
+- **Next exact action:** fix any CI failure on the newest head. After deterministic CI is green, run `python -m pytest tests/test_real_llm_discourse_pipeline.py -m real_llm -v -s` using the pinned local Ollama model, then save model digests/settings and per-family results. Do not tune prompts before saving that baseline.
+- **Live acceptance not executed here:** no local Ollama endpoint/model, digest, hardware or sampling settings were available in this GitHub-only session. The manual SillyTavern lifecycle test is also separate and still pending.
+- **Resumption rule:** when asked to continue PR #227, inspect this checkpoint, current branch head, PR status and CI first. Continue from the first unchecked acceptance task; do not recreate the branch or repeat completed inventory.
 ### Estimated implementation effort
 
 | Work package | Estimate |
@@ -277,3 +278,12 @@ The first clean baseline run and report should sit toward the lower end. Model-d
 5. Review the per-family failure report. Make evidence-backed prompt or resolver changes only after saving the baseline.
 6. Re-run the complete critical subset after any prompt change; preserve the old baseline as a comparison artifact.
 7. Complete documentation and CI, then hand off the local Ollama commands/results for acceptance.
+
+
+### Remaining acceptance estimate after implementation
+
+- Final deterministic CI/fix pass: 0.5–2 h depending on any newly exposed failures.
+- Pinned local Ollama evaluation and per-family report: 2–4 h active time, excluding model inference latency.
+- Manual SillyTavern acceptance is a separate 1–2 h gate; it remains outside the deterministic harness and is not claimed here.
+
+No live pass is claimed until the actual model has run and its digest, generation settings, hardware and per-family results have been recorded.
