@@ -1,21 +1,25 @@
 # P0 — Shared natural-language understanding and intent resolution
 
-**Priority:** P0 — highest active language-quality priority  
+**Priority:** P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability  
 **Integrated foundation:** PRs #215–#223 are merged into `main`. Current baseline: `7f4f8b10a072665471370fab4493a338835b875c` (2026-11-14).
-**Next step:** measure the integrated system with the live Ollama corpus, add held-out coverage for #223 and complete SillyTavern acceptance. Do not start another semantic architecture tranche before this measurement.
+**Next step:** implement [the modular language-understanding pipeline](modular-language-understanding-pipeline-2026-11-14.md). This is the first P0 deliverable and blocks further semantic feature work. After deterministic architecture/regression gates pass, rerun the live Ollama baseline, add #223 held-out coverage and complete SillyTavern acceptance.
 **Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are separate gates. Neither live gate is inferred from deterministic CI.
 
-## 1. Integrated turn pipeline
+## 1. Current integrated turn pipeline
+
+The following describes the current implementation before PR #225, not the target design:
 
 1. Preserve exact player input, durable request identity, active-character perspective and SillyTavern `conversation_id`.
 2. Load bounded, same-chat history and character-visible world context.
-3. `MechanicsAdjudicator.understand()` returns one structured intent analysis and mechanics decision. The intended normal path remains one combined provider call; Ollama receives a native JSON Schema.
+3. `MechanicsAdjudicator.understand()` currently returns one structured intent analysis and mechanics decision in a combined provider call.
 4. Validate the interpretation against player-authored evidence. DM clarification text may provide context but cannot become a player quotation, mention, relation endpoint or attribution.
 5. Deterministic entity and conversation resolvers attach canonical identities only after visibility and ambiguity checks.
 6. Pass the exact same analysis to `LLMWorldExtractor`; the proposal stage uses it rather than independently reconstructing player intent.
 7. Parse proposed typed operations and apply them through deterministic world/domain services. Rules code remains authoritative for mechanics.
 8. Persist the validated interpretation and its evidence with the durable resolution. Clarification reinterprets the original request plus player answers; manual rolls reuse the stored interpretation.
 9. Narrate only committed consequences. SillyTavern history and continuation remain scoped to one chat.
+
+The combined step 3 is the coupling being removed. The target keeps one authoritative interpretation but moves mechanics adjudication behind its own conditional interface; see [the modular pipeline decision](modular-language-understanding-pipeline-2026-11-14.md).
 
 ## 2. Semantic contract v1 — persisted compatibility
 
@@ -99,7 +103,7 @@ PR #220 expanded the integrated evaluation set to 110 scenarios: 50 development 
 - Item definition and physical instance are separate domain records.
 - Unknown, hidden or ambiguous references remain unresolved.
 - Questions, hypotheticals, negations, rumours and reports cannot be promoted to positive confirmed relationships.
-- Keep one shared interpretation between mechanics and proposal generation. Do not add a third normal-path model call without measured evidence.
+- Keep one authoritative shared `PlayerIntentAnalysis` for mechanics and proposal generation, but separate the responsibilities and response contracts. Mechanics is a conditional call that returns only `MechanicsDecision`; it is skipped when no active unresolved attempt requires it. Do not split the semantic interpretation itself into independent calls for actions, roles, relations or discourse.
 - Do not add embeddings/vector storage until a held-out evaluation proves deterministic retrieval is insufficient.
 
 ## 6. Acceptance gates
@@ -112,14 +116,21 @@ PR #220 expanded the integrated evaluation set to 110 scenarios: 50 development 
 
 The integrated implementation through PR #223 is not considered accepted until these gates are recorded. Live model and SillyTavern behavior are not inferred from deterministic schema tests.
 
-## 7. Next work after PR #219
+## 7. Next work after PR #223 — P0 Priority #1
 
-PR #219 integrated typed discourse evidence and an immutable correction primitive. PR #221 has since connected model-emitted, evidence-bound corrections to pending durable clarifications, including re-analysis consistency and an audit trail.
+The next implementation is **PR #225 — Modular Language-Understanding Pipeline**. It is an architecture correction, not another capability layer.
 
-PR #220 has merged the 110-scenario evaluation tranche (50 development + 60 held-out). PR #221 now implements the correction hand-off through a correction-only response contract, immutable edit application, re-analysis consistency checks and durable audit. Its acceptance requires tests for ungrounded values, wrong slots, multi-round clarification, lease recovery, stale/committed resolutions and SillyTavern replay.
+1. Extract one coherent `IntentInterpreter` that produces the authoritative `PlayerIntentAnalysis` v2.
+2. Move mechanics adjudication to a separate, conditional component that consumes the validated active step and relevant mechanical context and returns only `MechanicsDecision`.
+3. Retain the same validated analysis for the world proposal planner; do not reinterpret the utterance.
+4. Make the consequence-planning call conditional on a justified persistent change and confirmed prerequisites.
+5. Modularize the common safety contract, role-specific policies and response schemas. Avoid copying schema enumerations and full JSON examples into every prompt.
+6. Instrument per-role prompt bytes, actual token usage when available, section truncation, provider-call count, duration and classified provider failures.
+7. Preserve v1/v2 durable compatibility, pending corrections, chat isolation, manual-roll continuation and domain authority.
 
-PR #222 closed the non-entity reference namespace gap; PR #223 is also merged and adds bounded discourse signals. The next work is evaluation, not another speculative prompt layer. Use the audit at [language-understanding-audit-2026-11-14.md](language-understanding-audit-2026-11-14.md) to prioritize live baselining, #223 held-out cases, prompt-budget observability and SillyTavern acceptance.
+A focused Ollama test run on 2026-11-14 showed that the known-NPC Aldric case fails before provider invocation because the combined mechanics prompt exceeds its configured estimated budget. The prompt estimate is UTF-8 bytes, not a model tokenizer count. The architecture tranche must remove this avoidable preflight failure before a new live baseline is trusted.
 
+After the refactor and its deterministic contract tests pass, rerun the existing 110-case corpus and operation-quality controls with the exact same model/settings. Then add held-out tests for #223 discourse behavior and complete the two-chat SillyTavern acceptance. Do not add more semantic feature PRs, embeddings or multi-agent infrastructure ahead of this sequence.
 
 ## 8. PR #223 — advanced discourse understanding
 
