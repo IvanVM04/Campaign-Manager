@@ -254,23 +254,40 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                             f"{action_contains!r} in a step; observed="
                             f"{[step.action for step in analysis.steps]!r}"
                         )
-                expected_speaker = expected_intent.get("attributed_to")
-                if expected_speaker is not None:
-                    predicted_speakers = tuple(
-                        f"speaker:{step.attributed_to.casefold()}"
-                        for step in analysis.steps
-                        if step.attributed_to
+                expected_npc_ids = scenario["expected"].get("npc_speaker_ids")
+                if expected_npc_ids is not None:
+                    npc_entities = scenario.get("npc_entities", [])
+                    expected_names = tuple(
+                        sorted(
+                            f"speaker:{item['name'].casefold()}"
+                            for item in npc_entities
+                            if item["id"] in expected_npc_ids
+                        )
                     )
-                    expected_speakers = (f"speaker:{expected_speaker.casefold()}",)
+                    predicted_names = tuple(
+                        sorted(
+                            {
+                                f"speaker:{item['name'].casefold()}"
+                                for item in npc_entities
+                                if f"NPC {item['name']} (" in prompt
+                            }
+                        )
+                    )
                     ledger.record_semantic_slots(
-                        "npc_speaker_attribution",
-                        expected_slots=expected_speakers,
-                        predicted_slots=predicted_speakers,
+                        "npc_discourse_prompt_attribution",
+                        expected_slots=expected_names,
+                        predicted_slots=predicted_names,
                     )
-                    if predicted_speakers != expected_speakers:
+                    prompt_observations[
+                        f"{scenario['family']}:expected_npc_hints"
+                    ] += len(expected_names)
+                    prompt_observations[
+                        f"{scenario['family']}:retained_npc_hints"
+                    ] += len(predicted_names)
+                    if predicted_names != expected_names:
                         case_failures.append(
-                            "intent.npc_attribution: expected="
-                            f"{expected_speakers!r} observed={predicted_speakers!r}"
+                            "discourse.npc_speaker_hint: expected="
+                            f"{expected_names!r} observed={predicted_names!r}"
                         )
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
