@@ -122,6 +122,62 @@ def _load_scenarios() -> list[dict]:
     return corpus["scenarios"]
 
 
+def _evaluate_action_frame(
+    analysis,
+    expected_frame: dict,
+    ledger: SemanticEvaluationLedger,
+    family: str,
+) -> list[str]:
+    frames = (
+        [
+            step.action_frame
+            for step in analysis.steps
+            if step.action_frame is not None
+        ]
+        if analysis is not None
+        else []
+    )
+    expected_family = expected_frame["family"]
+    predicted_families = tuple(frame.family.value for frame in frames)
+    ledger.record_semantic_slots(
+        "action_frame_family",
+        expected_slots=(expected_family,),
+        predicted_slots=predicted_families,
+    )
+    expected_arguments = tuple(
+        "argument:"
+        + item["role"]
+        + "|"
+        + " ".join(item["mention"].casefold().split())
+        for item in expected_frame["arguments"]
+    )
+    predicted_arguments = tuple(
+        "argument:"
+        + argument.role.value
+        + "|"
+        + " ".join(argument.mention.text.casefold().split())
+        for frame in frames
+        for argument in frame.arguments
+    )
+    ledger.record_semantic_slots(
+        f"action_arguments:{family}",
+        expected_slots=expected_arguments,
+        predicted_slots=predicted_arguments,
+    )
+    failures = []
+    if expected_family not in predicted_families:
+        failures.append(
+            f"action_frame.family: expected={expected_family!r} "
+            f"observed={predicted_families!r}"
+        )
+    if sorted(expected_arguments) != sorted(predicted_arguments):
+        failures.append(
+            "action_frame.arguments: expected="
+            f"{sorted(expected_arguments)!r} observed={sorted(predicted_arguments)!r}"
+        )
+    return failures
+
+
 def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     record_property,
 ):
@@ -174,10 +230,28 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         f"{expected_intent['category']!r} "
                         f"observed={analysis.category.value!r}"
                     )
+                expected_frame = expected_intent.get("action_frame")
+                if expected_frame is not None:
+                    case_failures.extend(
+                        _evaluate_action_frame(
+                            analysis,
+                            expected_frame,
+                            ledger,
+                            scenario["family"],
+                        )
+                    )
             except Exception as exc:  # noqa: BLE001 - provider/decoder failure is a failed case
                 case_failures.append(
                     f"intent provider/decoder error: {type(exc).__name__}"
                 )
+                expected_frame = expected_intent.get("action_frame")
+                if expected_frame is not None:
+                    _evaluate_action_frame(
+                        None,
+                        expected_frame,
+                        ledger,
+                        scenario["family"],
+                    )
 
             elapsed = perf_counter() - case_started
             calls += 1
