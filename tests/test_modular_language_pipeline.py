@@ -5,6 +5,7 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
+from models.entity import Entity
 from models.mechanics import MechanicsDecisionType
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.resolved_world_reference import (
@@ -13,6 +14,7 @@ from models.resolved_world_reference import (
 )
 from models.session_state import SessionState
 from models.turn_context import TurnContext
+from models.turn_record import TurnRecord
 from models.world_context_projection import (
     ContextProjectionDiagnostics,
     WorldContextProjection,
@@ -80,6 +82,60 @@ def _analysis_payload(
         "clarification_question": None,
         "relation_claims": [],
     }
+
+
+def test_intent_interpreter_attributes_visible_npc_quotes_from_recent_turns():
+    context = _context()
+    context.world.entities[77] = Entity(
+        id=77,
+        name="Aldric",
+        entity_type="npc",
+        active=True,
+    )
+    provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": {
+            "schema_version": 2,
+            "category": "dialogue",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": "Le digo que sí.",
+                "actor": "player",
+                "action": "responder afirmativamente",
+                "modality": "dialogue",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": [],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "digo",
+                    "family": "communication",
+                    "arguments": [],
+                },
+            }],
+            "active_step_index": None,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+    }))
+    recent_turns = [
+        TurnRecord(
+            id=12,
+            player_input="Hablo con Aldric.",
+            narrative='Aldric pregunta: «¿Vienes conmigo?»',
+        )
+    ]
+
+    analysis = IntentInterpreter(provider).interpret(
+        context,
+        "Le digo que sí.",
+        recent_turns=recent_turns,
+    )
+
+    assert analysis.category.value == "dialogue"
+    assert "NPC Aldric (turno 12)" in provider.prompts[0]
+    assert "¿Vienes conmigo?" in provider.prompts[0]
+    assert "citas de npc visible etiquetadas" in provider.prompts[0].casefold()
 
 
 def test_intent_interpreter_emits_only_shared_semantic_analysis():
