@@ -18,12 +18,6 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
-from models.pending_intent_correction import PendingCorrectionSlot
-from models.semantic_frames import (
-    SemanticArgumentRole,
-    SemanticObjectKind,
-    SemanticRelationFamily,
-)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
@@ -31,7 +25,6 @@ from services.context import ContextBuilder
 from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
-from services.discourse_context import DiscourseContextBuilder
 from services.providers import LLMSettings
 from services.turns import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
@@ -187,7 +180,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         for item in _load_scenarios()
         if item["family"] != "multi_turn_correction"
     ]
-    interpreter, provider, context_builder, usage_events = _live_intent_runtime()
+    interpreter, provider, _context_builder, usage_events = _live_intent_runtime()
     resolver = ConversationReferenceResolver()
     ledger = SemanticEvaluationLedger()
     failures: list[str] = []
@@ -639,11 +632,11 @@ def test_real_ollama_discourse_callback_survives_integrated_turn_pipeline(
 ):
     """Exercise callback → shared intent → mechanics → planner in production flow."""
     from models.entity import Entity
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
     from services.providers import FakeLLMProvider
     from services.turns import DMService, MechanicsAdjudicator
     from services.turns.turn_resolution_service import TurnResolutionService
-    from services.llm_world import LLMWorldExtractor
-    from services.llm_world.operation_parser import OperationParser
     from services.world import WorldApplier, WorldService
 
     operation_ledger = SemanticEvaluationLedger()
