@@ -236,6 +236,8 @@ class OllamaProvider(LLMProvider):
                     and value >= 0
                 ):
                     metrics[field] = value
+                    if field.endswith("_duration"):
+                        metrics[f"{field}_ms"] = round(value / 1_000_000, 3)
 
         event = "ollama.request.failed" if error_type else "ollama.request.completed"
         if error_type:
@@ -246,7 +248,7 @@ class OllamaProvider(LLMProvider):
         if self.metrics_callback is not None:
             try:
                 self.metrics_callback(dict(metrics))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - telemetry is best-effort
                 # Telemetry must never turn a successful provider call into a failure.
                 logger.warning(
                     "ollama.telemetry.callback_failed",

@@ -698,6 +698,8 @@ def test_ollama_provider_emits_safe_usage_metrics_without_prompt_or_completion(
     assert event["load_duration"] == 1000000
     assert event["prompt_eval_duration"] == 2000000
     assert event["eval_duration"] == 5000000
+    assert event["prompt_eval_duration_ms"] == 2.0
+    assert event["eval_duration_ms"] == 5.0
     assert event["done"] is True
     assert event["done_reason"] == "stop"
     assert "ollama.request.completed" in caplog.text
@@ -731,7 +733,7 @@ def test_ollama_provider_reports_failed_request_metadata_without_content(
     assert metrics[0]["provider_role"] == "mechanics"
     assert metrics[0]["request_status"] == "failed"
     assert metrics[0]["error_type"] == "LLMProviderError"
-    assert metrics[0]["prompt_bytes"] == len("DO NOT LOG THIS PROMPT".encode("utf-8"))
+    assert metrics[0]["prompt_bytes"] == len(b"DO NOT LOG THIS PROMPT")
     assert "DO NOT LOG THIS PROMPT" not in caplog.text
 
 

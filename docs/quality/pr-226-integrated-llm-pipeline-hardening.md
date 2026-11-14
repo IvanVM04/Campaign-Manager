@@ -126,7 +126,7 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
 - **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, not merged. Keep as draft while work remains.
-- **Current head:** pending WP4 telemetry and integrated-live-probe commit.
+- **Current head:** pending WP4 lint correction and CI rerun.
 - **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 deterministic integrated routing contract complete; WP4 provider telemetry and integrated live acceptance probe implemented (live execution pending).
 - **Key implementation commits:**
   - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`.
@@ -137,8 +137,8 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Deterministic validation:** Tests run [`43626291437`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43626291437) passed: **1,818 passed, 16 deselected**, combined line/branch coverage **85.16%** (85.0% required). Ruff, both Pyright jobs, JavaScript tests and CodeQL [`43626291423`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43626291423) passed.
 - **Live Ollama validation:** not run here. New opt-in test: `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`.
 - **SillyTavern validation:** not run for PR #226.
-- **Open blockers:** validate WP4 changes in deterministic CI, then run the opt-in integrated fixture with the configured local model and record Ollama version, model tag/digest, calls, token usage, latency, result family and operations. WP5 and WP6 remain.
-- **Next exact action:** inspect CI for the WP4 telemetry/live-probe commit. If green, run `python -m pytest tests/test_real_llm.py -m real_llm -k integrated_pipeline -v -s` against the configured Ollama server. Do not mark live acceptance green from deterministic CI. Keep PR #226 open and in draft.
+- **Open blockers:** WP4 implementation is in place; the first workflow found two Ruff-only issues in the telemetry callback and a bytes-length assertion. They are corrected in the follow-up commit; deterministic CI must be rechecked before the live fixture is run. WP5 and WP6 remain.
+- **Next exact action:** inspect CI for the WP4 lint correction. If green, run `python -m pytest tests/test_real_llm.py -m real_llm -k integrated_pipeline -v -s` against the configured Ollama server. Do not mark live acceptance green from deterministic CI. Keep PR #226 open and in draft.
 
 ### How to resume
 
