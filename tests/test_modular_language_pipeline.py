@@ -994,3 +994,219 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "mechanics_decision" not in provider.prompts[0]
+
+def test_turn_pipeline_failed_compound_prerequisite_reaches_planner_without_advancing():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    source = (
+        "Ya he examinado el sello del portón. "
+        "Después intento forzar la cerradura. "
+        "Si lo consigo, entro en la cripta."
+    )
+    analysis_payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [
+            {
+                "index": 0,
+                "source_excerpt": "Ya he examinado el sello del portón.",
+                "actor": "player",
+                "action": "examinar el sello del portón",
+                "modality": "completed",
+                "polarity": "positive",
+                "reported_outcome": "success",
+                "target_mentions": ["el sello del portón"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "examinado",
+                    "family": "perception",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "el sello del portón",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            },
+            {
+                "index": 1,
+                "source_excerpt": "intento forzar la cerradura",
+                "actor": "player",
+                "action": "forzar la cerradura",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la cerradura"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "forzar",
+                    "family": "interaction",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "la cerradura",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            },
+            {
+                "index": 2,
+                "source_excerpt": "Si lo consigo, entro en la cripta.",
+                "actor": "player",
+                "action": "entrar en la cripta",
+                "modality": "conditional",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la cripta"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "entro",
+                    "family": "movement",
+                    "arguments": [{
+                        "role": "destination",
+                        "mention": {
+                            "text": "la cripta",
+                            "kind_hint": "location",
+                        },
+                    }],
+                },
+            },
+        ],
+        "active_step_index": 1,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": analysis_payload,
+    }, ensure_ascii=False))
+    mechanics_provider = FakeLLMProvider(response=json.dumps({
+        "decision": "skill_check",
+        "dc": 30,
+        "advantage": False,
+        "disadvantage": False,
+        "modifier": 0,
+        "reason": "Forzar la cerradura",
+        "skill": "athletics",
+        "ability": "strength",
+    }))
+    proposal_provider = FakeLLMProvider(response='{"operations": []}')
+    extractor = LLMWorldExtractor(
+        provider=proposal_provider,
+        operation_parser=OperationParser(),
+    )
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(
+        _context(),
+        source,
+        manual_rolls=(1,),
+    )
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.active_step_index == 1
+    assert plan.intent_analysis.steps[2].modality.value == "conditional"
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_result.check.success is False
+    assert plan.mechanics_result.outcome == "failure"
+    assert mechanics_provider.call_count == 1
+    assert proposal_provider.call_count == 1
+    assert plan.intent_analysis.to_json() in proposal_provider.last_prompt
+    assert "Resultado: failure" in proposal_provider.last_prompt
+    assert "Las acciones compuestas se evalúan en orden" in proposal_provider.last_prompt
+    assert "Un fracaso no modifica el objetivo" in proposal_provider.last_prompt
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
+
+
+@pytest.mark.parametrize(
+    ("source", "category", "modality", "polarity", "action", "predicate", "family"),
+    [
+        (
+            "Mañana hablaré con el capitán.",
+            "plan",
+            "planned",
+            "positive",
+            "hablar con el capitán",
+            "hablaré",
+            "communication",
+        ),
+        (
+            "No ataco al guardia.",
+            "action",
+            "negated",
+            "negative",
+            "atacar al guardia",
+            "ataco",
+            "combat",
+        ),
+    ],
+)
+def test_turn_pipeline_does_not_adjudicate_or_propose_plans_and_negations(
+    source,
+    category,
+    modality,
+    polarity,
+    action,
+    predicate,
+    family,
+):
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    analysis_payload = {
+        "schema_version": 2,
+        "category": category,
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": action,
+            "modality": modality,
+            "polarity": polarity,
+            "reported_outcome": "not_claimed",
+            "target_mentions": [],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": predicate,
+                "family": family,
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": analysis_payload,
+    }, ensure_ascii=False))
+    mechanics_provider = FakeLLMProvider(response='{"decision": "none"}')
+    proposal_provider = FakeLLMProvider(response='{"operations": []}')
+    extractor = LLMWorldExtractor(
+        provider=proposal_provider,
+        operation_parser=OperationParser(),
+    )
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(_context(), source)
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.active_step_index is None
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 0
+    assert proposal_provider.call_count == 0
+

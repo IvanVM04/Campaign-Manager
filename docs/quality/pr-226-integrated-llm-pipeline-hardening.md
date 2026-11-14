@@ -66,7 +66,7 @@ A green deterministic suite is necessary but is not evidence of model quality. L
 
 ### WP3 — Integrated deterministic pipeline contract
 - Exercise the actual orchestrator and assert stage call order and exact analysis-object handoff.
-- Cover a routine/completed observation (no mechanics call), a positive uncertain attempt (mechanics call), ambiguous target (stop before mechanics/planner), failed attempt (no false success proposal), compound action (do not advance after a failed prerequisite), question/plan/negation (no mechanics or unsupported mutation).
+- Cover a routine/completed observation (no mechanics call), a positive uncertain attempt (mechanics call), ambiguous target (stop before mechanics/planner), failed attempt (confirmed failure reaches the planner), compound action (future conditional step remains unexecuted after a failed prerequisite), and question/plan/negation (no mechanics or unsupported mutation).
 - Assert mechanics receives the same selected world projection and only active-step resolved references.
 - Assert proposal receives the same immutable analysis and only trusted reference results.
 
@@ -130,8 +130,8 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
 - **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, draft, not merged.
-- **Current head:** `51aa35c7938a043b715bfc6f777bf17a7663e067`
-- **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 initial integrated handoff/clarification tests implemented.
+- **Current head:** pending WP3 integrated routing regression commit.
+- **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 expanded integrated routing tests added for failed compound prerequisites and plan/negation controls (CI validation pending).
 - **Key implementation commits:**
   - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`.
   - WP2: `708b33cea4320e54c538edbf860613b41685d9e4`, `c6a863a545ff8d51dcd6e2a02468a23cb26120a4`, `00936f3de281405d743f813bcb7159dbb9433f3a`.
@@ -141,8 +141,8 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Deterministic validation:** Tests run [`43624451399`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43624451399) passed: **1,815 passed, 16 deselected**, combined line/branch coverage **85.10%** (85.0% required). Ruff, both Pyright jobs, JavaScript tests and CodeQL run [`43624451406`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43624451406) also passed.
 - **Live Ollama validation:** not run for PR #226.
 - **SillyTavern validation:** not run for PR #226.
-- **Open blockers:** none in deterministic CI. WP3 still needs failed-prerequisite and compound-action progression coverage; WP4–WP6 remain.
-- **Next exact action:** continue WP3 on this branch. Add deterministic production-pipeline tests proving a failed mechanics prerequisite cannot advance a compound action or produce false success/world changes, then cover the remaining routing cases listed in WP3. Keep the one-analysis architecture and deterministic authority boundaries unchanged. Do not start live Ollama acceptance until WP3's deterministic contract is complete.
+- **Open blockers:** the new WP3 routing regressions are committed but await CI. WP4–WP6 remain.
+- **Next exact action:** inspect CI for the latest WP3 test commit. If green, mark WP3 deterministic routing complete and proceed to WP4 live Ollama acceptance/telemetry design. If red, fix the regression before expanding scope. Keep the one-analysis architecture and deterministic authority boundaries unchanged.
 
 ### How to resume
 
