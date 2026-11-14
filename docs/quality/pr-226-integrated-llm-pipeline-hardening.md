@@ -81,10 +81,13 @@ A green deterministic suite is necessary but is not evidence of model quality. L
 - **Live execution:** not run in this environment; the integrated fixture remains opt-in and must be run against the configured local Ollama model.
 
 ### WP5 — Retire the former combined path
-- Inventory all production/test consumers of `MechanicsAdjudicator.understand()` and `understand_pending()`.
-- Migrate live and deterministic integration fixtures to `IntentInterpreter` + `adjudicate_analysis()`.
-- Keep only a deliberately documented compatibility shim if an external consumer still exists; do not use it from production runtime.
-- Remove duplicate combined prompt/schema once the migration is complete and test its absence from the production composition root.
+- [x] Inventory production and test consumers of `MechanicsAdjudicator.understand()` and `understand_pending()`.
+- [x] Keep the modular `IntentInterpreter` + `adjudicate_analysis()` path as the only application-runtime path.
+- [x] Gate the old combined service fallback behind `allow_legacy_combined_understanding`; the production composition root explicitly disables it.
+- [x] Document `understand()`, `understand_pending()` and `adjudicate()` as deprecated compatibility shims; retain combined prompt/schema only for old external integrations and compatibility-contract tests.
+- [x] Add a composition-root regression test and a fail-closed test for callers that disable the shim.
+- **Inventory:** the only production references are the two fallback branches in `TurnResolutionService`, reachable only for callers that omit `IntentInterpreter` and explicitly enable compatibility. The runtime composition root injects distinct role providers and sets compatibility to `False`. Deterministic compatibility fixtures remain opt-in; live model probes use the role-specific path.
+- **Follow-up:** remove the compatibility prompt/schema only when downstream integrations no longer depend on the combined response contract.
 
 ### WP6 — Documentation and handoff
 - Update `services/turns/README.md`, `services/llm_world/README.md`, and the modular pipeline decision record.
@@ -125,20 +128,21 @@ This section is the source of truth for resuming work after an interruption. Upd
 
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
-- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, not merged. Keep as draft while work remains.
-- **Current head:** pending WP4 partial-mechanics-result telemetry correction and CI rerun.
-- **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 deterministic integrated routing contract complete; WP4 provider telemetry and integrated live acceptance probe implemented (live execution pending).
+- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, not merged, draft.
+- **Current head:** pending WP5 compatibility-gate and documentation commit.
+- **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 deterministic integrated routing complete; WP4 Ollama usage telemetry and integrated live probe implemented (live run pending); WP5 legacy combined fallback gated off in production runtime, documented as compatibility-only, with regression tests.
 - **Key implementation commits:**
   - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`.
   - WP2: `708b33cea4320e54c538edbf860613b41685d9e4`, `c6a863a545ff8d51dcd6e2a02468a23cb26120a4`, `00936f3de281405d743f813bcb7159dbb9433f3a`.
-  - WP3 integrated tests: `4a326a38598a135d88ed339707330d075ed3abe1`, `4f1d183aef61678c37fb18d04474e885af00a4f1`.
-  - v2 prompt compaction fix: `4d45880db0ac9d6fc24a8b82f822f692b735a5c1`; regression test: `51aa35c7938a043b715bfc6f777bf17a7663e067`.
-- **Current implementation state:** mechanics retrieves active-step canonical and literal references; v2 planner avoids duplicate transcript/discourse context; integrated deterministic tests assert same-analysis handoff, clarification/ambiguity routing, completed observations, failed skill-check result propagation, conditional compound-step blocking, and plan/negation fail-closed paths. Ollama responses expose only safe usage metadata for logs/callbacks; full prompts/completions are never logged.
-- **Deterministic validation:** Tests run [`43626291437`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43626291437) passed: **1,818 passed, 16 deselected**, combined line/branch coverage **85.16%** (85.0% required). Ruff, both Pyright jobs, JavaScript tests and CodeQL [`43626291423`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43626291423) passed.
-- **Live Ollama validation:** not run here. New opt-in test: `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`.
+  - WP3: `4a326a38598a135d88ed339707330d075ed3abe1`, `4f1d183aef61678c37fb18d04474e885af00a4f1`.
+  - WP2 compaction fix: `4d45880db0ac9d6fc24a8b82f822f692b735a5c1`, `51aa35c7938a043b715bfc6f777bf17a7663e067`.
+  - WP4 telemetry/live probe: `183f1108b3eb958470d735e4da981a99c69859a6`; linter follow-up `b5b165e4848be7c1b778ef7cc7420de31ba7c3a6`; partial-result telemetry compatibility fix `4936e30cc7d3e68853150058a16df5e4ea1812e9`.
+- **Current implementation state:** mechanics retrieves active-step canonical and literal references; v2 planner uses one shared analysis; integrated deterministic tests verify routing, mechanics failure propagation and blocked conditional progression. Ollama usage metadata is captured without logging prompt/completion content. The role-specific production runtime disables the former combined contract; an explicit compatibility switch remains for older callers and tests only.
+- **Deterministic validation:** WP4 head run [`43629723969`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43629723969) passed: **1,823 passed, 17 deselected**, **85.14%** combined coverage. Ruff, both Pyright jobs, JavaScript tests and CodeQL [`43629723957`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43629723957) passed.
+- **Live Ollama validation:** not run here. Opt-in integrated test: `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`.
 - **SillyTavern validation:** not run for PR #226.
-- **Open blockers:** WP4 implementation is in place; the first workflow found two Ruff-only issues, fixed in commit `b5b165e4848be7c1b778ef7cc7420de31ba7c3a6`. Its rerun passed Ruff, both Pyright jobs, JavaScript and CodeQL, but the Python suite found one compatibility regression: extraction telemetry assumed every supplied mechanics fixture exposed `.outcome`. The logger now treats that optional diagnostic attribute as absent when not provided; deterministic CI must be rechecked before live acceptance. WP5 and WP6 remain.
-- **Next exact action:** inspect CI for the WP4 lint correction. If green, run `python -m pytest tests/test_real_llm.py -m real_llm -k integrated_pipeline -v -s` against the configured Ollama server. Do not mark live acceptance green from deterministic CI. Keep PR #226 open and in draft.
+- **Open blockers:** validate WP5 changes in deterministic CI. Then WP6 final documentation/audit remains; live Ollama and first SillyTavern checks remain separate acceptance gates.
+- **Next exact action:** inspect CI for the WP5 compatibility-gate commit. If green, complete WP6 docs/audit and hand off the exact live Ollama command and remaining SillyTavern checklist. Do not remove the legacy combined schema until external consumers migrate and that migration is tested.
 
 ### How to resume
 

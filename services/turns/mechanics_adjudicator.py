@@ -46,8 +46,10 @@ class MechanicsAdjudicator:
     """Adjudicate one validated active attempt; never re-interpret the full turn.
 
     `adjudicate_analysis()` is the modular production API. The older
-    `understand()` method remains temporarily for integrations migrating from
-    the former combined intent/mechanics response.
+    `understand()`, `understand_pending()` and `adjudicate()` APIs are
+    deprecated compatibility shims for integrations that still consume the
+    former combined intent/mechanics response. They are not used by the
+    application runtime.
     """
 
     CORRECTION_SYSTEM_PROMPT = """Eres el intérprete semántico de una aclaración pendiente de D&D 5e 2014.
@@ -508,7 +510,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         context: TurnContext,
         player_input: str,
     ) -> MechanicsDecision:
-        """Legacy API for older callers; the production turn path is strict."""
+        """Deprecated compatibility facade; use adjudicate_analysis for production."""
         return self.understand(context, player_input, allow_legacy=True)[1]
 
     @staticmethod
@@ -553,6 +555,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         evidence_text: str | None = None,
         allow_legacy: bool = False,
     ) -> tuple[PlayerIntentAnalysis, MechanicsDecision]:
+        """Deprecated combined response shim; use IntentInterpreter + adjudicate_analysis."""
         result = self._understand(
             context,
             player_input,
@@ -576,6 +579,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
         recent_turns: list[TurnRecord] | None = None,
         evidence_text: str | None = None,
     ) -> IntentUnderstandingResult:
+        """Deprecated combined correction shim; use IntentInterpreter.understand_pending."""
         result = self._understand(
             context,
             player_input,

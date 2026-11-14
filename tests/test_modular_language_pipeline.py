@@ -1210,3 +1210,46 @@ def test_turn_pipeline_does_not_adjudicate_or_propose_plans_and_negations(
     assert mechanics_provider.call_count == 0
     assert proposal_provider.call_count == 0
 
+def test_production_runtime_disables_legacy_combined_understanding():
+    from bootstrap.campaign_runtime import CampaignRuntimeFactory
+
+    runtime = CampaignRuntimeFactory().get_runtime(1)
+    resolver = runtime.durable_native_turn_service.resolver
+
+    assert isinstance(resolver.intent_interpreter, IntentInterpreter)
+    assert isinstance(resolver.mechanics_adjudicator, MechanicsAdjudicator)
+    assert resolver.allow_legacy_combined_understanding is False
+    assert resolver.intent_interpreter.provider is not resolver.mechanics_adjudicator.provider
+    assert resolver.intent_interpreter.provider.role == "intent"
+    assert resolver.mechanics_adjudicator.provider.role == "mechanics"
+    assert runtime.durable_native_turn_service.resolver.extractor.provider.role == "extraction"
+
+
+def test_turn_pipeline_fails_closed_when_legacy_combined_understanding_is_disabled():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
+
+    intent_provider = FakeLLMProvider(response='{"intent_analysis": {}}')
+    mechanics_provider = FakeLLMProvider(response='{"decision": "none"}')
+    extractor = LLMWorldExtractor(
+        provider=FakeLLMProvider(response='{"operations": []}'),
+        operation_parser=OperationParser(),
+    )
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+    service.intent_interpreter = None
+    service.allow_legacy_combined_understanding = False
+
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="legacy combined understanding is disabled",
+    ):
+        service.prepare_turn(_context(), "Abro la puerta.")
+
+    assert mechanics_provider.call_count == 0
+    assert intent_provider.call_count == 0
+

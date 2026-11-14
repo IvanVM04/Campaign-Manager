@@ -55,10 +55,17 @@ latest player answer, corrections are immutable and bounded, and the
 provider's re-analysis must reflect the same edit. Manual-roll continuation
 reuses persisted analysis and does not call the interpreter again.
 
-The old combined `MechanicsAdjudicator.understand()` API remains temporarily
-as a compatibility path for older callers and deterministic legacy tests. The
-application runtime injects `IntentInterpreter` and uses only
-`adjudicate_analysis()`; new production code must not use the combined path.
+The old combined `MechanicsAdjudicator.understand()`,
+`understand_pending()` and `adjudicate()` APIs remain only as deprecated
+compatibility shims for older integrations and compatibility tests.
+`TurnResolutionService` exposes the explicit
+`allow_legacy_combined_understanding` switch so a caller must opt in before
+using that fallback. The application composition root always sets it to
+`False`, injects a distinct `IntentInterpreter` provider, and routes mechanics
+through `adjudicate_analysis()`. New production services must not enable the
+combined path. The remaining combined prompt/schema are retained only until
+external compatibility consumers have migrated; compatibility tests are
+labelled as such and do not establish the production architecture.
 
 ## Prompt budgets and diagnostics
 
