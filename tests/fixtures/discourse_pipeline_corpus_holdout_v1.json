@@ -19,7 +19,10 @@
       "expected": {
         "current_topic_shift": true,
         "callback": false,
-        "scoped_turn_ids": []
+        "scoped_turn_ids": [],
+        "intent": {
+          "category": "question"
+        }
       }
     },
     {
@@ -56,7 +59,10 @@
           0,
           1,
           1
-        ]
+        ],
+        "intent": {
+          "category": "dialogue"
+        }
       }
     },
     {
@@ -77,7 +83,10 @@
         "callback": false,
         "scoped_turn_ids": [
           505
-        ]
+        ],
+        "intent": {
+          "category": "dialogue"
+        }
       }
     },
     {
@@ -108,7 +117,10 @@
         "topic_segments": [
           0,
           0
-        ]
+        ],
+        "intent": {
+          "category": "question"
+        }
       }
     },
     {
@@ -141,7 +153,10 @@
           508,
           509,
           510
-        ]
+        ],
+        "intent": {
+          "category": "dialogue"
+        }
       }
     },
     {
@@ -174,7 +189,10 @@
           511,
           512,
           513
-        ]
+        ],
+        "intent": {
+          "category": "question"
+        }
       }
     },
     {
@@ -207,7 +225,10 @@
           514,
           515,
           516
-        ]
+        ],
+        "intent": {
+          "category": "plan"
+        }
       }
     },
     {
@@ -239,7 +260,10 @@
         "scoped_turn_ids": [
           518,
           519
-        ]
+        ],
+        "intent": {
+          "category": "dialogue"
+        }
       }
     },
     {
@@ -259,7 +283,10 @@
         "ellipsis_hint": true,
         "scoped_turn_ids": [
           520
-        ]
+        ],
+        "intent": {
+          "category": "action"
+        }
       }
     },
     {
@@ -279,7 +306,10 @@
         "ellipsis_hint": true,
         "scoped_turn_ids": [
           521
-        ]
+        ],
+        "intent": {
+          "category": "action"
+        }
       }
     },
     {
@@ -299,7 +329,10 @@
         "ellipsis_hint": true,
         "scoped_turn_ids": [
           522
-        ]
+        ],
+        "intent": {
+          "category": "action"
+        }
       }
     },
     {
@@ -319,7 +352,10 @@
         "ellipsis_hint": false,
         "scoped_turn_ids": [
           523
-        ]
+        ],
+        "intent": {
+          "category": "report"
+        }
       }
     },
     {
@@ -419,6 +455,9 @@
           "mention": "ella",
           "entity_id": 1301,
           "clarification": false
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -524,6 +563,9 @@
           "mention": "ella",
           "entity_id": null,
           "clarification": true
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -571,6 +613,9 @@
           "mention": "ella",
           "entity_id": 1304,
           "clarification": false
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -612,6 +657,9 @@
           "mention": "le",
           "entity_id": null,
           "clarification": true
+        },
+        "intent": {
+          "category": "question"
         }
       }
     },
@@ -659,6 +707,9 @@
           "mention": "ella",
           "entity_id": 1307,
           "clarification": false
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -706,6 +757,9 @@
           "mention": "ella",
           "entity_id": null,
           "clarification": true
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -746,6 +800,9 @@
           "mention": "ella",
           "entity_id": null,
           "clarification": true
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -787,6 +844,9 @@
           "mention": "ellas",
           "entity_id": null,
           "clarification": true
+        },
+        "intent": {
+          "category": "dialogue"
         }
       }
     },
@@ -811,7 +871,10 @@
         ],
         "npc_speaker_ids": [
           1401
-        ]
+        ],
+        "intent": {
+          "category": "dialogue"
+        }
       },
       "npc_narrative": "Mara dice: «Aldric guarda la carta en la torre».",
       "npc_entities": [
@@ -850,7 +913,10 @@
         "scoped_turn_ids": [
           671
         ],
-        "npc_speaker_ids": []
+        "npc_speaker_ids": [],
+        "intent": {
+          "category": "question"
+        }
       },
       "npc_narrative": "Mara dice: «No lo sé».",
       "npc_entities": [
@@ -889,7 +955,10 @@
         "scoped_turn_ids": [
           672
         ],
-        "npc_speaker_ids": []
+        "npc_speaker_ids": [],
+        "intent": {
+          "category": "report"
+        }
       },
       "npc_narrative": "Bram responde: «No abriré la puerta».",
       "npc_entities": [
@@ -923,7 +992,10 @@
         ],
         "npc_speaker_ids": [
           1406
-        ]
+        ],
+        "intent": {
+          "category": "dialogue"
+        }
       },
       "npc_narrative": "Mara dice: «Aldric, abre la puerta y entrega la llave».",
       "npc_entities": [
@@ -968,6 +1040,9 @@
           "previous_value": "Aldric",
           "replacement": "Mara",
           "accepted": true
+        },
+        "intent": {
+          "category": "correction"
         }
       },
       "correction_rounds": [
@@ -1010,6 +1085,9 @@
           "previous_value": "Bram",
           "replacement": "Aldric",
           "accepted": true
+        },
+        "intent": {
+          "category": "correction"
         }
       },
       "correction_rounds": [
@@ -1052,6 +1130,9 @@
           "previous_value": "llave",
           "replacement": "mapa",
           "accepted": true
+        },
+        "intent": {
+          "category": "correction"
         }
       },
       "correction_rounds": [
@@ -1107,6 +1188,9 @@
           "replacement": null,
           "accepted": false,
           "rejection_reason": "ambiguous_or_ungrounded"
+        },
+        "intent": {
+          "category": "correction"
         }
       },
       "correction_rounds": [
