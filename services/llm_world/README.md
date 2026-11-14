@@ -3,8 +3,10 @@
 ## Responsibility
 
 Turn the shared player-intent interpretation and confirmed mechanics into
-bounded, typed proposals for world operations. Model output is untrusted: it is
-parsed and classified here, then semantically validated and applied by the
+bounded, typed proposals for world operations from the validated shared
+`PlayerIntentAnalysis`. The planner does not independently re-interpret the
+player's utterance or decide mechanical outcomes. Model output is untrusted: it
+is parsed and classified here, then semantically validated and applied by the
 world application boundary.
 
 ## Modules
@@ -20,7 +22,7 @@ world application boundary.
 
 1. `TurnResolutionService` receives the player's original intent and the shared v1/v2 `PlayerIntentAnalysis`.
 2. It builds a bounded `WorldContextProjection`, preserving the active character, current location, dependencies and additional signals from literal mentions, v2 action arguments and relation endpoints.
-3. `LLMWorldProposalPromptBuilder` renders the projection, character sheet, resource balances, confirmed mechanics, shared semantic analysis and registry-generated operation contract.
+3. `LLMWorldProposalPromptBuilder` renders the projection, character sheet, resource balances, confirmed mechanics, shared semantic analysis and registry-generated operation contract. A shared trust contract is composed with proposal-specific policy; schema structure is enforced by the parser/structured response contract.
 4. The extractor checks the complete prompt against its budget before calling the provider.
 5. The response parser rejects internal-only/unsupported operation types before structural parsing.
 6. The world application boundary performs semantic validation and applies operations inside the caller-owned transaction.
@@ -49,15 +51,16 @@ a bounded projection and passes it inward.
 
 | Environment variable | Default | Meaning |
 |---|---:|---|
-| `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS` | 8192 | Complete proposal prompt upper bound |
-| `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS` | 4096 | Selected world-record budget |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES` | 8192 | Complete proposal prompt upper bound in UTF-8 bytes |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES` | 4096 | Selected world-record budget in UTF-8 bytes |
 | `CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS` | 16000 | Maximum provider response size |
-| `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS` | 2048 | Independent budget for the single repair request |
+| `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES` | 2048 | Independent UTF-8 byte budget for the single repair request |
 
-The provider port does not expose an exact model tokenizer. The byte-based
-estimator is conservative; prompt, response and repair remain independently
-bounded. Context selection fails closed rather than arbitrarily truncating
-campaign facts.
+The prior `*_MAX_TOKENS` names remain accepted as compatibility aliases, but
+their values have always been interpreted as UTF-8 byte ceilings by the
+conservative estimator. They are not exact model-token counts. Prompt,
+response and repair remain independently bounded. Context selection fails
+closed rather than arbitrarily truncating mandatory campaign facts.
 
 ## Dependency and safety rules
 
