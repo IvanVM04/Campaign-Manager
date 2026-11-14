@@ -71,6 +71,7 @@ def service_with_fake_models():
     """Return the real durable turn service with deterministic in-memory providers."""
     runtime = CampaignRuntimeFactory().get_runtime(1)
     service = runtime.durable_native_turn_service
+    service.resolver.intent_interpreter = None
     service.resolver.mechanics_adjudicator = None
     proposal_calls = []
     service.resolver.extractor.provider = lambda prompt: (
