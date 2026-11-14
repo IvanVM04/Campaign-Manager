@@ -11,8 +11,8 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.context import ContextBuilder
 from services.discourse_context import DiscourseContextBuilder
-from services.providers import LLMProvider
 from services.llm_prompt_contracts import COMMON_LLM_TRUST_CONTRACT
+from services.providers import LLMProvider
 
 from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
