@@ -31,6 +31,7 @@ from services.context import (
 from services.discourse_context import DiscourseContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
+from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
@@ -114,6 +115,7 @@ class TurnResolutionService:
         dice_roller: DiceRoller | None = None,
         context_builder: ContextBuilder | None = None,
         proposal_context_max_tokens: int = 4096,
+        intent_interpreter: IntentInterpreter | None = None,
     ) -> None:
 
         if not isinstance(
@@ -144,6 +146,10 @@ class TurnResolutionService:
             mechanics_adjudicator, MechanicsAdjudicator
         ):
             raise TypeError("mechanics_adjudicator must be a MechanicsAdjudicator or None")
+        if intent_interpreter is not None and not isinstance(
+            intent_interpreter, IntentInterpreter
+        ):
+            raise TypeError("intent_interpreter must be an IntentInterpreter or None")
         if dice_roller is not None and not isinstance(dice_roller, DiceRoller):
             raise TypeError("dice_roller must be a DiceRoller or None")
         if context_builder is not None and not isinstance(context_builder, ContextBuilder):
@@ -159,6 +165,7 @@ class TurnResolutionService:
         self.extractor = extractor
         self.world_service = world_service
         self.mechanics_adjudicator = mechanics_adjudicator
+        self.intent_interpreter = intent_interpreter
         self.dice_roller = dice_roller or DiceRoller()
         self.context_builder = context_builder
         self.conversation_reference_resolver = ConversationReferenceResolver()
@@ -292,13 +299,24 @@ class TurnResolutionService:
                     "pending correction requires the shared language adjudicator"
                 )
             try:
-                correction_result = self.mechanics_adjudicator.understand_pending(
-                    context,
-                    normalized_input,
-                    pending_analysis=pending_intent_analysis,
-                    correction_evidence_text=pending_correction_evidence_text or "",
-                    recent_turns=recent_turns,
-                    evidence_text=normalized_evidence_text,
+                correction_result = (
+                    self.intent_interpreter.understand_pending(
+                        context,
+                        normalized_input,
+                        pending_analysis=pending_intent_analysis,
+                        correction_evidence_text=pending_correction_evidence_text or "",
+                        recent_turns=recent_turns,
+                        evidence_text=normalized_evidence_text,
+                    )
+                    if self.intent_interpreter is not None
+                    else self.mechanics_adjudicator.understand_pending(
+                        context,
+                        normalized_input,
+                        pending_analysis=pending_intent_analysis,
+                        correction_evidence_text=pending_correction_evidence_text or "",
+                        recent_turns=recent_turns,
+                        evidence_text=normalized_evidence_text,
+                    )
                 )
                 corrected_analysis = pending_intent_analysis
                 for correction in correction_result.corrections:
@@ -322,8 +340,27 @@ class TurnResolutionService:
         elif (
             intent_analysis is None
             and decision is None
+            and self.intent_interpreter is not None
+        ):
+            try:
+                intent_analysis = self.intent_interpreter.interpret(
+                    context,
+                    normalized_input,
+                    recent_turns=recent_turns,
+                    evidence_text=normalized_evidence_text,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "semantic intent interpretation failed"
+                ) from exc
+        elif (
+            intent_analysis is None
+            and decision is None
             and self.mechanics_adjudicator is not None
         ):
+            # Compatibility path for callers that have not yet injected the
+            # role-specific interpreter. The application runtime uses the
+            # modular path above.
             try:
                 intent_analysis, inferred_decision = self.mechanics_adjudicator.understand(
                     context,
@@ -341,6 +378,43 @@ class TurnResolutionService:
             intent_analysis = PlayerIntentAnalysis.conservative_legacy(
                 normalized_evidence_text
             )
+
+        if (
+            pending_intent_analysis is not None
+            and self.intent_interpreter is not None
+            and decision is None
+            and intent_analysis is not None
+            and intent_analysis.is_actionable
+            and self.mechanics_adjudicator is not None
+        ):
+            try:
+                decision = self.mechanics_adjudicator.adjudicate_analysis(
+                    context,
+                    intent_analysis,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "mechanics adjudication after correction failed"
+                ) from exc
+
+        # A mechanics call is now a separate, conditional responsibility.
+        if (
+            self.intent_interpreter is not None
+            and pending_intent_analysis is None
+            and decision is None
+            and intent_analysis is not None
+            and intent_analysis.is_actionable
+            and self.mechanics_adjudicator is not None
+        ):
+            try:
+                decision = self.mechanics_adjudicator.adjudicate_analysis(
+                    context,
+                    intent_analysis,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "mechanics adjudication failed"
+                ) from exc
 
         if intent_analysis.requires_clarification:
             return TurnResolutionPlan(
