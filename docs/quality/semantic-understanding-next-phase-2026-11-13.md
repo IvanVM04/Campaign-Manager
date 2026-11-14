@@ -105,9 +105,11 @@ The 34 utterance scenarios validate category/step interpretation and v2 structur
 
 Use the expanded held-out corpus and the new typed-reference failures to prioritize broad ellipsis, topic shifts, long-distance references, grammar agreement and time-aware relation modelling. Add embedding retrieval only if held-out measurements demonstrate a material precision/recall gain over the typed deterministic baseline.
 
-### Next after PR #223 — measure the integrated system
+### Next after PR #223 — modular pipeline (P0 / Priority #1)
 
-Test whether aliases, relation edges, dependency expansion and ranking can satisfy the expanded corpus. Consider embeddings only if a reproducible held-out evaluation demonstrates a material improvement over the deterministic baseline.
+Implement PR #225 using the [modular pipeline architecture decision](modular-language-understanding-pipeline-2026-11-14.md). Keep one coherent `PlayerIntentAnalysis`; separate the Intent Interpreter from conditional mechanics adjudication and consequence planning. Correct the prompt-budget preflight, avoid duplicating schema details in prose and instrument each role independently.
+
+Only after deterministic contracts pass should the unchanged 110-case Ollama corpus be rerun as the new live baseline. Then add held-out cases for #223 discourse behavior and complete real SillyTavern acceptance. Further action-family, discourse or retrieval features remain behind this gate.
 
 ## 5. Non-negotiable acceptance rules
 
@@ -118,7 +120,7 @@ Test whether aliases, relation edges, dependency expansion and ranking can satis
 - Direction, negation, modality, attribution and temporal evidence are preserved.
 - Questions, rumours, hypotheses, quotations and negative claims are not promoted to positive canon.
 - Existing v1 durable records recover unchanged.
-- No extra provider call, vector store or service is added without measured justification.
+- Do not split semantic interpretation into independent per-field calls or add vector infrastructure without held-out evidence. The conditional mechanics call and separate consequence-planner contract are now approved as distinct responsibilities in PR #225; they must be justified by call-routing tests and measured quality/latency.
 
 
-PR #223 is merged with successful deterministic CI. Its discourse index is a bounded hint, not a general parser; the 650-character cap and prompt-budget fallback can omit it. The immediate next phase is to execute the live corpus, extend held-out discourse coverage and run SillyTavern acceptance. The independent [audit](language-understanding-audit-2026-11-14.md) records risks and effort.
+PR #223 is merged with successful deterministic CI. Its discourse index is a bounded hint, not a general parser; the 650-character cap and prompt-budget fallback can omit it. The immediate next phase is PR #225: modularize interpretation, mechanics and consequence planning, then establish the live corpus baseline, extend held-out discourse coverage and run SillyTavern acceptance. The independent [audit](language-understanding-audit-2026-11-14.md) records risks and effort.
