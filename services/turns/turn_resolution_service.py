@@ -399,47 +399,6 @@ class TurnResolutionService:
                 normalized_evidence_text
             )
 
-        if (
-            pending_intent_analysis is not None
-            and self.intent_interpreter is not None
-            and decision is None
-            and intent_analysis is not None
-            and not intent_analysis.requires_clarification
-            and intent_analysis.is_actionable
-            and context.active_character is not None
-            and self.mechanics_adjudicator is not None
-        ):
-            try:
-                decision = self.mechanics_adjudicator.adjudicate_analysis(
-                    context,
-                    intent_analysis,
-                )
-            except MechanicsAdjudicatorError as exc:
-                raise TurnResolutionServiceError(
-                    "mechanics adjudication after correction failed"
-                ) from exc
-
-        # A mechanics call is now a separate, conditional responsibility.
-        if (
-            self.intent_interpreter is not None
-            and pending_intent_analysis is None
-            and decision is None
-            and intent_analysis is not None
-            and not intent_analysis.requires_clarification
-            and intent_analysis.is_actionable
-            and context.active_character is not None
-            and self.mechanics_adjudicator is not None
-        ):
-            try:
-                decision = self.mechanics_adjudicator.adjudicate_analysis(
-                    context,
-                    intent_analysis,
-                )
-            except MechanicsAdjudicatorError as exc:
-                raise TurnResolutionServiceError(
-                    "mechanics adjudication failed"
-                ) from exc
-
         if intent_analysis.requires_clarification:
             return TurnResolutionPlan(
                 player_input=normalized_input,
@@ -453,118 +412,18 @@ class TurnResolutionService:
                 intent_evidence_text=normalized_evidence_text,
                 intent_corrections=intent_corrections,
             )
-        if not intent_analysis.is_actionable and not (
-            decision is not None
-            and decision.decision is MechanicsDecisionType.CLARIFICATION
-        ):
-            decision = MechanicsDecision(decision=MechanicsDecisionType.NONE)
-
-        if decision is not None:
-            if decision.decision is MechanicsDecisionType.CLARIFICATION:
-                return TurnResolutionPlan(
-                    player_input=normalized_input,
-                    narrative=decision.question or "",
-                    world_operations=(),
-                    character_operations=(),
-                    ordered_operations=(),
-                    clarification_question=decision.question,
-                    mechanics_decision=decision,
-                    intent_analysis=intent_analysis,
-                    intent_evidence_text=normalized_evidence_text,
-                    intent_corrections=intent_corrections,
-                )
-
-            character = context.active_character
-            conditions = context.active_character_conditions
-            if character is not None and decision.decision in {
-                MechanicsDecisionType.ABILITY_CHECK,
-                MechanicsDecisionType.SKILL_CHECK,
-            }:
-                decision = replace(
-                    decision,
-                    disadvantage=(
-                        decision.disadvantage or conditions.ability_checks_have_disadvantage
-                    ),
-                )
-            elif character is not None and decision.decision is MechanicsDecisionType.SAVING_THROW:
-                decision = replace(
-                    decision,
-                    disadvantage=(
-                        decision.disadvantage or conditions.saving_throws_have_disadvantage
-                    ),
-                )
-
-            if manual_mode and manual_rolls is None and decision.decision in {
-                MechanicsDecisionType.ABILITY_CHECK,
-                MechanicsDecisionType.SKILL_CHECK,
-                MechanicsDecisionType.SAVING_THROW,
-            }:
-                return TurnResolutionPlan(
-                    player_input=normalized_input,
-                    narrative="",
-                    world_operations=(),
-                    character_operations=(),
-                    ordered_operations=(),
-                    mechanics_decision=decision,
-                    intent_analysis=intent_analysis,
-                    intent_evidence_text=normalized_evidence_text,
-                    intent_corrections=intent_corrections,
-                    awaiting_manual_roll=True,
-                )
-            if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
-                if character is None or decision.ability is None or decision.dc is None:
-                    raise TurnResolutionServiceError(
-                        "ability check requires an active character, ability and DC"
-                    )
-                check = raw_ability_check_for_character(
-                    character=character,
-                    roller=self.dice_roller,
-                    ability=decision.ability,
-                    dc=decision.dc,
-                    advantage=decision.advantage,
-                    disadvantage=decision.disadvantage,
-                    situational_modifier=decision.situational_modifier,
-                    manual_rolls=manual_rolls,
-                )
-                mechanics_result = MechanicsResult(decision, check)
-            elif decision.decision is MechanicsDecisionType.SKILL_CHECK:
-                if character is None or decision.skill is None or decision.dc is None:
-                    raise TurnResolutionServiceError(
-                        "skill check requires an active character, skill and DC"
-                    )
-                check = ability_check_for_character(
-                    character=character,
-                    roller=self.dice_roller,
-                    skill=decision.skill,
-                    dc=decision.dc,
-                    advantage=decision.advantage,
-                    disadvantage=decision.disadvantage,
-                    situational_modifier=decision.situational_modifier,
-                    manual_rolls=manual_rolls,
-                    ability_override=decision.ability,
-                )
-                mechanics_result = MechanicsResult(decision, check)
-            elif decision.decision is MechanicsDecisionType.SAVING_THROW:
-                if character is None or decision.ability is None or decision.dc is None:
-                    raise TurnResolutionServiceError(
-                        "saving throw requires an active character, ability and DC"
-                    )
-                check = saving_throw_for_character(
-                    character=character,
-                    roller=self.dice_roller,
-                    ability=decision.ability,
-                    dc=decision.dc,
-                    advantage=decision.advantage,
-                    disadvantage=decision.disadvantage,
-                    situational_modifier=decision.situational_modifier,
-                    manual_rolls=manual_rolls,
-                )
-                mechanics_result = MechanicsResult(decision, check)
-
         context_projection = None
         resolved_references: tuple[ResolvedConversationReference, ...] = ()
         resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
-        if self.context_builder is not None and intent_analysis.allows_world_proposal:
+        needs_mechanics_context = (
+            self.intent_interpreter is not None
+            and intent_analysis.is_actionable
+            and context.active_character is not None
+        )
+        if (
+            self.context_builder is not None
+            and (intent_analysis.allows_world_proposal or needs_mechanics_context)
+        ):
             mandatory_entity_ids: list[int] = []
             if context.active_character is not None:
                 entity_id = context.active_character.entity_id
@@ -685,6 +544,156 @@ class TurnResolutionService:
                 raise TurnResolutionServiceError(
                     "proposal context selection failed"
                 ) from exc
+
+        # Stage 3: mechanics runs only after deterministic references have
+        # resolved. An ambiguous target must be clarified before any check.
+        if (
+            pending_intent_analysis is not None
+            and self.intent_interpreter is not None
+            and decision is None
+            and intent_analysis is not None
+            and not intent_analysis.requires_clarification
+            and intent_analysis.is_actionable
+            and context.active_character is not None
+            and self.mechanics_adjudicator is not None
+        ):
+            try:
+                decision = self.mechanics_adjudicator.adjudicate_analysis(
+                    context,
+                    intent_analysis,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "mechanics adjudication after correction failed"
+                ) from exc
+
+        if (
+            self.intent_interpreter is not None
+            and pending_intent_analysis is None
+            and decision is None
+            and intent_analysis is not None
+            and not intent_analysis.requires_clarification
+            and intent_analysis.is_actionable
+            and context.active_character is not None
+            and self.mechanics_adjudicator is not None
+        ):
+            try:
+                decision = self.mechanics_adjudicator.adjudicate_analysis(
+                    context,
+                    intent_analysis,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "mechanics adjudication failed"
+                ) from exc
+
+        if not intent_analysis.is_actionable and not (
+            decision is not None
+            and decision.decision is MechanicsDecisionType.CLARIFICATION
+        ):
+            decision = MechanicsDecision(decision=MechanicsDecisionType.NONE)
+
+        if decision is not None:
+            if decision.decision is MechanicsDecisionType.CLARIFICATION:
+                return TurnResolutionPlan(
+                    player_input=normalized_input,
+                    narrative=decision.question or "",
+                    world_operations=(),
+                    character_operations=(),
+                    ordered_operations=(),
+                    clarification_question=decision.question,
+                    mechanics_decision=decision,
+                    intent_analysis=intent_analysis,
+                    intent_evidence_text=normalized_evidence_text,
+                    intent_corrections=intent_corrections,
+                )
+
+            character = context.active_character
+            conditions = context.active_character_conditions
+            if character is not None and decision.decision in {
+                MechanicsDecisionType.ABILITY_CHECK,
+                MechanicsDecisionType.SKILL_CHECK,
+            }:
+                decision = replace(
+                    decision,
+                    disadvantage=(
+                        decision.disadvantage or conditions.ability_checks_have_disadvantage
+                    ),
+                )
+            elif character is not None and decision.decision is MechanicsDecisionType.SAVING_THROW:
+                decision = replace(
+                    decision,
+                    disadvantage=(
+                        decision.disadvantage or conditions.saving_throws_have_disadvantage
+                    ),
+                )
+
+            if manual_mode and manual_rolls is None and decision.decision in {
+                MechanicsDecisionType.ABILITY_CHECK,
+                MechanicsDecisionType.SKILL_CHECK,
+                MechanicsDecisionType.SAVING_THROW,
+            }:
+                return TurnResolutionPlan(
+                    player_input=normalized_input,
+                    narrative="",
+                    world_operations=(),
+                    character_operations=(),
+                    ordered_operations=(),
+                    mechanics_decision=decision,
+                    intent_analysis=intent_analysis,
+                    intent_evidence_text=normalized_evidence_text,
+                    intent_corrections=intent_corrections,
+                    awaiting_manual_roll=True,
+                )
+            if decision.decision is MechanicsDecisionType.ABILITY_CHECK:
+                if character is None or decision.ability is None or decision.dc is None:
+                    raise TurnResolutionServiceError(
+                        "ability check requires an active character, ability and DC"
+                    )
+                check = raw_ability_check_for_character(
+                    character=character,
+                    roller=self.dice_roller,
+                    ability=decision.ability,
+                    dc=decision.dc,
+                    advantage=decision.advantage,
+                    disadvantage=decision.disadvantage,
+                    situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
+                )
+                mechanics_result = MechanicsResult(decision, check)
+            elif decision.decision is MechanicsDecisionType.SKILL_CHECK:
+                if character is None or decision.skill is None or decision.dc is None:
+                    raise TurnResolutionServiceError(
+                        "skill check requires an active character, skill and DC"
+                    )
+                check = ability_check_for_character(
+                    character=character,
+                    roller=self.dice_roller,
+                    skill=decision.skill,
+                    dc=decision.dc,
+                    advantage=decision.advantage,
+                    disadvantage=decision.disadvantage,
+                    situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
+                    ability_override=decision.ability,
+                )
+                mechanics_result = MechanicsResult(decision, check)
+            elif decision.decision is MechanicsDecisionType.SAVING_THROW:
+                if character is None or decision.ability is None or decision.dc is None:
+                    raise TurnResolutionServiceError(
+                        "saving throw requires an active character, ability and DC"
+                    )
+                check = saving_throw_for_character(
+                    character=character,
+                    roller=self.dice_roller,
+                    ability=decision.ability,
+                    dc=decision.dc,
+                    advantage=decision.advantage,
+                    disadvantage=decision.disadvantage,
+                    situational_modifier=decision.situational_modifier,
+                    manual_rolls=manual_rolls,
+                )
+                mechanics_result = MechanicsResult(decision, check)
 
         try:
             if not intent_analysis.allows_world_proposal:
