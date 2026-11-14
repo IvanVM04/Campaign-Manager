@@ -335,6 +335,38 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             separators=(",", ":"),
             sort_keys=True,
         )
+        active_mentions = {
+            mention.strip().casefold()
+            for mention in step.target_mentions
+            if mention.strip()
+        }
+        if step.action_frame is not None:
+            active_mentions.update(
+                argument.mention.text.strip().casefold()
+                for argument in step.action_frame.arguments
+                if argument.mention.text.strip()
+            )
+        active_mentions.update(
+            mention.strip().casefold()
+            for claim in analysis.relation_claims
+            if claim.step_index == step.index
+            for mention in (
+                claim.subject.text,
+                claim.object.text,
+                claim.attributed_to.text if claim.attributed_to is not None else "",
+            )
+            if mention.strip()
+        )
+        active_resolved_references = tuple(
+            item
+            for item in resolved_references
+            if item.mention.strip().casefold() in active_mentions
+        )[:16]
+        active_resolved_world_references = tuple(
+            item
+            for item in resolved_world_references
+            if item.mention.strip().casefold() in active_mentions
+        )[:16]
         resolved_reference_payload = {
             "entities": [
                 {
@@ -344,7 +376,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
                     "match_kind": item.match_kind,
                     "antecedent_turn_id": item.antecedent_turn_id,
                 }
-                for item in resolved_references[:16]
+                for item in active_resolved_references
             ],
             "world_records": [
                 {
@@ -355,7 +387,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
                     "match_kind": item.match_kind,
                     "antecedent_turn_id": item.antecedent_turn_id,
                 }
-                for item in resolved_world_references[:16]
+                for item in active_resolved_world_references
             ],
         }
         resolved_reference_block = (
@@ -365,7 +397,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
                 separators=(",", ":"),
                 sort_keys=True,
             )
-            if resolved_references or resolved_world_references
+            if active_resolved_references or active_resolved_world_references
             else "(sin referencias adicionales resueltas)"
         )
         prompt = (
