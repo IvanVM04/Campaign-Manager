@@ -86,6 +86,12 @@ class DiscourseContextBuilder:
     })
 
     @staticmethod
+    def _entity_value(entity: object, field: str, default=None):
+        if isinstance(entity, dict):
+            return entity.get(field, default)
+        return getattr(entity, field, default)
+
+    @staticmethod
     def _turn_fields(turn: object) -> tuple[str, str, int | None]:
         if isinstance(turn, dict):
             player_input, narrative, turn_id = (
@@ -189,17 +195,20 @@ class DiscourseContextBuilder:
             return ()
         aliases: dict[str, tuple[object, str, int] | None] = {}
         for entity in visible_entities:
-            entity_id = getattr(entity, "id", None)
-            raw_type = str(getattr(entity, "entity_type", ""))
+            entity_id = cls._entity_value(entity, "id")
+            raw_type = str(cls._entity_value(entity, "entity_type", ""))
             entity_type = cls.normalize(raw_type).replace("_", "").replace(" ", "")
             if (
                 isinstance(entity_id, bool) or not isinstance(entity_id, int)
-                or entity_id < 1 or not bool(getattr(entity, "active", False))
+                or entity_id < 1
+                or not bool(cls._entity_value(entity, "active", False))
                 or not ("npc" in entity_type or "nonplayer" in entity_type)
             ):
                 continue
-            name = getattr(entity, "name", "")
-            for alias in [name, *(getattr(entity, "aliases", []) or [])]:
+            name = cls._entity_value(entity, "name", "")
+            aliases_value = cls._entity_value(entity, "aliases", []) or []
+            aliases_list = aliases_value if isinstance(aliases_value, (list, tuple)) else []
+            for alias in [name, *aliases_list]:
                 if not isinstance(alias, str) or not alias.strip() or len(alias) > 120:
                     continue
                 key = cls.normalize(alias)
@@ -239,7 +248,7 @@ class DiscourseContextBuilder:
                     item = AttributedNpcUtterance(
                         turn_id=turn_id,
                         speaker_entity_id=speaker_entity_id,
-                        speaker_name=str(getattr(entity, "name", alias))[:120],
+                        speaker_name=str(cls._entity_value(entity, "name", alias))[:120],
                         excerpt=match.group(0).strip()[:1200],
                         utterance=utterance[:600],
                     )
