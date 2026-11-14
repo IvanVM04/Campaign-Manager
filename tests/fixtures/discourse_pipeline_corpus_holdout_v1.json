@@ -915,8 +915,7 @@
           1401
         ],
         "intent": {
-          "category": "dialogue",
-          "attributed_to": "Mara"
+          "category": "dialogue"
         }
       },
       "npc_narrative": "Mara dice: «Aldric guarda la carta en la torre».",
@@ -958,8 +957,7 @@
         ],
         "npc_speaker_ids": [],
         "intent": {
-          "category": "question",
-          "attributed_to": "Mara"
+          "category": "question"
         }
       },
       "npc_narrative": "Mara dice: «No lo sé».",
@@ -1001,8 +999,7 @@
         ],
         "npc_speaker_ids": [],
         "intent": {
-          "category": "report",
-          "attributed_to": "Bram"
+          "category": "report"
         }
       },
       "npc_narrative": "Bram responde: «No abriré la puerta».",
@@ -1039,8 +1036,7 @@
           1406
         ],
         "intent": {
-          "category": "dialogue",
-          "attributed_to": "Mara"
+          "category": "dialogue"
         }
       },
       "npc_narrative": "Mara dice: «Aldric, abre la puerta y entrega la llave».",
