@@ -147,7 +147,7 @@ class DiscourseContextBuilder:
     def has_topic_shift(cls, value: str) -> bool:
         normalized = cls.normalize(cls._without_quoted_spans(value))
         for marker in cls._SHIFT_MARKERS:
-            marker_pattern = re.escape(cls.normalize(marker)).replace(r"\\ ", r"\\s+")
+            marker_pattern = re.escape(cls.normalize(marker)).replace(r"\ ", r"\s+")
             if re.search(
                 r"(?:^|[.!?;,:]\s*)" + marker_pattern + r"(?=$|[\s,:.!?;])",
                 normalized,
