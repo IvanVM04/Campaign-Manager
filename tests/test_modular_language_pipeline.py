@@ -6,6 +6,11 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.mechanics import MechanicsDecisionType
+from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_world_reference import (
+    ResolvedWorldReference,
+    WorldReferenceCategory,
+)
 from models.session_state import SessionState
 from models.turn_context import TurnContext
 from models.world_context_projection import (
@@ -130,6 +135,52 @@ def test_intent_interpreter_keeps_player_evidence_and_reports_byte_budget_failur
         )
 
     assert provider.call_count == 0
+
+
+def test_mechanics_adjudicator_receives_trusted_resolved_entity_and_world_references():
+    provider = FakeLLMProvider(response=json.dumps({
+        "decision": "skill_check",
+        "skill": "athletics",
+        "ability": "strength",
+        "dc": 13,
+        "reason": "La puerta se resiste.",
+    }))
+    analysis_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": _analysis_payload(),
+    }))
+    analysis = IntentInterpreter(analysis_provider).interpret(
+        _context(),
+        "Intento abrirla.",
+    )
+    resolved_entity = ResolvedConversationReference(
+        mention="la puerta",
+        entity_id=42,
+        entity_name="Puerta de piedra",
+        match_kind="explicit_alias",
+        antecedent_turn_id=8,
+    )
+    resolved_item = ResolvedWorldReference(
+        mention="la llave",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=73,
+        name="Llave oxidada",
+        match_kind="direct_name",
+    )
+
+    decision = MechanicsAdjudicator(provider).adjudicate_analysis(
+        _context(),
+        analysis,
+        resolved_references=(resolved_entity,),
+        resolved_world_references=(resolved_item,),
+    )
+
+    assert decision.decision is MechanicsDecisionType.SKILL_CHECK
+    prompt = provider.prompts[0]
+    assert "REFERENCIAS CANÓNICAS RESUELTAS POR EL BACKEND" in prompt
+    assert '"canonical_id":42' in prompt
+    assert '"canonical_id":73' in prompt
+    assert '"canonical_name":"Puerta de piedra"' in prompt
+    assert '"category":"item_instance"' in prompt
 
 
 def test_mechanics_only_parser_applies_safe_defaults_for_optional_modifiers():
