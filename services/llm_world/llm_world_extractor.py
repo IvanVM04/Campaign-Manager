@@ -84,7 +84,7 @@ class LLMWorldExtractor:
             parse_response=self._parse_response,
             parse_operations=self._parse_operations,
             max_response_chars=max_response_chars,
-            max_repair_prompt_tokens=max_repair_prompt_tokens,
+            max_repair_prompt_bytes=self.max_repair_prompt_bytes,
             operation_registry=self.operation_registry,
         )
 
