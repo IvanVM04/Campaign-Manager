@@ -1567,19 +1567,19 @@ def test_conversation_reference_is_forwarded_with_proposal_context_projection():
 
 
 
-def test_recent_context_queries_cover_six_turn_reference_window():
+def test_recent_context_queries_cover_twelve_turn_reference_window():
     turns = [
         SimpleNamespace(
             id=index + 1,
             player_input=f"Turno visible {index + 1}",
             narrative="",
         )
-        for index in range(7)
+        for index in range(14)
     ]
 
     queries = TurnResolutionService._recent_context_queries(turns)
 
-    assert len(queries) == 6
-    assert "Turno visible 1" not in queries
-    assert "Turno visible 2" in queries
-    assert "Turno visible 7" in queries
+    assert len(queries) == 12
+    assert "Turno visible 2" not in queries
+    assert "Turno visible 3" in queries
+    assert "Turno visible 14" in queries

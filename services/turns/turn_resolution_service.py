@@ -28,6 +28,7 @@ from services.context import (
     ConversationReferenceResolver,
     WorldReferenceResolver,
 )
+from services.discourse_context import DiscourseContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
 from services.turns.mechanics_adjudicator import (
@@ -175,8 +176,8 @@ class TurnResolutionService:
             return ()
         queries: list[str] = []
         seen: set[str] = set()
-        # The resolver uses six turns; retrieval must search the same window.
-        for item in recent_turns[-6:]:
+        # Retrieval and discourse resolution share one bounded history window.
+        for item in recent_turns[-DiscourseContextBuilder.MAX_HISTORY_TURNS :]:
             if isinstance(item, dict):
                 values = (item.get("player_input", ""), item.get("narrative", ""))
             else:
@@ -531,10 +532,15 @@ class TurnResolutionService:
                         else None
                     ),
                 )
+                discourse_history = DiscourseContextBuilder.scope_history(
+                    recent_turns or (),
+                    normalized_input,
+                )
                 reference_result = self.conversation_reference_resolver.resolve(
                     context_projection.world,
                     intent_analysis,
-                    recent_turns=recent_turns or (),
+                    recent_turns=discourse_history,
+                    current_input=normalized_input,
                 )
                 resolved_references = reference_result.references
                 if reference_result.clarification_question:
@@ -554,7 +560,8 @@ class TurnResolutionService:
                 typed_reference_result = self.world_reference_resolver.resolve(
                     context_projection.world,
                     intent_analysis,
-                    recent_turns=recent_turns or (),
+                    recent_turns=discourse_history,
+                    current_input=normalized_input,
                     character_entity_id=(
                         context.active_character.entity_id
                         if context.active_character is not None

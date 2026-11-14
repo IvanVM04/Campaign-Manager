@@ -276,3 +276,95 @@ def test_proposal_prompt_includes_typed_world_references_without_merging_id_spac
     assert "'la llave' -> item_instance#901" in prompt
     assert "Llave de hierro (instancia #1)" in prompt
     assert "nunca intercambies un ID entre espacios de nombres" in prompt
+
+
+
+def test_proposal_prompt_includes_advanced_discourse_context():
+    history = [
+        SimpleNamespace(
+            id=1,
+            player_input="Hablo con Mara sobre la llave.",
+            narrative="",
+        ),
+        SimpleNamespace(
+            id=2,
+            player_input="Cambiando de tema, inspecciono la torre.",
+            narrative="",
+        ),
+    ]
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Volviendo a Mara, hazlo otra vez.",
+        make_context(),
+        recent_turns=history,
+    )
+    assert "ÍNDICE DISCURSIVO DETERMINISTA" in prompt
+    assert "reabre explícitamente un tema anterior" in prompt
+    assert "Posible elipsis" in prompt
+    assert "Cambios de tema explícitos" in prompt
+
+
+
+def test_proposal_prompt_drops_optional_discourse_index_under_budget_pressure(monkeypatch):
+    import services.llm_world.llm_world_proposal_prompt_builder as builder_module
+
+    def estimate_with_optional_discourse(prompt: str) -> int:
+        return 101 if "ÍNDICE DISCURSIVO DETERMINISTA" in prompt else 50
+
+    monkeypatch.setattr(
+        builder_module,
+        "estimate_tokens",
+        estimate_with_optional_discourse,
+    )
+    history = [
+        SimpleNamespace(
+            id=1,
+            player_input="Hablo con Mara.",
+            narrative="",
+        ),
+        SimpleNamespace(
+            id=2,
+            player_input="Cambiando de tema, inspecciono la torre.",
+            narrative="",
+        ),
+    ]
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Volviendo a Mara, hazlo otra vez.",
+        make_context(),
+        recent_turns=history,
+        max_prompt_tokens=100,
+    )
+    assert "ÍNDICE DISCURSIVO DETERMINISTA" not in prompt
+
+
+
+def test_proposal_prompt_compacts_full_registry_under_budget_pressure(monkeypatch):
+    import services.llm_world.llm_world_proposal_prompt_builder as builder_module
+    from models.world_context_projection import estimate_tokens as byte_estimate
+    from services.llm_world.operation_parser import OperationParser
+    from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
+
+    def force_manifest_compaction(prompt: str) -> int:
+        if '"examples"' in prompt:
+            return 9000
+        return byte_estimate(prompt)
+
+    monkeypatch.setattr(
+        builder_module,
+        "estimate_tokens",
+        force_manifest_compaction,
+    )
+    registry = DEFAULT_OPERATION_REGISTRY
+    allowed = OperationParser(registry).model_proposable_operation_types()
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Quiero investigar la campana.",
+        make_context(),
+        allowed_operation_types=allowed,
+        operation_registry=registry,
+        max_prompt_tokens=8192,
+    )
+
+    assert byte_estimate(prompt) <= 8192
+    assert "create_entity" in prompt
+    assert "create_event" in prompt
+    assert '"required"' in prompt
+    assert '"examples"' not in prompt

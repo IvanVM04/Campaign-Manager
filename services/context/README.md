@@ -87,3 +87,15 @@ antecedent. Multiple candidates, hidden entities and missing evidence remain
 unresolved and require clarification. This is not general natural-language
 coreference: broader ellipsis, correction chains and paraphrases remain open
 and require a labelled evaluation corpus.
+
+
+## Advanced discourse signals (PR #223)
+
+`services.discourse_context.DiscourseContextBuilder` produces a bounded index from the current utterance
+and the last twelve turns already scoped to the current chat. It recognizes
+explicit topic changes and callbacks, marks likely elliptical/deictic input,
+extracts only explicitly labelled quotations from visible active NPCs, and
+reports grammatical agreement only when a local article/apposition is literal
+evidence. It never infers gender from proper names, creates group identities,
+or grants write authority. Entity and typed-world references share the same
+topic-scoped history. Ambiguous or plural-to-individual references abstain.

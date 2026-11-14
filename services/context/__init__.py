@@ -1,5 +1,7 @@
 """Context retrieval, expansion, ranking and rendering services."""
 
+from services.discourse_context import DiscourseContextBuilder
+
 from .context_builder import ContextBuilder
 from .context_expander import ContextExpander
 from .context_ranker import ContextRanker
@@ -30,6 +32,7 @@ __all__ = [
     "ContextRenderer",
     "ConversationReferenceResolution",
     "ConversationReferenceResolver",
+    "DiscourseContextBuilder",
     "EntityReferenceCandidate",
     "EntityReferenceResolution",
     "EntityReferenceResolver",

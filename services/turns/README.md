@@ -44,12 +44,21 @@ unsupported checks. Compound actions may not skip an earlier unresolved step.
 Relation claims preserve reported/question/negative/conditional status and do
 not themselves authorize relation writes.
 
-The last six visible turns are bounded and scoped to the current
-`conversation_id`. PR #219 enriches `ConversationReferenceResolver` with typed
-candidate evidence, a distinction between player-authored input and narrator
-prose, semantic-kind compatibility and explicit ambiguity margins. It does not
-infer grammatical gender/number or identify an NPC speaker when the transcript
-does not label one.
+The last twelve visible turns are bounded and scoped to the current
+`conversation_id`. PR #223 adds deterministic discourse hints for explicit topic
+changes/callbacks, ellipsis, explicit NPC quote labels and local grammatical
+agreement. Entity and typed-world reference resolvers share the same topic-scoped
+history. Explicit callbacks may inspect the bounded older window but still
+require a unique candidate.
+
+PR #219 enriches `ConversationReferenceResolver` with typed candidate evidence,
+a distinction between player-authored input and narrator prose, semantic-kind
+compatibility and explicit ambiguity margins. PR #223 does not infer
+gender/number from proper names; it uses only explicit local article/apposition
+(for example, `la guardia Mara`). NPC dialogue is attributed only when the
+transcript explicitly labels a unique visible active speaker. Unlabelled
+narration remains narrator evidence, and quoted speech is never a player
+instruction.
 
 PR #221 connects the guarded `PendingIntentCorrection` primitive to clarification
 resumption. Only a still-pending durable resolution with a validated stored
@@ -79,6 +88,7 @@ manual-roll continuations reuse the saved interpretation.
 - `tests/test_pending_intent_correction_flow.py` protects correction parsing, evidence grounding and multi-round durable clarification recovery.
 - `tests/test_durable_native_turn.py` and `tests/test_durable_silly_tavern_turn.py` protect the durable lifecycle.
 - `tests/test_silly_tavern_context_adapter.py` protects history filtering and adapter behavior.
+- `tests/test_discourse_context_builder.py`, `tests/test_conversation_reference_resolver.py` and `tests/test_world_reference_resolver.py` protect topic scope, callbacks, ellipsis cues, NPC attribution, agreement and abstention.
 - Live model behavior is evaluated separately by `python -m pytest -m real_llm -v -s`; see the [prompt evaluation guide](../../docs/quality/prompt-evaluation-2026-11-12.md).
 
 ## Dependency and lifecycle rules
