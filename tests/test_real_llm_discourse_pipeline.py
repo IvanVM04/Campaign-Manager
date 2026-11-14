@@ -318,8 +318,8 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     )
     print(ledger.render())
     if observational_failures:
-        print("Non-critical mismatches:\\n" + "\\n".join(observational_failures))
-    assert not failures, "\\n".join(failures) + "\\n" + ledger.render()
+        print("Non-critical mismatches:\n" + "\n".join(observational_failures))
+    assert not failures, "\n".join(failures) + "\n" + ledger.render()
 
 
 def _pending_analysis(prior_input: str, expected: dict):
@@ -468,12 +468,12 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
             for round_index, correction_round in enumerate(scenario["correction_rounds"]):
                 answer = correction_round["player_answer"]
                 evidence_parts.append(answer)
-                evidence_text = "\\n\\n".join(evidence_parts)
+                evidence_text = "\n\n".join(evidence_parts)
                 player_input = (
                     pending.steps[0].source_excerpt
-                    + "\\n\\nDM: "
+                    + "\n\nDM: "
                     + correction_round["dm_question"]
-                    + "\\n"
+                    + "\n"
                     + answer
                 )
                 try:
@@ -557,4 +557,4 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
         "discourse_correction_total_seconds",
         round(perf_counter() - started, 3),
     )
-    assert not failures, "\\n".join(failures)
+    assert not failures, "\n".join(failures)
