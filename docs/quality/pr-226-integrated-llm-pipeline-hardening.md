@@ -129,7 +129,7 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
 - **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, not merged, draft.
-- **Current head:** pending WP5 compatibility-gate and documentation commit.
+- **Current head:** pending strict-by-default compatibility gate and migrated legacy fixtures.
 - **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 deterministic integrated routing complete; WP4 Ollama usage telemetry and integrated live probe implemented (live run pending); WP5 legacy combined fallback gated off in production runtime, documented as compatibility-only, with regression tests.
 - **Key implementation commits:**
   - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`.
@@ -141,8 +141,9 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Deterministic validation:** WP4 head run [`43629723969`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43629723969) passed: **1,823 passed, 17 deselected**, **85.14%** combined coverage. Ruff, both Pyright jobs, JavaScript tests and CodeQL [`43629723957`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43629723957) passed.
 - **Live Ollama validation:** not run here. Opt-in integrated test: `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`.
 - **SillyTavern validation:** not run for PR #226.
-- **Open blockers:** validate WP5 changes in deterministic CI. Then WP6 final documentation/audit remains; live Ollama and first SillyTavern checks remain separate acceptance gates.
-- **Next exact action:** inspect CI for the WP5 compatibility-gate commit. If green, complete WP6 docs/audit and hand off the exact live Ollama command and remaining SillyTavern checklist. Do not remove the legacy combined schema until external consumers migrate and that migration is tested.
+- **CI history:** WP5 first run `43630505741` had 1 failing compatibility test because a reloaded legacy SillyTavern test did not opt back in after constructing a fresh runtime; 1,824 passed, 17 deselected and coverage was 85.10%. The current patch changes compatibility to opt-in by default and migrates that reloaded fixture plus the direct combined mechanics integration helper. Recheck CI on the new head.
+- **Open blockers:** validate strict-by-default WP5 in deterministic CI. Then WP6 final documentation/audit remains; live Ollama and first SillyTavern checks remain separate acceptance gates.
+- **Next exact action:** inspect CI for the strict-by-default WP5 commit. If green, complete WP6 docs/audit and hand off the exact live Ollama command and remaining SillyTavern checklist. Do not remove the legacy combined schema until external consumers migrate and that migration is tested.
 
 ### How to resume
 

@@ -120,7 +120,7 @@ class TurnResolutionService:
         proposal_context_max_tokens: int = 4096,
         intent_interpreter: IntentInterpreter | None = None,
         proposal_context_max_bytes: int | None = None,
-        allow_legacy_combined_understanding: bool = True,
+        allow_legacy_combined_understanding: bool = False,
     ) -> None:
 
         if not isinstance(

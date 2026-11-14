@@ -1210,6 +1210,35 @@ def test_turn_pipeline_does_not_adjudicate_or_propose_plans_and_negations(
     assert mechanics_provider.call_count == 0
     assert proposal_provider.call_count == 0
 
+
+def test_turn_resolution_disables_legacy_combined_understanding_by_default():
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.turns import DMService
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    context_builder = ContextBuilder()
+    service = TurnResolutionService(
+        dm_service=DMService(
+            FakeLLMProvider(response="Narración."),
+            context_builder,
+        ),
+        extractor=LLMWorldExtractor(
+            provider=FakeLLMProvider(response='{"operations": []}'),
+            operation_parser=OperationParser(),
+        ),
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=MechanicsAdjudicator(
+            FakeLLMProvider(response='{"decision": "none"}'),
+            context_builder,
+        ),
+    )
+
+    assert service.allow_legacy_combined_understanding is False
+
+
 def test_production_runtime_disables_legacy_combined_understanding():
     from bootstrap.campaign_runtime import CampaignRuntimeFactory
 
