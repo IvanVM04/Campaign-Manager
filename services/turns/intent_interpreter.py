@@ -202,7 +202,11 @@ resultados mecánicos. El esquema es el contrato estructural."""
             else self.SYSTEM_PROMPT
         )
         pending_block = ""
-        conversation = player_input
+        conversation = (
+            player_input
+            if player_input == evidence_text
+            else player_input[-1600:]
+        )
         evidence = evidence_text
         if pending_analysis is not None:
             pending_block = (
