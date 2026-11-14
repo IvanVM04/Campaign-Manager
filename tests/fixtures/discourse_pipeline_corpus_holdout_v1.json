@@ -599,7 +599,7 @@
       "id": "dp-distance-most-recent-15",
       "family": "long_distance_reference",
       "critical": false,
-      "input": "Le pregunto a ella si ha visto la llave.",
+      "input": "Le pregunto a él si ha visto la llave.",
       "recent_turns": [
         {
           "id": 640,
@@ -636,7 +636,7 @@
           641
         ],
         "reference": {
-          "mention": "ella",
+          "mention": "él",
           "entity_id": 1304,
           "clarification": false
         },
