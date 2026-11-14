@@ -112,25 +112,38 @@ def test_discourse_pipeline_holdout_has_twenty_eight_balanced_cases():
     assert all(isinstance(item["critical"], bool) for item in scenarios)
 
 
-def test_discourse_pipeline_holdout_does_not_duplicate_existing_held_out_inputs():
+def test_discourse_pipeline_holdout_does_not_duplicate_existing_held_out_inputs_or_ids():
     corpus = _read_fixture()
-    seen: dict[str, str] = {}
+    seen_inputs: dict[str, str] = {}
+    seen_ids: dict[str, str] = {}
 
     for filename in EXISTING_HELD_OUT:
         existing = json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
         for item in existing["scenarios"]:
+            scenario_id = item["id"]
+            assert scenario_id not in seen_ids, (
+                f"{filename}:{scenario_id} duplicates {seen_ids[scenario_id]}"
+                if scenario_id in seen_ids
+                else ""
+            )
+            seen_ids[scenario_id] = filename
             utterance = item.get("input") or item.get("utterance")
             if not isinstance(utterance, str) or not utterance.strip():
                 continue
             key = " ".join(utterance.casefold().split())
-            seen[key] = f"{filename}:{item['id']}"
+            seen_inputs[key] = f"{filename}:{scenario_id}"
 
     for item in corpus["scenarios"]:
-        key = " ".join(item["input"].casefold().split())
-        assert key not in seen, (
-            f"{item['id']} duplicates held-out input {seen.get(key)}"
+        scenario_id = item["id"]
+        assert scenario_id not in seen_ids, (
+            f"{scenario_id} duplicates held-out ID {seen_ids.get(scenario_id)}"
         )
-        seen[key] = item["id"]
+        seen_ids[scenario_id] = "discourse_pipeline_corpus_holdout_v1.json"
+        key = " ".join(item["input"].casefold().split())
+        assert key not in seen_inputs, (
+            f"{scenario_id} duplicates held-out input {seen_inputs.get(key)}"
+        )
+        seen_inputs[key] = scenario_id
 
 
 def test_discourse_pipeline_topic_scope_and_ellipsis_cues_match_fixture():
