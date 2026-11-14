@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -7,6 +8,10 @@ from models.character_state import CharacterState
 from models.mechanics import MechanicsDecisionType
 from models.session_state import SessionState
 from models.turn_context import TurnContext
+from models.world_context_projection import (
+    ContextProjectionDiagnostics,
+    WorldContextProjection,
+)
 from models.world_state import WorldState
 from services.providers import FakeLLMProvider
 from services.turns import IntentInterpreter, MechanicsAdjudicator
@@ -265,7 +270,13 @@ def test_mechanics_adjudicator_skips_provider_without_active_character():
     assert mechanics_provider.call_count == 0
 
 
-def _build_resolution_service(intent_provider, mechanics_provider, extractor):
+def _build_resolution_service(
+    intent_provider,
+    mechanics_provider,
+    extractor,
+    *,
+    enable_context_projection=False,
+):
     from services.context import ContextBuilder
     from services.turns import DMService
     from services.turns.turn_resolution_service import TurnResolutionService
@@ -287,6 +298,7 @@ def _build_resolution_service(intent_provider, mechanics_provider, extractor):
         world_service=WorldService(applier=WorldApplier()),
         mechanics_adjudicator=mechanics_adjudicator,
         intent_interpreter=intent_interpreter,
+        context_builder=context_builder if enable_context_projection else None,
     )
 
 
@@ -368,6 +380,73 @@ def test_turn_pipeline_skips_mechanics_for_completed_observation_but_keeps_propo
     assert intent_provider.call_count == 1
     assert mechanics_provider.call_count == 0
     assert extractor.call_count == 1
+
+
+def test_ambiguous_reference_is_clarified_before_mechanics_or_proposal(monkeypatch):
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            return []
+
+    active_step = _analysis_payload(
+        source_excerpt="Intento abrir la puerta.",
+        action="intentar abrir la puerta",
+        predicate="Intento",
+    )
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": active_step,
+    }))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+        enable_context_projection=True,
+    )
+    projection = WorldContextProjection(
+        world=WorldState(),
+        diagnostics=ContextProjectionDiagnostics(
+            estimated_tokens=0,
+            budget_tokens=4096,
+            available_counts=(),
+            candidate_counts=(),
+            selected_counts=(),
+        ),
+    )
+    monkeypatch.setattr(
+        service.context_builder,
+        "build_proposal_context",
+        lambda *args, **kwargs: projection,
+    )
+    monkeypatch.setattr(
+        service.conversation_reference_resolver,
+        "resolve",
+        lambda *args, **kwargs: SimpleNamespace(
+            references=(),
+            clarification_question="¿A qué puerta te refieres?",
+        ),
+    )
+
+    plan = service.prepare_turn(
+        _context(),
+        "Intento abrir la puerta.",
+    )
+
+    assert plan.clarification_question == "¿A qué puerta te refieres?"
+    assert mechanics_provider.call_count == 0
+    assert extractor.call_count == 0
 
 
 def test_turn_pipeline_skips_mechanics_and_proposal_for_question_only():
