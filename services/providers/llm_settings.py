@@ -37,26 +37,6 @@ class LLMSettings:
     extraction_repair_max_tokens: int = 2048
 
     def __post_init__(self) -> None:
-        # Preserve the former mechanics budget fields as aliases during the
-        # migration. Both legacy values were byte counts in practice.
-        if (
-            self.mechanics_prompt_max_bytes == 8192
-            and self.mechanics_prompt_max_tokens != 8192
-        ):
-            object.__setattr__(
-                self,
-                "mechanics_prompt_max_bytes",
-                self.mechanics_prompt_max_tokens,
-            )
-        if (
-            self.mechanics_context_max_bytes == 4096
-            and self.mechanics_context_max_tokens != 4096
-        ):
-            object.__setattr__(
-                self,
-                "mechanics_context_max_bytes",
-                self.mechanics_context_max_tokens,
-            )
         if not isinstance(self.base_url, str):
             raise TypeError("LLM base_url must be a string")
         normalized_url = self.base_url.strip().rstrip("/")
