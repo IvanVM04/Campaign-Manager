@@ -33,6 +33,14 @@ indexes over searching through dated audit history.
 22. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
 23. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
 
+## AI understanding and evaluation
+
+- [AI world-understanding roadmap](quality/ai-world-understanding-roadmap-2026-11-12.md) — current priorities and semantic-quality acceptance boundary.
+- [Semantic prompt evaluation](quality/prompt-evaluation-2026-11-12.md) — deterministic contracts, live Ollama protocol and metrics.
+- [110-scenario evaluation corpus](quality/semantic-understanding-evaluation-corpus-2026-11-13.md) — development/held-out inventory and scoring policy.
+- [PR #226 integrated pipeline audit](quality/pr-226-integrated-llm-pipeline-hardening.md) — modular role boundaries and hardening checkpoint.
+- [PR #227 discourse/pipeline evaluation](quality/pr-227-held-out-discourse-pipeline-evaluation.md) — current work package, fixture contract and durable continuation checkpoint.
+
 ## Active architectural contracts
 
 - [Turn pipeline contract](architecture/turn-pipeline-compatibility.md) — the single supported durable turn lifecycle.

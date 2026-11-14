@@ -1,6 +1,6 @@
 # Semantic-understanding evaluation corpus — 2026-11-13
 
-**Foundation:** PR #220 introduced the 110-scenario corpus; PR #222 extends scoring with semantic-slot precision/recall/F1 and typed world-reference regressions.  
+**Foundation:** PR #220 introduced the 110-scenario corpus; PR #222 extends semantic-slot scoring and PR #227 adds a separate 28-case held-out discourse/pipeline tranche (138 scenarios total).  
 **Baseline:** `main` before PR #222, `fd3e90039cc2f3409bec3917f5a34cc7bdaca696`  
 **Priority:** P0 — measurement before prompt or retrieval expansion.
 
@@ -12,20 +12,22 @@ This phase expands the evaluation set and reserves unseen utterances for measure
 
 ## 2. Corpus inventory
 
-The integrated development corpus and the new held-out tranche contain 110 distinct scenarios:
+The integrated corpus now contains 138 distinct scenarios: the original 110-case baseline plus 28 new PR #227 held-out discourse/pipeline cases.
 
 | Evaluation layer | Development | Held-out | Total |
 |---|---:|---:|---:|
 | Utterance / intent analysis | 34 | 26 | 60 |
 | Action frames / directed relations | 10 | 20 | 30 |
 | Conversation reference resolution | 6 | 14 | 20 |
-| **Total** | **50** | **60** | **110** |
+| Discourse and staged pipeline | 0 | 28 | 28 |
+| **Total** | **50** | **88** | **138** |
 
 The held-out fixtures are separate files:
 
 - `language_understanding_corpus_holdout_v1.json`
 - `semantic_frame_corpus_holdout_v1.json`
 - `conversation_understanding_corpus_holdout_v1.json`
+- `discourse_pipeline_corpus_holdout_v1.json` (PR #227; seven families with four cases each)
 
 Each held-out file declares `split: held_out`, has stable scenario IDs and includes a family label. The deterministic corpus-integrity test checks the total count, unique IDs, unique held-out utterances and metadata. Do not move these cases into prompts, provider schema examples or tuning examples.
 
@@ -35,7 +37,7 @@ The utterance tranche covers attempted actions, questions, plans/conditionals, o
 
 The semantic-frame tranche covers transfer roles, item-definition/instance distinction, movement source/path/destination, combat patient/instrument, containment, perception/instrument, directed relation types, negative/reported relations and temporal expressions.
 
-The original conversation tranche covers player-authored focus, narrator-only evidence, speaker precedence, demonstratives, same-object references, other-role references, repeated topics, recency, the original six-turn evidence window, ambiguity and visibility-based abstention. PR #223 expands runtime history to twelve turns; that new behavior is not yet represented by a dedicated held-out tranche.
+The original conversation tranche covers player-authored focus, narrator-only evidence, speaker precedence, demonstratives, same-object references, other-role references, repeated topics, recency, the twelve-turn window, ambiguity and visibility-based abstention. PR #227 adds 28 separate discourse/pipeline cases covering topic boundaries, explicit callbacks, ellipsis/pending-action continuity, long-distance references/recency, local agreement, NPC attribution/quoted speech and multi-turn corrections.
 
 The corpus is Spanish-first. Existing English cases remain in the development corpus as cross-language controls. The new held-out tranche does not claim broad multilingual coverage.
 
@@ -81,9 +83,9 @@ Do not claim operation safety from intent-slot accuracy. The existing real-model
 ## 6. What this phase does not solve
 
 - The guarded model-driven correction lifecycle is now integrated by PR #221 for pending durable clarifications. PR #222 adds an opt-in live Ollama regression for a corrected recipient; no live pass is claimed until that test is run with the pinned local model.
-- The resolver remains conservative and deterministic; broad ellipsis, full grammatical agreement and arbitrary paraphrase remain open.
+- PR #223 adds bounded ellipsis cues, explicit topic callbacks, a twelve-turn history window, local grammatical agreement and labelled NPC speaker extraction. These are constrained heuristics/evidence contracts, not general discourse parsing; live quality for them remains unmeasured.
 - A literal temporal expression is not a normalized interval or event-time model.
-- The 110 scenarios are a controlled baseline, not proof of human-level understanding or broad language coverage.
+- The original 110 scenarios remain the comparable baseline; the 28 PR #227 additions broaden discourse/pipeline coverage but are still a controlled sample, not proof of human-level understanding or broad language coverage.
 - No embeddings, vector database or additional provider call is justified by corpus size alone. Measure deterministic retrieval first.
 
 ## 7. Execution
@@ -103,6 +105,8 @@ CAMPAIGN_MANAGER_REAL_LLM_MODEL=<pinned-model-tag> python -m pytest -m real_llm 
 Record the exact model digest, Ollama version, timeout, temperature/top-p/seed where supported, hardware, run SHA and the complete per-family output. Keep failed utterances and mismatches intact as regression evidence.
 
 
-## 8. PR #223 coverage gap
+## 8. PR #223 discourse gap and PR #226 pipeline status
 
-The 110-case corpus predates the advanced discourse implementation. PR #223 adds deterministic tests for explicit topic boundaries and callbacks, ellipsis cues, twelve-turn references, local grammatical agreement, plural abstention and labelled NPC dialogue. These tests do not provide a live model accuracy score for the new behaviors. Add a separate held-out discourse tranche and report its metrics by family; do not fold new examples into prompt examples or the original hold-out. Also measure when the 650-character discourse index is compacted or dropped under prompt-budget pressure. Current implementation and effort estimates are in the [independent audit](language-understanding-audit-2026-11-14.md).
+The original 110-case corpus predates the advanced discourse implementation. PR #223 added deterministic discourse behavior; PR #226 separated production Intent, Mechanics and Consequence Planner roles. PR #227 now adds a distinct 28-case held-out tranche and deterministic harness, plus opt-in live evaluators for Intent/resolution/context, ellipsis action recovery, prompt-level NPC speaker-hint retention, multi-turn corrections, a positive NPC-fact update and a negative failed-compound-action control. The live tests report by family and stage; they remain unexecuted until the pinned local Ollama model is supplied. History-derived NPC hints remain DiscourseEvidence; they are not written into `IntentStep.attributed_to`, which is grounded in current player evidence.
+
+Do not fold the new cases into prompt examples or the original 110-case corpus. The complete 138-scenario inventory is 50 development + 88 held-out cases. Prompt retention and context retrieval are measured without logging their content. See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) and the [independent audit](language-understanding-audit-2026-11-14.md).
