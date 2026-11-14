@@ -328,3 +328,25 @@ def test_proposal_context_merges_independent_supplemental_queries():
 
     assert set(projection.world.entities) == {1, 2, 3}
     assert projection.diagnostics.estimated_tokens <= projection.diagnostics.budget_tokens
+
+
+def test_proposal_context_accepts_explicit_utf8_byte_budget_and_reports_bytes():
+    projection = ContextBuilder().build_proposal_context(
+        build_world(),
+        "Mara",
+        max_estimated_bytes=2000,
+        mandatory_entity_ids=(1,),
+    )
+
+    assert projection.diagnostics.estimated_bytes <= 2000
+    assert projection.diagnostics.budget_bytes == 2000
+    assert projection.diagnostics.estimated_bytes == projection.diagnostics.estimated_tokens
+    assert projection.diagnostics.budget_bytes == projection.diagnostics.budget_tokens
+
+
+def test_proposal_context_rejects_missing_byte_or_legacy_budget():
+    with pytest.raises(ValueError, match="max_estimated_bytes"):
+        ContextBuilder().build_proposal_context(
+            build_world(),
+            "Mara",
+        )
