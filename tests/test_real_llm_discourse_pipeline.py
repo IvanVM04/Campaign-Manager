@@ -193,7 +193,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         for item in _load_scenarios()
         if item["family"] != "multi_turn_correction"
     ]
-    interpreter, provider, _context_builder, usage_events = _live_intent_runtime()
+    interpreter, provider, context_builder, usage_events = _live_intent_runtime()
     resolver = ConversationReferenceResolver()
     ledger = SemanticEvaluationLedger()
     failures: list[str] = []
@@ -286,6 +286,39 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
 
             reference = scenario["expected"].get("reference")
             if reference is not None:
+                if reference["entity_id"] is not None:
+                    context_started = perf_counter()
+                    context_data = context_builder.build(
+                        context.world,
+                        scenario["input"],
+                        recent_turns=recent_turns,
+                        supplemental_queries=IntentInterpreter._recent_context_queries(
+                            recent_turns
+                        ),
+                        character_entity_id=(
+                            context.active_character.entity_id
+                            if context.active_character is not None
+                            else None
+                        ),
+                    )
+                    selected_entities = context_data.get("entities", [])
+                    selected_ids = {
+                        getattr(item, "id", None)
+                        for item in selected_entities
+                    }
+                    expected_context_id = reference["entity_id"]
+                    context_hit = expected_context_id in selected_ids
+                    ledger.record_context_recall(
+                        expected_entity_ids=(expected_context_id,),
+                        retrieved_entity_ids=selected_ids,
+                    )
+                    ledger.record_case(
+                        f"context:{scenario['family']}",
+                        expected_slots=1,
+                        matched_slots=int(context_hit),
+                        elapsed_seconds=perf_counter() - context_started,
+                    )
+
                 resolution_started = perf_counter()
                 observed_id = None
                 clarification = False
