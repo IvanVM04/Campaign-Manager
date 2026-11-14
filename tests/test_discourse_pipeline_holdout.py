@@ -7,14 +7,21 @@ from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 
+from models.campaign_state import CampaignState
+from models.character_state import CharacterState
 from models.entity import Entity
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.resolved_conversation_reference import ResolvedConversationReference
+from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
+from services.context import ContextBuilder
 from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
 from services.discourse_context import DiscourseContextBuilder
+from services.providers import FakeLLMProvider
+from services.turns import IntentInterpreter, MechanicsAdjudicator
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURE = FIXTURES / "discourse_pipeline_corpus_holdout_v1.json"
@@ -278,3 +285,113 @@ def test_discourse_pipeline_correction_fixtures_keep_player_evidence_separate():
             else:
                 assert expected["replacement"] is None
                 assert expected["rejection_reason"] == "ambiguous_or_ungrounded"
+
+
+
+def test_intent_prompt_keeps_discourse_hints_separate_from_player_evidence():
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Discourse prompt test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=77),
+        world=WorldState(
+            entities={
+                77: Entity(
+                    id=77,
+                    name="Aldric",
+                    entity_type="npc",
+                    active=True,
+                )
+            }
+        ),
+    )
+    interpreter = IntentInterpreter(
+        FakeLLMProvider(response="{}"),
+        context_builder=ContextBuilder(),
+    )
+    recent_turns = [
+        TurnRecord(
+            id=77,
+            player_input="Hablo con Aldric.",
+            narrative='Aldric pregunta: «¿Vienes conmigo?»',
+        )
+    ]
+
+    prompt, section_sizes = interpreter._build_prompt(
+        context,
+        "Le digo que sí.",
+        recent_turns=recent_turns,
+        evidence_text="Le digo que sí.",
+    )
+
+    assert "=== ÍNDICE DISCURSIVO" in prompt
+    assert "NPC Aldric (turno 77)" in prompt
+    assert section_sizes["discourse"] > 0
+    assert prompt.index("=== EVIDENCIA ESCRITA POR EL JUGADOR") > prompt.index(
+        "=== ÍNDICE DISCURSIVO"
+    )
+
+
+def test_mechanics_prompt_uses_only_active_step_canonical_references():
+    player_input = "Intento abrir la puerta de roble con cuidado."
+    world = WorldState(
+        entities={
+            101: Entity(
+                id=101,
+                name="Puerta de roble",
+                entity_type="door",
+                description="Puerta pesada con un cerrojo antiguo.",
+                active=True,
+            ),
+            102: Entity(
+                id=102,
+                name="Aldric",
+                entity_type="npc",
+                description="Tabernero que vende pociones en el mercado.",
+                active=True,
+            ),
+        }
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Mechanics prompt test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=77),
+        world=world,
+    )
+    analysis = _analysis(player_input, "la puerta de roble")
+    active_reference = ResolvedConversationReference(
+        mention="la puerta de roble",
+        entity_id=101,
+        entity_name="Puerta de roble",
+        match_kind="canonical_name",
+        confidence_score=100,
+        resolution_signals=("canonical_name",),
+    )
+    unrelated_reference = ResolvedConversationReference(
+        mention="Aldric",
+        entity_id=102,
+        entity_name="Aldric",
+        match_kind="canonical_name",
+        confidence_score=100,
+        resolution_signals=("canonical_name",),
+    )
+    provider = FakeLLMProvider(response='{"decision": "none"}')
+    adjudicator = MechanicsAdjudicator(
+        provider,
+        context_builder=ContextBuilder(),
+    )
+
+    decision = adjudicator.adjudicate_analysis(
+        context,
+        analysis,
+        resolved_references=(active_reference, unrelated_reference),
+    )
+
+    assert decision.decision.value == "none"
+    prompt = provider.prompts[0]
+    references_section = prompt.split(
+        "=== REFERENCIAS CANÓNICAS RESUELTAS POR EL BACKEND "
+        "(EVIDENCIA, NO PERMISOS) ===",
+        1,
+    )[1].split("=== HECHOS RELEVANTES Y VISIBLES ===", 1)[0]
+    assert "Puerta de roble" in references_section
+    assert "Aldric" not in references_section
