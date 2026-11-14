@@ -114,15 +114,50 @@ class DiscourseContextBuilder:
             "".join(ch for ch in decomposed if not unicodedata.combining(ch)).split()
         )
 
+    @staticmethod
+    def _without_quoted_spans(value: str) -> str:
+        """Remove quoted text before detecting discourse-control markers.
+
+        A phrase mentioned as dialogue is evidence about what someone said,
+        not an instruction to change the current topic or repeat an action.
+        """
+        return re.sub(
+            r"«[^»]*»|“[^”]*”|\"[^\"]*\"|'[^']*'",
+            " ",
+            value,
+        )
+
+    @classmethod
+    def _contains_unquoted_marker(
+        cls,
+        value: str,
+        markers: tuple[str, ...],
+    ) -> bool:
+        normalized = cls.normalize(cls._without_quoted_spans(value))
+        for marker in markers:
+            marker_pattern = re.escape(cls.normalize(marker)).replace(r"\\ ", r"\\s+")
+            if re.search(
+                r"(?<!\\w)" + marker_pattern + r"(?!\\w)",
+                normalized,
+            ):
+                return True
+        return False
+
     @classmethod
     def has_topic_shift(cls, value: str) -> bool:
-        normalized = cls.normalize(value)
-        return any(marker in normalized for marker in cls._SHIFT_MARKERS)
+        normalized = cls.normalize(cls._without_quoted_spans(value))
+        for marker in cls._SHIFT_MARKERS:
+            marker_pattern = re.escape(cls.normalize(marker)).replace(r"\\ ", r"\\s+")
+            if re.search(
+                r"(?:^|[.!?;,:]\\s*)" + marker_pattern + r"(?=$|[\\s,:.!?;])",
+                normalized,
+            ):
+                return True
+        return False
 
     @classmethod
     def reactivates_prior_topic(cls, value: str) -> bool:
-        normalized = cls.normalize(value)
-        return any(marker in normalized for marker in cls._REACTIVATION_MARKERS)
+        return cls._contains_unquoted_marker(value, cls._REACTIVATION_MARKERS)
 
     @classmethod
     def topic_segments(cls, recent_turns: Iterable[object]) -> tuple[int, ...]:
@@ -284,8 +319,7 @@ class DiscourseContextBuilder:
             lines.append("Cambio de tema actual: no heredar referentes del tema anterior.")
         if cls.reactivates_prior_topic(current_input):
             lines.append("El jugador reabre explícitamente un tema anterior; consulta la ventana acotada y pregunta si hay ambigüedad.")
-        normalized = cls.normalize(current_input)
-        if any(marker in normalized for marker in cls._ELLIPSIS_MARKERS):
+        if cls._contains_unquoted_marker(current_input, cls._ELLIPSIS_MARKERS):
             lines.append("Posible elipsis: completa solo con antecedente único, visible y pendiente.")
         if len(set(cls.topic_segments(history))) > 1:
             lines.append("Historial con segmentos distintos: usa el segmento activo salvo callback.")
