@@ -305,8 +305,8 @@ class TurnResolutionService:
                     "pending correction requires the intent interpreter"
                 )
             try:
-                correction_result = (
-                    self.intent_interpreter.understand_pending(
+                if self.intent_interpreter is not None:
+                    correction_result = self.intent_interpreter.understand_pending(
                         context,
                         normalized_input,
                         pending_analysis=pending_intent_analysis,
@@ -314,8 +314,14 @@ class TurnResolutionService:
                         recent_turns=recent_turns,
                         evidence_text=normalized_evidence_text,
                     )
-                    if self.intent_interpreter is not None
-                    else self.mechanics_adjudicator.understand_pending(
+                    decision = None
+                else:
+                    adjudicator = self.mechanics_adjudicator
+                    if adjudicator is None:
+                        raise TurnResolutionServiceError(
+                            "pending correction requires an intent interpreter"
+                        )
+                    correction_result = adjudicator.understand_pending(
                         context,
                         normalized_input,
                         pending_analysis=pending_intent_analysis,
@@ -323,7 +329,7 @@ class TurnResolutionService:
                         recent_turns=recent_turns,
                         evidence_text=normalized_evidence_text,
                     )
-                )
+                    decision = correction_result.mechanics_decision
                 corrected_analysis = pending_intent_analysis
                 for correction in correction_result.corrections:
                     corrected_analysis = correction.apply(
@@ -337,11 +343,6 @@ class TurnResolutionService:
                             "provider re-analysis does not reflect its explicit correction"
                         )
                 intent_analysis = correction_result.analysis
-                decision = (
-                    None
-                    if self.intent_interpreter is not None
-                    else correction_result.mechanics_decision
-                )
                 intent_corrections = correction_result.corrections
             except (
                 IntentInterpreterError,
