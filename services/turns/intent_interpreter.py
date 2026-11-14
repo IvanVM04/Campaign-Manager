@@ -456,7 +456,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
         try:
             payload = json.loads(raw)
             if not isinstance(payload, dict):
-                raise ValueError("intent response must be an object")
+                raise TypeError("intent response must be an object")
             expected_fields = {"intent_analysis"}
             if pending_analysis is not None:
                 expected_fields.add("pending_corrections")
