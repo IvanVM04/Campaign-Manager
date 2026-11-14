@@ -50,6 +50,16 @@ class ContextProjectionDiagnostics:
             raise ValueError("reference_candidate_count must be a non-negative integer")
 
     @property
+    def estimated_bytes(self) -> int:
+        """UTF-8 byte count; the legacy estimated_tokens field is an alias."""
+        return self.estimated_tokens
+
+    @property
+    def budget_bytes(self) -> int:
+        """UTF-8 byte budget; the legacy budget_tokens field is an alias."""
+        return self.budget_tokens
+
+    @property
     def available_records(self) -> int:
         return sum(count for _, count in self.available_counts)
 
