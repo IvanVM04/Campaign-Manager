@@ -617,7 +617,7 @@ class TurnResolutionService:
                 context_projection = self.context_builder.build_proposal_context(
                     context.world,
                     normalized_input,
-                    max_estimated_tokens=self.proposal_context_max_tokens,
+                    max_estimated_bytes=self.proposal_context_max_bytes,
                     mandatory_entity_ids=mandatory_entity_ids,
                     supplemental_queries=semantic_queries,
                     character_entity_id=(
