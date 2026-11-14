@@ -36,22 +36,25 @@ def _analysis_payload(
     reported_outcome="not_claimed",
     active_step_index=0,
     category="action",
+    source_excerpt="Abro la puerta.",
+    action="abrir la puerta",
+    predicate="Abro",
 ):
     return {
         "schema_version": 2,
         "category": category,
         "steps": [{
             "index": 0,
-            "source_excerpt": "Abro la puerta.",
+            "source_excerpt": source_excerpt,
             "actor": "player",
-            "action": "abrir la puerta",
+            "action": action,
             "modality": modality,
             "polarity": polarity,
             "reported_outcome": reported_outcome,
             "target_mentions": ["la puerta"],
             "attributed_to": None,
             "action_frame": {
-                "predicate": "Abro",
+                "predicate": predicate,
                 "family": "interaction",
                 "arguments": [{
                     "role": "theme",
@@ -283,7 +286,6 @@ def _build_resolution_service(intent_provider, mechanics_provider, extractor):
         extractor=extractor,
         world_service=WorldService(applier=WorldApplier()),
         mechanics_adjudicator=mechanics_adjudicator,
-        context_builder=context_builder,
         intent_interpreter=intent_interpreter,
     )
 
@@ -345,6 +347,9 @@ def test_turn_pipeline_skips_mechanics_for_completed_observation_but_keeps_propo
     observed = _analysis_payload(
         modality="observed",
         active_step_index=None,
+        source_excerpt="Observo la puerta.",
+        action="observar la puerta",
+        predicate="Observo",
     )
     intent_provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": observed,
@@ -385,6 +390,9 @@ def test_turn_pipeline_skips_mechanics_and_proposal_for_question_only():
         modality="question",
         active_step_index=None,
         category="question",
+        source_excerpt="¿Qué hay detrás de la puerta?",
+        action="preguntar qué hay detrás de la puerta",
+        predicate="hay",
     )
     intent_provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": question,
