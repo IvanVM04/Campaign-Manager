@@ -1,9 +1,9 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
 **Status (2026-11-14):** PRs #219–#223 are merged into `main`. PR #223 adds bounded discourse understanding. The remaining P0 work is live evaluation, prompt-budget verification and SillyTavern acceptance; see the [independent audit](language-understanding-audit-2026-11-14.md).
-**Priority:** P0.5 — typed world-reference resolution and false-positive-aware semantic evaluation.  
+**Priority:** P0 closeout — live semantic evaluation, discourse hold-out and SillyTavern acceptance.  
 **Baseline:** `main` after PR #223, `7f4f8b10a072665471370fab4493a338835b875c` (2026-11-14).
-**Implementation branch:** `feat/222-typed-world-reference-evaluation`.
+**Implementation history:** PR #222 (typed world references) and PR #223 (advanced discourse) are integrated; no active implementation branch is implied.
 
 ## 1. Why this phase exists
 
