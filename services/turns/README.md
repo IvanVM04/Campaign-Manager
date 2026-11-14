@@ -26,7 +26,7 @@ The production runtime composes role-specific providers and follows this sequenc
 
 1. `IntentInterpreter.interpret()` receives exact player evidence, bounded same-chat history and a compact visible world context. It returns one coherent `PlayerIntentAnalysis` v2. It does not return a mechanics decision.
 2. Literal evidence, schema and canonical references are validated by the existing model/resolvers and deterministic application code.
-3. `MechanicsAdjudicator.adjudicate_analysis()` is called only when `analysis.is_actionable` is true and an active character exists. Its input is the validated active step and compact character/world facts; its output schema contains only `MechanicsDecision`.
+3. `MechanicsAdjudicator.adjudicate_analysis()` is called only when `analysis.is_actionable` is true, `analysis.requires_clarification` is false and an active character exists. Its input is the validated active step and compact character/world facts; its output schema contains only `MechanicsDecision`.
 4. `LLMWorldExtractor` receives the exact same analysis object, trusted resolved references, bounded projection and confirmed mechanics results. It must not independently reinterpret the raw utterance.
 5. Domain services remain the authority for validation, persistence and world mutation. Narration follows committed results.
 
@@ -60,9 +60,11 @@ application runtime injects `IntentInterpreter` and uses only
 
 ## Prompt budgets and diagnostics
 
-The intent and mechanics prompts have independent byte budgets:
-`intent_prompt_max_bytes` / `intent_context_max_bytes` and
-`mechanics_prompt_max_bytes` / `mechanics_context_max_bytes`. The shared
+The intent, mechanics and consequence-planner prompts have independent UTF-8
+byte budgets: `intent_prompt_max_bytes` / `intent_context_max_bytes`,
+`mechanics_prompt_max_bytes` / `mechanics_context_max_bytes`, and
+`extraction_prompt_max_bytes` / `extraction_context_max_bytes` /
+`extraction_repair_max_bytes`. The shared
 `estimate_tokens()` helper counts UTF-8 bytes and is not an exact model
 tokenizer. Role logs record prompt bytes, per-section sizes where available,
 duration, model and stable error type; they never record the prompt, raw
