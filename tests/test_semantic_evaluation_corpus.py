@@ -12,6 +12,7 @@ CORPORA = (
     ("semantic-frame-held-out", "semantic_frame_corpus_holdout_v1.json", True),
     ("discourse-development", "conversation_understanding_corpus_v2.json", False),
     ("discourse-held-out", "conversation_understanding_corpus_holdout_v1.json", True),
+    ("discourse-pipeline-held-out", "discourse_pipeline_corpus_holdout_v1.json", True),
 )
 
 
