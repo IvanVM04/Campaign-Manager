@@ -1,7 +1,6 @@
 """Turn lifecycle services and shared coordination primitives."""
 
 from services.turns.dm_service import DMService, DMServiceError
-from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.durable_turn_challenge_state_service import (
     DurableTurnChallengeStateService,
 )
@@ -26,6 +25,11 @@ from services.turns.durable_turn_prepared_commit_service import (
     DurableTurnPreparedCommitService,
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
+from services.turns.intent_interpreter import (
+    IntentInterpretationResult,
+    IntentInterpreter,
+    IntentInterpreterError,
+)
 from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
@@ -41,7 +45,9 @@ from services.turns.turn_resolution_service import (
 __all__ = [
     "DMService",
     "DMServiceError",
+    "IntentInterpretationResult",
     "IntentInterpreter",
+    "IntentInterpreterError",
     "DurableNativeTurnError",
     "DurableTurnChallengeStateService",
     "DurableTurnClarificationSubmissionService",
