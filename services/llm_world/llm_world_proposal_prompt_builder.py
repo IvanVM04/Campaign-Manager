@@ -1,5 +1,6 @@
 """Build the bounded structured prompt used for player-intent proposals."""
 
+import json
 from typing import Any
 
 from models.player_intent_analysis import PlayerIntentAnalysis
@@ -72,6 +73,46 @@ class LLMWorldProposalPromptBuilder:
         if len(compacted.encode("utf-8")) + len(suffix_bytes) > max_bytes:
             return compacted.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
         return compacted + suffix
+
+    @staticmethod
+    def _compact_operation_contract(value: str, *, minimal: bool = False) -> str:
+        """Keep the operation allowlist and required fields while dropping examples."""
+        try:
+            payload = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return value
+        if not isinstance(payload, dict):
+            return value
+        operations = payload.get("operations")
+        if not isinstance(operations, dict):
+            return value
+
+        compact_operations: dict[str, Any] = {}
+        for name, metadata in operations.items():
+            if not isinstance(name, str) or not isinstance(metadata, dict):
+                continue
+            required = metadata.get("required")
+            if not isinstance(required, str):
+                continue
+            if minimal:
+                compact_operations[name] = required
+                continue
+            compact_entry: dict[str, str] = {"required": required}
+            optional = metadata.get("optional")
+            if isinstance(optional, str) and optional:
+                compact_entry["optional"] = optional
+            compact_operations[name] = compact_entry
+
+        compact_payload: dict[str, Any] = {"operations": compact_operations}
+        field_notes = payload.get("field_notes")
+        if not minimal and isinstance(field_notes, dict) and field_notes:
+            compact_payload["field_notes"] = field_notes
+        return json.dumps(
+            compact_payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
 
     @staticmethod
     def _compact_instruction_contract() -> str:
@@ -287,6 +328,12 @@ class LLMWorldProposalPromptBuilder:
             + "\n\nINTENCIÓN DEL JUGADOR:\n"
             + player_intent
         )
+        operation_contract = (
+            operation_registry.render_prompt_contract(allowed_operation_types)
+            if operation_registry is not None
+            else ", ".join(allowed_operation_types)
+        )
+
         prompt = (
             "Eres un planificador de consecuencias para un motor de campaña "
             "de D&D 5e. Recibes una intención del jugador y un snapshot del "
@@ -370,14 +417,8 @@ class LLMWorldProposalPromptBuilder:
             + dynamic_context
             + (
                 "\n\nTIPOS DE OPERACIÓN PERMITIDOS\n"
-                + (
-                    operation_registry.render_prompt_contract(
-                        allowed_operation_types
-                    )
-                    if operation_registry is not None
-                    else ", ".join(allowed_operation_types)
-                )
-                if operation_registry is not None or allowed_operation_types
+                + operation_contract
+                if operation_contract
                 else ""
             )
             + (
@@ -468,6 +509,58 @@ class LLMWorldProposalPromptBuilder:
                     if compacted != original:
                         prompt = prompt.replace(original, compacted, 1)
                         estimated = estimate_tokens(prompt)
+
+        if estimated > max_prompt_tokens and operation_contract and operation_registry is not None:
+            compact_contract = LLMWorldProposalPromptBuilder._compact_operation_contract(
+                operation_contract
+            )
+            if compact_contract != operation_contract:
+                prompt = prompt.replace(operation_contract, compact_contract, 1)
+                estimated = estimate_tokens(prompt)
+
+        if estimated > max_prompt_tokens:
+            # Last-resort context projection: keep the active scene and the
+            # canonical semantic interpretation, but discard lower-priority
+            # world detail before rejecting an otherwise actionable turn.
+            for section, limit in (
+                ("known_relations", 0),
+                ("known_resource_balances", 0),
+                ("known_item_instances", 0),
+                ("known_resources", 0),
+                ("known_items", 0),
+                ("known_entities", 640),
+                ("known_events", 800),
+                ("campaign_block", 512),
+                ("session_block", 320),
+                ("character_block", 640),
+                ("conditions_block", 192),
+                ("reference_guidance", 300),
+            ):
+                if estimated <= max_prompt_tokens:
+                    break
+                original = context_blocks.get(section, "")
+                if not isinstance(original, str) or not original:
+                    continue
+                compacted = LLMWorldProposalPromptBuilder._compact_context_block(
+                    original,
+                    limit,
+                    priority_terms=normalized_priority_terms,
+                )
+                if compacted != original:
+                    prompt = prompt.replace(original, compacted, 1)
+                    estimated = estimate_tokens(prompt)
+
+        if estimated > max_prompt_tokens and operation_contract and operation_registry is not None:
+            compact_contract = LLMWorldProposalPromptBuilder._compact_operation_contract(
+                operation_contract
+            )
+            minimal_contract = LLMWorldProposalPromptBuilder._compact_operation_contract(
+                operation_contract,
+                minimal=True,
+            )
+            if minimal_contract != compact_contract:
+                prompt = prompt.replace(compact_contract, minimal_contract, 1)
+                estimated = estimate_tokens(prompt)
 
         if estimated > max_prompt_tokens:
             raise LLMExtractionError(

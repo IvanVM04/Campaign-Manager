@@ -334,3 +334,26 @@ def test_proposal_prompt_drops_optional_discourse_index_under_budget_pressure(mo
         max_prompt_tokens=100,
     )
     assert "ÍNDICE DISCURSIVO DETERMINISTA" not in prompt
+
+
+
+def test_proposal_prompt_fits_full_registry_under_default_budget():
+    from models.world_context_projection import estimate_tokens
+    from services.llm_world.operation_parser import OperationParser
+    from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
+
+    registry = DEFAULT_OPERATION_REGISTRY
+    allowed = OperationParser(registry).model_proposable_operation_types()
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Quiero investigar la campana.",
+        make_context(),
+        allowed_operation_types=allowed,
+        operation_registry=registry,
+        max_prompt_tokens=8192,
+    )
+
+    assert estimate_tokens(prompt) <= 8192
+    assert "create_entity" in prompt
+    assert "create_event" in prompt
+    assert '"required"' in prompt
+    assert '"examples"' not in prompt
