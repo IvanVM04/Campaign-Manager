@@ -150,7 +150,7 @@ def test_mechanics_adjudicator_receives_trusted_resolved_entity_and_world_refere
     }))
     analysis = IntentInterpreter(analysis_provider).interpret(
         _context(),
-        "Intento abrirla.",
+        "Abro la puerta.",
     )
     resolved_entity = ResolvedConversationReference(
         mention="la puerta",
