@@ -356,18 +356,16 @@ def test_turn_pipeline_skips_mechanics_and_proposal_for_question_only():
     assert mechanics_provider.call_count == 0
     assert extractor.call_count == 0
 
-
-
 def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     original = "Entrego la llave de hierro a Mara."
     correction = "No, quería decir Aldric."
     conversation = (
         original
-        + "\\n\\nAclaración del DM: ¿A quién entregas la llave?"
-        + "\\nRespuesta del jugador: "
+        + "\n\nAclaración del DM: ¿A quién entregas la llave?"
+        + "\nRespuesta del jugador: "
         + correction
     )
-    evidence = original + "\\n" + correction
+    evidence = original + "\n" + correction
     pending_payload = {
         "schema_version": 2,
         "category": "action",
