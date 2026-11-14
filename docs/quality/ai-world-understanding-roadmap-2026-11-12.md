@@ -434,7 +434,7 @@ The current status, risk register, acceptance gates and hour estimates are maint
 
 PR #226 has completed the deterministic implementation of the role-separated language pipeline. The remaining gap is measurement: the original 110-case corpus predates the PR #223 discourse improvements, and the new modular pipeline has only a focused integrated live probe rather than a broad stage-attributed quality report.
 
-PR #227 is active on `feat/227-held-out-discourse-pipeline-evaluation`, based on main after the #226 merge. The branch now contains the separate 28-case held-out fixture (seven families), deterministic discourse/resolver/prompt tests, quote-safe discourse-marker handling, opt-in live Intent/resolution/context and multi-turn correction evaluators, and integrated negative and positive planner probes. The corpus inventory is now 138 scenarios (50 development + 88 held-out); the original 110-case baseline remains unchanged.
+PR #227 is active on `feat/227-held-out-discourse-pipeline-evaluation`, based on main after the #226 merge. The branch now contains the separate 28-case held-out fixture (seven families), deterministic discourse/resolver/prompt tests, quote-safe discourse-marker handling, opt-in live Intent/resolution/context and multi-turn correction evaluators, ellipsis-recovery and prompt-level NPC speaker-hint scoring, and integrated negative and positive planner probes. The corpus inventory is now 138 scenarios (50 development + 88 held-out); the original 110-case baseline remains unchanged.
 
 The next tasks are to finish CI on the latest head, record the first pinned-model Ollama baseline, inspect per-family failures before any prompt tuning, and later complete the separate SillyTavern lifecycle test.
 
