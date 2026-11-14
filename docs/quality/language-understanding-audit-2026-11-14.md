@@ -145,22 +145,6 @@ El adjudicador limita el bloque discursivo a `max_context_tokens // 24`. El cons
 
 No debe asumirse que «ventana de 12 turnos» significa «12 turnos entendidos por el modelo». Hay que registrar, sin almacenar contenido sensible, cuántos turnos y qué tipos de señales se seleccionaron, compactaron o descartaron. La prioridad de truncado debe conservar evidencia crítica de la acción actual y antecedentes resueltos, no solo los últimos caracteres.
 
-### F-08 — Acoplamiento de interpretación/adjudicación y presupuesto de prompt
-
-**Estado: defecto reproducido antes de la llamada al proveedor; refactor P0 requerido.**
-
-El 2026-11-14 se ejecutó el test real `test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact` de forma aislada. Falló en 2,11 segundos dentro de `MechanicsAdjudicator._understand()` con `mechanics prompt exceeds the configured estimated token budget`. El rechazo ocurre antes de `provider.generate_structured()`; este caso no llegó a Ollama y no aporta evidencia sobre comprensión de Gemma.
-
-La revisión del código confirma:
-- `MechanicsAdjudicator` produce actualmente en una única llamada tanto `PlayerIntentAnalysis` v2 como `MechanicsDecision`;
-- el prompt de sistema de mecánicas ocupa aproximadamente 7.250 bytes UTF-8;
-- el presupuesto por defecto es 8.192 y `estimate_tokens()` mide bytes UTF-8, no tokens del tokenizador de Gemma;
-- el prompt añade además cabeceras, evidencia, historial, contexto y contrato de salida, y el recorte actual no puede reducir las instrucciones fijas ni las secciones obligatorias.
-
-La ejecución completa inicial también registró `llm.provider.failed` en varias pruebas. La salida aportada no contiene sus excepciones raíz; esos fallos deben clasificarse por separado y no asumirse como el mismo problema de presupuesto.
-
-**Decisión:** elevar a Prioridad #1 un refactor modular con un único intérprete semántico coherente, validación/resolución determinista, adjudicación mecánica condicional y planificador de consecuencias con contrato independiente. La interpretación no se divide en llamadas separadas por campos semánticos. Ver [la decisión de arquitectura](modular-language-understanding-pipeline-2026-11-14.md).
-
 ### F-06 — SillyTavern y recorrido de extremo a extremo
 
 **Estado: contratos automatizados; aceptación manual no acreditada.**
@@ -180,6 +164,22 @@ Se encontraron documentos que todavía:
 - mantenían descripciones de gramática y NPC previas a #223.
 
 La documentación histórica debe conservar su contexto temporal. Los índices y documentos activos deben describir el estado actual y enlazar este informe como fuente de auditoría.
+
+### F-08 — Acoplamiento de interpretación/adjudicación y presupuesto de prompt
+
+**Estado: defecto reproducido antes de la llamada al proveedor; refactor P0 requerido.**
+
+El 2026-11-14 se ejecutó el test real `test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact` de forma aislada. Falló en 2,11 segundos dentro de `MechanicsAdjudicator._understand()` con `mechanics prompt exceeds the configured estimated token budget`. El rechazo ocurre antes de `provider.generate_structured()`; este caso no llegó a Ollama y no aporta evidencia sobre comprensión de Gemma.
+
+La revisión del código confirma:
+- `MechanicsAdjudicator` produce actualmente en una única llamada tanto `PlayerIntentAnalysis` v2 como `MechanicsDecision`;
+- el prompt de sistema de mecánicas ocupa aproximadamente 7.250 bytes UTF-8;
+- el presupuesto por defecto es 8.192 y `estimate_tokens()` mide bytes UTF-8, no tokens del tokenizador de Gemma;
+- el prompt añade además cabeceras, evidencia, historial, contexto y contrato de salida, y el recorte actual no puede reducir las instrucciones fijas ni las secciones obligatorias.
+
+La ejecución completa inicial también registró `llm.provider.failed` en varias pruebas. La salida aportada no contiene sus excepciones raíz; esos fallos deben clasificarse por separado y no asumirse como el mismo problema de presupuesto.
+
+**Decisión:** elevar a Prioridad #1 un refactor modular con un único intérprete semántico coherente, validación/resolución determinista, adjudicación mecánica condicional y planificador de consecuencias con contrato independiente. La interpretación no se divide en llamadas separadas por campos semánticos. Ver [la decisión de arquitectura](modular-language-understanding-pipeline-2026-11-14.md).
 
 ## 6. Matriz de capacidades y trabajo pendiente
 
