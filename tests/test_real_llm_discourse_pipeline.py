@@ -97,7 +97,7 @@ def _context(scenario: dict) -> TurnContext:
 
 
 def _recent_turns(scenario: dict) -> list[TurnRecord]:
-    return [
+    turns = [
         TurnRecord(
             id=item["id"],
             player_input=item.get("player_input", ""),
@@ -105,6 +105,19 @@ def _recent_turns(scenario: dict) -> list[TurnRecord]:
         )
         for item in scenario["recent_turns"]
     ]
+    npc_narrative = scenario.get("npc_narrative")
+    if npc_narrative and turns:
+        last = turns[-1]
+        turns[-1] = TurnRecord(
+            id=last.id,
+            session_id=last.session_id,
+            player_input=last.player_input,
+            narrative=npc_narrative,
+            created_at=last.created_at,
+            external_turn_id=last.external_turn_id,
+            conversation_id=last.conversation_id,
+        )
+    return turns
 
 
 def _load_scenarios() -> list[dict]:
@@ -459,7 +472,14 @@ def _pending_analysis(prior_input: str, expected: dict):
         (name for name in ("Aldric", "Mara") if name in prior_input),
         "Aldric",
     )
-    theme = "el mapa" if "mapa" in prior_input.casefold() else "la llave"
+    lowered = prior_input.casefold()
+    theme = (
+        "el mapa"
+        if "mapa" in lowered
+        else "la carta"
+        if "carta" in lowered
+        else "la llave"
+    )
     return PlayerIntentAnalysis.from_payload(
         {
             "schema_version": 2,
