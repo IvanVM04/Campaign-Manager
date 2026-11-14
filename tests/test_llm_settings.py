@@ -102,9 +102,12 @@ def test_llm_settings_create_distinct_role_providers():
     assert extraction.timeout == 45.0
     assert mechanics.timeout == 30.0
     assert intent.timeout == 25.0
-    assert {narrative.base_url, extraction.base_url, mechanics.base_url, intent.base_url} == {
-        "http://localhost:11435"
-    }
+    assert {
+        narrative.base_url,
+        extraction.base_url,
+        mechanics.base_url,
+        intent.base_url,
+    } == {"http://localhost:11435"}
 
 
 @pytest.mark.parametrize("base_url", ["", "localhost:11434", "ftp://localhost:21", "http:///missing-host", "http://localhost:11434?x=1", "http://localhost:bad", "http://user:pass@localhost:11434"])
@@ -211,3 +214,23 @@ def test_llm_settings_reject_mechanics_byte_context_larger_than_prompt():
             mechanics_prompt_max_bytes=2048,
             mechanics_context_max_bytes=4096,
         )
+
+
+def test_legacy_mechanics_budget_settings_remain_aliases_for_byte_limits():
+    settings = LLMSettings(
+        mechanics_prompt_max_tokens=7000,
+        mechanics_context_max_tokens=3000,
+    )
+
+    assert settings.mechanics_prompt_max_bytes == 7000
+    assert settings.mechanics_context_max_bytes == 3000
+
+
+def test_legacy_mechanics_budget_environment_variables_remain_supported():
+    settings = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS": "7000",
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS": "3000",
+    })
+
+    assert settings.mechanics_prompt_max_bytes == 7000
+    assert settings.mechanics_context_max_bytes == 3000
