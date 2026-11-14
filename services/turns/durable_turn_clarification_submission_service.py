@@ -187,9 +187,13 @@ class DurableTurnClarificationSubmissionService:
                     or len(previous_correction_history) > 32
                 ):
                     raise self.error_type("pending correction history is invalid")
-                if pending_analysis is not None and service.resolver.mechanics_adjudicator is None:
+                if (
+                    pending_analysis is not None
+                    and service.resolver.intent_interpreter is None
+                    and service.resolver.mechanics_adjudicator is None
+                ):
                     raise self.error_type(
-                        "pending semantic correction requires the language adjudicator"
+                        "pending semantic correction requires the intent interpreter"
                     )
                 plan = service.resolver.prepare_turn(
                     context,
