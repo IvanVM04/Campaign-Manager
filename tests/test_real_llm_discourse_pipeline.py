@@ -1079,6 +1079,7 @@ def test_real_ollama_integrated_pipeline_preserves_one_explicit_npc_fact(
         if isinstance(operation, CreateEntityOperation)
     ]
     assert len(updates) == 1
+    assert len(plan.ordered_operations) == 1
     assert updates[0].entity_id == 1
     assert not creates
     update_text = (
@@ -1087,13 +1088,21 @@ def test_real_ollama_integrated_pipeline_preserves_one_explicit_npc_fact(
     assert "cicatriz" in update_text
     assert "dragón" in update_text
 
+    predicted_operations = []
+    for operation in plan.ordered_operations:
+        if isinstance(operation, UpdateEntityOperation):
+            predicted_operations.append(f"update_entity:{operation.entity_id}")
+        elif isinstance(operation, CreateEntityOperation):
+            predicted_operations.append(
+                f"create_entity:{operation.name.casefold()}"
+            )
+        else:
+            predicted_operations.append(type(operation).__name__)
+
     ledger = SemanticEvaluationLedger()
     ledger.record_operations(
         expected_operations=("update_entity:1",),
-        predicted_operations=(
-            f"update_entity:{item.entity_id}"
-            for item in updates
-        ),
+        predicted_operations=predicted_operations,
     )
     ledger.record_case(
         "positive_explicit_npc_fact",
