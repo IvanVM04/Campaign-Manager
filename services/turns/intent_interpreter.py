@@ -520,6 +520,19 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     )
                     for item in correction_payloads
                 )
+            logger.info(
+                "llm.intent.analysis_completed",
+                extra={
+                    "provider_role": "intent",
+                    "provider_model": getattr(self.provider, "model", None),
+                    "result_family": analysis.category.value,
+                    "schema_version": analysis.schema_version,
+                    "step_count": len(analysis.steps),
+                    "active_step_index": analysis.active_step_index,
+                    "requires_clarification": analysis.requires_clarification,
+                    "correction_count": len(corrections),
+                },
+            )
             if return_corrections:
                 return analysis, corrections
             return analysis

@@ -487,7 +487,17 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             raise MechanicsAdjudicatorError("mechanics provider returned non-text")
         try:
             payload = json.loads(raw)
-            return self._mechanics_decision_from_payload(payload)
+            decision = self._mechanics_decision_from_payload(payload)
+            logger.info(
+                "llm.mechanics.decision_completed",
+                extra={
+                    "provider_role": "mechanics",
+                    "provider_model": getattr(self.provider, "model", None),
+                    "result_family": decision.decision.value,
+                    "active_step_index": analysis.active_step_index,
+                },
+            )
+            return decision
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             raise MechanicsAdjudicatorError(
                 f"invalid mechanics-only response: {exc}"

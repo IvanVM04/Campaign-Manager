@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
+from collections.abc import Callable
+from time import perf_counter
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -10,6 +13,8 @@ from .llm_provider import (
     LLMProvider,
     LLMProviderError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(LLMProvider):
@@ -42,6 +47,9 @@ class OllamaProvider(LLMProvider):
         model: str = DEFAULT_MODEL,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
+        *,
+        role: str | None = None,
+        metrics_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
 
         if not isinstance(model, str):
@@ -78,9 +86,20 @@ class OllamaProvider(LLMProvider):
                 "timeout must be > 0 and finite"
             )
 
+        if role is not None:
+            if not isinstance(role, str):
+                raise TypeError("role must be a string or None")
+            role = role.strip()
+            if not role:
+                raise ValueError("role must not be empty")
+        if metrics_callback is not None and not callable(metrics_callback):
+            raise TypeError("metrics_callback must be callable or None")
+
         self.model = model
         self.base_url = base_url
         self.timeout = float(timeout)
+        self.role = role
+        self.metrics_callback = metrics_callback
 
     def generate(
         self,
@@ -109,9 +128,7 @@ class OllamaProvider(LLMProvider):
             "stream": False,
         }
 
-        response = self._request(
-            payload
-        )
+        response = self._request_with_metrics(payload, prompt)
 
         return self._extract_response_text(
             response
@@ -146,8 +163,99 @@ class OllamaProvider(LLMProvider):
             "stream": False,
             "format": schema,
         }
-        response = self._request(payload)
+        response = self._request_with_metrics(payload, normalized_prompt)
         return self._extract_response_text(response)
+
+    def _request_with_metrics(
+        self,
+        payload: dict[str, Any],
+        prompt: str,
+    ) -> dict[str, Any]:
+        """Send one request and emit content-free, role-tagged usage telemetry."""
+        started = perf_counter()
+        try:
+            response = self._request(payload)
+        except Exception as exc:
+            self._emit_request_metrics(
+                prompt=prompt,
+                duration_ms=(perf_counter() - started) * 1000,
+                response=None,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        response_error = bool(response.get("error"))
+        self._emit_request_metrics(
+            prompt=prompt,
+            duration_ms=(perf_counter() - started) * 1000,
+            response=response,
+            error_type="OllamaResponseError" if response_error else None,
+        )
+        return response
+
+    def _emit_request_metrics(
+        self,
+        *,
+        prompt: str,
+        duration_ms: float,
+        response: dict[str, Any] | None,
+        error_type: str | None,
+    ) -> None:
+        """Emit safe metadata only; never include prompt or completion text."""
+        metrics: dict[str, Any] = {
+            "provider_role": self.role,
+            "provider_model": self.model,
+            "prompt_bytes": len(prompt.encode("utf-8")),
+            "duration_ms": round(duration_ms, 3),
+            "request_status": "failed" if error_type else "completed",
+        }
+        if error_type is not None:
+            metrics["error_type"] = error_type
+        if response is not None:
+            response_model = response.get("model")
+            if isinstance(response_model, str) and response_model.strip():
+                metrics["response_model"] = response_model.strip()[:120]
+            done_reason = response.get("done_reason")
+            if isinstance(done_reason, str) and done_reason.strip():
+                metrics["done_reason"] = done_reason.strip()[:80]
+            done = response.get("done")
+            if isinstance(done, bool):
+                metrics["done"] = done
+            for field in (
+                "prompt_eval_count",
+                "eval_count",
+                "total_duration",
+                "load_duration",
+                "prompt_eval_duration",
+                "eval_duration",
+            ):
+                value = response.get(field)
+                if (
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                ):
+                    metrics[field] = value
+
+        event = "ollama.request.failed" if error_type else "ollama.request.completed"
+        if error_type:
+            logger.warning(event, extra=metrics)
+        else:
+            logger.info(event, extra=metrics)
+
+        if self.metrics_callback is not None:
+            try:
+                self.metrics_callback(dict(metrics))
+            except Exception as exc:
+                # Telemetry must never turn a successful provider call into a failure.
+                logger.warning(
+                    "ollama.telemetry.callback_failed",
+                    extra={
+                        "provider_role": self.role,
+                        "provider_model": self.model,
+                        "error_type": type(exc).__name__,
+                    },
+                )
 
     # ============================================================
     # HTTP
@@ -235,6 +343,82 @@ class OllamaProvider(LLMProvider):
             )
 
         return result
+
+    def get_server_version(self) -> str | None:
+        """Return the local Ollama version when its optional endpoint is available."""
+        request = Request(
+            f"{self.base_url}/api/version",
+            headers={"Accept": "application/json"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                raw_body = response.read()
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (
+            HTTPError,
+            URLError,
+            TimeoutError,
+            OSError,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+        ) as exc:
+            logger.info(
+                "ollama.version.unavailable",
+                extra={
+                    "provider_role": self.role,
+                    "provider_model": self.model,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            return None
+        if not isinstance(payload, dict):
+            return None
+        version = payload.get("version")
+        if not isinstance(version, str) or not version.strip():
+            return None
+        return version.strip()[:120]
+
+    def get_model_digest(self) -> str | None:
+        """Return the configured model's local digest when Ollama exposes it."""
+        request = Request(
+            f"{self.base_url}/api/tags",
+            headers={"Accept": "application/json"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                raw_body = response.read()
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (
+            HTTPError,
+            URLError,
+            TimeoutError,
+            OSError,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+        ) as exc:
+            logger.info(
+                "ollama.model_digest.unavailable",
+                extra={
+                    "provider_role": self.role,
+                    "provider_model": self.model,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            return None
+        if not isinstance(payload, dict):
+            return None
+        models = payload.get("models")
+        if not isinstance(models, list):
+            return None
+        for item in models:
+            if not isinstance(item, dict) or item.get("name") != self.model:
+                continue
+            digest = item.get("digest")
+            if isinstance(digest, str) and digest.strip():
+                return digest.strip()[:160]
+        return None
 
     # ============================================================
     # RESPONSE

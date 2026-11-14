@@ -647,3 +647,157 @@ def test_ollama_provider_generate_structured_sends_json_schema(monkeypatch):
 def test_ollama_provider_generate_structured_rejects_invalid_schema():
     with pytest.raises(TypeError, match="non-empty JSON Schema"):
         OllamaProvider().generate_structured("hello", schema={})
+
+def test_ollama_provider_emits_safe_usage_metrics_without_prompt_or_completion(
+    monkeypatch,
+    caplog,
+):
+    metrics = []
+    prompt = "INTERNAL PLAYER PROMPT"
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "model": "gemma4:26b",
+                "response": "PRIVATE COMPLETION TEXT",
+                "done": True,
+                "done_reason": "stop",
+                "prompt_eval_count": 321,
+                "eval_count": 48,
+                "total_duration": 9000000,
+                "load_duration": 1000000,
+                "prompt_eval_duration": 2000000,
+                "eval_duration": 5000000,
+            }).encode("utf-8")
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen",
+        lambda request, timeout: FakeResponse(),
+    )
+    caplog.set_level("INFO")
+    provider = OllamaProvider(
+        role="intent",
+        metrics_callback=metrics.append,
+    )
+
+    assert provider.generate(prompt) == "PRIVATE COMPLETION TEXT"
+    assert len(metrics) == 1
+    event = metrics[0]
+    assert event["provider_role"] == "intent"
+    assert event["provider_model"] == "gemma4:26b"
+    assert event["prompt_bytes"] == len(prompt.encode("utf-8"))
+    assert event["prompt_eval_count"] == 321
+    assert event["eval_count"] == 48
+    assert event["total_duration"] == 9000000
+    assert event["load_duration"] == 1000000
+    assert event["prompt_eval_duration"] == 2000000
+    assert event["eval_duration"] == 5000000
+    assert event["done"] is True
+    assert event["done_reason"] == "stop"
+    assert "ollama.request.completed" in caplog.text
+    assert prompt not in caplog.text
+    assert "PRIVATE COMPLETION TEXT" not in caplog.text
+
+
+def test_ollama_provider_reports_failed_request_metadata_without_content(
+    monkeypatch,
+    caplog,
+):
+    metrics = []
+
+    def fail_request(request, timeout):
+        raise URLError("offline")
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen",
+        fail_request,
+    )
+    caplog.set_level("WARNING")
+    provider = OllamaProvider(
+        role="mechanics",
+        metrics_callback=metrics.append,
+    )
+
+    with pytest.raises(LLMProviderError, match="Could not connect to Ollama"):
+        provider.generate("DO NOT LOG THIS PROMPT")
+
+    assert len(metrics) == 1
+    assert metrics[0]["provider_role"] == "mechanics"
+    assert metrics[0]["request_status"] == "failed"
+    assert metrics[0]["error_type"] == "LLMProviderError"
+    assert metrics[0]["prompt_bytes"] == len("DO NOT LOG THIS PROMPT".encode("utf-8"))
+    assert "DO NOT LOG THIS PROMPT" not in caplog.text
+
+
+def test_ollama_provider_reads_server_version_when_available(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return b'{"version":"0.13.2"}'
+
+    def fake_urlopen(request, timeout):
+        assert request.full_url == "http://localhost:11434/api/version"
+        assert request.get_method() == "GET"
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen",
+        fake_urlopen,
+    )
+
+    assert OllamaProvider(role="intent").get_server_version() == "0.13.2"
+
+
+def test_ollama_provider_version_lookup_is_optional(monkeypatch):
+    def fail_request(request, timeout):
+        raise URLError("offline")
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen",
+        fail_request,
+    )
+
+    assert OllamaProvider().get_server_version() is None
+
+
+def test_ollama_provider_reads_model_digest_when_available(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "models": [{
+                    "name": "gemma4:26b",
+                    "digest": "sha256:example-digest",
+                }],
+            }).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        assert request.full_url == "http://localhost:11434/api/tags"
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen",
+        fake_urlopen,
+    )
+
+    assert (
+        OllamaProvider(model="gemma4:26b").get_model_digest()
+        == "sha256:example-digest"
+    )
+
