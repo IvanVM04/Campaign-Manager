@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from time import perf_counter
 
@@ -140,9 +141,25 @@ resultados mecánicos. El esquema es el contrato estructural."""
         queries: list[str] = []
         for turn in (recent_turns or ())[-DiscourseContextBuilder.MAX_HISTORY_TURNS :]:
             for value in (turn.player_input, turn.narrative):
-                if isinstance(value, str) and value.strip():
-                    queries.append(value.strip()[:700])
-        return tuple(dict.fromkeys(queries))
+                if not isinstance(value, str) or not value.strip():
+                    continue
+                queries.append(value.strip()[:700])
+                # Also retrieve capitalized name candidates individually so
+                # a quote like "Aldric asks ..." does not become an impossible
+                # all-words query against an entity's canonical name.
+                queries.extend(
+                    match.group(0)
+                    for match in re.finditer(
+                        r"(?<!\\w)[A-ZÁÉÍÓÚÜÑ][\\wÁÉÍÓÚÜÑáéíóúüñ-]{2,}"
+                        r"(?:\\s+[A-ZÁÉÍÓÚÜÑ][\\wÁÉÍÓÚÜÑáéíóúüñ-]{2,}){0,2}",
+                        value,
+                    )
+                )
+                if len(queries) >= 64:
+                    break
+            if len(queries) >= 64:
+                break
+        return tuple(dict.fromkeys(queries[:64]))
 
     @staticmethod
     def _format_recent_turns(recent_turns) -> str:
