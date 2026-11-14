@@ -834,7 +834,7 @@ def test_real_ollama_discourse_callback_survives_integrated_turn_pipeline(
         ),
         current_session=None,
         active_character=CharacterState(
-            entity_id=99229,
+            entity_id=99231,
             strength=3,
             dexterity=3,
             constitution=3,
