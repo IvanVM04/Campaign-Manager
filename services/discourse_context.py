@@ -267,17 +267,17 @@ class DiscourseContextBuilder:
                 shifts.append(str(turn_id or index + 1))
         if shifts:
             lines.append(
-                "Cambio temático explícito en turnos "
+                "Cambios de tema explícitos en turnos "
                 + ", ".join(shifts[-3:])
                 + "; prioriza el último segmento."
             )
         if cls.has_topic_shift(current_input):
             lines.append("Cambio de tema actual: no heredar referentes del tema anterior.")
         if cls.reactivates_prior_topic(current_input):
-            lines.append("Callback explícito: reabre la ventana acotada; pregunta si hay ambigüedad.")
+            lines.append("El jugador reabre explícitamente un tema anterior; consulta la ventana acotada y pregunta si hay ambigüedad.")
         normalized = cls.normalize(current_input)
         if any(marker in normalized for marker in cls._ELLIPSIS_MARKERS):
-            lines.append("Elipsis posible: completa solo con antecedente único, visible y pendiente.")
+            lines.append("Posible elipsis: completa solo con antecedente único, visible y pendiente.")
         if len(set(cls.topic_segments(history))) > 1:
             lines.append("Historial con segmentos distintos: usa el segmento activo salvo callback.")
         npc_lines = []

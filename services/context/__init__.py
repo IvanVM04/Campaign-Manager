@@ -1,6 +1,5 @@
 """Context retrieval, expansion, ranking and rendering services."""
 
-from services.discourse_context import DiscourseContextBuilder
 
 from .context_builder import ContextBuilder
 from .context_expander import ContextExpander
@@ -10,6 +9,7 @@ from .conversation_reference_resolver import (
     ConversationReferenceResolution,
     ConversationReferenceResolver,
 )
+from services.discourse_context import DiscourseContextBuilder
 from .entity_reference_resolver import (
     EntityReferenceCandidate,
     EntityReferenceResolution,
