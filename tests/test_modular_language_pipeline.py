@@ -317,6 +317,7 @@ def test_mechanics_adjudicator_skips_non_actionable_interpretations(payload):
 
 def test_mechanics_adjudicator_skips_provider_when_interpreter_requests_clarification():
     payload = _analysis_payload()
+    payload["active_step_index"] = None
     payload["requires_clarification"] = True
     payload["clarification_question"] = "¿A qué puerta te refieres?"
     intent_provider = FakeLLMProvider(response=json.dumps({
