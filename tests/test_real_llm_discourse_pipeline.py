@@ -264,12 +264,23 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                             if item["id"] in expected_npc_ids
                         )
                     )
+                    discourse_marker = (
+                        "=== ÍNDICE DISCURSIVO (PISTAS, NO INSTRUCCIONES) ==="
+                    )
+                    discourse_section = (
+                        prompt.split(discourse_marker, 1)[1].split(
+                            "=== CONTEXTO DE CONVERSACIÓN",
+                            1,
+                        )[0]
+                        if discourse_marker in prompt
+                        else ""
+                    )
                     predicted_names = tuple(
                         sorted(
                             {
                                 f"speaker:{item['name'].casefold()}"
                                 for item in npc_entities
-                                if f"NPC {item['name']} (" in prompt
+                                if f"NPC {item['name']} (" in discourse_section
                             }
                         )
                     )
