@@ -31,7 +31,10 @@ from services.context import (
 from services.discourse_context import DiscourseContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
-from services.turns.intent_interpreter import IntentInterpreter
+from services.turns.intent_interpreter import (
+    IntentInterpreter,
+    IntentInterpreterError,
+)
 from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
@@ -334,9 +337,18 @@ class TurnResolutionService:
                             "provider re-analysis does not reflect its explicit correction"
                         )
                 intent_analysis = correction_result.analysis
-                decision = correction_result.mechanics_decision
+                decision = (
+                    None
+                    if self.intent_interpreter is not None
+                    else correction_result.mechanics_decision
+                )
                 intent_corrections = correction_result.corrections
-            except (MechanicsAdjudicatorError, TypeError, ValueError) as exc:
+            except (
+                IntentInterpreterError,
+                MechanicsAdjudicatorError,
+                TypeError,
+                ValueError,
+            ) as exc:
                 raise TurnResolutionServiceError(
                     "pending intent correction failed validation"
                 ) from exc
@@ -352,7 +364,7 @@ class TurnResolutionService:
                     recent_turns=recent_turns,
                     evidence_text=normalized_evidence_text,
                 )
-            except MechanicsAdjudicatorError as exc:
+            except IntentInterpreterError as exc:
                 raise TurnResolutionServiceError(
                     "semantic intent interpretation failed"
                 ) from exc
