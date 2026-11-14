@@ -561,6 +561,7 @@ class TurnResolutionService:
                 decision = self.mechanics_adjudicator.adjudicate_analysis(
                     context,
                     intent_analysis,
+                    context_projection=context_projection,
                 )
             except MechanicsAdjudicatorError as exc:
                 raise TurnResolutionServiceError(
