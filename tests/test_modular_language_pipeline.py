@@ -137,7 +137,34 @@ def test_intent_interpreter_keeps_player_evidence_and_reports_byte_budget_failur
     assert provider.call_count == 0
 
 
-def test_mechanics_adjudicator_receives_trusted_resolved_entity_and_world_references():
+def test_mechanics_adjudicator_receives_only_active_step_resolved_references():
+    from models.resolved_conversation_reference import ResolvedConversationReference
+    from models.resolved_world_reference import (
+        ResolvedWorldReference,
+        WorldReferenceCategory,
+    )
+
+    player_text = "Abro la puerta con la llave."
+    payload = _analysis_payload(
+        source_excerpt=player_text,
+        action="abrir la puerta con la llave",
+        predicate="Abro",
+    )
+    payload["steps"][0]["target_mentions"] = ["la puerta", "la llave"]
+    payload["steps"][0]["action_frame"]["arguments"].append({
+        "role": "instrument",
+        "mention": {
+            "text": "la llave",
+            "kind_hint": "item_instance",
+        },
+    })
+    analysis_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": payload,
+    }))
+    analysis = IntentInterpreter(analysis_provider).interpret(
+        _context(),
+        player_text,
+    )
     provider = FakeLLMProvider(response=json.dumps({
         "decision": "skill_check",
         "skill": "athletics",
@@ -145,13 +172,6 @@ def test_mechanics_adjudicator_receives_trusted_resolved_entity_and_world_refere
         "dc": 13,
         "reason": "La puerta se resiste.",
     }))
-    analysis_provider = FakeLLMProvider(response=json.dumps({
-        "intent_analysis": _analysis_payload(),
-    }))
-    analysis = IntentInterpreter(analysis_provider).interpret(
-        _context(),
-        "Abro la puerta.",
-    )
     resolved_entity = ResolvedConversationReference(
         mention="la puerta",
         entity_id=42,
@@ -166,12 +186,25 @@ def test_mechanics_adjudicator_receives_trusted_resolved_entity_and_world_refere
         name="Llave oxidada",
         match_kind="direct_name",
     )
+    unrelated_entity = ResolvedConversationReference(
+        mention="el guardia",
+        entity_id=99,
+        entity_name="Guardia del norte",
+        match_kind="direct_name",
+    )
+    unrelated_item = ResolvedWorldReference(
+        mention="el anillo",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=74,
+        name="Anillo de plata",
+        match_kind="direct_name",
+    )
 
     decision = MechanicsAdjudicator(provider).adjudicate_analysis(
         _context(),
         analysis,
-        resolved_references=(resolved_entity,),
-        resolved_world_references=(resolved_item,),
+        resolved_references=(resolved_entity, unrelated_entity),
+        resolved_world_references=(resolved_item, unrelated_item),
     )
 
     assert decision.decision is MechanicsDecisionType.SKILL_CHECK
@@ -181,6 +214,8 @@ def test_mechanics_adjudicator_receives_trusted_resolved_entity_and_world_refere
     assert '"canonical_id":73' in prompt
     assert '"canonical_name":"Puerta de piedra"' in prompt
     assert '"category":"item_instance"' in prompt
+    assert '"canonical_id":99' not in prompt
+    assert '"canonical_id":74' not in prompt
 
 
 def test_mechanics_only_parser_applies_safe_defaults_for_optional_modifiers():
