@@ -1,8 +1,8 @@
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 — highest active language-quality priority  
-**Integrated foundation:** PRs #215–#222 are merged into `main`, including durable evidence-bound corrections, typed world references and false-positive-aware evaluation. Current base: `48116ce879df5abb6dae9995ba854dbc44bc538e` (2026-11-14).  
-**Next implementation:** PR #223 adds bounded advanced discourse understanding on `feat/223-advanced-discourse-understanding`.  
+**Integrated foundation:** PRs #215–#223 are merged into `main`. Current baseline: `7f4f8b10a072665471370fab4493a338835b875c` (2026-11-14).
+**Next step:** measure the integrated system with the live Ollama corpus, add held-out coverage for #223 and complete SillyTavern acceptance. Do not start another semantic architecture tranche before this measurement.
 **Acceptance:** deterministic CI, live Ollama and real SillyTavern acceptance are separate gates. Neither live gate is inferred from deterministic CI.
 
 ## 1. Integrated turn pipeline
@@ -74,12 +74,12 @@ The intent codec persists the nested analysis through the existing durable envel
 
 ## 4. Remaining semantic gaps
 
-### Discourse and corrections — PR #219 implementation boundary
+### Discourse and corrections — PRs #219–#223 integrated
 PR #219 replaces the old nearest-turn string heuristic with typed evidence for visible candidates: player-authored input is kept separate from narrator prose, turn identity and six-turn recency are retained, semantic object-kind hints filter incompatible candidates where the canonical entity type is sufficiently explicit, and repeated topic mentions contribute a bounded continuity signal. A score threshold and minimum margin force clarification rather than a guess. The resolver deliberately does not infer grammatical gender/number because the canonical entity model does not currently store reliable values; it also does not invent NPC speaker identity from an unstructured narrative paragraph.
 
 The same PR adds an immutable `PendingIntentCorrection` application primitive for one target mention, role-labelled action argument or directed relation endpoint. PR #221 now wires this primitive into the correction-only provider response used when a clarification resumes a still-pending durable resolution. The normal turn schema and provider-call count are unchanged. The previous analysis and latest player answer are supplied separately; correction replacements/excerpts must be literal in that answer, must match exactly one pending slot, and must be reflected in the provider's re-analysis. Correction records are retained in the durable audit across clarification rounds. This is a guarded correction protocol, not free-form autonomous mutation or canonical entity resolution.
 
-PR #223 adds a deterministic bounded discourse index for ellipsis cues, explicit topic shifts/callbacks, twelve-turn references, locally evidenced grammatical agreement and unambiguous NPC quote labels. It does not infer gender from names or treat NPC speech as player instructions. Remaining gaps include implicit topic-shift detection, broad semantic paraphrase, unresolved group references, richer dialogue-act graphs and measured live-model quality across local models. V2 relation attribution remains a literal mention, not a resolved speaker identity.
+PR #223 is merged. It adds a deterministic bounded discourse index for ellipsis cues, explicit topic shifts/callbacks, twelve-turn references, locally evidenced grammatical agreement and unambiguous NPC quote labels. It does not infer gender from names or treat NPC speech as player instructions. Remaining gaps include implicit topic-shift detection, broad semantic paraphrase, unresolved group references, richer dialogue-act graphs and measured live-model quality. The discourse block is bounded (650 characters) and may be compacted or omitted under prompt-budget pressure; the live evaluation must verify whether it reaches the model. V2 relation attribution remains a literal mention, not a resolved speaker identity.
 
 ### Time and causality
 V2 can carry a literal temporal expression on a relation claim, but it does not yet model a full temporal interval, causal graph, counterfactual state or dependency graph between arbitrary actions. A temporal expression is evidence, not proof of when an event occurred.
@@ -110,7 +110,7 @@ PR #220 expanded the integrated evaluation set to 110 scenarios: 50 development 
 
 **SillyTavern:** use two real chats to prove neither can read or continue the other's history. Verify same-chat references, ambiguous antecedents, multi-round clarification, corrections, manual rolls after restart, duplicate delivery and regeneration. Record backend SHA, extension revision and model details.
 
-The implementation work in PR #218 is not considered accepted until these gates are recorded. Live model and SillyTavern behavior are not inferred from deterministic schema tests.
+The integrated implementation through PR #223 is not considered accepted until these gates are recorded. Live model and SillyTavern behavior are not inferred from deterministic schema tests.
 
 ## 7. Next work after PR #219
 
@@ -118,7 +118,7 @@ PR #219 integrated typed discourse evidence and an immutable correction primitiv
 
 PR #220 has merged the 110-scenario evaluation tranche (50 development + 60 held-out). PR #221 now implements the correction hand-off through a correction-only response contract, immutable edit application, re-analysis consistency checks and durable audit. Its acceptance requires tests for ungrounded values, wrong slots, multi-round clarification, lease recovery, stale/committed resolutions and SillyTavern replay.
 
-PR #222 closed the non-entity reference namespace gap (item definition vs physical instance, resources and visible events) and was merged before this tranche. PR #223 is the active implementation for bounded discourse understanding: ellipsis cues, explicit topic boundaries/callbacks, longer same-chat antecedents, local grammatical agreement and labelled NPC dialogue. After #223, use recorded per-family live failures to prioritize implicit topic shifts, semantic paraphrase, relation ontology, temporal modelling and multi-step dialogue-state tracking. Do not add embeddings or extra normal-path provider calls without measured benefit. Keep broad gameplay expansion behind the live P0 and SillyTavern acceptance gates.
+PR #222 closed the non-entity reference namespace gap; PR #223 is also merged and adds bounded discourse signals. The next work is evaluation, not another speculative prompt layer. Use the audit at [language-understanding-audit-2026-11-14.md](language-understanding-audit-2026-11-14.md) to prioritize live baselining, #223 held-out cases, prompt-budget observability and SillyTavern acceptance.
 
 
 ## 8. PR #223 — advanced discourse understanding
@@ -146,3 +146,8 @@ Required deterministic tests cover topic segmentation, callbacks, twelve-turn
 recency/expiry, NPC label uniqueness and visibility, quoted-speech separation,
 grammatical conflict/unknown cases, ambiguous ellipsis and v1/v2 compatibility.
 Live Ollama and SillyTavern remain separate acceptance gates.
+
+
+## 9. Current status after PR #223
+
+PR #223 is merged. Its final deterministic Tests and CodeQL workflows passed. The 1,774 deterministic test result and 85.31% combined coverage do not include the 15 excluded live tests. No live Ollama pass or manual SillyTavern acceptance is claimed. Use the [independent audit](language-understanding-audit-2026-11-14.md) as the current work register.
