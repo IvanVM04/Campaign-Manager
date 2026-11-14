@@ -23,7 +23,8 @@ indexes over searching through dated audit history.
 12. [Observability and diagnostics](architecture/observability-and-diagnostics.md) — local structured logging, request correlation, error diagnostics and safe field policy.
 13. [Prompt evaluation](quality/prompt-evaluation-2026-11-12.md) — deterministic proposal contracts, live Ollama probes and the SillyTavern acceptance boundary.
 14. [AI world-understanding roadmap](quality/ai-world-understanding-roadmap-2026-11-12.md) — multi-PR strategy for world comprehension, retrieval, intent semantics, knowledge provenance and narrative continuity.
-15. [P0 language-understanding implementation specification](quality/language-understanding-priority-2026-11-13.md) — highest-priority plan for a shared typed interpretation, cross-turn references, mechanics/proposal alignment and live acceptance.
+15. [P0 language-understanding implementation specification](quality/language-understanding-priority-2026-11-13.md) — shared typed interpretation, cross-turn references, mechanics/proposal alignment and acceptance gates.
+16. [Independent language-understanding audit](quality/language-understanding-audit-2026-11-14.md) — skeptical assessment of PRs #210–#223, remaining risks, acceptance gaps and effort estimates.
 16. [Entity reference resolution](quality/entity-reference-resolution-2026-11-12.md) — explicit aliases, deterministic matching rules, ambiguity abstention and known limitations.
 17. [Semantic-understanding next-phase plan](quality/semantic-understanding-next-phase-2026-11-13.md) — typed action arguments, grounded relations, object identity, discourse and correction roadmap.
 18. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
