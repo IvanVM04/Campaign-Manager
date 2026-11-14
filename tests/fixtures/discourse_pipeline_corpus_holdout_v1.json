@@ -155,7 +155,20 @@
           510
         ],
         "intent": {
-          "category": "dialogue"
+          "category": "dialogue",
+          "action_frame": {
+            "family": "communication",
+            "arguments": [
+              {
+                "role": "recipient",
+                "mention": "Mara"
+              },
+              {
+                "role": "theme",
+                "mention": "el mapa"
+              }
+            ]
+          }
         }
       }
     },
@@ -457,7 +470,20 @@
           "clarification": false
         },
         "intent": {
-          "category": "dialogue"
+          "category": "dialogue",
+          "action_frame": {
+            "family": "communication",
+            "arguments": [
+              {
+                "role": "recipient",
+                "mention": "ella"
+              },
+              {
+                "role": "theme",
+                "mention": "el mapa"
+              }
+            ]
+          }
         }
       }
     },
@@ -615,7 +641,20 @@
           "clarification": false
         },
         "intent": {
-          "category": "dialogue"
+          "category": "dialogue",
+          "action_frame": {
+            "family": "communication",
+            "arguments": [
+              {
+                "role": "recipient",
+                "mention": "ella"
+              },
+              {
+                "role": "theme",
+                "mention": "la llave"
+              }
+            ]
+          }
         }
       }
     },
