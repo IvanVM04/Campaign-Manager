@@ -44,9 +44,9 @@ The production adjudicator now expects the v2 output envelope. The existing corp
 
 ### Conversation references — six deterministic corpus scenarios plus focused regressions
 
-Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique/ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. PR #219 adds focused deterministic regressions for player-input versus narrator evidence, semantic-kind filtering, six-turn bounds, auditable candidate scores and abstention reasons. These are application resolver cases, not live model coreference accuracy.
+Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique/ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. PR #219 added focused deterministic regressions for player-input versus narrator evidence, semantic-kind filtering, bounded history, auditable candidate scores and abstention reasons. PR #223 extends the bound to twelve turns and adds topic segmentation/callbacks, explicit grammatical agreement and NPC speaker labels. These remain application resolver cases, not live model discourse accuracy.
 
-The resolver does not infer grammatical gender/number because canonical entities do not currently expose reliable values, and it does not fabricate NPC speaker labels from unstructured narration. The pending-correction tests protect a pure application helper; they do not measure whether the model can emit corrections.
+The resolver uses only local grammatical evidence; it does not infer gender from names and it does not fabricate NPC speaker labels from unstructured narration. The pending-correction tests protect a guarded lifecycle; live tests are needed to measure whether the model emits appropriate corrections.
 
 ### Semantic-frame unit corpus
 
@@ -95,3 +95,8 @@ Each case should specify expected interpretation constraints, allowed/forbidden 
 Green deterministic CI proves application contracts, not model quality. A green Ollama run proves only the selected model against the executed scenarios. Neither proves the SillyTavern extension lifecycle or actual multi-chat behavior.
 
 Keep P0 open until required CI passes, live Ollama results are recorded with pinned settings, the real two-chat/recovery SillyTavern checklist passes, and no critical false persistent change or secret leak remains unresolved.
+
+
+### PR #223 discourse additions
+
+The deterministic suite now covers explicit topic segmentation and callbacks, ellipsis cues, references through turn twelve, local grammatical agreement, plural abstention and explicitly labelled visible NPC quotations. These tests establish resolver/prompt contracts; they do not measure live model accuracy. The proposal prompt deliberately drops the optional discourse index when over budget, and the adjudicator compacts it to a small context share. Record whether the index survives each live prompt build and add regression cases where it does not. See the [independent audit](language-understanding-audit-2026-11-14.md).
