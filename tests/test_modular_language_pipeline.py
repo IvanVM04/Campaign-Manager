@@ -3,14 +3,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from models.campaign_state import CampaignState
-from models.character_state import CharacterState
-from models.mechanics import MechanicsDecisionType
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.resolved_world_reference import (
     ResolvedWorldReference,
     WorldReferenceCategory,
 )
+from models.campaign_state import CampaignState
+from models.character_state import CharacterState
+from models.mechanics import MechanicsDecisionType
 from models.session_state import SessionState
 from models.turn_context import TurnContext
 from models.world_context_projection import (
@@ -138,12 +138,6 @@ def test_intent_interpreter_keeps_player_evidence_and_reports_byte_budget_failur
 
 
 def test_mechanics_adjudicator_receives_only_active_step_resolved_references():
-    from models.resolved_conversation_reference import ResolvedConversationReference
-    from models.resolved_world_reference import (
-        ResolvedWorldReference,
-        WorldReferenceCategory,
-    )
-
     player_text = "Abro la puerta con la llave."
     payload = _analysis_payload(
         source_excerpt=player_text,
