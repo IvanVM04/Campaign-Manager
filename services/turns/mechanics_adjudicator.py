@@ -312,35 +312,7 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             if context_projection is not None
             else context.world
         )
-        # References were resolved deterministically before adjudication.
-        # Search their canonical names as well as the player's literal mentions:
-        # a pronoun/ellipsis may identify a known obstacle correctly while the
-        # current sentence alone contains too little vocabulary to retrieve it.
-        supplemental_queries = tuple(dict.fromkeys(
-            value
-            for reference in (
-                *active_resolved_references,
-                *active_resolved_world_references,
-            )
-            for value in (
-                (
-                    reference.entity_name
-                    if isinstance(reference, ResolvedConversationReference)
-                    else reference.name
-                ),
-                reference.mention,
-            )
-            if isinstance(value, str) and value.strip()
-        ))[:32]
-        world_context = self.context_builder.build(
-            mechanics_world,
-            step.source_excerpt,
-            supplemental_queries=supplemental_queries,
-            character_entity_id=character.entity_id,
-        ).get("context", "")
-        if not isinstance(world_context, str):
-            raise MechanicsAdjudicatorError("mechanics context must be text")
-        world_context = self._compact_text(world_context, self.max_context_tokens)
+        world_context = ""
         character_context = (
             f"Nivel: {character.level}; FUE {character.strength}; "
             f"DES {character.dexterity}; CON {character.constitution}; "
@@ -388,6 +360,36 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             for item in resolved_world_references
             if item.mention.strip().casefold() in active_mentions
         )[:16]
+
+        # References were resolved deterministically before adjudication.
+        # Search their canonical names as well as the player's literal mentions:
+        # a pronoun/ellipsis may identify a known obstacle correctly while the
+        # current sentence alone contains too little vocabulary to retrieve it.
+        supplemental_queries = tuple(dict.fromkeys(
+            value
+            for reference in (
+                *active_resolved_references,
+                *active_resolved_world_references,
+            )
+            for value in (
+                (
+                    reference.entity_name
+                    if isinstance(reference, ResolvedConversationReference)
+                    else reference.name
+                ),
+                reference.mention,
+            )
+            if isinstance(value, str) and value.strip()
+        ))[:32]
+        world_context = self.context_builder.build(
+            mechanics_world,
+            step.source_excerpt,
+            supplemental_queries=supplemental_queries,
+            character_entity_id=character.entity_id,
+        ).get("context", "")
+        if not isinstance(world_context, str):
+            raise MechanicsAdjudicatorError("mechanics context must be text")
+        world_context = self._compact_text(world_context, self.max_context_tokens)
         resolved_reference_payload = {
             "entities": [
                 {
