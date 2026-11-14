@@ -207,6 +207,63 @@ def test_proposal_prompt_uses_shared_analysis_and_bounded_conversation_history()
 
 
 
+def test_v2_shared_analysis_omits_duplicate_untrusted_history_and_discourse():
+    source = "Abro la puerta de roble."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": source,
+                "actor": "player",
+                "action": "abrir la puerta de roble",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la puerta de roble"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Abro",
+                    "family": "interaction",
+                    "arguments": [{
+                        "role": "theme",
+                        "mention": {
+                            "text": "la puerta de roble",
+                            "kind_hint": "world_entity",
+                        },
+                    }],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=source,
+    )
+    history = [{
+        "player_input": "Hablo con Mara sobre el guardia del norte.",
+        "narrative": "Mara revela un rumor no confirmado del castillo.",
+    }]
+
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        source,
+        make_context(),
+        intent_analysis=analysis,
+        recent_turns=history,
+    )
+
+    assert analysis.to_json() in prompt
+    assert "EVIDENCIA ORIGINAL DEL JUGADOR" in prompt
+    assert source in prompt
+    assert "HISTORIAL RECIENTE VISIBLE" not in prompt
+    assert "ÍNDICE DISCURSIVO DETERMINISTA" not in prompt
+    assert "Hablo con Mara" not in prompt
+    assert "rumor no confirmado del castillo" not in prompt
+    assert "no reconstruyas ni sobrescribas" in prompt
+
+
 def test_proposal_prompt_builder_compacts_optional_context_with_utf8_byte_budget(monkeypatch):
     import pytest
 
