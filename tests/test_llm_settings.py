@@ -216,16 +216,6 @@ def test_llm_settings_reject_mechanics_byte_context_larger_than_prompt():
         )
 
 
-def test_legacy_mechanics_budget_settings_remain_aliases_for_byte_limits():
-    settings = LLMSettings(
-        mechanics_prompt_max_tokens=7000,
-        mechanics_context_max_tokens=3000,
-    )
-
-    assert settings.mechanics_prompt_max_bytes == 7000
-    assert settings.mechanics_context_max_bytes == 3000
-
-
 def test_legacy_mechanics_budget_environment_variables_remain_supported():
     settings = LLMSettings.from_env({
         "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS": "7000",
