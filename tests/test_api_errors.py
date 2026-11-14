@@ -210,3 +210,28 @@ def test_forbidden_model_character_operation_maps_to_invalid_model_response():
 
     assert mapped.status_code == 502
     assert mapped.code == "invalid_llm_response"
+
+
+def test_wrapped_invalid_intent_interpretation_maps_to_bad_gateway():
+    from api.errors import api_error_for_exception
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.intent_interpreter import IntentInterpreterError
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
+
+    try:
+        try:
+            raise IntentInterpreterError("invalid semantic schema")
+        except IntentInterpreterError as intent_error:
+            raise TurnResolutionServiceError("intent interpretation failed") from intent_error
+    except TurnResolutionServiceError as resolver_error:
+        wrapped = DurableNativeTurnError("native turn execution failed")
+        wrapped.__cause__ = resolver_error
+
+    error = api_error_for_exception(
+        wrapped,
+        fallback_status=409,
+        fallback_code="turn_conflict",
+    )
+
+    assert error.status_code == 502
+    assert error.code == "invalid_llm_response"
