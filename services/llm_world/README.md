@@ -22,7 +22,7 @@ world application boundary.
 
 1. `TurnResolutionService` receives the player's original intent and the shared v1/v2 `PlayerIntentAnalysis`.
 2. It builds a bounded `WorldContextProjection`, preserving the active character, current location, dependencies and additional signals from literal mentions, v2 action arguments and relation endpoints.
-3. `LLMWorldProposalPromptBuilder` renders the projection, character sheet, resource balances, confirmed mechanics, shared semantic analysis and registry-generated operation contract. A shared trust contract is composed with proposal-specific policy; schema structure is enforced by the parser/structured response contract.
+3. `LLMWorldProposalPromptBuilder` renders the projection, character sheet, resource balances, confirmed mechanics, shared semantic analysis and registry-generated operation contract. A shared trust contract is composed with proposal-specific policy; schema structure is enforced by the parser/structured response contract. For an authoritative v2 analysis, the planner omits the duplicate recent-history and discourse-index blocks; the original player text remains only as literal grounding evidence. Legacy v1/no-analysis callers retain their bounded history context during migration.
 4. The extractor checks the complete prompt against its budget before calling the provider.
 5. The response parser rejects internal-only/unsupported operation types before structural parsing.
 6. The world application boundary performs semantic validation and applies operations inside the caller-owned transaction.
