@@ -54,6 +54,7 @@ def api_error_for_exception(
         DurableNativeTurnError,
         DurableTurnErrorCode,
     )
+    from services.turns.intent_interpreter import IntentInterpreterError
     from services.turns.mechanics_adjudicator import MechanicsAdjudicatorError
     from services.turns.turn_resolution_service import TurnResolutionServiceError
 
@@ -74,7 +75,14 @@ def api_error_for_exception(
             detail="The language model provider is temporarily unavailable.",
         )
     if any(
-        isinstance(item, (LLMExtractionError, MechanicsAdjudicatorError))
+        isinstance(
+            item,
+            (
+                LLMExtractionError,
+                IntentInterpreterError,
+                MechanicsAdjudicatorError,
+            ),
+        )
         for item in chain
     ):
         return APIError(
