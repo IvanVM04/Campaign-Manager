@@ -130,14 +130,14 @@ This section is the source of truth for resuming work after an interruption. Upd
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
 - **PR:** not opened yet; create as draft after WP1's first functional commit.
-- **Last completed package:** WP0 — branch and initial specification.
-- **Last completed commit:** branch created from base; documentation commit still to be made.
-- **Current implementation state:** no runtime code changed in PR #226 yet.
-- **Deterministic validation:** not run on this branch.
+- **Last completed package:** WP1 implementation and deterministic regression fixture are committed; CI is currently validating the PR head.
+- **Last completed commit:** `33470c1359e4c4e2c25da8f69a687f6e5c4e0244` (documentation follow-up; WP1 runtime/test commits are `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, and `6270853a7afc05214397525ae043454919682b1a`).
+- **Current implementation state:** `MechanicsAdjudicator.adjudicate_analysis()` derives at most 32 deduplicated supplemental queries from canonical names and literal mentions belonging only to active-step-filtered resolved references. It sends them to the existing visibility-aware `ContextBuilder.build()` alongside the active step's exact source excerpt. Prompt diagnostics record the query-byte footprint without logging query contents.
+- **Deterministic validation:** PR #226 CI run `43622216494` is in progress; focused test and static results not yet confirmed.
 - **Live Ollama validation:** not run for PR #226.
 - **SillyTavern validation:** not run for PR #226.
-- **Open blockers:** none known.
-- **Next exact action:** implement WP1 in `services/turns/mechanics_adjudicator.py`: derive bounded supplemental context queries from the active-step-filtered `ResolvedConversationReference.entity_name` / `ResolvedWorldReference.name` and their literal `mention`, pass them to `ContextBuilder.build(..., supplemental_queries=...)`, and add tests in `tests/test_modular_language_pipeline.py` or `tests/test_mechanics_adjudicator.py` proving only active canonical references are used. Then run focused tests, update this checkpoint, commit, and open/update the draft PR.
+- **Open blockers:** none known; await the first PR #226 CI result and fix any regression before proceeding.
+- **Next exact action:** inspect Tests and CodeQL run `43622216494` / `43622216493`. If green, proceed to WP2 by classifying proposal prompt sections, then add tests showing the planner keeps the shared analysis and required evidence while omitting redundant non-authoritative history/discourse only under the explicitly selected policy. If CI fails, fix that before WP2. Do not change the one-analysis architecture or remove required current-player evidence.
 
 ### How to resume
 
