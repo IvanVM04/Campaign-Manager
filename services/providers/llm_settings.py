@@ -54,10 +54,6 @@ class LLMSettings:
             byte_value = getattr(self, byte_name)
             if byte_value == default and legacy_value != default:
                 object.__setattr__(self, byte_name, legacy_value)
-            # Public legacy attributes mirror the authoritative byte value.
-            # This keeps existing callers/tests coherent when both env names
-            # are supplied; new *_MAX_BYTES values take precedence.
-            object.__setattr__(self, legacy_name, getattr(self, byte_name))
 
         if not isinstance(self.base_url, str):
             raise TypeError("LLM base_url must be a string")
@@ -250,49 +246,29 @@ class LLMSettings:
                     defaults.extraction_repair_max_bytes,
                 ),
             ),
-            extraction_prompt_max_tokens=(
-                defaults.extraction_prompt_max_tokens
-                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES" in values
-                else integer_value(
-                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
-                    defaults.extraction_prompt_max_tokens,
-                )
+            extraction_prompt_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                defaults.extraction_prompt_max_tokens,
             ),
-            extraction_context_max_tokens=(
-                defaults.extraction_context_max_tokens
-                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES" in values
-                else integer_value(
-                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
-                    defaults.extraction_context_max_tokens,
-                )
+            extraction_context_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                defaults.extraction_context_max_tokens,
             ),
             extraction_max_response_chars=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS",
                 defaults.extraction_max_response_chars,
             ),
-            extraction_repair_max_tokens=(
-                defaults.extraction_repair_max_tokens
-                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES" in values
-                else integer_value(
-                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
-                    defaults.extraction_repair_max_tokens,
-                )
+            extraction_repair_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                defaults.extraction_repair_max_tokens,
             ),
-            mechanics_prompt_max_tokens=(
-                defaults.mechanics_prompt_max_tokens
-                if "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES" in values
-                else integer_value(
-                    "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
-                    defaults.mechanics_prompt_max_tokens,
-                )
+            mechanics_prompt_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
+                defaults.mechanics_prompt_max_tokens,
             ),
-            mechanics_context_max_tokens=(
-                defaults.mechanics_context_max_tokens
-                if "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES" in values
-                else integer_value(
-                    "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
-                    defaults.mechanics_context_max_tokens,
-                )
+            mechanics_context_max_tokens=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
+                defaults.mechanics_context_max_tokens,
             ),
         )
 
