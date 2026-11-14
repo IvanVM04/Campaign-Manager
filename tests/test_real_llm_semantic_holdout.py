@@ -379,7 +379,7 @@ def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
         source_text=original,
     )
 
-    adjudicator = _make_interpreter()
+    interpreter = _make_interpreter()
     result = interpreter.understand_pending(
         _make_context(),
         original + "\n\nDM: " + clarification_question + "\n" + correction_answer,
