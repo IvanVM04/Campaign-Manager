@@ -48,10 +48,28 @@ class LLMWorldProposalValidator:
         self.parse_operations = parse_operations
         self.max_response_chars = max_response_chars
         self.max_repair_prompt_bytes = max_repair_prompt_tokens
-        self.max_repair_prompt_tokens = max_repair_prompt_tokens
         self.operation_registry = operation_registry or getattr(
             operation_parser, "registry", None
         )
+
+    @property
+    def max_repair_prompt_bytes(self) -> int:
+        return self._max_repair_prompt_bytes
+
+    @max_repair_prompt_bytes.setter
+    def max_repair_prompt_bytes(self, value: int) -> None:
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError("max_repair_prompt_bytes must be a positive integer")
+        self._max_repair_prompt_bytes = value
+
+    @property
+    def max_repair_prompt_tokens(self) -> int:
+        """Legacy alias; this value is a UTF-8 byte budget, not tokens."""
+        return self._max_repair_prompt_bytes
+
+    @max_repair_prompt_tokens.setter
+    def max_repair_prompt_tokens(self, value: int) -> None:
+        self.max_repair_prompt_bytes = value
 
     def parse_with_repair(
         self,
