@@ -223,6 +223,22 @@ def test_llm_settings_reject_mechanics_byte_context_larger_than_prompt():
         )
 
 
+def test_direct_legacy_budget_constructor_values_map_to_byte_aliases():
+    settings = LLMSettings(
+        mechanics_prompt_max_tokens=7000,
+        mechanics_context_max_tokens=3000,
+        extraction_prompt_max_tokens=9000,
+        extraction_context_max_tokens=5000,
+        extraction_repair_max_tokens=2500,
+    )
+
+    assert settings.mechanics_prompt_max_bytes == 7000
+    assert settings.mechanics_context_max_bytes == 3000
+    assert settings.extraction_prompt_max_bytes == 9000
+    assert settings.extraction_context_max_bytes == 5000
+    assert settings.extraction_repair_max_bytes == 2500
+
+
 def test_legacy_mechanics_budget_environment_variables_remain_supported():
     settings = LLMSettings.from_env({
         "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS": "7000",
