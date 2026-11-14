@@ -208,3 +208,146 @@ def test_mechanics_adjudicator_skips_provider_without_active_character():
 
     assert decision.decision is MechanicsDecisionType.NONE
     assert mechanics_provider.call_count == 0
+
+
+def _build_resolution_service(intent_provider, mechanics_provider, extractor):
+    from services.context import ContextBuilder
+    from services.turns import DMService
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    context_builder = ContextBuilder()
+    intent_interpreter = IntentInterpreter(intent_provider, context_builder)
+    mechanics_adjudicator = MechanicsAdjudicator(
+        mechanics_provider,
+        context_builder,
+    )
+    dm_service = DMService(
+        FakeLLMProvider(response="La acción queda registrada."),
+        context_builder,
+    )
+    return TurnResolutionService(
+        dm_service=dm_service,
+        extractor=extractor,
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=mechanics_adjudicator,
+        context_builder=context_builder,
+        intent_interpreter=intent_interpreter,
+    )
+
+
+def test_turn_pipeline_reuses_one_analysis_and_calls_mechanics_only_for_active_attempt():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.received_analysis = None
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            self.received_analysis = kwargs["intent_analysis"]
+            return []
+
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": _analysis_payload(),
+    }))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(_context(), "Abro la puerta.")
+
+    assert plan.intent_analysis is extractor.received_analysis
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 1
+    assert extractor.call_count == 1
+
+
+def test_turn_pipeline_skips_mechanics_for_completed_observation_but_keeps_proposal():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            assert kwargs["intent_analysis"].active_step_index is None
+            return []
+
+    observed = _analysis_payload(
+        modality="observed",
+        active_step_index=None,
+    )
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": observed,
+    }))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(_context(), "Observo la puerta.")
+
+    assert plan.intent_analysis.active_step_index is None
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 0
+    assert extractor.call_count == 1
+
+
+def test_turn_pipeline_skips_mechanics_and_proposal_for_question_only():
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            return []
+
+    question = _analysis_payload(
+        modality="question",
+        active_step_index=None,
+        category="question",
+    )
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": question,
+    }))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+    )
+
+    plan = service.prepare_turn(_context(), "¿Qué hay detrás de la puerta?")
+
+    assert plan.intent_analysis.category.value == "question"
+    assert intent_provider.call_count == 1
+    assert mechanics_provider.call_count == 0
+    assert extractor.call_count == 0
