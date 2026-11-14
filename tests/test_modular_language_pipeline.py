@@ -470,7 +470,6 @@ def test_turn_pipeline_skips_mechanics_for_completed_observation_but_keeps_propo
 
 
 def test_ambiguous_reference_is_clarified_before_mechanics_or_proposal(monkeypatch):
-    from services.context import ContextBuilder
     from services.llm_world import LLMWorldExtractor
     from services.llm_world.operation_parser import OperationParser
 
