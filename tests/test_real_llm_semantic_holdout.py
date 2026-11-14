@@ -256,8 +256,8 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     record_property("semantic_holdout_intent_total_seconds", round(total_seconds, 3))
     print(ledger.render())
     if observational_failures:
-        print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
+        print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
+    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
@@ -323,8 +323,8 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     record_property("semantic_holdout_frames_total_seconds", round(total_seconds, 3))
     print(ledger.render())
     if observational_failures:
-        print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
+        print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
+    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
