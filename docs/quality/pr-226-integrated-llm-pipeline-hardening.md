@@ -129,15 +129,20 @@ This section is the source of truth for resuming work after an interruption. Upd
 
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
-- **PR:** not opened yet; create as draft after WP1's first functional commit.
-- **Last completed package:** WP1 implementation and deterministic regression fixture are committed; CI is currently validating the PR head.
-- **Last completed commit:** `33470c1359e4c4e2c25da8f69a687f6e5c4e0244` (documentation follow-up; WP1 runtime/test commits are `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, and `6270853a7afc05214397525ae043454919682b1a`).
-- **Current implementation state:** `MechanicsAdjudicator.adjudicate_analysis()` derives at most 32 deduplicated supplemental queries from canonical names and literal mentions belonging only to active-step-filtered resolved references. It sends them to the existing visibility-aware `ContextBuilder.build()` alongside the active step's exact source excerpt. Prompt diagnostics record the query-byte footprint without logging query contents.
-- **Deterministic validation:** PR #226 CI run `43622216494` is in progress; focused test and static results not yet confirmed.
+- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, draft, not merged.
+- **Current head:** `51aa35c7938a043b715bfc6f777bf17a7663e067`
+- **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 initial integrated handoff/clarification tests implemented.
+- **Key implementation commits:**
+  - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`.
+  - WP2: `708b33cea4320e54c538edbf860613b41685d9e4`, `c6a863a545ff8d51dcd6e2a02468a23cb26120a4`, `00936f3de281405d743f813bcb7159dbb9433f3a`.
+  - WP3 initial integrated tests: `4a326a38598a135d88ed339707330d075ed3abe1`.
+  - v2 prompt compaction fix: `4d45880db0ac9d6fc24a8b82f822f692b735a5c1`; regression test: `51aa35c7938a043b715bfc6f777bf17a7663e067`.
+- **Current implementation state:** `MechanicsAdjudicator.adjudicate_analysis()` derives bounded supplemental retrieval queries from canonical names and literal mentions belonging only to active-step-filtered resolved references. The v2 planner consumes the shared analysis without duplicate transcript/discourse blocks and receives original player text only as literal grounding evidence. Prompt compaction now checks whether optional history is present before attempting to remove it; v1/no-analysis callers retain their bounded history/discourse behavior.
+- **Deterministic validation:** Tests run [`43624451399`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43624451399) passed: **1,815 passed, 16 deselected**, combined line/branch coverage **85.10%** (85.0% required). Ruff, both Pyright jobs, JavaScript tests and CodeQL run [`43624451406`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43624451406) also passed.
 - **Live Ollama validation:** not run for PR #226.
 - **SillyTavern validation:** not run for PR #226.
-- **Open blockers:** none known; await the first PR #226 CI result and fix any regression before proceeding.
-- **Next exact action:** inspect Tests and CodeQL run `43622216494` / `43622216493`. If green, proceed to WP2 by classifying proposal prompt sections, then add tests showing the planner keeps the shared analysis and required evidence while omitting redundant non-authoritative history/discourse only under the explicitly selected policy. If CI fails, fix that before WP2. Do not change the one-analysis architecture or remove required current-player evidence.
+- **Open blockers:** none in deterministic CI. WP3 still needs failed-prerequisite and compound-action progression coverage; WP4–WP6 remain.
+- **Next exact action:** continue WP3 on this branch. Add deterministic production-pipeline tests proving a failed mechanics prerequisite cannot advance a compound action or produce false success/world changes, then cover the remaining routing cases listed in WP3. Keep the one-analysis architecture and deterministic authority boundaries unchanged. Do not start live Ollama acceptance until WP3's deterministic contract is complete.
 
 ### How to resume
 
