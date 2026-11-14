@@ -10,6 +10,7 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection, estimate_tokens
 from services.discourse_context import DiscourseContextBuilder
+from services.llm_prompt_contracts import COMMON_LLM_TRUST_CONTRACT
 
 from .llm_extraction_errors import LLMExtractionError
 from .llm_world_context_renderer import LLMWorldContextRenderer
@@ -118,7 +119,8 @@ class LLMWorldProposalPromptBuilder:
     def _proposal_instruction_contract() -> str:
         """Role-specific policy for planning consequences from validated intent."""
         return (
-            "Eres un planificador de consecuencias para un motor de campaña D&D 5e. "
+            COMMON_LLM_TRUST_CONTRACT
+            + "\\nEres un planificador de consecuencias para un motor de campaña D&D 5e. "
             "Devuelve exclusivamente JSON con la forma "
             '{"operations": [...]} .\n'
             "La INTERPRETACIÓN COMPARTIDA v2 es la fuente semántica principal: "
