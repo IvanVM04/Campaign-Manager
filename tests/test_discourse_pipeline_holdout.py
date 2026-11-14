@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
-from types import SimpleNamespace
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
