@@ -31,6 +31,9 @@ class LLMSettings:
     mechanics_context_max_bytes: int = 4096
     mechanics_prompt_max_tokens: int = 8192
     mechanics_context_max_tokens: int = 4096
+    extraction_prompt_max_bytes: int = 8192
+    extraction_context_max_bytes: int = 4096
+    extraction_repair_max_bytes: int = 2048
     extraction_prompt_max_tokens: int = 8192
     extraction_context_max_tokens: int = 4096
     extraction_max_response_chars: int = 16000
@@ -89,6 +92,9 @@ class LLMSettings:
             "extraction_context_max_tokens",
             "extraction_max_response_chars",
             "extraction_repair_max_tokens",
+            "extraction_prompt_max_bytes",
+            "extraction_context_max_bytes",
+            "extraction_repair_max_bytes",
             "mechanics_prompt_max_tokens",
             "mechanics_context_max_tokens",
             "intent_prompt_max_bytes",
@@ -105,6 +111,10 @@ class LLMSettings:
         if self.extraction_context_max_tokens > self.extraction_prompt_max_tokens:
             raise ValueError(
                 "extraction_context_max_tokens cannot exceed extraction_prompt_max_tokens"
+            )
+        if self.extraction_context_max_bytes > self.extraction_prompt_max_bytes:
+            raise ValueError(
+                "extraction_context_max_bytes cannot exceed extraction_prompt_max_bytes"
             )
         if self.mechanics_context_max_tokens > self.mechanics_prompt_max_tokens:
             raise ValueError(
@@ -198,6 +208,27 @@ class LLMSettings:
                 integer_value(
                     "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
                     defaults.mechanics_context_max_bytes,
+                ),
+            ),
+            extraction_prompt_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                    defaults.extraction_prompt_max_bytes,
+                ),
+            ),
+            extraction_context_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                    defaults.extraction_context_max_bytes,
+                ),
+            ),
+            extraction_repair_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                    defaults.extraction_repair_max_bytes,
                 ),
             ),
             extraction_prompt_max_tokens=integer_value(
