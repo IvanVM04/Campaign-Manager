@@ -206,20 +206,22 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             MechanicsDecisionType.SAVING_THROW,
         }:
             raise ValueError("unsupported decision type")
-        expected = {
+        required = {"decision", "dc", "reason"}
+        allowed = {
             "decision", "dc", "advantage", "disadvantage",
-            "modifier", "reason",
+            "modifier", "reason", "ability", "skill",
         }
         if decision_type is MechanicsDecisionType.SKILL_CHECK:
-            expected.update({"skill", "ability"})
+            required.add("skill")
         else:
-            expected.add("ability")
-        if set(payload) != expected:
+            required.add("ability")
+            allowed.discard("skill")
+        if not required.issubset(payload) or set(payload) - allowed:
             raise ValueError("mechanics decision has missing or unexpected fields")
         dc = payload["dc"]
-        modifier = payload["modifier"]
-        advantage = payload["advantage"]
-        disadvantage = payload["disadvantage"]
+        modifier = payload.get("modifier", 0)
+        advantage = payload.get("advantage", False)
+        disadvantage = payload.get("disadvantage", False)
         reason = payload["reason"]
         if isinstance(dc, bool) or not isinstance(dc, int) or not 1 <= dc <= 30:
             raise ValueError("dc must be an integer between 1 and 30")
