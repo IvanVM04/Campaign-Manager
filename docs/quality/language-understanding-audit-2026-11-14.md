@@ -145,6 +145,22 @@ El adjudicador limita el bloque discursivo a `max_context_tokens // 24`. El cons
 
 No debe asumirse que «ventana de 12 turnos» significa «12 turnos entendidos por el modelo». Hay que registrar, sin almacenar contenido sensible, cuántos turnos y qué tipos de señales se seleccionaron, compactaron o descartaron. La prioridad de truncado debe conservar evidencia crítica de la acción actual y antecedentes resueltos, no solo los últimos caracteres.
 
+### F-08 — Acoplamiento de interpretación/adjudicación y presupuesto de prompt
+
+**Estado: defecto reproducido antes de la llamada al proveedor; refactor P0 requerido.**
+
+El 2026-11-14 se ejecutó el test real `test_real_ollama_updates_a_known_npc_only_with_a_new_explicit_fact` de forma aislada. Falló en 2,11 segundos dentro de `MechanicsAdjudicator._understand()` con `mechanics prompt exceeds the configured estimated token budget`. El rechazo ocurre antes de `provider.generate_structured()`; este caso no llegó a Ollama y no aporta evidencia sobre comprensión de Gemma.
+
+La revisión del código confirma:
+- `MechanicsAdjudicator` produce actualmente en una única llamada tanto `PlayerIntentAnalysis` v2 como `MechanicsDecision`;
+- el prompt de sistema de mecánicas ocupa aproximadamente 7.250 bytes UTF-8;
+- el presupuesto por defecto es 8.192 y `estimate_tokens()` mide bytes UTF-8, no tokens del tokenizador de Gemma;
+- el prompt añade además cabeceras, evidencia, historial, contexto y contrato de salida, y el recorte actual no puede reducir las instrucciones fijas ni las secciones obligatorias.
+
+La ejecución completa inicial también registró `llm.provider.failed` en varias pruebas. La salida aportada no contiene sus excepciones raíz; esos fallos deben clasificarse por separado y no asumirse como el mismo problema de presupuesto.
+
+**Decisión:** elevar a Prioridad #1 un refactor modular con un único intérprete semántico coherente, validación/resolución determinista, adjudicación mecánica condicional y planificador de consecuencias con contrato independiente. La interpretación no se divide en llamadas separadas por campos semánticos. Ver [la decisión de arquitectura](modular-language-understanding-pipeline-2026-11-14.md).
+
 ### F-06 — SillyTavern y recorrido de extremo a extremo
 
 **Estado: contratos automatizados; aceptación manual no acreditada.**
@@ -190,6 +206,7 @@ Las horas son estimaciones de ingeniería para una persona que conoce el reposit
 
 | Fase | Entrega | Horas estimadas | Prioridad |
 |---|---|---:|---|
+| 0 | Modularizar intérprete, adjudicación mecánica y planificador; corregir presupuestos/diagnósticos del prompt | Por estimar al cerrar interfaces | **P0 / Prioridad #1** |
 | A | Ejecutar baseline live de los 110 casos y guardar informe reproducible | 8–14 h | P0 |
 | B | Diagnosticar fallos por familia y corregir regresiones críticas | 12–24 h | P0 |
 | C | Ampliar held-out para capacidades #223: elipsis, temas, NPC, gramática y referencias lejanas | 12–20 h | P0 |
@@ -200,10 +217,12 @@ Las horas son estimaciones de ingeniería para una persona que conoce el reposit
 | H | Robustez lingüística y adversarial en español natural y controles en inglés | 16–28 h | P1 |
 | I | Revisión final, documentación de resultados y gates de release | 6–10 h | P0/P1 |
 
-**Totales orientativos:**
+**Totales orientativos del plan anterior:**
 - Cierre de P0 y aceptación de la base actual (A–E, I): **54–96 horas**.
 - Robustez funcional ampliada (F–H): **60–104 horas adicionales**.
 - Programa total estimado: **114–200 horas**.
+
+Estos totales **no incluyen** la nueva fase 0 de modularización, que se estimará tras fijar las interfaces. La nueva fase es Prioridad #1 y precede a A–E; no deben sumarse estos totales como si ya la incluyeran.
 
 Si el baseline live revela fallos críticos, la fase B puede crecer. No conviene fijar un número cerrado antes de observar el modelo real.
 
@@ -239,18 +258,19 @@ No fijar un «90% de comprensión» agregado. Un promedio puede esconder una fam
 
 ## 9. Secuencia recomendada
 
-1. No abrir otra gran PR semántica todavía.
-2. Completar el baseline Ollama actual con los fixtures #220, pruebas de corrección y operaciones.
-3. Crear un informe de resultados por familia, conservando todos los fallos.
-4. Añadir un hold-out específico de #223 y comprobar pérdida por presupuesto.
-5. Corregir primero falsos positivos críticos; después recall y fluidez.
-6. Ejecutar aceptación SillyTavern con dos chats y continuidad real.
-7. Solo entonces decidir si hacen falta nuevas reglas, cambios en retrieval, otra representación o modelos distintos.
+1. **Prioridad #1 — implementar PR #225, Modular Language-Understanding Pipeline.** Desacoplar la interpretación semántica del juicio mecánico y del planificador de consecuencias; corregir el presupuesto y la instrumentación de prompts.
+2. Añadir regresiones deterministas para el fallo de presupuesto de Aldric, el número de llamadas por tipo de intención y los contratos de cada etapa.
+3. Clasificar los errores raíz de `llm.provider.failed` observados en la ejecución completa; no agrupar fallos de proveedor y fallos de preflight.
+4. Repetir el test aislado de Aldric y después ejecutar el corpus Ollama de 110 casos y controles de operaciones con modelo/configuración fijados.
+5. Añadir held-out específico para las capacidades discursivas de #223 y medir qué señales llegan realmente a cada etapa.
+6. Corregir primero falsos positivos críticos; después recall, abstención y fluidez.
+7. Ejecutar aceptación SillyTavern con dos chats, aclaraciones, reintentos y continuidad durable.
+8. Solo entonces retomar nuevas capacidades semánticas o evaluar retrieval/embeddings adicionales.
 
 ## 10. Conclusión
 
 Campaign Manager ya tiene una arquitectura seria para interpretar lenguaje natural con límites de autoridad y evidencia. Lo que todavía no tiene demostrado es que esa arquitectura, con el modelo y configuración reales, comprenda de forma consistente la variedad de acciones y conversaciones que se esperan en una campaña.
 
-La prioridad ya no debería ser añadir complejidad por intuición. Debe ser medir el comportamiento, identificar los fallos reales y corregirlos con pruebas que no se puedan aprobar simplemente repitiendo el prompt esperado.
+La prioridad inmediata es corregir la arquitectura que impide medir con fiabilidad: una interpretación semántica coherente, adjudicación mecánica condicional y planificación de consecuencias independiente, con presupuestos verificables. Después se medirá el comportamiento real por familias, sin convertir tests de esquema en afirmaciones de comprensión.
 
 **La fase P0 no se considera cerrada hasta que existan resultados live reproducibles y una aceptación real de SillyTavern.**
