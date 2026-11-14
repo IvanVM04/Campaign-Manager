@@ -19,8 +19,18 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 ## Current implementation
 - `LLMSettings` validates provider URL, model names and finite positive timeouts at startup.
 - Narrative, extraction, intent and mechanics roles can use separate model and timeout settings.
-- Intent and mechanics have independent prompt/context byte budgets: `CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES`, `CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES`, `CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES` and `CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES`.
+- Intent, mechanics and extraction have independent UTF-8 byte budgets:
+  `CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES`,
+  `CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES`,
+  `CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES`,
+  `CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES`,
+  `CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES`,
+  `CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES` and
+  `CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES`. Existing extraction and
+  mechanics `*_MAX_TOKENS` environment names remain supported as deprecated
+  byte-budget aliases.
 - The intent role emits only the shared semantic analysis schema; the mechanics role emits only a mechanics decision. Extraction remains a separate downstream proposal responsibility.
+- `estimate_tokens()` counts UTF-8 bytes as a conservative upper bound; it is not a model-specific tokenizer. All role budgets and diagnostics name this unit explicitly.
 - `OllamaProvider` performs non-streaming text requests and supports native JSON Schema constraints through `generate_structured(prompt, schema=...)`; transport, HTTP and malformed-response failures normalize to `LLMProviderError`.
 - `FakeLLMProvider` supports fixed responses, prompt-matched responses and injected failures.
 - `LLMProvider.generate_structured()` is a backwards-compatible capability: text-only providers use the fallback, while Ollama overrides it with native constraints. The caller still validates semantic content and trust boundaries independently.
