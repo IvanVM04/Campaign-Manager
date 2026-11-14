@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from time import perf_counter
 
@@ -102,7 +101,9 @@ def _climbing_intent() -> tuple[str, PlayerIntentAnalysis]:
     )
 
 
-def test_real_ollama_mechanics_only_adjudicates_the_validated_active_step(record_property):
+def test_real_ollama_mechanics_only_adjudicates_the_validated_active_step(
+    record_property,
+):
     """Exercise the new mechanics-only contract independently of intent parsing."""
     context = _active_climbing_context()
     source, analysis = _climbing_intent()
@@ -121,7 +122,6 @@ def test_real_ollama_mechanics_only_adjudicates_the_validated_active_step(record
     record_property("mechanics_decision", decision.decision.value)
     record_property("mechanics_dc", decision.dc)
     record_property("mechanics_duration_seconds", round(elapsed, 3))
-    record_property("mechanics_prompt_bytes", len(adjudicator.provider.last_prompt.encode("utf-8")) if hasattr(adjudicator.provider, "last_prompt") else None)
     print(
         "Mechanics-only probe: "
         f"model={adjudicator.provider.model}; decision={decision.decision.value}; "
