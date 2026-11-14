@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from time import perf_counter
 
-from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
@@ -17,12 +17,21 @@ from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
     INTENT_CORRECTION_RESPONSE_SCHEMA,
 )
-from .mechanics_adjudicator import (
-    IntentUnderstandingResult,
-    MechanicsAdjudicatorError,
-)
 
 logger = logging.getLogger(__name__)
+
+
+class IntentInterpreterError(RuntimeError):
+    """Raised when semantic intent cannot be interpreted or validated safely."""
+
+
+@dataclass(frozen=True, slots=True)
+class IntentInterpretationResult:
+    """Validated interpretation plus evidence-bound edits to a pending intent."""
+
+    analysis: PlayerIntentAnalysis
+    corrections: tuple[PendingIntentCorrection, ...] = ()
+
 
 
 class IntentInterpreter:
@@ -185,7 +194,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
             character_entity_id=(character.entity_id if character is not None else None),
         ).get("context", "")
         if not isinstance(projection, str):
-            raise MechanicsAdjudicatorError("intent context must be text")
+            raise IntentInterpreterError("intent context must be text")
 
         world_context = self._compact_text(projection, self.max_context_bytes)
         history = self._compact_text(
@@ -288,7 +297,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
 
         prompt_bytes = len(prompt.encode("utf-8"))
         if prompt_bytes > self.max_prompt_bytes:
-            raise MechanicsAdjudicatorError(
+            raise IntentInterpreterError(
                 "intent prompt exceeds byte budget "
                 f"(prompt_bytes={prompt_bytes}, budget_bytes={self.max_prompt_bytes}, "
                 f"sections={sizes})"
@@ -319,7 +328,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
         correction_evidence_text: str,
         recent_turns: list[TurnRecord] | None = None,
         evidence_text: str | None = None,
-    ) -> IntentUnderstandingResult:
+    ) -> IntentInterpretationResult:
         if not isinstance(pending_analysis, PlayerIntentAnalysis):
             raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
         if (
@@ -347,16 +356,15 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     committed=False,
                 )
             except (TypeError, ValueError) as exc:
-                raise MechanicsAdjudicatorError(
+                raise IntentInterpreterError(
                     "pending correction is not applicable to the stored interpretation"
                 ) from exc
             if not correction.matches_analysis(analysis):
-                raise MechanicsAdjudicatorError(
+                raise IntentInterpreterError(
                     "provider re-analysis does not reflect its explicit correction"
                 )
-        return IntentUnderstandingResult(
+        return IntentInterpretationResult(
             analysis=analysis,
-            mechanics_decision=MechanicsDecision(decision=MechanicsDecisionType.NONE),
             corrections=corrections,
         )
 
@@ -409,7 +417,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     "error_type": type(exc).__name__,
                 },
             )
-            raise MechanicsAdjudicatorError("intent provider failed") from exc
+            raise IntentInterpreterError("intent provider failed") from exc
         logger.info(
             "llm.provider.completed",
             extra={
@@ -422,7 +430,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
             },
         )
         if not isinstance(raw, str):
-            raise MechanicsAdjudicatorError("intent provider returned non-text")
+            raise IntentInterpreterError("intent provider returned non-text")
         try:
             payload = json.loads(raw)
             if not isinstance(payload, dict):
@@ -464,4 +472,4 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     "error_type": type(exc).__name__,
                 },
             )
-            raise MechanicsAdjudicatorError(f"invalid intent response: {exc}") from exc
+            raise IntentInterpreterError(f"invalid intent response: {exc}") from exc
