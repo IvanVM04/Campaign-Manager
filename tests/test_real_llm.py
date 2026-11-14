@@ -17,7 +17,7 @@ from operations.world_operations import (
 from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
-from services.turns.mechanics_adjudicator import MechanicsAdjudicator
+from services.turns.intent_interpreter import IntentInterpreter
 
 pytestmark = pytest.mark.real_llm
 
@@ -215,7 +215,7 @@ def test_real_ollama_keeps_only_the_confirmed_step_in_a_compound_action():
 
 
 def propose_with_shared_intent(player_input: str, context: TurnContext):
-    analysis, _decision = make_adjudicator().understand(context, player_input)
+    analysis = make_interpreter().interpret(context, player_input)
     if not analysis.allows_world_proposal:
         return []
     return make_extractor().propose(
@@ -225,7 +225,7 @@ def propose_with_shared_intent(player_input: str, context: TurnContext):
     )
 
 
-def make_adjudicator() -> MechanicsAdjudicator:
+def make_interpreter() -> IntentInterpreter:
     provider = OllamaProvider(
         model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
         base_url=os.getenv(
@@ -234,11 +234,11 @@ def make_adjudicator() -> MechanicsAdjudicator:
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
     )
-    return MechanicsAdjudicator(provider=provider)
+    return IntentInterpreter(provider=provider)
 
 
 def test_real_ollama_meets_shared_player_intent_corpus_v1(record_property):
-    """Evaluate the actual combined mechanics/intent response, not only prompts."""
+    """Evaluate semantic interpretation independently from mechanics policy."""
     fixture_path = (
         Path(__file__).parent / "fixtures" / "language_understanding_corpus_v1.json"
     )
@@ -253,7 +253,7 @@ def test_real_ollama_meets_shared_player_intent_corpus_v1(record_property):
         active_character=CharacterState(entity_id=99001),
         world=WorldState(),
     )
-    adjudicator = make_adjudicator()
+    interpreter = make_interpreter()
     model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
     started = perf_counter()
     provider_calls = 0
@@ -261,7 +261,7 @@ def test_real_ollama_meets_shared_player_intent_corpus_v1(record_property):
     for scenario in scenarios:
         repetitions = 3 if scenario["critical"] else 1
         for _ in range(repetitions):
-            analysis, _decision = adjudicator.understand(
+            analysis = interpreter.interpret(
                 context,
                 scenario["input"],
             )
@@ -327,7 +327,7 @@ def test_real_ollama_meets_semantic_frame_corpus_v1(record_property):
         active_character=CharacterState(entity_id=99002),
         world=WorldState(),
     )
-    adjudicator = make_adjudicator()
+    interpreter = make_interpreter()
     model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
     started = perf_counter()
     provider_calls = 0
@@ -335,7 +335,7 @@ def test_real_ollama_meets_semantic_frame_corpus_v1(record_property):
     for scenario in scenarios:
         repetitions = 3 if scenario["critical"] else 1
         for _ in range(repetitions):
-            analysis, _decision = adjudicator.understand(
+            analysis = interpreter.interpret(
                 context,
                 scenario["input"],
             )

@@ -31,6 +31,10 @@ from services.context import (
 from services.discourse_context import DiscourseContextBuilder
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
+from services.turns.intent_interpreter import (
+    IntentInterpreter,
+    IntentInterpreterError,
+)
 from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
@@ -114,6 +118,8 @@ class TurnResolutionService:
         dice_roller: DiceRoller | None = None,
         context_builder: ContextBuilder | None = None,
         proposal_context_max_tokens: int = 4096,
+        intent_interpreter: IntentInterpreter | None = None,
+        proposal_context_max_bytes: int | None = None,
     ) -> None:
 
         if not isinstance(
@@ -144,10 +150,16 @@ class TurnResolutionService:
             mechanics_adjudicator, MechanicsAdjudicator
         ):
             raise TypeError("mechanics_adjudicator must be a MechanicsAdjudicator or None")
+        if intent_interpreter is not None and not isinstance(
+            intent_interpreter, IntentInterpreter
+        ):
+            raise TypeError("intent_interpreter must be an IntentInterpreter or None")
         if dice_roller is not None and not isinstance(dice_roller, DiceRoller):
             raise TypeError("dice_roller must be a DiceRoller or None")
         if context_builder is not None and not isinstance(context_builder, ContextBuilder):
             raise TypeError("context_builder must be a ContextBuilder or None")
+        if proposal_context_max_bytes is not None:
+            proposal_context_max_tokens = proposal_context_max_bytes
         if (
             isinstance(proposal_context_max_tokens, bool)
             or not isinstance(proposal_context_max_tokens, int)
@@ -159,10 +171,12 @@ class TurnResolutionService:
         self.extractor = extractor
         self.world_service = world_service
         self.mechanics_adjudicator = mechanics_adjudicator
+        self.intent_interpreter = intent_interpreter
         self.dice_roller = dice_roller or DiceRoller()
         self.context_builder = context_builder
         self.conversation_reference_resolver = ConversationReferenceResolver()
         self.world_reference_resolver = WorldReferenceResolver()
+        self.proposal_context_max_bytes = proposal_context_max_tokens
         self.proposal_context_max_tokens = proposal_context_max_tokens
 
     # ============================================================
@@ -287,19 +301,39 @@ class TurnResolutionService:
         intent_analysis = intent_analysis_override
         intent_corrections: tuple[PendingIntentCorrection, ...] = ()
         if pending_intent_analysis is not None:
-            if self.mechanics_adjudicator is None:
+            if (
+                self.intent_interpreter is None
+                and self.mechanics_adjudicator is None
+            ):
                 raise TurnResolutionServiceError(
-                    "pending correction requires the shared language adjudicator"
+                    "pending correction requires the intent interpreter"
                 )
             try:
-                correction_result = self.mechanics_adjudicator.understand_pending(
-                    context,
-                    normalized_input,
-                    pending_analysis=pending_intent_analysis,
-                    correction_evidence_text=pending_correction_evidence_text or "",
-                    recent_turns=recent_turns,
-                    evidence_text=normalized_evidence_text,
-                )
+                if self.intent_interpreter is not None:
+                    correction_result = self.intent_interpreter.understand_pending(
+                        context,
+                        normalized_input,
+                        pending_analysis=pending_intent_analysis,
+                        correction_evidence_text=pending_correction_evidence_text or "",
+                        recent_turns=recent_turns,
+                        evidence_text=normalized_evidence_text,
+                    )
+                    decision = None
+                else:
+                    adjudicator = self.mechanics_adjudicator
+                    if adjudicator is None:
+                        raise TurnResolutionServiceError(
+                            "pending correction requires an intent interpreter"
+                        )
+                    correction_result = adjudicator.understand_pending(
+                        context,
+                        normalized_input,
+                        pending_analysis=pending_intent_analysis,
+                        correction_evidence_text=pending_correction_evidence_text or "",
+                        recent_turns=recent_turns,
+                        evidence_text=normalized_evidence_text,
+                    )
+                    decision = correction_result.mechanics_decision
                 corrected_analysis = pending_intent_analysis
                 for correction in correction_result.corrections:
                     corrected_analysis = correction.apply(
@@ -313,17 +347,40 @@ class TurnResolutionService:
                             "provider re-analysis does not reflect its explicit correction"
                         )
                 intent_analysis = correction_result.analysis
-                decision = correction_result.mechanics_decision
                 intent_corrections = correction_result.corrections
-            except (MechanicsAdjudicatorError, TypeError, ValueError) as exc:
+            except (
+                IntentInterpreterError,
+                MechanicsAdjudicatorError,
+                TypeError,
+                ValueError,
+            ) as exc:
                 raise TurnResolutionServiceError(
                     "pending intent correction failed validation"
                 ) from exc
         elif (
             intent_analysis is None
             and decision is None
+            and self.intent_interpreter is not None
+        ):
+            try:
+                intent_analysis = self.intent_interpreter.interpret(
+                    context,
+                    normalized_input,
+                    recent_turns=recent_turns,
+                    evidence_text=normalized_evidence_text,
+                )
+            except IntentInterpreterError as exc:
+                raise TurnResolutionServiceError(
+                    "semantic intent interpretation failed"
+                ) from exc
+        elif (
+            intent_analysis is None
+            and decision is None
             and self.mechanics_adjudicator is not None
         ):
+            # Compatibility path for callers that have not yet injected the
+            # role-specific interpreter. The application runtime uses the
+            # modular path above.
             try:
                 intent_analysis, inferred_decision = self.mechanics_adjudicator.understand(
                     context,
@@ -355,6 +412,187 @@ class TurnResolutionService:
                 intent_evidence_text=normalized_evidence_text,
                 intent_corrections=intent_corrections,
             )
+        context_projection = None
+        resolved_references: tuple[ResolvedConversationReference, ...] = ()
+        resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
+        needs_mechanics_context = (
+            self.intent_interpreter is not None
+            and intent_analysis.is_actionable
+            and context.active_character is not None
+        )
+        if (
+            self.context_builder is not None
+            and (intent_analysis.allows_world_proposal or needs_mechanics_context)
+        ):
+            mandatory_entity_ids: list[int] = []
+            if context.active_character is not None:
+                entity_id = context.active_character.entity_id
+                if isinstance(entity_id, int) and not isinstance(entity_id, bool):
+                    mandatory_entity_ids.append(entity_id)
+            if context.active_character_entity is not None:
+                entity_id = context.active_character_entity.id
+                if (
+                    isinstance(entity_id, int)
+                    and not isinstance(entity_id, bool)
+                    and entity_id not in mandatory_entity_ids
+                ):
+                    mandatory_entity_ids.append(entity_id)
+            current_location_id = context.campaign.current_location_id
+            if (
+                isinstance(current_location_id, int)
+                and not isinstance(current_location_id, bool)
+                and current_location_id not in mandatory_entity_ids
+            ):
+                mandatory_entity_ids.append(current_location_id)
+            try:
+                semantic_queries = tuple(
+                    dict.fromkeys(
+                        [
+                            *(
+                                mention
+                                for step in intent_analysis.steps
+                                for mention in step.target_mentions
+                            ),
+                            *(
+                                argument.mention.text
+                                for step in intent_analysis.steps
+                                if step.action_frame is not None
+                                for argument in step.action_frame.arguments
+                            ),
+                            *(
+                                mention
+                                for claim in intent_analysis.relation_claims
+                                for mention in (
+                                    claim.subject.text,
+                                    claim.object.text,
+                                    (
+                                        claim.attributed_to.text
+                                        if claim.attributed_to is not None
+                                        else None
+                                    ),
+                                )
+                                if mention is not None
+                            ),
+                            *self._recent_context_queries(recent_turns),
+                        ]
+                    )
+                )
+                context_projection = self.context_builder.build_proposal_context(
+                    context.world,
+                    normalized_input,
+                    max_estimated_bytes=self.proposal_context_max_bytes,
+                    mandatory_entity_ids=mandatory_entity_ids,
+                    supplemental_queries=semantic_queries,
+                    character_entity_id=(
+                        context.active_character.entity_id
+                        if context.active_character is not None
+                        else None
+                    ),
+                )
+                discourse_history = DiscourseContextBuilder.scope_history(
+                    recent_turns or (),
+                    normalized_input,
+                )
+                reference_result = self.conversation_reference_resolver.resolve(
+                    context_projection.world,
+                    intent_analysis,
+                    recent_turns=discourse_history,
+                    current_input=normalized_input,
+                )
+                resolved_references = reference_result.references
+                if reference_result.clarification_question:
+                    question = reference_result.clarification_question
+                    return TurnResolutionPlan(
+                        player_input=normalized_input,
+                        narrative=question,
+                        world_operations=(),
+                        character_operations=(),
+                        ordered_operations=(),
+                        clarification_question=question,
+                        mechanics_decision=decision,
+                        intent_analysis=intent_analysis,
+                        intent_evidence_text=normalized_evidence_text,
+                        intent_corrections=intent_corrections,
+                    )
+                typed_reference_result = self.world_reference_resolver.resolve(
+                    context_projection.world,
+                    intent_analysis,
+                    recent_turns=discourse_history,
+                    current_input=normalized_input,
+                    character_entity_id=(
+                        context.active_character.entity_id
+                        if context.active_character is not None
+                        else None
+                    ),
+                )
+                resolved_world_references = typed_reference_result.references
+                if typed_reference_result.clarification_question:
+                    question = typed_reference_result.clarification_question
+                    return TurnResolutionPlan(
+                        player_input=normalized_input,
+                        narrative=question,
+                        world_operations=(),
+                        character_operations=(),
+                        ordered_operations=(),
+                        clarification_question=question,
+                        mechanics_decision=decision,
+                        intent_analysis=intent_analysis,
+                        intent_evidence_text=normalized_evidence_text,
+                        intent_corrections=intent_corrections,
+                    )
+            except Exception as exc:
+                raise TurnResolutionServiceError(
+                    "proposal context selection failed"
+                ) from exc
+
+        # Stage 3: mechanics runs only after deterministic references have
+        # resolved. An ambiguous target must be clarified before any check.
+        if (
+            pending_intent_analysis is not None
+            and self.intent_interpreter is not None
+            and decision is None
+            and intent_analysis is not None
+            and not intent_analysis.requires_clarification
+            and intent_analysis.is_actionable
+            and context.active_character is not None
+            and self.mechanics_adjudicator is not None
+        ):
+            try:
+                decision = self.mechanics_adjudicator.adjudicate_analysis(
+                    context,
+                    intent_analysis,
+                    context_projection=context_projection,
+                    resolved_references=resolved_references,
+                    resolved_world_references=resolved_world_references,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "mechanics adjudication after correction failed"
+                ) from exc
+
+        if (
+            self.intent_interpreter is not None
+            and pending_intent_analysis is None
+            and decision is None
+            and intent_analysis is not None
+            and not intent_analysis.requires_clarification
+            and intent_analysis.is_actionable
+            and context.active_character is not None
+            and self.mechanics_adjudicator is not None
+        ):
+            try:
+                decision = self.mechanics_adjudicator.adjudicate_analysis(
+                    context,
+                    intent_analysis,
+                    context_projection=context_projection,
+                    resolved_references=resolved_references,
+                    resolved_world_references=resolved_world_references,
+                )
+            except MechanicsAdjudicatorError as exc:
+                raise TurnResolutionServiceError(
+                    "mechanics adjudication failed"
+                ) from exc
+
         if not intent_analysis.is_actionable and not (
             decision is not None
             and decision.decision is MechanicsDecisionType.CLARIFICATION
@@ -462,131 +700,6 @@ class TurnResolutionService:
                     manual_rolls=manual_rolls,
                 )
                 mechanics_result = MechanicsResult(decision, check)
-
-        context_projection = None
-        resolved_references: tuple[ResolvedConversationReference, ...] = ()
-        resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
-        if self.context_builder is not None and intent_analysis.allows_world_proposal:
-            mandatory_entity_ids: list[int] = []
-            if context.active_character is not None:
-                entity_id = context.active_character.entity_id
-                if isinstance(entity_id, int) and not isinstance(entity_id, bool):
-                    mandatory_entity_ids.append(entity_id)
-            if context.active_character_entity is not None:
-                entity_id = context.active_character_entity.id
-                if (
-                    isinstance(entity_id, int)
-                    and not isinstance(entity_id, bool)
-                    and entity_id not in mandatory_entity_ids
-                ):
-                    mandatory_entity_ids.append(entity_id)
-            current_location_id = context.campaign.current_location_id
-            if (
-                isinstance(current_location_id, int)
-                and not isinstance(current_location_id, bool)
-                and current_location_id not in mandatory_entity_ids
-            ):
-                mandatory_entity_ids.append(current_location_id)
-            try:
-                semantic_queries = tuple(
-                    dict.fromkeys(
-                        [
-                            *(
-                                mention
-                                for step in intent_analysis.steps
-                                for mention in step.target_mentions
-                            ),
-                            *(
-                                argument.mention.text
-                                for step in intent_analysis.steps
-                                if step.action_frame is not None
-                                for argument in step.action_frame.arguments
-                            ),
-                            *(
-                                mention
-                                for claim in intent_analysis.relation_claims
-                                for mention in (
-                                    claim.subject.text,
-                                    claim.object.text,
-                                    (
-                                        claim.attributed_to.text
-                                        if claim.attributed_to is not None
-                                        else None
-                                    ),
-                                )
-                                if mention is not None
-                            ),
-                            *self._recent_context_queries(recent_turns),
-                        ]
-                    )
-                )
-                context_projection = self.context_builder.build_proposal_context(
-                    context.world,
-                    normalized_input,
-                    max_estimated_tokens=self.proposal_context_max_tokens,
-                    mandatory_entity_ids=mandatory_entity_ids,
-                    supplemental_queries=semantic_queries,
-                    character_entity_id=(
-                        context.active_character.entity_id
-                        if context.active_character is not None
-                        else None
-                    ),
-                )
-                discourse_history = DiscourseContextBuilder.scope_history(
-                    recent_turns or (),
-                    normalized_input,
-                )
-                reference_result = self.conversation_reference_resolver.resolve(
-                    context_projection.world,
-                    intent_analysis,
-                    recent_turns=discourse_history,
-                    current_input=normalized_input,
-                )
-                resolved_references = reference_result.references
-                if reference_result.clarification_question:
-                    question = reference_result.clarification_question
-                    return TurnResolutionPlan(
-                        player_input=normalized_input,
-                        narrative=question,
-                        world_operations=(),
-                        character_operations=(),
-                        ordered_operations=(),
-                        clarification_question=question,
-                        mechanics_decision=decision,
-                        intent_analysis=intent_analysis,
-                        intent_evidence_text=normalized_evidence_text,
-                        intent_corrections=intent_corrections,
-                    )
-                typed_reference_result = self.world_reference_resolver.resolve(
-                    context_projection.world,
-                    intent_analysis,
-                    recent_turns=discourse_history,
-                    current_input=normalized_input,
-                    character_entity_id=(
-                        context.active_character.entity_id
-                        if context.active_character is not None
-                        else None
-                    ),
-                )
-                resolved_world_references = typed_reference_result.references
-                if typed_reference_result.clarification_question:
-                    question = typed_reference_result.clarification_question
-                    return TurnResolutionPlan(
-                        player_input=normalized_input,
-                        narrative=question,
-                        world_operations=(),
-                        character_operations=(),
-                        ordered_operations=(),
-                        clarification_question=question,
-                        mechanics_decision=decision,
-                        intent_analysis=intent_analysis,
-                        intent_evidence_text=normalized_evidence_text,
-                        intent_corrections=intent_corrections,
-                    )
-            except Exception as exc:
-                raise TurnResolutionServiceError(
-                    "proposal context selection failed"
-                ) from exc
 
         try:
             if not intent_analysis.allows_world_proposal:

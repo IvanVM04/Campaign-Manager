@@ -264,3 +264,32 @@ INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA["properties"][
     "maxItems": 4,
     "items": _PENDING_CORRECTION_SCHEMA,
 }
+
+# Role-specific contracts keep interpretation independent from mechanics.
+# The semantic v2 payload remains byte-for-byte compatible with the nested
+# analysis schema used by the former combined response.
+INTENT_ANALYSIS_RESPONSE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["intent_analysis"],
+    "properties": {
+        "intent_analysis": deepcopy(
+            INTENT_MECHANICS_RESPONSE_SCHEMA["properties"]["intent_analysis"]
+        ),
+    },
+}
+
+INTENT_CORRECTION_RESPONSE_SCHEMA = deepcopy(INTENT_ANALYSIS_RESPONSE_SCHEMA)
+INTENT_CORRECTION_RESPONSE_SCHEMA["required"] = [
+    "intent_analysis",
+    "pending_corrections",
+]
+INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]["pending_corrections"] = {
+    "type": "array",
+    "maxItems": 4,
+    "items": _PENDING_CORRECTION_SCHEMA,
+}
+
+MECHANICS_ONLY_RESPONSE_SCHEMA = deepcopy(
+    INTENT_MECHANICS_RESPONSE_SCHEMA["properties"]["mechanics_decision"]
+)

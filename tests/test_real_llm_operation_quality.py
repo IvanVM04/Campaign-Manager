@@ -13,7 +13,7 @@ from operations.world_operations import CreateEntityOperation, UpdateEntityOpera
 from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
-from services.turns.mechanics_adjudicator import MechanicsAdjudicator
+from services.turns.intent_interpreter import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
@@ -49,7 +49,7 @@ def _operation_signature(operation) -> str:
 
 def test_real_ollama_operation_quality_and_critical_negative_controls(record_property):
     model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
-    adjudicator = MechanicsAdjudicator(provider=_provider())
+    interpreter = IntentInterpreter(provider=_provider())
     extractor_provider = _provider()
     extractor = LLMWorldExtractor(
         provider=extractor_provider,
@@ -173,7 +173,7 @@ def test_real_ollama_operation_quality_and_critical_negative_controls(record_pro
         context = _context(scenario["world"])
         case_started = perf_counter()
         try:
-            analysis, _decision = adjudicator.understand(
+            analysis = interpreter.interpret(
                 context,
                 scenario["input"],
             )

@@ -1491,16 +1491,24 @@ def test_conversation_reference_is_forwarded_with_proposal_context_projection():
             world: WorldState,
             query: str,
             *,
-            max_estimated_tokens: int,
+            max_estimated_tokens: int | None = None,
+            max_estimated_bytes: int | None = None,
             mandatory_entity_ids: tuple[int, ...] | list[int] = (),
             supplemental_queries: tuple[str, ...] | list[str] = (),
             character_entity_id: int | None = None,
         ) -> WorldContextProjection:
+            budget_bytes = (
+                max_estimated_bytes
+                if max_estimated_bytes is not None
+                else max_estimated_tokens
+            )
+            if budget_bytes is None:
+                raise ValueError("a context byte budget is required")
             return WorldContextProjection(
                 world=world,
                 diagnostics=ContextProjectionDiagnostics(
                     estimated_tokens=1,
-                    budget_tokens=max_estimated_tokens,
+                    budget_tokens=budget_bytes,
                     available_counts=(),
                     candidate_counts=(),
                     selected_counts=(),

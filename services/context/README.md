@@ -11,7 +11,7 @@ Retrieve, expand, rank, select and render campaign context for application and L
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
 - context_renderer.py — ranked character-budget rendering for narrative context.
-- proposal_context_selector.py — intent-ranked record selection with dependency-aware bundles and a conservative token upper bound.
+- proposal_context_selector.py — intent-ranked record selection with dependency-aware bundles and a conservative UTF-8 byte upper bound.
 
 The LLM-specific world-context projection is a shared typed model in `models/world_context_projection.py`; its LLM renderer remains in `services/llm_world`. The active proposal flow is orchestrated here without introducing a `context` -> `llm_world` dependency.
 
@@ -23,7 +23,7 @@ The LLM-specific world-context projection is a shared typed model in `models/wor
 
 ## Proposal context contract
 
-`ContextBuilder.build_proposal_context()` exposes the proposal-specific path while preserving the existing narrative `build()` API and its character budgets.
+`ContextBuilder.build_proposal_context()` exposes the proposal-specific path while preserving the existing narrative `build()` API and its character budgets. The preferred budget argument is `max_estimated_bytes`; the former `max_estimated_tokens` keyword remains a compatibility alias.
 
 - Search, graph expansion and ranking are reused from the existing deterministic collaborators.
 - The active character is mandatory; owned records and other related records are candidates ranked against the player intent.
@@ -32,7 +32,7 @@ The LLM-specific world-context projection is a shared typed model in `models/wor
 - Superseded events remain available as labelled history; they are not treated as current facts.
 - Player projections omit internal known-by character ID lists. The active character is supplied by trusted runtime state, never from player request text.
 - Selected domain records are deep-copied into a detached `WorldState` subset.
-- `ContextProjectionDiagnostics` provides available/candidate/selected/excluded counts and estimated use of the context budget.
+- `ContextProjectionDiagnostics` provides available/candidate/selected/excluded counts and estimated UTF-8 byte use through `estimated_bytes` / `budget_bytes`. The former `estimated_tokens` / `budget_tokens` fields remain aliases for persisted/test compatibility.
 
 The byte-based budget is an upper bound rather than a model-specific token count. The LLM package checks the final rendered prompt independently. The selector raises `ProposalContextBudgetError` rather than dropping mandatory player facts.
 

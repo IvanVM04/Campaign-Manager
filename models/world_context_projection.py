@@ -6,12 +6,12 @@ from models.world_state import WorldState
 
 
 def estimate_tokens(text: str) -> int:
-    """Return a conservative upper bound for model tokens.
+    """Return a conservative UTF-8 byte upper bound, not exact model tokens.
 
     The provider port does not expose the selected model's tokenizer. Counting
-    one token per UTF-8 byte is intentionally pessimistic: a tokenizer may
-    combine bytes into larger tokens, but it cannot require more tokens than
-    input bytes. The value is a budget upper bound, not an exact token count.
+    one unit per UTF-8 byte is intentionally pessimistic and gives a stable
+    cross-model prompt budget. The historical function name is retained for
+    compatibility; callers should describe the returned value as bytes.
     """
     if not isinstance(text, str):
         raise TypeError("text must be a string")
@@ -48,6 +48,16 @@ class ContextProjectionDiagnostics:
             or self.reference_candidate_count < 0
         ):
             raise ValueError("reference_candidate_count must be a non-negative integer")
+
+    @property
+    def estimated_bytes(self) -> int:
+        """UTF-8 byte count; the legacy estimated_tokens field is an alias."""
+        return self.estimated_tokens
+
+    @property
+    def budget_bytes(self) -> int:
+        """UTF-8 byte budget; the legacy budget_tokens field is an alias."""
+        return self.budget_tokens
 
     @property
     def available_records(self) -> int:

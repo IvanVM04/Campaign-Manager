@@ -25,6 +25,11 @@ from services.turns.durable_turn_prepared_commit_service import (
     DurableTurnPreparedCommitService,
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
+from services.turns.intent_interpreter import (
+    IntentInterpretationResult,
+    IntentInterpreter,
+    IntentInterpreterError,
+)
 from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
@@ -52,6 +57,9 @@ __all__ = [
     "DurableTurnPreparationMapper",
     "DurableTurnPreparedCommitService",
     "DurableTurnResultMapper",
+    "IntentInterpretationResult",
+    "IntentInterpreter",
+    "IntentInterpreterError",
     "MechanicsAdjudicator",
     "MechanicsAdjudicatorError",
     "TurnExecutionLock",

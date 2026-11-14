@@ -15,16 +15,26 @@ replay committed consequences.
 - `dm_service.py` — generates presentation prose from committed evidence.
 - `turn_execution_lock.py` — canonical process-local lock shared by turn coordinators.
 - `turn_resolution_codec.py` — canonical JSON codec for durable resolution records.
-- `mechanics_adjudicator.py` — returns shared language analysis and proposed mechanics decisions; deterministic rules code rolls dice and applies results.
+- `intent_interpreter.py` — one coherent, evidence-bound `PlayerIntentAnalysis` v2 response; action steps, frames, relations, discourse and attribution remain one semantic unit.
+- `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
-## Shared language-understanding contract
+## Modular language-understanding pipeline
 
-`MechanicsAdjudicator.understand()` returns a `PlayerIntentAnalysis` and a
-mechanics decision from one structured provider response. The exact validated
-analysis object is reused by `LLMWorldExtractor`; the proposal stage must not
-independently reconstruct the same raw utterance.
+The production runtime composes role-specific providers and follows this sequence:
+
+1. `IntentInterpreter.interpret()` receives exact player evidence, bounded same-chat history and a compact visible world context. It returns one coherent `PlayerIntentAnalysis` v2. It does not return a mechanics decision.
+2. Literal evidence, schema and canonical references are validated by the existing model/resolvers and deterministic application code.
+3. `MechanicsAdjudicator.adjudicate_analysis()` is called only when `analysis.is_actionable` is true, `analysis.requires_clarification` is false and an active character exists. Its input is the validated active step and compact character/world facts; its output schema contains only `MechanicsDecision`.
+4. `LLMWorldExtractor` receives the exact same analysis object, trusted resolved references, bounded projection and confirmed mechanics results. It must not independently reinterpret the raw utterance.
+5. Domain services remain the authority for validation, persistence and world mutation. Narration follows committed results.
+
+A question, hypothesis, negation, completed observation or non-actionable report does not trigger mechanics adjudication. A consequence proposal is made only when `analysis.allows_world_proposal` permits it.
+
+The semantic interpretation is deliberately not split into calls for action extraction, argument roles, relations, attribution or discourse. These are interdependent fields in one response contract. The stage boundaries separate responsibilities, not pieces of one meaning representation.
+
+## Semantic compatibility and corrections
 
 V1 durable analyses remain decodable. V2 adds:
 
@@ -34,58 +44,42 @@ V1 durable analyses remain decodable. V2 adds:
 - directed `relation_claims` with subject, object, literal predicate, relation
   family hint, polarity, modality, attribution and temporal expression.
 
-All mentions remain untrusted, ID-free evidence. The turn service adds frame
-arguments and relation endpoints as supplemental retrieval signals. The
-resolver still owns canonical identity; ambiguity and hidden references require
-clarification. The model never decides campaign IDs, visibility or permission.
+All mentions remain untrusted, ID-free evidence. Canonical identity is resolved
+only after campaign, visibility, active-state and ambiguity checks.
 
-Questions, plans, quotations, negations and resolved outcomes do not trigger
-unsupported checks. Compound actions may not skip an earlier unresolved step.
-Relation claims preserve reported/question/negative/conditional status and do
-not themselves authorize relation writes.
+Pending clarifications use `IntentInterpreter.understand_pending()`: the prior
+analysis is a non-authoritative draft, replacements must be literal in the
+latest player answer, corrections are immutable and bounded, and the
+provider's re-analysis must reflect the same edit. Manual-roll continuation
+reuses persisted analysis and does not call the interpreter again.
 
-The last twelve visible turns are bounded and scoped to the current
-`conversation_id`. PR #223 adds deterministic discourse hints for explicit topic
-changes/callbacks, ellipsis, explicit NPC quote labels and local grammatical
-agreement. Entity and typed-world reference resolvers share the same topic-scoped
-history. Explicit callbacks may inspect the bounded older window but still
-require a unique candidate.
+The old combined `MechanicsAdjudicator.understand()` API remains temporarily
+as a compatibility path for older callers and deterministic legacy tests. The
+application runtime injects `IntentInterpreter` and uses only
+`adjudicate_analysis()`; new production code must not use the combined path.
 
-PR #219 enriches `ConversationReferenceResolver` with typed candidate evidence,
-a distinction between player-authored input and narrator prose, semantic-kind
-compatibility and explicit ambiguity margins. PR #223 does not infer
-gender/number from proper names; it uses only explicit local article/apposition
-(for example, `la guardia Mara`). NPC dialogue is attributed only when the
-transcript explicitly labels a unique visible active speaker. Unlabelled
-narration remains narrator evidence, and quoted speech is never a player
-instruction.
+## Prompt budgets and diagnostics
 
-PR #221 connects the guarded `PendingIntentCorrection` primitive to clarification
-resumption. Only a still-pending durable resolution with a validated stored
-analysis enters correction mode. That mode reuses the clarification's existing
-provider call with a correction-only schema; it does not add a provider call to
-normal turns. The model must emit an explicit bounded correction record whose
-replacement and excerpt are literal in the latest player answer. Application
-code checks the previous value, target step, role or directed relation endpoint,
-applies the immutable correction against the stored interpretation, and requires
-the provider's re-analysis to reflect the same edit. Corrections are recorded in
-the durable adjudication history across clarification rounds. They remain
-untrusted language evidence and do not resolve canonical IDs, bypass visibility,
-or authorize world writes.
+The intent, mechanics and consequence-planner prompts have independent UTF-8
+byte budgets: `intent_prompt_max_bytes` / `intent_context_max_bytes`,
+`mechanics_prompt_max_bytes` / `mechanics_context_max_bytes`, and
+`extraction_prompt_max_bytes` / `extraction_context_max_bytes` /
+`extraction_repair_max_bytes`. The shared
+`estimate_tokens()` helper counts UTF-8 bytes and is not an exact model
+tokenizer. Role logs record prompt bytes, per-section sizes where available,
+duration, model and stable error type; they never record the prompt, raw
+completion, secrets or full campaign context. Required player evidence is not
+silently truncated to fit a prompt.
 
-Durable resolutions store the conversation and player-authored evidence with
-independent SHA-256 fingerprints in `turn_resolutions.intent_json` (migration
-033). Conversation identity is persisted on turns/resolutions through
-migration 034. The codec supports nested intent schema v1 and v2 without
-silently converting old records. Clarification questions remain context only;
-manual-roll continuations reuse the saved interpretation.
 
 ## Test and evaluation map
 
 - `tests/test_semantic_frames.py` protects v2 frames, relations, evidence and durable recovery.
 - `tests/test_player_intent_analysis.py` protects the v1 compatibility contract.
-- `tests/test_mechanics_adjudicator.py` protects the combined provider/schema boundary.
+- `tests/test_modular_language_pipeline.py` protects independent schemas, prompt separation, conditional mechanics calls and shared-analysis hand-off.
+- `tests/test_mechanics_adjudicator.py` protects the mechanics decision parser and the temporary combined compatibility API.
 - `tests/test_pending_intent_correction_flow.py` protects correction parsing, evidence grounding and multi-round durable clarification recovery.
+- Live intent evaluation uses `IntentInterpreter`; mechanics and proposal quality are evaluated with their own role-specific probes.
 - `tests/test_durable_native_turn.py` and `tests/test_durable_silly_tavern_turn.py` protect the durable lifecycle.
 - `tests/test_silly_tavern_context_adapter.py` protects history filtering and adapter behavior.
 - `tests/test_discourse_context_builder.py`, `tests/test_conversation_reference_resolver.py` and `tests/test_world_reference_resolver.py` protect topic scope, callbacks, ellipsis cues, NPC attribution, agreement and abstention.

@@ -358,6 +358,7 @@ def test_unexpected_planning_failure_releases_lease_and_recovers_after_runtime_r
     restarted_service = CampaignRuntimeFactory().get_runtime(
         service.scope.campaign_id
     ).durable_native_turn_service
+    restarted_service.resolver.intent_interpreter = None
     restarted_service.resolver.mechanics_adjudicator = None
     proposal_calls = []
     restarted_service.resolver.extractor.provider = lambda prompt: (

@@ -17,7 +17,7 @@ from models.semantic_frames import SemanticArgumentRole, SemanticObjectKind
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import OllamaProvider
-from services.turns.mechanics_adjudicator import MechanicsAdjudicator
+from services.turns.intent_interpreter import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
@@ -25,7 +25,7 @@ pytestmark = pytest.mark.real_llm
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def _make_adjudicator() -> MechanicsAdjudicator:
+def _make_interpreter() -> IntentInterpreter:
     provider = OllamaProvider(
         model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
         base_url=os.getenv(
@@ -34,7 +34,7 @@ def _make_adjudicator() -> MechanicsAdjudicator:
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
     )
-    return MechanicsAdjudicator(provider=provider)
+    return IntentInterpreter(provider=provider)
 
 
 def _make_context() -> TurnContext:
@@ -204,7 +204,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 24
 
-    adjudicator = _make_adjudicator()
+    interpreter = _make_interpreter()
     context = _make_context()
     ledger = SemanticEvaluationLedger()
     critical_failures: list[str] = []
@@ -217,7 +217,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
         for repetition in range(repetitions):
             case_started = perf_counter()
             try:
-                analysis, _decision = adjudicator.understand(
+                analysis = interpreter.interpret(
                     context,
                     scenario["input"],
                 )
@@ -256,8 +256,8 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     record_property("semantic_holdout_intent_total_seconds", round(total_seconds, 3))
     print(ledger.render())
     if observational_failures:
-        print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
+        print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
+    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
@@ -270,7 +270,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 18
 
-    adjudicator = _make_adjudicator()
+    interpreter = _make_interpreter()
     context = _make_context()
     ledger = SemanticEvaluationLedger()
     critical_failures: list[str] = []
@@ -283,7 +283,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
         for repetition in range(repetitions):
             case_started = perf_counter()
             try:
-                analysis, _decision = adjudicator.understand(
+                analysis = interpreter.interpret(
                     context,
                     scenario["input"],
                 )
@@ -323,8 +323,8 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     record_property("semantic_holdout_frames_total_seconds", round(total_seconds, 3))
     print(ledger.render())
     if observational_failures:
-        print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
+        print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
+    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
@@ -379,8 +379,8 @@ def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
         source_text=original,
     )
 
-    adjudicator = _make_adjudicator()
-    result = adjudicator.understand_pending(
+    interpreter = _make_interpreter()
+    result = interpreter.understand_pending(
         _make_context(),
         original + "\n\nDM: " + clarification_question + "\n" + correction_answer,
         pending_analysis=pending,

@@ -195,20 +195,22 @@ class ContextBuilder:
         world: WorldState,
         query: str,
         *,
-        max_estimated_tokens: int,
+        max_estimated_tokens: int | None = None,
         mandatory_entity_ids: tuple[int, ...] | list[int] = (),
         supplemental_queries: tuple[str, ...] | list[str] = (),
         character_entity_id: int | None = None,
+        max_estimated_bytes: int | None = None,
     ) -> WorldContextProjection:
-        """Build a bounded typed projection for structured consequence proposals.
+        """Build a bounded projection using a conservative UTF-8 byte budget.
 
-        This is deliberately separate from build(): narrative context and
-        proposal context have different contracts and token budgets.
+        The max_estimated_tokens keyword remains a compatibility alias.
         """
+        if max_estimated_bytes is not None:
+            max_estimated_tokens = max_estimated_bytes
         return self.proposal_context_selector.build(
             world,
             query,
-            max_estimated_tokens=max_estimated_tokens,
+            max_estimated_bytes=max_estimated_tokens,
             mandatory_entity_ids=mandatory_entity_ids,
             supplemental_queries=supplemental_queries,
             character_entity_id=character_entity_id,

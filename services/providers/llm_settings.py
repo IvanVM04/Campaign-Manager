@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from .ollama_provider import OllamaProvider
 
-LLMRole = Literal["narrative", "extraction", "mechanics"]
+LLMRole = Literal["narrative", "extraction", "mechanics", "intent"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,17 +20,41 @@ class LLMSettings:
     narrative_model: str = OllamaProvider.DEFAULT_MODEL
     extraction_model: str = OllamaProvider.DEFAULT_MODEL
     mechanics_model: str = OllamaProvider.DEFAULT_MODEL
+    intent_model: str = OllamaProvider.DEFAULT_MODEL
     narrative_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     extraction_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     mechanics_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
+    intent_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
+    intent_prompt_max_bytes: int = 24000
+    intent_context_max_bytes: int = 4096
+    mechanics_prompt_max_bytes: int = 8192
+    mechanics_context_max_bytes: int = 4096
     mechanics_prompt_max_tokens: int = 8192
     mechanics_context_max_tokens: int = 4096
+    extraction_prompt_max_bytes: int = 8192
+    extraction_context_max_bytes: int = 4096
+    extraction_repair_max_bytes: int = 2048
     extraction_prompt_max_tokens: int = 8192
     extraction_context_max_tokens: int = 4096
     extraction_max_response_chars: int = 16000
     extraction_repair_max_tokens: int = 2048
 
     def __post_init__(self) -> None:
+        # The old *_max_tokens fields historically configured UTF-8 byte
+        # ceilings. Treat direct legacy constructor values as aliases only
+        # when the new byte field remains at its default.
+        for legacy_name, byte_name, default in (
+            ("mechanics_prompt_max_tokens", "mechanics_prompt_max_bytes", 8192),
+            ("mechanics_context_max_tokens", "mechanics_context_max_bytes", 4096),
+            ("extraction_prompt_max_tokens", "extraction_prompt_max_bytes", 8192),
+            ("extraction_context_max_tokens", "extraction_context_max_bytes", 4096),
+            ("extraction_repair_max_tokens", "extraction_repair_max_bytes", 2048),
+        ):
+            legacy_value = getattr(self, legacy_name)
+            byte_value = getattr(self, byte_name)
+            if byte_value == default and legacy_value != default:
+                object.__setattr__(self, byte_name, legacy_value)
+
         if not isinstance(self.base_url, str):
             raise TypeError("LLM base_url must be a string")
         normalized_url = self.base_url.strip().rstrip("/")
@@ -55,6 +79,7 @@ class LLMSettings:
             "narrative_model",
             "extraction_model",
             "mechanics_model",
+            "intent_model",
         ):
             value = getattr(self, field_name)
             if not isinstance(value, str):
@@ -68,6 +93,7 @@ class LLMSettings:
             "narrative_timeout_seconds",
             "extraction_timeout_seconds",
             "mechanics_timeout_seconds",
+            "intent_timeout_seconds",
         ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -81,8 +107,15 @@ class LLMSettings:
             "extraction_context_max_tokens",
             "extraction_max_response_chars",
             "extraction_repair_max_tokens",
+            "extraction_prompt_max_bytes",
+            "extraction_context_max_bytes",
+            "extraction_repair_max_bytes",
             "mechanics_prompt_max_tokens",
             "mechanics_context_max_tokens",
+            "intent_prompt_max_bytes",
+            "intent_context_max_bytes",
+            "mechanics_prompt_max_bytes",
+            "mechanics_context_max_bytes",
         ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
@@ -94,9 +127,21 @@ class LLMSettings:
             raise ValueError(
                 "extraction_context_max_tokens cannot exceed extraction_prompt_max_tokens"
             )
+        if self.extraction_context_max_bytes > self.extraction_prompt_max_bytes:
+            raise ValueError(
+                "extraction_context_max_bytes cannot exceed extraction_prompt_max_bytes"
+            )
         if self.mechanics_context_max_tokens > self.mechanics_prompt_max_tokens:
             raise ValueError(
                 "mechanics_context_max_tokens cannot exceed mechanics_prompt_max_tokens"
+            )
+        if self.intent_context_max_bytes > self.intent_prompt_max_bytes:
+            raise ValueError(
+                "intent_context_max_bytes cannot exceed intent_prompt_max_bytes"
+            )
+        if self.mechanics_context_max_bytes > self.mechanics_prompt_max_bytes:
+            raise ValueError(
+                "mechanics_context_max_bytes cannot exceed mechanics_prompt_max_bytes"
             )
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> LLMSettings:
@@ -124,7 +169,7 @@ class LLMSettings:
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"{name} must be an integer") from exc
 
-        return cls(
+        settings = cls(
             base_url=values.get("CAMPAIGN_MANAGER_OLLAMA_BASE_URL", defaults.base_url),
             narrative_model=values.get(
                 "CAMPAIGN_MANAGER_LLM_NARRATIVE_MODEL",
@@ -150,31 +195,141 @@ class LLMSettings:
                 "CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS",
                 defaults.mechanics_timeout_seconds,
             ),
-            extraction_prompt_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
-                defaults.extraction_prompt_max_tokens,
+            intent_model=values.get(
+                "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
+                defaults.intent_model,
             ),
-            extraction_context_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
-                defaults.extraction_context_max_tokens,
+            intent_timeout_seconds=timeout_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_TIMEOUT_SECONDS",
+                defaults.intent_timeout_seconds,
+            ),
+            intent_prompt_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES",
+                defaults.intent_prompt_max_bytes,
+            ),
+            intent_context_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES",
+                defaults.intent_context_max_bytes,
+            ),
+            mechanics_prompt_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
+                    defaults.mechanics_prompt_max_bytes,
+                ),
+            ),
+            mechanics_context_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
+                    defaults.mechanics_context_max_bytes,
+                ),
+            ),
+            extraction_prompt_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                    defaults.extraction_prompt_max_bytes,
+                ),
+            ),
+            extraction_context_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                    defaults.extraction_context_max_bytes,
+                ),
+            ),
+            extraction_repair_max_bytes=integer_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES",
+                integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                    defaults.extraction_repair_max_bytes,
+                ),
+            ),
+            extraction_prompt_max_tokens=(
+                defaults.extraction_prompt_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                    defaults.extraction_prompt_max_tokens,
+                )
+            ),
+            extraction_context_max_tokens=(
+                defaults.extraction_context_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                    defaults.extraction_context_max_tokens,
+                )
             ),
             extraction_max_response_chars=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS",
                 defaults.extraction_max_response_chars,
             ),
-            extraction_repair_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
-                defaults.extraction_repair_max_tokens,
+            extraction_repair_max_tokens=(
+                defaults.extraction_repair_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                    defaults.extraction_repair_max_tokens,
+                )
             ),
-            mechanics_prompt_max_tokens=integer_value(
+            mechanics_prompt_max_tokens=(
+                defaults.mechanics_prompt_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
+                    defaults.mechanics_prompt_max_tokens,
+                )
+            ),
+            mechanics_context_max_tokens=(
+                defaults.mechanics_context_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
+                    defaults.mechanics_context_max_tokens,
+                )
+            ),
+        )
+
+        # Keep explicit legacy environment values observable for callers that
+        # still inspect *_max_tokens, without letting them override *_MAX_BYTES.
+        for field, byte_env, token_env, default in (
+            (
+                "mechanics_prompt_max_tokens",
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES",
                 "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
                 defaults.mechanics_prompt_max_tokens,
             ),
-            mechanics_context_max_tokens=integer_value(
+            (
+                "mechanics_context_max_tokens",
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES",
                 "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
                 defaults.mechanics_context_max_tokens,
             ),
-        )
+            (
+                "extraction_prompt_max_tokens",
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES",
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                defaults.extraction_prompt_max_tokens,
+            ),
+            (
+                "extraction_context_max_tokens",
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES",
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                defaults.extraction_context_max_tokens,
+            ),
+            (
+                "extraction_repair_max_tokens",
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES",
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                defaults.extraction_repair_max_tokens,
+            ),
+        ):
+            if byte_env in values and token_env in values:
+                object.__setattr__(settings, field, integer_value(token_env, default))
+
+        return settings
 
     def create_provider(self, role: LLMRole) -> OllamaProvider:
         """Build an Ollama adapter configured for one model responsibility."""
@@ -183,6 +338,7 @@ class LLMSettings:
             "narrative": (self.narrative_model, self.narrative_timeout_seconds),
             "extraction": (self.extraction_model, self.extraction_timeout_seconds),
             "mechanics": (self.mechanics_model, self.mechanics_timeout_seconds),
+            "intent": (self.intent_model, self.intent_timeout_seconds),
         }
         try:
             model, timeout = configuration[role]

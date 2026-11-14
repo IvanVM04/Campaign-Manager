@@ -103,7 +103,6 @@ def test_application_server_error_does_not_expose_internal_detail(error_client):
     assert "private database path" not in response.text
 
 
-
 def test_wrapped_llm_provider_failure_maps_to_service_unavailable():
     from api.errors import api_error_for_exception
     from services.providers import LLMProviderError
@@ -154,7 +153,6 @@ def test_wrapped_invalid_llm_response_maps_to_bad_gateway():
     assert error.code == "invalid_llm_response"
 
 
-
 def test_http_server_errors_do_not_expose_internal_details(error_client):
     internal = error_client.get("/http-internal-error")
     upstream = error_client.get("/http-bad-gateway")
@@ -171,7 +169,6 @@ def test_http_server_errors_do_not_expose_internal_details(error_client):
     }
     assert "private database path" not in internal.text
     assert "provider token leaked" not in upstream.text
-
 
 
 @pytest.mark.parametrize(
@@ -210,3 +207,28 @@ def test_forbidden_model_character_operation_maps_to_invalid_model_response():
 
     assert mapped.status_code == 502
     assert mapped.code == "invalid_llm_response"
+
+
+def test_wrapped_invalid_intent_interpretation_maps_to_bad_gateway():
+    from api.errors import api_error_for_exception
+    from services.turns.durable_native_turn_service import DurableNativeTurnError
+    from services.turns.intent_interpreter import IntentInterpreterError
+    from services.turns.turn_resolution_service import TurnResolutionServiceError
+
+    try:
+        try:
+            raise IntentInterpreterError("invalid semantic schema")
+        except IntentInterpreterError as intent_error:
+            raise TurnResolutionServiceError("intent interpretation failed") from intent_error
+    except TurnResolutionServiceError as resolver_error:
+        wrapped = DurableNativeTurnError("native turn execution failed")
+        wrapped.__cause__ = resolver_error
+
+    error = api_error_for_exception(
+        wrapped,
+        fallback_status=409,
+        fallback_code="turn_conflict",
+    )
+
+    assert error.status_code == 502
+    assert error.code == "invalid_llm_response"
