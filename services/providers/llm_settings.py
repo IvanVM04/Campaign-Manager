@@ -40,6 +40,21 @@ class LLMSettings:
     extraction_repair_max_tokens: int = 2048
 
     def __post_init__(self) -> None:
+        # The old *_max_tokens fields historically configured UTF-8 byte
+        # ceilings. Treat direct legacy constructor values as aliases only
+        # when the new byte field remains at its default.
+        for legacy_name, byte_name, default in (
+            ("mechanics_prompt_max_tokens", "mechanics_prompt_max_bytes", 8192),
+            ("mechanics_context_max_tokens", "mechanics_context_max_bytes", 4096),
+            ("extraction_prompt_max_tokens", "extraction_prompt_max_bytes", 8192),
+            ("extraction_context_max_tokens", "extraction_context_max_bytes", 4096),
+            ("extraction_repair_max_tokens", "extraction_repair_max_bytes", 2048),
+        ):
+            legacy_value = getattr(self, legacy_name)
+            byte_value = getattr(self, byte_name)
+            if byte_value == default and legacy_value != default:
+                object.__setattr__(self, byte_name, legacy_value)
+
         if not isinstance(self.base_url, str):
             raise TypeError("LLM base_url must be a string")
         normalized_url = self.base_url.strip().rstrip("/")
