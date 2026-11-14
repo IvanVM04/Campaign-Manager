@@ -558,3 +558,224 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
         round(perf_counter() - started, 3),
     )
     assert not failures, "\n".join(failures)
+
+
+def test_real_ollama_discourse_callback_survives_integrated_turn_pipeline(
+    record_property,
+):
+    """Exercise callback → shared intent → mechanics → planner in production flow."""
+    from models.entity import Entity
+    from services.providers import FakeLLMProvider
+    from services.turns import DMService, MechanicsAdjudicator
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.world import WorldApplier, WorldService
+
+    settings = LLMSettings.from_env()
+    common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
+    common_timeout_raw = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT")
+    common_timeout = (
+        float(common_timeout_raw)
+        if common_timeout_raw is not None
+        else None
+    )
+
+    def role_timeout(role: str, configured: float) -> float:
+        env_name = f"CAMPAIGN_MANAGER_LLM_{role.upper()}_TIMEOUT_SECONDS"
+        if env_name in os.environ or common_timeout is None:
+            return configured
+        return common_timeout
+
+    settings = replace(
+        settings,
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            settings.base_url,
+        ),
+        intent_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
+            common_model or settings.intent_model,
+        ),
+        mechanics_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_MECHANICS_MODEL",
+            common_model or settings.mechanics_model,
+        ),
+        extraction_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_EXTRACTION_MODEL",
+            common_model or settings.extraction_model,
+        ),
+        intent_timeout_seconds=role_timeout(
+            "intent",
+            settings.intent_timeout_seconds,
+        ),
+        mechanics_timeout_seconds=role_timeout(
+            "mechanics",
+            settings.mechanics_timeout_seconds,
+        ),
+        extraction_timeout_seconds=role_timeout(
+            "extraction",
+            settings.extraction_timeout_seconds,
+        ),
+    )
+    usage_events: list[dict] = []
+    providers = {
+        role: settings.create_provider(role, metrics_callback=usage_events.append)
+        for role in ("intent", "mechanics", "extraction")
+    }
+    context_builder = ContextBuilder()
+    interpreter = IntentInterpreter(
+        provider=providers["intent"],
+        context_builder=context_builder,
+    )
+    mechanics = MechanicsAdjudicator(
+        provider=providers["mechanics"],
+        context_builder=context_builder,
+    )
+    extractor = LLMWorldExtractor(
+        provider=providers["extraction"],
+        operation_parser=OperationParser(),
+    )
+    service = TurnResolutionService(
+        dm_service=DMService(
+            provider=FakeLLMProvider(response="No se genera narración en esta sonda."),
+            context_builder=context_builder,
+        ),
+        extractor=extractor,
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=mechanics,
+        intent_interpreter=interpreter,
+        context_builder=context_builder,
+    )
+    context = TurnContext(
+        campaign=CampaignState(
+            campaign_id=99229,
+            name="PR227 discourse callback integration",
+            system="D&D 5e 2014",
+        ),
+        current_session=None,
+        active_character=CharacterState(
+            entity_id=99229,
+            strength=3,
+            dexterity=3,
+            constitution=3,
+            intelligence=3,
+            wisdom=3,
+            charisma=3,
+        ),
+        world=WorldState(
+            entities={
+                99229: Entity(
+                    id=99229,
+                    name="Pared lisa de piedra",
+                    entity_type="obstacle",
+                    description=(
+                        "Pared vertical de piedra lisa, de cuatro metros, "
+                        "sin asideros visibles ni salientes."
+                    ),
+                    active=True,
+                )
+            }
+        ),
+    )
+    recent_turns = [
+        TurnRecord(
+            id=701,
+            player_input="Examino la pared lisa de piedra.",
+            narrative="La pared no tiene asideros visibles.",
+        ),
+        TurnRecord(
+            id=702,
+            player_input="Cambiando de tema, observo el patio.",
+            narrative="Hay una fuente junto al muro.",
+        ),
+        TurnRecord(
+            id=703,
+            player_input="Busco una salida del patio.",
+            narrative="La torre sigue al otro lado de la plaza.",
+        ),
+    ]
+    player_input = (
+        "Retomando lo de la pared lisa de piedra, intento escalarla "
+        "usando Atletismo. Si alcanzo la cornisa, entro en la torre."
+    )
+
+    started = perf_counter()
+    plan = service.prepare_turn(
+        context,
+        player_input,
+        recent_turns=recent_turns,
+        manual_rolls=(1,),
+    )
+    elapsed_ms = (perf_counter() - started) * 1000
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.schema_version == 2
+    assert plan.intent_analysis.active_step_index == 0
+    assert plan.intent_analysis.is_actionable
+    assert len(plan.intent_analysis.steps) >= 2
+    assert plan.intent_analysis.steps[1].modality.value in {
+        "conditional",
+        "planned",
+    }
+    assert plan.mechanics_decision is not None
+    assert plan.mechanics_result is not None
+    assert plan.mechanics_result.outcome == "failure"
+    assert not plan.mechanics_result.check.success
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
+
+    record_property(
+        "discourse_integrated_ollama_version",
+        providers["intent"].get_server_version() or "unavailable",
+    )
+    record_property("discourse_integrated_elapsed_ms", round(elapsed_ms, 3))
+    record_property(
+        "discourse_integrated_intent_digest",
+        providers["intent"].get_model_digest() or "unavailable",
+    )
+    record_property(
+        "discourse_integrated_mechanics_digest",
+        providers["mechanics"].get_model_digest() or "unavailable",
+    )
+    record_property(
+        "discourse_integrated_extraction_digest",
+        providers["extraction"].get_model_digest() or "unavailable",
+    )
+    record_property(
+        "discourse_integrated_step_count",
+        len(plan.intent_analysis.steps),
+    )
+    record_property(
+        "discourse_integrated_mechanics_outcome",
+        plan.mechanics_result.outcome,
+    )
+    for role in ("intent", "mechanics", "extraction"):
+        role_events = [
+            event for event in usage_events
+            if event.get("provider_role") == role
+        ]
+        assert role_events, f"no live provider telemetry captured for {role}"
+        assert all(event.get("prompt_bytes", 0) > 0 for event in role_events)
+        record_property(
+            f"discourse_integrated_{role}_calls",
+            len(role_events),
+        )
+        record_property(
+            f"discourse_integrated_{role}_metrics",
+            json.dumps(
+                [
+                    {
+                        key: event.get(key)
+                        for key in (
+                            "prompt_bytes",
+                            "prompt_eval_count",
+                            "eval_count",
+                            "duration_ms",
+                        )
+                    }
+                    for event in role_events
+                ],
+                sort_keys=True,
+            ),
+        )
