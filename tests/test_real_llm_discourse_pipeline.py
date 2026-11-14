@@ -916,3 +916,200 @@ def test_real_ollama_discourse_callback_survives_integrated_turn_pipeline(
                 sort_keys=True,
             ),
         )
+
+
+def test_real_ollama_integrated_pipeline_preserves_one_explicit_npc_fact(
+    record_property,
+):
+    """A completed observation must skip mechanics but reach the planner once."""
+    from dataclasses import replace
+
+    from operations.world_operations import (
+        CreateEntityOperation,
+        UpdateEntityOperation,
+    )
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.providers import FakeLLMProvider
+    from services.turns import DMService
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    interpreter, intent_provider, context_builder, intent_events = (
+        _live_intent_runtime()
+    )
+    settings = LLMSettings.from_env()
+    common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
+    common_timeout = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT")
+    extraction_timeout = settings.extraction_timeout_seconds
+    if (
+        "CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS" not in os.environ
+        and common_timeout is not None
+    ):
+        extraction_timeout = float(common_timeout)
+    settings = replace(
+        settings,
+        base_url=os.getenv(
+            "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL",
+            settings.base_url,
+        ),
+        extraction_model=os.getenv(
+            "CAMPAIGN_MANAGER_LLM_EXTRACTION_MODEL",
+            common_model or settings.extraction_model,
+        ),
+        extraction_timeout_seconds=extraction_timeout,
+    )
+    extraction_events: list[dict] = []
+    extraction_provider = settings.create_provider(
+        "extraction",
+        metrics_callback=extraction_events.append,
+    )
+    extractor = LLMWorldExtractor(
+        provider=extraction_provider,
+        operation_parser=OperationParser(),
+    )
+    context = TurnContext(
+        campaign=CampaignState(
+            campaign_id=99230,
+            name="PR227 positive operation quality",
+        ),
+        current_session=None,
+        active_character=None,
+        world=WorldState(
+            entities={
+                1: Entity(
+                    id=1,
+                    name="Aldric",
+                    entity_type="npc",
+                    description="Tabernero de la posada del Dragón.",
+                    notes="Conoce los rumores del pueblo.",
+                    active=True,
+                )
+            }
+        ),
+    )
+    service = TurnResolutionService(
+        dm_service=DMService(
+            provider=FakeLLMProvider(
+                response="No se genera narración en esta sonda."
+            ),
+            context_builder=context_builder,
+        ),
+        extractor=extractor,
+        world_service=WorldService(applier=WorldApplier()),
+        mechanics_adjudicator=None,
+        intent_interpreter=interpreter,
+        context_builder=context_builder,
+    )
+    source = (
+        "Aldric me muestra una cicatriz con forma de dragón en el antebrazo; "
+        "es un detalle visible que no conocíamos."
+    )
+
+    started = perf_counter()
+    plan = service.prepare_turn(context, source)
+    elapsed_ms = (perf_counter() - started) * 1000
+
+    assert plan.intent_analysis is not None
+    assert plan.intent_analysis.schema_version == 2
+    assert plan.intent_analysis.allows_world_proposal
+    assert plan.mechanics_decision is not None
+    assert plan.mechanics_decision.decision.value == "none"
+    updates = [
+        operation
+        for operation in plan.ordered_operations
+        if isinstance(operation, UpdateEntityOperation)
+    ]
+    creates = [
+        operation
+        for operation in plan.ordered_operations
+        if isinstance(operation, CreateEntityOperation)
+    ]
+    assert len(updates) == 1
+    assert updates[0].entity_id == 1
+    assert not creates
+    update_text = (
+        f"{updates[0].description or ''} {updates[0].notes or ''}"
+    ).casefold()
+    assert "cicatriz" in update_text
+    assert "dragón" in update_text
+
+    ledger = SemanticEvaluationLedger()
+    ledger.record_operations(
+        expected_operations=("update_entity:1",),
+        predicted_operations=(
+            f"update_entity:{item.entity_id}"
+            for item in updates
+        ),
+    )
+    ledger.record_case(
+        "positive_explicit_npc_fact",
+        expected_slots=1,
+        matched_slots=int(len(updates) == 1 and "dragón" in update_text),
+        elapsed_seconds=elapsed_ms / 1000,
+    )
+    summary = ledger.summary()
+    assert summary["operation_precision"] == 1.0
+    assert summary["operation_recall"] == 1.0
+    ledger.emit(record_property, prefix="discourse_positive_operation")
+
+    intent_role_events = [
+        event for event in intent_events
+        if event.get("provider_role") == "intent"
+    ]
+    extraction_role_events = [
+        event for event in extraction_events
+        if event.get("provider_role") == "extraction"
+    ]
+    assert intent_role_events
+    assert extraction_role_events
+    record_property("discourse_positive_elapsed_ms", round(elapsed_ms, 3))
+    record_property("discourse_positive_intent_model", intent_provider.model)
+    record_property(
+        "discourse_positive_intent_digest",
+        intent_provider.get_model_digest() or "unavailable",
+    )
+    record_property(
+        "discourse_positive_extraction_model",
+        extraction_provider.model,
+    )
+    record_property(
+        "discourse_positive_extraction_digest",
+        extraction_provider.get_model_digest() or "unavailable",
+    )
+    record_property(
+        "discourse_positive_intent_metrics",
+        json.dumps(
+            [
+                {
+                    key: event.get(key)
+                    for key in (
+                        "prompt_bytes",
+                        "prompt_eval_count",
+                        "eval_count",
+                        "duration_ms",
+                    )
+                }
+                for event in intent_role_events
+            ],
+            sort_keys=True,
+        ),
+    )
+    record_property(
+        "discourse_positive_extraction_metrics",
+        json.dumps(
+            [
+                {
+                    key: event.get(key)
+                    for key in (
+                        "prompt_bytes",
+                        "prompt_eval_count",
+                        "eval_count",
+                        "duration_ms",
+                    )
+                }
+                for event in extraction_role_events
+            ],
+            sort_keys=True,
+        ),
+    )
