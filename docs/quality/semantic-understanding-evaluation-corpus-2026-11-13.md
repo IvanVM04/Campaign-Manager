@@ -81,7 +81,7 @@ Do not claim operation safety from intent-slot accuracy. The existing real-model
 ## 6. What this phase does not solve
 
 - The guarded model-driven correction lifecycle is now integrated by PR #221 for pending durable clarifications. PR #222 adds an opt-in live Ollama regression for a corrected recipient; no live pass is claimed until that test is run with the pinned local model.
-- The resolver remains conservative and deterministic; broad ellipsis, full grammatical agreement and arbitrary paraphrase remain open.
+- PR #223 adds bounded ellipsis cues, explicit topic callbacks, a twelve-turn history window, local grammatical agreement and labelled NPC speaker extraction. These are constrained heuristics/evidence contracts, not general discourse parsing; live quality for them remains unmeasured.
 - A literal temporal expression is not a normalized interval or event-time model.
 - The 110 scenarios are a controlled baseline, not proof of human-level understanding or broad language coverage.
 - No embeddings, vector database or additional provider call is justified by corpus size alone. Measure deterministic retrieval first.
@@ -103,6 +103,10 @@ CAMPAIGN_MANAGER_REAL_LLM_MODEL=<pinned-model-tag> python -m pytest -m real_llm 
 Record the exact model digest, Ollama version, timeout, temperature/top-p/seed where supported, hardware, run SHA and the complete per-family output. Keep failed utterances and mismatches intact as regression evidence.
 
 
-## 8. PR #223 coverage gap
+## 8. PR #223 discourse gap and PR #226 pipeline status
 
-The 110-case corpus predates the advanced discourse implementation. PR #223 adds deterministic tests for explicit topic boundaries and callbacks, ellipsis cues, twelve-turn references, local grammatical agreement, plural abstention and labelled NPC dialogue. These tests do not provide a live model accuracy score for the new behaviors. Add a separate held-out discourse tranche and report its metrics by family; do not fold new examples into prompt examples or the original hold-out. Also measure when the 650-character discourse index is compacted or dropped under prompt-budget pressure. Current implementation and effort estimates are in the [independent audit](language-understanding-audit-2026-11-14.md).
+The original 110-case corpus predates the advanced discourse implementation. PR #223 added deterministic tests for explicit topic boundaries/callbacks, ellipsis cues, twelve-turn references, local grammatical agreement, plural abstention and labelled NPC dialogue. PR #226 subsequently separated the production Intent, Mechanics and Consequence Planner roles and added safe Ollama telemetry plus one integrated live probe.
+
+These changes do not provide a live accuracy score for all the new discourse behaviors or stage-by-stage pipeline quality. The 14-case conversation hold-out remains primarily a deterministic resolver corpus. PR #227 therefore adds a distinct 28-case held-out discourse/pipeline tranche and reports intent, resolution, context, mechanics and planner metrics separately.
+
+Do not fold the new cases into prompt examples or the original 110-case corpus. Measure which bounded discourse/reference signals survive prompt-budget selection without logging their contents. See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) and the [independent audit](language-understanding-audit-2026-11-14.md).

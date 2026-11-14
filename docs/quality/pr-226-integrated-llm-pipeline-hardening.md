@@ -1,6 +1,6 @@
 # PR #226 — Integrated LLM pipeline hardening
 
-**Status:** deterministic implementation and CI complete on audited head `b0bb31d64d610c55dbb9a9da53e7d5e5db004c22`; local Ollama and SillyTavern acceptance remain pending.  
+**Status:** PR #226 merged into `main` on 2026-11-14 at 20:00:17, merge commit `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`. Deterministic CI passed on final PR head `92d2861f183aecb3fe956a1b9da4834e052a8550`; local Ollama and SillyTavern acceptance remain pending.  
 **Base:** `main` at `e59bc47e85edb8efa4d02e5eb9990de0438d3486` (PR #225 merge)  
 **Priority:** P0 — validate the modular pipeline before adding more semantic capabilities  
 **Owner of next action:** continue from the checkpoint below; do not restart the design or create a second branch.
@@ -130,12 +130,12 @@ This section is the source of truth for resuming work after an interruption. Upd
 
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
-- **Current audited head:** `b0bb31d64d610c55dbb9a9da53e7d5e5db004c22`
-- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, Draft, not merged.
+- **Final merged PR head:** `92d2861f183aecb3fe956a1b9da4834e052a8550`
+- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); merged and closed. Merge commit: `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`.
 - **Branch comparison at audit time:** 26 commits ahead of `main`, 0 behind.
 - **Completed packages:** WP0–WP6 complete. WP1 active-reference mechanics retrieval; WP2 authoritative v2 planner context and budget compaction; WP3 integrated deterministic routing/failure/compound-action tests; WP4 role-aware Ollama telemetry and integrated live probe; WP5 strict-by-default legacy compatibility gate; WP6 service/architecture/evaluation/roadmap/observability documentation and safe JSONL telemetry allowlist. The live probe follow-up also honors common endpoint and timeout overrides and records each provider role's model digest.
 - **Key implementation commits:** WP1 `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`; WP2 `708b33cea4320e54c538edbf860613b41685d9e4`, `c6a863a545ff8d51dcd6e2a02468a23cb26120a4`, `00936f3de281405d743f813bcb7159dbb9433f3a`; WP3 `4a326a38598a135d88ed339707330d075ed3abe1`, `4f1d183aef61678c37fb18d04474e885af00a4f1`; prompt compaction `4d45880db0ac9d6fc24a8b82f822f692b735a5c1`, `51aa35c7938a043b715bfc6f777bf17a7663e067`; WP4 telemetry/probe `183f1108b3eb958470d735e4da981a99c69859a6`, `b5b165e4848be7c1b778ef7cc7420de31ba7c3a6`, `4936e30cc7d3e68853150058a16df5e4ea1812e9`; WP5 `45ed0849dd612b21e2cd9ff04b68fbf54bb5c671`, strict compatibility/fixture migration `40902a6dbf32921a2b795e791e198f4dab4f25de`; WP6 `349c3111b49ad4a3fbc4ae20867b8102c436ed07`; live-probe override follow-up `b0bb31d64d610c55dbb9a9da53e7d5e5db004c22`.
-- **Latest deterministic validation on current audited head:** Tests workflow [`43634025757`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43634025757) passed: **1,826 passed, 17 deselected, 85.13% combined coverage** (85.0% gate). Ruff, repository-wide Pyright, scoped Pyright and JavaScript checks passed in the same workflow. CodeQL [`43634025710`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43634025710) passed for Python and JavaScript/TypeScript.
+- **Final deterministic validation on merged head `92d2861...`:** Tests workflow [`43634512713`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43634512713) passed: **1,826 passed, 17 deselected, 85.13% combined coverage** (85.0% gate). Ruff, repository-wide Pyright, scoped Pyright and JavaScript checks passed. CodeQL [`43634512738`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43634512738) passed for Python and JavaScript/TypeScript.
 - **Current implementation state:** production runtime composes distinct intent, mechanics and extraction roles. A single immutable semantic analysis passes through deterministic reference resolution to mechanics and the planner. The mechanics role only judges the active validated step; the planner only proposes typed consequences; domain services retain validation and persistence authority. Legacy combined methods remain deprecated compatibility shims, and the application runtime disables their fallback.
 - **Live Ollama validation:** not run for PR #226. First run:
   ```bash
@@ -143,8 +143,8 @@ This section is the source of truth for resuming work after an interruption. Upd
   ```
   The probe supports `CAMPAIGN_MANAGER_REAL_LLM_MODEL`, `CAMPAIGN_MANAGER_REAL_LLM_BASE_URL` and `CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT`; record the resolved model per role, model digests, Ollama version, timeout/settings, calls, prompt bytes, input/output tokens, latency and operation output.
 - **SillyTavern validation:** not run for PR #226. Use [the manual smoke-test checklist](../sillytavern-smoke-test.md) against recorded backend and extension revisions; cover multi-chat isolation, clarification rounds, duplicate delivery, manual dice and restart/replay recovery.
-- **Open blockers:** the two environment-dependent acceptance gates above. No deterministic CI blocker is known on the audited head. Keep the deprecated combined path until external consumers are identified and migrated.
-- **Next exact action:** run the integrated local Ollama probe above, inspect the per-role trace and semantic result, then run the relevant live corpora. If clean, complete the SillyTavern smoke checklist. Keep the PR in Draft until those gates have recorded results.
+- **Remaining acceptance:** no deterministic CI blocker remained at merge. Local Ollama quality and manual SillyTavern lifecycle acceptance are still unexecuted; keep the deprecated combined path until external compatibility consumers are identified and migrated.
+- **Follow-up after merge:** run the integrated local Ollama probe above, inspect the per-role trace and semantic result, then run the relevant live corpora. If clean, complete the SillyTavern smoke checklist. These are post-merge environment acceptance gates, not reasons to rewrite the merged implementation without evidence.
 
 ### How to resume
 

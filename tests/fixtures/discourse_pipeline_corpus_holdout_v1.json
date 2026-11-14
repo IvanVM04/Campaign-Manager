@@ -1,0 +1,1129 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "description": "Spanish-first held-out discourse and staged-pipeline scenarios reserved for measurement. Never copy these examples into prompts, schemas or few-shot instructions.",
+  "scenarios": [
+    {
+      "id": "dp-topic-current-shift-01",
+      "family": "topic_boundary",
+      "critical": false,
+      "input": "Cambiando de tema, ¿qué ocurre en la biblioteca?",
+      "recent_turns": [
+        {
+          "id": 501,
+          "player_input": "Hablo con Mara sobre el contrato.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": true,
+        "callback": false,
+        "scoped_turn_ids": []
+      }
+    },
+    {
+      "id": "dp-topic-history-segment-02",
+      "family": "topic_boundary",
+      "critical": false,
+      "input": "Ella responde desde la puerta.",
+      "recent_turns": [
+        {
+          "id": 502,
+          "player_input": "Hablo con Mara en el puerto.",
+          "narrative": ""
+        },
+        {
+          "id": 503,
+          "player_input": "Cambiando de tema, inspecciono la torre.",
+          "narrative": ""
+        },
+        {
+          "id": 504,
+          "player_input": "Busco una entrada lateral.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          503,
+          504
+        ],
+        "topic_segments": [
+          0,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "dp-topic-quoted-marker-03",
+      "family": "topic_boundary",
+      "critical": false,
+      "input": "Mara susurra: «cambiando de tema» y después se ríe.",
+      "recent_turns": [
+        {
+          "id": 505,
+          "player_input": "Hablo con Mara sobre el mapa.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          505
+        ]
+      }
+    },
+    {
+      "id": "dp-topic-narrative-quote-04",
+      "family": "topic_boundary",
+      "critical": false,
+      "input": "¿Qué quiso decir con esa frase?",
+      "recent_turns": [
+        {
+          "id": 506,
+          "player_input": "Hablo con Aldric sobre la llave.",
+          "narrative": ""
+        },
+        {
+          "id": 507,
+          "player_input": "Aldric dice: «cambiando de tema» y señala la puerta.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          506,
+          507
+        ],
+        "topic_segments": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "dp-callback-mara-05",
+      "family": "explicit_callback",
+      "critical": false,
+      "input": "Volviendo a lo de Mara, le pregunto por el mapa.",
+      "recent_turns": [
+        {
+          "id": 508,
+          "player_input": "Hablo con Mara sobre el mapa.",
+          "narrative": ""
+        },
+        {
+          "id": 509,
+          "player_input": "Cambiando de tema, inspecciono la torre.",
+          "narrative": ""
+        },
+        {
+          "id": 510,
+          "player_input": "Busco una entrada lateral.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": true,
+        "scoped_turn_ids": [
+          508,
+          509,
+          510
+        ]
+      }
+    },
+    {
+      "id": "dp-callback-lighthouse-06",
+      "family": "explicit_callback",
+      "critical": false,
+      "input": "Retomando la conversación sobre el faro, ¿quién dejó la llave?",
+      "recent_turns": [
+        {
+          "id": 511,
+          "player_input": "Examino el faro junto a Aldric.",
+          "narrative": ""
+        },
+        {
+          "id": 512,
+          "player_input": "Ahora hablemos del mercado.",
+          "narrative": ""
+        },
+        {
+          "id": 513,
+          "player_input": "Pregunto por el precio del pan.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": true,
+        "scoped_turn_ids": [
+          511,
+          512,
+          513
+        ]
+      }
+    },
+    {
+      "id": "dp-callback-earlier-07",
+      "family": "explicit_callback",
+      "critical": false,
+      "input": "Como te dije antes, quiero continuar con el asunto de la carta.",
+      "recent_turns": [
+        {
+          "id": 514,
+          "player_input": "Mara me entrega una carta sellada.",
+          "narrative": ""
+        },
+        {
+          "id": 515,
+          "player_input": "Por cierto, reviso las monturas.",
+          "narrative": ""
+        },
+        {
+          "id": 516,
+          "player_input": "Preparo el viaje.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": true,
+        "scoped_turn_ids": [
+          514,
+          515,
+          516
+        ]
+      }
+    },
+    {
+      "id": "dp-callback-not-explicit-08",
+      "family": "explicit_callback",
+      "critical": false,
+      "input": "Ella vuelve a hablar conmigo.",
+      "recent_turns": [
+        {
+          "id": 517,
+          "player_input": "Hablo con Mara junto al pozo.",
+          "narrative": ""
+        },
+        {
+          "id": 518,
+          "player_input": "Cambiando de tema, entro en la torre.",
+          "narrative": ""
+        },
+        {
+          "id": 519,
+          "player_input": "Busco una escalera.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          518,
+          519
+        ]
+      }
+    },
+    {
+      "id": "dp-ellipsis-repeat-09",
+      "family": "ellipsis_pending_action",
+      "critical": false,
+      "input": "Hazlo otra vez, por favor.",
+      "recent_turns": [
+        {
+          "id": 520,
+          "player_input": "Intento abrir la puerta de roble.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "ellipsis_hint": true,
+        "scoped_turn_ids": [
+          520
+        ]
+      }
+    },
+    {
+      "id": "dp-ellipsis-same-10",
+      "family": "ellipsis_pending_action",
+      "critical": false,
+      "input": "Lo mismo que antes, con más cuidado.",
+      "recent_turns": [
+        {
+          "id": 521,
+          "player_input": "Intento forzar el cerrojo oxidado.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "ellipsis_hint": true,
+        "scoped_turn_ids": [
+          521
+        ]
+      }
+    },
+    {
+      "id": "dp-ellipsis-continue-11",
+      "family": "ellipsis_pending_action",
+      "critical": false,
+      "input": "Continúa con eso cuando estés preparado.",
+      "recent_turns": [
+        {
+          "id": 522,
+          "player_input": "Empiezo a examinar el mecanismo de la trampa.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "ellipsis_hint": true,
+        "scoped_turn_ids": [
+          522
+        ]
+      }
+    },
+    {
+      "id": "dp-ellipsis-quoted-12",
+      "family": "ellipsis_pending_action",
+      "critical": false,
+      "input": "Mara repite: «hazlo otra vez» y después se marcha.",
+      "recent_turns": [
+        {
+          "id": 523,
+          "player_input": "Hablo con Mara sobre el mecanismo.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "ellipsis_hint": false,
+        "scoped_turn_ids": [
+          523
+        ]
+      }
+    },
+    {
+      "id": "dp-distance-boundary-13",
+      "family": "long_distance_reference",
+      "critical": true,
+      "input": "Le pregunto a ella por el mapa.",
+      "recent_turns": [
+        {
+          "id": 600,
+          "player_input": "Hablo con Mara sobre el mapa.",
+          "narrative": ""
+        },
+        {
+          "id": 601,
+          "player_input": "Observo el camino.",
+          "narrative": ""
+        },
+        {
+          "id": 602,
+          "player_input": "Espero junto al muro.",
+          "narrative": ""
+        },
+        {
+          "id": 603,
+          "player_input": "Reviso mi mochila.",
+          "narrative": ""
+        },
+        {
+          "id": 604,
+          "player_input": "Observo el camino.",
+          "narrative": ""
+        },
+        {
+          "id": 605,
+          "player_input": "Espero junto al muro.",
+          "narrative": ""
+        },
+        {
+          "id": 606,
+          "player_input": "Reviso mi mochila.",
+          "narrative": ""
+        },
+        {
+          "id": 607,
+          "player_input": "Observo el camino.",
+          "narrative": ""
+        },
+        {
+          "id": 608,
+          "player_input": "Espero junto al muro.",
+          "narrative": ""
+        },
+        {
+          "id": 609,
+          "player_input": "Reviso mi mochila.",
+          "narrative": ""
+        },
+        {
+          "id": 610,
+          "player_input": "Observo el camino.",
+          "narrative": ""
+        },
+        {
+          "id": 611,
+          "player_input": "Espero junto al muro.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1301,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          600,
+          601,
+          602,
+          603,
+          604,
+          605,
+          606,
+          607,
+          608,
+          609,
+          610,
+          611
+        ],
+        "reference": {
+          "mention": "ella",
+          "entity_id": 1301,
+          "clarification": false
+        }
+      }
+    },
+    {
+      "id": "dp-distance-outside-window-14",
+      "family": "long_distance_reference",
+      "critical": true,
+      "input": "Le pregunto a ella por el contrato.",
+      "recent_turns": [
+        {
+          "id": 620,
+          "player_input": "Hablo con Mara sobre el contrato.",
+          "narrative": ""
+        },
+        {
+          "id": 621,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 622,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 623,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 624,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 625,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 626,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 627,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 628,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 629,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 630,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 631,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        },
+        {
+          "id": 632,
+          "player_input": "Espero y observo el patio.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1302,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          621,
+          622,
+          623,
+          624,
+          625,
+          626,
+          627,
+          628,
+          629,
+          630,
+          631,
+          632
+        ],
+        "reference": {
+          "mention": "ella",
+          "entity_id": null,
+          "clarification": true
+        }
+      }
+    },
+    {
+      "id": "dp-distance-most-recent-15",
+      "family": "long_distance_reference",
+      "critical": false,
+      "input": "Le pregunto a ella si ha visto la llave.",
+      "recent_turns": [
+        {
+          "id": 640,
+          "player_input": "Hablo con Mara sobre el puerto.",
+          "narrative": ""
+        },
+        {
+          "id": 641,
+          "player_input": "Hablo con Bram sobre la llave.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1303,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1304,
+          "name": "Bram",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          640,
+          641
+        ],
+        "reference": {
+          "mention": "ella",
+          "entity_id": 1304,
+          "clarification": false
+        }
+      }
+    },
+    {
+      "id": "dp-distance-equal-focus-16",
+      "family": "long_distance_reference",
+      "critical": true,
+      "input": "Le pregunto si conoce la ruta.",
+      "recent_turns": [
+        {
+          "id": 650,
+          "player_input": "Mara y Aldric llegan juntos al mercado.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1305,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1306,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          650
+        ],
+        "reference": {
+          "mention": "le",
+          "entity_id": null,
+          "clarification": true
+        }
+      }
+    },
+    {
+      "id": "dp-grammar-explicit-local-17",
+      "family": "local_grammatical_agreement",
+      "critical": true,
+      "input": "Ella responde a mi pregunta.",
+      "recent_turns": [
+        {
+          "id": 660,
+          "player_input": "La guardia Mara y el capitán Aldric esperan junto a la puerta.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1307,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1308,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          660
+        ],
+        "grammatical_features": {
+          "text": "La guardia Mara y el capitán Aldric esperan junto a la puerta.",
+          "alias": "Mara",
+          "gender": "feminine",
+          "number": "singular"
+        },
+        "reference": {
+          "mention": "ella",
+          "entity_id": 1307,
+          "clarification": false
+        }
+      }
+    },
+    {
+      "id": "dp-grammar-name-no-inference-18",
+      "family": "local_grammatical_agreement",
+      "critical": true,
+      "input": "Ella entra en la sala.",
+      "recent_turns": [
+        {
+          "id": 661,
+          "player_input": "Mara entra por el pasillo. Aldric espera junto a la mesa.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1309,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1310,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          661
+        ],
+        "grammatical_features": {
+          "text": "Mara entra por el pasillo.",
+          "alias": "Mara",
+          "gender": null,
+          "number": null
+        },
+        "reference": {
+          "mention": "ella",
+          "entity_id": null,
+          "clarification": true
+        }
+      }
+    },
+    {
+      "id": "dp-grammar-contradictory-local-19",
+      "family": "local_grammatical_agreement",
+      "critical": true,
+      "input": "Ella me entrega el documento.",
+      "recent_turns": [
+        {
+          "id": 662,
+          "player_input": "El guardia Mara espera junto a la puerta.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1311,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          662
+        ],
+        "grammatical_features": {
+          "text": "El guardia Mara espera junto a la puerta.",
+          "alias": "Mara",
+          "gender": "masculine",
+          "number": "singular"
+        },
+        "reference": {
+          "mention": "ella",
+          "entity_id": null,
+          "clarification": true
+        }
+      }
+    },
+    {
+      "id": "dp-grammar-plural-abstention-20",
+      "family": "local_grammatical_agreement",
+      "critical": true,
+      "input": "Ellas responden desde el balcón.",
+      "recent_turns": [
+        {
+          "id": 663,
+          "player_input": "La guardia Mara y la mercadera Lía esperan en el balcón.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 1312,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1313,
+          "name": "Lía",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          663
+        ],
+        "reference": {
+          "mention": "ellas",
+          "entity_id": null,
+          "clarification": true
+        }
+      }
+    },
+    {
+      "id": "dp-npc-explicit-visible-21",
+      "family": "npc_attribution_quoted_speech",
+      "critical": false,
+      "input": "Respondo a lo que ha dicho.",
+      "recent_turns": [
+        {
+          "id": 670,
+          "player_input": "Escucho la conversación.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          670
+        ],
+        "npc_speaker_ids": [
+          1401
+        ]
+      },
+      "npc_narrative": "Mara dice: «Aldric guarda la carta en la torre».",
+      "npc_entities": [
+        {
+          "id": 1401,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1402,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ]
+    },
+    {
+      "id": "dp-npc-ambiguous-alias-22",
+      "family": "npc_attribution_quoted_speech",
+      "critical": true,
+      "input": "No estoy seguro de quién lo dijo.",
+      "recent_turns": [
+        {
+          "id": 671,
+          "player_input": "Dos personas hablan a la vez.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          671
+        ],
+        "npc_speaker_ids": []
+      },
+      "npc_narrative": "Mara dice: «No lo sé».",
+      "npc_entities": [
+        {
+          "id": 1403,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1404,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ]
+    },
+    {
+      "id": "dp-npc-inactive-speaker-23",
+      "family": "npc_attribution_quoted_speech",
+      "critical": true,
+      "input": "Recuerdo la respuesta.",
+      "recent_turns": [
+        {
+          "id": 672,
+          "player_input": "La sala queda en silencio.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          672
+        ],
+        "npc_speaker_ids": []
+      },
+      "npc_narrative": "Bram responde: «No abriré la puerta».",
+      "npc_entities": [
+        {
+          "id": 1405,
+          "name": "Bram",
+          "entity_type": "npc",
+          "active": false,
+          "description": "Visible test fixture entity"
+        }
+      ]
+    },
+    {
+      "id": "dp-npc-quote-contained-name-24",
+      "family": "npc_attribution_quoted_speech",
+      "critical": true,
+      "input": "Le pregunto qué quiso decir.",
+      "recent_turns": [
+        {
+          "id": 673,
+          "player_input": "Mara habla desde la entrada.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          673
+        ],
+        "npc_speaker_ids": [
+          1406
+        ]
+      },
+      "npc_narrative": "Mara dice: «Aldric, abre la puerta y entrega la llave».",
+      "npc_entities": [
+        {
+          "id": 1406,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        },
+        {
+          "id": 1407,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true,
+          "description": "Visible test fixture entity"
+        }
+      ]
+    },
+    {
+      "id": "dp-correction-recipient-25",
+      "family": "multi_turn_correction",
+      "critical": false,
+      "input": "No, quería entregárselo a Mara, no a Aldric.",
+      "recent_turns": [
+        {
+          "id": 680,
+          "player_input": "Entrego el mapa a Aldric.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          680
+        ],
+        "correction": {
+          "slot": "action_argument",
+          "role": "recipient",
+          "previous_value": "Aldric",
+          "replacement": "Mara",
+          "accepted": true
+        }
+      },
+      "correction_rounds": [
+        {
+          "prior_player_input": "Entrego el mapa a Aldric.",
+          "dm_question": "¿A quién quieres entregar el mapa?",
+          "player_answer": "No, quería entregárselo a Mara, no a Aldric.",
+          "expected": {
+            "slot": "action_argument",
+            "role": "recipient",
+            "previous_value": "Aldric",
+            "replacement": "Mara",
+            "accepted": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "dp-correction-relation-endpoint-26",
+      "family": "multi_turn_correction",
+      "critical": false,
+      "input": "Quise decir que Mara protege a Aldric, no a Bram.",
+      "recent_turns": [
+        {
+          "id": 681,
+          "player_input": "Mara protege a Bram durante la huida.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          681
+        ],
+        "correction": {
+          "slot": "relation_endpoint",
+          "role": "object",
+          "previous_value": "Bram",
+          "replacement": "Aldric",
+          "accepted": true
+        }
+      },
+      "correction_rounds": [
+        {
+          "prior_player_input": "Mara protege a Bram durante la huida.",
+          "dm_question": "¿A quién protege Mara?",
+          "player_answer": "Quise decir que Mara protege a Aldric, no a Bram.",
+          "expected": {
+            "slot": "relation_endpoint",
+            "role": "object",
+            "previous_value": "Bram",
+            "replacement": "Aldric",
+            "accepted": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "dp-correction-two-rounds-27",
+      "family": "multi_turn_correction",
+      "critical": false,
+      "input": "El objeto era el mapa, no la llave.",
+      "recent_turns": [
+        {
+          "id": 682,
+          "player_input": "Entrego la llave a Aldric.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          682
+        ],
+        "correction": {
+          "slot": "action_argument",
+          "role": "theme",
+          "previous_value": "llave",
+          "replacement": "mapa",
+          "accepted": true
+        }
+      },
+      "correction_rounds": [
+        {
+          "prior_player_input": "Entrego la llave a Aldric.",
+          "dm_question": "¿A quién se la entregas?",
+          "player_answer": "A Mara, no a Aldric.",
+          "expected": {
+            "slot": "action_argument",
+            "role": "recipient",
+            "previous_value": "Aldric",
+            "replacement": "Mara",
+            "accepted": true
+          }
+        },
+        {
+          "prior_player_input": "Entrego la llave a Mara.",
+          "dm_question": "¿Qué objeto entregas?",
+          "player_answer": "El objeto era el mapa, no la llave.",
+          "expected": {
+            "slot": "action_argument",
+            "role": "theme",
+            "previous_value": "llave",
+            "replacement": "mapa",
+            "accepted": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "dp-correction-ungrounded-28",
+      "family": "multi_turn_correction",
+      "critical": true,
+      "input": "No, me refería al otro.",
+      "recent_turns": [
+        {
+          "id": 683,
+          "player_input": "Entrego la carta a Mara o a Aldric, todavía no lo he decidido.",
+          "narrative": ""
+        }
+      ],
+      "visible_entities": [],
+      "expected": {
+        "current_topic_shift": false,
+        "callback": false,
+        "scoped_turn_ids": [
+          683
+        ],
+        "correction": {
+          "slot": "action_argument",
+          "role": "recipient",
+          "previous_value": "Mara/Aldric",
+          "replacement": null,
+          "accepted": false,
+          "rejection_reason": "ambiguous_or_ungrounded"
+        }
+      },
+      "correction_rounds": [
+        {
+          "prior_player_input": "Entrego la carta a Mara o a Aldric, todavía no lo he decidido.",
+          "dm_question": "¿A cuál de las dos personas te refieres?",
+          "player_answer": "No, me refería al otro.",
+          "expected": {
+            "slot": "action_argument",
+            "role": "recipient",
+            "previous_value": "Mara/Aldric",
+            "replacement": null,
+            "accepted": false,
+            "rejection_reason": "ambiguous_or_ungrounded"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # AI world understanding and player-intent quality roadmap
 
-**Status (2026-11-14):** PRs #210–#223 are merged into `main`. Audit baseline: `7f4f8b10a072665471370fab4493a338835b875c` (PR #223). Deterministic CI for #223 passed (1,774 passed, 15 deselected, 85.31% combined coverage); live Ollama and real SillyTavern acceptance are not evidenced and remain open.
-**Priority override (2026-11-14): P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability.** This is the highest active priority. It blocks additional semantic feature work and the Character Builder/gameplay expansion until the interpreter, mechanics adjudicator and consequence planner have separate contracts, bounded prompts and passing regression gates. See the [modular pipeline decision](modular-language-understanding-pipeline-2026-11-14.md) and [P0 implementation specification](language-understanding-priority-2026-11-13.md).  
+**Status (2026-11-14):** PRs #210–#226 are merged into `main`. PR #226 merge baseline: `61725a03346d2ebfcf0ce6b2aacf92c0b6789b28`. Its deterministic CI passed (1,826 passed, 17 deselected, 85.13% combined coverage); live Ollama and SillyTavern acceptance are still separate, unproven gates.
+**Priority override (2026-11-14):** P0 modularization and prompt-budget hardening are implemented by PRs #225–#226. The next active tranche is PR #227: held-out discourse and staged pipeline evaluation. Do not expand semantic features or tune prompts before the new pinned-model baseline is recorded. See the [modular pipeline decision](modular-language-understanding-pipeline-2026-11-14.md), [PR #226 audit](pr-226-integrated-llm-pipeline-hardening.md) and [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md).  
 **Initial local model:** `gemma4:26b` through Ollama (user-run acceptance; not a CI dependency)  
 **Primary objective:** make Campaign Manager reliably understand campaign state, retrieve facts relevant to a player's words, distinguish intent from outcome, propose only justified persistent changes, and narrate from committed evidence.
 
@@ -429,3 +429,11 @@ The phase is mature enough to return focus to gameplay when:
 ## 11. Independent audit after PR #223
 
 The current status, risk register, acceptance gates and hour estimates are maintained in the [independent language-understanding audit](language-understanding-audit-2026-11-14.md). Do not use older dated checklists as the current completion status.
+
+## 12. PR #227 — held-out discourse and staged pipeline evaluation
+
+PR #226 has completed the deterministic implementation of the role-separated language pipeline. The remaining gap is measurement: the original 110-case corpus predates the PR #223 discourse improvements, and the new modular pipeline has only a focused integrated live probe rather than a broad stage-attributed quality report.
+
+PR #227 is prepared on `feat/227-held-out-discourse-pipeline-evaluation` from main after the #226 merge. It will add a distinct 28-case held-out discourse/pipeline tranche across topic boundaries, callbacks, ellipsis, long-distance references, local agreement, NPC attribution/quoted speech and multi-turn corrections. It will score Intent, deterministic Resolution, Context, Mechanics and Consequence Planner separately and preserve the original 110 scenarios unchanged.
+
+**Acceptance boundary:** deterministic CI validates fixture/resolver contracts; live Ollama establishes quality only for the pinned model/settings and scenarios executed; SillyTavern lifecycle acceptance remains separate. Critical false persistent changes and secret leaks remain zero-tolerance controls. The [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) is the resumable source of truth.

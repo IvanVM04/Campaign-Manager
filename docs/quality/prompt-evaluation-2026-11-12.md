@@ -44,9 +44,9 @@ Fixture: `tests/fixtures/language_understanding_corpus_v1.json`. It covers Spani
 
 The dedicated `IntentInterpreter` now emits the v2 analysis envelope independently of mechanics. The existing corpus assertions primarily verify category, active step, clarification, actor, modality, polarity and player-reported outcome. V2 parser validation additionally checks frame structure and evidence, but the corpus does not yet comprehensively measure whether the model assigns every semantic role or relation correctly. Mechanics is separately evaluated against the validated active step.
 
-### Conversation references — six deterministic corpus scenarios plus focused regressions
+### Conversation references — six development and fourteen held-out resolver scenarios
 
-Fixture: `tests/fixtures/conversation_understanding_corpus_v2.json`. It covers unique/ambiguous pronoun antecedents, “other guard”, same-object, invisible antecedent and new proper name. PR #219 added focused deterministic regressions for player-input versus narrator evidence, semantic-kind filtering, bounded history, auditable candidate scores and abstention reasons. PR #223 extends the bound to twelve turns and adds topic segmentation/callbacks, explicit grammatical agreement and NPC speaker labels. These remain application resolver cases, not live model discourse accuracy.
+Fixtures: `tests/fixtures/conversation_understanding_corpus_v2.json` and `tests/fixtures/conversation_understanding_corpus_holdout_v1.json`. Together they cover 20 deterministic resolver cases, including unique/ambiguous antecedents, narrator versus player evidence, visibility, recency, same-object and explicit-reference behavior. PR #223 adds deterministic tests for a twelve-turn window, topic segmentation/callbacks, ellipsis cues, local grammatical agreement, plural abstention and explicitly labelled NPC dialogue. These establish application contracts; they do not provide live model discourse accuracy.
 
 The resolver uses only local grammatical evidence; it does not infer gender from names and it does not fabricate NPC speaker labels from unstructured narration. The pending-correction tests protect a guarded lifecycle; live tests are needed to measure whether the model emits appropriate corrections.
 
@@ -86,11 +86,13 @@ Run `python -m pytest -m real_llm -v -s` from the repository root. For the integ
 
 Do not combine omissions and false positives into one score. Unsupported persistent changes are more severe than a clarification request.
 
-## 6. Next corpus tranche
+## 6. Next corpus tranche — PR #227
 
-PR #220 should add at least 100 balanced labelled cases with a held-out tranche. Include: agent/patient/recipient/source/destination/instrument; pickup/drop/transfer/equip/store/use; definitions versus instances; owner versus holder; kinship, property, membership, allegiance, employment, containment and spatial relations; directed inverse claims; questions, negations, rumours, reported speech and conditional claims; Spanish/English agreement; topic shifts, ellipsis and corrections; temporal/cause language; multiple plausible objects; secrets; and positive/negative controls.
+PR #220's 110-scenario baseline is already integrated (50 development and 60 held-out cases). Do not recreate or rewrite it. The remaining evaluation gap is the live measurement of the discourse behavior added by PR #223 and the role-separated Intent → Resolution → Mechanics → Planner path hardened by PR #226.
 
-Each case should specify expected interpretation constraints, allowed/forbidden operation families, required/forbidden context facts and abstention behavior. Avoid exact JSON snapshots when several semantic representations are equally valid; assert roles and invariants.
+PR #227 adds a separate 28-case Spanish-first held-out discourse/pipeline fixture across seven families: topic boundaries, explicit callbacks, ellipsis/pending-action continuity, long-distance references/recency, local grammatical agreement, NPC attribution/quoted speech and multi-turn corrections. It also adds stage-attributed evaluation so intent accuracy is not confused with resolver links, context recall, mechanics routing or persistent operation quality.
+
+See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) for the fixture contract, work packages, acceptance criteria and resumable checkpoint.
 
 ## 7. Acceptance boundary
 
@@ -102,3 +104,9 @@ Keep P0 open until required CI passes, live Ollama results are recorded with pin
 ### PR #223 discourse additions
 
 The deterministic suite now covers explicit topic segmentation and callbacks, ellipsis cues, references through turn twelve, local grammatical agreement, plural abstention and explicitly labelled visible NPC quotations. These tests establish resolver/prompt contracts; they do not measure live model accuracy. The proposal prompt deliberately drops the optional discourse index when over budget, and the adjudicator compacts it to a small context share. Record whether the index survives each live prompt build and add regression cases where it does not. See the [independent audit](language-understanding-audit-2026-11-14.md).
+
+### PR #226 modular pipeline baseline
+
+PR #226 is merged into `main`. The production runtime now uses role-specific Intent, Mechanics and Extraction providers, with one shared `PlayerIntentAnalysis v2`; mechanics receives the validated active step, and the planner consumes the same analysis plus trusted references/confirmed mechanics. Deterministic CI for the merged PR passed (1,826 passed, 17 deselected, 85.13% combined coverage). This result is not a live Ollama or SillyTavern pass.
+
+The focused integrated live probe is `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`. PR #227 extends live evaluation beyond that single integrated negative control and reports results by stage/family.
