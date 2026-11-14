@@ -124,6 +124,32 @@ def test_intent_interpreter_keeps_player_evidence_and_reports_byte_budget_failur
     assert provider.call_count == 0
 
 
+def test_mechanics_only_parser_applies_safe_defaults_for_optional_modifiers():
+    provider = FakeLLMProvider(response=json.dumps({
+        "decision": "ability_check",
+        "ability": "strength",
+        "dc": 12,
+        "reason": "La pared carece de asideros.",
+    }))
+    analysis_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": _analysis_payload(),
+    }))
+    analysis = IntentInterpreter(analysis_provider).interpret(
+        _context(),
+        "Abro la puerta.",
+    )
+
+    decision = MechanicsAdjudicator(provider).adjudicate_analysis(
+        _context(),
+        analysis,
+    )
+
+    assert decision.decision is MechanicsDecisionType.ABILITY_CHECK
+    assert decision.advantage is False
+    assert decision.disadvantage is False
+    assert decision.situational_modifier == 0
+
+
 def test_mechanics_adjudicator_uses_only_active_validated_step_and_mechanics_schema():
     provider = FakeLLMProvider(response=json.dumps({
         "decision": "skill_check",
