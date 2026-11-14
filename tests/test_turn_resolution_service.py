@@ -97,6 +97,7 @@ class RecordingExtractor(LLMWorldExtractor):
         recent_turns=None,
         context_projection=None,
         resolved_references=(),
+        resolved_world_references=(),
     ):
         self.received_text = player_intent
         self.received_context = context
@@ -441,6 +442,7 @@ def test_extractor_failure_is_wrapped():
             recent_turns=None,
             context_projection=None,
             resolved_references=(),
+        resolved_world_references=(),
         ):
             raise RuntimeError("proposal failed")
 
@@ -487,6 +489,7 @@ def test_invalid_extractor_result_is_rejected():
             recent_turns=None,
             context_projection=None,
             resolved_references=(),
+        resolved_world_references=(),
         ):
             return [
                 "not an operation"
@@ -712,6 +715,7 @@ def test_turn_resolution_order():
         recent_turns=None,
         context_projection=None,
         resolved_references=(),
+        resolved_world_references=(),
     ):
         order.append("proposer")
         return original_propose(
@@ -834,6 +838,7 @@ def test_turn_resolution_order_with_operation():
         recent_turns=None,
         context_projection=None,
         resolved_references=(),
+        resolved_world_references=(),
     ):
         order.append("proposer")
         return original_propose(
@@ -1560,3 +1565,21 @@ def test_conversation_reference_is_forwarded_with_proposal_context_projection():
     assert reference.match_kind == "conversation_antecedent"
     assert reference.antecedent_turn_id == 5
 
+
+
+def test_recent_context_queries_cover_six_turn_reference_window():
+    turns = [
+        SimpleNamespace(
+            id=index + 1,
+            player_input=f"Turno visible {index + 1}",
+            narrative="",
+        )
+        for index in range(7)
+    ]
+
+    queries = TurnResolutionService._recent_context_queries(turns)
+
+    assert len(queries) == 6
+    assert "Turno visible 1" not in queries
+    assert "Turno visible 2" in queries
+    assert "Turno visible 7" in queries

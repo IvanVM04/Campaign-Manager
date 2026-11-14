@@ -249,3 +249,30 @@ def test_proposal_prompt_builder_compacts_optional_context_with_utf8_byte_budget
             make_context(),
             max_prompt_tokens=100,
         )
+
+
+def test_proposal_prompt_includes_typed_world_references_without_merging_id_spaces():
+    from models.resolved_world_reference import (
+        ResolvedWorldReference,
+        WorldReferenceCategory,
+    )
+
+    reference = ResolvedWorldReference(
+        mention="la llave",
+        category=WorldReferenceCategory.ITEM_INSTANCE,
+        referent_id=901,
+        name="Llave de hierro (instancia #1)",
+        match_kind="typed_conversation_antecedent",
+        confidence_score=92,
+        resolution_signals=("player_authored_focus",),
+    )
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "La guardo en la mochila.",
+        make_context(),
+        resolved_world_references=(reference,),
+    )
+
+    assert "REFERENCIAS TIPADAS A REGISTROS DEL MUNDO" in prompt
+    assert "'la llave' -> item_instance#901" in prompt
+    assert "Llave de hierro (instancia #1)" in prompt
+    assert "nunca intercambies un ID entre espacios de nombres" in prompt

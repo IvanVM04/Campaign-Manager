@@ -1,7 +1,7 @@
 # Semantic-understanding evaluation corpus — 2026-11-13
 
-**Implementation:** PR #220, `feat/220-semantic-evaluation-corpus`  
-**Baseline:** merge of PR #219, `cd701d11eb36666ab5ad33603095a2d95289882b`  
+**Foundation:** PR #220 introduced the 110-scenario corpus; PR #222 extends scoring with semantic-slot precision/recall/F1 and typed world-reference regressions.  
+**Baseline:** `main` before PR #222, `fd3e90039cc2f3409bec3917f5a34cc7bdaca696`  
 **Priority:** P0 — measurement before prompt or retrieval expansion.
 
 ## 1. Purpose
@@ -50,7 +50,7 @@ The corpus is Spanish-first. Existing English cases remain in the development co
 
 The conversation hold-out suite additionally reports entity-link precision/recall and correct versus incorrect abstentions. A candidate that should remain unresolved must not be counted as a successful link.
 
-The ledger also exposes recorders for context recall, operation precision/recall, critical false persistent changes and secret visibility. The deterministic projection test uses a 750-entity synthetic world to prove mandatory visible entities survive selection and secret event markers stay out of rendered model context. The live operation-quality test adds positive controls (a genuinely new fact on a known NPC and an explicitly introduced NPC) and critical negative controls (failed attempt on a known locked door, ephemeral observation, conditional plan, negation, question and quoted instruction). These are deliberately separate from parser slot accuracy: a correctly parsed utterance does not prove retrieval quality or safe consequences.
+The ledger also exposes recorders for context recall, operation precision/recall, critical false persistent changes and secret visibility. PR #222 adds multiset-based semantic argument/relation precision, recall and F1 so duplicate or unsupported model slots count as false positives. The deterministic projection test uses a 750-entity synthetic world to prove mandatory visible entities survive selection and secret event markers stay out of rendered model context. The live operation-quality test adds positive controls (a genuinely new fact on a known NPC and an explicitly introduced NPC) and critical negative controls (failed attempt on a known locked door, ephemeral observation, conditional plan, negation, question and quoted instruction). These are deliberately separate from parser slot accuracy: a correctly parsed utterance does not prove retrieval quality or safe consequences.
 
 ## 4. Quality-gate policy
 
@@ -80,7 +80,7 @@ Do not claim operation safety from intent-slot accuracy. The existing real-model
 
 ## 6. What this phase does not solve
 
-- The model-driven correction chain remains unintegrated. PR #219 supplies a safe immutable correction primitive, but the provider schema does not yet emit a typed correction payload and the runtime does not yet run an autonomous correction loop.
+- The guarded model-driven correction lifecycle is now integrated by PR #221 for pending durable clarifications. PR #222 adds an opt-in live Ollama regression for a corrected recipient; no live pass is claimed until that test is run with the pinned local model.
 - The resolver remains conservative and deterministic; broad ellipsis, full grammatical agreement and arbitrary paraphrase remain open.
 - A literal temporal expression is not a normalized interval or event-time model.
 - The 110 scenarios are a controlled baseline, not proof of human-level understanding or broad language coverage.

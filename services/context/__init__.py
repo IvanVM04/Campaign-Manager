@@ -18,6 +18,10 @@ from .proposal_context_selector import (
     ProposalContextBudgetError,
     ProposalContextSelector,
 )
+from .world_reference_resolver import (
+    WorldReferenceResolution,
+    WorldReferenceResolver,
+)
 
 __all__ = [
     "ContextBuilder",
@@ -32,4 +36,6 @@ __all__ = [
     "MemorySearchService",
     "ProposalContextBudgetError",
     "ProposalContextSelector",
+    "WorldReferenceResolution",
+    "WorldReferenceResolver",
 ]

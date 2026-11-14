@@ -278,3 +278,78 @@ def test_antecedents_older_than_six_turns_are_not_considered():
     )
     assert result.references == ()
     assert result.clarification_question is not None
+
+
+def test_typed_item_pronoun_is_not_stolen_by_a_same_named_entity_candidate():
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="La llave", entity_type="npc"),
+        }
+    )
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis(
+            "La guardo en la mochila.",
+            "La",
+            kind_hint=SemanticObjectKind.ITEM_INSTANCE,
+        ),
+        recent_turns=[turn(81, "Encuentro la llave bajo la mesa.")],
+    )
+
+    assert result.references == ()
+    assert result.clarification_question is None
+
+
+def test_entity_and_world_kinds_for_same_mention_abstain_instead_of_double_resolving():
+    utterance = "La guardo."
+    payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": utterance,
+            "actor": "player",
+            "action": "guardar el referente",
+            "modality": "attempted",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["La"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "guardo",
+                "family": "interaction",
+                "arguments": [
+                    {
+                        "role": "theme",
+                        "mention": {"text": "La", "kind_hint": "item_instance"},
+                    },
+                    {
+                        "role": "recipient",
+                        "mention": {"text": "La", "kind_hint": "character"},
+                    },
+                ],
+            },
+        }],
+        "active_step_index": 0,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    interpretation = PlayerIntentAnalysis.from_payload(
+        payload,
+        source_text=utterance,
+    )
+    world = WorldState(
+        entities={
+            1: Entity(id=1, name="La llave", entity_type="npc"),
+        }
+    )
+    result = ConversationReferenceResolver().resolve(
+        world,
+        interpretation,
+        recent_turns=[turn(82, "Encuentro la llave bajo la mesa.")],
+    )
+
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "semantic_kind_conflict"

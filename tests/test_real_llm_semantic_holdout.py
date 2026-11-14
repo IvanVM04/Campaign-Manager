@@ -13,6 +13,7 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
+from models.semantic_frames import SemanticArgumentRole, SemanticObjectKind
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import OllamaProvider
@@ -324,3 +325,89 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     if observational_failures:
         print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
     assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
+
+
+def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
+    """The configured model must repair a wrong recipient from the latest answer."""
+    from models.pending_intent_correction import PendingCorrectionSlot
+    from models.player_intent_analysis import PlayerIntentAnalysis
+
+    original = "Entrego la llave de hierro a Aldric."
+    clarification_question = "¿A qué persona entregas la llave?"
+    correction_answer = "No, me refería a Mara, no a Aldric."
+    cumulative_evidence = original + "\n\n" + correction_answer
+    pending = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": original,
+                "actor": "player",
+                "action": "entregar la llave de hierro a Aldric",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la llave de hierro", "Aldric"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Entrego",
+                    "family": "transfer",
+                    "arguments": [
+                        {
+                            "role": "theme",
+                            "mention": {
+                                "text": "la llave de hierro",
+                                "kind_hint": SemanticObjectKind.ITEM_INSTANCE.value,
+                            },
+                        },
+                        {
+                            "role": SemanticArgumentRole.RECIPIENT.value,
+                            "mention": {
+                                "text": "Aldric",
+                                "kind_hint": SemanticObjectKind.CHARACTER.value,
+                            },
+                        },
+                    ],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=original,
+    )
+
+    adjudicator = _make_adjudicator()
+    result = adjudicator.understand_pending(
+        _make_context(),
+        original + "\n\nDM: " + clarification_question + "\n" + correction_answer,
+        pending_analysis=pending,
+        correction_evidence_text=correction_answer,
+        evidence_text=cumulative_evidence,
+    )
+
+    assert result.analysis.schema_version == 2
+    assert len(result.corrections) == 1
+    correction = result.corrections[0]
+    assert correction.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+    assert correction.argument_role is SemanticArgumentRole.RECIPIENT
+    assert correction.previous_value == "Aldric"
+    assert correction.replacement.text == "Mara"
+    assert correction.matches_analysis(result.analysis)
+
+    corrected = correction.apply(
+        pending,
+        player_evidence_text=cumulative_evidence,
+        resolution_pending=True,
+        committed=False,
+    )
+    assert corrected.steps[0].action_frame.arguments[1].mention.text == "Mara"
+    record_property(
+        "pending_correction_model",
+        os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
+    )
+    record_property("pending_correction_slot", correction.slot.value)
+    record_property("pending_correction_role", correction.argument_role.value)
+    record_property("pending_correction_provider_calls", 1)

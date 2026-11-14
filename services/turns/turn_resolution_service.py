@@ -7,6 +7,7 @@ from models.mechanics import MechanicsDecision, MechanicsDecisionType, Mechanics
 from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
@@ -22,7 +23,11 @@ from rules_engine.dnd5e_2014.character_checks import (
     saving_throw_for_character,
 )
 from rules_engine.dnd5e_2014.core.dice import DiceRoller
-from services.context import ContextBuilder, ConversationReferenceResolver
+from services.context import (
+    ContextBuilder,
+    ConversationReferenceResolver,
+    WorldReferenceResolver,
+)
 from services.llm_world import LLMWorldExtractor
 from services.turns.dm_service import DMService
 from services.turns.mechanics_adjudicator import (
@@ -156,6 +161,7 @@ class TurnResolutionService:
         self.dice_roller = dice_roller or DiceRoller()
         self.context_builder = context_builder
         self.conversation_reference_resolver = ConversationReferenceResolver()
+        self.world_reference_resolver = WorldReferenceResolver()
         self.proposal_context_max_tokens = proposal_context_max_tokens
 
     # ============================================================
@@ -169,7 +175,8 @@ class TurnResolutionService:
             return ()
         queries: list[str] = []
         seen: set[str] = set()
-        for item in recent_turns[-3:]:
+        # The resolver uses six turns; retrieval must search the same window.
+        for item in recent_turns[-6:]:
             if isinstance(item, dict):
                 values = (item.get("player_input", ""), item.get("narrative", ""))
             else:
@@ -457,6 +464,7 @@ class TurnResolutionService:
 
         context_projection = None
         resolved_references: tuple[ResolvedConversationReference, ...] = ()
+        resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
         if self.context_builder is not None and intent_analysis.allows_world_proposal:
             mandatory_entity_ids: list[int] = []
             if context.active_character is not None:
@@ -543,6 +551,31 @@ class TurnResolutionService:
                         intent_evidence_text=normalized_evidence_text,
                         intent_corrections=intent_corrections,
                     )
+                typed_reference_result = self.world_reference_resolver.resolve(
+                    context_projection.world,
+                    intent_analysis,
+                    recent_turns=recent_turns or (),
+                    character_entity_id=(
+                        context.active_character.entity_id
+                        if context.active_character is not None
+                        else None
+                    ),
+                )
+                resolved_world_references = typed_reference_result.references
+                if typed_reference_result.clarification_question:
+                    question = typed_reference_result.clarification_question
+                    return TurnResolutionPlan(
+                        player_input=normalized_input,
+                        narrative=question,
+                        world_operations=(),
+                        character_operations=(),
+                        ordered_operations=(),
+                        clarification_question=question,
+                        mechanics_decision=decision,
+                        intent_analysis=intent_analysis,
+                        intent_evidence_text=normalized_evidence_text,
+                        intent_corrections=intent_corrections,
+                    )
             except Exception as exc:
                 raise TurnResolutionServiceError(
                     "proposal context selection failed"
@@ -559,6 +592,7 @@ class TurnResolutionService:
                     intent_analysis=intent_analysis,
                     recent_turns=recent_turns,
                     resolved_references=resolved_references,
+                    resolved_world_references=resolved_world_references,
                 )
             else:
                 operations = self.extractor.propose(
@@ -569,6 +603,7 @@ class TurnResolutionService:
                     recent_turns=recent_turns,
                     context_projection=context_projection,
                     resolved_references=resolved_references,
+                    resolved_world_references=resolved_world_references,
                 )
         except Exception as exc:
             raise TurnResolutionServiceError(
