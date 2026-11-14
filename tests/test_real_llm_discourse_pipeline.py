@@ -303,9 +303,14 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                     )
                     selected_entities = context_data.get("entities", [])
                     selected_ids = {
-                        getattr(item, "id", None)
+                        (
+                            item.get("id")
+                            if isinstance(item, dict)
+                            else getattr(item, "id", None)
+                        )
                         for item in selected_entities
                     }
+                    selected_ids.discard(None)
                     expected_context_id = reference["entity_id"]
                     context_hit = expected_context_id in selected_ids
                     ledger.record_context_recall(
