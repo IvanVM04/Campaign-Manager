@@ -119,6 +119,7 @@ class TurnResolutionService:
         context_builder: ContextBuilder | None = None,
         proposal_context_max_tokens: int = 4096,
         intent_interpreter: IntentInterpreter | None = None,
+        proposal_context_max_bytes: int | None = None,
     ) -> None:
 
         if not isinstance(
@@ -157,6 +158,8 @@ class TurnResolutionService:
             raise TypeError("dice_roller must be a DiceRoller or None")
         if context_builder is not None and not isinstance(context_builder, ContextBuilder):
             raise TypeError("context_builder must be a ContextBuilder or None")
+        if proposal_context_max_bytes is not None:
+            proposal_context_max_tokens = proposal_context_max_bytes
         if (
             isinstance(proposal_context_max_tokens, bool)
             or not isinstance(proposal_context_max_tokens, int)
@@ -173,6 +176,7 @@ class TurnResolutionService:
         self.context_builder = context_builder
         self.conversation_reference_resolver = ConversationReferenceResolver()
         self.world_reference_resolver = WorldReferenceResolver()
+        self.proposal_context_max_bytes = proposal_context_max_tokens
         self.proposal_context_max_tokens = proposal_context_max_tokens
 
     # ============================================================
