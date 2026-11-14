@@ -25,12 +25,13 @@ indexes over searching through dated audit history.
 14. [AI world-understanding roadmap](quality/ai-world-understanding-roadmap-2026-11-12.md) — multi-PR strategy for world comprehension, retrieval, intent semantics, knowledge provenance and narrative continuity.
 15. [P0 language-understanding implementation specification](quality/language-understanding-priority-2026-11-13.md) — current P0 priority register, shared intent contract and acceptance gates.
 16. [Modular language-understanding pipeline](quality/modular-language-understanding-pipeline-2026-11-14.md) — approved Priority #1 architecture decision, stage boundaries, prompt budgets and acceptance criteria.
-17. [Independent language-understanding audit](quality/language-understanding-audit-2026-11-14.md) — skeptical assessment of PRs #210–#223, remaining risks, prompt-budget failure and effort estimates.
-18. [Entity reference resolution](quality/entity-reference-resolution-2026-11-12.md) — explicit aliases, deterministic matching rules, ambiguity abstention and known limitations.
-19. [Semantic-understanding next-phase plan](quality/semantic-understanding-next-phase-2026-11-13.md) — typed action arguments, grounded relations, object identity, discourse and correction roadmap.
-20. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
-21. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
-22. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
+17. [PR #226 execution checkpoint](quality/pr-226-integrated-llm-pipeline-hardening.md) — current integrated pipeline hardening, deterministic CI, telemetry, compatibility boundary and exact live acceptance hand-off.
+18. [Independent language-understanding audit](quality/language-understanding-audit-2026-11-14.md) — skeptical assessment of PRs #210–#223, remaining risks, prompt-budget failure and effort estimates.
+19. [Entity reference resolution](quality/entity-reference-resolution-2026-11-12.md) — explicit aliases, deterministic matching rules, ambiguity abstention and known limitations.
+20. [Semantic-understanding next-phase plan](quality/semantic-understanding-next-phase-2026-11-13.md) — typed action arguments, grounded relations, object identity, discourse and correction roadmap.
+21. [Historical test-suite audit](quality/test-suite-audit-2026-11-11.md) — dated suite analysis and prior reorganization decisions.
+22. [Architecture documentation index](architecture/README.md) — active design contracts and historical audit snapshots.
+23. [Quality roadmap](quality/ci-quality-roadmap.md) — staged static-analysis policy.
 
 ## Active architectural contracts
 

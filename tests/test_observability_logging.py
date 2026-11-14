@@ -59,6 +59,24 @@ def test_json_formatter_includes_correlation_and_allowlisted_fields_only():
     record.provider_role = "extraction"
     record.provider_model = "test-model"
     record.duration_ms = 123.4
+    record.response_model = "gemma4:26b"
+    record.prompt_bytes = 2048
+    record.prompt_section_bytes = {"instructions": 256, "context": 512}
+    record.prompt_eval_count = 640
+    record.eval_count = 128
+    record.prompt_eval_duration = 1_000_000
+    record.eval_duration = 2_500_000
+    record.prompt_eval_duration_ms = 1.0
+    record.eval_duration_ms = 2.5
+    record.request_status = "completed"
+    record.done_reason = "stop"
+    record.done = True
+    record.result_family = "skill_check"
+    record.step_count = 2
+    record.active_step_index = 0
+    record.operation_count = 1
+    record.operation_types = ["CreateEntityOperation"]
+    record.mechanics_outcome = "failure"
     record.prompt = "full internal prompt must not be serialized"
     record.secret_value = "private campaign secret"
 
@@ -76,6 +94,22 @@ def test_json_formatter_includes_correlation_and_allowlisted_fields_only():
     assert payload["provider_role"] == "extraction"
     assert payload["provider_model"] == "test-model"
     assert payload["duration_ms"] == 123.4
+    assert payload["response_model"] == "gemma4:26b"
+    assert payload["prompt_bytes"] == 2048
+    assert payload["prompt_section_bytes"] == {"instructions": 256, "context": 512}
+    assert payload["prompt_eval_count"] == 640
+    assert payload["eval_count"] == 128
+    assert payload["prompt_eval_duration_ms"] == 1.0
+    assert payload["eval_duration_ms"] == 2.5
+    assert payload["request_status"] == "completed"
+    assert payload["done_reason"] == "stop"
+    assert payload["done"] is True
+    assert payload["result_family"] == "skill_check"
+    assert payload["step_count"] == 2
+    assert payload["active_step_index"] == 0
+    assert payload["operation_count"] == 1
+    assert payload["operation_types"] == ["CreateEntityOperation"]
+    assert payload["mechanics_outcome"] == "failure"
     assert "prompt" not in payload
     assert "secret_value" not in payload
     assert "must-not-leak" not in payload["message"]

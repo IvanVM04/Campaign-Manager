@@ -68,15 +68,17 @@ The target is not that the model "knows everything". The target is that it:
 
 ### Active data flow — PRs #215–#223 integrated
 
-`TurnResolutionService` now orchestrates a shared semantic interpretation:
+`TurnResolutionService` now orchestrates the modular shared-analysis pipeline
+introduced by PR #225 and hardened in PR #226:
 
-1. receive and validate the player's original input, with bounded recent visible turns;
-2. call `MechanicsAdjudicator.understand()` once; the structured response contains both a versioned `PlayerIntentAnalysis` and a mechanics decision;
-3. validate literal source excerpts/target mentions and the active step; skip mechanics adjudication for questions, plans, dialogue, negations and already-reported outcomes;
-4. build a bounded `WorldContextProjection` only when the analysis permits a world proposal, using literal target mentions and recent turns as supplemental retrieval signals;
-5. pass the exact same analysis object and bounded visible history to `LLMWorldExtractor`; the proposal prompt must not independently reinterpret the raw utterance or execute future steps;
-6. parse/validate typed operations and apply them through the existing world application boundary;
-7. narrate from the committed resolution through `DMService`.
+1. receive and validate the player's original input, chat identity and bounded recent visible turns;
+2. call `IntentInterpreter.interpret()` once to produce the versioned v2 `PlayerIntentAnalysis` (ordered steps, modality, polarity, frames, relations, attribution and clarification state);
+3. validate literal evidence and resolve canonical conversation/world references deterministically; abstain on ambiguous or invisible references;
+4. call `MechanicsAdjudicator.adjudicate_analysis()` only for a validated, positive active attempt that needs a mechanics decision; the model returns only a `MechanicsDecision`, while the rules engine calculates the roll and result;
+5. build the bounded `WorldContextProjection` only when the analysis permits a proposal, using references resolved for the active step;
+6. pass the exact same analysis object, trusted references and confirmed mechanics result to `LLMWorldExtractor`; the v2 planner does not reconstruct intent from a duplicate transcript/discourse block or advance conditional future steps;
+7. parse/validate typed operations and apply them through the existing world application boundary;
+8. narrate from the committed resolution through `DMService`.
 
 The durable resolution stores the analysis and exact source text in `intent_json`, with a SHA-256 source fingerprint. Manual-roll continuation reuses the saved analysis; clarification continuation appends its answer to the original source and produces a new analysis. Migration 033 adds the column and protects committed evidence.
 
@@ -92,7 +94,7 @@ The dependency direction remains: `services/turns` can orchestrate `services/con
 - There is no explicit, typed provenance/epistemic model for confirmed, inferred, rumored, unknown and character-known facts. A boolean secret flag is not a full knowledge model.
 - The adjudicator and proposal stages now share the same typed interpretation. Narration remains a separate post-commit responsibility; the semantic contract is not a fact or write authority.
 - PR #216 adds a deterministic conversation resolver over at most six recent turns in the same chat. It handles a narrow set of Spanish/English pronouns, demonstratives, same-object and curated other-role patterns, and resolves only one visible candidate. Grammatical agreement, semantic-type constraints, speaker-aware discourse, broad ellipsis, arbitrary paraphrase and correction-chain reasoning remain open.
-- The live model has not yet been shown to follow the new combined JSON contract repeatably. Deterministic schema tests do not measure live semantic accuracy or latency.
+- The live model has not yet been shown to follow the separate intent-only, mechanics-only and consequence-proposal contracts repeatably as one integrated turn. Deterministic schema tests do not measure live semantic accuracy, latency or cross-stage behavior. PR #226 adds safe telemetry and an opt-in integrated probe, but that probe still needs to be run against the configured local model.
 
 PRs #210–#223 are integrated. #223 adds deterministic discourse hints and a twelve-turn bounded history; it does not implement general discourse parsing. See the [independent audit](language-understanding-audit-2026-11-14.md) for the verified baseline and gaps. Live Ollama and manual SillyTavern acceptance remain mandatory and are not inferred from merged code.
 

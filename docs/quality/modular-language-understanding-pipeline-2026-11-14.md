@@ -1,6 +1,6 @@
 # Modular language-understanding pipeline — P0 architecture decision
 
-**Status:** PR #225 merged at `e59bc47e85edb8efa4d02e5eb9990de0438d3486`; deterministic CI passed (1,810 passed, 16 deselected, 85.05% coverage). Live-model and SillyTavern acceptance remain separate pending gates.  
+**Status:** PR #225 merged at `e59bc47e85edb8efa4d02e5eb9990de0438d3486`. PR #226 remains open in draft on `feat/226-integrated-llm-pipeline-hardening`; its latest fully validated head before this documentation/allowlist update passed 1,826 tests (17 deselected), 85.13% combined coverage, Ruff, both Pyright scopes, JavaScript and CodeQL. Live Ollama and manual SillyTavern acceptance remain separate pending gates.  
 **Priority:** P0 / Priority #1 — blocks additional semantic feature work until the pipeline and prompt-budget contracts are reliable.  
 **Decision date:** 2026-11-14.  
 **Current implementation baseline:** PR #223 merge `7f4f8b10a072665471370fab4493a338835b875c`. PR #224 documentation baseline is merged at `ed65d62269ccf8a86f523d2224d5c33f4d5c7055`.  
@@ -204,7 +204,13 @@ The first implementation pass on `feat/225-modular-language-understanding-pipeli
 - [ ] Full local Ollama corpus and operation-quality runs must be executed with the pinned model/configuration; adding the test code does not constitute a live pass.
 - [ ] Manual SillyTavern multi-chat, clarification and durable recovery acceptance remains open.
 
-**Compatibility note:** the old combined `MechanicsAdjudicator.understand()` API remains temporarily for external/legacy callers and historical unit tests. Production runtime composition injects the dedicated interpreter and does not use that combined path. It should be retired only after callers and durable fixtures have migrated.
+**Compatibility note:** the old combined `MechanicsAdjudicator.understand()`,
+`understand_pending()` and `adjudicate()` methods remain deprecated shims for
+older external consumers and compatibility tests. PR #226 gates the
+`TurnResolutionService` fallback with `allow_legacy_combined_understanding`,
+which defaults to `False`; the application runtime explicitly keeps it
+disabled. Legacy fixtures must opt in. Remove the combined prompt/schema only
+after external consumers migrate and their tests prove the migration.
 
 **Byte-budget configuration:**
 
@@ -221,12 +227,14 @@ PR #225 establishes the modular production architecture and has passed determini
 
 The first identified improvement is mechanics context retrieval: canonical names from deterministic references resolved for the active step should be supplemental retrieval signals, so pronouns/ellipsis can still retrieve the obstacle/item details needed for adjudication. This work is tracked with explicit packages and a durable continuation checkpoint in [PR #226 integrated pipeline hardening](pr-226-integrated-llm-pipeline-hardening.md).
 
-PR #226 must separately demonstrate:
-- integrated Intent → resolution → Mechanics → Planner routing with one shared analysis;
-- no false persistent changes for critical negative controls;
-- mechanics retrieval using only active-step canonical references;
-- planner prompts that prioritize shared analysis without duplicating untrusted discourse;
-- live Ollama results and telemetry on a pinned model;
-- migration of remaining callers from the legacy combined adjudicator.
+PR #226 implementation status (branch remains open and unmerged):
+- [x] Mechanics retrieval uses canonical names and literal mentions only from references resolved for the active step.
+- [x] The v2 planner consumes the shared analysis without duplicate transcript/discourse blocks; original player text remains grounding evidence only.
+- [x] Integrated deterministic tests cover same-analysis hand-off, clarification/ambiguity routing, completed observations, mechanics failure propagation, blocked compound progression, plans and negations.
+- [x] Ollama usage telemetry captures role/model, prompt bytes, token counts and timing metadata when supplied; server version/model digest are optional; JSONL allowlist tests protect safe diagnostic persistence.
+- [x] Legacy combined fallback is disabled by default and explicitly disabled in the production runtime; old APIs remain deprecated compatibility shims only.
+- [x] Latest validated WP5 baseline: 1,826 tests passed, 17 deselected, 85.13% combined coverage; Ruff, both Pyright jobs, JavaScript and CodeQL green.
+- [ ] Run the integrated opt-in Ollama probe and the unchanged live corpora with the user's pinned local model/configuration; record the result rather than inferring it from CI.
+- [ ] Complete the full manual SillyTavern multi-chat, clarification, restart, duplicate-delivery and durable replay checklist.
 
 Deterministic CI, live Ollama and SillyTavern acceptance remain distinct gates.

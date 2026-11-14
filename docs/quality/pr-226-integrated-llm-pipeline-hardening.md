@@ -90,9 +90,11 @@ A green deterministic suite is necessary but is not evidence of model quality. L
 - **Follow-up:** remove the compatibility prompt/schema only when downstream integrations no longer depend on the combined response contract.
 
 ### WP6 — Documentation and handoff
-- Update `services/turns/README.md`, `services/llm_world/README.md`, and the modular pipeline decision record.
-- Keep this file's checkpoint accurate after every meaningful implementation block.
-- Record completed commits, test commands/results, unresolved issues, and the exact next action.
+- [x] Update `services/turns/README.md`, `services/providers/README.md`, and the modular pipeline decision record.
+- [x] Synchronize the prompt-evaluation guide, current AI-understanding roadmap, observability policy and documentation hub with the role-specific runtime path.
+- [x] Extend the JSONL allowlist to retain safe Ollama usage and stage-result metadata; add an allowlist regression test so token/timing fields are actually persisted.
+- [x] Keep this file's checkpoint accurate after every meaningful implementation block.
+- [x] Record completed commits, deterministic CI results, unresolved environment-dependent acceptance gates and the exact next action.
 
 ## 4. Explicit non-goals
 
@@ -128,22 +130,22 @@ This section is the source of truth for resuming work after an interruption. Upd
 
 - **Branch:** `feat/226-integrated-llm-pipeline-hardening`
 - **Base commit:** `e59bc47e85edb8efa4d02e5eb9990de0438d3486`
-- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, not merged, draft.
-- **Current head:** pending strict-by-default compatibility gate and migrated legacy fixtures.
-- **Completed packages:** WP0 complete; WP1 mechanics reference retrieval implemented; WP2 planner context specialization and v2 prompt-budget regression fix implemented; WP3 deterministic integrated routing complete; WP4 Ollama usage telemetry and integrated live probe implemented (live run pending); WP5 legacy combined fallback gated off in production runtime, documented as compatibility-only, with regression tests.
+- **PR:** [#226 — harden and validate the integrated LLM pipeline](https://github.com/IvanVM04/Campaign-Manager/pull/226); open, draft, not merged.
+- **Last fully validated code head before this WP6 documentation/allowlist commit:** `40902a6dbf32921a2b795e791e198f4dab4f25de`.
+- **Completed packages:** WP0–WP6 implementation and deterministic validation complete. WP1 active-reference retrieval; WP2 authoritative v2 planner context and prompt compaction; WP3 integrated routing/failure/compound tests; WP4 Ollama safe usage telemetry, model/server metadata helpers and integrated live acceptance probe; WP5 strict-by-default legacy compatibility gate; WP6 documentation and JSONL allowlist synchronization.
 - **Key implementation commits:**
-  - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc05214397525ae043454919682b1a`.
+  - WP1: `183be14676ef80c0bbbda516e3932ef6bb886359`, `3efec551867dad7f5285d932a76f08a757ce499d`, `6270853a7afc052ae43f813bcb7159dbb9433f3a`.
   - WP2: `708b33cea4320e54c538edbf860613b41685d9e4`, `c6a863a545ff8d51dcd6e2a02468a23cb26120a4`, `00936f3de281405d743f813bcb7159dbb9433f3a`.
   - WP3: `4a326a38598a135d88ed339707330d075ed3abe1`, `4f1d183aef61678c37fb18d04474e885af00a4f1`.
-  - WP2 compaction fix: `4d45880db0ac9d6fc24a8b82f822f692b735a5c1`, `51aa35c7938a043b715bfc6f777bf17a7663e067`.
-  - WP4 telemetry/live probe: `183f1108b3eb958470d735e4da981a99c69859a6`; linter follow-up `b5b165e4848be7c1b778ef7cc7420de31ba7c3a6`; partial-result telemetry compatibility fix `4936e30cc7d3e68853150058a16df5e4ea1812e9`.
-- **Current implementation state:** mechanics retrieves active-step canonical and literal references; v2 planner uses one shared analysis; integrated deterministic tests verify routing, mechanics failure propagation and blocked conditional progression. Ollama usage metadata is captured without logging prompt/completion content. The role-specific production runtime disables the former combined contract; an explicit compatibility switch remains for older callers and tests only.
-- **Deterministic validation:** WP4 head run [`43629723969`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43629723969) passed: **1,823 passed, 17 deselected**, **85.14%** combined coverage. Ruff, both Pyright jobs, JavaScript tests and CodeQL [`43629723957`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43629723957) passed.
-- **Live Ollama validation:** not run here. Opt-in integrated test: `test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action`.
-- **SillyTavern validation:** not run for PR #226.
-- **CI history:** WP5 first run `43630505741` had 1 failing compatibility test because a reloaded legacy SillyTavern test did not opt back in after constructing a fresh runtime; 1,824 passed, 17 deselected and coverage was 85.10%. The current patch changes compatibility to opt-in by default and migrates that reloaded fixture plus the direct combined mechanics integration helper. Recheck CI on the new head.
-- **Open blockers:** validate strict-by-default WP5 in deterministic CI. Then WP6 final documentation/audit remains; live Ollama and first SillyTavern checks remain separate acceptance gates.
-- **Next exact action:** inspect CI for the strict-by-default WP5 commit. If green, complete WP6 docs/audit and hand off the exact live Ollama command and remaining SillyTavern checklist. Do not remove the legacy combined schema until external consumers migrate and that migration is tested.
+  - Prompt compaction: `4d45880db0ac9d6fc24a8b82f822f692b735a5c1`, `51aa35c7938a043b715bfc6f777bf17a7663e067`.
+  - WP4: `183f1108b3eb958470d735e4da981a99c69859a6`, `b5b165e4848be7c1b778ef7cc7420de31ba7c3a6`, `4936e30cc7d3e68853150058a16df5e4ea1812e9`.
+  - WP5: `45ed0849dd612b21e2cd9ff04b68fbf54bb5c671`; strict-by-default and fixture migration: `40902a6dbf32921a2b795e791e198f4dab4f25de`.
+- **Current implementation state:** production runtime has separate intent, mechanics and extraction providers; the same immutable interpretation passes through deterministic resolution to mechanics and planner; planner avoids duplicate transcript/discourse and does not advance future conditional steps. Mechanics uses only active-step resolved references. Legacy combined APIs remain deprecated compatibility shims and the turn-service fallback is disabled by default and in production. Ollama telemetry collects role/model, UTF-8 prompt bytes, token counts, nanosecond/millisecond timings and completion metadata without logging prompts or completions. JSONL now allowlists the bounded diagnostic fields. Documentation is synchronized.
+- **Latest deterministic validation:** workflow [`43632276642`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43632276642) passed: **1,826 passed, 17 deselected**, combined coverage **85.13%**. Ruff, repository/scoped Pyright, JavaScript tests and CodeQL [`43632276644`](https://github.com/IvanVM04/Campaign-Manager/actions/runs/43632276644) passed. This result applies to head `40902a6...`; the WP6 allowlist/doc commit requires its own CI run.
+- **Live Ollama validation:** not run here. Run `python -m pytest tests/test_real_llm.py -m real_llm -k integrated_pipeline -v -s`, then the remaining real-LLM corpus using the exact local model tag/settings. Record the generated JUnit/properties and usage metrics; do not mark pass from code presence alone.
+- **SillyTavern validation:** not run for PR #226. Use [the manual smoke-test checklist](../sillytavern-smoke-test.md) against recorded backend and extension revisions; cover multi-chat isolation, clarification rounds, duplicate delivery, manual dice and restart recovery.
+- **Open blockers:** the WP6 changes need deterministic CI on the new head. External consumers of the deprecated combined response may still exist; keep the shim until their migration is verified. Most importantly, integrated local Ollama quality and the real SillyTavern lifecycle remain outstanding acceptance gates.
+- **Next exact action:** inspect CI for the WP6 telemetry-allowlist/documentation commit. If green, leave PR #226 open in draft until the local integrated Ollama probe/corpora and manual SillyTavern checklist are run and recorded. Do not merge or call the end-to-end work complete before those gates.
 
 ### How to resume
 
