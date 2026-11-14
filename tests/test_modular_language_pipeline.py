@@ -195,6 +195,28 @@ def test_mechanics_adjudicator_skips_non_actionable_interpretations(payload):
     assert mechanics_provider.call_count == 0
 
 
+def test_mechanics_adjudicator_skips_provider_when_interpreter_requests_clarification():
+    payload = _analysis_payload()
+    payload["requires_clarification"] = True
+    payload["clarification_question"] = "¿A qué puerta te refieres?"
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": payload,
+    }))
+    analysis = IntentInterpreter(intent_provider).interpret(
+        _context(),
+        "Abro la puerta.",
+    )
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+
+    decision = MechanicsAdjudicator(mechanics_provider).adjudicate_analysis(
+        _context(),
+        analysis,
+    )
+
+    assert decision.decision is MechanicsDecisionType.NONE
+    assert mechanics_provider.call_count == 0
+
+
 def test_mechanics_adjudicator_skips_provider_without_active_character():
     intent_provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": _analysis_payload(),
