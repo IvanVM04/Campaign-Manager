@@ -102,7 +102,7 @@ def test_discourse_pipeline_holdout_has_twenty_eight_balanced_cases():
     assert set(family_counts) == EXPECTED_FAMILIES
     assert set(family_counts.values()) == {4}
     assert len({item["id"] for item in scenarios}) == len(scenarios)
-    assert all(item["critical"] is True or item["critical"] is False for item in scenarios)
+    assert all(isinstance(item["critical"], bool) for item in scenarios)
 
 
 def test_discourse_pipeline_holdout_does_not_duplicate_existing_held_out_inputs():
@@ -172,7 +172,7 @@ def test_discourse_pipeline_topic_scope_and_ellipsis_cues_match_fixture():
                     f"{expected['ellipsis_hint']} observed={actual}"
                 )
 
-    assert not failures, "\\n".join(failures)
+    assert not failures, "\n".join(failures)
 
 
 def test_discourse_pipeline_local_grammar_and_npc_attribution_match_fixture():
@@ -216,7 +216,7 @@ def test_discourse_pipeline_local_grammar_and_npc_attribution_match_fixture():
                     f"{scenario['id']}: npc_speakers expected={wanted} observed={actual}"
                 )
 
-    assert not failures, "\\n".join(failures)
+    assert not failures, "\n".join(failures)
 
 
 def test_discourse_pipeline_deterministic_reference_cases_match_expected_abstention():
@@ -240,7 +240,10 @@ def test_discourse_pipeline_deterministic_reference_cases_match_expected_abstent
             else None
         )
         clarification = result.clarification_question is not None
-        if observed_id != reference["entity_id"] or clarification is not reference["clarification"]:
+        if (
+            observed_id != reference["entity_id"]
+            or clarification is not reference["clarification"]
+        ):
             failures.append(
                 f"{scenario['id']}: expected_id={reference['entity_id']} "
                 f"observed_id={observed_id}, expected_clarification="
@@ -248,7 +251,7 @@ def test_discourse_pipeline_deterministic_reference_cases_match_expected_abstent
                 f"reason={result.abstention_reason}"
             )
 
-    assert not failures, "\\n".join(failures)
+    assert not failures, "\n".join(failures)
 
 
 def test_discourse_pipeline_correction_fixtures_keep_player_evidence_separate():
