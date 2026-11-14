@@ -246,29 +246,49 @@ class LLMSettings:
                     defaults.extraction_repair_max_bytes,
                 ),
             ),
-            extraction_prompt_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
-                defaults.extraction_prompt_max_tokens,
+            extraction_prompt_max_tokens=(
+                defaults.extraction_prompt_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_PROMPT_MAX_TOKENS",
+                    defaults.extraction_prompt_max_tokens,
+                )
             ),
-            extraction_context_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
-                defaults.extraction_context_max_tokens,
+            extraction_context_max_tokens=(
+                defaults.extraction_context_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_CONTEXT_MAX_TOKENS",
+                    defaults.extraction_context_max_tokens,
+                )
             ),
             extraction_max_response_chars=integer_value(
                 "CAMPAIGN_MANAGER_LLM_EXTRACTION_MAX_RESPONSE_CHARS",
                 defaults.extraction_max_response_chars,
             ),
-            extraction_repair_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
-                defaults.extraction_repair_max_tokens,
+            extraction_repair_max_tokens=(
+                defaults.extraction_repair_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_EXTRACTION_REPAIR_MAX_TOKENS",
+                    defaults.extraction_repair_max_tokens,
+                )
             ),
-            mechanics_prompt_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
-                defaults.mechanics_prompt_max_tokens,
+            mechanics_prompt_max_tokens=(
+                defaults.mechanics_prompt_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_TOKENS",
+                    defaults.mechanics_prompt_max_tokens,
+                )
             ),
-            mechanics_context_max_tokens=integer_value(
-                "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
-                defaults.mechanics_context_max_tokens,
+            mechanics_context_max_tokens=(
+                defaults.mechanics_context_max_tokens
+                if "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_BYTES" in values
+                else integer_value(
+                    "CAMPAIGN_MANAGER_LLM_MECHANICS_CONTEXT_MAX_TOKENS",
+                    defaults.mechanics_context_max_tokens,
+                )
             ),
         )
 
