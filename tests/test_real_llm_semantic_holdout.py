@@ -270,7 +270,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 18
 
-    adjudicator = _make_adjudicator()
+    interpreter = _make_interpreter()
     context = _make_context()
     ledger = SemanticEvaluationLedger()
     critical_failures: list[str] = []
@@ -283,7 +283,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
         for repetition in range(repetitions):
             case_started = perf_counter()
             try:
-                analysis, _decision = adjudicator.understand(
+                analysis = interpreter.interpret(
                     context,
                     scenario["input"],
                 )
@@ -379,8 +379,8 @@ def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
         source_text=original,
     )
 
-    adjudicator = _make_adjudicator()
-    result = adjudicator.understand_pending(
+    adjudicator = _make_interpreter()
+    result = interpreter.understand_pending(
         _make_context(),
         original + "\n\nDM: " + clarification_question + "\n" + correction_answer,
         pending_analysis=pending,
