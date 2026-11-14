@@ -327,7 +327,7 @@ def test_real_ollama_meets_semantic_frame_corpus_v1(record_property):
         active_character=CharacterState(entity_id=99002),
         world=WorldState(),
     )
-    adjudicator = make_adjudicator()
+    interpreter = make_interpreter()
     model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
     started = perf_counter()
     provider_calls = 0
@@ -335,7 +335,7 @@ def test_real_ollama_meets_semantic_frame_corpus_v1(record_property):
     for scenario in scenarios:
         repetitions = 3 if scenario["critical"] else 1
         for _ in range(repetitions):
-            analysis, _decision = adjudicator.understand(
+            analysis = interpreter.interpret(
                 context,
                 scenario["input"],
             )
