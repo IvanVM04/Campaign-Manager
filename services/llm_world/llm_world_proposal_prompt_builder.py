@@ -21,6 +21,7 @@ class LLMWorldProposalPromptBuilder:
     """Render proposal instructions from the selected typed world projection."""
 
     DEFAULT_MAX_PROMPT_TOKENS = 8192
+    DEFAULT_MAX_PROMPT_BYTES = DEFAULT_MAX_PROMPT_TOKENS
 
     @staticmethod
     def _compact_context_block(
@@ -183,8 +184,11 @@ class LLMWorldProposalPromptBuilder:
         allowed_operation_types: tuple[str, ...] = (),
         operation_registry: OperationMetadataRegistry | None = None,
         max_prompt_tokens: int = DEFAULT_MAX_PROMPT_TOKENS,
+        max_prompt_bytes: int | None = None,
     ) -> str:
-        """Build a bounded proposal prompt without invoking provider or parser."""
+        """Build a bounded UTF-8-byte prompt without invoking provider or parser."""
+        if max_prompt_bytes is not None:
+            max_prompt_tokens = max_prompt_bytes
         if isinstance(max_prompt_tokens, bool) or not isinstance(max_prompt_tokens, int):
             raise TypeError("max_prompt_tokens must be an integer")
         if max_prompt_tokens <= 0:
