@@ -236,6 +236,42 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         f"{expected_intent['category']!r} "
                         f"observed={analysis.category.value!r}"
                     )
+                action_contains = expected_intent.get("action_contains")
+                if action_contains is not None:
+                    recovered = any(
+                        action_contains.casefold() in step.action.casefold()
+                        for step in analysis.steps
+                    )
+                    ledger.record_case(
+                        f"intent_detail:{scenario['family']}",
+                        expected_slots=1,
+                        matched_slots=int(recovered),
+                        elapsed_seconds=0,
+                    )
+                    if not recovered:
+                        case_failures.append(
+                            f"intent.action_recovery: expected substring "
+                            f"{action_contains!r} in a step; observed="
+                            f"{[step.action for step in analysis.steps]!r}"
+                        )
+                expected_speaker = expected_intent.get("attributed_to")
+                if expected_speaker is not None:
+                    predicted_speakers = tuple(
+                        f"speaker:{step.attributed_to.casefold()}"
+                        for step in analysis.steps
+                        if step.attributed_to
+                    )
+                    expected_speakers = (f"speaker:{expected_speaker.casefold()}",)
+                    ledger.record_semantic_slots(
+                        "npc_speaker_attribution",
+                        expected_slots=expected_speakers,
+                        predicted_slots=predicted_speakers,
+                    )
+                    if predicted_speakers != expected_speakers:
+                        case_failures.append(
+                            "intent.npc_attribution: expected="
+                            f"{expected_speakers!r} observed={predicted_speakers!r}"
+                        )
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
                     case_failures.extend(
