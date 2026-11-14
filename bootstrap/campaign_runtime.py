@@ -38,6 +38,7 @@ from services.llm_world import LLMWorldExtractor, OperationParser
 from services.providers import LLMSettings
 from services.turns import (
     DMService,
+    IntentInterpreter,
     MechanicsAdjudicator,
     TurnExecutionLock,
 )
@@ -151,6 +152,7 @@ class CampaignRuntimeFactory:
 
         narrative_provider = self._llm_settings.create_provider("narrative")
         extraction_provider = self._llm_settings.create_provider("extraction")
+        intent_provider = self._llm_settings.create_provider("intent")
         mechanics_provider = self._llm_settings.create_provider("mechanics")
         operation_parser = OperationParser()
         dm_service = DMService(
@@ -164,11 +166,17 @@ class CampaignRuntimeFactory:
             max_response_chars=self._llm_settings.extraction_max_response_chars,
             max_repair_prompt_tokens=self._llm_settings.extraction_repair_max_tokens,
         )
+        intent_interpreter = IntentInterpreter(
+            intent_provider,
+            context_builder,
+            max_prompt_bytes=self._llm_settings.intent_prompt_max_bytes,
+            max_context_bytes=self._llm_settings.intent_context_max_bytes,
+        )
         mechanics_adjudicator = MechanicsAdjudicator(
             mechanics_provider,
             context_builder,
-            max_prompt_tokens=self._llm_settings.mechanics_prompt_max_tokens,
-            max_context_tokens=self._llm_settings.mechanics_context_max_tokens,
+            max_prompt_bytes=self._llm_settings.mechanics_prompt_max_bytes,
+            max_context_bytes=self._llm_settings.mechanics_context_max_bytes,
         )
         turn_resolution_service = TurnResolutionService(
             dm_service=dm_service,
@@ -177,6 +185,7 @@ class CampaignRuntimeFactory:
             mechanics_adjudicator=mechanics_adjudicator,
             context_builder=context_builder,
             proposal_context_max_tokens=self._llm_settings.extraction_context_max_tokens,
+            intent_interpreter=intent_interpreter,
         )
 
         durable_native_turn_service = DurableNativeTurnService(
