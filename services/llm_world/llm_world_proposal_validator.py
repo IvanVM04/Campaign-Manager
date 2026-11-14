@@ -18,6 +18,7 @@ class LLMWorldProposalValidator:
 
     DEFAULT_MAX_RESPONSE_CHARS = 16000
     DEFAULT_MAX_REPAIR_PROMPT_TOKENS = 2048
+    DEFAULT_MAX_REPAIR_PROMPT_BYTES = DEFAULT_MAX_REPAIR_PROMPT_TOKENS
     MAX_VALIDATION_ERROR_CHARS = 500
 
     def __init__(
@@ -30,10 +31,13 @@ class LLMWorldProposalValidator:
         max_response_chars: int = DEFAULT_MAX_RESPONSE_CHARS,
         max_repair_prompt_tokens: int = DEFAULT_MAX_REPAIR_PROMPT_TOKENS,
         operation_registry: OperationMetadataRegistry | None = None,
+        max_repair_prompt_bytes: int | None = None,
     ) -> None:
+        if max_repair_prompt_bytes is not None:
+            max_repair_prompt_tokens = max_repair_prompt_bytes
         for name, value in (
             ("max_response_chars", max_response_chars),
-            ("max_repair_prompt_tokens", max_repair_prompt_tokens),
+            ("max_repair_prompt_bytes", max_repair_prompt_tokens),
         ):
             if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                 raise ValueError(f"{name} must be a positive integer")
@@ -43,6 +47,7 @@ class LLMWorldProposalValidator:
         self.parse_response = parse_response
         self.parse_operations = parse_operations
         self.max_response_chars = max_response_chars
+        self.max_repair_prompt_bytes = max_repair_prompt_tokens
         self.max_repair_prompt_tokens = max_repair_prompt_tokens
         self.operation_registry = operation_registry or getattr(
             operation_parser, "registry", None
@@ -139,22 +144,21 @@ class LLMWorldProposalValidator:
         )
 
         remaining_bytes = (
-            self.max_repair_prompt_tokens - len(header.encode("utf-8"))
+            self.max_repair_prompt_bytes - len(header.encode("utf-8"))
         )
         if remaining_bytes <= 0:
             raise LLMExtractionError(
                 "configured repair prompt budget is too small for its safety contract"
             )
 
-        # Use a UTF-8 byte slice so the conservative one-token-per-byte
-        # upper bound cannot exceed the configured repair budget.
+        # The configured budget is UTF-8 bytes, matching the shared estimator.
         response_bytes = invalid_response.encode("utf-8")
         excerpt = response_bytes[:remaining_bytes].decode("utf-8", errors="ignore")
         repair_prompt = header + excerpt
 
-        if estimate_tokens(repair_prompt) > self.max_repair_prompt_tokens:
+        if estimate_tokens(repair_prompt) > self.max_repair_prompt_bytes:
             raise LLMExtractionError(
-                "repair prompt exceeds the configured estimated token budget"
+                "repair prompt exceeds the configured UTF-8 byte budget"
             )
         return repair_prompt
 
