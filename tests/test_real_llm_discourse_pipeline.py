@@ -464,7 +464,9 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                     f"{scenario['id']} repetition={repetition + 1}: "
                     + "; ".join(case_failures)
                 )
-                if scenario["critical"]:
+                # A focused diagnostic run is intentionally strict even when
+                # the selected corpus case is observational in the full suite.
+                if scenario["critical"] or scenario_filter:
                     failures.append(description)
                 else:
                     observational_failures.append(description)
@@ -482,6 +484,9 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     record_property("discourse_holdout_provider_calls", calls)
     record_property(
         "discourse_holdout_scenario_filter", scenario_filter or "all"
+    )
+    record_property(
+        "discourse_holdout_strict_scenario_filter", bool(scenario_filter)
     )
     record_property("discourse_holdout_total_seconds", round(elapsed_total, 3))
     record_property(
