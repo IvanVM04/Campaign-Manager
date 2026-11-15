@@ -113,6 +113,10 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                 "schema_version": {"type": "integer", "const": 2},
                 "category": {
                     "type": "string",
+                    "description": (
+                        "Classify the whole utterance. Only action and mixed "
+                        "may have a non-null active_step_index."
+                    ),
                     "enum": [
                         "action", "question", "dialogue", "report",
                         "plan", "correction", "mixed", "unknown",
@@ -171,6 +175,11 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                 },
                 "active_step_index": {
                     "type": ["integer", "null"],
+                    "description": (
+                        "Must be null for question, dialogue, report, plan, "
+                        "correction and unknown categories. Use a step index "
+                        "only when category is action or mixed."
+                    ),
                     "minimum": 0,
                     "maximum": 7,
                 },
