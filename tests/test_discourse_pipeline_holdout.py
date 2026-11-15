@@ -409,6 +409,19 @@ def test_mechanics_prompt_uses_only_active_step_canonical_references():
     assert "Puerta de roble" in references_section
     assert "Aldric" not in references_section
 
+def test_discourse_holdout_indirect_question_to_a_person_is_dialogue():
+    scenario = next(
+        item
+        for item in _read_fixture()["scenarios"]
+        if item["id"] == "dp-distance-equal-focus-16"
+    )
+
+    assert scenario["input"] == "Le pregunto si conoce la ruta."
+    assert scenario["expected"]["reference"]["mention"] == "le"
+    assert scenario["expected"]["reference"]["clarification"] is True
+    assert scenario["expected"]["intent"]["category"] == "dialogue"
+
+
 def test_discourse_holdout_expected_action_mentions_are_literal_player_evidence():
     def normalize(value: str) -> str:
         return unicodedata.normalize("NFKC", value).casefold()
