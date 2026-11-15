@@ -160,7 +160,7 @@ def test_llm_settings_reject_invalid_think_environment_value(value):
 
 def test_llm_settings_reject_non_boolean_direct_think_value():
     with pytest.raises(TypeError, match="intent_think must be a boolean or None"):
-        LLMSettings(intent_think="false")
+        LLMSettings(intent_think="false")  # type: ignore[arg-type]
 
 @pytest.mark.parametrize("base_url", ["", "localhost:11434", "ftp://localhost:21", "http:///missing-host", "http://localhost:11434?x=1", "http://localhost:bad", "http://user:pass@localhost:11434"])
 def test_llm_settings_reject_invalid_base_url(base_url):
