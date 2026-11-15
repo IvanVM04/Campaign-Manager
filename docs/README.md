@@ -43,6 +43,7 @@ indexes over searching through dated audit history.
 - [PR #228 Ollama thinking configuration](quality/pr-228-configurable-ollama-thinking.md) — per-role `think` control, live-model timeout investigation and reproducible A/B evaluation setup.
 - [PR #229 Intent validation diagnostics](quality/pr-229-intent-validation-diagnostics.md) — safe validation-stage errors and single-scenario live evaluation for model debugging.
 - [PR #230 Field-level Intent validation diagnostics](quality/pr-230-field-level-intent-validation-diagnostics.md) — safe semantic-field diagnostics and strict focused live evaluation.
+- [PR #231 Intent category/active-step consistency](quality/pr-231-intent-category-active-step-consistency.md) — conservative provider-boundary normalization, regression coverage and Ollama performance investigation.
 
 ## Active architectural contracts
 

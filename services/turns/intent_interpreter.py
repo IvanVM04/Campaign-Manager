@@ -5,6 +5,7 @@ import logging
 import re
 from dataclasses import dataclass
 from time import perf_counter
+from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import PendingIntentCorrection
@@ -22,6 +23,45 @@ from .intent_response_schema import (
 )
 
 logger = logging.getLogger(__name__)
+
+_NON_ACTION_CATEGORIES = frozenset({
+    "question",
+    "dialogue",
+    "report",
+    "plan",
+    "correction",
+    "unknown",
+})
+
+
+def _normalize_non_action_active_step(
+    intent_payload: Any,
+) -> tuple[dict[str, Any], str, int] | None:
+    """Clear a valid active-step pointer when the utterance category forbids one.
+
+    This is a conservative provider-boundary normalization: it removes
+    mechanical authorization but never changes the category, step content,
+    evidence, modality or outcome. Invalid indices and unknown categories are
+    left untouched for the domain validator to reject.
+    """
+    if not isinstance(intent_payload, dict):
+        return None
+    category = intent_payload.get("category")
+    active_step_index = intent_payload.get("active_step_index")
+    steps = intent_payload.get("steps")
+    if (
+        not isinstance(category, str)
+        or category not in _NON_ACTION_CATEGORIES
+        or isinstance(active_step_index, bool)
+        or not isinstance(active_step_index, int)
+        or not isinstance(steps, list)
+        or not 0 <= active_step_index < len(steps)
+    ):
+        return None
+
+    normalized = dict(intent_payload)
+    normalized["active_step_index"] = None
+    return normalized, category, active_step_index
 
 
 class IntentInterpreterError(RuntimeError):
@@ -69,9 +109,16 @@ entre pasos y señala el primer intento positivo del jugador cuyo resultado no
 está declarado. No dividas una acción compuesta ni inventes pasos.
 
 Distingue intento actual de pregunta, plan, hipótesis, deseo, negación,
-cancelación, diálogo citado, discurso referido, observación y reporte. Un NPC
-nunca da órdenes en nombre del jugador. Una cita, rumor o inferencia no es un
-hecho confirmado. No conviertas el resultado deseado en resultado ocurrido.
+cancelación, diálogo citado, discurso referido, observación y reporte. Decide
+la categoría para el acto global del mensaje, no solo para el verbo aislado.
+Regla obligatoria de consistencia: únicamente category="action" o
+category="mixed" puede tener active_step_index distinto de null. Para
+question, dialogue, report, plan, correction o unknown, active_step_index
+debe ser null, aunque el mensaje mencione una acción, una intención futura o
+una acción citada. No conviertas una pregunta informativa en una acción
+mecánica activa. Un NPC nunca da órdenes en nombre del jugador. Una cita,
+rumor o inferencia no es un hecho confirmado. No conviertas el resultado
+deseado en resultado ocurrido.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
 ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
@@ -519,8 +566,24 @@ resultados mecánicos. El esquema es el contrato estructural."""
             if set(payload) != expected_fields:
                 raise ValueError("intent response has missing or unexpected fields")
             validation_stage = "intent_analysis_validation"
+            intent_payload = payload["intent_analysis"]
+            normalization = _normalize_non_action_active_step(intent_payload)
+            if normalization is not None:
+                intent_payload, normalized_category, discarded_active_step = (
+                    normalization
+                )
+                logger.warning(
+                    "llm.intent.non_action_active_step_cleared",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "category": normalized_category,
+                        "discarded_active_step_index": discarded_active_step,
+                        "normalization": "active_step_index_null",
+                    },
+                )
             analysis = PlayerIntentAnalysis.from_payload(
-                payload["intent_analysis"],
+                intent_payload,
                 source_text=player_input,
                 evidence_text=evidence,
             )

@@ -497,26 +497,32 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         "discourse_holdout_prompt_observations",
         json.dumps(dict(prompt_observations), sort_keys=True),
     )
-    record_property(
-        "discourse_holdout_usage_events",
-        json.dumps(
-            [
-                {
-                    key: event.get(key)
-                    for key in (
-                        "provider_role",
-                        "provider_model",
-                        "prompt_bytes",
-                        "prompt_eval_count",
-                        "eval_count",
-                        "duration_ms",
-                    )
-                }
-                for event in usage_events
-            ],
-            sort_keys=True,
-        ),
-    )
+    usage_summary = [
+        {
+            key: event.get(key)
+            for key in (
+                "provider_role",
+                "provider_model",
+                "response_model",
+                "request_status",
+                "prompt_bytes",
+                "prompt_eval_count",
+                "eval_count",
+                "load_duration_ms",
+                "prompt_eval_duration_ms",
+                "eval_duration_ms",
+                "total_duration_ms",
+                "duration_ms",
+                "think",
+                "done",
+                "done_reason",
+            )
+        }
+        for event in usage_events
+    ]
+    usage_summary_json = json.dumps(usage_summary, sort_keys=True)
+    record_property("discourse_holdout_usage_events", usage_summary_json)
+    print("Ollama provider telemetry: " + usage_summary_json)
     print(ledger.render())
     if observational_failures:
         print("Non-critical mismatches:\n" + "\n".join(observational_failures))
