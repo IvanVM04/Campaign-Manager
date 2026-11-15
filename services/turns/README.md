@@ -72,6 +72,14 @@ V1 durable analyses remain decodable. V2 adds:
 All mentions remain untrusted, ID-free evidence. Canonical identity is resolved
 only after campaign, visibility, active-state and ambiguity checks.
 
+The Intent provider is instructed to preserve surface evidence exactly:
+predicates retain their written conjugation, mentions retain pronouns and
+demonstratives, and each v2 `source_excerpt` is a contiguous player-authored
+substring containing the fields it supports. Context may clarify the semantic
+`action` description for a unique ellipsis, but history-derived words must not
+be copied into literal evidence fields. Strict model validation remains the
+enforcement boundary; prompt/schema guidance does not repair an invalid payload.
+
 Pending clarifications use `IntentInterpreter.understand_pending()`: the prior
 analysis is a non-authoritative draft, replacements must be literal in the
 latest player answer, corrections are immutable and bounded, and the
