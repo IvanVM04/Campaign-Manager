@@ -143,6 +143,11 @@ def test_ollama_provider_rejects_negative_timeout():
         )
 
 
+def test_ollama_provider_rejects_non_boolean_think_value():
+    with pytest.raises(TypeError, match="think must be a boolean or None"):
+        OllamaProvider(think="false")
+
+
 # ============================================================
 # PROMPT VALIDATION
 # ============================================================
@@ -644,6 +649,51 @@ def test_ollama_provider_generate_structured_sends_json_schema(monkeypatch):
     }
 
 
+
+def test_ollama_provider_can_disable_thinking_in_generate(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return b'{"response":"ok"}'
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr("services.providers.ollama_provider.urlopen", fake_urlopen)
+    assert OllamaProvider(think=False).generate("hello") == "ok"
+    assert captured["payload"]["think"] is False
+
+
+def test_ollama_provider_can_enable_thinking_in_structured_generate(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return b'{"response":"{\\"ok\\":true}"}'
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setattr("services.providers.ollama_provider.urlopen", fake_urlopen)
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    assert OllamaProvider(think=True).generate_structured("return JSON", schema=schema)
+    assert captured["payload"]["think"] is True
+
 def test_ollama_provider_generate_structured_rejects_invalid_schema():
     with pytest.raises(TypeError, match="non-empty JSON Schema"):
         OllamaProvider().generate_structured("hello", schema={})
@@ -683,6 +733,7 @@ def test_ollama_provider_emits_safe_usage_metrics_without_prompt_or_completion(
     caplog.set_level("INFO")
     provider = OllamaProvider(
         role="intent",
+        think=False,
         metrics_callback=metrics.append,
     )
 
@@ -691,6 +742,7 @@ def test_ollama_provider_emits_safe_usage_metrics_without_prompt_or_completion(
     event = metrics[0]
     assert event["provider_role"] == "intent"
     assert event["provider_model"] == "gemma4:26b"
+    assert event["think"] is False
     assert event["prompt_bytes"] == len(prompt.encode("utf-8"))
     assert event["prompt_eval_count"] == 321
     assert event["eval_count"] == 48
