@@ -132,6 +132,60 @@ def diagnose_intent_analysis_error(
             "unsupported_schema_version", "schema_version", "unsupported_value"
         )
 
+    exact_rules = (
+        (
+            "v1 intent analysis cannot contain semantic frames",
+            "invalid_versioned_contract",
+            "schema_version",
+            "invariant",
+        ),
+        (
+            "v2 intent steps require a semanticactionframe",
+            "missing_or_invalid_action_frame",
+            "steps[].action_frame",
+            "type_mismatch",
+        ),
+        (
+            "clarification requires a bounded question",
+            "invalid_clarification_question",
+            "clarification_question",
+            "text_constraint",
+        ),
+        (
+            "clarification_question requires requires_clarification",
+            "clarification_state_mismatch",
+            "clarification_question",
+            "invariant",
+        ),
+        (
+            "intent json must be text or none",
+            "invalid_type",
+            "intent_json",
+            "type_mismatch",
+        ),
+        (
+            "enum fields must be strings",
+            "invalid_type",
+            "enum_value",
+            "type_mismatch",
+        ),
+        (
+            "semantic arguments must not repeat the same role and mention",
+            "duplicate_semantic_argument",
+            "steps[].action_frame.arguments[]",
+            "duplicate_value",
+        ),
+        (
+            "relation subject and object must be semanticmention values",
+            "invalid_type",
+            "relation_claims[].subject_or_object",
+            "type_mismatch",
+        ),
+    )
+    for fragment, code, field, reason in exact_rules:
+        if fragment in message:
+            return IntentValidationDiagnostic(code, field, reason)
+
     if "unsupported " in message:
         enum_fields = (
             ("utterancecategory", "category"),
