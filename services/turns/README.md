@@ -47,6 +47,14 @@ changed. Non-integer indexes and malformed step structures remain subject to
 strict validation. Direct `PlayerIntentAnalysis.from_payload()` decoding
 continues to enforce contiguous ordered indexes without normalization.
 
+Step attribution is also grounded only in the current player evidence. An
+attribution found solely in history or discourse context is cleared to null at
+the provider boundary; the actor, category, action, step order and evidence are
+not rewritten. For v2, the attribution must also occur in that step's
+source_excerpt. Malformed attribution values and all other evidence fields
+remain subject to strict validation. A cleared attribution cannot authorize an
+NPC/other world proposal.
+
 The semantic interpretation is deliberately not split into calls for action extraction, argument roles, relations, attribution or discourse. These are interdependent fields in one response contract. The stage boundaries separate responsibilities, not pieces of one meaning representation.
 
 Follow-up hardening and its resumable implementation checkpoint are tracked in [`PR #226 — integrated LLM pipeline hardening`](../../docs/quality/pr-226-integrated-llm-pipeline-hardening.md).

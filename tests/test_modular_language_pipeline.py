@@ -6,7 +6,9 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
+from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.mechanics import MechanicsDecisionType
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.resolved_world_reference import (
     ResolvedWorldReference,
@@ -269,6 +271,97 @@ def test_intent_interpreter_canonicalizes_step_indices_without_reordering(
     assert record.reported_indices == [1, 0]
     assert record.normalized_indices == [0, 1]
     assert record.normalization == "steps_array_position"
+
+
+def test_intent_interpreter_clears_attribution_supported_only_by_history(caplog):
+    source = "Cambiando de tema, ¿qué ocurre en la biblioteca?"
+    payload = _analysis_payload(
+        category="question",
+        modality="question",
+        active_step_index=None,
+        source_excerpt=source,
+        action="preguntar qué ocurre en la biblioteca",
+        predicate="ocurre",
+    )
+    payload["steps"][0]["target_mentions"] = []
+    payload["steps"][0]["attributed_to"] = "Mara"
+    payload["steps"][0]["action_frame"]["arguments"] = []
+    provider = FakeLLMProvider(
+        response=json.dumps({"intent_analysis": payload}),
+    )
+    recent_turns = [
+        TurnRecord(
+            id=501,
+            player_input="Hablo con Mara sobre el contrato.",
+            narrative="",
+        )
+    ]
+
+    analysis = IntentInterpreter(provider).interpret(
+        _context(),
+        source,
+        recent_turns=recent_turns,
+    )
+
+    assert analysis.category.value == "question"
+    assert analysis.active_step_index is None
+    assert analysis.steps[0].attributed_to is None
+    record = next(
+        item
+        for item in caplog.records
+        if item.getMessage() == "llm.intent.ungrounded_attributions_cleared"
+    )
+    assert record.step_indices == [0]
+    assert record.normalization == "attributed_to_null"
+
+
+def test_intent_interpreter_preserves_literal_current_step_attribution():
+    source = "Aldric me cuenta que el capitán salió al amanecer."
+    payload = _analysis_payload(
+        category="report",
+        modality="reported",
+        active_step_index=None,
+        source_excerpt=source,
+        action="Aldric cuenta que el capitán salió al amanecer",
+        predicate="cuenta",
+    )
+    payload["steps"][0]["actor"] = "npc"
+    payload["steps"][0]["target_mentions"] = []
+    payload["steps"][0]["attributed_to"] = "Aldric"
+    payload["steps"][0]["action_frame"]["arguments"] = []
+    provider = FakeLLMProvider(
+        response=json.dumps({"intent_analysis": payload}),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(_context(), source)
+
+    assert analysis.category.value == "report"
+    assert analysis.steps[0].attributed_to == "Aldric"
+
+
+def test_player_intent_domain_decoder_remains_strict_for_history_only_attribution():
+    source = "Cambiando de tema, ¿qué ocurre en la biblioteca?"
+    payload = _analysis_payload(
+        category="question",
+        modality="question",
+        active_step_index=None,
+        source_excerpt=source,
+        action="preguntar qué ocurre en la biblioteca",
+        predicate="ocurre",
+    )
+    payload["steps"][0]["target_mentions"] = []
+    payload["steps"][0]["attributed_to"] = "Mara"
+    payload["steps"][0]["action_frame"]["arguments"] = []
+
+    with pytest.raises(IntentAnalysisValidationError) as captured:
+        PlayerIntentAnalysis.from_payload(
+            payload,
+            source_text=source,
+            evidence_text=source,
+        )
+
+    assert captured.value.validation_code == "evidence_not_in_player_text"
+    assert captured.value.validation_field == "steps[].attributed_to"
 
 
 def test_intent_interpreter_does_not_normalize_non_integer_step_index():

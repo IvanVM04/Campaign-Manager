@@ -175,6 +175,11 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             },
                             "attributed_to": {
                                 "type": ["string", "null"],
+                                "description": (
+                                    "Literal attribution mention from current player evidence. "
+                                    "Use null when it appears only in history, discourse context "
+                                    "or an unresolved pronoun."
+                                ),
                                 "maxLength": 120,
                             },
                             "action_frame": _ACTION_FRAME_SCHEMA,
