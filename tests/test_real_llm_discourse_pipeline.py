@@ -74,6 +74,16 @@ def _live_intent_runtime():
 
 
 def _context(scenario: dict) -> TurnContext:
+    # NPC discourse fixtures are visible-world entities too. Keeping them in a
+    # separate fixture field documents which entities participate in speaker
+    # attribution, but they must still reach the actual prompt/context builder.
+    entity_specs = {
+        item["id"]: item
+        for item in (
+            *scenario.get("npc_entities", []),
+            *scenario.get("visible_entities", []),
+        )
+    }
     entities = {
         item["id"]: Entity(
             id=item["id"],
@@ -83,7 +93,7 @@ def _context(scenario: dict) -> TurnContext:
             active=item.get("active", True),
             aliases=item.get("aliases", []),
         )
-        for item in scenario.get("visible_entities", [])
+        for item in entity_specs.values()
     }
     return TurnContext(
         campaign=CampaignState(
