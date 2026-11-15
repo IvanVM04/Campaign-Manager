@@ -159,6 +159,7 @@ def test_intent_interpreter_emits_only_shared_semantic_analysis():
     assert "active_step_index" in provider.prompts[0]
     assert "debe ser null" in provider.prompts[0]
 
+
 @pytest.mark.parametrize(
     ("category", "modality"),
     [
