@@ -26,7 +26,7 @@ from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
 from services.providers import LLMSettings
-from services.turns import IntentInterpreter
+from services.turns import IntentInterpreter, IntentInterpreterError
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
@@ -193,6 +193,14 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         for item in _load_scenarios()
         if item["family"] != "multi_turn_correction"
     ]
+    scenario_filter = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID")
+    if scenario_filter:
+        scenarios = [item for item in scenarios if item["id"] == scenario_filter]
+        if len(scenarios) != 1:
+            raise ValueError(
+                "CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID must match one held-out "
+                "non-correction scenario"
+            )
     interpreter, provider, context_builder, usage_events = _live_intent_runtime()
     resolver = ConversationReferenceResolver()
     ledger = SemanticEvaluationLedger()
@@ -311,9 +319,12 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         )
                     )
             except Exception as exc:  # noqa: BLE001 - provider/decoder failure is a failed case
-                case_failures.append(
-                    f"intent provider/decoder error: {type(exc).__name__}"
+                detail = (
+                    str(exc)
+                    if isinstance(exc, IntentInterpreterError)
+                    else type(exc).__name__
                 )
+                case_failures.append(f"intent provider/decoder error: {detail}")
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
                     _evaluate_action_frame(
@@ -469,6 +480,9 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     record_property("discourse_holdout_timeout_seconds", provider.timeout)
     record_property("discourse_holdout_scenarios", len(scenarios))
     record_property("discourse_holdout_provider_calls", calls)
+    record_property(
+        "discourse_holdout_scenario_filter", scenario_filter or "all"
+    )
     record_property("discourse_holdout_total_seconds", round(elapsed_total, 3))
     record_property(
         "discourse_holdout_family_calls",
