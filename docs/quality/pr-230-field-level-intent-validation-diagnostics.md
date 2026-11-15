@@ -19,7 +19,10 @@ change the Intent prompt, change model settings or accept unsupported output.
   evidence_not_in_player_text, evidence_not_in_step_excerpt,
   unsupported_enum_value, invalid_object_shape, collection_out_of_bounds,
   invalid_step_order, invalid_relation_reference, invalid_active_step,
-  category_active_step_mismatch and intent_step_invariant_violation.
+  category_active_step_mismatch, intent_step_invariant_violation,
+  invalid_versioned_contract, missing_or_invalid_action_frame,
+  invalid_clarification_question, clarification_state_mismatch and
+  duplicate_semantic_argument.
 - Record only validation_stage, validation_code, validation_field and
   validation_reason. Raw model completions, player text and exception messages
   remain excluded from logs and public diagnostics.
