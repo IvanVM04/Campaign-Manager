@@ -80,8 +80,7 @@ Deterministic checks added:
 Commands:
 
 ```powershell
-python -m pytest tests/test_discourse_pipeline_holdout.py -q
-python -m pytest tests/test_real_llm_discourse_pipeline.py -m "not real_llm" -q
+python -m pytest tests/test_discourse_pipeline_holdout.py tests/test_discourse_context_builder.py -q
 ```
 
 The second command is expected to collect no live tests unless deterministic
