@@ -18,7 +18,7 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 
 ## Current implementation
 - `LLMSettings` validates provider URL, model names and finite positive timeouts at startup.
-- Narrative, extraction, intent and mechanics roles can use separate model and timeout settings.
+- Narrative, extraction, intent and mechanics roles can use separate model, timeout and optional Ollama thinking settings. Thinking defaults to `null` (omit the request field and preserve the model/server default); set `CAMPAIGN_MANAGER_OLLAMA_THINK=false` to disable it for every role, or override individual roles with `CAMPAIGN_MANAGER_LLM_INTENT_THINK`, `CAMPAIGN_MANAGER_LLM_MECHANICS_THINK`, `CAMPAIGN_MANAGER_LLM_EXTRACTION_THINK` and `CAMPAIGN_MANAGER_LLM_NARRATIVE_THINK`. Values accept true/false (also 1/0, yes/no and on/off); role-specific values override the common setting.
 - Intent, mechanics and extraction have independent UTF-8 byte budgets:
   `CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES`,
   `CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES`,
@@ -32,7 +32,7 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 - The intent role emits only the shared semantic analysis schema; the mechanics role emits only a mechanics decision. Extraction remains a separate downstream proposal responsibility.
 - `estimate_tokens()` counts UTF-8 bytes as a conservative upper bound; it is not a model-specific tokenizer. All role budgets and diagnostics name this unit explicitly.
 - `OllamaProvider` performs non-streaming text requests and supports native JSON Schema constraints through `generate_structured(prompt, schema=...)`; transport, HTTP and malformed-response failures normalize to `LLMProviderError`.
-- Each request emits content-free usage metadata: role, configured/response model, prompt UTF-8 byte count, server token counts, server nanosecond durations (plus derived millisecond fields), completion status and stable error type. Ollama fields are recorded only when the server supplies valid non-negative integers.
+- Each request emits content-free usage metadata: role, configured/response model, configured thinking mode when explicit, prompt UTF-8 byte count, server token counts, server nanosecond durations (plus derived millisecond fields), completion status and stable error type. Ollama fields are recorded only when the server supplies valid non-negative integers.
 - `LLMSettings.create_provider(role, metrics_callback=...)` can forward an in-memory copy of those metrics to a live evaluation harness. Callback errors are isolated from model request success; callbacks receive no prompt or completion text.
 - `get_server_version()` and `get_model_digest()` optionally query the local Ollama metadata endpoints. They return `None` when unavailable and never block model generation.
 - `FakeLLMProvider` supports fixed responses, prompt-matched responses and injected failures.
