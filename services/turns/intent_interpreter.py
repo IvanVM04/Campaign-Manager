@@ -127,7 +127,9 @@ def _normalize_ungrounded_step_attributions(
     if any(not isinstance(step, dict) for step in steps):
         return None
 
-    normalize = lambda value: unicodedata.normalize("NFKC", value).casefold()
+    def normalize(value: str) -> str:
+        return unicodedata.normalize("NFKC", value).casefold()
+
     normalized_evidence = normalize(evidence_text)
     schema_version = intent_payload.get("schema_version")
     normalized_steps = [dict(step) for step in steps]
