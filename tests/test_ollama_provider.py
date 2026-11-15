@@ -145,7 +145,7 @@ def test_ollama_provider_rejects_negative_timeout():
 
 def test_ollama_provider_rejects_non_boolean_think_value():
     with pytest.raises(TypeError, match="think must be a boolean or None"):
-        OllamaProvider(think="false")
+        OllamaProvider(think="false")  # type: ignore[arg-type]
 
 
 # ============================================================
