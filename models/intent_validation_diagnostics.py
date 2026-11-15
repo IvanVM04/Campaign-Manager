@@ -18,7 +18,67 @@ class IntentValidationDiagnostic:
 
     @property
     def safe_message(self) -> str:
-        return f"{self.code} (field={self.field})"
+        """Keep legacy-readable reasons without exposing rejected values."""
+        reasons = {
+            ("evidence_not_in_player_text", "steps[].source_excerpt"):
+                "source_excerpt is not grounded in player input",
+            ("evidence_not_in_player_text", "steps[].target_mentions[]"):
+                "target mention is not literal utterance evidence",
+            ("evidence_not_in_player_text", "steps[].action_frame.predicate"):
+                "action predicate is not literal player evidence",
+            ("evidence_not_in_player_text", "relation_claims[].predicate"):
+                "relation predicate is not literal player evidence",
+            ("evidence_not_in_player_text", "relation_claims[].source_excerpt"):
+                "relation source_excerpt is not grounded in player input",
+            ("evidence_not_in_player_text", "relation_claims[].temporal_expression"):
+                "temporal_expression is not literal player evidence",
+            ("evidence_not_in_player_text", "semantic_mentions[]"):
+                "mention is not literal player evidence",
+            ("evidence_not_in_step_excerpt", "steps[].action_frame.arguments[].mention"):
+                "action argument is not grounded in its intent step",
+            ("evidence_not_in_step_excerpt", "relation_claims[].step_evidence"):
+                "relation claim is not grounded in its referenced intent step",
+            ("evidence_not_in_step_excerpt", "steps[].action_frame.predicate"):
+                "action predicate is not grounded in its intent step",
+            ("evidence_not_in_step_excerpt", "steps[].target_mentions[]"):
+                "target mention is not grounded in its intent step",
+            ("evidence_not_in_step_excerpt", "steps[].attributed_to"):
+                "attribution is not grounded in its intent step",
+            ("invalid_object_shape", "steps[]"):
+                "intent step has missing or unexpected fields",
+            ("invalid_object_shape", "semantic_mentions[]"):
+                "mention has missing or unexpected fields",
+            ("invalid_object_shape", "steps[].action_frame"):
+                "action_frame has missing or unexpected fields",
+            ("invalid_object_shape", "steps[].action_frame.arguments[]"):
+                "semantic argument has missing or unexpected fields",
+            ("invalid_object_shape", "relation_claims[]"):
+                "relation claim has missing or unexpected fields",
+            ("invalid_step_order", "steps[].index"):
+                "step indices must be contiguous and ordered",
+            ("active_step_skips_unresolved_prior_step", "steps[].active_step"):
+                "active step cannot skip an earlier unresolved step",
+            ("active_step_reports_resolved_outcome", "steps[].reported_outcome"):
+                "a resolved reported outcome cannot be the active step",
+            ("future_step_reports_resolved_outcome", "steps[]"):
+                "future steps cannot be reported as resolved evidence",
+            ("category_active_step_mismatch", "category"):
+                "only action or mixed utterances may have an active step",
+            ("invalid_relation_reference", "relation_claims[].step_index"):
+                "relation claim must reference an existing intent step",
+            ("duplicate_semantic_argument", "steps[].action_frame.arguments[]"):
+                "semantic arguments must not repeat the same role and mention",
+            ("unsupported_enum_value", "semantic_mentions[].kind_hint"):
+                "unsupported SemanticObjectKind",
+            ("unsupported_enum_value", "steps[].modality"):
+                "unsupported IntentModality",
+            ("unsupported_enum_value", "steps[].actor"):
+                "unsupported IntentActor",
+            ("unsupported_enum_value", "steps[].polarity"):
+                "unsupported IntentPolarity",
+        }
+        reason = reasons.get((self.code, self.field), self.reason.replace("_", " "))
+        return f"{self.code} (field={self.field}): {reason}"
 
 
 class IntentAnalysisValidationError(ValueError):
@@ -308,13 +368,21 @@ def diagnose_intent_analysis_error(
         return IntentValidationDiagnostic(
             "invalid_active_step", "active_step_index", "invariant"
         )
-    if "active step cannot" in message or "future steps cannot" in message:
+    if "active step cannot skip an earlier unresolved step" in message:
         return IntentValidationDiagnostic(
-            "intent_step_invariant_violation", "steps[]", "invariant"
+            "active_step_skips_unresolved_prior_step",
+            "steps[].active_step",
+            "invariant",
         )
-    if "resolved reported outcome" in message:
+    if "future steps cannot be reported as resolved evidence" in message:
         return IntentValidationDiagnostic(
-            "intent_step_invariant_violation",
+            "future_step_reports_resolved_outcome",
+            "steps[]",
+            "invariant",
+        )
+    if "resolved reported outcome cannot be the active step" in message:
+        return IntentValidationDiagnostic(
+            "active_step_reports_resolved_outcome",
             "steps[].reported_outcome",
             "invariant",
         )
