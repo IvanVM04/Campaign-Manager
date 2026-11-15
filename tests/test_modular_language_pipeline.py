@@ -215,19 +215,49 @@ def test_intent_interpreter_clears_active_step_for_non_action_categories(
     assert normalization_record.normalization == "active_step_index_null"
 
 
-def test_intent_interpreter_canonicalizes_integer_step_index_to_array_position(
+def test_intent_interpreter_canonicalizes_step_indices_without_reordering(
     caplog,
 ):
-    source = "Abro la puerta."
-    intent_payload = _analysis_payload()
+    source = "Abro la puerta y saludo a Mara."
+    intent_payload = _analysis_payload(
+        source_excerpt="Abro la puerta",
+        action="abrir la puerta",
+        predicate="Abro",
+    )
     intent_payload["steps"][0]["index"] = 1
+    intent_payload["steps"].append({
+        "index": 0,
+        "source_excerpt": "saludo a Mara",
+        "actor": "player",
+        "action": "saludar a Mara",
+        "modality": "planned",
+        "polarity": "positive",
+        "reported_outcome": "not_claimed",
+        "target_mentions": ["Mara"],
+        "attributed_to": None,
+        "action_frame": {
+            "predicate": "saludo",
+            "family": "communication",
+            "arguments": [{
+                "role": "recipient",
+                "mention": {
+                    "text": "Mara",
+                    "kind_hint": "character",
+                },
+            }],
+        },
+    })
     provider = FakeLLMProvider(
         response=json.dumps({"intent_analysis": intent_payload}),
     )
 
     analysis = IntentInterpreter(provider).interpret(_context(), source)
 
-    assert analysis.steps[0].index == 0
+    assert [step.index for step in analysis.steps] == [0, 1]
+    assert [step.action for step in analysis.steps] == [
+        "abrir la puerta",
+        "saludar a Mara",
+    ]
     assert analysis.active_step_index == 0
     assert analysis.is_actionable is True
     record = next(
@@ -235,9 +265,9 @@ def test_intent_interpreter_canonicalizes_integer_step_index_to_array_position(
         for item in caplog.records
         if item.getMessage() == "llm.intent.step_indices_canonicalized"
     )
-    assert record.step_count == 1
-    assert record.reported_indices == [1]
-    assert record.normalized_indices == [0]
+    assert record.step_count == 2
+    assert record.reported_indices == [1, 0]
+    assert record.normalized_indices == [0, 1]
     assert record.normalization == "steps_array_position"
 
 
