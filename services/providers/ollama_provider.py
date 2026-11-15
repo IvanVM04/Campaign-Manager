@@ -49,6 +49,7 @@ class OllamaProvider(LLMProvider):
         timeout: float = DEFAULT_TIMEOUT,
         *,
         role: str | None = None,
+        think: bool | None = None,
         metrics_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
 
@@ -92,6 +93,8 @@ class OllamaProvider(LLMProvider):
             role = role.strip()
             if not role:
                 raise ValueError("role must not be empty")
+        if think is not None and not isinstance(think, bool):
+            raise TypeError("think must be a boolean or None")
         if metrics_callback is not None and not callable(metrics_callback):
             raise TypeError("metrics_callback must be callable or None")
 
@@ -99,6 +102,7 @@ class OllamaProvider(LLMProvider):
         self.base_url = base_url
         self.timeout = float(timeout)
         self.role = role
+        self.think = think
         self.metrics_callback = metrics_callback
 
     def generate(
@@ -127,6 +131,8 @@ class OllamaProvider(LLMProvider):
             "prompt": prompt,
             "stream": False,
         }
+        if self.think is not None:
+            payload["think"] = self.think
 
         response = self._request_with_metrics(payload, prompt)
 
@@ -163,6 +169,8 @@ class OllamaProvider(LLMProvider):
             "stream": False,
             "format": schema,
         }
+        if self.think is not None:
+            payload["think"] = self.think
         response = self._request_with_metrics(payload, normalized_prompt)
         return self._extract_response_text(response)
 
@@ -209,6 +217,8 @@ class OllamaProvider(LLMProvider):
             "duration_ms": round(duration_ms, 3),
             "request_status": "failed" if error_type else "completed",
         }
+        if self.think is not None:
+            metrics["think"] = self.think
         if error_type is not None:
             metrics["error_type"] = error_type
         if response is not None:

@@ -39,7 +39,8 @@ indexes over searching through dated audit history.
 - [Semantic prompt evaluation](quality/prompt-evaluation-2026-11-12.md) — deterministic contracts, live Ollama protocol and metrics.
 - [110-scenario evaluation corpus](quality/semantic-understanding-evaluation-corpus-2026-11-13.md) — development/held-out inventory and scoring policy.
 - [PR #226 integrated pipeline audit](quality/pr-226-integrated-llm-pipeline-hardening.md) — modular role boundaries and hardening checkpoint.
-- [PR #227 discourse/pipeline evaluation](quality/pr-227-held-out-discourse-pipeline-evaluation.md) — current work package, fixture contract and durable continuation checkpoint.
+- [PR #227 discourse/pipeline evaluation](quality/pr-227-held-out-discourse-pipeline-evaluation.md) — merged held-out fixture, evaluator and discourse regression checkpoint.
+- [PR #228 Ollama thinking configuration](quality/pr-228-configurable-ollama-thinking.md) — per-role `think` control, live-model timeout investigation and reproducible A/B evaluation setup.
 
 ## Active architectural contracts
 

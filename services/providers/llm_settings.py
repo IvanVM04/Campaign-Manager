@@ -38,6 +38,11 @@ class LLMSettings:
     extraction_context_max_tokens: int = 4096
     extraction_max_response_chars: int = 16000
     extraction_repair_max_tokens: int = 2048
+    # Appended to preserve the positional order of the original settings fields.
+    narrative_think: bool | None = None
+    extraction_think: bool | None = None
+    mechanics_think: bool | None = None
+    intent_think: bool | None = None
 
     def __post_init__(self) -> None:
         # The old *_max_tokens fields historically configured UTF-8 byte
@@ -103,6 +108,16 @@ class LLMSettings:
             object.__setattr__(self, field_name, float(value))
 
         for field_name in (
+            "narrative_think",
+            "extraction_think",
+            "mechanics_think",
+            "intent_think",
+        ):
+            value = getattr(self, field_name)
+            if value is not None and not isinstance(value, bool):
+                raise TypeError(f"{field_name} must be a boolean or None")
+
+        for field_name in (
             "extraction_prompt_max_tokens",
             "extraction_context_max_tokens",
             "extraction_max_response_chars",
@@ -158,7 +173,19 @@ class LLMSettings:
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"{name} must be a number") from exc
 
+        def optional_bool_value(name: str, fallback: bool | None) -> bool | None:
+            raw_value = values.get(name)
+            if raw_value is None:
+                return fallback
+            normalized = raw_value.strip().casefold()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+            raise ValueError(f"{name} must be a boolean (true/false)")
+
         defaults = cls()
+        common_think = optional_bool_value("CAMPAIGN_MANAGER_OLLAMA_THINK", None)
 
         def integer_value(name: str, default: int) -> int:
             raw_value = values.get(name)
@@ -202,6 +229,18 @@ class LLMSettings:
             intent_timeout_seconds=timeout_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_TIMEOUT_SECONDS",
                 defaults.intent_timeout_seconds,
+            ),
+            narrative_think=optional_bool_value(
+                "CAMPAIGN_MANAGER_LLM_NARRATIVE_THINK", common_think
+            ),
+            extraction_think=optional_bool_value(
+                "CAMPAIGN_MANAGER_LLM_EXTRACTION_THINK", common_think
+            ),
+            mechanics_think=optional_bool_value(
+                "CAMPAIGN_MANAGER_LLM_MECHANICS_THINK", common_think
+            ),
+            intent_think=optional_bool_value(
+                "CAMPAIGN_MANAGER_LLM_INTENT_THINK", common_think
             ),
             intent_prompt_max_bytes=integer_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES",
@@ -340,13 +379,19 @@ class LLMSettings:
         """Build an Ollama adapter configured for one model responsibility."""
 
         configuration = {
-            "narrative": (self.narrative_model, self.narrative_timeout_seconds),
-            "extraction": (self.extraction_model, self.extraction_timeout_seconds),
-            "mechanics": (self.mechanics_model, self.mechanics_timeout_seconds),
-            "intent": (self.intent_model, self.intent_timeout_seconds),
+            "narrative": (
+                self.narrative_model, self.narrative_timeout_seconds, self.narrative_think
+            ),
+            "extraction": (
+                self.extraction_model, self.extraction_timeout_seconds, self.extraction_think
+            ),
+            "mechanics": (
+                self.mechanics_model, self.mechanics_timeout_seconds, self.mechanics_think
+            ),
+            "intent": (self.intent_model, self.intent_timeout_seconds, self.intent_think),
         }
         try:
-            model, timeout = configuration[role]
+            model, timeout, think = configuration[role]
         except KeyError as exc:
             raise ValueError(f"unsupported LLM role: {role}") from exc
 
@@ -355,5 +400,6 @@ class LLMSettings:
             base_url=self.base_url,
             timeout=timeout,
             role=role,
+            think=think,
             metrics_callback=metrics_callback,
         )
