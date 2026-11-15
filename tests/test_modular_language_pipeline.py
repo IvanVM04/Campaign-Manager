@@ -197,6 +197,13 @@ def test_intent_interpreter_clears_active_step_for_non_action_categories(
     assert analysis.active_step_index is None
     assert analysis.is_actionable is False
     assert provider.call_count == 1
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    decision = MechanicsAdjudicator(mechanics_provider).adjudicate_analysis(
+        _context(),
+        analysis,
+    )
+    assert decision.decision is MechanicsDecisionType.NONE
+    assert mechanics_provider.call_count == 0
     normalization_record = next(
         record
         for record in caplog.records
