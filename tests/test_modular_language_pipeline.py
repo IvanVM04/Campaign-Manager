@@ -1282,3 +1282,14 @@ def test_turn_pipeline_fails_closed_when_legacy_combined_understanding_is_disabl
     assert mechanics_provider.call_count == 0
     assert intent_provider.call_count == 0
 
+def test_intent_interpreter_reports_safe_validation_stage_without_response_content():
+    provider = FakeLLMProvider(response='{"unexpected":"PRIVATE_COMPLETION"}')
+    interpreter = IntentInterpreter(provider)
+
+    with pytest.raises(
+        IntentInterpreterError,
+        match="invalid intent response at top_level_contract: invalid_top_level_contract",
+    ) as error:
+        interpreter.interpret(_context(), "Abro la puerta.")
+
+    assert "PRIVATE_COMPLETION" not in str(error.value)
