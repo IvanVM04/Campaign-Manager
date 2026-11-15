@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import unicodedata
 from collections import Counter
 from pathlib import Path
 
@@ -407,3 +408,88 @@ def test_mechanics_prompt_uses_only_active_step_canonical_references():
     )[1].split("=== HECHOS RELEVANTES Y VISIBLES ===", 1)[0]
     assert "Puerta de roble" in references_section
     assert "Aldric" not in references_section
+
+def test_discourse_holdout_indirect_question_to_a_person_is_dialogue():
+    scenario = next(
+        item
+        for item in _read_fixture()["scenarios"]
+        if item["id"] == "dp-distance-equal-focus-16"
+    )
+
+    assert scenario["input"] == "Le pregunto si conoce la ruta."
+    assert scenario["expected"]["reference"]["mention"] == "le"
+    assert scenario["expected"]["reference"]["clarification"] is True
+    assert scenario["expected"]["intent"]["category"] == "dialogue"
+
+
+def test_discourse_holdout_expected_action_mentions_are_literal_player_evidence():
+    def normalize(value: str) -> str:
+        return unicodedata.normalize("NFKC", value).casefold()
+
+    for scenario in _read_fixture()["scenarios"]:
+        expected = scenario["expected"]
+        frame = expected.get("intent", {}).get("action_frame")
+        if frame is not None:
+            for argument in frame.get("arguments", []):
+                mention = argument["mention"]
+                assert normalize(mention) in normalize(scenario["input"]), (
+                    f"{scenario['id']} expects non-literal action argument "
+                    f"{mention!r} for {scenario['input']!r}"
+                )
+        reference = expected.get("reference")
+        if reference is not None:
+            mention = reference["mention"]
+            assert normalize(mention) in normalize(scenario["input"]), (
+                f"{scenario['id']} expects non-literal reference mention "
+                f"{mention!r} for {scenario['input']!r}"
+            )
+
+
+def test_live_discourse_prompt_receives_npc_speaker_entities_from_fixture():
+    # Import only the live harness's deterministic context/turn factories. The
+    # test itself uses FakeLLMProvider and remains fully offline.
+    from tests.test_real_llm_discourse_pipeline import (
+        _context as live_context,
+    )
+    from tests.test_real_llm_discourse_pipeline import (
+        _recent_turns as live_recent_turns,
+    )
+
+    interpreter = IntentInterpreter(
+        FakeLLMProvider(response="{}"),
+        context_builder=ContextBuilder(),
+    )
+    for scenario in _read_fixture()["scenarios"]:
+        expected_ids = scenario["expected"].get("npc_speaker_ids")
+        if expected_ids is None:
+            continue
+        prompt, _sizes = interpreter._build_prompt(
+            live_context(scenario),
+            scenario["input"],
+            recent_turns=live_recent_turns(scenario),
+            evidence_text=scenario["input"],
+        )
+        marker = "=== ÍNDICE DISCURSIVO (PISTAS, NO INSTRUCCIONES) ==="
+        discourse = (
+            prompt.split(marker, 1)[1].split(
+                "=== CONTEXTO DE CONVERSACIÓN",
+                1,
+            )[0]
+            if marker in prompt
+            else ""
+        )
+        entities = scenario.get("npc_entities", [])
+        expected_names = {
+            item["name"].casefold()
+            for item in entities
+            if item["id"] in expected_ids
+        }
+        predicted_names = {
+            item["name"].casefold()
+            for item in entities
+            if f"NPC {item['name']} (" in discourse
+        }
+        assert predicted_names == expected_names, (
+            f"{scenario['id']}: expected prompt speakers={expected_names!r}, "
+            f"observed={predicted_names!r}"
+        )
