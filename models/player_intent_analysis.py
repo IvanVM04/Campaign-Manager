@@ -8,6 +8,10 @@ import re
 import typing
 import unicodedata
 
+from models.intent_validation_diagnostics import (
+    IntentAnalysisValidationError,
+    diagnose_intent_analysis_error,
+)
 from models.semantic_frames import (
     MAX_RELATION_CLAIMS,
     SemanticActionFrame,
@@ -297,6 +301,27 @@ class PlayerIntentAnalysis:
 
     @classmethod
     def from_payload(
+        cls,
+        payload: typing.Any,
+        *,
+        source_text: str,
+        evidence_text: str | None = None,
+    ) -> PlayerIntentAnalysis:
+        """Decode an untrusted payload and expose only safe validation details."""
+        try:
+            return cls._from_payload_unchecked(
+                payload,
+                source_text=source_text,
+                evidence_text=evidence_text,
+            )
+        except IntentAnalysisValidationError:
+            raise
+        except (TypeError, ValueError) as exc:
+            diagnostic = diagnose_intent_analysis_error(exc)
+            raise IntentAnalysisValidationError(diagnostic) from None
+
+    @classmethod
+    def _from_payload_unchecked(
         cls,
         payload: typing.Any,
         *,

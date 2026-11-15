@@ -42,6 +42,7 @@ indexes over searching through dated audit history.
 - [PR #227 discourse/pipeline evaluation](quality/pr-227-held-out-discourse-pipeline-evaluation.md) — merged held-out fixture, evaluator and discourse regression checkpoint.
 - [PR #228 Ollama thinking configuration](quality/pr-228-configurable-ollama-thinking.md) — per-role `think` control, live-model timeout investigation and reproducible A/B evaluation setup.
 - [PR #229 Intent validation diagnostics](quality/pr-229-intent-validation-diagnostics.md) — safe validation-stage errors and single-scenario live evaluation for model debugging.
+- [PR #230 Field-level Intent validation diagnostics](quality/pr-230-field-level-intent-validation-diagnostics.md) — safe semantic-field diagnostics and strict focused live evaluation.
 
 ## Active architectural contracts
 
