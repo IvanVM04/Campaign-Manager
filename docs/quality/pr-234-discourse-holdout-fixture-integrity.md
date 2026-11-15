@@ -48,7 +48,27 @@ score a correct model output as wrong.
 
 The fixture now expects `él`.
 
-A new corpus-integrity test verifies that every expected action-frame argument
+## Defect 3 — indirect question to a person mislabeled as a DM question
+
+Scenario `dp-distance-equal-focus-16` uses
+`Le pregunto si conoce la ruta.` and expects the resolver to clarify the
+ambiguous recipient `le`. Its previous Intent label was `question`, which
+makes `allows_world_proposal` false and intentionally short-circuits the
+conversation-reference resolver. That made the expected clarification
+unreachable even for a correct model response.
+
+The existing compatibility contract test
+`test_legacy_indirect_question_after_player_speech_verb_is_dialogue_not_plan`
+classifies this construction (`Le pregunto a Mara si sabe algo...`) as
+`dialogue`: the player is addressing a person, not asking the DM about the
+world. The held-out scenario now expects `dialogue`, so its intended reference
+ambiguity can be evaluated without changing production resolver gates.
+
+A deterministic fixture-integrity test protects this classification and
+ensures the scenario continues to require clarification for the unresolved
+recipient.
+
+A corpus-integrity test also verifies that every expected action-frame argument
 mention and every expected conversation-reference mention occurs literally in
 its scenario's current player input (NFKC-normalized and case-insensitive).
 Context-derived action recovery remains a separate expectation and is not
