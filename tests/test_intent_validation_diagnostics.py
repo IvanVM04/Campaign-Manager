@@ -179,9 +179,11 @@ def test_interpreter_logs_safe_code_field_and_reason_without_completion(
     )
     interpreter = IntentInterpreter(provider)
 
-    with caplog.at_level(logging.WARNING, logger="services.turns.intent_interpreter"):
-        with pytest.raises(IntentInterpreterError) as captured:
-            interpreter.interpret(_context(), _source())
+    with (
+        caplog.at_level(logging.WARNING, logger="services.turns.intent_interpreter"),
+        pytest.raises(IntentInterpreterError) as captured,
+    ):
+        interpreter.interpret(_context(), _source())
 
     error = captured.value
     assert error.validation_stage == "intent_analysis_validation"
