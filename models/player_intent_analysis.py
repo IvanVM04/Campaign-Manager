@@ -8,14 +8,14 @@ import re
 import typing
 import unicodedata
 
+from models.intent_validation_diagnostics import (
+    IntentAnalysisValidationError,
+    diagnose_intent_analysis_error,
+)
 from models.semantic_frames import (
     MAX_RELATION_CLAIMS,
     SemanticActionFrame,
     SemanticRelationClaim,
-)
-from models.intent_validation_diagnostics import (
-    IntentAnalysisValidationError,
-    diagnose_intent_analysis_error,
 )
 
 SCHEMA_VERSION = 2
