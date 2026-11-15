@@ -13,6 +13,10 @@ from models.semantic_frames import (
     SemanticActionFrame,
     SemanticRelationClaim,
 )
+from models.intent_validation_diagnostics import (
+    IntentAnalysisValidationError,
+    diagnose_intent_analysis_error,
+)
 
 SCHEMA_VERSION = 2
 SUPPORTED_SCHEMA_VERSIONS = frozenset({1, 2})
@@ -297,6 +301,27 @@ class PlayerIntentAnalysis:
 
     @classmethod
     def from_payload(
+        cls,
+        payload: typing.Any,
+        *,
+        source_text: str,
+        evidence_text: str | None = None,
+    ) -> PlayerIntentAnalysis:
+        """Decode an untrusted payload and expose only safe validation details."""
+        try:
+            return cls._from_payload_unchecked(
+                payload,
+                source_text=source_text,
+                evidence_text=evidence_text,
+            )
+        except IntentAnalysisValidationError:
+            raise
+        except (TypeError, ValueError) as exc:
+            diagnostic = diagnose_intent_analysis_error(exc)
+            raise IntentAnalysisValidationError(diagnostic) from None
+
+    @classmethod
+    def _from_payload_unchecked(
         cls,
         payload: typing.Any,
         *,
