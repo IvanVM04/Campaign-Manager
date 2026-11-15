@@ -25,10 +25,6 @@ class LLMSettings:
     extraction_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     mechanics_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
     intent_timeout_seconds: float = OllamaProvider.DEFAULT_TIMEOUT
-    narrative_think: bool | None = None
-    extraction_think: bool | None = None
-    mechanics_think: bool | None = None
-    intent_think: bool | None = None
     intent_prompt_max_bytes: int = 24000
     intent_context_max_bytes: int = 4096
     mechanics_prompt_max_bytes: int = 8192
@@ -42,6 +38,11 @@ class LLMSettings:
     extraction_context_max_tokens: int = 4096
     extraction_max_response_chars: int = 16000
     extraction_repair_max_tokens: int = 2048
+    # Appended to preserve the positional order of the original settings fields.
+    narrative_think: bool | None = None
+    extraction_think: bool | None = None
+    mechanics_think: bool | None = None
+    intent_think: bool | None = None
 
     def __post_init__(self) -> None:
         # The old *_max_tokens fields historically configured UTF-8 byte
