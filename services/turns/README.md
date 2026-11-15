@@ -40,6 +40,13 @@ indices and invalid categories still fail validation, and direct
 `PlayerIntentAnalysis.from_payload()` decoding remains strict. This ensures
 a question, plan, dialogue or report cannot accidentally authorize mechanics.
 
+The provider boundary also canonicalizes integer step `index` fields to their
+zero-based positions in the existing ordered `steps` array. Array order is
+authoritative: step objects are never reordered and no step content is
+changed. Non-integer indexes and malformed step structures remain subject to
+strict validation. Direct `PlayerIntentAnalysis.from_payload()` decoding
+continues to enforce contiguous ordered indexes without normalization.
+
 The semantic interpretation is deliberately not split into calls for action extraction, argument roles, relations, attribution or discourse. These are interdependent fields in one response contract. The stage boundaries separate responsibilities, not pieces of one meaning representation.
 
 Follow-up hardening and its resumable implementation checkpoint are tracked in [`PR #226 — integrated LLM pipeline hardening`](../../docs/quality/pr-226-integrated-llm-pipeline-hardening.md).
