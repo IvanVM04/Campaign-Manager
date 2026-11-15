@@ -7,7 +7,16 @@ _MENTION_SCHEMA = {
     "additionalProperties": False,
     "required": ["text", "kind_hint"],
     "properties": {
-        "text": {"type": "string", "minLength": 1, "maxLength": 120},
+        "text": {
+            "type": "string",
+            "description": (
+                "Copy the exact literal surface mention from the current player message. "
+                "Preserve pronouns, demonstratives, inflection and spelling; never replace "
+                "a reference with a canonical name inferred from conversation history."
+            ),
+            "minLength": 1,
+            "maxLength": 120,
+        },
         "kind_hint": {
             "type": "string",
             "enum": [
@@ -42,7 +51,16 @@ _ACTION_FRAME_SCHEMA = {
     "additionalProperties": False,
     "required": ["predicate", "family", "arguments"],
     "properties": {
-        "predicate": {"type": "string", "minLength": 1, "maxLength": 120},
+        "predicate": {
+            "type": "string",
+            "description": (
+                "Copy a contiguous literal surface form from the current player message "
+                "and its source_excerpt. Preserve conjugation, person, tense, number, "
+                "clitics and accents; do not lemmatize, use an infinitive or paraphrase."
+            ),
+            "minLength": 1,
+            "maxLength": 120,
+        },
         "family": {
             "type": "string",
             "enum": [
@@ -70,7 +88,15 @@ _RELATION_CLAIM_SCHEMA = {
     "properties": {
         "step_index": {"type": "integer", "minimum": 0, "maximum": 7},
         "subject": _MENTION_SCHEMA,
-        "predicate": {"type": "string", "minLength": 1, "maxLength": 120},
+        "predicate": {
+            "type": "string",
+            "description": (
+                "Literal surface predicate copied from the current player evidence. "
+                "Preserve its written form; do not lemmatize, translate or paraphrase."
+            ),
+            "minLength": 1,
+            "maxLength": 120,
+        },
         "object": _MENTION_SCHEMA,
         "relation_family": {
             "type": "string",
@@ -90,7 +116,16 @@ _RELATION_CLAIM_SCHEMA = {
                 "unknown",
             ],
         },
-        "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 300},
+        "source_excerpt": {
+            "type": "string",
+            "description": (
+                "One contiguous, verbatim substring of the current player message. "
+                "It must contain this claim's literal predicate and every mention "
+                "used by the claim; never stitch text from history."
+            ),
+            "minLength": 1,
+            "maxLength": 300,
+        },
         "attributed_to": {"anyOf": [_MENTION_SCHEMA, {"type": "null"}]},
         "temporal_expression": {"type": ["string", "null"], "maxLength": 120},
     },
@@ -143,12 +178,30 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                                 "minimum": 0,
                                 "maximum": 7,
                             },
-                            "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 300},
+                            "source_excerpt": {
+                                "type": "string",
+                                "description": (
+                                    "One contiguous, verbatim substring of the current player message. "
+                                    "Include the action predicate and all mentions for this step. "
+                                    "For callbacks, include the callback phrase and its action clause."
+                                ),
+                                "minLength": 1,
+                                "maxLength": 300,
+                            },
                             "actor": {
                                 "type": "string",
                                 "enum": ["player", "npc", "other", "unknown"],
                             },
-                            "action": {"type": "string", "minLength": 1, "maxLength": 500},
+                            "action": {
+                                "type": "string",
+                                "description": (
+                                    "Concise semantic description of the step. It may explain a "
+                                    "uniquely recoverable ellipsis, but is not literal evidence "
+                                    "for predicate, mention or source_excerpt fields."
+                                ),
+                                "minLength": 1,
+                                "maxLength": 500,
+                            },
                             "modality": {
                                 "type": "string",
                                 "enum": [
@@ -170,6 +223,11 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             },
                             "target_mentions": {
                                 "type": "array",
+                                "description": (
+                                    "Literal mentions from this player message and source_excerpt. "
+                                    "Keep pronouns/demonstratives as written; do not replace them "
+                                    "with entities recovered from history."
+                                ),
                                 "maxItems": 6,
                                 "items": {"type": "string", "minLength": 1, "maxLength": 120},
                             },
