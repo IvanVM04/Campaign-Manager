@@ -209,7 +209,10 @@ def diagnose_intent_analysis_error(
         return IntentValidationDiagnostic(
             "invalid_step_order", "steps[].index", "ordering"
         )
-    if "relation claim must reference an existing intent step" in message:
+    if (
+        "relation claim must reference an existing intent step" in message
+        or "relation_claims must reference an existing intent step" in message
+    ):
         return IntentValidationDiagnostic(
             "invalid_relation_reference",
             "relation_claims[].step_index",
