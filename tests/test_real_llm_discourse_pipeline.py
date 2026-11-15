@@ -509,7 +509,13 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         "prompt_bytes",
                         "prompt_eval_count",
                         "eval_count",
+                        "prompt_eval_duration_ms",
+                        "eval_duration_ms",
+                        "load_duration_ms",
+                        "total_duration",
                         "duration_ms",
+                        "think",
+                        "done_reason",
                     )
                 }
                 for event in usage_events
