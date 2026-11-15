@@ -134,7 +134,15 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             "target_mentions", "attributed_to", "action_frame",
                         ],
                         "properties": {
-                            "index": {"type": "integer", "minimum": 0, "maximum": 7},
+                            "index": {
+                                "type": "integer",
+                                "description": (
+                                    "Zero-based position in the ordered steps array: "
+                                    "first step 0, second step 1, and so on."
+                                ),
+                                "minimum": 0,
+                                "maximum": 7,
+                            },
                             "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 300},
                             "actor": {
                                 "type": "string",
