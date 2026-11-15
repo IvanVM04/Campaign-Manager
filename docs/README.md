@@ -45,6 +45,7 @@ indexes over searching through dated audit history.
 - [PR #230 Field-level Intent validation diagnostics](quality/pr-230-field-level-intent-validation-diagnostics.md) — safe semantic-field diagnostics and strict focused live evaluation.
 - [PR #231 Intent category/active-step consistency](quality/pr-231-intent-category-active-step-consistency.md) — conservative provider-boundary normalization, regression coverage and Ollama performance investigation.
 - [PR #232 Intent step position canonicalization](quality/pr-232-intent-step-position-canonicalization.md) — zero-based indexes derived from ordered step-array positions, safe normalization and 12B/26B latency comparison.
+- [PR #233 Intent attribution evidence grounding](quality/pr-233-intent-attribution-current-evidence.md) — clears history-only step attributions without weakening strict domain validation or authorizing world changes.
 
 ## Active architectural contracts
 
