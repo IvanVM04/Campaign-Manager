@@ -378,9 +378,15 @@ class LLMSettings:
         """Build an Ollama adapter configured for one model responsibility."""
 
         configuration = {
-            "narrative": (self.narrative_model, self.narrative_timeout_seconds, self.narrative_think),
-            "extraction": (self.extraction_model, self.extraction_timeout_seconds, self.extraction_think),
-            "mechanics": (self.mechanics_model, self.mechanics_timeout_seconds, self.mechanics_think),
+            "narrative": (
+                self.narrative_model, self.narrative_timeout_seconds, self.narrative_think
+            ),
+            "extraction": (
+                self.extraction_model, self.extraction_timeout_seconds, self.extraction_think
+            ),
+            "mechanics": (
+                self.mechanics_model, self.mechanics_timeout_seconds, self.mechanics_think
+            ),
             "intent": (self.intent_model, self.intent_timeout_seconds, self.intent_think),
         }
         try:
