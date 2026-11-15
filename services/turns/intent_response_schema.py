@@ -127,7 +127,14 @@ _RELATION_CLAIM_SCHEMA = {
             "maxLength": 300,
         },
         "attributed_to": {"anyOf": [_MENTION_SCHEMA, {"type": "null"}]},
-        "temporal_expression": {"type": ["string", "null"], "maxLength": 120},
+        "temporal_expression": {
+            "type": ["string", "null"],
+            "description": (
+                "Literal temporal expression from the current player message and this "
+                "claim's source_excerpt. Do not infer or copy a time from conversation history."
+            ),
+            "maxLength": 120,
+        },
     },
 }
 
