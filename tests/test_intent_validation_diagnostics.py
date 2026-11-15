@@ -8,7 +8,10 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
-from models.intent_validation_diagnostics import IntentAnalysisValidationError
+from models.intent_validation_diagnostics import (
+    IntentAnalysisValidationError,
+    diagnose_intent_analysis_error,
+)
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.world_state import WorldState
@@ -200,3 +203,69 @@ def test_interpreter_logs_safe_code_field_and_reason_without_completion(
     assert record.validation_reason == "evidence_mismatch"
     assert "PRIVATE_COMPLETION" not in record.getMessage()
     assert "PRIVATE_COMPLETION" not in repr(record.__dict__)
+
+
+@pytest.mark.parametrize(
+    ("message", "code", "field", "reason"),
+    [
+        (
+            "v1 intent analysis cannot contain semantic frames",
+            "invalid_versioned_contract",
+            "schema_version",
+            "invariant",
+        ),
+        (
+            "v2 intent steps require a SemanticActionFrame",
+            "missing_or_invalid_action_frame",
+            "steps[].action_frame",
+            "type_mismatch",
+        ),
+        (
+            "clarification requires a bounded question",
+            "invalid_clarification_question",
+            "clarification_question",
+            "text_constraint",
+        ),
+        (
+            "clarification_question requires requires_clarification",
+            "clarification_state_mismatch",
+            "clarification_question",
+            "invariant",
+        ),
+        (
+            "intent JSON must be text or None",
+            "invalid_type",
+            "intent_json",
+            "type_mismatch",
+        ),
+        (
+            "enum fields must be strings",
+            "invalid_type",
+            "enum_value",
+            "type_mismatch",
+        ),
+        (
+            "semantic arguments must not repeat the same role and mention",
+            "duplicate_semantic_argument",
+            "steps[].action_frame.arguments[]",
+            "duplicate_value",
+        ),
+        (
+            "relation subject and object must be SemanticMention values",
+            "invalid_type",
+            "relation_claims[].subject_or_object",
+            "type_mismatch",
+        ),
+    ],
+)
+def test_remaining_intent_contract_failures_have_specific_safe_codes(
+    message: str,
+    code: str,
+    field: str,
+    reason: str,
+):
+    diagnostic = diagnose_intent_analysis_error(ValueError(message))
+
+    assert diagnostic.code == code
+    assert diagnostic.field == field
+    assert diagnostic.reason == reason
