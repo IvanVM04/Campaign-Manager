@@ -9,7 +9,7 @@ from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import PendingIntentCorrection
-from models.player_intent_analysis import PlayerIntentAnalysis
+from models.player_intent_analysis import MAX_STEPS, PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.context import ContextBuilder
@@ -32,6 +32,49 @@ _NON_ACTION_CATEGORIES = frozenset({
     "correction",
     "unknown",
 })
+
+
+def _normalize_step_indices(
+    intent_payload: Any,
+) -> tuple[dict[str, Any], tuple[int, ...]] | None:
+    """Canonicalize integer step indexes to the ordered array positions.
+
+    The JSON array is the authoritative sequence. Each step's index is only
+    its zero-based position in that array; model-supplied integer indexes are
+    redundant metadata and may be safely canonicalized. Malformed step
+    objects and non-integer indexes are left to the strict domain validator.
+    """
+    if not isinstance(intent_payload, dict):
+        return None
+    steps = intent_payload.get("steps")
+    if (
+        not isinstance(steps, list)
+        or not steps
+        or len(steps) > MAX_STEPS
+    ):
+        return None
+
+    reported_indices: list[int] = []
+    normalized_steps: list[dict[str, Any]] = []
+    for step in steps:
+        if not isinstance(step, dict):
+            return None
+        index = step.get("index")
+        if isinstance(index, bool) or not isinstance(index, int):
+            return None
+        reported_indices.append(index)
+        normalized_steps.append(dict(step))
+
+    expected_indices = tuple(range(len(steps)))
+    if tuple(reported_indices) == expected_indices:
+        return None
+
+    for position, step in enumerate(normalized_steps):
+        step["index"] = position
+
+    normalized = dict(intent_payload)
+    normalized["steps"] = normalized_steps
+    return normalized, tuple(reported_indices)
 
 
 def _normalize_non_action_active_step(
@@ -104,9 +147,12 @@ Devuelve exclusivamente el objeto JSON exigido por el esquema de interpretación
 
 Interpreta el mensaje completo como una unidad: separa pasos ordenados, actor,
 predicado, argumentos por papel, referencias, relaciones dirigidas, atribución,
-modalidad, polaridad y resultado que el jugador afirma. Conserva dependencias
-entre pasos y señala el primer intento positivo del jugador cuyo resultado no
-está declarado. No dividas una acción compuesta ni inventes pasos.
+modalidad, polaridad y resultado que el jugador afirma. El array steps define
+el orden de los pasos: index es exactamente la posición 0-based del elemento
+en ese array (primer paso 0, segundo 1, etc.). Nunca empieces en 1 ni alteres
+el orden del array para hacer coincidir índices. Conserva dependencias entre
+pasos y señala el primer intento positivo del jugador cuyo resultado no está
+declarado. No dividas una acción compuesta ni inventes pasos.
 
 Distingue intento actual de pregunta, plan, hipótesis, deseo, negación,
 cancelación, diálogo citado, discurso referido, observación y reporte. Decide
@@ -567,6 +613,20 @@ resultados mecánicos. El esquema es el contrato estructural."""
                 raise ValueError("intent response has missing or unexpected fields")
             validation_stage = "intent_analysis_validation"
             intent_payload = payload["intent_analysis"]
+            step_normalization = _normalize_step_indices(intent_payload)
+            if step_normalization is not None:
+                intent_payload, reported_step_indices = step_normalization
+                logger.warning(
+                    "llm.intent.step_indices_canonicalized",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "step_count": len(reported_step_indices),
+                        "reported_indices": list(reported_step_indices),
+                        "normalized_indices": list(range(len(reported_step_indices))),
+                        "normalization": "steps_array_position",
+                    },
+                )
             normalization = _normalize_non_action_active_step(intent_payload)
             if normalization is not None:
                 intent_payload, normalized_category, discarded_active_step = (
