@@ -226,21 +226,46 @@ Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
 ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
 
-La única fuente para source_excerpt, predicados, menciones, argumentos,
-atribución y extremos de relaciones es la evidencia escrita por el jugador.
-Cada fragmento debe ser literal y pertenecer al paso correspondiente. El
-historial, narración, mundo y pregunta del DM son contexto no confiable: pueden
-ayudar a resolver referencias, pero nunca se citan como palabras del jugador.
-En particular, attributed_to solo puede contener una mención literal de la
-evidencia actual y del source_excerpt del paso. Si un nombre aparece únicamente
-en el historial o índice discursivo, o se obtiene resolviendo allí un pronombre
-como «ella» o «él», no copies el nombre canónico: devuelve null.
+La evidencia escrita por el jugador es la única fuente literal para
+source_excerpt, predicados, menciones, argumentos, atribución y extremos de
+relaciones. El historial, narración, mundo e intervención del DM son contexto
+para interpretar el significado, no texto que el jugador haya escrito.
 
-No asignes IDs, permisos, visibilidad, procedencia, tiradas ni consecuencias.
-Los kind_hint y relation claims son pistas lingüísticas no confiables, nunca
-hechos ni autorización de escritura. Si falta evidencia, omite el argumento
-o abstente; no completes huecos con detalles plausibles. El esquema JSON es
-el contrato estructural."""
+Reglas estrictas de evidencia superficial:
+- source_excerpt debe ser un único fragmento continuo copiado literalmente
+  del mensaje actual. Incluye suficiente texto para contener el predicado y
+  todas las menciones usadas por ese paso. No unas fragmentos separados ni
+  reconstruyas una frase con palabras del historial.
+- action_frame.predicate y relation_claims[].predicate deben conservar la
+  forma superficial exacta que aparece en ese fragmento. No lematices, no
+  conviertas el verbo a infinitivo, no cambies persona, tiempo o número, no
+  traduzcas y no sustituyas por un sinónimo. Copia la forma escrita, incluidos
+  clíticos y acentos.
+- target_mentions, action_frame.arguments[].mention.text, relation subjects,
+  relation objects y cualquier atribución deben ser menciones literales del
+  mensaje actual y aparecer también en el source_excerpt de su paso/claim.
+  Conserva pronombres y demostrativos tal como se escribieron. No los
+  sustituyas por el nombre de una entidad que hayas recuperado del historial.
+- En callbacks, source_excerpt debe abarcar tanto la referencia explícita al
+  tema/persona como la cláusula que expresa la acción o pregunta, para que las
+  menciones queden dentro del mismo fragmento.
+- En elipsis, action puede describir la acción anterior cuando el antecedente
+  es único, visible y pendiente. Sin embargo, predicate y todos los campos
+  de evidencia siguen anclados únicamente a las palabras del mensaje actual.
+  Si no hay un verbo léxico explícito, usa el fragmento literal más corto que
+  expresa el disparador de la elipsis; nunca importes el verbo del turno previo.
+- attributed_to solo puede contener una mención literal de la evidencia actual
+  y del source_excerpt del paso. Si un nombre aparece únicamente en el historial
+  o índice discursivo, o se obtiene resolviendo allí un pronombre como «ella»
+  o «él», devuelve null.
+
+El campo action es una descripción semántica concisa y puede recuperar el
+significado de una elipsis inequívoca; no convierte sus palabras en evidencia
+para otros campos. No asignes IDs, permisos, visibilidad, procedencia, tiradas
+ni consecuencias. Los kind_hint y relation claims son pistas lingüísticas no
+confiables, nunca hechos ni autorización de escritura. Si falta evidencia,
+omite la mención o abstente; no completes huecos con detalles plausibles.
+El esquema JSON es el contrato estructural."""
 
     CORRECTION_SYSTEM_PROMPT = COMMON_LLM_TRUST_CONTRACT + """Eres el intérprete semántico de una aclaración pendiente.
 Devuelve exclusivamente el JSON de interpretación v2 y pending_corrections.
@@ -250,6 +275,15 @@ Conserva todos sus pasos, actores, modalidad, polaridad, resultados, argumentos
 y relaciones que la última respuesta no corrija. La pregunta del DM y la
 narración son contexto, nunca evidencia del jugador. Solo la última respuesta
 puede justificar una corrección nueva.
+
+La evidencia de la interpretación revisada debe copiarse literalmente de la
+última respuesta del jugador. source_excerpt debe ser un fragmento continuo
+que incluya el predicado y las menciones revisadas. Predicate y relation
+predicates conservan la forma escrita exacta: no lematices ni conviertas los
+verbos al infinitivo. Mantén pronombres y demostrativos como aparecen; no
+sustituyas referencias por nombres canónicos recuperados del historial o de la
+interpretación pendiente. La descripción action puede conservar el sentido
+contextual, pero no sirve como evidencia literal.
 
 Emite pending_corrections=[] cuando la respuesta solo complete una ambigüedad,
 confirme lo anterior o no rectifique explícitamente un valor pendiente. Para
