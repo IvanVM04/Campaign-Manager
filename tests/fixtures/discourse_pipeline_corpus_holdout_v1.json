@@ -701,7 +701,7 @@
           "clarification": true
         },
         "intent": {
-          "category": "question"
+          "category": "dialogue"
         }
       }
     },
