@@ -18,7 +18,12 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 
 ## Current implementation
 - `LLMSettings` validates provider URL, model names and finite positive timeouts at startup.
-- Narrative, extraction, intent and mechanics roles can use separate model, timeout and optional Ollama thinking settings. Thinking defaults to `null` (omit the request field and preserve the model/server default); set `CAMPAIGN_MANAGER_OLLAMA_THINK=false` to disable it for every role, or override individual roles with `CAMPAIGN_MANAGER_LLM_INTENT_THINK`, `CAMPAIGN_MANAGER_LLM_MECHANICS_THINK`, `CAMPAIGN_MANAGER_LLM_EXTRACTION_THINK` and `CAMPAIGN_MANAGER_LLM_NARRATIVE_THINK`. Values accept true/false (also 1/0, yes/no and on/off); role-specific values override the common setting.
+- Narrative, extraction, intent and mechanics roles can use separate model, timeout and optional Ollama thinking settings.
+  Thinking defaults to `null` (omit the request field and preserve the model/server default). Set
+  `CAMPAIGN_MANAGER_OLLAMA_THINK=false` to disable it for every role, or override roles with
+  `CAMPAIGN_MANAGER_LLM_INTENT_THINK`, `CAMPAIGN_MANAGER_LLM_MECHANICS_THINK`,
+  `CAMPAIGN_MANAGER_LLM_EXTRACTION_THINK` and `CAMPAIGN_MANAGER_LLM_NARRATIVE_THINK`.
+  Values accept true/false (also 1/0, yes/no and on/off); role-specific values override the common setting.
 - Intent, mechanics and extraction have independent UTF-8 byte budgets:
   `CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES`,
   `CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES`,
