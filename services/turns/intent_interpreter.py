@@ -491,8 +491,10 @@ resultados mecánicos. El esquema es el contrato estructural."""
         )
         if not isinstance(raw, str):
             raise IntentInterpreterError("intent provider returned non-text")
+        validation_stage = "json_decode"
         try:
             payload = json.loads(raw)
+            validation_stage = "top_level_contract"
             if not isinstance(payload, dict):
                 raise TypeError("intent response must be an object")
             expected_fields = {"intent_analysis"}
@@ -500,6 +502,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
                 expected_fields.add("pending_corrections")
             if set(payload) != expected_fields:
                 raise ValueError("intent response has missing or unexpected fields")
+            validation_stage = "intent_analysis_validation"
             analysis = PlayerIntentAnalysis.from_payload(
                 payload["intent_analysis"],
                 source_text=player_input,
@@ -507,6 +510,7 @@ resultados mecánicos. El esquema es el contrato estructural."""
             )
             corrections: tuple[PendingIntentCorrection, ...] = ()
             if pending_analysis is not None:
+                validation_stage = "pending_corrections_validation"
                 correction_payloads = payload["pending_corrections"]
                 if (
                     not isinstance(correction_payloads, list)
@@ -537,12 +541,30 @@ resultados mecánicos. El esquema es el contrato estructural."""
                 return analysis, corrections
             return analysis
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            if isinstance(exc, json.JSONDecodeError):
+                validation_code = "malformed_json"
+            elif isinstance(exc, KeyError):
+                validation_code = "missing_field"
+            elif isinstance(exc, TypeError):
+                validation_code = "invalid_type"
+            elif validation_stage == "top_level_contract":
+                validation_code = "invalid_top_level_contract"
+            elif validation_stage == "pending_corrections_validation":
+                validation_code = "invalid_pending_corrections"
+            else:
+                validation_code = "schema_or_evidence_validation_failed"
             logger.warning(
                 "llm.intent.invalid_response",
                 extra={
                     "provider_role": "intent",
                     "provider_model": getattr(self.provider, "model", None),
                     "error_type": type(exc).__name__,
+                    "validation_stage": validation_stage,
+                    "validation_code": validation_code,
                 },
             )
-            raise IntentInterpreterError(f"invalid intent response: {exc}") from exc
+            # Keep diagnostics useful without logging any provider completion,
+            # player evidence, or exception text that may contain user content.
+            raise IntentInterpreterError(
+                f"invalid intent response at {validation_stage}: {validation_code}"
+            ) from exc
