@@ -32,6 +32,14 @@ The production runtime composes role-specific providers and follows this sequenc
 
 A question, hypothesis, negation, completed observation or non-actionable report does not trigger mechanics adjudication. A consequence proposal is made only when `analysis.allows_world_proposal` permits it.
 
+At the provider boundary, a structurally valid but contradictory non-action
+category with an in-range active-step pointer is normalized conservatively:
+the pointer is cleared and a safe warning is emitted. The utterance category,
+step content, modality, polarity and evidence are never rewritten. Invalid
+indices and invalid categories still fail validation, and direct
+`PlayerIntentAnalysis.from_payload()` decoding remains strict. This ensures
+a question, plan, dialogue or report cannot accidentally authorize mechanics.
+
 The semantic interpretation is deliberately not split into calls for action extraction, argument roles, relations, attribution or discourse. These are interdependent fields in one response contract. The stage boundaries separate responsibilities, not pieces of one meaning representation.
 
 Follow-up hardening and its resumable implementation checkpoint are tracked in [`PR #226 — integrated LLM pipeline hardening`](../../docs/quality/pr-226-integrated-llm-pipeline-hardening.md).
