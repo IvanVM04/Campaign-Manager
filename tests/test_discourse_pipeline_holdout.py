@@ -437,6 +437,8 @@ def test_live_discourse_prompt_receives_npc_speaker_entities_from_fixture():
     # test itself uses FakeLLMProvider and remains fully offline.
     from tests.test_real_llm_discourse_pipeline import (
         _context as live_context,
+    )
+    from tests.test_real_llm_discourse_pipeline import (
         _recent_turns as live_recent_turns,
     )
 
