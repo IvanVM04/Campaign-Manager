@@ -17,6 +17,10 @@ def test_llm_settings_preserve_current_defaults():
     assert settings.extraction_timeout_seconds == 120.0
     assert settings.mechanics_timeout_seconds == 120.0
     assert settings.intent_timeout_seconds == 120.0
+    assert settings.narrative_think is None
+    assert settings.extraction_think is None
+    assert settings.mechanics_think is None
+    assert settings.intent_think is None
     assert settings.intent_prompt_max_bytes == 24000
     assert settings.intent_context_max_bytes == 4096
     assert settings.mechanics_prompt_max_bytes == 8192
@@ -43,6 +47,9 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
         "CAMPAIGN_MANAGER_LLM_EXTRACTION_TIMEOUT_SECONDS": "45.5",
         "CAMPAIGN_MANAGER_LLM_MECHANICS_TIMEOUT_SECONDS": "30",
         "CAMPAIGN_MANAGER_LLM_INTENT_TIMEOUT_SECONDS": "55",
+        "CAMPAIGN_MANAGER_OLLAMA_THINK": "false",
+        "CAMPAIGN_MANAGER_LLM_INTENT_THINK": "true",
+        "CAMPAIGN_MANAGER_LLM_MECHANICS_THINK": "off",
         "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES": "20000",
         "CAMPAIGN_MANAGER_LLM_INTENT_CONTEXT_MAX_BYTES": "3500",
         "CAMPAIGN_MANAGER_LLM_MECHANICS_PROMPT_MAX_BYTES": "7000",
@@ -64,6 +71,10 @@ def test_llm_settings_read_role_models_and_timeouts_from_environment():
     assert settings.extraction_timeout_seconds == 45.5
     assert settings.mechanics_timeout_seconds == 30.0
     assert settings.intent_timeout_seconds == 55.0
+    assert settings.narrative_think is False
+    assert settings.extraction_think is False
+    assert settings.mechanics_think is False
+    assert settings.intent_think is True
     assert settings.intent_prompt_max_bytes == 20000
     assert settings.intent_context_max_bytes == 3500
     assert settings.mechanics_prompt_max_bytes == 7000
@@ -90,6 +101,10 @@ def test_llm_settings_create_distinct_role_providers():
         extraction_timeout_seconds=45,
         mechanics_timeout_seconds=30,
         intent_timeout_seconds=25,
+        narrative_think=True,
+        extraction_think=False,
+        mechanics_think=False,
+        intent_think=True,
     )
 
     narrative = settings.create_provider("narrative")
@@ -108,6 +123,10 @@ def test_llm_settings_create_distinct_role_providers():
     assert extraction.timeout == 45.0
     assert mechanics.timeout == 30.0
     assert intent.timeout == 25.0
+    assert narrative.think is True
+    assert extraction.think is False
+    assert mechanics.think is False
+    assert intent.think is True
     assert narrative.role == "narrative"
     assert extraction.role == "extraction"
     assert mechanics.role == "mechanics"
@@ -119,6 +138,29 @@ def test_llm_settings_create_distinct_role_providers():
         intent.base_url,
     } == {"http://localhost:11435"}
 
+
+
+def test_llm_settings_accept_role_specific_think_override():
+    settings = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_OLLAMA_THINK": "true",
+        "CAMPAIGN_MANAGER_LLM_INTENT_THINK": "false",
+    })
+
+    assert settings.intent_think is False
+    assert settings.narrative_think is True
+    assert settings.extraction_think is True
+    assert settings.mechanics_think is True
+
+
+@pytest.mark.parametrize("value", ["maybe", "2", "thinking"])
+def test_llm_settings_reject_invalid_think_environment_value(value):
+    with pytest.raises(ValueError, match="must be a boolean"):
+        LLMSettings.from_env({"CAMPAIGN_MANAGER_OLLAMA_THINK": value})
+
+
+def test_llm_settings_reject_non_boolean_direct_think_value():
+    with pytest.raises(TypeError, match="intent_think must be a boolean or None"):
+        LLMSettings(intent_think="false")
 
 @pytest.mark.parametrize("base_url", ["", "localhost:11434", "ftp://localhost:21", "http:///missing-host", "http://localhost:11434?x=1", "http://localhost:bad", "http://user:pass@localhost:11434"])
 def test_llm_settings_reject_invalid_base_url(base_url):
