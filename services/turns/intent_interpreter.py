@@ -242,8 +242,9 @@ Reglas estrictas de evidencia superficial:
   traduzcas y no sustituyas por un sinónimo. Copia la forma escrita, incluidos
   clíticos y acentos.
 - target_mentions, action_frame.arguments[].mention.text, relation subjects,
-  relation objects y cualquier atribución deben ser menciones literales del
-  mensaje actual y aparecer también en el source_excerpt de su paso/claim.
+  relation objects, atribuciones y expresiones temporales deben ser literales
+  del mensaje actual y aparecer también en el source_excerpt de su paso/claim.
+  No infieras una fecha, duración o momento a partir del historial.
   Conserva pronombres y demostrativos tal como se escribieron. No los
   sustituyas por el nombre de una entidad que hayas recuperado del historial.
 - En callbacks, source_excerpt debe abarcar tanto la referencia explícita al
