@@ -449,6 +449,8 @@ def test_intent_prompt_and_schema_preserve_literal_surface_evidence():
     relation = intent_schema["relation_claims"]["items"]["properties"]
     assert "do not lemmatize" in relation["predicate"]["description"].casefold()
     assert "contiguous" in step["source_excerpt"]["description"].casefold()
+    assert "literal mentions" in step["target_mentions"]["description"].casefold()
+    assert "literal temporal expression" in relation["temporal_expression"]["description"].casefold()
     assert "not literal evidence" in step["action"]["description"].casefold()
 
     correction_prompt = IntentInterpreter.CORRECTION_SYSTEM_PROMPT.casefold()
