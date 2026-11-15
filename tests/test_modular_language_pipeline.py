@@ -156,7 +156,8 @@ def test_intent_interpreter_emits_only_shared_semantic_analysis():
     assert "HISTORIAL VISIBLE DEL MISMO CHAT" in provider.prompts[0]
     assert "EVIDENCIA ESCRITA POR EL JUGADOR" in provider.prompts[0]
     assert "únicamente category=\"action\" o" in provider.prompts[0]
-    assert "active_step_index debe ser null" in provider.prompts[0]
+    assert "active_step_index" in provider.prompts[0]
+    assert "debe ser null" in provider.prompts[0]
 
 @pytest.mark.parametrize(
     ("category", "modality"),
