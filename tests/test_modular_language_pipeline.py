@@ -416,6 +416,46 @@ def test_intent_interpreter_prompt_does_not_include_mechanics_or_character_stat_
     assert prompt.count("abro la puerta.") == 1
 
 
+def test_intent_prompt_and_schema_preserve_literal_surface_evidence():
+    provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": _analysis_payload(),
+    }))
+    interpreter = IntentInterpreter(provider)
+
+    interpreter.interpret(_context(), "Abro la puerta.")
+
+    prompt = provider.prompts[0].casefold()
+    assert "no lematices" in prompt
+    assert "forma superficial exacta" in prompt
+    assert "no sustituyas" in prompt
+    assert "fragmento continuo" in prompt
+    assert "mantén pronombres y demostrativos" in prompt
+
+    intent_schema = INTENT_ANALYSIS_RESPONSE_SCHEMA["properties"][
+        "intent_analysis"
+    ]["properties"]
+    step = intent_schema["steps"]["items"]["properties"]
+    frame = step["action_frame"]["properties"]
+    mention_text = frame["arguments"]["items"]["properties"]["mention"][
+        "properties"
+    ]["text"]["description"].casefold()
+    assert "pronouns" in mention_text
+    assert "exact literal surface mention" in mention_text
+
+    predicate_description = frame["predicate"]["description"].casefold()
+    assert "preserve conjugation" in predicate_description
+    assert "do not lemmatize" in predicate_description
+
+    relation = intent_schema["relation_claims"]["items"]["properties"]
+    assert "do not lemmatize" in relation["predicate"]["description"].casefold()
+    assert "contiguous" in step["source_excerpt"]["description"].casefold()
+    assert "not literal evidence" in step["action"]["description"].casefold()
+
+    correction_prompt = IntentInterpreter.CORRECTION_SYSTEM_PROMPT.casefold()
+    assert "no lematices" in correction_prompt
+    assert "fragmento continuo" in correction_prompt
+
+
 def test_intent_interpreter_keeps_player_evidence_and_reports_byte_budget_failure():
     provider = FakeLLMProvider(response=json.dumps({
         "intent_analysis": _analysis_payload(),
