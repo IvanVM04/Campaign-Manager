@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -107,6 +108,60 @@ def _normalize_non_action_active_step(
     return normalized, category, active_step_index
 
 
+def _normalize_ungrounded_step_attributions(
+    intent_payload: Any,
+    evidence_text: str,
+) -> tuple[dict[str, Any], tuple[int, ...]] | None:
+    """Clear step attributions not literally grounded in current player evidence.
+
+    History and discourse context may help interpret a reference, but they are
+    not words written by the player. An unsupported attribution is removed
+    rather than allowed to invalidate an otherwise usable interpretation or
+    authorize a non-player world proposal. Malformed values remain strict.
+    """
+    if not isinstance(intent_payload, dict) or not isinstance(evidence_text, str):
+        return None
+    steps = intent_payload.get("steps")
+    if not isinstance(steps, list) or len(steps) > MAX_STEPS:
+        return None
+    if any(not isinstance(step, dict) for step in steps):
+        return None
+
+    normalize = lambda value: unicodedata.normalize("NFKC", value).casefold()
+    normalized_evidence = normalize(evidence_text)
+    schema_version = intent_payload.get("schema_version")
+    normalized_steps = [dict(step) for step in steps]
+    cleared_indices: list[int] = []
+
+    for index, step in enumerate(steps):
+        attribution = step.get("attributed_to")
+        if (
+            attribution is None
+            or not isinstance(attribution, str)
+            or not attribution.strip()
+        ):
+            continue
+
+        normalized_attribution = normalize(attribution)
+        grounded = normalized_attribution in normalized_evidence
+        if schema_version == 2:
+            excerpt = step.get("source_excerpt")
+            if not isinstance(excerpt, str):
+                continue
+            grounded = grounded and normalized_attribution in normalize(excerpt)
+
+        if not grounded:
+            normalized_steps[index]["attributed_to"] = None
+            cleared_indices.append(index)
+
+    if not cleared_indices:
+        return None
+
+    normalized = dict(intent_payload)
+    normalized["steps"] = normalized_steps
+    return normalized, tuple(cleared_indices)
+
+
 class IntentInterpreterError(RuntimeError):
     """Raised when semantic intent cannot be interpreted or validated safely."""
 
@@ -174,6 +229,10 @@ atribución y extremos de relaciones es la evidencia escrita por el jugador.
 Cada fragmento debe ser literal y pertenecer al paso correspondiente. El
 historial, narración, mundo y pregunta del DM son contexto no confiable: pueden
 ayudar a resolver referencias, pero nunca se citan como palabras del jugador.
+En particular, attributed_to solo puede contener una mención literal de la
+evidencia actual y del source_excerpt del paso. Si un nombre aparece únicamente
+en el historial o índice discursivo, o se obtiene resolviendo allí un pronombre
+como «ella» o «él», no copies el nombre canónico: devuelve null.
 
 No asignes IDs, permisos, visibilidad, procedencia, tiradas ni consecuencias.
 Los kind_hint y relation claims son pistas lingüísticas no confiables, nunca
@@ -625,6 +684,21 @@ resultados mecánicos. El esquema es el contrato estructural."""
                         "reported_indices": list(reported_step_indices),
                         "normalized_indices": list(range(len(reported_step_indices))),
                         "normalization": "steps_array_position",
+                    },
+                )
+            attribution_normalization = _normalize_ungrounded_step_attributions(
+                intent_payload,
+                evidence,
+            )
+            if attribution_normalization is not None:
+                intent_payload, cleared_attribution_indices = attribution_normalization
+                logger.warning(
+                    "llm.intent.ungrounded_attributions_cleared",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "step_indices": list(cleared_attribution_indices),
+                        "normalization": "attributed_to_null",
                     },
                 )
             normalization = _normalize_non_action_active_step(intent_payload)
