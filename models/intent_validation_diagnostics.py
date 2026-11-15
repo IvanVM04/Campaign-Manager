@@ -246,11 +246,15 @@ def diagnose_intent_analysis_error(
     if "must be non-empty" in message:
         field = "intent_analysis"
         for token, path in (
+            ("relation source_excerpt", "relation_claims[].source_excerpt"),
+            ("relation predicate", "relation_claims[].predicate"),
             ("source_excerpt", "steps[].source_excerpt"),
             ("target mention", "steps[].target_mentions[]"),
             ("attributed_to", "steps[].attributed_to"),
-            ("predicate", "semantic_predicate"),
+            ("argument mention", "steps[].action_frame.arguments[].mention"),
+            ("predicate", "steps[].action_frame.predicate"),
             ("temporal_expression", "relation_claims[].temporal_expression"),
+            ("mention", "semantic_mentions[].text"),
         ):
             if token in message:
                 field = path
@@ -260,8 +264,25 @@ def diagnose_intent_analysis_error(
         )
 
     if "must not exceed" in message:
+        field = "intent_analysis"
+        for token, path in (
+            ("relation source_excerpt", "relation_claims[].source_excerpt"),
+            ("relation predicate", "relation_claims[].predicate"),
+            ("source_excerpt", "steps[].source_excerpt"),
+            ("target mention", "steps[].target_mentions[]"),
+            ("attributed_to", "steps[].attributed_to"),
+            ("argument mention", "steps[].action_frame.arguments[].mention"),
+            ("predicate", "steps[].action_frame.predicate"),
+            ("temporal_expression", "relation_claims[].temporal_expression"),
+            ("clarification_question", "clarification_question"),
+            ("action", "steps[].action"),
+            ("mention", "semantic_mentions[].text"),
+        ):
+            if token in message:
+                field = path
+                break
         return IntentValidationDiagnostic(
-            "text_out_of_bounds", "intent_analysis", "bounds"
+            "text_out_of_bounds", field, "bounds"
         )
 
     if "step indices must be contiguous and ordered" in message:
