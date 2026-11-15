@@ -127,6 +127,11 @@ def diagnose_intent_analysis_error(
                     field = "steps[].action_frame.arguments[].mention"
             return IntentValidationDiagnostic(code, field, "evidence_mismatch")
 
+    if "unsupported player intent schema version" in message:
+        return IntentValidationDiagnostic(
+            "unsupported_schema_version", "schema_version", "unsupported_value"
+        )
+
     if "unsupported " in message:
         enum_fields = (
             ("utterancecategory", "category"),
