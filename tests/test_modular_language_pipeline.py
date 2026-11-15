@@ -429,7 +429,7 @@ def test_intent_prompt_and_schema_preserve_literal_surface_evidence():
     assert "forma superficial exacta" in prompt
     assert "no sustituyas" in prompt
     assert "fragmento continuo" in prompt
-    assert "mantén pronombres y demostrativos" in prompt
+    assert "conserva pronombres y demostrativos" in prompt
 
     intent_schema = INTENT_ANALYSIS_RESPONSE_SCHEMA["properties"][
         "intent_analysis"
