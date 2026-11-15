@@ -4,8 +4,8 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any
 from time import perf_counter
+from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import PendingIntentCorrection
@@ -50,7 +50,8 @@ def _normalize_non_action_active_step(
     active_step_index = intent_payload.get("active_step_index")
     steps = intent_payload.get("steps")
     if (
-        category not in _NON_ACTION_CATEGORIES
+        not isinstance(category, str)
+        or category not in _NON_ACTION_CATEGORIES
         or isinstance(active_step_index, bool)
         or not isinstance(active_step_index, int)
         or not isinstance(steps, list)
