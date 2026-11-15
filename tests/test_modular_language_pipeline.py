@@ -155,6 +155,78 @@ def test_intent_interpreter_emits_only_shared_semantic_analysis():
     assert "mechanics_decision" not in INTENT_ANALYSIS_RESPONSE_SCHEMA["properties"]
     assert "HISTORIAL VISIBLE DEL MISMO CHAT" in provider.prompts[0]
     assert "EVIDENCIA ESCRITA POR EL JUGADOR" in provider.prompts[0]
+    assert "únicamente category=\"action\" o" in provider.prompts[0]
+    assert "active_step_index debe ser null" in provider.prompts[0]
+
+@pytest.mark.parametrize(
+    ("category", "modality"),
+    [
+        ("question", "question"),
+        ("dialogue", "dialogue"),
+        ("report", "reported"),
+        ("plan", "planned"),
+        ("correction", "correction"),
+        ("unknown", "unknown"),
+    ],
+)
+def test_intent_interpreter_clears_active_step_for_non_action_categories(
+    category,
+    modality,
+    caplog,
+):
+    source = "Cambiando de tema, ¿qué ocurre en la biblioteca?"
+    intent_payload = _analysis_payload(
+        category=category,
+        modality=modality,
+        active_step_index=0,
+        source_excerpt=source,
+        action="preguntar qué ocurre en la biblioteca",
+        predicate="ocurre",
+    )
+    intent_payload["steps"][0]["target_mentions"] = []
+    intent_payload["steps"][0]["action_frame"]["arguments"] = []
+    provider = FakeLLMProvider(
+        response=json.dumps({"intent_analysis": intent_payload}),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(_context(), source)
+
+    assert analysis.category.value == category
+    assert analysis.active_step_index is None
+    assert analysis.is_actionable is False
+    assert provider.call_count == 1
+    normalization_record = next(
+        record
+        for record in caplog.records
+        if record.getMessage() == "llm.intent.non_action_active_step_cleared"
+    )
+    assert normalization_record.category == category
+    assert normalization_record.discarded_active_step_index == 0
+    assert normalization_record.normalization == "active_step_index_null"
+
+
+def test_intent_interpreter_does_not_normalize_an_out_of_range_active_step():
+    intent_payload = _analysis_payload(
+        category="question",
+        modality="question",
+        active_step_index=7,
+        source_excerpt="¿Qué ocurre en la biblioteca?",
+        action="preguntar qué ocurre en la biblioteca",
+        predicate="ocurre",
+    )
+    intent_payload["steps"][0]["target_mentions"] = []
+    intent_payload["steps"][0]["action_frame"]["arguments"] = []
+    provider = FakeLLMProvider(
+        response=json.dumps({"intent_analysis": intent_payload}),
+    )
+
+    with pytest.raises(IntentInterpreterError) as captured:
+        IntentInterpreter(provider).interpret(
+            _context(),
+            "¿Qué ocurre en la biblioteca?",
+        )
+
+    assert captured.value.validation_code == "invalid_active_step"
 
 
 def test_intent_interpreter_prompt_does_not_include_mechanics_or_character_stat_block():
