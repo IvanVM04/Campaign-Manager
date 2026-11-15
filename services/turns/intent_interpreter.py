@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from time import perf_counter
 
+from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import PendingIntentCorrection
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
@@ -25,6 +26,21 @@ logger = logging.getLogger(__name__)
 
 class IntentInterpreterError(RuntimeError):
     """Raised when semantic intent cannot be interpreted or validated safely."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        validation_stage: str | None = None,
+        validation_code: str | None = None,
+        validation_field: str | None = None,
+        validation_reason: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.validation_stage = validation_stage
+        self.validation_code = validation_code
+        self.validation_field = validation_field
+        self.validation_reason = validation_reason
 
 
 @dataclass(frozen=True, slots=True)
@@ -541,7 +557,13 @@ resultados mecánicos. El esquema es el contrato estructural."""
                 return analysis, corrections
             return analysis
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            if isinstance(exc, json.JSONDecodeError):
+            validation_field = None
+            validation_reason = None
+            if isinstance(exc, IntentAnalysisValidationError):
+                validation_code = exc.validation_code
+                validation_field = exc.validation_field
+                validation_reason = exc.validation_reason
+            elif isinstance(exc, json.JSONDecodeError):
                 validation_code = "malformed_json"
             elif isinstance(exc, KeyError):
                 validation_code = "missing_field"
@@ -561,10 +583,19 @@ resultados mecánicos. El esquema es el contrato estructural."""
                     "error_type": type(exc).__name__,
                     "validation_stage": validation_stage,
                     "validation_code": validation_code,
+                    "validation_field": validation_field,
+                    "validation_reason": validation_reason,
                 },
             )
-            # Keep diagnostics useful without logging any provider completion,
-            # player evidence, or exception text that may contain user content.
+            # Keep diagnostics useful without logging provider completions,
+            # player evidence, model-supplied values or raw exception text.
+            detail = f"invalid intent response at {validation_stage}: {validation_code}"
+            if validation_field is not None:
+                detail += f" (field={validation_field})"
             raise IntentInterpreterError(
-                f"invalid intent response at {validation_stage}: {validation_code}"
+                detail,
+                validation_stage=validation_stage,
+                validation_code=validation_code,
+                validation_field=validation_field,
+                validation_reason=validation_reason,
             ) from exc
