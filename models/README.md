@@ -36,7 +36,11 @@ ordering, missing frames in v2, relation claims referencing missing steps,
 non-literal source/mentions/predicates/attributions/temporal expressions and
 attempts to attach canonical IDs.
 
-The trust-boundary wrapper also classifies rejected payloads through models/intent_validation_diagnostics.py. IntentAnalysisValidationError remains a ValueError subclass and exposes only fixed validation codes, field paths and reason categories; callers must not log the wrapped exception or model-supplied values.
+The trust-boundary wrapper also classifies rejected payloads through
+`models/intent_validation_diagnostics.py`. `IntentAnalysisValidationError`
+remains a `ValueError` subclass and exposes only fixed validation codes, field
+paths and reason categories; callers must not log the wrapped exception or
+model-supplied values.
 
 The interpretation is language evidence, not authorization. It cannot assign
 canonical IDs, permissions, visibility, provenance, dice or write operations.
