@@ -28,6 +28,14 @@ class IntentValidationDiagnostic:
                 "action predicate is not literal player evidence",
             ("evidence_not_in_player_text", "relation_claims[].predicate"):
                 "relation predicate is not literal player evidence",
+            ("evidence_not_in_player_text", "relation_claims[].subject"):
+                "relation subject is not literal player evidence",
+            ("evidence_not_in_player_text", "relation_claims[].object"):
+                "relation object is not literal player evidence",
+            ("evidence_not_in_player_text", "relation_claims[].attributed_to"):
+                "relation attribution is not literal player evidence",
+            ("evidence_not_in_player_text", "steps[].attributed_to"):
+                "attribution is not literal player evidence",
             ("evidence_not_in_player_text", "relation_claims[].source_excerpt"):
                 "relation source_excerpt is not grounded in player input",
             ("evidence_not_in_player_text", "relation_claims[].temporal_expression"):
