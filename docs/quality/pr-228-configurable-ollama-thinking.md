@@ -73,6 +73,25 @@ metrics, provider usage, timing and all failure details. If thinking-off still
 times out, investigate prompt prefill, CPU/GPU offload, memory pressure and
 Ollama runner health before changing prompts.
 
+
+## Validation-failure diagnostics
+
+The live Intent probe accepts an optional scenario selector so a single non-critical
+case can be inspected without replaying the complete holdout:
+
+```powershell
+$env:CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID = "dp-topic-current-shift-01"
+$env:CAMPAIGN_MANAGER_LLM_INTENT_THINK = "false"
+python -m pytest tests/test_real_llm_discourse_pipeline.py -m real_llm -k "held_out_discourse_intent_and_resolution_corpus" -v -s
+```
+
+Invalid provider completions now report a bounded validation stage/code (JSON
+decoding, top-level envelope, analysis schema/evidence or correction contract).
+The exception text intentionally excludes provider output and player evidence.
+The evaluator prints the scenario ID and safe stage/code in its mismatch summary.
+A non-critical selected scenario may leave pytest green while printing a mismatch;
+inspect that summary rather than only the exit code.
+
 ## Acceptance boundary
 
 This PR only exposes an existing Ollama API control and adds deterministic
