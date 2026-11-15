@@ -79,6 +79,8 @@ substring containing the fields it supports. Context may clarify the semantic
 `action` description for a unique ellipsis, but history-derived words must not
 be copied into literal evidence fields. Strict model validation remains the
 enforcement boundary; prompt/schema guidance does not repair an invalid payload.
+The prompt/schema rationale and live evaluation evidence are recorded in
+[PR #235 — Intent surface evidence prompting](../../docs/quality/pr-235-intent-surface-evidence-prompting.md).
 
 Pending clarifications use `IntentInterpreter.understand_pending()`: the prior
 analysis is a non-authoritative draft, replacements must be literal in the
