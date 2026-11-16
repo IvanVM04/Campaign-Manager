@@ -16,7 +16,7 @@ independent responsibilities.
 
 ### Discourse / reference holdout
 
-Run on the PR #236 head `83c2d142097671e23059fe02435fe04aa4a9c74f`
+Run on the PR #236 head `83c2d14`
 (the local working branch before the test-harness-only follow-up), using:
 
 - Intent model: `gemma4:12b-it-q4_K_M`;
@@ -260,3 +260,67 @@ This PR focuses on two separable boundaries:
   this PR. Dialogue/report/question classification and callback/ellipsis
   accuracy remain measured follow-up work after these stage contracts are
   trustworthy.
+
+
+## PR #237 implementation status
+
+The branch `fix/237-reference-and-correction-evidence` implements the
+following changes against the merged PR #236 base:
+
+### Reference understanding
+
+- `ConversationReferenceResolver` no longer returns an empty result solely
+  because `allows_world_proposal` is false.
+- Its eligible modalities now include question, planned and conditional
+  mentions as well as action/report/dialogue references.
+- `TurnResolutionService` builds a bounded visible context projection when a
+  non-write turn contains literal target mentions, action-frame arguments or
+  relation claims, then runs conversation-reference resolution.
+- Typed world-reference resolution is still invoked only for turns that pass
+  `allows_world_proposal`.
+- The existing mechanics and extractor gates remain intact. New deterministic
+  tests cover NPC reports, NPC dialogue and DM questions that resolve pronouns
+  while remaining non-write-authorized, plus a service-level question path
+  that stops on clarification before mechanics or proposal.
+
+### Pending corrections
+
+- `INTENT_CORRECTION_RESPONSE_SCHEMA` is now a correction-only contract:
+  `status`, `pending_corrections`, and `clarification_question`.
+- The correction prompt explicitly prohibits regenerating `intent_analysis`.
+- Accepted corrections are applied to the stored pending analysis with
+  `PendingIntentCorrection.apply()`; all unchanged fields are preserved and
+  checked against the provider result.
+- `corrected` clears the clarification being resolved;
+  `needs_clarification` retains the pending state and sets a new question;
+  `no_change` leaves the pending state unchanged.
+- Deterministic tests now cover accepted corrections, no-change and ambiguous
+  responses without requesting a second full semantic analysis.
+
+### Evaluation harness
+
+- The post-merge `relation_endpoint` fixture/helper mismatch is included in
+  this branch; the relation endpoint scenario now constructs the correct
+  pending relation state.
+- The ambiguous two-recipient fixture no longer seeds a fabricated single
+  recipient. Its pending analysis retains both alternatives and requires
+  clarification.
+- Four gold utterances were made more discriminative without changing their
+  intended categories: the two single-NPC replies now explicitly state that
+  the answer is spoken, the plural reply is explicitly verbal, and the
+  ambiguous-speaker uncertainty example explicitly asks the DM to identify
+  the speaker.
+- Live discourse telemetry now distinguishes whether Intent emitted mentions,
+  whether the resolver ran, how many references it returned, whether it asked
+  for clarification, and why it returned no reference. The previous
+  `reason=resolved` label for an empty, non-clarifying result has been
+  replaced by `no_reference_returned`.
+
+### Validation status
+
+These changes have been committed to the PR #237 branch, but the deterministic
+CI run has not yet been observed for this branch and no new local Ollama run
+has been completed against the changed contract. Do not treat the PR as
+validated until CI is green and the same pinned local discourse and correction
+evaluations have been repeated. The earlier 16 November metrics above remain
+the baseline; they are not results from PR #237.
