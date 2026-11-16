@@ -270,6 +270,7 @@ def test_remaining_intent_contract_failures_have_specific_safe_codes(
     assert diagnostic.field == field
     assert diagnostic.reason == reason
 
+
 def test_interpreter_logs_safe_relation_selector_reason_code(
     caplog: pytest.LogCaptureFixture,
 ):
