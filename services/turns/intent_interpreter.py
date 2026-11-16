@@ -316,20 +316,20 @@ de aplicación aplicará los cambios tipados sobre esa interpretación. Tu únic
 responsabilidad es decidir si la última respuesta corrige explícitamente un
 valor pendiente y, si es así, proponer el cambio mínimo y exacto.
 
-El backend proporciona un catálogo de correction_slots agrupado por
-contexto. Cada paso contiene su index, action, source_excerpt y sus slots
-editables. Cada relación contiene su index, step_index, subject, predicate,
-object y sus slots editables. Cada slot contiene:
-- slot_id: identificador único y estable del candidato.
-- kind: target_mention, action_argument, relation_subject o relation_object.
-- current_value: valor que contiene actualmente ese slot.
-- role: papel semántico, cuando el slot es un action_argument.
+El backend proporciona un catálogo de slots agrupado por contexto:
+- En cada paso, correction_slots.target_mentions contiene los slots genéricos
+  disponibles y correction_slots.action_arguments contiene los argumentos
+  tipados, cada uno con slot_id, current_value y role.
+- En cada relación, subject y object contienen cada uno slot_id y current_value;
+  el index, step_index y predicate de la relación identifican su contexto.
 
 Selecciona un slot existente usando su slot_id dentro del paso o relación que
-representa la corrección. No inventes identificadores ni los derives a partir
-del texto. No devuelvas step_index ni el tipo de slot: el backend los obtiene
-del catálogo y del ID. Copia previous_value exactamente desde current_value
-de la entrada seleccionada. No lo reconstruyas desde la pregunta, la evidencia
+representa la corrección. El campo que contiene el slot determina su tipo:
+target_mentions, action_arguments, subject u object. No inventes
+identificadores ni los derives a partir del texto. No devuelvas step_index,
+role, claim index ni tipo de slot: el backend los obtiene del ID y del
+contexto padre. Copia previous_value exactamente desde current_value de la
+entrada seleccionada. No lo reconstruyas desde la pregunta, la evidencia
 nueva ni la interpretación previa. Si el candidato no existe, no representa
 inequívocamente la corrección o su valor no coincide, abstente y solicita
 aclaración. Los slot_id conservan su identidad durante todas las correcciones
