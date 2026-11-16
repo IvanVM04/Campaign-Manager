@@ -1169,7 +1169,7 @@
         "correction": {
           "slot": "action_argument",
           "role": "theme",
-          "previous_value": "llave",
+          "previous_value": "la llave",
           "replacement": "mapa",
           "accepted": true
         },
@@ -1197,7 +1197,7 @@
           "expected": {
             "slot": "action_argument",
             "role": "theme",
-            "previous_value": "llave",
+            "previous_value": "la llave",
             "replacement": "mapa",
             "accepted": true
           }
