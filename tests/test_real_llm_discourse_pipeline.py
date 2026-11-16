@@ -35,6 +35,32 @@ FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURE = FIXTURES / "discourse_pipeline_corpus_holdout_v1.json"
 
 
+_SPANISH_DETERMINERS = frozenset({
+    "el", "la", "los", "las", "un", "una", "unos", "unas",
+})
+
+
+def _correction_mentions_equivalent(left: str, right: str) -> bool:
+    """Compare noun mentions while allowing an optional Spanish article.
+
+    Both values must still be independently grounded as literal mentions by
+    the correction parser. This helper only prevents evaluation from treating
+    "mapa" and "el mapa" as different semantic replacements.
+    """
+    def normalize(value: str) -> tuple[str | None, tuple[str, ...]]:
+        tokens = tuple(value.casefold().split())
+        article = tokens[0] if tokens and tokens[0] in _SPANISH_DETERMINERS else None
+        return article, tokens[1:] if article is not None else tokens
+
+    left_article, left_tokens = normalize(left)
+    right_article, right_tokens = normalize(right)
+    return bool(left_tokens) and left_tokens == right_tokens and (
+        left_article is None
+        or right_article is None
+        or left_article == right_article
+    )
+
+
 def _live_intent_runtime():
     settings = LLMSettings.from_env()
     common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
@@ -832,7 +858,10 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
                             raise AssertionError("correction slot mismatch")
                         if correction.previous_value.casefold() != expected["previous_value"].casefold():
                             raise AssertionError("correction previous_value mismatch")
-                        if correction.replacement.text.casefold() != expected["replacement"].casefold():
+                        if not _correction_mentions_equivalent(
+                            correction.replacement.text,
+                            expected["replacement"],
+                        ):
                             raise AssertionError("correction replacement mismatch")
                         if expected.get("role") is not None and (
                             correction.argument_role is None

@@ -1204,8 +1204,7 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics(
         "relation_claims": [],
     }
     correction_payload = {
-        "step_index": 0,
-        "slot": "target_mention",
+        "slot_id": 7,
         "previous_value": "Mara",
         "replacement": {"text": "Aldric", "kind_hint": "character"},
         "source_excerpt": correction,
@@ -1252,7 +1251,9 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics(
     assert "intent_analysis" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
-    assert "action_arguments" in provider.prompts[0]
+    assert "correction_slots" in provider.prompts[0]
+    assert '"slot_id":7' in provider.prompts[0]
+    assert '"current_value":"Mara"' in provider.prompts[0]
     assert "ÍNDICE DISCURSIVO" not in provider.prompts[0]
     assert "omitido: la corrección se limita al estado pendiente" in provider.prompts[0]
     assert provider.prompts[0].count(correction) == 2
@@ -1723,8 +1724,7 @@ def _invalid_pending_correction_response(
             _invalid_pending_correction_response(
                 status="no_change",
                 corrections=[{
-                    "step_index": 0,
-                    "slot": "target_mention",
+                    "slot_id": 7,
                     "previous_value": "Mara",
                     "replacement": {
                         "text": "Aldric",
@@ -1759,6 +1759,52 @@ def test_pending_correction_rejects_inconsistent_status_contracts(
 
     assert error.value.validation_stage == "pending_corrections_validation"
     assert error.value.validation_code == "invalid_pending_corrections"
+    assert provider.call_count == 1
+
+
+def test_pending_correction_rejects_duplicate_slot_ids_in_one_response():
+    original = "Entrego el mapa a Mara."
+    answer = "No, quería decir Aldric, no Bram."
+    pending = _pending_recipient_analysis_for_status_tests()
+    provider = FakeLLMProvider(response=json.dumps({
+        "status": "corrected",
+        "pending_corrections": [
+            {
+                "slot_id": 7,
+                "previous_value": "Mara",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "quería decir Aldric",
+            },
+            {
+                "slot_id": 7,
+                "previous_value": "Aldric",
+                "replacement": {
+                    "text": "Bram",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "no Bram",
+            },
+        ],
+        "clarification_question": None,
+    }, ensure_ascii=False))
+
+    with pytest.raises(IntentInterpreterError) as captured:
+        IntentInterpreter(provider).understand_pending(
+            _context(),
+            original + "\n\nDM: ¿A quién quieres entregar el mapa?\n" + answer,
+            pending_analysis=pending,
+            correction_evidence_text=answer,
+            evidence_text=original + "\n\n" + answer,
+        )
+
+    assert captured.value.validation_code == "invalid_pending_corrections"
+    assert captured.value.validation_reason == "duplicate_correction_slot_id"
+    assert str(captured.value.__cause__) == (
+        "pending corrections must select distinct slot IDs"
+    )
     assert provider.call_count == 1
 
 

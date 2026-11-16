@@ -9,7 +9,10 @@ from time import perf_counter
 from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
-from models.pending_intent_correction import PendingIntentCorrection
+from models.pending_intent_correction import (
+    PendingIntentCorrection,
+    build_pending_correction_candidates,
+)
 from models.player_intent_analysis import MAX_STEPS, PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -313,6 +316,25 @@ de aplicación aplicará los cambios tipados sobre esa interpretación. Tu únic
 responsabilidad es decidir si la última respuesta corrige explícitamente un
 valor pendiente y, si es así, proponer el cambio mínimo y exacto.
 
+El backend proporciona un catálogo de slots agrupado por contexto:
+- En cada paso, correction_slots.target_mentions contiene entradas con
+  slot_id y current_value; correction_slots.action_arguments contiene entradas
+  con esos mismos campos y el role semántico del argumento.
+- En cada relación, subject y object contienen cada uno slot_id y current_value;
+  el index, step_index y predicate de la relación identifican su contexto.
+
+Selecciona un slot existente usando su slot_id dentro del paso o relación que
+representa la corrección. El campo que contiene el slot determina su tipo:
+target_mentions, action_arguments, subject u object. No inventes
+identificadores ni los derives a partir del texto. No devuelvas step_index,
+role, claim index ni tipo de slot: el backend los obtiene del ID y del
+contexto padre. Copia previous_value exactamente desde current_value de la
+entrada seleccionada. No lo reconstruyas desde la pregunta, la evidencia
+nueva ni la interpretación previa. Si el candidato no existe, no representa
+inequívocamente la corrección o su valor no coincide, abstente y solicita
+aclaración. Los slot_id conservan su identidad durante todas las correcciones
+de una misma respuesta.
+
 Usa uno de estos estados:
 - status="corrected": existe al menos una rectificación explícita, única y
   fundamentada. Emite entre una y cuatro pending_corrections y
@@ -324,22 +346,13 @@ Usa uno de estos estados:
   valor pendiente y no hace falta otra aclaración. Emite pending_corrections=[]
   y clarification_question=null.
 
-Cada corrección debe identificar exactamente un slot usando step_index
-y slot. Usa target_mention, action_argument:<role>, relation_subject:<index>
-o relation_object:<index>; por ejemplo, action_argument:recipient o
-relation_object:0. El sufijo forma parte de slot: no devuelvas argument_role
-ni relation_claim_index como campos separados. El servidor comprueba que el
-rol o índice identifica un slot existente y que previous_value coincide
-exactamente con su valor. Si no puedes identificar el slot con seguridad,
-usa status="needs_clarification". No reconstruyas previous_value a partir
-del texto.
-
-replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
-respuesta del jugador. No lematices, traduzcas ni parafrasees replacement.text.
-source_excerpt debe ser un fragmento continuo de esa respuesta que contenga
-replacement.text y exprese inequívocamente la rectificación. No uses el
-mensaje original, la pregunta del DM, la narración ni el historial como
-evidencia para una corrección nueva. No resuelvas
+Cada corrección debe contener slot_id, previous_value, replacement y
+source_excerpt. replacement.text y source_excerpt deben copiarse literalmente
+de la ÚLTIMA respuesta del jugador. No lematices, traduzcas ni parafrasees
+replacement.text. source_excerpt debe ser un fragmento continuo de esa
+respuesta que contenga replacement.text y exprese inequívocamente la
+rectificación. No uses el mensaje original, la pregunta del DM, la narración
+ni el historial como evidencia para una corrección nueva. No resuelvas
 pronombres o expresiones como «el otro» si no identifican un único reemplazo.
 
 No devuelvas valores para campos que no se corrigen. No reescribas la acción,
@@ -447,37 +460,50 @@ El esquema JSON es el contrato estructural."""
 
     @staticmethod
     def _pending_summary(analysis: PlayerIntentAnalysis) -> dict:
-        """Expose only candidate slots needed to adjudicate a pending correction."""
+        """Group backend-addressable slots under their step or relation context."""
+        candidates = build_pending_correction_candidates(analysis)
         return {
             "steps": [
                 {
                     "index": step.index,
                     "action": step.action,
                     "source_excerpt": step.source_excerpt,
-                    "target_mentions": list(step.target_mentions),
-                    "action_arguments": (
-                        [
-                            {
-                                "role": argument.role.value,
-                                "mention": argument.mention.text,
-                            }
-                            for argument in step.action_frame.arguments
-                        ]
-                        if step.action_frame is not None
-                        else []
-                    ),
+                    "correction_slots": {
+                        "target_mentions": [
+                            candidate.to_prompt_dict()
+                            for candidate in candidates
+                            if candidate.step_index == step.index
+                            and candidate.slot.value == "target_mention"
+                        ],
+                        "action_arguments": [
+                            candidate.to_prompt_dict()
+                            for candidate in candidates
+                            if candidate.step_index == step.index
+                            and candidate.slot.value == "action_argument"
+                        ],
+                    },
                 }
                 for step in analysis.steps
             ],
-            "relation_claims": [
+            "relations": [
                 {
-                    "index": index,
+                    "index": claim_index,
                     "step_index": claim.step_index,
-                    "subject": claim.subject.text,
+                    "subject": next(
+                        candidate.to_prompt_dict()
+                        for candidate in candidates
+                        if candidate.relation_claim_index == claim_index
+                        and candidate.slot.value == "relation_subject"
+                    ),
                     "predicate": claim.predicate,
-                    "object": claim.object.text,
+                    "object": next(
+                        candidate.to_prompt_dict()
+                        for candidate in candidates
+                        if candidate.relation_claim_index == claim_index
+                        and candidate.slot.value == "relation_object"
+                    ),
                 }
-                for index, claim in enumerate(analysis.relation_claims)
+                for claim_index, claim in enumerate(analysis.relation_claims)
             ],
         }
 
@@ -799,7 +825,19 @@ El esquema JSON es el contrato estructural."""
                     raise ValueError("pending_corrections must contain at most four items")
                 analysis = pending_analysis
                 correction_items: list[PendingIntentCorrection] = []
+                seen_slot_ids: set[int] = set()
                 for item in correction_payloads:
+                    if isinstance(item, dict):
+                        proposed_slot_id = item.get("slot_id")
+                        if (
+                            isinstance(proposed_slot_id, int)
+                            and not isinstance(proposed_slot_id, bool)
+                        ):
+                            if proposed_slot_id in seen_slot_ids:
+                                raise ValueError(
+                                    "pending corrections must select distinct slot IDs"
+                                )
+                            seen_slot_ids.add(proposed_slot_id)
                     correction = PendingIntentCorrection.from_intent_payload(
                         item,
                         evidence_text=correction_evidence_text or "",
@@ -952,10 +990,16 @@ El esquema JSON es el contrato estructural."""
             elif validation_stage == "pending_corrections_validation":
                 validation_code = "invalid_pending_corrections"
                 validation_reason = {
-                    "relation selector points to opposite endpoint":
-                        "relation_selector_opposite_endpoint",
-                    "relation selector value matches neither pending endpoint":
-                        "relation_selector_previous_value_mismatch",
+                    "intent correction slot_id is outside the catalogue range":
+                        "correction_slot_id_out_of_range",
+                    "intent correction slot_id is not available in pending state":
+                        "correction_slot_id_unavailable",
+                    "intent correction previous_value matches another pending slot":
+                        "correction_previous_value_matches_other_slot",
+                    "intent correction previous_value does not match selected pending slot":
+                        "correction_previous_value_mismatch",
+                    "pending corrections must select distinct slot IDs":
+                        "duplicate_correction_slot_id",
                 }.get(str(exc))
             else:
                 validation_code = "schema_or_evidence_validation_failed"

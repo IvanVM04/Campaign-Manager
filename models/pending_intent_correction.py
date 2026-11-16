@@ -11,8 +11,14 @@ import unicodedata
 from dataclasses import dataclass, replace
 from enum import Enum
 
-from models.player_intent_analysis import PlayerIntentAnalysis
+from models.player_intent_analysis import (
+    MAX_STEPS,
+    MAX_TARGETS_PER_STEP,
+    PlayerIntentAnalysis,
+)
 from models.semantic_frames import (
+    MAX_ACTION_ARGUMENTS,
+    MAX_RELATION_CLAIMS,
     SemanticActionFrame,
     SemanticArgument,
     SemanticArgumentRole,
@@ -26,6 +32,136 @@ class PendingCorrectionSlot(str, Enum):
     ACTION_ARGUMENT = "action_argument"
     RELATION_SUBJECT = "relation_subject"
     RELATION_OBJECT = "relation_object"
+
+
+_CORRECTION_STEP_STRIDE = MAX_TARGETS_PER_STEP + MAX_ACTION_ARGUMENTS
+_CORRECTION_RELATION_OFFSET = MAX_STEPS * _CORRECTION_STEP_STRIDE
+MAX_CORRECTION_SLOTS = (
+    _CORRECTION_RELATION_OFFSET + MAX_RELATION_CLAIMS * 2
+)
+
+
+@dataclass(frozen=True, slots=True)
+class PendingCorrectionCandidate:
+    """One uniquely addressable correction slot from a pending analysis."""
+
+    slot_id: int
+    step_index: int
+    slot: PendingCorrectionSlot
+    current_value: str
+    argument_role: SemanticArgumentRole | None = None
+    relation_claim_index: int | None = None
+
+    def to_prompt_dict(self) -> dict[str, object]:
+        """Return a compact ID/value pair; the parent field supplies the slot kind."""
+        item: dict[str, object] = {
+            "slot_id": self.slot_id,
+            "current_value": self.current_value,
+        }
+        if self.slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+            if self.argument_role is None:
+                raise ValueError("action-argument candidate requires an argument role")
+            item["role"] = self.argument_role.value
+        return item
+
+
+def build_pending_correction_candidates(
+    pending_analysis: PlayerIntentAnalysis,
+) -> tuple[PendingCorrectionCandidate, ...]:
+    """Build stable slot IDs directly from bounded pending-analysis positions.
+
+    IDs use reserved ranges per step and relation claim, so they do not shift
+    when an earlier correction changes a mention value. Duplicate target
+    mentions are omitted because the current typed patch cannot safely address
+    one occurrence independently. Action arguments that cannot be uniquely
+    resolved by role and normalized value are omitted. Targets already
+    represented by action arguments or relation endpoints are omitted too,
+    because their precise typed candidates must take precedence over the
+    broader target patch.
+    """
+    if not isinstance(pending_analysis, PlayerIntentAnalysis):
+        raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
+
+    candidates: list[PendingCorrectionCandidate] = []
+    for step_index, step in enumerate(pending_analysis.steps):
+        structured_mentions = {
+            _normalize(argument.mention.text)
+            for argument in (
+                step.action_frame.arguments
+                if step.action_frame is not None
+                else ()
+            )
+        }
+        structured_mentions.update(
+            _normalize(mention.text)
+            for claim in pending_analysis.relation_claims
+            if claim.step_index == step_index
+            for mention in (claim.subject, claim.object)
+        )
+        normalized_targets = [_normalize(value) for value in step.target_mentions]
+        for target_index, value in enumerate(step.target_mentions):
+            normalized_value = normalized_targets[target_index]
+            if (
+                normalized_targets.count(normalized_value) != 1
+                or normalized_value in structured_mentions
+            ):
+                continue
+            candidates.append(
+                PendingCorrectionCandidate(
+                    slot_id=(
+                        step_index * _CORRECTION_STEP_STRIDE + target_index
+                    ),
+                    step_index=step_index,
+                    slot=PendingCorrectionSlot.TARGET_MENTION,
+                    current_value=value,
+                )
+            )
+
+        frame = step.action_frame
+        if frame is not None:
+            normalized_argument_keys = [
+                (argument.role, _normalize(argument.mention.text))
+                for argument in frame.arguments
+            ]
+            for argument_index, argument in enumerate(frame.arguments):
+                key = normalized_argument_keys[argument_index]
+                if normalized_argument_keys.count(key) != 1:
+                    continue
+                candidates.append(
+                    PendingCorrectionCandidate(
+                        slot_id=(
+                            step_index * _CORRECTION_STEP_STRIDE
+                            + MAX_TARGETS_PER_STEP
+                            + argument_index
+                        ),
+                        step_index=step_index,
+                        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+                        current_value=argument.mention.text,
+                        argument_role=argument.role,
+                    )
+                )
+
+    for claim_index, claim in enumerate(pending_analysis.relation_claims):
+        candidates.extend(
+            (
+                PendingCorrectionCandidate(
+                    slot_id=_CORRECTION_RELATION_OFFSET + claim_index * 2,
+                    step_index=claim.step_index,
+                    slot=PendingCorrectionSlot.RELATION_SUBJECT,
+                    current_value=claim.subject.text,
+                    relation_claim_index=claim_index,
+                ),
+                PendingCorrectionCandidate(
+                    slot_id=_CORRECTION_RELATION_OFFSET + claim_index * 2 + 1,
+                    step_index=claim.step_index,
+                    slot=PendingCorrectionSlot.RELATION_OBJECT,
+                    current_value=claim.object.text,
+                    relation_claim_index=claim_index,
+                ),
+            )
+        )
+
+    return tuple(candidates)
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,16 +256,14 @@ class PendingIntentCorrection:
         evidence_text: str,
         pending_analysis: PlayerIntentAnalysis,
     ) -> PendingIntentCorrection:
-        """Decode a compact Intent correction with one atomic slot selector.
+        """Decode an edit by resolving its slot ID against backend candidates.
 
-        The provider returns one discriminated slot value, such as
-        "action_argument:recipient" or "relation_object:0". The backend
-        validates that exact selector against the pending analysis; it never
-        accepts independent, potentially contradictory role/index fields.
+        The model selects one catalogue ID and echoes that candidate's current
+        value. Step, slot kind, role and relation index are all derived from the
+        stored pending analysis rather than reconstructed by the provider.
         """
         expected = {
-            "step_index",
-            "slot",
+            "slot_id",
             "previous_value",
             "replacement",
             "source_excerpt",
@@ -139,13 +273,21 @@ class PendingIntentCorrection:
         if not isinstance(pending_analysis, PlayerIntentAnalysis):
             raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
 
-        step_index = payload["step_index"]
+        slot_id = payload["slot_id"]
         if (
-            isinstance(step_index, bool)
-            or not isinstance(step_index, int)
-            or not 0 <= step_index < len(pending_analysis.steps)
+            isinstance(slot_id, bool)
+            or not isinstance(slot_id, int)
+            or not 0 <= slot_id < MAX_CORRECTION_SLOTS
         ):
-            raise ValueError("intent correction references a missing pending step")
+            raise ValueError("intent correction slot_id is outside the catalogue range")
+
+        candidates = build_pending_correction_candidates(pending_analysis)
+        candidate = next(
+            (item for item in candidates if item.slot_id == slot_id),
+            None,
+        )
+        if candidate is None:
+            raise ValueError("intent correction slot_id is not available in pending state")
 
         previous_value = payload["previous_value"]
         source_excerpt = payload["source_excerpt"]
@@ -153,93 +295,36 @@ class PendingIntentCorrection:
             raise TypeError("intent correction values must be strings")
         _validate_text(previous_value, "previous_value", 120)
         _validate_text(source_excerpt, "source_excerpt", 300)
+
+        normalized_previous = _normalize(previous_value)
+        if normalized_previous != _normalize(candidate.current_value):
+            matches_other_slot = any(
+                item.slot_id != candidate.slot_id
+                and item.step_index == candidate.step_index
+                and _normalize(item.current_value) == normalized_previous
+                for item in candidates
+            )
+            if matches_other_slot:
+                raise ValueError(
+                    "intent correction previous_value matches another pending slot"
+                )
+            raise ValueError(
+                "intent correction previous_value does not match selected pending slot"
+            )
+
         replacement = SemanticMention.from_payload(
             payload["replacement"],
             evidence_text=evidence_text,
             field_name="correction replacement",
         )
-
-        slot_value = payload["slot"]
-        if not isinstance(slot_value, str):
-            raise TypeError("intent correction slot must be a string")
-        step = pending_analysis.steps[step_index]
-        argument_role = None
-        relation_claim_index = None
-        normalized_previous = _normalize(previous_value)
-
-        if slot_value == PendingCorrectionSlot.TARGET_MENTION.value:
-            slot = PendingCorrectionSlot.TARGET_MENTION
-            matches = [
-                value
-                for value in step.target_mentions
-                if _normalize(value) == normalized_previous
-            ]
-            if len(matches) != 1:
-                raise ValueError(
-                    "target correction must identify exactly one pending mention"
-                )
-        elif slot_value.startswith("action_argument:"):
-            slot = PendingCorrectionSlot.ACTION_ARGUMENT
-            role_value = slot_value.partition(":")[2]
-            try:
-                argument_role = SemanticArgumentRole(role_value)
-            except ValueError as exc:
-                raise ValueError("action-argument selector has an unknown role") from exc
-            frame = step.action_frame
-            if frame is None:
-                raise ValueError(
-                    "action-argument correction requires a pending action frame"
-                )
-            matches = [
-                argument
-                for argument in frame.arguments
-                if argument.role is argument_role
-                and _normalize(argument.mention.text) == normalized_previous
-            ]
-            if len(matches) != 1:
-                raise ValueError(
-                    "action-argument selector does not identify exactly one pending role"
-                )
-        elif slot_value.startswith(("relation_subject:", "relation_object:")):
-            prefix, _, index_text = slot_value.partition(":")
-            if not index_text.isdigit():
-                raise ValueError("relation selector requires a non-negative claim index")
-            relation_claim_index = int(index_text)
-            if relation_claim_index >= len(pending_analysis.relation_claims):
-                raise ValueError("relation selector references a missing pending claim")
-            claim = pending_analysis.relation_claims[relation_claim_index]
-            if claim.step_index != step_index:
-                raise ValueError("relation selector references a claim in another step")
-            if prefix == "relation_subject":
-                slot = PendingCorrectionSlot.RELATION_SUBJECT
-                endpoint = claim.subject
-            else:
-                slot = PendingCorrectionSlot.RELATION_OBJECT
-                endpoint = claim.object
-            if _normalize(endpoint.text) != normalized_previous:
-                opposite_endpoint = (
-                    claim.object
-                    if prefix == "relation_subject"
-                    else claim.subject
-                )
-                if _normalize(opposite_endpoint.text) == normalized_previous:
-                    raise ValueError(
-                        "relation selector points to opposite endpoint"
-                    )
-                raise ValueError(
-                    "relation selector value matches neither pending endpoint"
-                )
-        else:
-            raise ValueError("intent correction has an unsupported slot selector")
-
         return cls(
-            step_index=step_index,
-            slot=slot,
-            previous_value=previous_value,
+            step_index=candidate.step_index,
+            slot=candidate.slot,
+            previous_value=candidate.current_value,
             replacement=replacement,
             source_excerpt=source_excerpt,
-            argument_role=argument_role,
-            relation_claim_index=relation_claim_index,
+            argument_role=candidate.argument_role,
+            relation_claim_index=candidate.relation_claim_index,
         )
 
     def to_dict(self) -> dict[str, object]:
