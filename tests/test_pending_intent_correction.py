@@ -343,17 +343,10 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
         for item in relation_candidates
         if item.slot is PendingCorrectionSlot.RELATION_SUBJECT
     )
-    assert relation_subject.to_prompt_dict(relation_pending) == {
+    assert relation_subject.to_prompt_dict() == {
         "slot_id": 144,
-        "step_index": 0,
         "kind": "relation_subject",
         "current_value": "Mara",
-        "claim_index": 0,
-        "relation": {
-            "subject": "Mara",
-            "predicate": "protege",
-            "object": "Bram",
-        },
     }
     relation_correction = PendingIntentCorrection.from_intent_payload(
         {
