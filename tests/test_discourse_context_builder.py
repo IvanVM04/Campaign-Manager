@@ -249,8 +249,9 @@ def test_ambiguous_third_person_subject_does_not_default_to_player_actor():
         visible_entities=(mara, aldric),
     )
 
-    assert "está en tercera persona" in rendered
-    assert "no lo conviertas automáticamente en una acción del jugador" in rendered
+    normalized_rendered = " ".join(rendered.casefold().split())
+    assert "está en tercera persona" in normalized_rendered
+    assert "no lo conviertas automáticamente en una acción del jugador" in normalized_rendered
 
 
 def test_plural_pronoun_remains_a_group_of_npcs_not_a_single_entity():

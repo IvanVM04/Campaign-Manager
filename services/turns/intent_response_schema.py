@@ -165,8 +165,9 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                     "description": (
                         "Classify the global speech act, not verb tense or message sender. "
                         "action is the player's current attempt; dialogue includes "
-                        "in-fiction speech by the player or an NPC, including replies and "
-                        "answers narrated in third person; question is a direct or implicit "
+                        "in-fiction speech by the player or an NPC, including replies, "
+                        "answers narrated in third person and indirect questions to a "
+                        "character; question is a direct or implicit "
                         "request to the DM/narrator; report is an observed/recounted event, "
                         "especially a non-speech NPC action; plan is future/conditional. "
                         "Use the grammatical actor, not the person who sent the message. "

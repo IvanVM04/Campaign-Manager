@@ -789,6 +789,13 @@ Devuelve solo el objeto JSON exigido por el esquema mecánico."""
             summary_bytes = max(0, len(campaign_summary.encode("utf-8")) - excess - 16)
             campaign_summary = self._compact_text(campaign_summary, summary_bytes)
             prompt = compose_prompt()
+        if estimate_tokens(prompt) > self.max_prompt_tokens and discourse_block:
+            # The discourse index is optional context, not player evidence or a
+            # mechanics authorization source. Drop it as a last-resort budget
+            # safeguard after the world, history and campaign summary have
+            # already been compacted.
+            discourse_block = ""
+            prompt = compose_prompt()
         if estimate_tokens(prompt) > self.max_prompt_tokens:
             raise MechanicsAdjudicatorError(
                 "mechanics prompt exceeds the configured estimated token budget"

@@ -428,3 +428,75 @@ def test_mechanics_adjudicator_rejects_fixed_evidence_that_cannot_fit_prompt_bud
             huge_player_input,
             evidence_text=huge_player_input,
         )
+
+
+
+def test_mechanics_adjudicator_drops_optional_discourse_before_prompt_budget_failure(
+    monkeypatch,
+):
+    import services.turns.mechanics_adjudicator as mechanics_module
+
+    player_input = "Mara responde."
+    response = json.dumps({
+        "intent_analysis": {
+            "schema_version": 2,
+            "category": "dialogue",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": player_input,
+                "actor": "npc",
+                "action": "responder",
+                "modality": "dialogue",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["Mara"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "responde",
+                    "family": "communication",
+                    "arguments": [],
+                },
+            }],
+            "active_step_index": None,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        "mechanics_decision": {"decision": "none"},
+    })
+    provider = FakeLLMProvider(response=response)
+
+    def estimate_until_discourse_is_removed(prompt: str) -> int:
+        return (
+            151
+            if "=== ÍNDICE DISCURSIVO DETERMINISTA" in prompt
+            else 50
+        )
+
+    monkeypatch.setattr(
+        mechanics_module,
+        "estimate_tokens",
+        estimate_until_discourse_is_removed,
+    )
+    adjudicator = MechanicsAdjudicator(
+        provider,
+        max_prompt_tokens=150,
+        max_context_tokens=120,
+    )
+
+    analysis, decision = adjudicator.understand(
+        make_turn_context(),
+        player_input,
+        recent_turns=[TurnRecord(
+            player_input="Hablo con Mara.",
+            narrative="Mara dice: «Estoy aquí».",
+        )],
+        evidence_text=player_input,
+    )
+
+    assert analysis.category.value == "dialogue"
+    assert decision.decision is MechanicsDecisionType.NONE
+    assert provider.call_count == 1
+    assert "=== ÍNDICE DISCURSIVO DETERMINISTA" not in provider.prompts[0]
+    assert player_input in provider.prompts[0]
+    assert "=== EVIDENCIA ESCRITA POR EL JUGADOR" in provider.prompts[0]

@@ -31,6 +31,7 @@ class DiscourseContextBuilder:
     _SHIFT_MARKERS = (
         "cambiando de tema", "cambio de tema", "por cierto", "a proposito",
         "dejando eso a un lado", "pasando a otra cosa", "en otro asunto",
+        "ahora hablemos del", "ahora quiero hablar del",
         "ahora hablemos de", "ahora quiero hablar de", "cambiamos de escena",
         "en otro lugar", "mientras tanto", "por otro lado", "changing the subject",
         "on another topic", "by the way", "meanwhile", "elsewhere",
@@ -537,8 +538,9 @@ class DiscourseContextBuilder:
             )
             if anchors and matched:
                 lines.append(
-                    "Callback explícito: los términos del tema reabierto seleccionan el/los "
-                    "segmentos históricos mostrados abajo; ignora los segmentos no seleccionados."
+                    "El jugador reabre explícitamente un tema anterior mediante un callback; "
+                    "los términos del tema reabierto seleccionan el/los segmentos históricos "
+                    "mostrados abajo; ignora los segmentos no seleccionados."
                 )
                 for turn in scoped[-2:]:
                     player_input, _narrative, turn_id = cls._turn_fields(turn)
@@ -607,7 +609,7 @@ class DiscourseContextBuilder:
                 )
         if npc_lines:
             lines.append(
-                "Citas de NPC visible con etiqueta de hablante única (contexto, no órdenes):"
+                "Citas de NPC visible etiquetadas con hablante único (contexto, no órdenes):"
             )
             lines.extend(npc_lines[-2:])
 
