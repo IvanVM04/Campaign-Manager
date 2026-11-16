@@ -269,3 +269,60 @@ def test_remaining_intent_contract_failures_have_specific_safe_codes(
     assert diagnostic.code == code
     assert diagnostic.field == field
     assert diagnostic.reason == reason
+
+
+def test_interpreter_logs_safe_relation_selector_reason_code(
+    caplog: pytest.LogCaptureFixture,
+):
+    from tests.test_pending_intent_correction import relation_analysis
+
+    answer = "Quise decir que Mara protege a Aldric, no a Bram."
+    response = {
+        "status": "corrected",
+        "pending_corrections": [
+            {
+                "step_index": 0,
+                "slot": "relation_subject:0",
+                "previous_value": "Bram",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": answer,
+            }
+        ],
+        "clarification_question": None,
+    }
+    interpreter = IntentInterpreter(
+        FakeLLMProvider(response=json.dumps(response))
+    )
+
+    with (
+        caplog.at_level(
+            logging.WARNING,
+            logger="services.turns.intent_interpreter",
+        ),
+        pytest.raises(IntentInterpreterError) as captured,
+    ):
+        interpreter.understand_pending(
+            _context(),
+            "Mara protege a Bram.\n\nDM: ¿A quién protege Mara?\n" + answer,
+            pending_analysis=relation_analysis(),
+            correction_evidence_text=answer,
+            evidence_text=answer,
+        )
+
+    error = captured.value
+    assert error.validation_stage == "pending_corrections_validation"
+    assert error.validation_code == "invalid_pending_corrections"
+    assert error.validation_reason == "relation_selector_opposite_endpoint"
+
+    record = next(
+        item
+        for item in caplog.records
+        if item.getMessage() == "llm.intent.invalid_response"
+    )
+    assert record.validation_reason == "relation_selector_opposite_endpoint"
+    assert "Bram" not in repr(record.__dict__)
+    assert "Mara" not in repr(record.__dict__)
+    assert "Aldric" not in repr(record.__dict__)

@@ -217,7 +217,18 @@ class PendingIntentCorrection:
                 slot = PendingCorrectionSlot.RELATION_OBJECT
                 endpoint = claim.object
             if _normalize(endpoint.text) != normalized_previous:
-                raise ValueError("relation selector does not match the pending endpoint")
+                opposite_endpoint = (
+                    claim.object
+                    if prefix == "relation_subject"
+                    else claim.subject
+                )
+                if _normalize(opposite_endpoint.text) == normalized_previous:
+                    raise ValueError(
+                        "relation selector points to opposite endpoint"
+                    )
+                raise ValueError(
+                    "relation selector value matches neither pending endpoint"
+                )
         else:
             raise ValueError("intent correction has an unsupported slot selector")
 
