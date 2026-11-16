@@ -305,7 +305,7 @@ def relation_analysis():
     return PlayerIntentAnalysis.from_payload(payload, source_text=source)
 
 
-def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
+def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
     action_pending = analysis()
     argument_correction = PendingIntentCorrection.from_intent_payload(
         {
@@ -380,7 +380,7 @@ def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     assert corrected_relation.relation_claims[0].object.text == "Aldric"
 
 
-def test_compact_intent_payload_uses_explicit_role_when_mention_repeats():
+def test_slot_catalogue_selects_repeated_mention_by_candidate_id():
     pending_payload = analysis().to_dict()
     pending_payload["steps"][0]["action_frame"]["arguments"].append({
         "role": "agent",
@@ -419,7 +419,7 @@ def test_compact_intent_payload_uses_explicit_role_when_mention_repeats():
     assert arguments[2].mention.text == "Mara"
 
 
-def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slot():
+def test_slot_catalogue_rejects_previous_value_from_another_candidate():
     with pytest.raises(
         ValueError,
         match="previous_value matches another pending slot",
@@ -454,7 +454,7 @@ def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slo
         )
 
 
-def test_intent_payload_rejects_legacy_selector_fields():
+def test_slot_catalogue_rejects_legacy_selector_fields():
     payload = {
         "step_index": 0,
         "slot": "action_argument:recipient",
@@ -501,7 +501,7 @@ def test_relation_selector_rejects_previous_value_from_opposite_endpoint():
     assert "Mara" not in str(captured.value)
 
 
-def test_compact_relation_selector_reports_unmatched_previous_value():
+def test_slot_catalogue_rejects_unmatched_previous_value():
     pending = relation_analysis()
     with pytest.raises(
         ValueError,
