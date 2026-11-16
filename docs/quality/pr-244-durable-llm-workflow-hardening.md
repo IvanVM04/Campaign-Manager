@@ -91,3 +91,12 @@ Keep the complete log and JUnit XML. Record per-scenario results, provider model
 - Identified the historical-evidence revalidation mismatch and mutable-catalogue batch path.
 - Implemented the initial model, interpreter, planner and regression-test changes described above.
 - Remote test execution has not yet been performed. Do not mark CI or Ollama validation complete until the actual runs are inspected.
+
+
+### 2026-11-16 — CI-driven correction
+
+- The first GitHub Actions run exposed a malformed import line in the planner module; this was a source-generation defect, not a behavioral test failure.
+- Fixed the import and pushed a new revision.
+- On the corrected revision, Ruff, JavaScript tests, repository-scope Pyright and repository-wide Pyright completed successfully. The deterministic Python/coverage job was still running at the time of this update.
+- Added an explicit regression proving that a later invalid edit does not expose a partially applied batch.
+- Normalized the added integration-test strings to use actual newline separators.
