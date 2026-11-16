@@ -82,11 +82,15 @@ enforcement boundary; prompt/schema guidance does not repair an invalid payload.
 The prompt/schema rationale and live evaluation evidence are recorded in
 [PR #235 — Intent surface evidence prompting](../../docs/quality/pr-235-intent-surface-evidence-prompting.md). The actor-aware distinction between in-world dialogue, questions to the DM and NPC event reports, together with communication-versus-interaction frame guidance, is documented in [PR #236 — Intent speech-act categories](../../docs/quality/pr-236-intent-speech-act-categories.md).
 
-Pending clarifications use `IntentInterpreter.understand_pending()`: the prior
-analysis is a non-authoritative draft, replacements must be literal in the
-latest player answer, corrections are immutable and bounded, and the
-provider's re-analysis must reflect the same edit. Manual-roll continuation
-reuses persisted analysis and does not call the interpreter again.
+Pending clarifications use `IntentInterpreter.understand_pending()`:
+the provider returns only a bounded status and typed slot edits (or a
+clarification question), not a reconstructed `intent_analysis`. The backend
+applies edits to the stored pending analysis through
+`PendingIntentCorrection.apply()`; replacements and excerpts must be literal
+in the latest player answer, and every untouched field is preserved. The
+application verifies the returned state against deterministic edits before
+accepting it. Manual-roll continuation reuses persisted analysis and does not
+call the interpreter again.
 
 The old combined `MechanicsAdjudicator.understand()`,
 `understand_pending()` and `adjudicate()` APIs remain only as deprecated
