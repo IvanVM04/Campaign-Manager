@@ -384,8 +384,9 @@ _PENDING_INTENT_CORRECTION_SCHEMA = {
             "minimum": 0,
             "maximum": MAX_CORRECTION_SLOTS - 1,
             "description": (
-                "Select exactly one existing slot_id from correction_slots. "
-                "Never invent or derive an ID."
+                "Select exactly one slot_id shown in the pending correction "
+                "catalogue under a step or relation endpoint. Never invent "
+                "or derive an ID."
             ),
         },
         "previous_value": {
