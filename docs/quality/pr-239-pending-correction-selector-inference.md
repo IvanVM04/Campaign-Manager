@@ -58,6 +58,12 @@ measure schema size.
 
 The observed failure is a contract-shape error, not evidence of context-window
 exhaustion. The response contract is therefore simplified instead of extended.
+The correction path also bypasses fresh world-context retrieval and the
+discourse index, and its pending-state projection contains only candidate
+target mentions, action arguments and relation endpoints. The original action
+description/source excerpt and current DM question remain available, but actor,
+modality, outcome, attribution, temporal and unrelated world-context fields are
+not repeated to the correction model.
 
 ## Safety invariants
 
