@@ -1204,7 +1204,7 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics(
         "relation_claims": [],
     }
     correction_payload = {
-        "slot_id": 1,
+        "slot_id": 7,
         "previous_value": "Mara",
         "replacement": {"text": "Aldric", "kind_hint": "character"},
         "source_excerpt": correction,
