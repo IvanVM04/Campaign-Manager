@@ -260,6 +260,30 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   actual. Usa mixed solo cuando el mensaje contenga actos distintos que
   realmente pertenezcan a categorías diferentes.
 
+CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
+- actor identifica quién realiza el acto en la ficción, no quién ha escrito el
+  mensaje. Una acción física descrita en tercera persona por un NPC es report
+  con actor=npc y modalidad observed/reported, nunca action del jugador.
+- Un predicado lingüístico (decir, preguntar, responder, contestar, hablar,
+  susurrar o equivalentes) describe comunicación. Si habla un NPC, el acto
+  global es dialogue con actor=npc; no lo clasifiques como report solo porque
+  el jugador narre la intervención. Una acción física no verbal de un NPC sí
+  es report. Si el jugador habla a un personaje, dialogue con actor=player.
+- Para «ella/él» usa únicamente pistas gramaticales explícitas del historial
+  y el índice de continuidad. Una pista puede ayudar a distinguir actor NPC
+  de actor player, pero no autoriza a sustituir el pronombre por un nombre.
+  Para «ellas/ellos», conserva el sujeto como grupo; no lo reduzcas a un NPC.
+- En un callback explícito, prioriza el segmento histórico seleccionado por
+  los términos del tema reabierto. No mezcles antecedentes de segmentos más
+  recientes que no coinciden con ese tema. Si hay varios segmentos igualmente
+  compatibles o no existe ancla clara, pide aclaración en vez de elegir.
+- En una elipsis, el antecedente de jugador más reciente y compatible puede
+  recuperar el significado de action. «Hazlo otra vez» expresa un nuevo
+  intento de repetir esa acción; «continúa/sigue» requiere que la continuidad
+  esté clara. Si hay varios antecedentes plausibles, pide aclaración.
+  Aunque recuperes el significado, conserva como evidencia solo el mensaje
+  actual; no copies los verbos, nombres, argumentos ni predicados históricos.
+
 En action_frame.family, usa communication para actos lingüísticos como
 preguntar, decir, contar, hablar, susurrar, avisar y responder. No uses
 interaction como categoría genérica para hablar con alguien: interaction
@@ -300,6 +324,22 @@ Reglas estrictas de evidencia superficial:
   y del source_excerpt del paso. Si un nombre aparece únicamente en el historial
   o índice discursivo, o se obtiene resolviendo allí un pronombre como «ella»
   o «él», devuelve null.
+
+FRONTERA DE EVIDENCIA CUANDO HAY HISTORIAL
+- El historial, el índice de continuidad y las pistas de concordancia son
+  contexto no confiable, nunca texto escrito por el jugador en este turno.
+  No copies de ellos nombres propios a target_mentions, argumentos, extremos
+  de relaciones, attributed_to, predicate ni source_excerpt.
+- Si el jugador escribe «Ella», conserva «Ella» como mención superficial
+  cuando corresponda; aunque el contexto sugiera «Mara», no devuelvas «Mara»
+  como si apareciera en el mensaje actual. Si no hay nombre literal en la
+  evidencia actual, attributed_to debe ser null.
+- Si una etiqueta histórica de NPC corresponde a varios NPC visibles, no
+  selecciones un hablante ni lo conviertas en argumento. Para una pregunta al
+  DM sobre quién habló, clasifica question y deja sin atribución la identidad
+  que no pueda justificarse.
+- No relajes estas reglas para callbacks ni elipsis: solo el significado de
+  action puede recuperar contexto; las menciones y citas siguen siendo literales.
 
 El campo action es una descripción semántica concisa y puede recuperar el
 significado de una elipsis inequívoca; no convierte sus palabras en evidencia
@@ -521,11 +561,16 @@ El esquema JSON es el contrato estructural."""
     ) -> tuple[str, dict[str, int]]:
         if pending_analysis is None:
             character = context.active_character
+            scoped_turns = (
+                list(DiscourseContextBuilder.scope_history(recent_turns, player_input))
+                if recent_turns is not None
+                else []
+            )
             context_data = self.context_builder.build(
                 context.world,
                 player_input,
-                recent_turns=list(recent_turns) if recent_turns is not None else None,
-                supplemental_queries=self._recent_context_queries(recent_turns),
+                recent_turns=scoped_turns if recent_turns is not None else None,
+                supplemental_queries=self._recent_context_queries(scoped_turns),
                 character_entity_id=(
                     character.entity_id if character is not None else None
                 ),
@@ -539,16 +584,16 @@ El esquema JSON es el contrato estructural."""
 
             world_context = self._compact_text(projection, self.max_context_bytes)
             history = self._compact_text(
-                self._format_recent_turns(recent_turns),
+                self._format_recent_turns(scoped_turns),
                 min(1800, self.max_context_bytes // 2),
             )
             discourse = self._compact_text(
                 DiscourseContextBuilder.render(
                     player_input,
-                    recent_turns,
+                    scoped_turns,
                     visible_entities=visible_entities,
                 ),
-                min(650, self.max_context_bytes // 8),
+                min(1000, self.max_context_bytes // 4),
             )
         else:
             # A correction can only edit the stored pending analysis. Fresh

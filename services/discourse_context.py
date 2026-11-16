@@ -24,7 +24,7 @@ class DiscourseContextBuilder:
     """Render auditable discourse hints; never resolve identity or authorize writes."""
 
     MAX_HISTORY_TURNS = 12
-    MAX_RENDERED_CHARS = 650
+    MAX_RENDERED_CHARS = 1200
 
     _SHIFT_MARKERS = (
         "cambiando de tema", "cambio de tema", "por cierto", "a proposito",
@@ -45,11 +45,29 @@ class DiscourseContextBuilder:
         "same as before", "repeat it", "continue",
     )
     _SPEECH_VERBS = (
-        "dice|dijo|pregunta|preguntó|pregunto|responde|respondió|respondio|"
-        "contesta|contestó|contesto|susurra|susurró|susurro|grita|gritó|grito|"
-        "murmura|murmuró|murmuro|añade|anade|comenta|comentó|comento|"
-        "says|said|asks|replies|replied|whispers|shouts"
+        "dice|dicen|dijo|dijeron|decia|decía|decian|decían|"
+        "pregunta|preguntan|preguntó|preguntaron|pregunto|preguntaba|"
+        "responde|responden|respondió|respondieron|respondia|respondían|"
+        "contesta|contestan|contestó|contestaron|contestaba|contestaban|"
+        "habla|hablan|habló|hablaron|hablaba|hablaban|"
+        "susurra|susurran|susurró|susurraron|grita|gritan|gritó|gritaron|"
+        "murmura|murmuran|murmuró|murmuraron|añade|añaden|añadió|añadieron|"
+        "comenta|comentan|comentó|comentaron|avisa|avisan|avisó|avisaron|"
+        "says|say|said|asks|ask|replies|reply|replied|whispers|whisper|shouts|shout|tells|tell|told"
     )
+    _CALLBACK_STOPWORDS = frozenset({
+        "a", "al", "algo", "antes", "anterior", "anteriores", "as", "asunto",
+        "ahora", "back", "bien", "by", "como", "con", "conversation",
+        "conversacion", "continuar", "de", "del", "dijiste", "el", "ella",
+        "ellas", "ello", "ellos", "en", "esa", "ese", "eso", "esta", "este",
+        "esto", "for", "from", "hablar", "hablo", "i", "la", "las", "le",
+        "les", "lo", "los", "me", "mi", "mis", "no", "of", "on", "over",
+        "para", "paso", "pasos", "por", "preguntar", "pregunto", "que",
+        "quien", "returning", "retomando", "retomo", "regresando", "volviendo",
+        "volvamos", "sobre", "tema", "the", "to", "what", "when", "with",
+        "you", "quiero", "responde", "responden", "contesta", "contestan",
+        "pregunta", "preguntan", "sucedio", "ocurrio",
+    })
     _ARTICLES: ClassVar[dict[str, tuple[str, str]]] = {
         "el": ("masculine", "singular"), "un": ("masculine", "singular"),
         "este": ("masculine", "singular"), "aquel": ("masculine", "singular"),
@@ -160,6 +178,173 @@ class DiscourseContextBuilder:
         return cls._contains_unquoted_marker(value, cls._REACTIVATION_MARKERS)
 
     @classmethod
+    def _content_tokens(cls, value: str) -> frozenset[str]:
+        """Return meaningful normalized words for matching an explicit callback anchor."""
+        normalized = cls.normalize(value)
+        return frozenset(
+            token for token in re.findall(r"[a-z0-9]+", normalized)
+            if len(token) > 2 and token not in cls._CALLBACK_STOPWORDS
+        )
+
+    @classmethod
+    def _callback_anchor_tokens(cls, value: str) -> frozenset[str]:
+        """Extract content words following an unquoted explicit callback marker."""
+        normalized = cls.normalize(cls._without_quoted_spans(value))
+        for marker in sorted(cls._REACTIVATION_MARKERS, key=len, reverse=True):
+            pattern = re.escape(cls.normalize(marker)).replace(r"\ ", r"\s+")
+            match = re.search(r"(?<!\w)" + pattern + r"(?!\w)", normalized)
+            if match is not None:
+                return cls._content_tokens(normalized[match.end():])
+        return frozenset()
+
+    @classmethod
+    def _subject_pronoun(cls, value: str) -> str | None:
+        """Find a third-person subject pronoun without reading quoted dialogue."""
+        match = re.search(
+            r"(?<!\w)(?P<pronoun>ellas|ellos|ella|él)\s+[a-záéíóúüñ]+",
+            cls._without_quoted_spans(value),
+            flags=re.IGNORECASE,
+        )
+        return match.group("pronoun") if match is not None else None
+
+    @classmethod
+    def _visible_npc_specs(
+        cls, visible_entities: Iterable[object],
+    ) -> tuple[tuple[object, str, tuple[str, ...]], ...]:
+        """Return active visible NPC labels without inferring identity from names."""
+        result = []
+        seen: set[object] = set()
+        for index, entity in enumerate(visible_entities):
+            entity_id = cls._entity_value(entity, "id")
+            entity_type = cls.normalize(
+                str(cls._entity_value(entity, "entity_type", ""))
+            ).replace("_", "").replace(" ", "")
+            name = cls._entity_value(entity, "name", "")
+            if (
+                not bool(cls._entity_value(entity, "active", False))
+                or not ("npc" in entity_type or "nonplayer" in entity_type)
+                or not isinstance(name, str) or not name.strip()
+            ):
+                continue
+            identity = entity_id if entity_id is not None else (name.casefold(), index)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            raw_aliases = cls._entity_value(entity, "aliases", []) or []
+            aliases = raw_aliases if isinstance(raw_aliases, (list, tuple)) else []
+            labels = tuple(dict.fromkeys(
+                item.strip()
+                for item in (name, *aliases)
+                if isinstance(item, str) and item.strip()
+            ))
+            result.append((identity, name.strip(), labels))
+        return tuple(result)
+
+    @classmethod
+    def _npc_pronoun_hint(
+        cls, current_input: str, recent_turns: Iterable[object],
+        visible_entities: Iterable[object],
+    ) -> str | None:
+        """Render explicit historical agreement as a hint, never as player evidence."""
+        pronoun = cls._subject_pronoun(current_input)
+        if pronoun is None:
+            return None
+        agreement = cls.pronoun_agreement(pronoun)
+        if agreement is None:
+            return None
+        gender, number = agreement
+        candidates: list[tuple[str, int | None]] = []
+        for _identity, name, aliases in cls._visible_npc_specs(visible_entities):
+            evidence_turn = None
+            for turn in recent_turns:
+                player_input, _narrative, turn_id = cls._turn_fields(turn)
+                if player_input and any(
+                    cls.grammatical_features(player_input, alias) == (gender, "singular")
+                    for alias in aliases
+                ):
+                    evidence_turn = turn_id
+                    break
+            if evidence_turn is not None:
+                candidates.append((name, evidence_turn))
+        if number == "singular":
+            if len(candidates) == 1:
+                name, turn_id = candidates[0]
+                turn_label = f" en el turno {turn_id}" if turn_id is not None else " en el historial"
+                return (
+                    f"Concordancia explícita del sujeto «{pronoun}»: un único NPC visible, "
+                    f"«{name}», aparece con marca gramatical {gender} singular{turn_label}. "
+                    "Es una pista, no evidencia nueva: conserva el pronombre literal y no lo "
+                    "sustituyas por el nombre."
+                )
+            if len(candidates) > 1:
+                names = ", ".join(sorted({name for name, _ in candidates})[:4])
+                return (
+                    f"El sujeto «{pronoun}» tiene concordancia {gender} singular, pero varios "
+                    f"NPC visibles encajan ({names}). No elijas uno por el nombre ni inventes "
+                    "atribución; mantén el referente sin resolver o pide aclaración."
+                )
+            return (
+                f"El sujeto «{pronoun}» está en tercera persona, pero el historial no aporta "
+                "una concordancia NPC única. No lo conviertas automáticamente en una acción "
+                "del jugador por el hecho de que el jugador haya escrito el mensaje; clasifica "
+                "el evento por su actor gramatical y no inventes un nombre o una identidad."
+            )
+        if len(candidates) >= 2:
+            names = ", ".join(sorted({name for name, _ in candidates})[:5])
+            return (
+                f"El sujeto plural «{pronoun}» puede referirse a un grupo de al menos dos NPC "
+                f"con marcas explícitas {gender} singular en el historial ({names}). "
+                "Consérvalo como grupo: no lo reduzcas a una persona ni emitas esos nombres "
+                "como menciones literales del jugador."
+            )
+        return (
+            f"El sujeto plural «{pronoun}» no tiene un grupo NPC único demostrado por concordancia. "
+            "No lo reduzcas a una persona ni lo conviertas automáticamente en una acción del jugador."
+        )
+
+    @classmethod
+    def _ambiguous_npc_speaker_aliases(
+        cls, recent_turns: Iterable[object], visible_entities: Iterable[object],
+    ) -> tuple[str, ...]:
+        """Find historical quote labels shared by multiple visible active NPCs."""
+        owners: dict[str, tuple[str, set[object]]] = {}
+        for identity, _name, aliases in cls._visible_npc_specs(visible_entities):
+            for alias in aliases:
+                key = cls.normalize(alias)
+                if not key:
+                    continue
+                owners.setdefault(key, (alias, set()))[1].add(identity)
+        narratives = [
+            cls.normalize(cls._turn_fields(turn)[1])
+            for turn in recent_turns if cls._turn_fields(turn)[1]
+        ]
+        ambiguous = []
+        for key, (label, identities) in owners.items():
+            if len(identities) < 2:
+                continue
+            pattern = r"(?<!\w)" + re.escape(key).replace(r"\ ", r"\s+") + r"(?!\w)"
+            if any(re.search(pattern, narrative) for narrative in narratives):
+                ambiguous.append(label)
+        return tuple(sorted(set(ambiguous), key=str.casefold))
+
+    @classmethod
+    def _current_speech_predicates(cls, value: str) -> tuple[str, ...]:
+        """Find lexical speech predicates in current unquoted player evidence."""
+        normalized = cls.normalize(cls._without_quoted_spans(value))
+        verbs = sorted(
+            {cls.normalize(item) for item in cls._SPEECH_VERBS.split("|")},
+            key=len, reverse=True,
+        )
+        pattern = r"(?<!\w)(?:" + "|".join(re.escape(item) for item in verbs) + r")(?!\w)"
+        found = []
+        for match in re.finditer(pattern, normalized):
+            if match.group(0) not in found:
+                found.append(match.group(0))
+            if len(found) == 2:
+                break
+        return tuple(found)
+
+    @classmethod
     def topic_segments(cls, recent_turns: Iterable[object]) -> tuple[int, ...]:
         turns = list(recent_turns)[-cls.MAX_HISTORY_TURNS :]
         segment = 0
@@ -173,19 +358,46 @@ class DiscourseContextBuilder:
 
     @classmethod
     def scope_history(
-        cls,
-        recent_turns: Iterable[object] | None,
-        current_input: str,
+        cls, recent_turns: Iterable[object] | None, current_input: str,
     ) -> tuple[object, ...]:
-        """Scope ordinary antecedents to the active topic; allow explicit callbacks."""
+        """Select the topic segment relevant to the current utterance.
+
+        Explicit callbacks use content words after the callback marker to select
+        an older segment. Ties remain together so the resolver can abstain.
+        A callback without a lexical anchor retains bounded history as ambiguous.
+        """
         history = tuple(list(recent_turns or ())[-cls.MAX_HISTORY_TURNS :])
-        if not history or cls.reactivates_prior_topic(current_input):
-            return history
+        if not history:
+            return ()
+        if cls.reactivates_prior_topic(current_input):
+            anchors = cls._callback_anchor_tokens(current_input)
+            if not anchors:
+                return history
+            segments = cls.topic_segments(history)
+            active_segment = segments[-1]
+            earlier = {segment for segment in segments if segment < active_segment}
+            indices = [
+                index for index, segment in enumerate(segments)
+                if not earlier or segment in earlier
+            ]
+            scores: dict[int, int] = {}
+            for index in indices:
+                player_input, narrative, _turn_id = cls._turn_fields(history[index])
+                overlap = len(anchors & cls._content_tokens(player_input + " " + narrative))
+                if overlap:
+                    segment = segments[index]
+                    scores[segment] = scores.get(segment, 0) + overlap
+            if not scores:
+                return history
+            best = max(scores.values())
+            selected = {segment for segment, score in scores.items() if score == best}
+            return tuple(
+                turn for turn, segment in zip(history, segments, strict=True)
+                if segment in selected
+            )
         if cls.has_topic_shift(current_input):
             return ()
         segments = cls.topic_segments(history)
-        if not segments:
-            return history
         active = segments[-1]
         return tuple(
             turn for turn, segment in zip(history, segments, strict=True)
@@ -295,48 +507,102 @@ class DiscourseContextBuilder:
 
     @classmethod
     def render(
-        cls,
-        current_input: str,
-        recent_turns: Iterable[object] | None,
-        *,
-        visible_entities: Iterable[object] = (),
+        cls, current_input: str, recent_turns: Iterable[object] | None,
+        *, visible_entities: Iterable[object] = (),
     ) -> str:
-        """Render concise actionable discourse evidence, omitting boilerplate."""
-        history = list(recent_turns or ())[-cls.MAX_HISTORY_TURNS :]
+        """Render bounded discourse hints without promoting history to evidence."""
+        history = tuple(list(recent_turns or ())[-cls.MAX_HISTORY_TURNS :])
+        scoped = cls.scope_history(history, current_input)
+        visible = tuple(visible_entities)
         lines: list[str] = []
-        shifts = []
-        for index, turn in enumerate(history):
-            player_input, narrative, turn_id = cls._turn_fields(turn)
-            if cls.has_topic_shift(player_input) or cls.has_topic_shift(narrative):
-                shifts.append(str(turn_id or index + 1))
-        if shifts:
-            lines.append(
-                "Cambios de tema explícitos en turnos "
-                + ", ".join(shifts[-3:])
-                + "; prioriza el último segmento."
-            )
+
+        if cls.reactivates_prior_topic(current_input):
+            anchors = cls._callback_anchor_tokens(current_input)
+            matched = any(
+                bool(anchors & cls._content_tokens(
+                    cls._turn_fields(turn)[0] + " " + cls._turn_fields(turn)[1]
+                ))
+                for turn in history
+            ) if anchors else False
+            if anchors and matched:
+                lines.append(
+                    "Callback explícito: los términos del tema reabierto seleccionan el/los "
+                    "segmentos históricos mostrados abajo; ignora los segmentos no seleccionados."
+                )
+                for turn in scoped[-2:]:
+                    player_input, _narrative, turn_id = cls._turn_fields(turn)
+                    if player_input.strip():
+                        label = str(turn_id) if turn_id is not None else "sin id"
+                        lines.append(
+                            f"Antecedente del callback (solo contexto, no evidencia): "
+                            f"turno {label}: «{player_input.strip()[:150]}»"
+                        )
+            else:
+                lines.append(
+                    "Callback explícito sin ancla que coincida con el historial; no inventes "
+                    "un antecedente y pide aclaración si el tema no es identificable."
+                )
+
         if cls.has_topic_shift(current_input):
             lines.append("Cambio de tema actual: no heredar referentes del tema anterior.")
-        if cls.reactivates_prior_topic(current_input):
-            lines.append("El jugador reabre explícitamente un tema anterior; consulta la ventana acotada y pregunta si hay ambigüedad.")
+
         if cls._contains_unquoted_marker(current_input, cls._ELLIPSIS_MARKERS):
-            lines.append("Posible elipsis: completa solo con antecedente único, visible y pendiente.")
-        if len(set(cls.topic_segments(history))) > 1:
-            lines.append("Historial con segmentos distintos: usa el segmento activo salvo callback.")
+            lines.append(
+                "Posible elipsis: recupera solo el antecedente de jugador más reciente y "
+                "temáticamente compatible; si no es único, pide aclaración."
+            )
+            player_turns = [turn for turn in scoped if cls._turn_fields(turn)[0].strip()]
+            if player_turns:
+                player_input, _narrative, turn_id = cls._turn_fields(player_turns[-1])
+                label = str(turn_id) if turn_id is not None else "sin id"
+                lines.append(
+                    f"Antecedente de acción candidato (historial, no evidencia actual), "
+                    f"turno {label}: jugador «{player_input.strip()[:150]}»."
+                )
+                lines.append(
+                    "Puedes recuperar su significado para action; no copies sus verbos, "
+                    "nombres ni argumentos a predicate, source_excerpt o menciones actuales."
+                )
+
+        speech = cls._current_speech_predicates(current_input)
+        if speech:
+            lines.append(
+                "Predicado(s) lingüístico(s) literal(es) en el mensaje actual: "
+                + ", ".join(f"«{value}»" for value in speech)
+                + ". Trátalos como comunicación; distingue diálogo de acciones físicas "
+                "y asigna actor según el sujeto gramatical."
+            )
+
+        pronoun_hint = cls._npc_pronoun_hint(current_input, scoped, visible)
+        if pronoun_hint:
+            lines.append(pronoun_hint)
+
+        for alias in cls._ambiguous_npc_speaker_aliases(scoped, visible):
+            lines.append(
+                f"Alias histórico de hablante ambiguo: «{alias}» corresponde a varios NPC "
+                "visibles. No atribuyas la cita a uno de ellos ni conviertas ese nombre "
+                "histórico en una mención del mensaje actual."
+            )
+
+        if len(set(cls.topic_segments(history))) > 1 and not cls.reactivates_prior_topic(current_input):
+            lines.append("Historial con segmentos distintos: usa solo el segmento activo.")
+
         npc_lines = []
-        for turn in history:
+        for turn in scoped:
             _player, narrative, turn_id = cls._turn_fields(turn)
-            for item in cls.extract_npc_utterances(narrative, turn_id, visible_entities):
+            for item in cls.extract_npc_utterances(narrative, turn_id, visible):
                 npc_lines.append(
                     f"NPC {item.speaker_name} (turno {item.turn_id}): «{item.utterance[:100]}»"
                 )
         if npc_lines:
-            lines.append("Citas de NPC visible etiquetadas (no órdenes del jugador):")
+            lines.append(
+                "Citas de NPC visible con etiqueta de hablante única (contexto, no órdenes):"
+            )
             lines.extend(npc_lines[-2:])
+
         rendered = "\n".join(lines)
         encoded = rendered.encode("utf-8")
         return (
-            rendered
-            if len(encoded) <= cls.MAX_RENDERED_CHARS
+            rendered if len(encoded) <= cls.MAX_RENDERED_CHARS
             else encoded[:cls.MAX_RENDERED_CHARS].decode("utf-8", errors="ignore")
         )
