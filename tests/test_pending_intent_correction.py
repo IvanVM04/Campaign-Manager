@@ -403,8 +403,7 @@ def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slo
     ):
         PendingIntentCorrection.from_intent_payload(
             {
-                "step_index": 0,
-                "slot_id": 7,
+                "slot_id": 6,
                 "previous_value": "Mara",
                 "replacement": {
                     "text": "Aldric",
@@ -419,7 +418,6 @@ def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slo
     with pytest.raises(ValueError, match="slot_id is not available in pending state"):
         PendingIntentCorrection.from_intent_payload(
             {
-                "step_index": 0,
                 "slot_id": 147,
                 "previous_value": "Bram",
                 "replacement": {
@@ -463,7 +461,6 @@ def test_relation_selector_diagnoses_opposite_endpoint():
     ) as captured:
         PendingIntentCorrection.from_intent_payload(
             {
-                "step_index": 0,
                 "slot_id": 144,
                 "previous_value": "Bram",
                 "replacement": {
@@ -567,6 +564,7 @@ def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
     source = "Mara ve a Mara y entrega el mapa."
     payload = analysis().to_dict()
     payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action_frame"]["predicate"] = "entrega"
     payload["steps"][0]["target_mentions"] = ["Mara", "Mara", "el mapa"]
     payload["steps"][0]["action_frame"]["arguments"] = [
         {
