@@ -1250,7 +1250,6 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "relation_claim_index": None,
     }
     response = {
-        "intent_analysis": corrected_payload,
         "pending_corrections": [correction_payload],
     }
     provider = FakeLLMProvider(response=json.dumps(response, ensure_ascii=False))
@@ -1270,14 +1269,14 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     )
 
     assert result.analysis.steps[0].target_mentions == ("la llave de hierro", "Aldric")
+    assert result.analysis.steps[0].source_excerpt != evidence
     assert len(result.corrections) == 1
     assert result.corrections[0].matches_analysis(result.analysis)
     assert provider.call_count == 1
-    assert INTENT_CORRECTION_RESPONSE_SCHEMA["required"] == [
-        "intent_analysis",
-        "pending_corrections",
-    ]
-    assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
+    assert INTENT_CORRECTION_RESPONSE_SCHEMA["required"] == ["pending_corrections"]
+    assert set(INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]) == {"pending_corrections"}
+    assert "intent_analysis" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
+    assert "RECONSTRUYAS LOS PASOS" in provider.prompts[0]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "mechanics_decision" not in provider.prompts[0]
 
