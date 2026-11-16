@@ -951,6 +951,12 @@ El esquema JSON es el contrato estructural."""
                 validation_code = "invalid_top_level_contract"
             elif validation_stage == "pending_corrections_validation":
                 validation_code = "invalid_pending_corrections"
+                validation_reason = {
+                    "relation selector points to opposite endpoint":
+                        "relation_selector_opposite_endpoint",
+                    "relation selector value matches neither pending endpoint":
+                        "relation_selector_previous_value_mismatch",
+                }.get(str(exc))
             else:
                 validation_code = "schema_or_evidence_validation_failed"
             logger.warning(
