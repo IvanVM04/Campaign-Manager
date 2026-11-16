@@ -237,11 +237,14 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   sigue siendo dialogue, no question. Ejemplo: «Le consulto a la guardia si
   vio pasar al mensajero» es dialogue y su action_frame.family es
   communication.
-- category="question" cuando el jugador pide información al DM/narrador sobre
-  el mundo o la partida, sin dirigir ese acto a un interlocutor de la ficción.
-  Una forma interrogativa dentro de una intervención dirigida a un personaje
-  no convierte el mensaje en question. Ejemplo: «¿Hay huellas detrás del
-  biombo?» es question.
+- category="question" cuando el jugador pide directa o implícitamente
+  información o una aclaración al DM/narrador sobre el mundo o la partida, sin
+  dirigir ese acto a un interlocutor de la ficción. Una forma interrogativa
+  dentro de una intervención dirigida a un personaje no convierte el mensaje
+  en question. Una frase de incertidumbre solo cuenta como petición implícita
+  cuando el contexto muestra que el jugador solicita al DM identificar o
+  aclarar algo; si solo comunica una duda sin pedir respuesta, es report.
+  Ejemplo: «¿Hay huellas detrás del biombo?» es question.
 - category="report" cuando el jugador comunica un hecho, observación o evento
   ya ocurrido, especialmente una acción física de un NPC. En ese caso el actor
   del paso es el agente real (por ejemplo, npc), y la modalidad es observed o
@@ -328,9 +331,12 @@ valor pendiente. replacement.text y source_excerpt deben ser literales de la
 No cambies actor, modalidad, negación, atribución, dirección o tiempo sin
 evidencia explícita. Al reconstruir la categoría, distingue dialogue (acto de
 habla dentro de la ficción, incluso con pregunta indirecta dirigida a un
-personaje) de question (pregunta al DM/narrador) y de report (hecho u acción
-observada o relatada, incluido un acto físico de un NPC). El actor del paso es
-quien realiza el evento; una acción de NPC no es un intento del jugador.
+personaje) de question (petición directa o implícita de información/aclaración
+al DM/narrador) y de report (hecho u acción observada o relatada, incluido un
+acto físico de un NPC). Una frase de duda solo es una pregunta implícita si
+solicita una respuesta o identificación al DM; si solo relata incertidumbre,
+es report. El actor del paso es quien realiza el evento; una acción de NPC no
+es un intento del jugador.
 Para action_frame.family, los verbos de habla pertenecen a communication, no a
 interaction. Las correcciones no autorizan cambios del mundo ni resultados
 mecánicos. El esquema es el contrato estructural."""
