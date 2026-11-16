@@ -68,6 +68,7 @@ class ConversationReferenceResolver:
         IntentModality.REPORTED,
         IntentModality.CORRECTION,
         IntentModality.DIALOGUE,
+        IntentModality.QUESTION,
     })
     _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
         SemanticObjectKind.CHARACTER: frozenset({"npc", "character", "person", "humanoid", "player"}),
@@ -410,9 +411,8 @@ class ConversationReferenceResolver:
             not isinstance(current_input, str) or not current_input.strip()
         ):
             raise ValueError("current_input must be non-empty text or None")
-        if not analysis.allows_world_proposal:
-            return ConversationReferenceResolution()
-
+        # Reference resolution is a read-only comprehension step. It must
+        # not depend on whether this intent may later authorize a world proposal.
         last_step = (
             analysis.active_step_index
             if analysis.active_step_index is not None
