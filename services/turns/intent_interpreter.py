@@ -827,12 +827,6 @@ El esquema JSON es el contrato estructural."""
                         requires_clarification=True,
                         clarification_question=clarification_question,
                     )
-                else:
-                    analysis = replace(
-                        analysis,
-                        requires_clarification=False,
-                        clarification_question=None,
-                    )
                 logger.info(
                     "llm.intent.correction_completed",
                     extra={
