@@ -37,19 +37,22 @@ def test_normal_and_correction_prompts_separate_dialogue_question_and_report():
 
 
 def test_intent_schema_describes_global_category_and_communication_family():
-    for schema in (INTENT_ANALYSIS_RESPONSE_SCHEMA, INTENT_CORRECTION_RESPONSE_SCHEMA):
-        properties = _intent_properties(schema)
-        category_description = properties["category"]["description"].casefold()
-        frame_properties = properties["steps"]["items"]["properties"][
-            "action_frame"
-        ]["properties"]
-        family_description = frame_properties["family"]["description"].casefold()
+    properties = _intent_properties(INTENT_ANALYSIS_RESPONSE_SCHEMA)
+    category_description = properties["category"]["description"].casefold()
+    frame_properties = properties["steps"]["items"]["properties"][
+        "action_frame"
+    ]["properties"]
+    family_description = frame_properties["family"]["description"].casefold()
 
-        assert "speech act" in category_description
-        assert "indirect question" in category_description
-        assert "dm/narrator" in category_description
-        assert "implicit request" in category_description
-        assert "non-speech npc action" in category_description
-        assert "communication" in family_description
-        assert "interaction" in family_description
-        assert "non-linguistic" in family_description
+    assert "speech act" in category_description
+    assert "indirect question" in category_description
+    assert "dm/narrator" in category_description
+    assert "implicit request" in category_description
+    assert "non-speech npc action" in category_description
+    assert "communication" in family_description
+    assert "interaction" in family_description
+    assert "non-linguistic" in family_description
+
+    assert INTENT_CORRECTION_RESPONSE_SCHEMA["required"] == ["pending_corrections"]
+    assert set(INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]) == {"pending_corrections"}
+    assert "intent_analysis" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
