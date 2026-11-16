@@ -37,10 +37,10 @@ def test_intent_schema_describes_global_category_and_communication_family():
     for schema in (INTENT_ANALYSIS_RESPONSE_SCHEMA, INTENT_CORRECTION_RESPONSE_SCHEMA):
         properties = _intent_properties(schema)
         category_description = properties["category"]["description"].casefold()
-        family_description = (
-            properties["steps"]["items"]["properties"]["action_frame"]
-            ["properties"]["family"]["description"].casefold()
-        )
+        frame_properties = properties["steps"]["items"]["properties"][
+            "action_frame"
+        ]["properties"]
+        family_description = frame_properties["family"]["description"].casefold()
 
         assert "speech act" in category_description
         assert "indirect question" in category_description
