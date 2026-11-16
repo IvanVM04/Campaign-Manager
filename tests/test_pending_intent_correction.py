@@ -560,11 +560,13 @@ def test_slot_catalogue_ids_are_stable_and_distinguish_same_role_arguments():
 
 
 def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
-    source = "Mara ve a Mara y entrega el mapa."
+    source = "Mara ve a Mara y entrega el mapa sobre la mesa."
     payload = analysis().to_dict()
     payload["steps"][0]["source_excerpt"] = source
     payload["steps"][0]["action_frame"]["predicate"] = "entrega"
-    payload["steps"][0]["target_mentions"] = ["Mara", "Mara", "el mapa"]
+    payload["steps"][0]["target_mentions"] = [
+        "Mara", "Mara", "el mapa", "la mesa",
+    ]
     payload["steps"][0]["action_frame"]["arguments"] = [
         {
             "role": "theme",
@@ -575,11 +577,13 @@ def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
 
     candidates = build_pending_correction_candidates(pending)
 
-    assert all(item.slot_id not in {0, 1} for item in candidates)
+    # Duplicate targets and targets already represented by precise typed
+    # arguments are not exposed as broad, overlapping correction slots.
+    assert all(item.slot_id not in {0, 1, 2} for item in candidates)
     assert any(
-        item.slot_id == 2
+        item.slot_id == 3
         and item.slot is PendingCorrectionSlot.TARGET_MENTION
-        and item.current_value == "el mapa"
+        and item.current_value == "la mesa"
         for item in candidates
     )
     assert any(
@@ -587,6 +591,30 @@ def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
         and item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
         for item in candidates
     )
+
+    correction = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 3,
+            "previous_value": "la mesa",
+            "replacement": {
+                "text": "el cofre",
+                "kind_hint": "world_entity",
+            },
+            "source_excerpt": "No, quería decir el cofre en vez de la mesa.",
+        },
+        evidence_text="No, quería decir el cofre en vez de la mesa.",
+        pending_analysis=pending,
+    )
+    updated = correction.apply(
+        pending,
+        player_evidence_text="No, quería decir el cofre en vez de la mesa.",
+        resolution_pending=True,
+        committed=False,
+    )
+    assert updated.steps[0].target_mentions == (
+        "Mara", "Mara", "el mapa", "el cofre",
+    )
+    assert updated.steps[0].action_frame.arguments[0].mention.text == "el mapa"
 
 
 def test_slot_catalogue_rejects_a_value_from_a_different_candidate():
