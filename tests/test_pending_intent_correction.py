@@ -262,3 +262,151 @@ def test_relation_endpoint_correction_updates_only_the_selected_claim():
         evidence_text=source + " No, Aldric es el dueño de la llave.",
     )
     assert restored == updated
+
+
+def relation_analysis():
+    source = "Mara protege a Bram durante la huida."
+    payload = {
+        "schema_version": 2,
+        "category": "report",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "Mara protege a Bram",
+            "modality": "reported",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["Mara", "Bram"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "protege",
+                "family": "other",
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "Mara", "kind_hint": "character"},
+            "predicate": "protege",
+            "object": {"text": "Bram", "kind_hint": "character"},
+            "relation_family": "protection",
+            "polarity": "positive",
+            "modality": "reported",
+            "source_excerpt": source,
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    return PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+
+def test_compact_intent_payload_infers_argument_role_and_relation_index():
+    action_pending = analysis()
+    argument_correction = PendingIntentCorrection.from_intent_payload(
+        {
+            "step_index": 0,
+            "slot": "action_argument",
+            "previous_value": "Mara",
+            "replacement": {
+                "text": "Aldric",
+                "kind_hint": "character",
+            },
+            "source_excerpt": "No, la destinataria es Aldric.",
+        },
+        evidence_text="No, la destinataria es Aldric.",
+        pending_analysis=action_pending,
+    )
+
+    assert argument_correction.argument_role is SemanticArgumentRole.RECIPIENT
+    assert argument_correction.relation_claim_index is None
+    corrected_action = argument_correction.apply(
+        action_pending,
+        player_evidence_text="No, la destinataria es Aldric.",
+        resolution_pending=True,
+        committed=False,
+    )
+    assert corrected_action.steps[0].action_frame.arguments[1].mention.text == "Aldric"
+
+    relation_pending = relation_analysis()
+    relation_correction = PendingIntentCorrection.from_intent_payload(
+        {
+            "step_index": 0,
+            "slot": "relation_object",
+            "previous_value": "Bram",
+            "replacement": {
+                "text": "Aldric",
+                "kind_hint": "character",
+            },
+            "source_excerpt": "No, Mara protege a Aldric.",
+        },
+        evidence_text="No, Mara protege a Aldric.",
+        pending_analysis=relation_pending,
+    )
+
+    assert relation_correction.argument_role is None
+    assert relation_correction.relation_claim_index == 0
+    corrected_relation = relation_correction.apply(
+        relation_pending,
+        player_evidence_text="No, Mara protege a Aldric.",
+        resolution_pending=True,
+        committed=False,
+    )
+    assert corrected_relation.relation_claims[0].object.text == "Aldric"
+
+
+def test_compact_intent_payload_rejects_ambiguous_argument_selector():
+    pending_payload = analysis().to_dict()
+    pending_payload["steps"][0]["action_frame"]["arguments"].append({
+        "role": "agent",
+        "mention": {
+            "text": "Mara",
+            "kind_hint": "character",
+        },
+    })
+    pending = PlayerIntentAnalysis.from_payload(
+        pending_payload,
+        source_text="Entrego la llave de hierro a Mara.",
+    )
+
+    with pytest.raises(ValueError, match="exactly one pending role"):
+        PendingIntentCorrection.from_intent_payload(
+            {
+                "step_index": 0,
+                "slot": "action_argument",
+                "previous_value": "Mara",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "No, la destinataria es Aldric.",
+            },
+            evidence_text="No, la destinataria es Aldric.",
+            pending_analysis=pending,
+        )
+
+
+def test_compact_intent_payload_rejects_legacy_selector_fields():
+    payload = {
+        "step_index": 0,
+        "slot": "action_argument",
+        "previous_value": "Mara",
+        "replacement": {
+            "text": "Aldric",
+            "kind_hint": "character",
+        },
+        "source_excerpt": "No, la destinataria es Aldric.",
+        "argument_role": "recipient",
+        "relation_claim_index": None,
+    }
+
+    with pytest.raises(ValueError, match="missing or unexpected fields"):
+        PendingIntentCorrection.from_intent_payload(
+            payload,
+            evidence_text="No, la destinataria es Aldric.",
+            pending_analysis=analysis(),
+        )
+
