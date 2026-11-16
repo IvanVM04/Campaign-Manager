@@ -120,12 +120,12 @@ class PendingIntentCorrection:
         evidence_text: str,
         pending_analysis: PlayerIntentAnalysis,
     ) -> PendingIntentCorrection:
-        """Decode a compact Intent correction and infer its unique stored selector.
+        """Decode a compact Intent correction with one atomic slot selector.
 
-        The Intent model identifies the semantic slot and its previous value.
-        The backend resolves the matching argument role or relation index from
-        the pending analysis, rejecting ambiguous matches instead of asking
-        the model to coordinate multiple nullable selector fields.
+        The provider returns one discriminated slot value, such as
+        "action_argument:recipient" or "relation_object:0". The backend
+        validates that exact selector against the pending analysis; it never
+        accepts independent, potentially contradictory role/index fields.
         """
         expected = {
             "step_index",
@@ -158,13 +158,17 @@ class PendingIntentCorrection:
             evidence_text=evidence_text,
             field_name="correction replacement",
         )
-        slot = PendingCorrectionSlot(payload["slot"])
+
+        slot_value = payload["slot"]
+        if not isinstance(slot_value, str):
+            raise TypeError("intent correction slot must be a string")
         step = pending_analysis.steps[step_index]
         argument_role = None
         relation_claim_index = None
         normalized_previous = _normalize(previous_value)
 
-        if slot is PendingCorrectionSlot.TARGET_MENTION:
+        if slot_value == PendingCorrectionSlot.TARGET_MENTION.value:
+            slot = PendingCorrectionSlot.TARGET_MENTION
             matches = [
                 value
                 for value in step.target_mentions
@@ -174,39 +178,50 @@ class PendingIntentCorrection:
                 raise ValueError(
                     "target correction must identify exactly one pending mention"
                 )
-        elif slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+        elif slot_value.startswith("action_argument:"):
+            slot = PendingCorrectionSlot.ACTION_ARGUMENT
+            role_value = slot_value.partition(":")[2]
+            try:
+                argument_role = SemanticArgumentRole(role_value)
+            except ValueError as exc:
+                raise ValueError("action-argument selector has an unknown role") from exc
             frame = step.action_frame
             if frame is None:
                 raise ValueError(
                     "action-argument correction requires a pending action frame"
                 )
             matches = [
-                argument.role
+                argument
                 for argument in frame.arguments
-                if _normalize(argument.mention.text) == normalized_previous
+                if argument.role is argument_role
+                and _normalize(argument.mention.text) == normalized_previous
             ]
             if len(matches) != 1:
                 raise ValueError(
-                    "action-argument correction must identify exactly one pending role"
+                    "action-argument selector does not identify exactly one pending role"
                 )
-            argument_role = matches[0]
+        elif slot_value.startswith("relation_subject:") or slot_value.startswith(
+            "relation_object:"
+        ):
+            prefix, _, index_text = slot_value.partition(":")
+            if not index_text.isdigit():
+                raise ValueError("relation selector requires a non-negative claim index")
+            relation_claim_index = int(index_text)
+            if relation_claim_index >= len(pending_analysis.relation_claims):
+                raise ValueError("relation selector references a missing pending claim")
+            claim = pending_analysis.relation_claims[relation_claim_index]
+            if claim.step_index != step_index:
+                raise ValueError("relation selector references a claim in another step")
+            if prefix == "relation_subject":
+                slot = PendingCorrectionSlot.RELATION_SUBJECT
+                endpoint = claim.subject
+            else:
+                slot = PendingCorrectionSlot.RELATION_OBJECT
+                endpoint = claim.object
+            if _normalize(endpoint.text) != normalized_previous:
+                raise ValueError("relation selector does not match the pending endpoint")
         else:
-            field_name = (
-                "subject"
-                if slot is PendingCorrectionSlot.RELATION_SUBJECT
-                else "object"
-            )
-            matches = [
-                index
-                for index, claim in enumerate(pending_analysis.relation_claims)
-                if claim.step_index == step_index
-                and _normalize(getattr(claim, field_name).text) == normalized_previous
-            ]
-            if len(matches) != 1:
-                raise ValueError(
-                    "relation correction must identify exactly one pending claim endpoint"
-                )
-            relation_claim_index = matches[0]
+            raise ValueError("intent correction has an unsupported slot selector")
 
         return cls(
             step_index=step_index,
