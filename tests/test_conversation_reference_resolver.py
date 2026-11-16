@@ -21,6 +21,7 @@ def make_analysis(
     modality: str = "attempted",
     polarity: str = "positive",
     active_step_index: int | None = 0,
+    predicate: str | None = None,
 ) -> PlayerIntentAnalysis:
     version = 2 if kind_hint is not SemanticObjectKind.UNKNOWN else 1
     step = {
@@ -36,7 +37,7 @@ def make_analysis(
     }
     if version == 2:
         step["action_frame"] = {
-            "predicate": utterance.split()[0],
+            "predicate": predicate or utterance.split()[0],
             "family": "other",
             "arguments": [{
                 "role": "theme",
@@ -706,13 +707,14 @@ def test_negated_npc_report_still_resolves_pronouns_read_only():
         modality="negated",
         polarity="negative",
         active_step_index=None,
+        predicate="entra",
     )
 
     assert interpretation.allows_world_proposal is False
     result = ConversationReferenceResolver().resolve(
         world,
         interpretation,
-        recent_turns=[turn(40, "Mara, la guardia, espera junto a la puerta.")],
+        recent_turns=[turn(40, "La guardia Mara espera junto a la puerta.")],
         current_input="Ella no entra en la sala.",
     )
 
