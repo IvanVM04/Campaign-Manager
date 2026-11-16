@@ -441,6 +441,9 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         prompt_observations[
                             f"{scenario['family']}:intent_allows_world_proposal"
                         ] += int(analysis.allows_world_proposal)
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_invocations"
+                        ] += 1
                         resolution = resolver.resolve(
                             context.world,
                             analysis,
@@ -489,7 +492,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                             f"{scenario['family']}:intent_allows_world_proposal"
                         ] += 0
                         prompt_observations[
-                            f"{scenario['family']}:resolver_empty_results"
+                            f"{scenario['family']}:resolver_not_invoked"
                         ] += 1
                     expected_id = reference["entity_id"]
                     expected_abstention = reference["clarification"]
