@@ -625,6 +625,16 @@ def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
     pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
 
     candidates = build_pending_correction_candidates(pending)
+    from services.turns.intent_interpreter import IntentInterpreter
+
+    assert IntentInterpreter._pending_summary(pending)["steps"][0][
+        "correction_slots"
+    ]["target_mentions"] == [
+        {
+            "slot_id": 3,
+            "current_value": "la mesa",
+        }
+    ]
 
     # Duplicate targets and targets already represented by precise typed
     # arguments are not exposed as broad, overlapping correction slots.
