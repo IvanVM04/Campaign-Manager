@@ -34,6 +34,27 @@ class PendingCorrectionSlot(str, Enum):
     RELATION_OBJECT = "relation_object"
 
 
+class PendingCorrectionSelectionError(ValueError):
+    """Safe selector diagnostic without retaining model- or player-supplied text."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason_code: str,
+        selected_slot_id: int,
+        selected_slot: PendingCorrectionSlot,
+        matching_slot_id: int | None = None,
+        matching_slot: PendingCorrectionSlot | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.selected_slot_id = selected_slot_id
+        self.selected_slot = selected_slot
+        self.matching_slot_id = matching_slot_id
+        self.matching_slot = matching_slot
+
+
 _CORRECTION_STEP_STRIDE = MAX_TARGETS_PER_STEP + MAX_ACTION_ARGUMENTS
 _CORRECTION_RELATION_OFFSET = MAX_STEPS * _CORRECTION_STEP_STRIDE
 MAX_CORRECTION_SLOTS = (
@@ -82,6 +103,18 @@ def build_pending_correction_candidates(
     if not isinstance(pending_analysis, PlayerIntentAnalysis):
         raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
 
+    relation_endpoint_counts_by_step: dict[int, dict[str, int]] = {}
+    for claim in pending_analysis.relation_claims:
+        endpoint_counts = relation_endpoint_counts_by_step.setdefault(
+            claim.step_index,
+            {},
+        )
+        for mention in (claim.subject, claim.object):
+            normalized_mention = _normalize(mention.text)
+            endpoint_counts[normalized_mention] = (
+                endpoint_counts.get(normalized_mention, 0) + 1
+            )
+
     candidates: list[PendingCorrectionCandidate] = []
     for step_index, step in enumerate(pending_analysis.steps):
         structured_mentions = {
@@ -125,7 +158,13 @@ def build_pending_correction_candidates(
             ]
             for argument_index, argument in enumerate(frame.arguments):
                 key = normalized_argument_keys[argument_index]
-                if normalized_argument_keys.count(key) != 1:
+                if (
+                    normalized_argument_keys.count(key) != 1
+                    or relation_endpoint_counts_by_step.get(
+                        step_index,
+                        {},
+                    ).get(key[1], 0) == 1
+                ):
                     continue
                 candidates.append(
                     PendingCorrectionCandidate(
@@ -298,18 +337,30 @@ class PendingIntentCorrection:
 
         normalized_previous = _normalize(previous_value)
         if normalized_previous != _normalize(candidate.current_value):
-            matches_other_slot = any(
-                item.slot_id != candidate.slot_id
-                and item.step_index == candidate.step_index
-                and _normalize(item.current_value) == normalized_previous
-                for item in candidates
+            matching_candidate = next(
+                (
+                    item
+                    for item in candidates
+                    if item.slot_id != candidate.slot_id
+                    and item.step_index == candidate.step_index
+                    and _normalize(item.current_value) == normalized_previous
+                ),
+                None,
             )
-            if matches_other_slot:
-                raise ValueError(
-                    "intent correction previous_value matches another pending slot"
+            if matching_candidate is not None:
+                raise PendingCorrectionSelectionError(
+                    "intent correction previous_value matches another pending slot",
+                    reason_code="correction_previous_value_matches_other_slot",
+                    selected_slot_id=candidate.slot_id,
+                    selected_slot=candidate.slot,
+                    matching_slot_id=matching_candidate.slot_id,
+                    matching_slot=matching_candidate.slot,
                 )
-            raise ValueError(
-                "intent correction previous_value does not match selected pending slot"
+            raise PendingCorrectionSelectionError(
+                "intent correction previous_value does not match selected pending slot",
+                reason_code="correction_previous_value_mismatch",
+                selected_slot_id=candidate.slot_id,
+                selected_slot=candidate.slot,
             )
 
         replacement = SemanticMention.from_payload(

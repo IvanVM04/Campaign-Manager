@@ -283,7 +283,22 @@ def relation_analysis():
             "action_frame": {
                 "predicate": "protege",
                 "family": "other",
-                "arguments": [],
+                "arguments": [
+                    {
+                        "role": "agent",
+                        "mention": {
+                            "text": "Mara",
+                            "kind_hint": "character",
+                        },
+                    },
+                    {
+                        "role": "patient",
+                        "mention": {
+                            "text": "Bram",
+                            "kind_hint": "character",
+                        },
+                    },
+                ],
             },
         }],
         "active_step_index": None,
@@ -351,6 +366,10 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
 
     relation_pending = relation_analysis()
     relation_summary = IntentInterpreter._pending_summary(relation_pending)
+    assert relation_summary["steps"][0]["correction_slots"] == {
+        "target_mentions": [],
+        "action_arguments": [],
+    }
     assert relation_summary["relations"] == [
         {
             "index": 0,
@@ -404,6 +423,70 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
         committed=False,
     )
     assert corrected_relation.relation_claims[0].object.text == "Aldric"
+    corrected_arguments = corrected_relation.steps[0].action_frame.arguments
+    assert corrected_arguments[0].mention.text == "Mara"
+    assert corrected_arguments[1].mention.text == "Aldric"
+
+
+def test_catalogue_keeps_argument_when_multiple_relation_endpoints_share_mention():
+    source = (
+        "Mara protege a Bram durante la huida y también protege a Cira."
+    )
+    payload = relation_analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["relation_claims"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "Mara protege a Bram y a Cira"
+    payload["steps"][0]["target_mentions"].append("Cira")
+    second_claim = dict(payload["relation_claims"][0])
+    second_claim["object"] = {
+        "text": "Cira",
+        "kind_hint": "character",
+    }
+    second_claim["source_excerpt"] = source
+    payload["relation_claims"].append(second_claim)
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    candidates = build_pending_correction_candidates(pending)
+    action_candidates = [
+        item
+        for item in candidates
+        if item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+    ]
+
+    # Changing the shared agent argument would update both claims, whereas a
+    # relation endpoint ID addresses only one claim. Keep the broader slot.
+    assert [(item.slot_id, item.current_value) for item in action_candidates] == [
+        (6, "Mara"),
+    ]
+
+
+def test_catalogue_keeps_action_arguments_not_represented_by_relations():
+    source = "Mara protege a Bram durante la huida con la espada."
+    payload = relation_analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["relation_claims"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "Mara protege a Bram con la espada"
+    payload["steps"][0]["target_mentions"].append("la espada")
+    payload["steps"][0]["action_frame"]["arguments"].append({
+        "role": "instrument",
+        "mention": {
+            "text": "la espada",
+            "kind_hint": "item_instance",
+        },
+    })
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    action_candidates = [
+        item
+        for item in build_pending_correction_candidates(pending)
+        if item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+    ]
+
+    # Agent/patient mentions already represented by relation endpoints use
+    # relation IDs; the independent instrument remains an action-argument slot.
+    assert [(item.slot_id, item.current_value) for item in action_candidates] == [
+        (8, "la espada"),
+    ]
 
 
 def test_slot_catalogue_selects_repeated_mention_by_candidate_id():
