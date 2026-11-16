@@ -522,12 +522,19 @@ class DiscourseContextBuilder:
 
         if cls.reactivates_prior_topic(current_input):
             anchors = cls._callback_anchor_tokens(current_input)
-            matched = any(
+            segments = cls.topic_segments(history)
+            has_older_segment = bool(segments) and any(
+                segment < segments[-1] for segment in segments
+            )
+            candidate_history = (
+                scoped if not has_older_segment or len(scoped) < len(history) else ()
+            )
+            matched = bool(anchors) and any(
                 bool(anchors & cls._content_tokens(
                     cls._turn_fields(turn)[0] + " " + cls._turn_fields(turn)[1]
                 ))
-                for turn in history
-            ) if anchors else False
+                for turn in candidate_history
+            )
             if anchors and matched:
                 lines.append(
                     "Callback explícito: los términos del tema reabierto seleccionan el/los "

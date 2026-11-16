@@ -303,3 +303,20 @@ def test_current_unquoted_speech_predicates_are_cued_but_quoted_verbs_are_not():
     assert "contestan" in current
     assert "Trátalos como comunicación" in current
     assert "Predicado(s) lingüístico(s)" not in quoted
+
+
+
+def test_callback_anchor_in_current_segment_does_not_fake_reopening_an_older_topic():
+    history = [
+        turn(1, "Hablo con Mara sobre el mapa."),
+        turn(2, "Cambiando de tema, inspecciono la torre."),
+        turn(3, "Busco una entrada junto al faro."),
+    ]
+
+    rendered = DiscourseContextBuilder.render(
+        "Volviendo a lo del faro, ¿qué encontramos?",
+        history,
+    )
+
+    assert "sin ancla que coincida con el historial" in rendered
+    assert "seleccionan el/los segmentos históricos" not in rendered
