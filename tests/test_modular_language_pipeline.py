@@ -1545,3 +1545,101 @@ def test_intent_interpreter_reports_safe_validation_stage_without_response_conte
         interpreter.interpret(_context(), "Abro la puerta.")
 
     assert "PRIVATE_COMPLETION" not in str(error.value)
+
+
+
+def _pending_recipient_analysis_for_status_tests():
+    from models.player_intent_analysis import PlayerIntentAnalysis
+
+    source = "Entrego el mapa a Mara."
+    return PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": source,
+                "actor": "player",
+                "action": "entregar el mapa a Mara",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["el mapa", "Mara"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Entrego",
+                    "family": "transfer",
+                    "arguments": [
+                        {
+                            "role": "theme",
+                            "mention": {
+                                "text": "el mapa",
+                                "kind_hint": "item_instance",
+                            },
+                        },
+                        {
+                            "role": "recipient",
+                            "mention": {
+                                "text": "Mara",
+                                "kind_hint": "character",
+                            },
+                        },
+                    ],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=source,
+    )
+
+
+@pytest.mark.parametrize(
+    ("status", "answer", "clarification_expected"),
+    [
+        ("no_change", "Sí, confirmo que era Mara.", False),
+        (
+            "needs_clarification",
+            "Me refería a la otra persona.",
+            True,
+        ),
+    ],
+)
+def test_pending_correction_status_preserves_pending_analysis_and_never_rewrites_fields(
+    status,
+    answer,
+    clarification_expected,
+):
+    original = "Entrego el mapa a Mara."
+    question = "¿A quién quieres entregar el mapa?"
+    pending = _pending_recipient_analysis_for_status_tests()
+    conversation = original + "\n\nDM: " + question + "\n" + answer
+    evidence = original + "\n\n" + answer
+    clarification_question = (
+        "¿Puedes decirme el nombre de la persona?"
+        if clarification_expected
+        else None
+    )
+    provider = FakeLLMProvider(response=json.dumps({
+        "status": status,
+        "pending_corrections": [],
+        "clarification_question": clarification_question,
+    }, ensure_ascii=False))
+
+    result = IntentInterpreter(provider).understand_pending(
+        _context(),
+        conversation,
+        pending_analysis=pending,
+        correction_evidence_text=answer,
+        evidence_text=evidence,
+    )
+
+    assert result.corrections == ()
+    assert result.analysis.steps == pending.steps
+    assert result.analysis.category is pending.category
+    assert result.analysis.active_step_index == pending.active_step_index
+    assert result.analysis.requires_clarification is clarification_expected
+    assert result.analysis.clarification_question == clarification_question
+    assert provider.call_count == 1
