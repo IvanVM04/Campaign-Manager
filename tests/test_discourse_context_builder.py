@@ -44,7 +44,7 @@ def test_explicit_callback_can_reopen_bounded_previous_segments():
         history,
         "Volviendo a lo de Mara, ella responde.",
     )
-    assert [item.id for item in scoped] == [1, 2, 3]
+    assert [item.id for item in scoped] == [1]
 
 
 def test_current_topic_shift_does_not_inherit_previous_focus():
@@ -167,3 +167,157 @@ def test_quoted_ellipsis_marker_is_not_rendered_as_a_current_action_cue():
     )
 
     assert "Posible elipsis" not in rendered
+
+
+
+def test_callback_without_a_lexical_anchor_preserves_history_for_abstention():
+    history = [
+        turn(1, "Hablo con Mara sobre el mapa."),
+        turn(2, "Cambiando de tema, inspecciono la torre."),
+        turn(3, "Busco una entrada."),
+    ]
+
+    scoped = DiscourseContextBuilder.scope_history(
+        history,
+        "Volviendo a lo anterior, ¿qué pasó?",
+    )
+    rendered = DiscourseContextBuilder.render(
+        "Volviendo a lo anterior, ¿qué pasó?",
+        history,
+    )
+
+    assert [item.id for item in scoped] == [1, 2, 3]
+    assert "sin ancla que coincida" in rendered
+
+
+def test_callback_anchor_selects_the_matching_older_topic_segment():
+    history = [
+        turn(1, "Hablo con Mara sobre el mapa."),
+        turn(2, "Cambiando de tema, inspecciono la torre."),
+        turn(3, "Busco una entrada lateral."),
+    ]
+
+    scoped = DiscourseContextBuilder.scope_history(
+        history,
+        "Volviendo a lo de Mara, le pregunto por el mapa.",
+    )
+
+    assert [item.id for item in scoped] == [1]
+
+
+def test_ellipsis_hint_exposes_historical_candidate_not_new_evidence():
+    rendered = DiscourseContextBuilder.render(
+        "Hazlo otra vez, por favor.",
+        [turn(1, "Intento abrir la puerta de roble.")],
+    )
+
+    assert "Posible elipsis" in rendered
+    assert "turno 1" in rendered
+    assert "Intento abrir la puerta de roble" in rendered
+    assert "no evidencia actual" in rendered
+    assert "no copies sus verbos" in rendered
+
+
+def test_unique_explicit_grammatical_agreement_hints_npc_actor_without_renaming_pronoun():
+    mara = Entity(id=1, name="Mara", entity_type="npc")
+    aldric = Entity(id=2, name="Aldric", entity_type="npc")
+    history = [
+        turn(60, "La guardia Mara y el capitán Aldric esperan junto a la puerta.")
+    ]
+
+    rendered = DiscourseContextBuilder.render(
+        "Ella responde en voz alta.",
+        history,
+        visible_entities=(mara, aldric),
+    )
+
+    assert "Concordancia explícita del sujeto" in rendered
+    assert "Mara" in rendered
+    assert "no lo sustituyas por el nombre" in rendered
+
+
+def test_ambiguous_third_person_subject_does_not_default_to_player_actor():
+    mara = Entity(id=1, name="Mara", entity_type="npc")
+    aldric = Entity(id=2, name="Aldric", entity_type="npc")
+    history = [
+        turn(61, "Mara entra por el pasillo. Aldric espera junto a la mesa.")
+    ]
+
+    rendered = DiscourseContextBuilder.render(
+        "Ella entra en la sala.",
+        history,
+        visible_entities=(mara, aldric),
+    )
+
+    normalized_rendered = " ".join(rendered.casefold().split())
+    assert "está en tercera persona" in normalized_rendered
+    assert "no lo conviertas automáticamente en una acción del jugador" in normalized_rendered
+
+
+def test_plural_pronoun_remains_a_group_of_npcs_not_a_single_entity():
+    mara = Entity(id=1, name="Mara", entity_type="npc")
+    lia = Entity(id=2, name="Lía", entity_type="npc")
+    history = [
+        turn(62, "La guardia Mara y la mercadera Lía esperan junto al balcón.")
+    ]
+
+    rendered = DiscourseContextBuilder.render(
+        "Ellas contestan en voz alta desde el balcón.",
+        history,
+        visible_entities=(mara, lia),
+    )
+
+    assert "sujeto plural" in rendered
+    assert "grupo" in rendered
+    assert "Mara" in rendered and "Lía" in rendered
+    assert "no lo reduzcas a una persona" in rendered
+
+
+def test_ambiguous_historical_npc_alias_is_flagged_without_speaker_attribution():
+    first = Entity(id=1, name="Mara", entity_type="npc")
+    second = Entity(id=2, name="Mara", entity_type="npc")
+    history = [
+        turn(63, "Dos personas hablan a la vez.", 'Mara dice: «No lo sé».')
+    ]
+
+    rendered = DiscourseContextBuilder.render(
+        "No estoy seguro de quién lo dijo; ¿puedes identificar quién habló?",
+        history,
+        visible_entities=(first, second),
+    )
+
+    assert "Alias histórico de hablante ambiguo" in rendered
+    assert "corresponde a varios NPC" in rendered
+    assert "NPC Mara (turno 63)" not in rendered
+
+
+def test_current_unquoted_speech_predicates_are_cued_but_quoted_verbs_are_not():
+    current = DiscourseContextBuilder.render(
+        "Ellas contestan en voz alta desde el balcón.",
+        [turn(64, "La guardia Mara espera.")]
+    )
+    quoted = DiscourseContextBuilder.render(
+        'Mara repite: «Ellas contestan en voz alta» y se marcha.',
+        [turn(65, "La guardia Mara espera.")]
+    )
+
+    assert "contestan" in current
+    assert "Trátalos como comunicación" in current
+    assert "Predicado(s) lingüístico(s)" not in quoted
+
+
+
+def test_callback_anchor_in_current_segment_does_not_fake_reopening_an_older_topic():
+    history = [
+        turn(1, "Hablo con Mara sobre el mapa."),
+        turn(2, "Cambiando de tema, inspecciono la torre."),
+        turn(3, "Busco una entrada junto al faro."),
+    ]
+
+    rendered = DiscourseContextBuilder.render(
+        "Volviendo a lo del faro, ¿qué encontramos?",
+        history,
+    )
+
+    assert "sin ancla que coincida con el historial" in rendered
+    assert "seleccionan el/los segmentos históricos" not in rendered

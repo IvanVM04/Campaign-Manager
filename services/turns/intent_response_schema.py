@@ -163,13 +163,15 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                 "category": {
                     "type": "string",
                     "description": (
-                        "Classify the global speech act, not verb tense. action is the "
-                        "player's current attempt; dialogue is in-fiction speech "
-                        "(including indirect questions to a character); question is a "
-                        "direct or implicit request to the DM/narrator; report is an "
-                        "observed/recounted event, including non-speech NPC actions; "
-                        "plan is future/conditional. Only action/mixed may have a "
-                        "non-null active_step_index."
+                        "Classify the global speech act, not verb tense or message sender. "
+                        "action is the player's current attempt; dialogue includes "
+                        "in-fiction speech by the player or an NPC, including replies, "
+                        "answers narrated in third person and indirect questions to a "
+                        "character; question is a direct or implicit "
+                        "request to the DM/narrator; report is an observed/recounted event, "
+                        "especially a non-speech NPC action; plan is future/conditional. "
+                        "Use the grammatical actor, not the person who sent the message. "
+                        "Only action/mixed may have a non-null active_step_index."
                     ),
                     "enum": [
                         "action", "question", "dialogue", "report",
@@ -209,6 +211,12 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             },
                             "actor": {
                                 "type": "string",
+                                "description": (
+                                    "The grammatical/fictional actor of this step, not the message sender. "
+                                    "Use npc for an NPC described speaking or acting in third person; "
+                                    "use player only when the player performs the act; use unknown when "
+                                    "the actor cannot be grounded."
+                                ),
                                 "enum": ["player", "npc", "other", "unknown"],
                             },
                             "action": {

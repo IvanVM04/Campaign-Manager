@@ -86,3 +86,17 @@ def test_pending_correction_contract_is_edit_only_and_does_not_reinterpret():
     assert "correction_slots.target_mentions" in prompt
     assert "correction_slots.action_arguments" in prompt
     assert 'status="needs_clarification"' in prompt
+
+
+
+def test_normal_intent_prompt_covers_callbacks_ellipsis_actor_and_evidence_boundaries():
+    prompt = " ".join(IntentInterpreter.SYSTEM_PROMPT.casefold().split())
+
+    assert "continuidad, actor y clasificación del habla" in prompt
+    assert "segmento histórico seleccionado" in prompt
+    assert "antecedente de jugador más reciente" in prompt
+    assert "actor identifica quién realiza el acto" in prompt
+    assert "predicado lingüístico" in prompt
+    assert "no lo sustituyas por el nombre" in prompt
+    assert "etiqueta histórica de npc" in prompt
+    assert "no copies de ellos nombres propios" in prompt

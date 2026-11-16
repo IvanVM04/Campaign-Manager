@@ -150,9 +150,7 @@
         "current_topic_shift": false,
         "callback": true,
         "scoped_turn_ids": [
-          508,
-          509,
-          510
+          508
         ],
         "intent": {
           "category": "dialogue",
@@ -199,9 +197,7 @@
         "current_topic_shift": false,
         "callback": true,
         "scoped_turn_ids": [
-          511,
-          512,
-          513
+          511
         ],
         "intent": {
           "category": "question"
@@ -235,9 +231,7 @@
         "current_topic_shift": false,
         "callback": true,
         "scoped_turn_ids": [
-          514,
-          515,
-          516
+          514
         ],
         "intent": {
           "category": "plan"
