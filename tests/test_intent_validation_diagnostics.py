@@ -281,8 +281,7 @@ def test_interpreter_logs_safe_relation_selector_reason_code(
         "status": "corrected",
         "pending_corrections": [
             {
-                "step_index": 0,
-                "slot": "relation_subject:0",
+                "slot_id": 144,
                 "previous_value": "Bram",
                 "replacement": {
                     "text": "Aldric",
@@ -315,14 +314,14 @@ def test_interpreter_logs_safe_relation_selector_reason_code(
     error = captured.value
     assert error.validation_stage == "pending_corrections_validation"
     assert error.validation_code == "invalid_pending_corrections"
-    assert error.validation_reason == "relation_selector_opposite_endpoint"
+    assert error.validation_reason == "correction_previous_value_matches_other_slot"
 
     record = next(
         item
         for item in caplog.records
         if item.getMessage() == "llm.intent.invalid_response"
     )
-    assert record.validation_reason == "relation_selector_opposite_endpoint"
+    assert record.validation_reason == "correction_previous_value_matches_other_slot"
     assert "Bram" not in repr(record.__dict__)
     assert "Mara" not in repr(record.__dict__)
     assert "Aldric" not in repr(record.__dict__)
