@@ -80,7 +80,7 @@ substring containing the fields it supports. Context may clarify the semantic
 be copied into literal evidence fields. Strict model validation remains the
 enforcement boundary; prompt/schema guidance does not repair an invalid payload.
 The prompt/schema rationale and live evaluation evidence are recorded in
-[PR #235 — Intent surface evidence prompting](../../docs/quality/pr-235-intent-surface-evidence-prompting.md).
+[PR #235 — Intent surface evidence prompting](../../docs/quality/pr-235-intent-surface-evidence-prompting.md). The actor-aware distinction between in-world dialogue, questions to the DM and NPC event reports, together with communication-versus-interaction frame guidance, is documented in [PR #236 — Intent speech-act categories](../../docs/quality/pr-236-intent-speech-act-categories.md).
 
 Pending clarifications use `IntentInterpreter.understand_pending()`: the prior
 analysis is a non-authoritative draft, replacements must be literal in the
