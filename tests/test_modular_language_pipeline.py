@@ -1718,8 +1718,6 @@ def _invalid_pending_correction_response(
                         "kind_hint": "character",
                     },
                     "source_excerpt": "No, quería decir Aldric.",
-                    "argument_role": None,
-                    "relation_claim_index": None,
                 }],
             ),
             "No, quería decir Aldric.",
