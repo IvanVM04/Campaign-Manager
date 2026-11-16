@@ -2,6 +2,8 @@
 
 from copy import deepcopy
 
+from models.pending_intent_correction import MAX_CORRECTION_SLOTS
+
 _MENTION_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -364,36 +366,56 @@ _PENDING_CORRECTION_SCHEMA = {
     },
 }
 
-# Intent corrections use one discriminated slot identifier. Role and
-# relation-claim index are encoded atomically in the slot value; the backend
-# verifies that exact selector against the stored pending analysis.
-_PENDING_INTENT_CORRECTION_SCHEMA = deepcopy(_PENDING_CORRECTION_SCHEMA)
-_PENDING_INTENT_CORRECTION_SCHEMA["required"] = [
-    "step_index",
-    "slot",
-    "previous_value",
-    "replacement",
-    "source_excerpt",
-]
-_PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("argument_role")
-_PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("relation_claim_index")
-_INTENT_CORRECTION_SLOT_VALUES = [
-    "target_mention",
-    *[
-        f"action_argument:{role}"
-        for role in _ACTION_ARGUMENT_SCHEMA["properties"]["role"]["enum"]
+# Intent corrections select a backend-generated slot catalogue entry.
+# The numeric ID addresses a stable position in the bounded pending analysis;
+# role, step and relation endpoint metadata are resolved by the backend.
+_PENDING_INTENT_CORRECTION_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "slot_id",
+        "previous_value",
+        "replacement",
+        "source_excerpt",
     ],
-    *[f"relation_subject:{index}" for index in range(8)],
-    *[f"relation_object:{index}" for index in range(8)],
-]
-_PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["enum"] = (
-    _INTENT_CORRECTION_SLOT_VALUES
-)
-_PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["description"] = (
-    "One atomic slot identifier: target_mention, action_argument:<role>, "
-    "relation_subject:<index>, or relation_object:<index>. Put the role or "
-    "claim index inside slot; do not return a separate selector field."
-)
+    "properties": {
+        "slot_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": MAX_CORRECTION_SLOTS - 1,
+            "description": (
+                "Select exactly one existing slot_id from correction_slots. "
+                "Never invent or derive an ID."
+            ),
+        },
+        "previous_value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": (
+                "Copy current_value exactly from the selected catalogue item. "
+                "The backend verifies it against the pending state."
+            ),
+        },
+        "replacement": {
+            **_MENTION_SCHEMA,
+            "description": (
+                "The replacement mention must be copied literally from the latest "
+                "player answer, not from the prior analysis, DM question or history."
+            ),
+        },
+        "source_excerpt": {
+            "type": "string",
+            "description": (
+                "One contiguous verbatim substring of the latest player answer. "
+                "It must contain replacement.text and explicitly support changing "
+                "the selected current_value."
+            ),
+            "minLength": 1,
+            "maxLength": 300,
+        },
+    },
+}
 
 # Used only while resolving an uncommitted clarification. The ordinary turn
 # path keeps the original schema and provider-call shape unchanged.
