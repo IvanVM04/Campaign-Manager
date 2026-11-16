@@ -436,6 +436,7 @@ class TurnResolutionService:
         # allows_world_proposal gate below can reach LLMWorldExtractor.
         has_conversation_mentions = bool(intent_analysis.relation_claims) or any(
             step.target_mentions
+            or step.attributed_to is not None
             or (
                 step.action_frame is not None
                 and step.action_frame.arguments
