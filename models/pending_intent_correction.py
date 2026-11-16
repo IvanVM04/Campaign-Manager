@@ -129,7 +129,7 @@ class PendingIntentCorrection:
         }
 
     def matches_analysis(self, analysis: PlayerIntentAnalysis) -> bool:
-        """Check that the model's full re-analysis reflects this exact edit."""
+        """Check that the corrected analysis reflects this exact typed edit."""
         if self.step_index >= len(analysis.steps):
             return False
         step = analysis.steps[self.step_index]
