@@ -1643,3 +1643,106 @@ def test_pending_correction_status_preserves_pending_analysis_and_never_rewrites
     assert result.analysis.requires_clarification is clarification_expected
     assert result.analysis.clarification_question == clarification_question
     assert provider.call_count == 1
+
+
+
+def test_turn_pipeline_resolves_question_references_without_enabling_world_proposals(
+    monkeypatch,
+):
+    from services.context import ContextBuilder
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+    from services.turns.turn_resolution_service import TurnResolutionService
+    from services.world import WorldApplier, WorldService
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            return []
+
+    source = "¿Qué le ocurrió a ella?"
+    question = _analysis_payload(
+        category="question",
+        modality="question",
+        active_step_index=None,
+        source_excerpt=source,
+        action="preguntar qué le ocurrió a ella",
+        predicate="ocurrió",
+    )
+    question["steps"][0]["target_mentions"] = ["ella"]
+    question["steps"][0]["action_frame"]["arguments"] = [{
+        "role": "patient",
+        "mention": {
+            "text": "ella",
+            "kind_hint": "character",
+        },
+    }]
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": question,
+    }, ensure_ascii=False))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+        enable_context_projection=True,
+    )
+    projection = WorldContextProjection(
+        world=WorldState(),
+        diagnostics=ContextProjectionDiagnostics(
+            estimated_tokens=0,
+            budget_tokens=4096,
+            available_counts=(),
+            candidate_counts=(),
+            selected_counts=(),
+        ),
+    )
+    monkeypatch.setattr(
+        service.context_builder,
+        "build_proposal_context",
+        lambda *args, **kwargs: projection,
+    )
+    resolved_mentions = []
+
+    def resolve_conversation(world, analysis, **kwargs):
+        resolved_mentions.append((world, analysis))
+        return SimpleNamespace(
+            references=(),
+            clarification_question="¿A cuál personaje te refieres con «ella»?",
+            candidates=(),
+            abstention_reason="discourse_candidates_ambiguous",
+        )
+
+    monkeypatch.setattr(
+        service.conversation_reference_resolver,
+        "resolve",
+        resolve_conversation,
+    )
+    monkeypatch.setattr(
+        service.world_reference_resolver,
+        "resolve",
+        lambda *args, **kwargs: pytest.fail(
+            "world-item resolution must remain disabled for a non-proposal question"
+        ),
+    )
+
+    plan = service.prepare_turn(_context(), source)
+
+    assert plan.clarification_question == (
+        "¿A cuál personaje te refieres con «ella»?"
+    )
+    assert len(resolved_mentions) == 1
+    assert resolved_mentions[0][1] is plan.intent_analysis
+    assert plan.intent_analysis.allows_world_proposal is False
+    assert mechanics_provider.call_count == 0
+    assert extractor.call_count == 0
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()
