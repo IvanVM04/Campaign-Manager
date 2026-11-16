@@ -428,6 +428,34 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
     assert corrected_arguments[1].mention.text == "Aldric"
 
 
+def test_catalogue_keeps_action_arguments_not_represented_by_relations():
+    source = "Mara protege a Bram durante la huida con la espada."
+    payload = relation_analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "Mara protege a Bram con la espada"
+    payload["steps"][0]["target_mentions"].append("la espada")
+    payload["steps"][0]["action_frame"]["arguments"].append({
+        "role": "instrument",
+        "mention": {
+            "text": "la espada",
+            "kind_hint": "item_instance",
+        },
+    })
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    action_candidates = [
+        item
+        for item in build_pending_correction_candidates(pending)
+        if item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+    ]
+
+    # Agent/patient mentions already represented by relation endpoints use
+    # relation IDs; the independent instrument remains an action-argument slot.
+    assert [(item.slot_id, item.current_value) for item in action_candidates] == [
+        (8, "la espada"),
+    ]
+
+
 def test_slot_catalogue_selects_repeated_mention_by_candidate_id():
     pending_payload = analysis().to_dict()
     pending_payload["steps"][0]["action_frame"]["arguments"].append({
