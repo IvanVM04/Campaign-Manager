@@ -1649,11 +1649,8 @@ def test_pending_correction_status_preserves_pending_analysis_and_never_rewrites
 def test_turn_pipeline_resolves_question_references_without_enabling_world_proposals(
     monkeypatch,
 ):
-    from services.context import ContextBuilder
     from services.llm_world import LLMWorldExtractor
     from services.llm_world.operation_parser import OperationParser
-    from services.turns.turn_resolution_service import TurnResolutionService
-    from services.world import WorldApplier, WorldService
 
     class RecordingExtractor(LLMWorldExtractor):
         def __init__(self):
