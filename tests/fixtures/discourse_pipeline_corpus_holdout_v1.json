@@ -801,7 +801,7 @@
           "clarification": true
         },
         "intent": {
-          "category": "dialogue"
+          "category": "report"
         }
       }
     },
@@ -844,7 +844,7 @@
           "clarification": true
         },
         "intent": {
-          "category": "dialogue"
+          "category": "report"
         }
       }
     },
