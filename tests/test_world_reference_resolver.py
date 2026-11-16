@@ -18,17 +18,21 @@ def analysis(
     utterance: str,
     mention: str,
     kind: SemanticObjectKind,
+    *,
+    category: str = "action",
+    modality: str = "attempted",
+    active_step_index: int | None = 0,
 ) -> PlayerIntentAnalysis:
     return PlayerIntentAnalysis.from_payload(
         {
             "schema_version": 2,
-            "category": "action",
+            "category": category,
             "steps": [{
                 "index": 0,
                 "source_excerpt": utterance,
                 "actor": "player",
                 "action": "interactuar con el referente",
-                "modality": "attempted",
+                "modality": modality,
                 "polarity": "positive",
                 "reported_outcome": "not_claimed",
                 "target_mentions": [mention],
@@ -42,7 +46,7 @@ def analysis(
                     }],
                 },
             }],
-            "active_step_index": 0,
+            "active_step_index": active_step_index,
             "requires_clarification": False,
             "clarification_question": None,
             "relation_claims": [],
@@ -471,3 +475,23 @@ def test_typed_antecedent_at_the_twelfth_visible_turn_can_still_resolve():
     assert result.clarification_question is None
     assert result.references[0].referent_id == 901
     assert result.references[0].antecedent_turn_id == 300
+
+
+def test_question_can_resolve_typed_world_reference_without_proposal_authority():
+    world = sword_world()
+    interpretation = analysis(
+        "¿Qué sabes de la espada de plata?",
+        "la espada de plata",
+        SemanticObjectKind.ITEM_DEFINITION,
+        category="question",
+        modality="question",
+        active_step_index=None,
+    )
+
+    assert interpretation.allows_world_proposal is False
+    result = WorldReferenceResolver().resolve(world, interpretation)
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].category is WorldReferenceCategory.ITEM_DEFINITION
+    assert result.references[0].referent_id == 50
