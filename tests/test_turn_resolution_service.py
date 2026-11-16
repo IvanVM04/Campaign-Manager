@@ -1591,3 +1591,154 @@ def test_recent_context_queries_cover_twelve_turn_reference_window():
     assert "Turno visible 2" not in queries
     assert "Turno visible 3" in queries
     assert "Turno visible 14" in queries
+
+
+
+@pytest.mark.parametrize(
+    ("player_input", "recent_turns", "category", "expected_query", "excluded_queries"),
+    [
+        (
+            "Intento abrir la puerta.",
+            [
+                SimpleNamespace(
+                    id=101,
+                    player_input="Hablo con Mara sobre el mapa y la carta antigua.",
+                    narrative="",
+                ),
+                SimpleNamespace(
+                    id=102,
+                    player_input="Cambiando de tema, inspecciono la torre.",
+                    narrative="",
+                ),
+                SimpleNamespace(
+                    id=103,
+                    player_input="Busco la escalera de piedra en la torre.",
+                    narrative="",
+                ),
+            ],
+            "action",
+            "Busco la escalera de piedra en la torre.",
+            ("Hablo con Mara sobre el mapa y la carta antigua.",),
+        ),
+        (
+            "Volviendo a Mara, le pregunto por el mapa.",
+            [
+                SimpleNamespace(
+                    id=111,
+                    player_input="Hablo con Mara sobre el mapa y la carta antigua.",
+                    narrative="",
+                ),
+                SimpleNamespace(
+                    id=112,
+                    player_input="Cambiando de tema, inspecciono la torre.",
+                    narrative="",
+                ),
+                SimpleNamespace(
+                    id=113,
+                    player_input="Busco la escalera de piedra en la torre.",
+                    narrative="",
+                ),
+            ],
+            "dialogue",
+            "Hablo con Mara sobre el mapa y la carta antigua.",
+            (
+                "Cambiando de tema, inspecciono la torre.",
+                "Busco la escalera de piedra en la torre.",
+            ),
+        ),
+    ],
+)
+def test_proposal_retrieval_uses_the_same_topic_scoped_history_as_intent(
+    player_input,
+    recent_turns,
+    category,
+    expected_query,
+    excluded_queries,
+):
+    class RecordingProposalContextBuilder(ContextBuilder):
+        def __init__(self):
+            super().__init__()
+            self.supplemental_queries = ()
+
+        def build_proposal_context(
+            self,
+            world: WorldState,
+            query: str,
+            *,
+            max_estimated_tokens: int | None = None,
+            max_estimated_bytes: int | None = None,
+            mandatory_entity_ids: tuple[int, ...] | list[int] = (),
+            supplemental_queries: tuple[str, ...] | list[str] = (),
+            character_entity_id: int | None = None,
+        ) -> WorldContextProjection:
+            self.supplemental_queries = tuple(supplemental_queries)
+            budget_bytes = (
+                max_estimated_bytes
+                if max_estimated_bytes is not None
+                else max_estimated_tokens
+            )
+            if budget_bytes is None:
+                raise ValueError("a context byte budget is required")
+            return WorldContextProjection(
+                world=world,
+                diagnostics=ContextProjectionDiagnostics(
+                    estimated_tokens=1,
+                    budget_tokens=budget_bytes,
+                    available_counts=(),
+                    candidate_counts=(),
+                    selected_counts=(),
+                ),
+            )
+
+    world = WorldState(
+        entities={
+            1: Entity(
+                id=1,
+                name="Mara",
+                entity_type="npc",
+                description="Cartógrafa.",
+                active=True,
+            )
+        }
+    )
+    context_builder = RecordingProposalContextBuilder()
+    service, _dm, _extractor, _applier = make_service(
+        context_builder=context_builder,
+    )
+    is_dialogue = category == "dialogue"
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 1,
+            "category": category,
+            "steps": [{
+                "index": 0,
+                "source_excerpt": player_input,
+                "actor": "player",
+                "action": (
+                    "preguntar a Mara por el mapa"
+                    if is_dialogue
+                    else "abrir la puerta"
+                ),
+                "modality": "dialogue" if is_dialogue else "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["Mara"] if is_dialogue else ["la puerta"],
+                "attributed_to": None,
+            }],
+            "active_step_index": None if is_dialogue else 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        source_text=player_input,
+    )
+
+    service.prepare_turn(
+        make_turn_context(world),
+        player_input,
+        intent_analysis_override=analysis,
+        recent_turns=recent_turns,
+    )
+
+    assert expected_query in context_builder.supplemental_queries
+    for excluded in excluded_queries:
+        assert excluded not in context_builder.supplemental_queries

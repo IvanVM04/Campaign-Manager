@@ -430,12 +430,20 @@ The phase is mature enough to return focus to gameplay when:
 
 The current status, risk register, acceptance gates and hour estimates are maintained in the [independent language-understanding audit](language-understanding-audit-2026-11-14.md). Do not use older dated checklists as the current completion status.
 
-## 12. PR #227 — held-out discourse and staged pipeline evaluation
+## 12. PR #227 — held-out discourse and staged pipeline evaluation (merged)
 
-PR #226 has completed the deterministic implementation of the role-separated language pipeline. The remaining gap is measurement: the original 110-case corpus predates the PR #223 discourse improvements, and the new modular pipeline has only a focused integrated live probe rather than a broad stage-attributed quality report.
+PR #227 merged on 2026-11-14 at 29af392feeeed5d76cad053ddf6efe693589d2f5. It added the separate 28-case discourse pipeline holdout, deterministic discourse/resolver/prompt tests, and opt-in live Intent/resolution/context and correction evaluators. The corpus inventory was updated to 138 scenarios (50 development + 88 held-out); the original 110-case corpus remains unchanged.
 
-PR #227 is active on `feat/227-held-out-discourse-pipeline-evaluation`, based on main after the #226 merge. The branch now contains the separate 28-case held-out fixture (seven families), deterministic discourse/resolver/prompt tests, quote-safe discourse-marker handling, opt-in live Intent/resolution/context and multi-turn correction evaluators, ellipsis-recovery and prompt-level NPC speaker-hint scoring, and integrated negative and positive planner probes. The corpus inventory is now 138 scenarios (50 development + 88 held-out); the original 110-case baseline remains unchanged.
+The first live outputs must be read as model-specific measurements, not as CI acceptance. Per-family scores, model digest, Ollama version, generation parameters and latency should be retained for every comparable run.
 
-The next tasks are to finish CI on the latest head, record the first pinned-model Ollama baseline, inspect per-family failures before any prompt tuning, and later complete the separate SillyTavern lifecycle test.
+## 13. PR #246 — discourse continuity, NPC attribution and evidence boundaries (merged)
 
-**Acceptance boundary:** deterministic CI validates fixture/resolver contracts; live Ollama establishes quality only for the pinned model/settings and scenarios executed; SillyTavern lifecycle acceptance remains separate. Critical false persistent changes and secret leaks remain zero-tolerance controls. The [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) is the resumable source of truth.
+PR #246 merged on 2026-11-16 at 61f6b279667f96aecf0553e452c8888328df8e4c. It improved callback scoping, ellipsis hints, grammatical pronoun cues, NPC speech attribution and historical-evidence boundaries. The post-merge local Gemma 4 12B holdout showed improvements in ellipsis, local grammatical agreement and NPC dialogue attribution, while explicit callbacks remained at 0% and entity-link recall fell to 71.43%. These results motivate the current architecture audit; they are not a basis for claiming the discourse problem is solved.
+
+## 14. Current architecture audit and implementation order — 2026-11-16
+
+The current source of truth for residual language-understanding risks, architecture decisions and staged remediation is the [architecture audit dated 2026-11-16](language-understanding-architecture-audit-2026-11-16.md).
+
+The first corrective change is to keep proposal-context supplemental retrieval inside the same topic-scoped history used by Intent and reference resolution. Next priorities are a surface-mention inventory independent of model output, a transient group-reference contract, typed speech-act evidence, and evaluation gates that cannot silently accept a 0% callback family.
+
+Do not start another broad prompt rewrite or introduce vector infrastructure before these interfaces and measurements are corrected.

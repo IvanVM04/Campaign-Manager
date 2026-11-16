@@ -491,6 +491,16 @@ class TurnResolutionService:
                 and current_location_id not in mandatory_entity_ids
             ):
                 mandatory_entity_ids.append(current_location_id)
+            # The first Intent pass and the second proposal-context pass must
+            # use the same topic-scoped transcript. Re-introducing the full
+            # recent history here can bring back entities from a topic that
+            # the discourse selector deliberately excluded.
+            discourse_history = list(
+                DiscourseContextBuilder.scope_history(
+                    recent_turns or (),
+                    normalized_input,
+                )
+            )
             try:
                 semantic_queries = tuple(
                     dict.fromkeys(
@@ -525,7 +535,7 @@ class TurnResolutionService:
                                 )
                                 if mention is not None
                             ),
-                            *self._recent_context_queries(recent_turns),
+                            *self._recent_context_queries(discourse_history),
                         ]
                     )
                 )
@@ -540,10 +550,6 @@ class TurnResolutionService:
                         if context.active_character is not None
                         else None
                     ),
-                )
-                discourse_history = DiscourseContextBuilder.scope_history(
-                    recent_turns or (),
-                    normalized_input,
                 )
                 reference_result = self.conversation_reference_resolver.resolve(
                     context_projection.world,
