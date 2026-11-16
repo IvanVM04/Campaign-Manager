@@ -301,6 +301,84 @@ def test_discourse_pipeline_correction_fixtures_keep_player_evidence_separate():
 
 
 
+def test_discourse_pipeline_correction_rounds_match_the_pending_slot_values():
+    from models.pending_intent_correction import PendingIntentCorrection
+    from tests.test_real_llm_discourse_pipeline import _pending_analysis
+
+    scenarios = [
+        item
+        for item in _read_fixture()["scenarios"]
+        if item["family"] == "multi_turn_correction"
+    ]
+
+    for scenario in scenarios:
+        rounds = scenario["correction_rounds"]
+        pending = _pending_analysis(
+            rounds[0]["prior_player_input"],
+            rounds[0]["expected"],
+        )
+        for round_index, correction_round in enumerate(rounds):
+            expected = correction_round["expected"]
+            if not expected["accepted"]:
+                continue
+
+            slot = expected["slot"]
+            if slot == "action_argument":
+                selector = f"action_argument:{expected['role']}"
+                kind_hint = (
+                    "item_instance"
+                    if expected["role"] == "theme"
+                    else "character"
+                )
+            elif slot in {"relation_subject", "relation_object"}:
+                selector = f"{slot}:0"
+                kind_hint = "character"
+            elif slot == "target_mention":
+                selector = slot
+                kind_hint = "character"
+            else:
+                raise AssertionError(
+                    f"{scenario['id']} round={round_index + 1}: "
+                    f"unsupported fixture slot {slot!r}"
+                )
+
+            answer = correction_round["player_answer"]
+            correction = PendingIntentCorrection.from_intent_payload(
+                {
+                    "step_index": 0,
+                    "slot": selector,
+                    "previous_value": expected["previous_value"],
+                    "replacement": {
+                        "text": expected["replacement"],
+                        "kind_hint": kind_hint,
+                    },
+                    "source_excerpt": answer,
+                },
+                evidence_text=answer,
+                pending_analysis=pending,
+            )
+            pending = correction.apply(
+                pending,
+                player_evidence_text=answer,
+                resolution_pending=True,
+                committed=False,
+            )
+
+        final_expected = scenario["expected"]["correction"]
+        if final_expected["accepted"]:
+            last_accepted = next(
+                round_item["expected"]
+                for round_item in reversed(rounds)
+                if round_item["expected"]["accepted"]
+            )
+            assert final_expected["slot"] == last_accepted["slot"]
+            assert (
+                final_expected["previous_value"]
+                == last_accepted["previous_value"]
+            )
+            assert final_expected["replacement"] == last_accepted["replacement"]
+
+
 def test_intent_prompt_keeps_discourse_hints_separate_from_player_evidence():
     context = TurnContext(
         campaign=CampaignState(campaign_id=1, name="Discourse prompt test"),
