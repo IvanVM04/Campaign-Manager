@@ -331,10 +331,11 @@ referirse al estado pendiente proporcionado. previous_value debe coincidir
 exactamente con el valor almacenado; no lo reconstruyas a partir del texto.
 
 replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
-respuesta del jugador. source_excerpt debe ser un fragmento continuo de esa
-respuesta que contenga replacement.text y exprese inequívocamente la
-rectificación. No uses el mensaje original, la pregunta del DM, la narración
-ni el historial como evidencia para una corrección nueva. No resuelvas
+respuesta del jugador. No lematices, traduzcas ni parafrasees replacement.text.
+source_excerpt debe ser un fragmento continuo de esa respuesta que contenga
+replacement.text y exprese inequívocamente la rectificación. No uses el
+mensaje original, la pregunta del DM, la narración ni el historial como
+evidencia para una corrección nueva. No resuelvas
 pronombres o expresiones como «el otro» si no identifican un único reemplazo.
 
 No devuelvas valores para campos que no se corrigen. No reescribas la acción,
