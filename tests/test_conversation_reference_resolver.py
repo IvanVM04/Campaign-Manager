@@ -638,3 +638,51 @@ def test_dm_question_can_resolve_a_referent_without_world_proposal_authorization
     assert result.clarification_question is None
     assert len(result.references) == 1
     assert result.references[0].entity_id == 1
+
+
+
+def test_literal_npc_attribution_is_resolved_even_without_target_mentions():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+    })
+    utterance = "Mara susurra que ha visto a Aldric."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "dialogue",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": utterance,
+                "actor": "npc",
+                "action": "Mara susurra que ha visto a Aldric",
+                "modality": "dialogue",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": [],
+                "attributed_to": "Mara",
+                "action_frame": {
+                    "predicate": "susurra",
+                    "family": "communication",
+                    "arguments": [],
+                },
+            }],
+            "active_step_index": None,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=utterance,
+    )
+    assert not analysis.allows_world_proposal
+
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=(),
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+    assert result.references[0].mention == "Mara"
