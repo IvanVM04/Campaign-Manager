@@ -271,7 +271,7 @@ def test_remaining_intent_contract_failures_have_specific_safe_codes(
     assert diagnostic.reason == reason
 
 
-def test_interpreter_logs_safe_relation_selector_reason_code(
+def test_interpreter_logs_safe_catalogue_slot_mismatch_reason_code(
     caplog: pytest.LogCaptureFixture,
 ):
     from tests.test_pending_intent_correction import relation_analysis
