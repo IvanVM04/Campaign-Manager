@@ -552,8 +552,8 @@ class DiscourseContextBuilder:
 
         if cls._contains_unquoted_marker(current_input, cls._ELLIPSIS_MARKERS):
             lines.append(
-                "Posible elipsis: recupera solo el antecedente de jugador más reciente y "
-                "temáticamente compatible; si no es único, pide aclaración."
+                "Posible elipsis: recupera el antecedente único de jugador más reciente y "
+                "temáticamente compatible; si no existe un antecedente único, pide aclaración."
             )
             player_turns = [turn for turn in scoped if cls._turn_fields(turn)[0].strip()]
             if player_turns:

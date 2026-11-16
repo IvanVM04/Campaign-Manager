@@ -271,7 +271,7 @@ CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
   es report. Si el jugador habla a un personaje, dialogue con actor=player.
 - Para «ella/él» usa únicamente pistas gramaticales explícitas del historial
   y el índice de continuidad. Una pista puede ayudar a distinguir actor NPC
-  de actor player, pero no autoriza a sustituir el pronombre por un nombre.
+  de actor player, pero no lo sustituyas por el nombre de una entidad.
   Para «ellas/ellos», conserva el sujeto como grupo; no lo reduzcas a un NPC.
 - En un callback explícito, prioriza el segmento histórico seleccionado por
   los términos del tema reabierto. No mezcles antecedentes de segmentos más
