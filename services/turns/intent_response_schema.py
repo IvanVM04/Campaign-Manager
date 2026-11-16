@@ -164,8 +164,9 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                         "Classify the global speech act, not just verb tense. action is "
                         "the player's current attempt; dialogue is an in-fiction speech act "
                         "(including an indirect question addressed to a character); question "
-                        "is a request to the DM/narrator; report is an observed or recounted "
-                        "event, including a non-speech NPC action; plan is future/conditional. "
+                        "is a direct or implicit request for information/clarification from the "
+                        "DM/narrator; report is an observed or recounted event, including "
+                        "a non-speech NPC action; plan is future/conditional. "
                         "Only action and mixed may have a non-null active_step_index."
                     ),
                     "enum": [
