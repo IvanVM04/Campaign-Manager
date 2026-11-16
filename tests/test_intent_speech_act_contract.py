@@ -19,6 +19,7 @@ def test_normal_and_correction_prompts_separate_dialogue_question_and_report():
         assert "pregunta indirecta" in prompt
         assert "dirigida a un personaje" in prompt
         assert "pregunta al dm/narrador" in prompt
+        assert "implícitamente" in prompt or "implícita" in prompt
         assert "report" in prompt
         assert "actor" in prompt and "npc" in prompt
         assert (
@@ -45,6 +46,7 @@ def test_intent_schema_describes_global_category_and_communication_family():
         assert "speech act" in category_description
         assert "indirect question" in category_description
         assert "dm/narrator" in category_description
+        assert "implicit request" in category_description
         assert "non-speech npc action" in category_description
         assert "communication" in family_description
         assert "interaction" in family_description
