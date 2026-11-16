@@ -90,16 +90,36 @@ def build_pending_correction_candidates(
     IDs use reserved ranges per step and relation claim, so they do not shift
     when an earlier correction changes a mention value. Duplicate target
     mentions are omitted because the current typed patch cannot safely address
-    one occurrence independently.
+    one occurrence independently. Targets already represented by action
+    arguments or relation endpoints are omitted too, because their precise
+    typed candidates must take precedence over the broader target patch.
     """
     if not isinstance(pending_analysis, PlayerIntentAnalysis):
         raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
 
     candidates: list[PendingCorrectionCandidate] = []
     for step_index, step in enumerate(pending_analysis.steps):
+        structured_mentions = {
+            _normalize(argument.mention.text)
+            for argument in (
+                step.action_frame.arguments
+                if step.action_frame is not None
+                else ()
+            )
+        }
+        structured_mentions.update(
+            _normalize(mention.text)
+            for claim in pending_analysis.relation_claims
+            if claim.step_index == step_index
+            for mention in (claim.subject, claim.object)
+        )
         normalized_targets = [_normalize(value) for value in step.target_mentions]
         for target_index, value in enumerate(step.target_mentions):
-            if normalized_targets.count(normalized_targets[target_index]) != 1:
+            normalized_value = normalized_targets[target_index]
+            if (
+                normalized_targets.count(normalized_value) != 1
+                or normalized_value in structured_mentions
+            ):
                 continue
             candidates.append(
                 PendingCorrectionCandidate(
