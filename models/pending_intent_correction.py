@@ -73,9 +73,11 @@ def build_pending_correction_candidates(
     IDs use reserved ranges per step and relation claim, so they do not shift
     when an earlier correction changes a mention value. Duplicate target
     mentions are omitted because the current typed patch cannot safely address
-    one occurrence independently. Targets already represented by action
-    arguments or relation endpoints are omitted too, because their precise
-    typed candidates must take precedence over the broader target patch.
+    one occurrence independently. Action arguments that cannot be uniquely
+    resolved by role and normalized value are omitted. Targets already
+    represented by action arguments or relation endpoints are omitted too,
+    because their precise typed candidates must take precedence over the
+    broader target patch.
     """
     if not isinstance(pending_analysis, PlayerIntentAnalysis):
         raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
@@ -117,7 +119,14 @@ def build_pending_correction_candidates(
 
         frame = step.action_frame
         if frame is not None:
+            normalized_argument_keys = [
+                (argument.role, _normalize(argument.mention.text))
+                for argument in frame.arguments
+            ]
             for argument_index, argument in enumerate(frame.arguments):
+                key = normalized_argument_keys[argument_index]
+                if normalized_argument_keys.count(key) != 1:
+                    continue
                 candidates.append(
                     PendingCorrectionCandidate(
                         slot_id=(
