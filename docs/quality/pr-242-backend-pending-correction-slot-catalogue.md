@@ -31,10 +31,13 @@ within a pending analysis and remain position-stable as corrections replace
 text values. The JSON schema allows the bounded numeric interval; the backend
 rejects IDs that are not actually present in the current catalogue.
 
-Each catalogue item carries its ID, step, kind and current value. Argument
-candidates also carry the role and argument position. Relation candidates
-carry the claim index and the directed subject/predicate/object context.
-The prompt's compact step list supplies the action and original source excerpt.
+The prompt groups action/target candidates under their parent step, where
+the action and original source excerpt are already available. Relation
+candidates are grouped under their parent relation claim, which carries the
+directed subject/predicate/object context. A slot entry therefore needs only
+its ID, kind and current value, plus the argument role when applicable. The
+parent context supplies the step or relation index without repeating it for
+every candidate, keeping the prompt catalogue compact.
 
 Generic `target_mention` candidates are omitted when the same normalized
 mention is already represented by an action argument or relation endpoint.
