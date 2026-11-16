@@ -200,9 +200,7 @@ class PendingIntentCorrection:
                 raise ValueError(
                     "action-argument selector does not identify exactly one pending role"
                 )
-        elif slot_value.startswith("relation_subject:") or slot_value.startswith(
-            "relation_object:"
-        ):
+        elif slot_value.startswith(("relation_subject:", "relation_object:")):
             prefix, _, index_text = slot_value.partition(":")
             if not index_text.isdigit():
                 raise ValueError("relation selector requires a non-negative claim index")
