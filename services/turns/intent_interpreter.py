@@ -827,6 +827,15 @@ El esquema JSON es el contrato estructural."""
                         requires_clarification=True,
                         clarification_question=clarification_question,
                     )
+                elif status == "corrected":
+                    # An explicit, uniquely grounded edit resolves the value
+                    # currently being clarified. A no_change response, by
+                    # contrast, preserves any existing pending clarification.
+                    analysis = replace(
+                        analysis,
+                        requires_clarification=False,
+                        clarification_question=None,
+                    )
                 logger.info(
                     "llm.intent.correction_completed",
                     extra={
