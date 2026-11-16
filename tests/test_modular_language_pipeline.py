@@ -1252,7 +1252,7 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics(
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "correction_slots" in provider.prompts[0]
-    assert '"slot_id":1' in provider.prompts[0]
+    assert '"slot_id":7' in provider.prompts[0]
     assert '"current_value":"Mara"' in provider.prompts[0]
     assert "ÍNDICE DISCURSIVO" not in provider.prompts[0]
     assert "omitido: la corrección se limita al estado pendiente" in provider.prompts[0]
