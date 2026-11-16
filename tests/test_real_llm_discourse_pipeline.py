@@ -614,14 +614,14 @@ def _pending_analysis(prior_input: str, expected: dict):
         return PlayerIntentAnalysis.from_payload(
             {
                 "schema_version": 2,
-                "category": "action",
+                "category": "plan",
                 "steps": [
                     {
                         "index": 0,
                         "source_excerpt": prior_input,
                         "actor": "player",
                         "action": "entregar la carta a una de dos personas sin decidir",
-                        "modality": "attempted",
+                        "modality": "planned",
                         "polarity": "positive",
                         "reported_outcome": "not_claimed",
                         "target_mentions": ["la carta", ambiguous_recipient],
@@ -648,7 +648,7 @@ def _pending_analysis(prior_input: str, expected: dict):
                         },
                     }
                 ],
-                "active_step_index": 0,
+                "active_step_index": None,
                 "requires_clarification": True,
                 "clarification_question": "¿A cuál de las dos personas quieres entregar la carta?",
                 "relation_claims": [],
