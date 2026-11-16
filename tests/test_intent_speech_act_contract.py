@@ -79,5 +79,7 @@ def test_pending_correction_contract_is_edit_only_and_does_not_reinterpret():
     assert "correction_slots" in prompt
     assert "current_value" in prompt
     assert "slot_id" in prompt
-    assert "step_index ni el tipo de slot" in prompt
+    assert "no devuelvas step_index" in prompt
+    assert "correction_slots.target_mentions" in prompt
+    assert "correction_slots.action_arguments" in prompt
     assert 'status="needs_clarification"' in prompt
