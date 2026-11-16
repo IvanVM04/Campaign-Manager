@@ -16,15 +16,20 @@ def make_analysis(
     mention: str,
     *,
     kind_hint: SemanticObjectKind = SemanticObjectKind.UNKNOWN,
+    category: str = "action",
+    actor: str = "player",
+    modality: str = "attempted",
+    polarity: str = "positive",
+    active_step_index: int | None = 0,
 ) -> PlayerIntentAnalysis:
     version = 2 if kind_hint is not SemanticObjectKind.UNKNOWN else 1
     step = {
         "index": 0,
         "source_excerpt": utterance,
-        "actor": "player",
+        "actor": actor,
         "action": "interactuar con el referente",
-        "modality": "attempted",
-        "polarity": "positive",
+        "modality": modality,
+        "polarity": polarity,
         "reported_outcome": "not_claimed",
         "target_mentions": [mention],
         "attributed_to": None,
@@ -40,9 +45,9 @@ def make_analysis(
         }
     payload = {
         "schema_version": version,
-        "category": "action",
+        "category": category,
         "steps": [step],
-        "active_step_index": 0,
+        "active_step_index": active_step_index,
         "requires_clarification": False,
         "clarification_question": None,
     }
@@ -686,3 +691,88 @@ def test_literal_npc_attribution_is_resolved_even_without_target_mentions():
     assert len(result.references) == 1
     assert result.references[0].entity_id == 1
     assert result.references[0].mention == "Mara"
+
+
+def test_negated_npc_report_still_resolves_pronouns_read_only():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+    })
+    interpretation = make_analysis(
+        "Ella no entra en la sala.",
+        "Ella",
+        kind_hint=SemanticObjectKind.CHARACTER,
+        category="report",
+        actor="npc",
+        modality="negated",
+        polarity="negative",
+        active_step_index=None,
+    )
+
+    assert interpretation.allows_world_proposal is False
+    result = ConversationReferenceResolver().resolve(
+        world,
+        interpretation,
+        recent_turns=[turn(40, "Mara, la guardia, espera junto a la puerta.")],
+        current_input="Ella no entra en la sala.",
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+
+
+def test_negative_relation_endpoints_remain_resolvable_without_write_authority():
+    utterance = "Mara no protege a Aldric."
+    payload = {
+        "schema_version": 2,
+        "category": "report",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": utterance,
+            "actor": "npc",
+            "action": "informar de una protección negada",
+            "modality": "reported",
+            "polarity": "negative",
+            "reported_outcome": "not_claimed",
+            "target_mentions": [],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "protege",
+                "family": "social",
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "Mara", "kind_hint": "character"},
+            "predicate": "protege",
+            "object": {"text": "Aldric", "kind_hint": "character"},
+            "relation_family": "protection",
+            "polarity": "negative",
+            "modality": "negated",
+            "source_excerpt": utterance,
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    interpretation = PlayerIntentAnalysis.from_payload(
+        payload,
+        source_text=utterance,
+    )
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+
+    assert interpretation.allows_world_proposal is False
+    result = ConversationReferenceResolver().resolve(
+        world,
+        interpretation,
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert {reference.entity_id for reference in result.references} == {1, 2}
