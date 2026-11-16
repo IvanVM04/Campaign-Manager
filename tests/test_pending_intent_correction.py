@@ -434,6 +434,7 @@ def test_catalogue_keeps_argument_when_multiple_relation_endpoints_share_mention
     )
     payload = relation_analysis().to_dict()
     payload["steps"][0]["source_excerpt"] = source
+    payload["relation_claims"][0]["source_excerpt"] = source
     payload["steps"][0]["action"] = "Mara protege a Bram y a Cira"
     payload["steps"][0]["target_mentions"].append("Cira")
     second_claim = dict(payload["relation_claims"][0])
@@ -463,6 +464,7 @@ def test_catalogue_keeps_action_arguments_not_represented_by_relations():
     source = "Mara protege a Bram durante la huida con la espada."
     payload = relation_analysis().to_dict()
     payload["steps"][0]["source_excerpt"] = source
+    payload["relation_claims"][0]["source_excerpt"] = source
     payload["steps"][0]["action"] = "Mara protege a Bram con la espada"
     payload["steps"][0]["target_mentions"].append("la espada")
     payload["steps"][0]["action_frame"]["arguments"].append({
