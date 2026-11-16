@@ -305,7 +305,7 @@ def test_interpreter_logs_selected_slot_for_unmatched_previous_value(
     ):
         interpreter.understand_pending(
             _context(),
-            "Mara protege a Bram.\\n\\nDM: ¿A quién protege Mara?\\n" + answer,
+            "Mara protege a Bram.\n\nDM: ¿A quién protege Mara?\n" + answer,
             pending_analysis=relation_analysis(),
             correction_evidence_text=answer,
             evidence_text=answer,
