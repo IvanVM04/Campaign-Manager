@@ -9,7 +9,10 @@ from time import perf_counter
 from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
-from models.pending_intent_correction import PendingIntentCorrection
+from models.pending_intent_correction import (
+    PendingIntentCorrection,
+    build_pending_correction_candidates,
+)
 from models.player_intent_analysis import MAX_STEPS, PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -313,6 +316,21 @@ de aplicación aplicará los cambios tipados sobre esa interpretación. Tu únic
 responsabilidad es decidir si la última respuesta corrige explícitamente un
 valor pendiente y, si es así, proponer el cambio mínimo y exacto.
 
+El backend proporciona un catálogo correction_slots. Cada entrada contiene:
+- slot_id: identificador único y estable del candidato.
+- kind y step_index: tipo de slot y paso al que pertenece.
+- current_value: valor que contiene actualmente ese slot.
+- role, índices o relación: contexto adicional para distinguir candidatos.
+
+Selecciona un slot existente usando su slot_id. No inventes identificadores,
+no derives uno a partir del texto y no devuelvas step_index ni el tipo de slot:
+el backend los obtiene del catálogo. Copia previous_value exactamente desde
+current_value de la entrada seleccionada. No lo reconstruyas desde la pregunta,
+la evidencia nueva ni la interpretación previa. Si el candidato no existe,
+no representa inequívocamente la corrección o su valor no coincide, abstente
+y solicita aclaración. Los slot_id conservan su identidad durante todas las
+correcciones de una misma respuesta.
+
 Usa uno de estos estados:
 - status="corrected": existe al menos una rectificación explícita, única y
   fundamentada. Emite entre una y cuatro pending_corrections y
@@ -324,22 +342,13 @@ Usa uno de estos estados:
   valor pendiente y no hace falta otra aclaración. Emite pending_corrections=[]
   y clarification_question=null.
 
-Cada corrección debe identificar exactamente un slot usando step_index
-y slot. Usa target_mention, action_argument:<role>, relation_subject:<index>
-o relation_object:<index>; por ejemplo, action_argument:recipient o
-relation_object:0. El sufijo forma parte de slot: no devuelvas argument_role
-ni relation_claim_index como campos separados. El servidor comprueba que el
-rol o índice identifica un slot existente y que previous_value coincide
-exactamente con su valor. Si no puedes identificar el slot con seguridad,
-usa status="needs_clarification". No reconstruyas previous_value a partir
-del texto.
-
-replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
-respuesta del jugador. No lematices, traduzcas ni parafrasees replacement.text.
-source_excerpt debe ser un fragmento continuo de esa respuesta que contenga
-replacement.text y exprese inequívocamente la rectificación. No uses el
-mensaje original, la pregunta del DM, la narración ni el historial como
-evidencia para una corrección nueva. No resuelvas
+Cada corrección debe contener slot_id, previous_value, replacement y
+source_excerpt. replacement.text y source_excerpt deben copiarse literalmente
+de la ÚLTIMA respuesta del jugador. No lematices, traduzcas ni parafrasees
+replacement.text. source_excerpt debe ser un fragmento continuo de esa
+respuesta que contenga replacement.text y exprese inequívocamente la
+rectificación. No uses el mensaje original, la pregunta del DM, la narración
+ni el historial como evidencia para una corrección nueva. No resuelvas
 pronombres o expresiones como «el otro» si no identifican un único reemplazo.
 
 No devuelvas valores para campos que no se corrigen. No reescribas la acción,
@@ -447,37 +456,19 @@ El esquema JSON es el contrato estructural."""
 
     @staticmethod
     def _pending_summary(analysis: PlayerIntentAnalysis) -> dict:
-        """Expose only candidate slots needed to adjudicate a pending correction."""
+        """Expose minimal context plus backend-addressable correction candidates."""
         return {
             "steps": [
                 {
                     "index": step.index,
                     "action": step.action,
                     "source_excerpt": step.source_excerpt,
-                    "target_mentions": list(step.target_mentions),
-                    "action_arguments": (
-                        [
-                            {
-                                "role": argument.role.value,
-                                "mention": argument.mention.text,
-                            }
-                            for argument in step.action_frame.arguments
-                        ]
-                        if step.action_frame is not None
-                        else []
-                    ),
                 }
                 for step in analysis.steps
             ],
-            "relation_claims": [
-                {
-                    "index": index,
-                    "step_index": claim.step_index,
-                    "subject": claim.subject.text,
-                    "predicate": claim.predicate,
-                    "object": claim.object.text,
-                }
-                for index, claim in enumerate(analysis.relation_claims)
+            "correction_slots": [
+                candidate.to_prompt_dict(analysis)
+                for candidate in build_pending_correction_candidates(analysis)
             ],
         }
 
