@@ -1800,6 +1800,8 @@ def test_pending_correction_rejects_duplicate_slot_ids_in_one_response():
             evidence_text=original + "\n\n" + answer,
         )
 
+    assert captured.value.validation_code == "invalid_pending_corrections"
+    assert captured.value.validation_reason == "duplicate_correction_slot_id"
     assert str(captured.value.__cause__) == (
         "pending corrections must select distinct slot IDs"
     )
