@@ -415,6 +415,32 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                 resolution_reason = "intent_interpretation_failed"
                 try:
                     if analysis is not None:
+                        intent_mentions = [
+                            mention
+                            for step in analysis.steps
+                            for mention in (
+                                *step.target_mentions,
+                                *(
+                                    argument.mention.text
+                                    for argument in (
+                                        step.action_frame.arguments
+                                        if step.action_frame is not None
+                                        else ()
+                                    )
+                                ),
+                            )
+                        ]
+                        intent_mentions.extend(
+                            mention.text
+                            for claim in analysis.relation_claims
+                            for mention in (claim.subject, claim.object)
+                        )
+                        prompt_observations[
+                            f"{scenario['family']}:intent_mentions_present"
+                        ] += int(bool(intent_mentions))
+                        prompt_observations[
+                            f"{scenario['family']}:intent_allows_world_proposal"
+                        ] += int(analysis.allows_world_proposal)
                         resolution = resolver.resolve(
                             context.world,
                             analysis,
@@ -430,7 +456,41 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                             analysis.requires_clarification
                             or resolution.clarification_question is not None
                         )
-                        resolution_reason = resolution.abstention_reason or "resolved"
+                        if resolution.abstention_reason is not None:
+                            resolution_reason = resolution.abstention_reason
+                        elif resolution.clarification_question is not None:
+                            resolution_reason = "clarification_requested"
+                        elif len(resolution.references) == 1:
+                            resolution_reason = "resolved"
+                        elif resolution.references:
+                            resolution_reason = "multiple_references_returned"
+                        else:
+                            resolution_reason = "no_reference_returned"
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_references_returned"
+                        ] += len(resolution.references)
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_clarifications"
+                        ] += int(resolution.clarification_question is not None)
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_empty_results"
+                        ] += int(
+                            not resolution.references
+                            and resolution.clarification_question is None
+                        )
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_reason:{resolution_reason}"
+                        ] += 1
+                    else:
+                        prompt_observations[
+                            f"{scenario['family']}:intent_mentions_present"
+                        ] += 0
+                        prompt_observations[
+                            f"{scenario['family']}:intent_allows_world_proposal"
+                        ] += 0
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_empty_results"
+                        ] += 1
                     expected_id = reference["entity_id"]
                     expected_abstention = reference["clarification"]
                     resolution_passed = (
