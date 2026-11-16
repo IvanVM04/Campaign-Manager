@@ -47,6 +47,12 @@ also update linked semantic-frame references. Duplicate generic target
 mentions are omitted because the patch contract cannot address one occurrence
 independently. Action arguments sharing a role and normalized value are also
 omitted when the current patch implementation cannot uniquely address them.
+When an action argument mention is also present as either endpoint of a
+relation claim in the same step, the relation endpoint remains the canonical
+candidate and the overlapping action-argument candidate is omitted. Applying
+a relation-endpoint patch also synchronizes matching action-frame mentions,
+so exposing both IDs would offer two selectors for the same linked edit. This
+keeps the relation claim index/endpoint as the narrowest available target.
 These omissions do not renumber other IDs.
 
 ## Response contract and validation
@@ -103,9 +109,21 @@ Tests cover:
 - preservation of target-only fallback corrections;
 - rejection of out-of-range/unavailable IDs and values belonging to another
   candidate;
-- safe, value-free diagnostic reason codes;
+- safe, value-free diagnostic reason codes, including selected/matching
+  slot IDs and slot types without logging any mention text;
+- relation-endpoint precedence over overlapping action-argument candidates;
 - rejection of duplicate IDs in one correction response;
 - sequential application of the held-out correction scenarios.
 
 The live Ollama holdout remains a separate acceptance gate. Passing deterministic
 CI does not establish that Gemma consistently picks the right catalogue entry.
+
+
+## Selector mismatch diagnostics
+
+When a selected catalogue ID is available but its echoed `previous_value`
+does not match, the validation log now includes only the selected numeric
+`slot_id` and its backend-resolved slot type. If the echoed value matches
+another candidate in the same step, the log also includes that candidate's
+numeric ID and slot type. Mention text, source excerpts, replacements and raw
+model completions are never added to these diagnostics.
