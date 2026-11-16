@@ -332,6 +332,29 @@ def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     assert corrected_action.steps[0].action_frame.arguments[1].mention.text == "Aldric"
 
     relation_pending = relation_analysis()
+    relation_candidates = build_pending_correction_candidates(relation_pending)
+    assert [
+        item.slot_id
+        for item in relation_candidates
+        if item.slot is PendingCorrectionSlot.TARGET_MENTION
+    ] == []
+    relation_subject = next(
+        item
+        for item in relation_candidates
+        if item.slot is PendingCorrectionSlot.RELATION_SUBJECT
+    )
+    assert relation_subject.to_prompt_dict(relation_pending) == {
+        "slot_id": 144,
+        "step_index": 0,
+        "kind": "relation_subject",
+        "current_value": "Mara",
+        "claim_index": 0,
+        "relation": {
+            "subject": "Mara",
+            "predicate": "protege",
+            "object": "Bram",
+        },
+    }
     relation_correction = PendingIntentCorrection.from_intent_payload(
         {
             "slot_id": 145,
