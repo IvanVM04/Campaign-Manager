@@ -687,7 +687,7 @@ El esquema JSON es el contrato estructural."""
                 "correction response changed fields outside the typed correction contract"
             )
         return IntentInterpretationResult(
-            analysis=verified_analysis,
+            analysis=analysis,
             corrections=corrections,
         )
 
