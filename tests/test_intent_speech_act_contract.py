@@ -76,5 +76,8 @@ def test_pending_correction_contract_is_edit_only_and_does_not_reinterpret():
     assert set(correction_item["properties"]) == set(correction_item["required"])
     assert "argument_role" not in correction_item["properties"]
     assert "relation_claim_index" not in correction_item["properties"]
-    assert "el servidor resuelve el rol" in prompt
+    assert "action_argument:<role>" in prompt
+    assert "relation_object:<index>" in prompt
+    assert "action_argument:recipient" in correction_item["properties"]["slot"]["enum"]
+    assert "relation_object:0" in correction_item["properties"]["slot"]["enum"]
     assert 'status="needs_clarification"' in prompt
