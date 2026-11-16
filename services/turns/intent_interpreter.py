@@ -324,14 +324,15 @@ Usa uno de estos estados:
   valor pendiente y no hace falta otra aclaración. Emite pending_corrections=[]
   y clarification_question=null.
 
-Cada corrección debe señalar exactamente un slot existente usando
-step_index, slot y previous_value. Usa target_mention, action_argument,
-relation_subject o relation_object. No devuelvas argument_role ni
-relation_claim_index: el servidor resuelve el rol o el índice de relación
-desde la interpretación pendiente cuando previous_value identifica una única
-ranura compatible. Si hay varias coincidencias posibles, usa
-status="needs_clarification" y no adivines. previous_value debe coincidir
-exactamente con el valor almacenado; no lo reconstruyas a partir del texto.
+Cada corrección debe identificar exactamente un slot usando step_index
+y slot. Usa target_mention, action_argument:<role>, relation_subject:<index>
+o relation_object:<index>; por ejemplo, action_argument:recipient o
+relation_object:0. El sufijo forma parte de slot: no devuelvas argument_role
+ni relation_claim_index como campos separados. El servidor comprueba que el
+rol o índice identifica un slot existente y que previous_value coincide
+exactamente con su valor. Si no puedes identificar el slot con seguridad,
+usa status="needs_clarification". No reconstruyas previous_value a partir
+del texto.
 
 replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
 respuesta del jugador. No lematices, traduzcas ni parafrasees replacement.text.
