@@ -487,6 +487,11 @@ class TurnResolutionService:
                                 for argument in step.action_frame.arguments
                             ),
                             *(
+                                step.attributed_to
+                                for step in intent_analysis.steps
+                                if step.attributed_to is not None
+                            ),
+                            *(
                                 mention
                                 for claim in intent_analysis.relation_claims
                                 for mention in (
