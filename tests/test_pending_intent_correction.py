@@ -310,20 +310,21 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
 
     action_pending = analysis()
     action_summary = IntentInterpreter._pending_summary(action_pending)
-    assert action_summary["steps"][0]["correction_slots"] == [
-        {
-            "slot_id": 6,
-            "kind": "action_argument",
-            "current_value": "la llave de hierro",
-            "role": "theme",
-        },
-        {
-            "slot_id": 7,
-            "kind": "action_argument",
-            "current_value": "Mara",
-            "role": "recipient",
-        },
-    ]
+    assert action_summary["steps"][0]["correction_slots"] == {
+        "target_mentions": [],
+        "action_arguments": [
+            {
+                "slot_id": 6,
+                "current_value": "la llave de hierro",
+                "role": "theme",
+            },
+            {
+                "slot_id": 7,
+                "current_value": "Mara",
+                "role": "recipient",
+            },
+        ],
+    }
     argument_correction = PendingIntentCorrection.from_intent_payload(
         {
             "slot_id": 7,
@@ -354,21 +355,15 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
         {
             "index": 0,
             "step_index": 0,
-            "subject": "Mara",
+            "subject": {
+                "slot_id": 144,
+                "current_value": "Mara",
+            },
             "predicate": "protege",
-            "object": "Bram",
-            "correction_slots": [
-                {
-                    "slot_id": 144,
-                    "kind": "relation_subject",
-                    "current_value": "Mara",
-                },
-                {
-                    "slot_id": 145,
-                    "kind": "relation_object",
-                    "current_value": "Bram",
-                },
-            ],
+            "object": {
+                "slot_id": 145,
+                "current_value": "Bram",
+            },
         }
     ]
     relation_candidates = build_pending_correction_candidates(relation_pending)
@@ -384,7 +379,6 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
     )
     assert relation_subject.to_prompt_dict() == {
         "slot_id": 144,
-        "kind": "relation_subject",
         "current_value": "Mara",
     }
     relation_correction = PendingIntentCorrection.from_intent_payload(
