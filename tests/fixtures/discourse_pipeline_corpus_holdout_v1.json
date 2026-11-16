@@ -1138,7 +1138,7 @@
           "dm_question": "¿A quién protege Mara?",
           "player_answer": "Quise decir que Mara protege a Aldric, no a Bram.",
           "expected": {
-            "slot": "relation_endpoint",
+            "slot": "relation_object",
             "role": "object",
             "previous_value": "Bram",
             "replacement": "Aldric",
@@ -1226,7 +1226,7 @@
         "correction": {
           "slot": "action_argument",
           "role": "recipient",
-          "previous_value": "Mara/Aldric",
+          "previous_value": "Mara o a Aldric",
           "replacement": null,
           "accepted": false,
           "rejection_reason": "ambiguous_or_ungrounded"
@@ -1243,7 +1243,7 @@
           "expected": {
             "slot": "action_argument",
             "role": "recipient",
-            "previous_value": "Mara/Aldric",
+            "previous_value": "Mara o a Aldric",
             "replacement": null,
             "accepted": false,
             "rejection_reason": "ambiguous_or_ungrounded"
