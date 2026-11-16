@@ -4,7 +4,10 @@ from dataclasses import dataclass, replace
 
 from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
-from models.pending_intent_correction import PendingIntentCorrection
+from models.pending_intent_correction import (
+    PendingIntentCorrection,
+    apply_pending_intent_corrections,
+)
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.resolved_world_reference import ResolvedWorldReference
@@ -342,18 +345,35 @@ class TurnResolutionService:
                         evidence_text=normalized_evidence_text,
                     )
                     decision = correction_result.mechanics_decision
-                corrected_analysis = pending_intent_analysis
-                for correction in correction_result.corrections:
-                    corrected_analysis = correction.apply(
-                        corrected_analysis,
-                        player_evidence_text=normalized_evidence_text,
-                        resolution_pending=True,
-                        committed=False,
+                if correction_result.corrections and (
+                    correction_result.analysis.requires_clarification
+                    or correction_result.analysis.clarification_question is not None
+                ):
+                    raise ValueError(
+                        "a corrected pending analysis cannot remain in clarification state"
                     )
-                    if not correction.matches_analysis(correction_result.analysis):
-                        raise ValueError(
-                            "provider re-analysis does not reflect its explicit correction"
-                        )
+                corrected_analysis = apply_pending_intent_corrections(
+                    pending_intent_analysis,
+                    correction_result.corrections,
+                    # Only the answer submitted for this challenge can support
+                    # a correction. Earlier conversation evidence is context,
+                    # not evidence for a new edit.
+                    player_evidence_text=pending_correction_evidence_text or "",
+                    require_catalogue_match=self.intent_interpreter is not None,
+                )
+                expected_analysis = replace(
+                    corrected_analysis,
+                    requires_clarification=(
+                        correction_result.analysis.requires_clarification
+                    ),
+                    clarification_question=(
+                        correction_result.analysis.clarification_question
+                    ),
+                )
+                if correction_result.analysis != expected_analysis:
+                    raise ValueError(
+                        "provider re-analysis changed fields outside the typed correction contract"
+                    )
                 intent_analysis = correction_result.analysis
                 intent_corrections = correction_result.corrections
             except (

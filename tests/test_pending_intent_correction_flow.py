@@ -381,6 +381,73 @@ def test_durable_clarification_persists_correction_audit_across_multiple_rounds(
         )
 
 
+def test_turn_planner_uses_only_the_latest_clarification_answer_as_correction_evidence():
+    service, _proposal_calls, _narrative_calls = service_with_fake_models()
+    pending = _pending_analysis()
+    correction = _correction()
+    cumulative_evidence = ORIGINAL + "\n\n" + CORRECTION
+
+    class AdjudicatorWithStaleEvidence:
+        def understand_pending(self, *args, **kwargs):
+            return IntentUnderstandingResult(
+                analysis=_corrected_analysis(cumulative_evidence),
+                mechanics_decision=MechanicsDecision(MechanicsDecisionType.NONE),
+                corrections=(correction,),
+            )
+
+    service.resolver.context_builder = None
+    service.resolver.mechanics_adjudicator = AdjudicatorWithStaleEvidence()
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="pending intent correction failed validation",
+    ):
+        service.resolver.prepare_turn(
+            _turn_context(),
+            ORIGINAL + "\n\nDM: ¿A quién?\nRespuesta: Sí, Aldric.",
+            intent_evidence_text=cumulative_evidence,
+            pending_intent_analysis=pending,
+            pending_correction_evidence_text="Sí, Aldric.",
+        )
+
+
+def test_turn_planner_rejects_untyped_changes_in_provider_reanalysis():
+    service, _proposal_calls, _narrative_calls = service_with_fake_models()
+    pending = _pending_analysis()
+    evidence = ORIGINAL + "\n\n" + CORRECTION
+    corrected_payload = _corrected_analysis(evidence).to_dict()
+    corrected_payload["steps"][0]["action"] = (
+        "entregar la llave de hierro a Aldric y añadir un cambio no autorizado"
+    )
+    tampered_analysis = PlayerIntentAnalysis.from_payload(
+        corrected_payload,
+        source_text=evidence,
+        evidence_text=evidence,
+    )
+    correction = _correction()
+
+    class AdjudicatorWithExtraMutation:
+        def understand_pending(self, *args, **kwargs):
+            return IntentUnderstandingResult(
+                analysis=tampered_analysis,
+                mechanics_decision=MechanicsDecision(MechanicsDecisionType.NONE),
+                corrections=(correction,),
+            )
+
+    service.resolver.context_builder = None
+    service.resolver.mechanics_adjudicator = AdjudicatorWithExtraMutation()
+    with pytest.raises(
+        TurnResolutionServiceError,
+        match="pending intent correction failed validation",
+    ):
+        service.resolver.prepare_turn(
+            _turn_context(),
+            ORIGINAL + "\n\nDM: ¿A quién?\n" + CORRECTION,
+            intent_evidence_text=evidence,
+            pending_intent_analysis=pending,
+            pending_correction_evidence_text=CORRECTION,
+        )
+
+
 def test_failed_correction_releases_claim_back_to_awaiting_input(monkeypatch):
     service, _proposal_calls, _narrative_calls = service_with_fake_models()
     service.resolver.mechanics_adjudicator = object()
@@ -428,8 +495,13 @@ def test_failed_correction_releases_claim_back_to_awaiting_input(monkeypatch):
 def test_turn_planner_requires_correction_to_match_the_provider_reanalysis():
     service, _proposal_calls, _narrative_calls = service_with_fake_models()
     pending = _pending_analysis()
-    updated = _corrected_analysis(ORIGINAL + "\n\n" + CORRECTION)
     correction = _correction()
+    updated = correction.apply(
+        pending,
+        player_evidence_text=CORRECTION,
+        resolution_pending=True,
+        committed=False,
+    )
     service.resolver.context_builder = None
 
     class FakeAdjudicator:

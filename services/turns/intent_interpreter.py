@@ -12,6 +12,7 @@ from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import (
     PendingCorrectionSelectionError,
     PendingIntentCorrection,
+    apply_pending_intent_corrections,
     build_pending_correction_candidates,
 )
 from models.player_intent_analysis import MAX_STEPS, PlayerIntentAnalysis
@@ -703,23 +704,17 @@ El esquema JSON es el contrato estructural."""
                 "pending correction returned no correction metadata"
             )
         analysis, corrections = result
-        verified_analysis = pending_analysis
-        for correction in corrections:
-            try:
-                verified_analysis = correction.apply(
-                    verified_analysis,
-                    player_evidence_text=correction_evidence_text,
-                    resolution_pending=True,
-                    committed=False,
-                )
-            except (TypeError, ValueError) as exc:
-                raise IntentInterpreterError(
-                    "pending correction is not applicable to the stored interpretation"
-                ) from exc
-            if not correction.matches_analysis(analysis):
-                raise IntentInterpreterError(
-                    "deterministic correction application does not match the returned state"
-                )
+        try:
+            verified_analysis = apply_pending_intent_corrections(
+                pending_analysis,
+                corrections,
+                player_evidence_text=correction_evidence_text,
+                require_catalogue_match=True,
+            )
+        except (TypeError, ValueError) as exc:
+            raise IntentInterpreterError(
+                "pending correction batch is not applicable to the stored interpretation"
+            ) from exc
         expected_analysis = replace(
             verified_analysis,
             requires_clarification=analysis.requires_clarification,
@@ -824,7 +819,6 @@ El esquema JSON es el contrato estructural."""
                     or len(correction_payloads) > 4
                 ):
                     raise ValueError("pending_corrections must contain at most four items")
-                analysis = pending_analysis
                 correction_items: list[PendingIntentCorrection] = []
                 seen_slot_ids: set[int] = set()
                 for item in correction_payloads:
@@ -839,16 +833,12 @@ El esquema JSON es el contrato estructural."""
                                     "pending corrections must select distinct slot IDs"
                                 )
                             seen_slot_ids.add(proposed_slot_id)
+                    # Resolve every selector against the same immutable
+                    # catalogue that was included in the provider prompt.
                     correction = PendingIntentCorrection.from_intent_payload(
                         item,
                         evidence_text=correction_evidence_text or "",
-                        pending_analysis=analysis,
-                    )
-                    analysis = correction.apply(
-                        analysis,
-                        player_evidence_text=correction_evidence_text or "",
-                        resolution_pending=True,
-                        committed=False,
+                        pending_analysis=pending_analysis,
                     )
                     correction_items.append(correction)
                 corrections = tuple(correction_items)
@@ -876,6 +866,18 @@ El esquema JSON es el contrato estructural."""
                         raise ValueError(
                             "no_change status cannot include edits or a clarification question"
                         )
+
+                try:
+                    analysis = apply_pending_intent_corrections(
+                        pending_analysis,
+                        corrections,
+                        player_evidence_text=correction_evidence_text or "",
+                        require_catalogue_match=True,
+                    )
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        "pending correction batch failed canonical validation"
+                    ) from exc
 
                 if status == "needs_clarification":
                     analysis = replace(

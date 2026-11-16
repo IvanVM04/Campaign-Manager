@@ -5,6 +5,7 @@ import pytest
 from models.pending_intent_correction import (
     PendingCorrectionSlot,
     PendingIntentCorrection,
+    apply_pending_intent_corrections,
     build_pending_correction_candidates,
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
@@ -458,6 +459,226 @@ def test_catalogue_keeps_argument_when_multiple_relation_endpoints_share_mention
     assert [(item.slot_id, item.current_value) for item in action_candidates] == [
         (6, "Mara"),
     ]
+
+
+def test_relation_selector_does_not_edit_other_references_to_a_repeated_mention():
+    source = (
+        "Mara protege a Bram y también protege a Cira durante la huida."
+    )
+    payload = relation_analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "Mara protege a Bram y también protege a Cira"
+    payload["steps"][0]["target_mentions"] = ["Mara", "Bram", "Cira"]
+    payload["relation_claims"][0]["source_excerpt"] = source
+    second_claim = dict(payload["relation_claims"][0])
+    second_claim["object"] = {
+        "text": "Cira",
+        "kind_hint": "character",
+    }
+    second_claim["source_excerpt"] = source
+    payload["relation_claims"].append(second_claim)
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    correction = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 144,
+            "previous_value": "Mara",
+            "replacement": {
+                "text": "Aldric",
+                "kind_hint": "character",
+            },
+            "source_excerpt": "No, Aldric protege a Bram.",
+        },
+        evidence_text="No, Aldric protege a Bram.",
+        pending_analysis=pending,
+    )
+    updated = correction.apply(
+        pending,
+        player_evidence_text="No, Aldric protege a Bram.",
+        resolution_pending=True,
+        committed=False,
+    )
+
+    assert updated.relation_claims[0].subject.text == "Aldric"
+    assert updated.relation_claims[1].subject.text == "Mara"
+    assert updated.steps[0].target_mentions == ("Mara", "Bram", "Cira")
+    assert updated.steps[0].action_frame.arguments[0].mention.text == "Mara"
+    assert updated.steps[0].action == pending.steps[0].action
+
+
+def test_correction_batch_resolves_all_candidates_from_one_initial_snapshot():
+    source = "Entrego el mapa a Mara y a Bram."
+    payload = analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "entregar el mapa a Mara y a Bram"
+    payload["steps"][0]["target_mentions"] = ["el mapa", "Mara", "Bram"]
+    payload["steps"][0]["action_frame"]["arguments"] = [
+        {
+            "role": "recipient",
+            "mention": {"text": "Mara", "kind_hint": "character"},
+        },
+        {
+            "role": "recipient",
+            "mention": {"text": "Bram", "kind_hint": "character"},
+        },
+    ]
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    first = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 6,
+            "previous_value": "Mara",
+            "replacement": {"text": "Aldric", "kind_hint": "character"},
+            "source_excerpt": "No, el primer destino es Aldric.",
+        },
+        evidence_text="No, el primer destino es Aldric.",
+        pending_analysis=pending,
+    )
+    second = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 7,
+            "previous_value": "Bram",
+            "replacement": {"text": "Cira", "kind_hint": "character"},
+            "source_excerpt": "El segundo destino es Cira.",
+        },
+        evidence_text="El segundo destino es Cira.",
+        pending_analysis=pending,
+    )
+
+    updated = apply_pending_intent_corrections(
+        pending,
+        (first, second),
+        player_evidence_text=(
+            "No, el primer destino es Aldric. El segundo destino es Cira."
+        ),
+    )
+    assert [
+        argument.mention.text
+        for argument in updated.steps[0].action_frame.arguments
+    ] == ["Aldric", "Cira"]
+    assert updated.steps[0].target_mentions == ("el mapa", "Aldric", "Cira")
+    assert pending.steps[0].action_frame.arguments[0].mention.text == "Mara"
+
+
+def test_correction_batch_keeps_the_initial_catalogue_when_availability_changes():
+    source = "Mara protege a Bram y también protege a Cira durante la huida."
+    payload = relation_analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "Mara protege a Bram y también protege a Cira"
+    payload["steps"][0]["target_mentions"] = ["Mara", "Bram", "Cira"]
+    payload["relation_claims"][0]["source_excerpt"] = source
+    second_claim = dict(payload["relation_claims"][0])
+    second_claim["object"] = {"text": "Cira", "kind_hint": "character"}
+    second_claim["source_excerpt"] = source
+    payload["relation_claims"].append(second_claim)
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    first = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 144,
+            "previous_value": "Mara",
+            "replacement": {"text": "Aldric", "kind_hint": "character"},
+            "source_excerpt": "No, Aldric protege a Bram.",
+        },
+        evidence_text="No, Aldric protege a Bram.",
+        pending_analysis=pending,
+    )
+    second = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 6,
+            "previous_value": "Mara",
+            "replacement": {"text": "Sable", "kind_hint": "character"},
+            "source_excerpt": "No, el agente era Sable.",
+        },
+        evidence_text="No, el agente era Sable.",
+        pending_analysis=pending,
+    )
+    assert any(candidate.slot_id == 6 for candidate in build_pending_correction_candidates(pending))
+
+    staged = first.apply(
+        pending,
+        player_evidence_text="No, Aldric protege a Bram.",
+        resolution_pending=True,
+        committed=False,
+    )
+    assert all(
+        candidate.slot_id != 6
+        for candidate in build_pending_correction_candidates(staged)
+    )
+    with pytest.raises(ValueError, match="overlapping mention edits"):
+        apply_pending_intent_corrections(
+            pending,
+            (first, second),
+            player_evidence_text="No, Aldric protege a Bram. No, el agente era Sable.",
+        )
+
+
+def test_correction_batch_does_not_expose_partial_results_when_a_later_edit_fails():
+    pending = analysis()
+    first = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+        previous_value="Mara",
+        replacement=replacement("Aldric"),
+        source_excerpt="No, la destinataria es Aldric.",
+        argument_role=SemanticArgumentRole.RECIPIENT,
+    )
+    second = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+        previous_value="la llave de hierro",
+        replacement=replacement("el cofre"),
+        source_excerpt="El objeto era el cofre.",
+        argument_role=SemanticArgumentRole.THEME,
+    )
+
+    with pytest.raises(ValueError, match="literal player evidence"):
+        apply_pending_intent_corrections(
+            pending,
+            (first, second),
+            player_evidence_text=first.source_excerpt,
+        )
+
+    # The first patch may have been applied to the private staged value, but
+    # no partially corrected analysis is returned or written into the input.
+    frame = pending.steps[0].action_frame
+    assert frame is not None
+    assert frame.arguments[0].mention.text == "la llave de hierro"
+    assert frame.arguments[1].mention.text == "Mara"
+    assert pending.steps[0].target_mentions == ("la llave de hierro", "Mara")
+
+
+def test_correction_batch_rejects_old_evidence_and_replacement_collisions():
+    pending = analysis()
+    stale = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+        previous_value="Mara",
+        replacement=replacement("Aldric"),
+        source_excerpt="No, quería decir Aldric.",
+        argument_role=SemanticArgumentRole.RECIPIENT,
+    )
+    with pytest.raises(ValueError, match="literal player evidence"):
+        apply_pending_intent_corrections(
+            pending,
+            (stale,),
+            player_evidence_text="Sí, la destinataria sigue siendo Aldric.",
+        )
+
+    collision = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+        previous_value="Mara",
+        replacement=replacement("la llave de hierro"),
+        source_excerpt="No, la destinataria era la llave de hierro.",
+        argument_role=SemanticArgumentRole.RECIPIENT,
+    )
+    with pytest.raises(ValueError, match="already exists"):
+        apply_pending_intent_corrections(
+            pending,
+            (collision,),
+            player_evidence_text="No, la destinataria era la llave de hierro.",
+        )
 
 
 def test_catalogue_keeps_action_arguments_not_represented_by_relations():
