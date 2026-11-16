@@ -1269,7 +1269,8 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     )
 
     assert result.analysis.steps[0].target_mentions == ("la llave de hierro", "Aldric")
-    assert result.analysis.steps[0].source_excerpt != evidence
+    assert original in result.analysis.steps[0].source_excerpt
+    assert correction in result.analysis.steps[0].source_excerpt
     assert len(result.corrections) == 1
     assert result.corrections[0].matches_analysis(result.analysis)
     assert provider.call_count == 1
@@ -1279,6 +1280,20 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     assert "RECONSTRUYAS LOS PASOS" in provider.prompts[0]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "mechanics_decision" not in provider.prompts[0]
+
+    empty_provider = FakeLLMProvider(
+        response=json.dumps({"pending_corrections": []}),
+    )
+    empty_result = IntentInterpreter(empty_provider).understand_pending(
+        _context(),
+        conversation,
+        pending_analysis=pending,
+        correction_evidence_text=correction,
+        evidence_text=evidence,
+    )
+    assert empty_result.analysis is pending
+    assert empty_result.corrections == ()
+    assert empty_provider.call_count == 1
 
 def test_turn_pipeline_failed_compound_prerequisite_reaches_planner_without_advancing():
     from services.llm_world import LLMWorldExtractor
