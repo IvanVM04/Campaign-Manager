@@ -51,16 +51,11 @@ class PendingCorrectionCandidate:
     current_value: str
     argument_role: SemanticArgumentRole | None = None
     relation_claim_index: int | None = None
-    position: int | None = None
 
-    def to_prompt_dict(
-        self,
-        pending_analysis: PlayerIntentAnalysis,
-    ) -> dict[str, object]:
-        """Return a compact, explanatory catalogue item for the correction prompt."""
+    def to_prompt_dict(self) -> dict[str, object]:
+        """Return one compact catalogue entry; parent context is serialized separately."""
         item: dict[str, object] = {
             "slot_id": self.slot_id,
-            "step_index": self.step_index,
             "kind": self.slot.value,
             "current_value": self.current_value,
         }
@@ -68,17 +63,6 @@ class PendingCorrectionCandidate:
             if self.argument_role is None:
                 raise ValueError("action-argument candidate requires an argument role")
             item["role"] = self.argument_role.value
-            item["argument_index"] = self.position
-        elif self.slot is PendingCorrectionSlot.TARGET_MENTION:
-            item["target_index"] = self.position
-        elif self.relation_claim_index is not None:
-            claim = pending_analysis.relation_claims[self.relation_claim_index]
-            item["claim_index"] = self.relation_claim_index
-            item["relation"] = {
-                "subject": claim.subject.text,
-                "predicate": claim.predicate,
-                "object": claim.object.text,
-            }
         return item
 
 
@@ -129,7 +113,6 @@ def build_pending_correction_candidates(
                     step_index=step_index,
                     slot=PendingCorrectionSlot.TARGET_MENTION,
                     current_value=value,
-                    position=target_index,
                 )
             )
 
@@ -147,7 +130,6 @@ def build_pending_correction_candidates(
                         slot=PendingCorrectionSlot.ACTION_ARGUMENT,
                         current_value=argument.mention.text,
                         argument_role=argument.role,
-                        position=argument_index,
                     )
                 )
 
