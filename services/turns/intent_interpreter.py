@@ -304,44 +304,42 @@ confiables, nunca hechos ni autorización de escritura. Si falta evidencia,
 omite la mención o abstente; no completes huecos con detalles plausibles.
 El esquema JSON es el contrato estructural."""
 
-    CORRECTION_SYSTEM_PROMPT = COMMON_LLM_TRUST_CONTRACT + """Eres el intérprete semántico de una aclaración pendiente.
-Devuelve exclusivamente el JSON de interpretación v2 y pending_corrections.
+    CORRECTION_SYSTEM_PROMPT = COMMON_LLM_TRUST_CONTRACT + """Eres el analista de cambios de una interpretación de intención que sigue pendiente.
+Devuelve exclusivamente el JSON del esquema: un objeto con pending_corrections.
+No devuelvas intent_analysis ni reconstruyas los pasos, actores, argumentos,
+relaciones, categoría, modalidad, polaridad o resultados de la interpretación.
 
-La interpretación previa es un borrador no confiable, no un hecho ni autoridad.
-Conserva todos sus pasos, actores, modalidad, polaridad, resultados, argumentos
-y relaciones que la última respuesta no corrija. La pregunta del DM y la
-narración son contexto, nunca evidencia del jugador. Solo la última respuesta
-puede justificar una corrección nueva.
+La interpretación pendiente es un borrador no confiable, pero es el estado
+tipado que se va a corregir. Compárala con la última respuesta del jugador y
+propón únicamente cambios explícitos y unívocos a un valor que ya exista en
+ese estado. La aplicación determinista comprobará el valor anterior y aplicará
+el cambio; no inventes ni completes campos que no estén siendo corregidos.
 
-La evidencia de la interpretación revisada debe copiarse literalmente de la
-última respuesta del jugador. source_excerpt debe ser un fragmento continuo
-que incluya el predicado y las menciones revisadas. Predicate y relation
-predicates conservan la forma escrita exacta: no lematices ni conviertas los
-verbos al infinitivo. Mantén pronombres y demostrativos como aparecen; no
-sustituyas referencias por nombres canónicos recuperados del historial o de la
-interpretación pendiente. La descripción action puede conservar el sentido
-contextual, pero no sirve como evidencia literal.
+Emite pending_corrections=[] cuando la respuesta confirme lo anterior, solo
+complete una ambigüedad, no cambie un valor concreto o no identifique de forma
+inequívoca el nuevo valor. Expresiones como «el otro», «la otra», «ese»,
+«aquella» o pronombres sin antecedente único no son por sí solos una
+identificación suficiente para cambiar un slot.
 
-Emite pending_corrections=[] cuando la respuesta solo complete una ambigüedad,
-confirme lo anterior o no rectifique explícitamente un valor pendiente. Para
-cada corrección explícita, emite como máximo cuatro cambios tipados: target
-mention, action argument con argument_role, relation_subject o relation_object
-con relation_claim_index. previous_value debe coincidir exactamente con el
-valor pendiente. replacement.text y source_excerpt deben ser literales de la
-última respuesta. La interpretación completa debe reflejar esos mismos cambios.
-No cambies actor, modalidad, negación, atribución, dirección o tiempo sin
-evidencia explícita. Al reconstruir la categoría, distingue dialogue (acto de
-habla dentro de la ficción, incluso con pregunta indirecta dirigida a un
-personaje) de question (pregunta al DM/narrador: petición directa o
-implícita de información/aclaración) y de report (hecho u acción observada o
-relatada, incluido un
-acto físico de un NPC). Una frase de duda solo es una pregunta implícita si
-solicita una respuesta o identificación al DM; si solo relata incertidumbre,
-es report. El actor del paso es quien realiza el evento; una acción de NPC no
-es un intento del jugador.
-Para action_frame.family, los verbos de habla pertenecen a communication, no a
-interaction. Las correcciones no autorizan cambios del mundo ni resultados
-mecánicos. El esquema es el contrato estructural."""
+Para cada cambio explícito, emite como máximo cuatro parches tipados:
+- target_mention para una mención de destino ya existente;
+- action_argument con argument_role para un argumento del action_frame;
+- relation_subject o relation_object con relation_claim_index para un extremo
+  de una relación existente.
+
+slot debe usar exactamente uno de esos valores del esquema. step_index y
+relation_claim_index deben apuntar a los elementos del estado pendiente.
+previous_value debe coincidir exactamente con el valor almacenado en ese slot.
+replacement.text debe ser una mención literal y continua de la última
+respuesta del jugador; no la sustituyas por un nombre canónico inferido del
+historial. source_excerpt debe ser también un fragmento literal y continuo de
+esa última respuesta, e incluir replacement.text. No uses la pregunta del DM,
+la narración, ni el texto del turno anterior como evidencia del parche.
+
+No añadas IDs, permisos, consecuencias, atribución, estado del mundo ni
+resultados mecánicos. Si hay más de una interpretación posible, abstente.
+El código aplicará los parches al borrador pendiente y conservará intactos
+todos los campos no modificados. El esquema JSON es el contrato estructural."""
 
     def __init__(
         self,
@@ -653,22 +651,10 @@ mecánicos. El esquema es el contrato estructural."""
                 "pending correction returned no correction metadata"
             )
         analysis, corrections = result
-        correction_evidence = evidence_text or player_input
         for correction in corrections:
-            try:
-                correction.apply(
-                    pending_analysis,
-                    player_evidence_text=correction_evidence,
-                    resolution_pending=True,
-                    committed=False,
-                )
-            except (TypeError, ValueError) as exc:
-                raise IntentInterpreterError(
-                    "pending correction is not applicable to the stored interpretation"
-                ) from exc
             if not correction.matches_analysis(analysis):
                 raise IntentInterpreterError(
-                    "provider re-analysis does not reflect its explicit correction"
+                    "deterministic patch application does not reflect its correction"
                 )
         return IntentInterpretationResult(
             analysis=analysis,
@@ -748,64 +734,64 @@ mecánicos. El esquema es el contrato estructural."""
             validation_stage = "top_level_contract"
             if not isinstance(payload, dict):
                 raise TypeError("intent response must be an object")
-            expected_fields = {"intent_analysis"}
-            if pending_analysis is not None:
-                expected_fields.add("pending_corrections")
-            if set(payload) != expected_fields:
-                raise ValueError("intent response has missing or unexpected fields")
-            validation_stage = "intent_analysis_validation"
-            intent_payload = payload["intent_analysis"]
-            step_normalization = _normalize_step_indices(intent_payload)
-            if step_normalization is not None:
-                intent_payload, reported_step_indices = step_normalization
-                logger.warning(
-                    "llm.intent.step_indices_canonicalized",
-                    extra={
-                        "provider_role": "intent",
-                        "provider_model": getattr(self.provider, "model", None),
-                        "step_count": len(reported_step_indices),
-                        "reported_indices": list(reported_step_indices),
-                        "normalized_indices": list(range(len(reported_step_indices))),
-                        "normalization": "steps_array_position",
-                    },
+            if pending_analysis is None:
+                if set(payload) != {"intent_analysis"}:
+                    raise ValueError("intent response has missing or unexpected fields")
+                validation_stage = "intent_analysis_validation"
+                intent_payload = payload["intent_analysis"]
+                step_normalization = _normalize_step_indices(intent_payload)
+                if step_normalization is not None:
+                    intent_payload, reported_step_indices = step_normalization
+                    logger.warning(
+                        "llm.intent.step_indices_canonicalized",
+                        extra={
+                            "provider_role": "intent",
+                            "provider_model": getattr(self.provider, "model", None),
+                            "step_count": len(reported_step_indices),
+                            "reported_indices": list(reported_step_indices),
+                            "normalized_indices": list(range(len(reported_step_indices))),
+                            "normalization": "steps_array_position",
+                        },
+                    )
+                attribution_normalization = _normalize_ungrounded_step_attributions(
+                    intent_payload,
+                    evidence,
                 )
-            attribution_normalization = _normalize_ungrounded_step_attributions(
-                intent_payload,
-                evidence,
-            )
-            if attribution_normalization is not None:
-                intent_payload, cleared_attribution_indices = attribution_normalization
-                logger.warning(
-                    "llm.intent.ungrounded_attributions_cleared",
-                    extra={
-                        "provider_role": "intent",
-                        "provider_model": getattr(self.provider, "model", None),
-                        "step_indices": list(cleared_attribution_indices),
-                        "normalization": "attributed_to_null",
-                    },
+                if attribution_normalization is not None:
+                    intent_payload, cleared_attribution_indices = attribution_normalization
+                    logger.warning(
+                        "llm.intent.ungrounded_attributions_cleared",
+                        extra={
+                            "provider_role": "intent",
+                            "provider_model": getattr(self.provider, "model", None),
+                            "step_indices": list(cleared_attribution_indices),
+                            "normalization": "attributed_to_null",
+                        },
+                    )
+                normalization = _normalize_non_action_active_step(intent_payload)
+                if normalization is not None:
+                    intent_payload, normalized_category, discarded_active_step = (
+                        normalization
+                    )
+                    logger.warning(
+                        "llm.intent.non_action_active_step_cleared",
+                        extra={
+                            "provider_role": "intent",
+                            "provider_model": getattr(self.provider, "model", None),
+                            "category": normalized_category,
+                            "discarded_active_step_index": discarded_active_step,
+                            "normalization": "active_step_index_null",
+                        },
+                    )
+                analysis = PlayerIntentAnalysis.from_payload(
+                    intent_payload,
+                    source_text=player_input,
+                    evidence_text=evidence,
                 )
-            normalization = _normalize_non_action_active_step(intent_payload)
-            if normalization is not None:
-                intent_payload, normalized_category, discarded_active_step = (
-                    normalization
-                )
-                logger.warning(
-                    "llm.intent.non_action_active_step_cleared",
-                    extra={
-                        "provider_role": "intent",
-                        "provider_model": getattr(self.provider, "model", None),
-                        "category": normalized_category,
-                        "discarded_active_step_index": discarded_active_step,
-                        "normalization": "active_step_index_null",
-                    },
-                )
-            analysis = PlayerIntentAnalysis.from_payload(
-                intent_payload,
-                source_text=player_input,
-                evidence_text=evidence,
-            )
-            corrections: tuple[PendingIntentCorrection, ...] = ()
-            if pending_analysis is not None:
+                corrections: tuple[PendingIntentCorrection, ...] = ()
+            else:
+                if set(payload) != {"pending_corrections"}:
+                    raise ValueError("correction response must contain only pending_corrections")
                 validation_stage = "pending_corrections_validation"
                 correction_payloads = payload["pending_corrections"]
                 if (
@@ -813,13 +799,22 @@ mecánicos. El esquema es el contrato estructural."""
                     or len(correction_payloads) > 4
                 ):
                     raise ValueError("pending_corrections must contain at most four items")
+                latest_evidence = correction_evidence_text or ""
                 corrections = tuple(
                     PendingIntentCorrection.from_payload(
                         item,
-                        evidence_text=correction_evidence_text or "",
+                        evidence_text=latest_evidence,
                     )
                     for item in correction_payloads
                 )
+                analysis = pending_analysis
+                for correction in corrections:
+                    analysis = correction.apply(
+                        analysis,
+                        player_evidence_text=evidence,
+                        resolution_pending=True,
+                        committed=False,
+                    )
             logger.info(
                 "llm.intent.analysis_completed",
                 extra={
