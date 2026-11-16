@@ -86,6 +86,7 @@ class WorldReferenceResolver:
         IntentModality.REPORTED,
         IntentModality.CORRECTION,
         IntentModality.DIALOGUE,
+        IntentModality.QUESTION,
     })
 
     MIN_RESOLUTION_SCORE = 35
@@ -345,9 +346,8 @@ class WorldReferenceResolver:
             or character_entity_id < 1
         ):
             raise ValueError("character_entity_id must be a positive integer or None")
-        if not analysis.allows_world_proposal:
-            return WorldReferenceResolution()
-
+        # Typed world-reference resolution is read-only and may be needed for
+        # questions/reports even when no proposal or mutation is authorized.
         grouped = self._collect(visible_world, character_entity_id=character_entity_id)
         history: dict[tuple[WorldReferenceCategory, int | str], tuple[DiscourseEvidence, ...]] = {}
         discourse_input = current_input or (
