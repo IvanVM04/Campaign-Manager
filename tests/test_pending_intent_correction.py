@@ -304,12 +304,12 @@ def relation_analysis():
     return PlayerIntentAnalysis.from_payload(payload, source_text=source)
 
 
-def test_compact_intent_payload_infers_argument_role_and_relation_index():
+def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     action_pending = analysis()
     argument_correction = PendingIntentCorrection.from_intent_payload(
         {
             "step_index": 0,
-            "slot": "action_argument",
+            "slot": "action_argument:recipient",
             "previous_value": "Mara",
             "replacement": {
                 "text": "Aldric",
@@ -335,7 +335,7 @@ def test_compact_intent_payload_infers_argument_role_and_relation_index():
     relation_correction = PendingIntentCorrection.from_intent_payload(
         {
             "step_index": 0,
-            "slot": "relation_object",
+            "slot": "relation_object:0",
             "previous_value": "Bram",
             "replacement": {
                 "text": "Aldric",
@@ -358,7 +358,7 @@ def test_compact_intent_payload_infers_argument_role_and_relation_index():
     assert corrected_relation.relation_claims[0].object.text == "Aldric"
 
 
-def test_compact_intent_payload_rejects_ambiguous_argument_selector():
+def test_compact_intent_payload_uses_explicit_role_when_mention_repeats():
     pending_payload = analysis().to_dict()
     pending_payload["steps"][0]["action_frame"]["arguments"].append({
         "role": "agent",
@@ -372,11 +372,38 @@ def test_compact_intent_payload_rejects_ambiguous_argument_selector():
         source_text="Entrego la llave de hierro a Mara.",
     )
 
-    with pytest.raises(ValueError, match="exactly one pending role"):
+    correction = PendingIntentCorrection.from_intent_payload(
+        {
+            "step_index": 0,
+            "slot": "action_argument:recipient",
+            "previous_value": "Mara",
+            "replacement": {
+                "text": "Aldric",
+                "kind_hint": "character",
+            },
+            "source_excerpt": "No, la destinataria es Aldric.",
+        },
+        evidence_text="No, la destinataria es Aldric.",
+        pending_analysis=pending,
+    )
+    updated = correction.apply(
+        pending,
+        player_evidence_text="No, la destinataria es Aldric.",
+        resolution_pending=True,
+        committed=False,
+    )
+
+    arguments = updated.steps[0].action_frame.arguments
+    assert arguments[1].mention.text == "Aldric"
+    assert arguments[2].mention.text == "Mara"
+
+
+def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slot():
+    with pytest.raises(ValueError, match="does not identify exactly one pending role"):
         PendingIntentCorrection.from_intent_payload(
             {
                 "step_index": 0,
-                "slot": "action_argument",
+                "slot": "action_argument:patient",
                 "previous_value": "Mara",
                 "replacement": {
                     "text": "Aldric",
@@ -385,14 +412,30 @@ def test_compact_intent_payload_rejects_ambiguous_argument_selector():
                 "source_excerpt": "No, la destinataria es Aldric.",
             },
             evidence_text="No, la destinataria es Aldric.",
-            pending_analysis=pending,
+            pending_analysis=analysis(),
+        )
+
+    with pytest.raises(ValueError, match="missing pending claim"):
+        PendingIntentCorrection.from_intent_payload(
+            {
+                "step_index": 0,
+                "slot": "relation_object:1",
+                "previous_value": "Bram",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "No, Mara protege a Aldric.",
+            },
+            evidence_text="No, Mara protege a Aldric.",
+            pending_analysis=relation_analysis(),
         )
 
 
 def test_compact_intent_payload_rejects_legacy_selector_fields():
     payload = {
         "step_index": 0,
-        "slot": "action_argument",
+        "slot": "action_argument:recipient",
         "previous_value": "Mara",
         "replacement": {
             "text": "Aldric",
@@ -409,4 +452,3 @@ def test_compact_intent_payload_rejects_legacy_selector_fields():
             evidence_text="No, la destinataria es Aldric.",
             pending_analysis=analysis(),
         )
-
