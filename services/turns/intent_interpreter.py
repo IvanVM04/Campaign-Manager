@@ -790,7 +790,19 @@ El esquema JSON es el contrato estructural."""
                     raise ValueError("pending_corrections must contain at most four items")
                 analysis = pending_analysis
                 correction_items: list[PendingIntentCorrection] = []
+                seen_slot_ids: set[int] = set()
                 for item in correction_payloads:
+                    if isinstance(item, dict):
+                        proposed_slot_id = item.get("slot_id")
+                        if (
+                            isinstance(proposed_slot_id, int)
+                            and not isinstance(proposed_slot_id, bool)
+                        ):
+                            if proposed_slot_id in seen_slot_ids:
+                                raise ValueError(
+                                    "pending corrections must select distinct slot IDs"
+                                )
+                            seen_slot_ids.add(proposed_slot_id)
                     correction = PendingIntentCorrection.from_intent_payload(
                         item,
                         evidence_text=correction_evidence_text or "",
