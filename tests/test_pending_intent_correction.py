@@ -453,7 +453,7 @@ def test_compact_intent_payload_rejects_legacy_selector_fields():
         )
 
 
-def test_relation_selector_diagnoses_opposite_endpoint():
+def test_relation_selector_rejects_previous_value_from_opposite_endpoint():
     pending = relation_analysis()
     with pytest.raises(
         ValueError,
