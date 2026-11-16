@@ -1152,7 +1152,9 @@ def test_turn_pipeline_skips_mechanics_and_proposal_for_question_only():
     assert extractor.call_count == 0
 
 
-def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
+def test_intent_interpreter_pending_correction_is_independent_of_mechanics(
+    monkeypatch,
+):
     original = "Entrego la llave de hierro a Mara."
     correction = "No, quería decir Aldric."
     conversation = (
@@ -1207,8 +1209,6 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "previous_value": "Mara",
         "replacement": {"text": "Aldric", "kind_hint": "character"},
         "source_excerpt": correction,
-        "argument_role": None,
-        "relation_claim_index": None,
     }
     response = {
         "status": "corrected",
@@ -1217,6 +1217,13 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     }
     provider = FakeLLMProvider(response=json.dumps(response, ensure_ascii=False))
     interpreter = IntentInterpreter(provider)
+    monkeypatch.setattr(
+        interpreter.context_builder,
+        "build",
+        lambda *args, **kwargs: pytest.fail(
+            "pending correction must not load fresh world context"
+        ),
+    )
     from models.player_intent_analysis import PlayerIntentAnalysis
 
     pending = PlayerIntentAnalysis.from_payload(
@@ -1245,6 +1252,10 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     assert "intent_analysis" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
+    assert "action_arguments" in provider.prompts[0]
+    assert "ÍNDICE DISCURSIVO" not in provider.prompts[0]
+    assert "omitido: la corrección se limita al estado pendiente" in provider.prompts[0]
+    assert provider.prompts[0].count(correction) == 2
     assert "mechanics_decision" not in provider.prompts[0]
 
 def test_turn_pipeline_failed_compound_prerequisite_reaches_planner_without_advancing():
@@ -1720,8 +1731,6 @@ def _invalid_pending_correction_response(
                         "kind_hint": "character",
                     },
                     "source_excerpt": "No, quería decir Aldric.",
-                    "argument_role": None,
-                    "relation_claim_index": None,
                 }],
             ),
             "No, quería decir Aldric.",

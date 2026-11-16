@@ -65,3 +65,19 @@ def test_pending_correction_contract_is_edit_only_and_does_not_reinterpret():
         "corrected", "needs_clarification", "no_change"
     ]
     assert schema["properties"]["pending_corrections"]["maxItems"] == 4
+    correction_item = schema["properties"]["pending_corrections"]["items"]
+    assert correction_item["required"] == [
+        "step_index",
+        "slot",
+        "previous_value",
+        "replacement",
+        "source_excerpt",
+    ]
+    assert set(correction_item["properties"]) == set(correction_item["required"])
+    assert "argument_role" not in correction_item["properties"]
+    assert "relation_claim_index" not in correction_item["properties"]
+    assert "action_argument:<role>" in prompt
+    assert "relation_object:<index>" in prompt
+    assert "action_argument:recipient" in correction_item["properties"]["slot"]["enum"]
+    assert "relation_object:0" in correction_item["properties"]["slot"]["enum"]
+    assert 'status="needs_clarification"' in prompt

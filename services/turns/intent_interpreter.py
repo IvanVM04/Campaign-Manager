@@ -324,11 +324,15 @@ Usa uno de estos estados:
   valor pendiente y no hace falta otra aclaración. Emite pending_corrections=[]
   y clarification_question=null.
 
-Cada corrección debe señalar exactamente un slot existente: target_mention,
-action_argument con argument_role, relation_subject o relation_object con
-relation_claim_index. step_index, previous_value y relation_claim_index deben
-referirse al estado pendiente proporcionado. previous_value debe coincidir
-exactamente con el valor almacenado; no lo reconstruyas a partir del texto.
+Cada corrección debe identificar exactamente un slot usando step_index
+y slot. Usa target_mention, action_argument:<role>, relation_subject:<index>
+o relation_object:<index>; por ejemplo, action_argument:recipient o
+relation_object:0. El sufijo forma parte de slot: no devuelvas argument_role
+ni relation_claim_index como campos separados. El servidor comprueba que el
+rol o índice identifica un slot existente y que previous_value coincide
+exactamente con su valor. Si no puedes identificar el slot con seguridad,
+usa status="needs_clarification". No reconstruyas previous_value a partir
+del texto.
 
 replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
 respuesta del jugador. No lematices, traduzcas ni parafrasees replacement.text.
@@ -443,33 +447,37 @@ El esquema JSON es el contrato estructural."""
 
     @staticmethod
     def _pending_summary(analysis: PlayerIntentAnalysis) -> dict:
+        """Expose only candidate slots needed to adjudicate a pending correction."""
         return {
-            "schema_version": analysis.schema_version,
-            "category": analysis.category.value,
             "steps": [
                 {
                     "index": step.index,
                     "action": step.action,
                     "source_excerpt": step.source_excerpt,
-                    "actor": step.actor.value,
-                    "modality": step.modality.value,
-                    "polarity": step.polarity.value,
-                    "reported_outcome": step.reported_outcome.value,
                     "target_mentions": list(step.target_mentions),
-                    "attributed_to": step.attributed_to,
-                    "action_frame": (
-                        step.action_frame.to_dict()
+                    "action_arguments": (
+                        [
+                            {
+                                "role": argument.role.value,
+                                "mention": argument.mention.text,
+                            }
+                            for argument in step.action_frame.arguments
+                        ]
                         if step.action_frame is not None
-                        else None
+                        else []
                     ),
                 }
                 for step in analysis.steps
             ],
-            "active_step_index": analysis.active_step_index,
-            "requires_clarification": analysis.requires_clarification,
-            "clarification_question": analysis.clarification_question,
             "relation_claims": [
-                claim.to_dict() for claim in analysis.relation_claims
+                {
+                    "index": index,
+                    "step_index": claim.step_index,
+                    "subject": claim.subject.text,
+                    "predicate": claim.predicate,
+                    "object": claim.object.text,
+                }
+                for index, claim in enumerate(analysis.relation_claims)
             ],
         }
 
@@ -483,34 +491,44 @@ El esquema JSON es el contrato estructural."""
         pending_analysis: PlayerIntentAnalysis | None = None,
         correction_evidence_text: str | None = None,
     ) -> tuple[str, dict[str, int]]:
-        character = context.active_character
-        context_data = self.context_builder.build(
-            context.world,
-            player_input,
-            recent_turns=list(recent_turns) if recent_turns is not None else None,
-            supplemental_queries=self._recent_context_queries(recent_turns),
-            character_entity_id=(character.entity_id if character is not None else None),
-        )
-        projection = context_data.get("context", "")
-        visible_entities = context_data.get("entities", [])
-        if not isinstance(projection, str):
-            raise IntentInterpreterError("intent context must be text")
-        if not isinstance(visible_entities, list):
-            visible_entities = []
-
-        world_context = self._compact_text(projection, self.max_context_bytes)
-        history = self._compact_text(
-            self._format_recent_turns(recent_turns),
-            min(1800, self.max_context_bytes // 2),
-        )
-        discourse = self._compact_text(
-            DiscourseContextBuilder.render(
+        if pending_analysis is None:
+            character = context.active_character
+            context_data = self.context_builder.build(
+                context.world,
                 player_input,
-                recent_turns,
-                visible_entities=visible_entities,
-            ),
-            min(650, self.max_context_bytes // 8),
-        )
+                recent_turns=list(recent_turns) if recent_turns is not None else None,
+                supplemental_queries=self._recent_context_queries(recent_turns),
+                character_entity_id=(
+                    character.entity_id if character is not None else None
+                ),
+            )
+            projection = context_data.get("context", "")
+            visible_entities = context_data.get("entities", [])
+            if not isinstance(projection, str):
+                raise IntentInterpreterError("intent context must be text")
+            if not isinstance(visible_entities, list):
+                visible_entities = []
+
+            world_context = self._compact_text(projection, self.max_context_bytes)
+            history = self._compact_text(
+                self._format_recent_turns(recent_turns),
+                min(1800, self.max_context_bytes // 2),
+            )
+            discourse = self._compact_text(
+                DiscourseContextBuilder.render(
+                    player_input,
+                    recent_turns,
+                    visible_entities=visible_entities,
+                ),
+                min(650, self.max_context_bytes // 8),
+            )
+        else:
+            # A correction can only edit the stored pending analysis. Fresh
+            # world/history/discourse retrieval adds tokens and competing
+            # candidates without adding valid correction evidence.
+            world_context = "(omitido: la corrección se limita al estado pendiente)"
+            history = "(estado previo representado en la interpretación pendiente)"
+            discourse = ""
         instructions = (
             self.CORRECTION_SYSTEM_PROMPT
             if pending_analysis is not None
@@ -532,12 +550,9 @@ El esquema JSON es el contrato estructural."""
                     separators=(",", ":"),
                     sort_keys=True,
                 )
-                + "\n=== ÚLTIMA RESPUESTA DEL JUGADOR ===\n"
-                + (correction_evidence_text or "")
                 + "\n"
             )
             conversation = player_input[-1600:]
-            history = "(estado previo ya representado en la interpretación pendiente)"
             evidence = correction_evidence_text or ""
 
         def compose() -> tuple[str, dict[str, int]]:
@@ -782,13 +797,22 @@ El esquema JSON es el contrato estructural."""
                     or len(correction_payloads) > 4
                 ):
                     raise ValueError("pending_corrections must contain at most four items")
-                corrections = tuple(
-                    PendingIntentCorrection.from_payload(
+                analysis = pending_analysis
+                correction_items: list[PendingIntentCorrection] = []
+                for item in correction_payloads:
+                    correction = PendingIntentCorrection.from_intent_payload(
                         item,
                         evidence_text=correction_evidence_text or "",
+                        pending_analysis=analysis,
                     )
-                    for item in correction_payloads
-                )
+                    analysis = correction.apply(
+                        analysis,
+                        player_evidence_text=correction_evidence_text or "",
+                        resolution_pending=True,
+                        committed=False,
+                    )
+                    correction_items.append(correction)
+                corrections = tuple(correction_items)
                 clarification_question = payload["clarification_question"]
                 if status == "corrected":
                     if not corrections or clarification_question is not None:
@@ -814,14 +838,6 @@ El esquema JSON es el contrato estructural."""
                             "no_change status cannot include edits or a clarification question"
                         )
 
-                analysis = pending_analysis
-                for correction in corrections:
-                    analysis = correction.apply(
-                        analysis,
-                        player_evidence_text=correction_evidence_text or "",
-                        resolution_pending=True,
-                        committed=False,
-                    )
                 if status == "needs_clarification":
                     analysis = replace(
                         analysis,

@@ -364,6 +364,37 @@ _PENDING_CORRECTION_SCHEMA = {
     },
 }
 
+# Intent corrections use one discriminated slot identifier. Role and
+# relation-claim index are encoded atomically in the slot value; the backend
+# verifies that exact selector against the stored pending analysis.
+_PENDING_INTENT_CORRECTION_SCHEMA = deepcopy(_PENDING_CORRECTION_SCHEMA)
+_PENDING_INTENT_CORRECTION_SCHEMA["required"] = [
+    "step_index",
+    "slot",
+    "previous_value",
+    "replacement",
+    "source_excerpt",
+]
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("argument_role")
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("relation_claim_index")
+_INTENT_CORRECTION_SLOT_VALUES = [
+    "target_mention",
+    *[
+        f"action_argument:{role}"
+        for role in _ACTION_ARGUMENT_SCHEMA["properties"]["role"]["enum"]
+    ],
+    *[f"relation_subject:{index}" for index in range(8)],
+    *[f"relation_object:{index}" for index in range(8)],
+]
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["enum"] = (
+    _INTENT_CORRECTION_SLOT_VALUES
+)
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["description"] = (
+    "One atomic slot identifier: target_mention, action_argument:<role>, "
+    "relation_subject:<index>, or relation_object:<index>. Put the role or "
+    "claim index inside slot; do not return a separate selector field."
+)
+
 # Used only while resolving an uncommitted clarification. The ordinary turn
 # path keeps the original schema and provider-call shape unchanged.
 INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA = deepcopy(
@@ -415,7 +446,7 @@ INTENT_CORRECTION_RESPONSE_SCHEMA = {
         "pending_corrections": {
             "type": "array",
             "maxItems": 4,
-            "items": _PENDING_CORRECTION_SCHEMA,
+            "items": _PENDING_INTENT_CORRECTION_SCHEMA,
         },
         "clarification_question": {
             "type": ["string", "null"],

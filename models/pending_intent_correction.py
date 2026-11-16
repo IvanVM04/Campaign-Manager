@@ -112,6 +112,125 @@ class PendingIntentCorrection:
             relation_claim_index=payload["relation_claim_index"],
         )
 
+    @classmethod
+    def from_intent_payload(
+        cls,
+        payload: object,
+        *,
+        evidence_text: str,
+        pending_analysis: PlayerIntentAnalysis,
+    ) -> PendingIntentCorrection:
+        """Decode a compact Intent correction with one atomic slot selector.
+
+        The provider returns one discriminated slot value, such as
+        "action_argument:recipient" or "relation_object:0". The backend
+        validates that exact selector against the pending analysis; it never
+        accepts independent, potentially contradictory role/index fields.
+        """
+        expected = {
+            "step_index",
+            "slot",
+            "previous_value",
+            "replacement",
+            "source_excerpt",
+        }
+        if not isinstance(payload, dict) or set(payload) != expected:
+            raise ValueError("intent correction has missing or unexpected fields")
+        if not isinstance(pending_analysis, PlayerIntentAnalysis):
+            raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
+
+        step_index = payload["step_index"]
+        if (
+            isinstance(step_index, bool)
+            or not isinstance(step_index, int)
+            or not 0 <= step_index < len(pending_analysis.steps)
+        ):
+            raise ValueError("intent correction references a missing pending step")
+
+        previous_value = payload["previous_value"]
+        source_excerpt = payload["source_excerpt"]
+        if not isinstance(previous_value, str) or not isinstance(source_excerpt, str):
+            raise TypeError("intent correction values must be strings")
+        _validate_text(previous_value, "previous_value", 120)
+        _validate_text(source_excerpt, "source_excerpt", 300)
+        replacement = SemanticMention.from_payload(
+            payload["replacement"],
+            evidence_text=evidence_text,
+            field_name="correction replacement",
+        )
+
+        slot_value = payload["slot"]
+        if not isinstance(slot_value, str):
+            raise TypeError("intent correction slot must be a string")
+        step = pending_analysis.steps[step_index]
+        argument_role = None
+        relation_claim_index = None
+        normalized_previous = _normalize(previous_value)
+
+        if slot_value == PendingCorrectionSlot.TARGET_MENTION.value:
+            slot = PendingCorrectionSlot.TARGET_MENTION
+            matches = [
+                value
+                for value in step.target_mentions
+                if _normalize(value) == normalized_previous
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "target correction must identify exactly one pending mention"
+                )
+        elif slot_value.startswith("action_argument:"):
+            slot = PendingCorrectionSlot.ACTION_ARGUMENT
+            role_value = slot_value.partition(":")[2]
+            try:
+                argument_role = SemanticArgumentRole(role_value)
+            except ValueError as exc:
+                raise ValueError("action-argument selector has an unknown role") from exc
+            frame = step.action_frame
+            if frame is None:
+                raise ValueError(
+                    "action-argument correction requires a pending action frame"
+                )
+            matches = [
+                argument
+                for argument in frame.arguments
+                if argument.role is argument_role
+                and _normalize(argument.mention.text) == normalized_previous
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "action-argument selector does not identify exactly one pending role"
+                )
+        elif slot_value.startswith(("relation_subject:", "relation_object:")):
+            prefix, _, index_text = slot_value.partition(":")
+            if not index_text.isdigit():
+                raise ValueError("relation selector requires a non-negative claim index")
+            relation_claim_index = int(index_text)
+            if relation_claim_index >= len(pending_analysis.relation_claims):
+                raise ValueError("relation selector references a missing pending claim")
+            claim = pending_analysis.relation_claims[relation_claim_index]
+            if claim.step_index != step_index:
+                raise ValueError("relation selector references a claim in another step")
+            if prefix == "relation_subject":
+                slot = PendingCorrectionSlot.RELATION_SUBJECT
+                endpoint = claim.subject
+            else:
+                slot = PendingCorrectionSlot.RELATION_OBJECT
+                endpoint = claim.object
+            if _normalize(endpoint.text) != normalized_previous:
+                raise ValueError("relation selector does not match the pending endpoint")
+        else:
+            raise ValueError("intent correction has an unsupported slot selector")
+
+        return cls(
+            step_index=step_index,
+            slot=slot,
+            previous_value=previous_value,
+            replacement=replacement,
+            source_excerpt=source_excerpt,
+            argument_role=argument_role,
+            relation_claim_index=relation_claim_index,
+        )
+
     def to_dict(self) -> dict[str, object]:
         """Return the bounded typed correction for durable audit history."""
         return {
