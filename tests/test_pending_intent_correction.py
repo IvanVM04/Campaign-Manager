@@ -608,6 +608,45 @@ def test_slot_catalogue_ids_are_stable_and_distinguish_same_role_arguments():
     assert updated.steps[0].action_frame.arguments[1].mention.text == "Bram"
 
 
+def test_catalogue_omits_arguments_that_are_ambiguous_after_normalization():
+    source = "Entrego la llave a Mara y a Mará."
+    payload = analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "entregar la llave a Mara y a Mará"
+    payload["steps"][0]["target_mentions"] = [
+        "la llave de hierro", "Mara", "Mará",
+    ]
+    payload["steps"][0]["action_frame"]["arguments"] = [
+        {
+            "role": "theme",
+            "mention": {
+                "text": "la llave de hierro",
+                "kind_hint": "item_instance",
+            },
+        },
+        {
+            "role": "recipient",
+            "mention": {"text": "Mara", "kind_hint": "character"},
+        },
+        {
+            "role": "recipient",
+            "mention": {"text": "Mará", "kind_hint": "character"},
+        },
+    ]
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    candidates = build_pending_correction_candidates(pending)
+    action_candidates = [
+        item
+        for item in candidates
+        if item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+    ]
+
+    assert [(item.slot_id, item.current_value) for item in action_candidates] == [
+        (6, "la llave de hierro"),
+    ]
+
+
 def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
     source = "Mara ve a Mara y entrega el mapa sobre la mesa."
     payload = analysis().to_dict()
