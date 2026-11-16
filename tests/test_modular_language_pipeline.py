@@ -1791,10 +1791,7 @@ def test_pending_correction_rejects_duplicate_slot_ids_in_one_response():
         "clarification_question": None,
     }, ensure_ascii=False))
 
-    with pytest.raises(
-        IntentInterpreterError,
-        match="pending corrections must select distinct slot IDs",
-    ):
+    with pytest.raises(IntentInterpreterError) as captured:
         IntentInterpreter(provider).understand_pending(
             _context(),
             original + "\n\nDM: ¿A quién quieres entregar el mapa?\n" + answer,
@@ -1803,6 +1800,9 @@ def test_pending_correction_rejects_duplicate_slot_ids_in_one_response():
             evidence_text=original + "\n\n" + answer,
         )
 
+    assert str(captured.value.__cause__) == (
+        "pending corrections must select distinct slot IDs"
+    )
     assert provider.call_count == 1
 
 
