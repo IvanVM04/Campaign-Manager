@@ -309,7 +309,6 @@ def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     action_pending = analysis()
     argument_correction = PendingIntentCorrection.from_intent_payload(
         {
-            "step_index": 0,
             "slot_id": 7,
             "previous_value": "Mara",
             "replacement": {
@@ -335,7 +334,6 @@ def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     relation_pending = relation_analysis()
     relation_correction = PendingIntentCorrection.from_intent_payload(
         {
-            "step_index": 0,
             "slot_id": 145,
             "previous_value": "Bram",
             "replacement": {
@@ -375,7 +373,6 @@ def test_compact_intent_payload_uses_explicit_role_when_mention_repeats():
 
     correction = PendingIntentCorrection.from_intent_payload(
         {
-            "step_index": 0,
             "slot_id": 7,
             "previous_value": "Mara",
             "replacement": {
@@ -493,7 +490,7 @@ def test_compact_relation_selector_reports_unmatched_previous_value():
         PendingIntentCorrection.from_intent_payload(
             {
                 "step_index": 0,
-                "slot": "relation_object:0",
+                "slot_id": 145,
                 "previous_value": "Sable",
                 "replacement": {
                     "text": "Aldric",
