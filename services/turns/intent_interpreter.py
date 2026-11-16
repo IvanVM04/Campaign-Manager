@@ -10,6 +10,7 @@ from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import (
+    PendingCorrectionSelectionError,
     PendingIntentCorrection,
     build_pending_correction_candidates,
 )
@@ -1003,6 +1004,23 @@ El esquema JSON es el contrato estructural."""
                 }.get(str(exc))
             else:
                 validation_code = "schema_or_evidence_validation_failed"
+
+            safe_slot_diagnostics: dict[str, object] = {}
+            if isinstance(exc, PendingCorrectionSelectionError):
+                validation_reason = exc.reason_code
+                safe_slot_diagnostics = {
+                    "correction_selected_slot_id": exc.selected_slot_id,
+                    "correction_selected_slot_type": exc.selected_slot.value,
+                }
+                if (
+                    exc.matching_slot_id is not None
+                    and exc.matching_slot is not None
+                ):
+                    safe_slot_diagnostics.update({
+                        "correction_matching_slot_id": exc.matching_slot_id,
+                        "correction_matching_slot_type": exc.matching_slot.value,
+                    })
+
             logger.warning(
                 "llm.intent.invalid_response",
                 extra={
@@ -1013,6 +1031,7 @@ El esquema JSON es el contrato estructural."""
                     "validation_code": validation_code,
                     "validation_field": validation_field,
                     "validation_reason": validation_reason,
+                    **safe_slot_diagnostics,
                 },
             )
             # Keep diagnostics useful without logging provider completions,
