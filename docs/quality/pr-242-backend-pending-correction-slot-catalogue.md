@@ -45,7 +45,9 @@ mention is already represented by an action argument or relation endpoint.
 The typed candidate is more precise: applying the broader target patch can
 also update linked semantic-frame references. Duplicate generic target
 mentions are omitted because the patch contract cannot address one occurrence
-independently. These omissions do not renumber other IDs.
+independently. Action arguments sharing a role and normalized value are also
+omitted when the current patch implementation cannot uniquely address them.
+These omissions do not renumber other IDs.
 
 ## Response contract and validation
 
