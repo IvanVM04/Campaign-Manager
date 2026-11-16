@@ -90,6 +90,9 @@ class PendingIntentCorrection:
         }
         if not isinstance(payload, dict) or set(payload) != expected:
             raise ValueError("pending correction has missing or unexpected fields")
+        if not isinstance(evidence_text, str) or not evidence_text.strip():
+            raise ValueError("latest correction evidence must be non-empty text")
+        _validate_text(payload["source_excerpt"], "source_excerpt", 300)
         if not _contains_literal(evidence_text, payload["source_excerpt"]):
             raise ValueError("correction source_excerpt must be literal latest-answer evidence")
         replacement = SemanticMention.from_payload(
