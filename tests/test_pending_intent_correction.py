@@ -609,10 +609,10 @@ def test_slot_catalogue_ids_are_stable_and_distinguish_same_role_arguments():
 
 
 def test_catalogue_omits_arguments_that_are_ambiguous_after_normalization():
-    source = "Entrego la llave a Mara y a Mará."
+    source = "Entrego la llave de hierro a Mara y a Mará."
     payload = analysis().to_dict()
     payload["steps"][0]["source_excerpt"] = source
-    payload["steps"][0]["action"] = "entregar la llave a Mara y a Mará"
+    payload["steps"][0]["action"] = "entregar la llave de hierro a Mara y a Mará"
     payload["steps"][0]["target_mentions"] = [
         "la llave de hierro", "Mara", "Mará",
     ]
