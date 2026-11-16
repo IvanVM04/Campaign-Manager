@@ -103,14 +103,17 @@ def build_pending_correction_candidates(
     if not isinstance(pending_analysis, PlayerIntentAnalysis):
         raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
 
-    relation_mentions_by_step: dict[int, set[str]] = {}
+    relation_endpoint_counts_by_step: dict[int, dict[str, int]] = {}
     for claim in pending_analysis.relation_claims:
-        relation_mentions = relation_mentions_by_step.setdefault(
+        endpoint_counts = relation_endpoint_counts_by_step.setdefault(
             claim.step_index,
-            set(),
+            {},
         )
-        relation_mentions.add(_normalize(claim.subject.text))
-        relation_mentions.add(_normalize(claim.object.text))
+        for mention in (claim.subject, claim.object):
+            normalized_mention = _normalize(mention.text)
+            endpoint_counts[normalized_mention] = (
+                endpoint_counts.get(normalized_mention, 0) + 1
+            )
 
     candidates: list[PendingCorrectionCandidate] = []
     for step_index, step in enumerate(pending_analysis.steps):
@@ -157,7 +160,10 @@ def build_pending_correction_candidates(
                 key = normalized_argument_keys[argument_index]
                 if (
                     normalized_argument_keys.count(key) != 1
-                    or key[1] in relation_mentions_by_step.get(step_index, set())
+                    or relation_endpoint_counts_by_step.get(
+                        step_index,
+                        {},
+                    ).get(key[1], 0) == 1
                 ):
                     continue
                 candidates.append(
