@@ -317,9 +317,9 @@ responsabilidad es decidir si la última respuesta corrige explícitamente un
 valor pendiente y, si es así, proponer el cambio mínimo y exacto.
 
 El backend proporciona un catálogo de slots agrupado por contexto:
-- En cada paso, correction_slots.target_mentions contiene los slots genéricos
-  disponibles y correction_slots.action_arguments contiene los argumentos
-  tipados, cada uno con slot_id, current_value y role.
+- En cada paso, correction_slots.target_mentions contiene entradas con
+  slot_id y current_value; correction_slots.action_arguments contiene entradas
+  con esos mismos campos y el role semántico del argumento.
 - En cada relación, subject y object contienen cada uno slot_id y current_value;
   el index, step_index y predicate de la relación identifican su contexto.
 
