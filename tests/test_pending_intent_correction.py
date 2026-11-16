@@ -283,7 +283,22 @@ def relation_analysis():
             "action_frame": {
                 "predicate": "protege",
                 "family": "other",
-                "arguments": [],
+                "arguments": [
+                    {
+                        "role": "agent",
+                        "mention": {
+                            "text": "Mara",
+                            "kind_hint": "character",
+                        },
+                    },
+                    {
+                        "role": "patient",
+                        "mention": {
+                            "text": "Bram",
+                            "kind_hint": "character",
+                        },
+                    },
+                ],
             },
         }],
         "active_step_index": None,
@@ -351,6 +366,10 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
 
     relation_pending = relation_analysis()
     relation_summary = IntentInterpreter._pending_summary(relation_pending)
+    assert relation_summary["steps"][0]["correction_slots"] == {
+        "target_mentions": [],
+        "action_arguments": [],
+    }
     assert relation_summary["relations"] == [
         {
             "index": 0,
@@ -404,6 +423,9 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
         committed=False,
     )
     assert corrected_relation.relation_claims[0].object.text == "Aldric"
+    corrected_arguments = corrected_relation.steps[0].action_frame.arguments
+    assert corrected_arguments[0].mention.text == "Mara"
+    assert corrected_arguments[1].mention.text == "Aldric"
 
 
 def test_slot_catalogue_selects_repeated_mention_by_candidate_id():
