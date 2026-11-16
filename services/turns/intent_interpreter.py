@@ -237,8 +237,9 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   sigue siendo dialogue, no question. Ejemplo: «Le consulto a la guardia si
   vio pasar al mensajero» es dialogue y su action_frame.family es
   communication.
-- category="question" cuando el jugador pide directa o implícitamente
-  información o una aclaración al DM/narrador sobre el mundo o la partida, sin
+- category="question" cuando el jugador pregunta al DM/narrador, de forma
+  directa o implícita, para pedir información o una aclaración sobre el mundo
+  o la partida, sin
   dirigir ese acto a un interlocutor de la ficción. Una forma interrogativa
   dentro de una intervención dirigida a un personaje no convierte el mensaje
   en question. Una frase de incertidumbre solo cuenta como petición implícita
