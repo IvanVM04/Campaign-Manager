@@ -654,7 +654,6 @@ El esquema JSON es el contrato estructural."""
             evidence_text=evidence_text,
             pending_analysis=pending_analysis,
             correction_evidence_text=correction_evidence_text,
-            return_corrections=True,
         )
         if not isinstance(result, tuple):
             raise IntentInterpreterError(
@@ -678,7 +677,12 @@ El esquema JSON es el contrato estructural."""
                 raise IntentInterpreterError(
                     "deterministic correction application does not match the returned state"
                 )
-        if analysis != verified_analysis:
+        expected_analysis = replace(
+            verified_analysis,
+            requires_clarification=analysis.requires_clarification,
+            clarification_question=analysis.clarification_question,
+        )
+        if analysis != expected_analysis:
             raise IntentInterpreterError(
                 "correction response changed fields outside the typed correction contract"
             )
@@ -696,7 +700,6 @@ El esquema JSON es el contrato estructural."""
         evidence_text: str | None,
         pending_analysis: PlayerIntentAnalysis | None = None,
         correction_evidence_text: str | None = None,
-        return_corrections: bool = False,
     ) -> (
         PlayerIntentAnalysis
         | tuple[PlayerIntentAnalysis, tuple[PendingIntentCorrection, ...]]
