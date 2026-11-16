@@ -364,6 +364,24 @@ _PENDING_CORRECTION_SCHEMA = {
     },
 }
 
+# Intent corrections use a compact slot locator. The backend derives an
+# action-argument role or relation-claim index from the stored pending analysis
+# and accepts it only when the previous value identifies exactly one slot.
+_PENDING_INTENT_CORRECTION_SCHEMA = deepcopy(_PENDING_CORRECTION_SCHEMA)
+_PENDING_INTENT_CORRECTION_SCHEMA["required"] = [
+    "step_index",
+    "slot",
+    "previous_value",
+    "replacement",
+    "source_excerpt",
+]
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("argument_role")
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("relation_claim_index")
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["description"] = (
+    "The pending slot to correct. The backend resolves its exact stored "
+    "argument or relation endpoint from step_index and previous_value."
+)
+
 # Used only while resolving an uncommitted clarification. The ordinary turn
 # path keeps the original schema and provider-call shape unchanged.
 INTENT_MECHANICS_CORRECTION_RESPONSE_SCHEMA = deepcopy(
@@ -415,7 +433,7 @@ INTENT_CORRECTION_RESPONSE_SCHEMA = {
         "pending_corrections": {
             "type": "array",
             "maxItems": 4,
-            "items": _PENDING_CORRECTION_SCHEMA,
+            "items": _PENDING_INTENT_CORRECTION_SCHEMA,
         },
         "clarification_question": {
             "type": ["string", "null"],
