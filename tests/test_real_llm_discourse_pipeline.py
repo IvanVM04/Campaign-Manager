@@ -543,7 +543,56 @@ def _pending_analysis(prior_input: str, expected: dict):
     from models.player_intent_analysis import PlayerIntentAnalysis
 
     slot = expected["slot"]
-    if slot == "relation_object":
+    if expected.get("accepted") is False:
+        # The player explicitly left two recipients undecided. Do not seed the
+        # correction test with an invented single recipient; the model must
+        # preserve ambiguity and ask for a literal choice.
+        ambiguous_recipient = "Mara o a Aldric"
+        return PlayerIntentAnalysis.from_payload(
+            {
+                "schema_version": 2,
+                "category": "action",
+                "steps": [
+                    {
+                        "index": 0,
+                        "source_excerpt": prior_input,
+                        "actor": "player",
+                        "action": "entregar la carta a una de dos personas sin decidir",
+                        "modality": "attempted",
+                        "polarity": "positive",
+                        "reported_outcome": "not_claimed",
+                        "target_mentions": ["la carta", ambiguous_recipient],
+                        "attributed_to": None,
+                        "action_frame": {
+                            "predicate": "Entrego",
+                            "family": "transfer",
+                            "arguments": [
+                                {
+                                    "role": "theme",
+                                    "mention": {
+                                        "text": "la carta",
+                                        "kind_hint": "item_instance",
+                                    },
+                                },
+                                {
+                                    "role": "recipient",
+                                    "mention": {
+                                        "text": ambiguous_recipient,
+                                        "kind_hint": "character",
+                                    },
+                                },
+                            ],
+                        },
+                    }
+                ],
+                "active_step_index": 0,
+                "requires_clarification": True,
+                "clarification_question": "¿A cuál de las dos personas quieres entregar la carta?",
+                "relation_claims": [],
+            },
+            source_text=prior_input,
+        )
+    if slot in {"relation_object", "relation_endpoint"}:
         return PlayerIntentAnalysis.from_payload(
             {
                 "schema_version": 2,
@@ -740,6 +789,15 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
                             raise AssertionError(
                                 "ambiguous/ungrounded clarification emitted a correction"
                             )
+                        if scenario["id"] == "dp-correction-ungrounded-28":
+                            if not result.analysis.requires_clarification:
+                                raise AssertionError(
+                                    "ambiguous alternative was not kept pending clarification"
+                                )
+                            if not result.analysis.clarification_question:
+                                raise AssertionError(
+                                    "ambiguous alternative returned no clarification question"
+                                )
                 except Exception as exc:  # noqa: BLE001 - a failed correction is evaluation evidence
                     failures.append(
                         f"{scenario['id']} round={round_index + 1} "
