@@ -862,9 +862,16 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
                                     "ambiguous alternative returned no clarification question"
                                 )
                 except Exception as exc:  # noqa: BLE001 - a failed correction is evaluation evidence
+                    cause = exc.__cause__
+                    cause_detail = (
+                        f"; cause={type(cause).__name__}: {cause}"
+                        if cause is not None
+                        else ""
+                    )
                     failures.append(
                         f"{scenario['id']} round={round_index + 1} "
-                        f"repetition={repetition + 1}: {type(exc).__name__}: {exc}"
+                        f"repetition={repetition + 1}: "
+                        f"{type(exc).__name__}: {exc}{cause_detail}"
                     )
                     break
 
