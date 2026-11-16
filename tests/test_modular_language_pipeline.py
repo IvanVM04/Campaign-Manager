@@ -1724,8 +1724,7 @@ def _invalid_pending_correction_response(
             _invalid_pending_correction_response(
                 status="no_change",
                 corrections=[{
-                    "step_index": 0,
-                    "slot": "target_mention",
+                    "slot_id": 7,
                     "previous_value": "Mara",
                     "replacement": {
                         "text": "Aldric",
