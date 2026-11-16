@@ -440,6 +440,10 @@ class ConversationReferenceResolver:
                 (mention, SemanticObjectKind.UNKNOWN)
                 for mention in step.target_mentions
             ]
+            if step.attributed_to is not None:
+                mentions.append(
+                    (step.attributed_to, SemanticObjectKind.UNKNOWN)
+                )
             if step.action_frame is not None:
                 mentions.extend(
                     (argument.mention.text, argument.mention.kind_hint)
