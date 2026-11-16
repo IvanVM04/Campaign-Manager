@@ -998,6 +998,8 @@ El esquema JSON es el contrato estructural."""
                         "correction_previous_value_matches_other_slot",
                     "intent correction previous_value does not match selected pending slot":
                         "correction_previous_value_mismatch",
+                    "pending corrections must select distinct slot IDs":
+                        "duplicate_correction_slot_id",
                 }.get(str(exc))
             else:
                 validation_code = "schema_or_evidence_validation_failed"
