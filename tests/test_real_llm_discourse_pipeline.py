@@ -543,7 +543,7 @@ def _pending_analysis(prior_input: str, expected: dict):
     from models.player_intent_analysis import PlayerIntentAnalysis
 
     slot = expected["slot"]
-    if slot == "relation_object":
+    if slot in {"relation_object", "relation_endpoint"}:
         return PlayerIntentAnalysis.from_payload(
             {
                 "schema_version": 2,
