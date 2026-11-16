@@ -63,6 +63,11 @@ _ACTION_FRAME_SCHEMA = {
         },
         "family": {
             "type": "string",
+            "description": (
+                "Use communication for linguistic acts such as asking, telling, speaking, "
+                "whispering or replying. Use interaction for non-linguistic physical "
+                "manipulation/contact; do not use it as a generic family for speech acts."
+            ),
             "enum": [
                 "movement", "communication", "perception", "interaction",
                 "transfer", "item_use", "combat", "social", "state_change",
@@ -156,8 +161,12 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                 "category": {
                     "type": "string",
                     "description": (
-                        "Classify the whole utterance. Only action and mixed "
-                        "may have a non-null active_step_index."
+                        "Classify the global speech act, not just verb tense. action is "
+                        "the player's current attempt; dialogue is an in-fiction speech act "
+                        "(including an indirect question addressed to a character); question "
+                        "is a request to the DM/narrator; report is an observed or recounted "
+                        "event, including a non-speech NPC action; plan is future/conditional. "
+                        "Only action and mixed may have a non-null active_step_index."
                     ),
                     "enum": [
                         "action", "question", "dialogue", "report",
