@@ -621,7 +621,7 @@ def test_dm_question_can_resolve_a_referent_without_world_proposal_authorization
         actor="player",
         modality="question",
         predicate="ocurrió",
-        family="communication",
+        family="other",
     )
     assert not analysis.allows_world_proposal
 
