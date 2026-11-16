@@ -306,7 +306,24 @@ def relation_analysis():
 
 
 def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
+    from services.turns.intent_interpreter import IntentInterpreter
+
     action_pending = analysis()
+    action_summary = IntentInterpreter._pending_summary(action_pending)
+    assert action_summary["steps"][0]["correction_slots"] == [
+        {
+            "slot_id": 6,
+            "kind": "action_argument",
+            "current_value": "la llave de hierro",
+            "role": "theme",
+        },
+        {
+            "slot_id": 7,
+            "kind": "action_argument",
+            "current_value": "Mara",
+            "role": "recipient",
+        },
+    ]
     argument_correction = PendingIntentCorrection.from_intent_payload(
         {
             "slot_id": 7,
@@ -332,6 +349,28 @@ def test_slot_catalogue_resolves_action_argument_and_relation_candidates():
     assert corrected_action.steps[0].action_frame.arguments[1].mention.text == "Aldric"
 
     relation_pending = relation_analysis()
+    relation_summary = IntentInterpreter._pending_summary(relation_pending)
+    assert relation_summary["relations"] == [
+        {
+            "index": 0,
+            "step_index": 0,
+            "subject": "Mara",
+            "predicate": "protege",
+            "object": "Bram",
+            "correction_slots": [
+                {
+                    "slot_id": 144,
+                    "kind": "relation_subject",
+                    "current_value": "Mara",
+                },
+                {
+                    "slot_id": 145,
+                    "kind": "relation_object",
+                    "current_value": "Bram",
+                },
+            ],
+        }
+    ]
     relation_candidates = build_pending_correction_candidates(relation_pending)
     assert [
         item.slot_id
