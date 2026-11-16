@@ -12,8 +12,10 @@ def _intent_properties(schema):
 
 
 def test_normal_and_correction_prompts_separate_dialogue_question_and_report():
-    normal = IntentInterpreter.SYSTEM_PROMPT.casefold()
-    correction = IntentInterpreter.CORRECTION_SYSTEM_PROMPT.casefold()
+    normal = " ".join(IntentInterpreter.SYSTEM_PROMPT.casefold().split())
+    correction = " ".join(
+        IntentInterpreter.CORRECTION_SYSTEM_PROMPT.casefold().split()
+    )
 
     for prompt in (normal, correction):
         assert "pregunta indirecta" in prompt
