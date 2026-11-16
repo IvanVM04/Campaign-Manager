@@ -493,3 +493,32 @@ def test_live_discourse_prompt_receives_npc_speaker_entities_from_fixture():
             f"{scenario['id']}: expected prompt speakers={expected_names!r}, "
             f"observed={predicted_names!r}"
         )
+
+def test_discourse_holdout_distinguishes_npc_speech_from_npc_reported_actions():
+    scenarios = {
+        item["id"]: item
+        for item in _read_fixture()["scenarios"]
+    }
+
+    # Non-verbal NPC events are reports, not player actions or dialogue.
+    assert scenarios["dp-grammar-name-no-inference-18"]["input"] == (
+        "Ella entra en la sala."
+    )
+    assert scenarios["dp-grammar-name-no-inference-18"]["expected"]["intent"][
+        "category"
+    ] == "report"
+    assert scenarios["dp-grammar-contradictory-local-19"]["input"] == (
+        "Ella me entrega el documento."
+    )
+    assert scenarios["dp-grammar-contradictory-local-19"]["expected"]["intent"][
+        "category"
+    ] == "report"
+
+    # A spoken response is still an in-fiction dialogue act.
+    assert scenarios["dp-grammar-explicit-local-17"]["expected"]["intent"][
+        "category"
+    ] == "dialogue"
+    assert scenarios["dp-grammar-plural-abstention-20"]["expected"]["intent"][
+        "category"
+    ] == "dialogue"
+

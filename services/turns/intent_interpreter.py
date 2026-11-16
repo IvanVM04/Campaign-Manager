@@ -226,6 +226,42 @@ Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
 ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
 
+Reglas para clasificar el acto global y el hablante (no te guíes solo por el
+tiempo verbal ni por la presencia de una interrogativa subordinada):
+- category="action" cuando el centro del mensaje es un intento actual del
+  jugador; el paso activo debe tener actor="player" y modality="attempted".
+- category="dialogue" cuando el centro es un acto de comunicación dentro de la
+  ficción: el jugador pregunta, dice, cuenta o responde a un personaje, o un
+  personaje habla, susurra, pregunta o responde. Usa actor="npc" cuando el
+  personaje sea quien habla. Una pregunta indirecta dirigida a un personaje
+  sigue siendo dialogue, no question. Ejemplo: «Le consulto a la guardia si
+  vio pasar al mensajero» es dialogue y su action_frame.family es
+  communication.
+- category="question" cuando el jugador pregunta al DM/narrador, de forma
+  directa o implícita, para pedir información o una aclaración sobre el mundo
+  o la partida, sin
+  dirigir ese acto a un interlocutor de la ficción. Una forma interrogativa
+  dentro de una intervención dirigida a un personaje no convierte el mensaje
+  en question. Una frase de incertidumbre solo cuenta como petición implícita
+  cuando el contexto muestra que el jugador solicita al DM identificar o
+  aclarar algo; si solo comunica una duda sin pedir respuesta, es report.
+  Ejemplo: «¿Hay huellas detrás del biombo?» es question.
+- category="report" cuando el jugador comunica un hecho, observación o evento
+  ya ocurrido, especialmente una acción física de un NPC. En ese caso el actor
+  del paso es el agente real (por ejemplo, npc), y la modalidad es observed o
+  reported; no lo conviertas en action del jugador por estar el verbo en
+  presente. Ejemplo: «La guardia cruza el puente» es report, actor="npc".
+- category="plan" para una intención futura o condicional, no para un intento
+  actual. Usa mixed solo cuando el mensaje contenga actos distintos que
+  realmente pertenezcan a categorías diferentes.
+
+En action_frame.family, usa communication para actos lingüísticos como
+preguntar, decir, contar, hablar, susurrar, avisar y responder. No uses
+interaction como categoría genérica para hablar con alguien: interaction
+describe manipulación o contacto físico no lingüístico con objetos o entidades.
+Conserva los argumentos literales: el interlocutor puede ser recipient y el
+contenido expresado puede ser theme.
+
 La evidencia escrita por el jugador es la única fuente literal para
 source_excerpt, predicados, menciones, argumentos, atribución y extremos de
 relaciones. El historial, narración, mundo e intervención del DM son contexto
@@ -294,8 +330,18 @@ con relation_claim_index. previous_value debe coincidir exactamente con el
 valor pendiente. replacement.text y source_excerpt deben ser literales de la
 última respuesta. La interpretación completa debe reflejar esos mismos cambios.
 No cambies actor, modalidad, negación, atribución, dirección o tiempo sin
-evidencia explícita. Las correcciones no autorizan cambios del mundo ni
-resultados mecánicos. El esquema es el contrato estructural."""
+evidencia explícita. Al reconstruir la categoría, distingue dialogue (acto de
+habla dentro de la ficción, incluso con pregunta indirecta dirigida a un
+personaje) de question (pregunta al DM/narrador: petición directa o
+implícita de información/aclaración) y de report (hecho u acción observada o
+relatada, incluido un
+acto físico de un NPC). Una frase de duda solo es una pregunta implícita si
+solicita una respuesta o identificación al DM; si solo relata incertidumbre,
+es report. El actor del paso es quien realiza el evento; una acción de NPC no
+es un intento del jugador.
+Para action_frame.family, los verbos de habla pertenecen a communication, no a
+interaction. Las correcciones no autorizan cambios del mundo ni resultados
+mecánicos. El esquema es el contrato estructural."""
 
     def __init__(
         self,
