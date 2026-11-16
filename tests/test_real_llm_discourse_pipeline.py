@@ -863,11 +863,42 @@ def test_real_ollama_meets_pending_multi_turn_correction_holdout(record_property
                             expected["replacement"],
                         ):
                             raise AssertionError("correction replacement mismatch")
-                        if expected.get("role") is not None and (
-                            correction.argument_role is None
-                            or correction.argument_role.value != expected["role"]
+                        if correction.slot.value == "action_argument":
+                            expected_role = expected.get("role")
+                            if (
+                                expected_role is None
+                                or correction.argument_role is None
+                                or correction.argument_role.value != expected_role
+                            ):
+                                raise AssertionError("correction action argument role mismatch")
+                            if correction.relation_claim_index is not None:
+                                raise AssertionError(
+                                    "action argument correction unexpectedly carries a relation claim index"
+                                )
+                        elif correction.slot.value in {"relation_subject", "relation_object"}:
+                            expected_endpoint = expected.get("endpoint")
+                            if (
+                                expected_endpoint is not None
+                                and correction.slot.value != f"relation_{expected_endpoint}"
+                            ):
+                                raise AssertionError("correction relation endpoint mismatch")
+                            if correction.argument_role is not None:
+                                raise AssertionError(
+                                    "relation endpoint correction unexpectedly carries an action argument role"
+                                )
+                            expected_claim_index = expected.get("relation_claim_index")
+                            if (
+                                expected_claim_index is not None
+                                and correction.relation_claim_index != expected_claim_index
+                            ):
+                                raise AssertionError("correction relation claim index mismatch")
+                        elif (
+                            correction.argument_role is not None
+                            or correction.relation_claim_index is not None
                         ):
-                            raise AssertionError("correction argument role mismatch")
+                            raise AssertionError(
+                                "target correction unexpectedly carries structured selector metadata"
+                            )
                         if not correction.matches_analysis(result.analysis):
                             raise AssertionError("full analysis did not reflect correction")
                         pending = correction.apply(

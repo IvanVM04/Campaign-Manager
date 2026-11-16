@@ -329,11 +329,21 @@ def test_discourse_pipeline_correction_rounds_match_the_pending_slot_values():
 
             slot = PendingCorrectionSlot(expected["slot"])
             expected_role = expected.get("role")
-            argument_role = (
-                SemanticArgumentRole(expected_role)
-                if slot is PendingCorrectionSlot.ACTION_ARGUMENT
-                else None
-            )
+            if slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+                assert expected_role is not None
+                assert "endpoint" not in expected
+                argument_role = SemanticArgumentRole(expected_role)
+            elif slot in {
+                PendingCorrectionSlot.RELATION_SUBJECT,
+                PendingCorrectionSlot.RELATION_OBJECT,
+            }:
+                expected_endpoint = expected.get("endpoint")
+                assert expected_endpoint == slot.value.removeprefix("relation_")
+                assert "role" not in expected
+                assert isinstance(expected.get("relation_claim_index"), int)
+                argument_role = None
+            else:
+                argument_role = None
             candidates = build_pending_correction_candidates(pending)
             matching = [
                 candidate
@@ -370,6 +380,18 @@ def test_discourse_pipeline_correction_rounds_match_the_pending_slot_values():
                 evidence_text=answer,
                 pending_analysis=pending,
             )
+            if slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+                assert correction.argument_role is argument_role
+                assert correction.relation_claim_index is None
+            elif slot in {
+                PendingCorrectionSlot.RELATION_SUBJECT,
+                PendingCorrectionSlot.RELATION_OBJECT,
+            }:
+                assert correction.argument_role is None
+                assert (
+                    correction.relation_claim_index
+                    == expected["relation_claim_index"]
+                )
             pending = correction.apply(
                 pending,
                 player_evidence_text=answer,
