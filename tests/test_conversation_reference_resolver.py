@@ -16,14 +16,18 @@ def make_analysis(
     mention: str,
     *,
     kind_hint: SemanticObjectKind = SemanticObjectKind.UNKNOWN,
+    category: str = "action",
+    actor: str = "player",
+    modality: str = "attempted",
+    active_step_index: int | None = 0,
 ) -> PlayerIntentAnalysis:
     version = 2 if kind_hint is not SemanticObjectKind.UNKNOWN else 1
     step = {
         "index": 0,
         "source_excerpt": utterance,
-        "actor": "player",
+        "actor": actor,
         "action": "interactuar con el referente",
-        "modality": "attempted",
+        "modality": modality,
         "polarity": "positive",
         "reported_outcome": "not_claimed",
         "target_mentions": [mention],
@@ -40,9 +44,9 @@ def make_analysis(
         }
     payload = {
         "schema_version": version,
-        "category": "action",
+        "category": category,
         "steps": [step],
-        "active_step_index": 0,
+        "active_step_index": active_step_index,
         "requires_clarification": False,
         "clarification_question": None,
     }
@@ -497,3 +501,58 @@ def test_antecedent_at_the_twelfth_visible_turn_can_still_resolve():
     assert result.clarification_question is None
     assert result.references[0].entity_id == 1
     assert result.references[0].antecedent_turn_id == 200
+
+
+def test_report_reference_resolution_does_not_require_world_proposal_authority():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+    })
+    analysis = make_analysis(
+        "Ella entra en la sala.",
+        "Ella",
+        kind_hint=SemanticObjectKind.CHARACTER,
+        category="report",
+        actor="npc",
+        modality="reported",
+        active_step_index=None,
+    )
+
+    assert analysis.allows_world_proposal is False
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=[turn(30, "La guardia Mara espera junto a la puerta.")],
+        current_input="Ella entra en la sala.",
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+
+
+def test_question_reference_resolution_can_request_clarification_without_write_authority():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    analysis = make_analysis(
+        "¿Qué le ocurrió?",
+        "le",
+        kind_hint=SemanticObjectKind.CHARACTER,
+        category="question",
+        actor="player",
+        modality="question",
+        active_step_index=None,
+    )
+
+    assert analysis.allows_world_proposal is False
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=[turn(31, "Mara y Aldric llegan juntos al mercado.")],
+        current_input="¿Qué le ocurrió?",
+    )
+
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "discourse_candidates_ambiguous"
