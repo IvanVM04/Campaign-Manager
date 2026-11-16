@@ -1207,8 +1207,6 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "previous_value": "Mara",
         "replacement": {"text": "Aldric", "kind_hint": "character"},
         "source_excerpt": correction,
-        "argument_role": None,
-        "relation_claim_index": None,
     }
     response = {
         "status": "corrected",
