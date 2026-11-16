@@ -65,8 +65,8 @@ _ACTION_FRAME_SCHEMA = {
             "type": "string",
             "description": (
                 "Use communication for asking, telling, speaking, whispering or replying. "
-                "Use interaction for physical manipulation/contact, not as a generic "
-                "family for speech acts."
+                "Use interaction for non-linguistic physical manipulation/contact, "
+                "not as a generic family for speech acts."
             ),
             "enum": [
                 "movement", "communication", "perception", "interaction",
