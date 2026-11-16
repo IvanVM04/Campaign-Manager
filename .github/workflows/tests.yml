@@ -40,6 +40,12 @@ jobs:
         if: always()
         run: python scripts/ci/coverage_summary.py coverage.xml --github-summary "$GITHUB_STEP_SUMMARY"
 
+      # Enforce the configured fail_under independently of pytest-cov's
+      # session hook so a printed threshold failure cannot leave CI green.
+      - name: Enforce combined coverage floor
+        if: success()
+        run: python -m coverage report
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
