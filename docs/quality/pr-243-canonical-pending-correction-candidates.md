@@ -15,10 +15,14 @@ added choice complexity without giving the model independent changes to make.
 
 ## Change
 
-- Relation endpoints are the canonical correction candidates when a mention in
-  the same step is also represented by an action-frame argument.
+- A relation endpoint is the canonical correction candidate when a mention
+  appears exactly once among all relation endpoints in the same step and is
+  also represented by an action-frame argument.
 - The overlapping action-argument candidate is omitted; its positional ID is
   not reassigned, so all unrelated argument IDs remain stable.
+- If a mention appears in multiple relation endpoints in the same step, its
+  action-argument candidate remains available: the argument patch updates all
+  matching claim endpoints, while a relation candidate addresses one claim.
 - Action arguments whose mentions do not occur in relation endpoints remain
   available as candidates.
 - Previous-value mismatches now carry safe structured diagnostic metadata:
