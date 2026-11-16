@@ -1255,6 +1255,7 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics(
     assert "action_arguments" in provider.prompts[0]
     assert "ÍNDICE DISCURSIVO" not in provider.prompts[0]
     assert "omitido: la corrección se limita al estado pendiente" in provider.prompts[0]
+    assert provider.prompts[0].count(correction) == 2
     assert "mechanics_decision" not in provider.prompts[0]
 
 def test_turn_pipeline_failed_compound_prerequisite_reaches_planner_without_advancing():
