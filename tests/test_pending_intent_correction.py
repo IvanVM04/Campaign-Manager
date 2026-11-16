@@ -486,7 +486,6 @@ def test_compact_relation_selector_reports_unmatched_previous_value():
     ) as captured:
         PendingIntentCorrection.from_intent_payload(
             {
-                "step_index": 0,
                 "slot_id": 145,
                 "previous_value": "Sable",
                 "replacement": {
