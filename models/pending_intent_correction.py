@@ -53,10 +53,9 @@ class PendingCorrectionCandidate:
     relation_claim_index: int | None = None
 
     def to_prompt_dict(self) -> dict[str, object]:
-        """Return one compact catalogue entry; parent context is serialized separately."""
+        """Return a compact ID/value pair; the parent field supplies the slot kind."""
         item: dict[str, object] = {
             "slot_id": self.slot_id,
-            "kind": self.slot.value,
             "current_value": self.current_value,
         }
         if self.slot is PendingCorrectionSlot.ACTION_ARGUMENT:
