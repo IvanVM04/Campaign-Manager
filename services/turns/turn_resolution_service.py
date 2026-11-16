@@ -350,11 +350,15 @@ class TurnResolutionService:
                         resolution_pending=True,
                         committed=False,
                     )
-                    if not correction.matches_analysis(correction_result.analysis):
+                    if not correction.matches_analysis(corrected_analysis):
                         raise ValueError(
-                            "provider re-analysis does not reflect its explicit correction"
+                            "deterministic correction application did not produce its replacement"
                         )
-                intent_analysis = correction_result.analysis
+                if corrected_analysis != correction_result.analysis:
+                    raise ValueError(
+                        "intent interpreter returned an analysis inconsistent with deterministic patches"
+                    )
+                intent_analysis = corrected_analysis
                 intent_corrections = correction_result.corrections
             except (
                 IntentInterpreterError,
@@ -431,9 +435,23 @@ class TurnResolutionService:
             and intent_analysis.is_actionable
             and context.active_character is not None
         )
+        # Read-only reference resolution also serves dialogue, reports and
+        # questions. Do not gate its context projection on world-write authority.
+        needs_reference_context = any(
+            bool(step.target_mentions)
+            or (
+                step.action_frame is not None
+                and bool(step.action_frame.arguments)
+            )
+            for step in intent_analysis.steps
+        ) or bool(intent_analysis.relation_claims)
         if (
             self.context_builder is not None
-            and (intent_analysis.allows_world_proposal or needs_mechanics_context)
+            and (
+                intent_analysis.allows_world_proposal
+                or needs_mechanics_context
+                or needs_reference_context
+            )
         ):
             mandatory_entity_ids: list[int] = []
             if context.active_character is not None:
