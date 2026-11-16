@@ -377,9 +377,22 @@ _PENDING_INTENT_CORRECTION_SCHEMA["required"] = [
 ]
 _PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("argument_role")
 _PENDING_INTENT_CORRECTION_SCHEMA["properties"].pop("relation_claim_index")
+_INTENT_CORRECTION_SLOT_VALUES = [
+    "target_mention",
+    *[
+        f"action_argument:{role}"
+        for role in _ACTION_ARGUMENT_SCHEMA["properties"]["role"]["enum"]
+    ],
+    *[f"relation_subject:{index}" for index in range(8)],
+    *[f"relation_object:{index}" for index in range(8)],
+]
+_PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["enum"] = (
+    _INTENT_CORRECTION_SLOT_VALUES
+)
 _PENDING_INTENT_CORRECTION_SCHEMA["properties"]["slot"]["description"] = (
-    "The pending slot to correct. The backend resolves its exact stored "
-    "argument or relation endpoint from step_index and previous_value."
+    "One atomic slot identifier: target_mention, action_argument:<role>, "
+    "relation_subject:<index>, or relation_object:<index>. Put the role or "
+    "claim index inside slot; do not return a separate selector field."
 )
 
 # Used only while resolving an uncommitted clarification. The ordinary turn
