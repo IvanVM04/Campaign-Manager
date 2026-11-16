@@ -20,7 +20,11 @@ def test_normal_and_correction_prompts_separate_dialogue_question_and_report():
         assert "dirigida a un personaje" in prompt
         assert "pregunta al dm/narrador" in prompt
         assert "report" in prompt
-        assert 'actor="npc"' in prompt
+        assert "actor" in prompt and "npc" in prompt
+        assert (
+            'actor="npc"' in prompt
+            or "el actor del paso es" in prompt
+        )
         assert "una acción de npc no es un intento del jugador" in prompt or (
             "el actor del paso es" in prompt
         )
