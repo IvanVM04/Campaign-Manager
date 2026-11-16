@@ -302,7 +302,12 @@ def test_discourse_pipeline_correction_fixtures_keep_player_evidence_separate():
 
 
 def test_discourse_pipeline_correction_rounds_match_the_pending_slot_values():
-    from models.pending_intent_correction import PendingIntentCorrection
+    from models.pending_intent_correction import (
+        PendingCorrectionSlot,
+        PendingIntentCorrection,
+        build_pending_correction_candidates,
+    )
+    from models.semantic_frames import SemanticArgumentRole
     from tests.test_real_llm_discourse_pipeline import _pending_analysis
 
     scenarios = [
@@ -322,31 +327,31 @@ def test_discourse_pipeline_correction_rounds_match_the_pending_slot_values():
             if not expected["accepted"]:
                 continue
 
-            slot = expected["slot"]
-            if slot == "action_argument":
-                selector = f"action_argument:{expected['role']}"
-                kind_hint = (
-                    "item_instance"
-                    if expected["role"] == "theme"
-                    else "character"
-                )
-            elif slot in {"relation_subject", "relation_object"}:
-                selector = f"{slot}:0"
-                kind_hint = "character"
-            elif slot == "target_mention":
-                selector = slot
-                kind_hint = "character"
-            else:
-                raise AssertionError(
-                    f"{scenario['id']} round={round_index + 1}: "
-                    f"unsupported fixture slot {slot!r}"
-                )
-
+            slot = PendingCorrectionSlot(expected["slot"])
+            expected_role = expected.get("role")
+            argument_role = (
+                SemanticArgumentRole(expected_role)
+                if slot is PendingCorrectionSlot.ACTION_ARGUMENT
+                else None
+            )
+            candidates = build_pending_correction_candidates(pending)
+            matching = [
+                candidate
+                for candidate in candidates
+                if candidate.step_index == 0
+                and candidate.slot is slot
+                and candidate.argument_role is argument_role
+                and candidate.current_value.casefold()
+                == expected["previous_value"].casefold()
+            ]
+            assert len(matching) == 1, (
+                f"{scenario['id']} round={round_index + 1}: "
+                f"expected one catalogue candidate, observed {len(matching)}"
+            )
             answer = correction_round["player_answer"]
             correction = PendingIntentCorrection.from_intent_payload(
                 {
-                    "step_index": 0,
-                    "slot": selector,
+                    "slot_id": matching[0].slot_id,
                     "previous_value": expected["previous_value"],
                     "replacement": {
                         "text": expected["replacement"],
