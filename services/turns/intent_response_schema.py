@@ -364,9 +364,9 @@ _PENDING_CORRECTION_SCHEMA = {
     },
 }
 
-# Intent corrections use a compact slot locator. The backend derives an
-# action-argument role or relation-claim index from the stored pending analysis
-# and accepts it only when the previous value identifies exactly one slot.
+# Intent corrections use one discriminated slot identifier. Role and
+# relation-claim index are encoded atomically in the slot value; the backend
+# verifies that exact selector against the stored pending analysis.
 _PENDING_INTENT_CORRECTION_SCHEMA = deepcopy(_PENDING_CORRECTION_SCHEMA)
 _PENDING_INTENT_CORRECTION_SCHEMA["required"] = [
     "step_index",
