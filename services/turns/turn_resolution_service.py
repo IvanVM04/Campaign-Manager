@@ -431,9 +431,24 @@ class TurnResolutionService:
             and intent_analysis.is_actionable
             and context.active_character is not None
         )
+        # Conversation references help understand questions, dialogue and
+        # reported events too. They do not authorize writes; only the existing
+        # allows_world_proposal gate below can reach LLMWorldExtractor.
+        has_conversation_mentions = bool(intent_analysis.relation_claims) or any(
+            step.target_mentions
+            or (
+                step.action_frame is not None
+                and step.action_frame.arguments
+            )
+            for step in intent_analysis.steps
+        )
         if (
             self.context_builder is not None
-            and (intent_analysis.allows_world_proposal or needs_mechanics_context)
+            and (
+                intent_analysis.allows_world_proposal
+                or needs_mechanics_context
+                or has_conversation_mentions
+            )
         ):
             mandatory_entity_ids: list[int] = []
             if context.active_character is not None:
@@ -525,32 +540,33 @@ class TurnResolutionService:
                         intent_evidence_text=normalized_evidence_text,
                         intent_corrections=intent_corrections,
                     )
-                typed_reference_result = self.world_reference_resolver.resolve(
-                    context_projection.world,
-                    intent_analysis,
-                    recent_turns=discourse_history,
-                    current_input=normalized_input,
-                    character_entity_id=(
-                        context.active_character.entity_id
-                        if context.active_character is not None
-                        else None
-                    ),
-                )
-                resolved_world_references = typed_reference_result.references
-                if typed_reference_result.clarification_question:
-                    question = typed_reference_result.clarification_question
-                    return TurnResolutionPlan(
-                        player_input=normalized_input,
-                        narrative=question,
-                        world_operations=(),
-                        character_operations=(),
-                        ordered_operations=(),
-                        clarification_question=question,
-                        mechanics_decision=decision,
-                        intent_analysis=intent_analysis,
-                        intent_evidence_text=normalized_evidence_text,
-                        intent_corrections=intent_corrections,
+                if intent_analysis.allows_world_proposal:
+                    typed_reference_result = self.world_reference_resolver.resolve(
+                        context_projection.world,
+                        intent_analysis,
+                        recent_turns=discourse_history,
+                        current_input=normalized_input,
+                        character_entity_id=(
+                            context.active_character.entity_id
+                            if context.active_character is not None
+                            else None
+                        ),
                     )
+                    resolved_world_references = typed_reference_result.references
+                    if typed_reference_result.clarification_question:
+                        question = typed_reference_result.clarification_question
+                        return TurnResolutionPlan(
+                            player_input=normalized_input,
+                            narrative=question,
+                            world_operations=(),
+                            character_operations=(),
+                            ordered_operations=(),
+                            clarification_question=question,
+                            mechanics_decision=decision,
+                            intent_analysis=intent_analysis,
+                            intent_evidence_text=normalized_evidence_text,
+                            intent_corrections=intent_corrections,
+                        )
             except Exception as exc:
                 raise TurnResolutionServiceError(
                     "proposal context selection failed"
