@@ -655,7 +655,7 @@ def _pending_analysis(prior_input: str, expected: dict):
             },
             source_text=prior_input,
         )
-    if slot in {"relation_object", "relation_endpoint"}:
+    if slot == "relation_object":
         return PlayerIntentAnalysis.from_payload(
             {
                 "schema_version": 2,
