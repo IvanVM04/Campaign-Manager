@@ -112,6 +112,108 @@ class PendingIntentCorrection:
             relation_claim_index=payload["relation_claim_index"],
         )
 
+    @classmethod
+    def from_intent_payload(
+        cls,
+        payload: object,
+        *,
+        evidence_text: str,
+        pending_analysis: PlayerIntentAnalysis,
+    ) -> PendingIntentCorrection:
+        """Decode a compact Intent correction and infer its unique stored selector.
+
+        The Intent model identifies the semantic slot and its previous value.
+        The backend resolves the matching argument role or relation index from
+        the pending analysis, rejecting ambiguous matches instead of asking
+        the model to coordinate multiple nullable selector fields.
+        """
+        expected = {
+            "step_index",
+            "slot",
+            "previous_value",
+            "replacement",
+            "source_excerpt",
+        }
+        if not isinstance(payload, dict) or set(payload) != expected:
+            raise ValueError("intent correction has missing or unexpected fields")
+        if not isinstance(pending_analysis, PlayerIntentAnalysis):
+            raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
+
+        step_index = payload["step_index"]
+        if (
+            isinstance(step_index, bool)
+            or not isinstance(step_index, int)
+            or not 0 <= step_index < len(pending_analysis.steps)
+        ):
+            raise ValueError("intent correction references a missing pending step")
+
+        previous_value = _validate_text(payload["previous_value"], "previous_value", 120)
+        source_excerpt = _validate_text(payload["source_excerpt"], "source_excerpt", 300)
+        replacement = SemanticMention.from_payload(
+            payload["replacement"],
+            evidence_text=evidence_text,
+            field_name="correction replacement",
+        )
+        slot = PendingCorrectionSlot(payload["slot"])
+        step = pending_analysis.steps[step_index]
+        argument_role = None
+        relation_claim_index = None
+        normalized_previous = _normalize(previous_value)
+
+        if slot is PendingCorrectionSlot.TARGET_MENTION:
+            matches = [
+                value
+                for value in step.target_mentions
+                if _normalize(value) == normalized_previous
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "target correction must identify exactly one pending mention"
+                )
+        elif slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+            frame = step.action_frame
+            if frame is None:
+                raise ValueError(
+                    "action-argument correction requires a pending action frame"
+                )
+            matches = [
+                argument.role
+                for argument in frame.arguments
+                if _normalize(argument.mention.text) == normalized_previous
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "action-argument correction must identify exactly one pending role"
+                )
+            argument_role = matches[0]
+        else:
+            field_name = (
+                "subject"
+                if slot is PendingCorrectionSlot.RELATION_SUBJECT
+                else "object"
+            )
+            matches = [
+                index
+                for index, claim in enumerate(pending_analysis.relation_claims)
+                if claim.step_index == step_index
+                and _normalize(getattr(claim, field_name).text) == normalized_previous
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "relation correction must identify exactly one pending claim endpoint"
+                )
+            relation_claim_index = matches[0]
+
+        return cls(
+            step_index=step_index,
+            slot=slot,
+            previous_value=previous_value,
+            replacement=replacement,
+            source_excerpt=source_excerpt,
+            argument_role=argument_role,
+            relation_claim_index=relation_claim_index,
+        )
+
     def to_dict(self) -> dict[str, object]:
         """Return the bounded typed correction for durable audit history."""
         return {
