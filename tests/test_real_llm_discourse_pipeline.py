@@ -664,7 +664,7 @@ def _pending_analysis(prior_input: str, expected: dict):
                     {
                         "index": 0,
                         "source_excerpt": prior_input,
-                        "actor": "player",
+                        "actor": "npc",
                         "action": "informar de una protección",
                         "modality": "reported",
                         "polarity": "positive",
