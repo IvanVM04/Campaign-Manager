@@ -150,7 +150,7 @@ class PendingIntentCorrection:
         previous_value = payload["previous_value"]
         source_excerpt = payload["source_excerpt"]
         if not isinstance(previous_value, str) or not isinstance(source_excerpt, str):
-            raise ValueError("intent correction values must be strings")
+            raise TypeError("intent correction values must be strings")
         _validate_text(previous_value, "previous_value", 120)
         _validate_text(source_excerpt, "source_excerpt", 300)
         replacement = SemanticMention.from_payload(
