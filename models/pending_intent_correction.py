@@ -58,7 +58,6 @@ class PendingCorrectionCandidate:
         pending_analysis: PlayerIntentAnalysis,
     ) -> dict[str, object]:
         """Return a compact, explanatory catalogue item for the correction prompt."""
-        step = pending_analysis.steps[self.step_index]
         item: dict[str, object] = {
             "slot_id": self.slot_id,
             "step_index": self.step_index,
