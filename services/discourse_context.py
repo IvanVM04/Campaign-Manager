@@ -6,7 +6,9 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, TypeVar
+
+DiscourseTurn = TypeVar("DiscourseTurn")
 
 
 @dataclass(frozen=True, slots=True)
@@ -358,8 +360,10 @@ class DiscourseContextBuilder:
 
     @classmethod
     def scope_history(
-        cls, recent_turns: Iterable[object] | None, current_input: str,
-    ) -> tuple[object, ...]:
+        cls,
+        recent_turns: Iterable[DiscourseTurn] | None,
+        current_input: str,
+    ) -> tuple[DiscourseTurn, ...]:
         """Select the topic segment relevant to the current utterance.
 
         Explicit callbacks use content words after the callback marker to select
