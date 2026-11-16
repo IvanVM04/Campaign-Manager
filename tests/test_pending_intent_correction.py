@@ -431,7 +431,7 @@ def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slo
         )
 
 
-def test_compact_intent_payload_rejects_legacy_selector_fields():
+def test_intent_payload_rejects_legacy_selector_fields():
     payload = {
         "step_index": 0,
         "slot": "action_argument:recipient",
