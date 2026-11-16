@@ -1232,7 +1232,7 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     )
 
     assert result.analysis.steps[0].target_mentions == ("la llave de hierro", "Aldric")
-    assert result.analysis.steps[0].action == "entregar la llave de hierro a Mara"
+    assert result.analysis.steps[0].action == "entregar la llave de hierro a Aldric"
     assert result.analysis.steps[0].action_frame.predicate == "Entrego"
     assert len(result.corrections) == 1
     assert result.corrections[0].matches_analysis(result.analysis)
