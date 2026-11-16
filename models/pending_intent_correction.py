@@ -66,6 +66,8 @@ class PendingCorrectionCandidate:
             "current_value": self.current_value,
         }
         if self.slot is PendingCorrectionSlot.ACTION_ARGUMENT:
+            if self.argument_role is None:
+                raise ValueError("action-argument candidate requires an argument role")
             item["role"] = self.argument_role.value
             item["argument_index"] = self.position
         elif self.slot is PendingCorrectionSlot.TARGET_MENTION:
@@ -78,7 +80,6 @@ class PendingCorrectionCandidate:
                 "predicate": claim.predicate,
                 "object": claim.object.text,
             }
-        item["action"] = step.action
         return item
 
 
