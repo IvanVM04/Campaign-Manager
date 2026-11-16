@@ -5,6 +5,7 @@ import pytest
 from models.pending_intent_correction import (
     PendingCorrectionSlot,
     PendingIntentCorrection,
+    build_pending_correction_candidates,
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
 from models.semantic_frames import (
@@ -309,7 +310,7 @@ def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     argument_correction = PendingIntentCorrection.from_intent_payload(
         {
             "step_index": 0,
-            "slot": "action_argument:recipient",
+            "slot_id": 7,
             "previous_value": "Mara",
             "replacement": {
                 "text": "Aldric",
@@ -335,7 +336,7 @@ def test_compact_intent_payload_decodes_atomic_argument_and_relation_slots():
     relation_correction = PendingIntentCorrection.from_intent_payload(
         {
             "step_index": 0,
-            "slot": "relation_object:0",
+            "slot_id": 145,
             "previous_value": "Bram",
             "replacement": {
                 "text": "Aldric",
@@ -375,7 +376,7 @@ def test_compact_intent_payload_uses_explicit_role_when_mention_repeats():
     correction = PendingIntentCorrection.from_intent_payload(
         {
             "step_index": 0,
-            "slot": "action_argument:recipient",
+            "slot_id": 7,
             "previous_value": "Mara",
             "replacement": {
                 "text": "Aldric",
@@ -399,11 +400,14 @@ def test_compact_intent_payload_uses_explicit_role_when_mention_repeats():
 
 
 def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slot():
-    with pytest.raises(ValueError, match="does not identify exactly one pending role"):
+    with pytest.raises(
+        ValueError,
+        match="previous_value matches another pending slot",
+    ):
         PendingIntentCorrection.from_intent_payload(
             {
                 "step_index": 0,
-                "slot": "action_argument:patient",
+                "slot_id": 7,
                 "previous_value": "Mara",
                 "replacement": {
                     "text": "Aldric",
@@ -415,11 +419,11 @@ def test_compact_intent_payload_rejects_selector_that_does_not_match_pending_slo
             pending_analysis=analysis(),
         )
 
-    with pytest.raises(ValueError, match="missing pending claim"):
+    with pytest.raises(ValueError, match="slot_id is not available in pending state"):
         PendingIntentCorrection.from_intent_payload(
             {
                 "step_index": 0,
-                "slot": "relation_object:1",
+                "slot_id": 147,
                 "previous_value": "Bram",
                 "replacement": {
                     "text": "Aldric",
@@ -458,12 +462,12 @@ def test_relation_selector_diagnoses_opposite_endpoint():
     pending = relation_analysis()
     with pytest.raises(
         ValueError,
-        match="relation selector points to opposite endpoint",
+        match="previous_value matches another pending slot",
     ) as captured:
         PendingIntentCorrection.from_intent_payload(
             {
                 "step_index": 0,
-                "slot": "relation_subject:0",
+                "slot_id": 144,
                 "previous_value": "Bram",
                 "replacement": {
                     "text": "Aldric",
@@ -484,7 +488,7 @@ def test_compact_relation_selector_reports_unmatched_previous_value():
     pending = relation_analysis()
     with pytest.raises(
         ValueError,
-        match="relation selector value matches neither pending endpoint",
+        match="previous_value does not match selected pending slot",
     ) as captured:
         PendingIntentCorrection.from_intent_payload(
             {
@@ -503,3 +507,126 @@ def test_compact_relation_selector_reports_unmatched_previous_value():
 
     assert "Sable" not in str(captured.value)
     assert "Bram" not in str(captured.value)
+
+def test_slot_catalogue_ids_are_stable_and_distinguish_same_role_arguments():
+    source = "Entrego el mapa a Mara y a Aldric."
+    payload = analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["action"] = "entregar el mapa a Mara y a Aldric"
+    payload["steps"][0]["target_mentions"] = ["el mapa", "Mara", "Aldric"]
+    payload["steps"][0]["action_frame"]["arguments"] = [
+        {
+            "role": "recipient",
+            "mention": {"text": "Mara", "kind_hint": "character"},
+        },
+        {
+            "role": "recipient",
+            "mention": {"text": "Aldric", "kind_hint": "character"},
+        },
+    ]
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    candidates = build_pending_correction_candidates(pending)
+    recipients = [
+        item for item in candidates
+        if item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+    ]
+    assert [(item.slot_id, item.current_value) for item in recipients] == [
+        (6, "Mara"),
+        (7, "Aldric"),
+    ]
+
+    before_ids = [item.slot_id for item in candidates]
+    correction = PendingIntentCorrection.from_intent_payload(
+        {
+            "slot_id": 7,
+            "previous_value": "Aldric",
+            "replacement": {
+                "text": "Bram",
+                "kind_hint": "character",
+            },
+            "source_excerpt": "y a Bram",
+        },
+        evidence_text="y a Bram",
+        pending_analysis=pending,
+    )
+    updated = correction.apply(
+        pending,
+        player_evidence_text="y a Bram",
+        resolution_pending=True,
+        committed=False,
+    )
+    after_ids = [
+        item.slot_id
+        for item in build_pending_correction_candidates(updated)
+    ]
+
+    assert before_ids == after_ids
+    assert updated.steps[0].action_frame.arguments[0].mention.text == "Mara"
+    assert updated.steps[0].action_frame.arguments[1].mention.text == "Bram"
+
+
+def test_catalogue_omits_duplicate_target_mentions_without_shifting_other_ids():
+    source = "Mara ve a Mara y entrega el mapa."
+    payload = analysis().to_dict()
+    payload["steps"][0]["source_excerpt"] = source
+    payload["steps"][0]["target_mentions"] = ["Mara", "Mara", "el mapa"]
+    payload["steps"][0]["action_frame"]["arguments"] = [
+        {
+            "role": "theme",
+            "mention": {"text": "el mapa", "kind_hint": "item_instance"},
+        }
+    ]
+    pending = PlayerIntentAnalysis.from_payload(payload, source_text=source)
+
+    candidates = build_pending_correction_candidates(pending)
+
+    assert all(item.slot_id not in {0, 1} for item in candidates)
+    assert any(
+        item.slot_id == 2
+        and item.slot is PendingCorrectionSlot.TARGET_MENTION
+        and item.current_value == "el mapa"
+        for item in candidates
+    )
+    assert any(
+        item.slot_id == 6
+        and item.slot is PendingCorrectionSlot.ACTION_ARGUMENT
+        for item in candidates
+    )
+
+
+def test_slot_catalogue_rejects_a_value_from_a_different_candidate():
+    pending = analysis()
+    with pytest.raises(
+        ValueError,
+        match="previous_value matches another pending slot",
+    ):
+        PendingIntentCorrection.from_intent_payload(
+            {
+                "slot_id": 6,
+                "previous_value": "Mara",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "No, la destinataria es Aldric.",
+            },
+            evidence_text="No, la destinataria es Aldric.",
+            pending_analysis=pending,
+        )
+
+
+def test_slot_catalogue_rejects_ids_that_are_out_of_range_or_unavailable():
+    pending = analysis()
+    base = {
+        "previous_value": "Mara",
+        "replacement": {"text": "Aldric", "kind_hint": "character"},
+        "source_excerpt": "No, la destinataria es Aldric.",
+    }
+    for slot_id in (True, -1, 160, 5):
+        with pytest.raises(ValueError):
+            PendingIntentCorrection.from_intent_payload(
+                {"slot_id": slot_id, **base},
+                evidence_text="No, la destinataria es Aldric.",
+                pending_analysis=pending,
+            )
