@@ -76,6 +76,9 @@ def test_pending_correction_contract_is_edit_only_and_does_not_reinterpret():
     assert correction_item["properties"]["slot_id"]["type"] == "integer"
     assert correction_item["properties"]["slot_id"]["minimum"] == 0
     assert correction_item["properties"]["slot_id"]["maximum"] == 159
+    assert "relation endpoint" in (
+        correction_item["properties"]["slot_id"]["description"]
+    )
     assert "correction_slots" in prompt
     assert "current_value" in prompt
     assert "slot_id" in prompt
