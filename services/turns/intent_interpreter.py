@@ -468,12 +468,20 @@ El esquema JSON es el contrato estructural."""
                     "index": step.index,
                     "action": step.action,
                     "source_excerpt": step.source_excerpt,
-                    "correction_slots": [
-                        candidate.to_prompt_dict()
-                        for candidate in candidates
-                        if candidate.step_index == step.index
-                        and candidate.relation_claim_index is None
-                    ],
+                    "correction_slots": {
+                        "target_mentions": [
+                            candidate.to_prompt_dict()
+                            for candidate in candidates
+                            if candidate.step_index == step.index
+                            and candidate.slot.value == "target_mention"
+                        ],
+                        "action_arguments": [
+                            candidate.to_prompt_dict()
+                            for candidate in candidates
+                            if candidate.step_index == step.index
+                            and candidate.slot.value == "action_argument"
+                        ],
+                    },
                 }
                 for step in analysis.steps
             ],
@@ -481,14 +489,19 @@ El esquema JSON es el contrato estructural."""
                 {
                     "index": claim_index,
                     "step_index": claim.step_index,
-                    "subject": claim.subject.text,
-                    "predicate": claim.predicate,
-                    "object": claim.object.text,
-                    "correction_slots": [
+                    "subject": next(
                         candidate.to_prompt_dict()
                         for candidate in candidates
                         if candidate.relation_claim_index == claim_index
-                    ],
+                        and candidate.slot.value == "relation_subject"
+                    ),
+                    "predicate": claim.predicate,
+                    "object": next(
+                        candidate.to_prompt_dict()
+                        for candidate in candidates
+                        if candidate.relation_claim_index == claim_index
+                        and candidate.slot.value == "relation_object"
+                    ),
                 }
                 for claim_index, claim in enumerate(analysis.relation_claims)
             ],
