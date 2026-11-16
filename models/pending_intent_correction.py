@@ -558,6 +558,39 @@ class PendingIntentCorrection:
             if _normalize(current.text) != _normalize(self.previous_value):
                 raise ValueError("relation correction does not match the pending endpoint")
 
+            normalized_previous = _normalize(self.previous_value)
+            relation_occurrences = sum(
+                1
+                for related_claim in claims
+                if related_claim.step_index == self.step_index
+                for mention in (related_claim.subject, related_claim.object)
+                if _normalize(mention.text) == normalized_previous
+            )
+            target_occurrences = sum(
+                1
+                for value in step.target_mentions
+                if _normalize(value) == normalized_previous
+            )
+            frame_occurrences = (
+                sum(
+                    1
+                    for argument in step.action_frame.arguments
+                    if _normalize(argument.mention.text) == normalized_previous
+                )
+                if step.action_frame is not None
+                else 0
+            )
+            action_occurrences = _literal_occurrences(
+                step.action,
+                self.previous_value,
+            )
+            if any(
+                _normalize(value) == _normalize(self.replacement.text)
+                for value in step.target_mentions
+                if _normalize(value) != normalized_previous
+            ):
+                raise ValueError("replacement target is already present")
+
             corrected_subject = (
                 self.replacement if field_name == "subject" else claim.subject
             )
@@ -573,34 +606,168 @@ class PendingIntentCorrection:
                     self.source_excerpt,
                 ),
             )
-            if any(
-                _normalize(value) == _normalize(self.replacement.text)
-                for value in step.target_mentions
-                if _normalize(value) != _normalize(self.previous_value)
-            ):
-                raise ValueError("replacement target is already present")
-            targets = tuple(
-                self.replacement.text if _normalize(value) == _normalize(self.previous_value) else value
-                for value in step.target_mentions
+
+            synchronize_step_projection = (
+                relation_occurrences == 1
+                and target_occurrences <= 1
+                and frame_occurrences <= 1
+                and action_occurrences <= 1
             )
-            corrected_frame = _replace_frame_mention(
-                step.action_frame,
-                self.previous_value,
-                self.replacement,
-            )
-            steps[self.step_index] = replace(
-                step,
-                source_excerpt=merged_step_excerpt,
-                action=corrected_action,
-                action_frame=corrected_frame,
-                target_mentions=targets,
-            )
+            if synchronize_step_projection:
+                targets = tuple(
+                    self.replacement.text
+                    if _normalize(value) == normalized_previous
+                    else value
+                    for value in step.target_mentions
+                )
+                corrected_frame = _replace_frame_mention(
+                    step.action_frame,
+                    self.previous_value,
+                    self.replacement,
+                )
+                steps[self.step_index] = replace(
+                    step,
+                    source_excerpt=merged_step_excerpt,
+                    action=_replace_action_reference(
+                        step.action,
+                        self.previous_value,
+                        self.replacement.text,
+                    ),
+                    action_frame=corrected_frame,
+                    target_mentions=targets,
+                )
+            else:
+                # A relation selector addresses exactly one claim. If the same
+                # mention appears elsewhere in the step, changing its broad
+                # projection would silently edit those other references too.
+                steps[self.step_index] = replace(
+                    step,
+                    source_excerpt=merged_step_excerpt,
+                )
 
         return replace(
             analysis,
             steps=tuple(steps),
             relation_claims=tuple(claims),
         )
+
+
+def apply_pending_intent_corrections(
+    pending_analysis: PlayerIntentAnalysis,
+    corrections: tuple[PendingIntentCorrection, ...],
+    *,
+    player_evidence_text: str,
+    require_catalogue_match: bool = True,
+) -> PlayerIntentAnalysis:
+    """Validate and atomically apply a batch against one immutable catalogue.
+
+    Every selector is resolved against the exact pending analysis shown to the
+    provider. The resulting patches are then applied to a private staged copy.
+    No caller-visible state is changed unless the complete batch succeeds.
+    """
+    if not isinstance(pending_analysis, PlayerIntentAnalysis):
+        raise TypeError("pending_analysis must be a PlayerIntentAnalysis")
+    if not isinstance(corrections, tuple):
+        raise TypeError("corrections must be a tuple")
+    if len(corrections) > 4:
+        raise ValueError("pending correction batch exceeds the four-edit limit")
+    if not isinstance(player_evidence_text, str) or not player_evidence_text.strip():
+        raise ValueError("pending correction evidence must not be empty")
+    if len(player_evidence_text) > 5000:
+        raise ValueError("pending correction evidence exceeds the 5000-character limit")
+    if not isinstance(require_catalogue_match, bool):
+        raise TypeError("require_catalogue_match must be a boolean")
+    if not corrections:
+        return pending_analysis
+
+    # Freeze the selector universe before validating any member of the batch.
+    candidates = (
+        build_pending_correction_candidates(pending_analysis)
+        if require_catalogue_match
+        else ()
+    )
+    selected_slot_ids: set[int] = set()
+    edited_mentions: set[tuple[int, str]] = set()
+    replacements_by_step: dict[int, set[str]] = {}
+    previous_mentions_by_step: dict[int, set[str]] = {}
+    current_mentions_by_step: dict[int, set[str]] = {}
+
+    for correction in corrections:
+        if not isinstance(correction, PendingIntentCorrection):
+            raise TypeError("correction batch contains a non-correction value")
+        step_index = correction.step_index
+        if step_index >= len(pending_analysis.steps):
+            raise ValueError("correction batch references a missing intent step")
+
+        previous = _normalize(correction.previous_value)
+        replacement = _normalize(correction.replacement.text)
+        edit_key = (step_index, previous)
+        if edit_key in edited_mentions:
+            raise ValueError("correction batch contains overlapping mention edits")
+        edited_mentions.add(edit_key)
+        previous_mentions_by_step.setdefault(step_index, set()).add(previous)
+
+        if require_catalogue_match:
+            matching = [
+                candidate
+                for candidate in candidates
+                if candidate.step_index == step_index
+                and candidate.slot is correction.slot
+                and _normalize(candidate.current_value) == previous
+                and candidate.argument_role is correction.argument_role
+                and candidate.relation_claim_index == correction.relation_claim_index
+            ]
+            if len(matching) != 1:
+                raise ValueError(
+                    "correction does not address a candidate from the initial pending state"
+                )
+            slot_id = matching[0].slot_id
+            if slot_id in selected_slot_ids:
+                raise ValueError("correction batch selects a duplicate catalogue slot")
+            selected_slot_ids.add(slot_id)
+
+        step = pending_analysis.steps[step_index]
+        current_mentions = current_mentions_by_step.setdefault(step_index, set())
+        current_mentions.update(_normalize(value) for value in step.target_mentions)
+        if step.action_frame is not None:
+            current_mentions.update(
+                _normalize(argument.mention.text)
+                for argument in step.action_frame.arguments
+            )
+        current_mentions.update(
+            _normalize(mention.text)
+            for claim in pending_analysis.relation_claims
+            if claim.step_index == step_index
+            for mention in (claim.subject, claim.object)
+        )
+        if replacement in current_mentions and replacement != previous:
+            raise ValueError("correction replacement already exists in the pending step")
+        replacement_set = replacements_by_step.setdefault(step_index, set())
+        if replacement in replacement_set:
+            raise ValueError("correction batch contains duplicate replacement mentions")
+        replacement_set.add(replacement)
+
+    for correction in corrections:
+        step_index = correction.step_index
+        replacement = _normalize(correction.replacement.text)
+        previous = _normalize(correction.previous_value)
+        if (
+            replacement != previous
+            and replacement in previous_mentions_by_step.get(step_index, set())
+        ):
+            raise ValueError(
+                "correction replacement overlaps another selected pending mention"
+            )
+
+    staged_analysis = pending_analysis
+    for correction in corrections:
+        staged_analysis = correction.apply(
+            staged_analysis,
+            player_evidence_text=player_evidence_text,
+            resolution_pending=True,
+            committed=False,
+        )
+    return staged_analysis
 
 
 def _validate_text(value: str, field_name: str, maximum: int) -> None:
@@ -634,8 +801,19 @@ def _merge_excerpt(original: str, correction: str) -> str:
     return merged
 
 
+def _literal_occurrences(source: str, fragment: str) -> int:
+    pattern = rf"(?<!\w){re.escape(fragment)}(?!\w)"
+    return len(re.findall(pattern, source, flags=re.IGNORECASE))
+
+
 def _replace_action_reference(action: str, previous: str, replacement: str) -> str:
-    updated = re.sub(re.escape(previous), lambda _match: replacement, action, flags=re.IGNORECASE)
+    pattern = rf"(?<!\w){re.escape(previous)}(?!\w)"
+    updated = re.sub(
+        pattern,
+        lambda _match: replacement,
+        action,
+        flags=re.IGNORECASE,
+    )
     if len(updated) > 500:
         raise ValueError("corrected action exceeds the 500-character limit")
     return updated
