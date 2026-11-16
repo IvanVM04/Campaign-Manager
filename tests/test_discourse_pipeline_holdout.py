@@ -348,6 +348,14 @@ def test_discourse_pipeline_correction_rounds_match_the_pending_slot_values():
                 f"{scenario['id']} round={round_index + 1}: "
                 f"expected one catalogue candidate, observed {len(matching)}"
             )
+            kind_hint = (
+                "item_instance"
+                if (
+                    slot is PendingCorrectionSlot.ACTION_ARGUMENT
+                    and expected_role == "theme"
+                )
+                else "character"
+            )
             answer = correction_round["player_answer"]
             correction = PendingIntentCorrection.from_intent_payload(
                 {
@@ -605,3 +613,13 @@ def test_discourse_holdout_distinguishes_npc_speech_from_npc_reported_actions():
         "category"
     ] == "dialogue"
 
+def test_live_correction_holdout_allows_optional_spanish_articles_only():
+    from tests.test_real_llm_discourse_pipeline import (
+        _correction_mentions_equivalent,
+    )
+
+    assert _correction_mentions_equivalent("el mapa", "mapa")
+    assert _correction_mentions_equivalent("la llave", "llave")
+    assert _correction_mentions_equivalent("mapa", "el mapa")
+    assert not _correction_mentions_equivalent("el mapa", "la carta")
+    assert not _correction_mentions_equivalent("el mapa antiguo", "mapa")
