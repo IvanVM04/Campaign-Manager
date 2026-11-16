@@ -1646,6 +1646,153 @@ def test_pending_correction_status_preserves_pending_analysis_and_never_rewrites
 
 
 
+def _invalid_pending_correction_response(
+    *,
+    status,
+    corrections=None,
+    clarification_question=None,
+):
+    return {
+        "status": status,
+        "pending_corrections": [] if corrections is None else corrections,
+        "clarification_question": clarification_question,
+    }
+
+
+@pytest.mark.parametrize(
+    ("response", "answer"),
+    [
+        (
+            _invalid_pending_correction_response(
+                status="corrected",
+            ),
+            "No, quería decir Aldric.",
+        ),
+        (
+            _invalid_pending_correction_response(
+                status="needs_clarification",
+            ),
+            "No, quería decir Aldric.",
+        ),
+        (
+            _invalid_pending_correction_response(
+                status="needs_clarification",
+                clarification_question="   ",
+            ),
+            "No, quería decir Aldric.",
+        ),
+        (
+            _invalid_pending_correction_response(
+                status="needs_clarification",
+                clarification_question="x" * 301,
+            ),
+            "No, quería decir Aldric.",
+        ),
+        (
+            _invalid_pending_correction_response(
+                status="no_change",
+                clarification_question="¿A quién te refieres?",
+            ),
+            "Sí, confirmo que era Mara.",
+        ),
+        (
+            _invalid_pending_correction_response(
+                status="unsupported",
+            ),
+            "Sí, confirmo que era Mara.",
+        ),
+        (
+            {
+                "status": "no_change",
+                "pending_corrections": [],
+            },
+            "Sí, confirmo que era Mara.",
+        ),
+        (
+            _invalid_pending_correction_response(
+                status="no_change",
+                corrections=[{
+                    "step_index": 0,
+                    "slot": "target_mention",
+                    "previous_value": "Mara",
+                    "replacement": {
+                        "text": "Aldric",
+                        "kind_hint": "character",
+                    },
+                    "source_excerpt": "No, quería decir Aldric.",
+                    "argument_role": None,
+                    "relation_claim_index": None,
+                }],
+            ),
+            "No, quería decir Aldric.",
+        ),
+    ],
+)
+def test_pending_correction_rejects_inconsistent_status_contracts(
+    response,
+    answer,
+):
+    original = "Entrego el mapa a Mara."
+    pending = _pending_recipient_analysis_for_status_tests()
+    evidence = original + "\n\n" + answer
+    provider = FakeLLMProvider(
+        response=json.dumps(response, ensure_ascii=False),
+    )
+
+    with pytest.raises(IntentInterpreterError) as error:
+        IntentInterpreter(provider).understand_pending(
+            _context(),
+            original + "\n\nDM: ¿A quién quieres entregar el mapa?\n" + answer,
+            pending_analysis=pending,
+            correction_evidence_text=answer,
+            evidence_text=evidence,
+        )
+
+    assert error.value.validation_stage == "pending_corrections_validation"
+    assert error.value.validation_code == "invalid_pending_corrections"
+    assert provider.call_count == 1
+
+
+def test_pending_correction_rejects_any_change_outside_typed_patch_slots(
+    monkeypatch,
+):
+    from dataclasses import replace
+
+    original = "Entrego el mapa a Mara."
+    answer = "Sí, confirmo que era Mara."
+    pending = _pending_recipient_analysis_for_status_tests()
+    altered_step = replace(
+        pending.steps[0],
+        action="cambiado sin corrección tipada",
+    )
+    altered_analysis = replace(
+        pending,
+        steps=(altered_step,),
+    )
+    provider = FakeLLMProvider(response="{}")
+    interpreter = IntentInterpreter(provider)
+
+    monkeypatch.setattr(
+        interpreter,
+        "_interpret",
+        lambda *args, **kwargs: (altered_analysis, ()),
+    )
+
+    with pytest.raises(
+        IntentInterpreterError,
+        match="fields outside the typed correction contract",
+    ):
+        interpreter.understand_pending(
+            _context(),
+            original + "\n\nDM: ¿A quién quieres entregar el mapa?\n" + answer,
+            pending_analysis=pending,
+            correction_evidence_text=answer,
+            evidence_text=original + "\n\n" + answer,
+        )
+
+    assert provider.call_count == 0
+
+
 def test_turn_pipeline_resolves_question_references_without_enabling_world_proposals(
     monkeypatch,
 ):
