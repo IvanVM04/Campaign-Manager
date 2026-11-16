@@ -59,6 +59,32 @@ def replacement(name: str) -> SemanticMention:
     return SemanticMention(name, SemanticObjectKind.CHARACTER)
 
 
+def test_correction_payload_requires_excerpt_from_latest_answer_only():
+    payload = {
+        "step_index": 0,
+        "slot": "target_mention",
+        "previous_value": "Mara",
+        "replacement": {"text": "Aldric", "kind_hint": "character"},
+        "source_excerpt": "Entrego la llave a Aldric.",
+        "argument_role": None,
+        "relation_claim_index": None,
+    }
+
+    with pytest.raises(ValueError, match="latest-answer evidence"):
+        PendingIntentCorrection.from_payload(
+            payload,
+            evidence_text="No, quería decir Aldric.",
+        )
+
+    malformed = dict(payload)
+    malformed["source_excerpt"] = 42
+    with pytest.raises(ValueError, match="source_excerpt must contain"):
+        PendingIntentCorrection.from_payload(
+            malformed,
+            evidence_text="No, quería decir Aldric.",
+        )
+
+
 def test_target_correction_changes_only_the_selected_pending_step():
     original = analysis()
     correction = PendingIntentCorrection(
