@@ -75,6 +75,7 @@ class ConversationReferenceResolver:
         IntentModality.QUESTION,
         IntentModality.PLANNED,
         IntentModality.CONDITIONAL,
+        IntentModality.NEGATED,
     })
     _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
         SemanticObjectKind.CHARACTER: frozenset({"npc", "character", "person", "humanoid", "player"}),
@@ -431,10 +432,10 @@ class ConversationReferenceResolver:
         seen: set[tuple[str, int]] = set()
 
         for step in analysis.steps[: last_step + 1]:
-            if (
-                step.polarity is not IntentPolarity.POSITIVE
-                or step.modality not in self._ELIGIBLE_MODALITIES
-            ):
+            # This is read-only reference comprehension. Negative or uncertain
+            # language still needs its entities resolved for narration and
+            # clarification; polarity/modality write rules remain downstream.
+            if step.modality not in self._ELIGIBLE_MODALITIES:
                 continue
             mentions: list[tuple[str, SemanticObjectKind]] = [
                 (mention, SemanticObjectKind.UNKNOWN)
@@ -452,14 +453,9 @@ class ConversationReferenceResolver:
             mentions.extend(
                 (mention.text, mention.kind_hint)
                 for claim in analysis.relation_claims
+                # Relation endpoints remain useful referents even when the
+                # relation is negated, uncertain, planned or questioned.
                 if claim.step_index == step.index
-                and claim.polarity is SemanticPolarity.POSITIVE
-                and claim.modality in {
-                    SemanticModality.COMPLETED,
-                    SemanticModality.OBSERVED,
-                    SemanticModality.REPORTED,
-                    SemanticModality.DIALOGUE,
-                }
                 for mention in (
                     claim.subject,
                     claim.object,
