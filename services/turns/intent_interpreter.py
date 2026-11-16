@@ -324,10 +324,13 @@ Usa uno de estos estados:
   valor pendiente y no hace falta otra aclaración. Emite pending_corrections=[]
   y clarification_question=null.
 
-Cada corrección debe señalar exactamente un slot existente: target_mention,
-action_argument con argument_role, relation_subject o relation_object con
-relation_claim_index. step_index, previous_value y relation_claim_index deben
-referirse al estado pendiente proporcionado. previous_value debe coincidir
+Cada corrección debe señalar exactamente un slot existente usando
+step_index, slot y previous_value. Usa target_mention, action_argument,
+relation_subject o relation_object. No devuelvas argument_role ni
+relation_claim_index: el servidor resuelve el rol o el índice de relación
+desde la interpretación pendiente cuando previous_value identifica una única
+ranura compatible. Si hay varias coincidencias posibles, usa
+status="needs_clarification" y no adivines. previous_value debe coincidir
 exactamente con el valor almacenado; no lo reconstruyas a partir del texto.
 
 replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
@@ -782,13 +785,22 @@ El esquema JSON es el contrato estructural."""
                     or len(correction_payloads) > 4
                 ):
                     raise ValueError("pending_corrections must contain at most four items")
-                corrections = tuple(
-                    PendingIntentCorrection.from_payload(
+                analysis = pending_analysis
+                correction_items: list[PendingIntentCorrection] = []
+                for item in correction_payloads:
+                    correction = PendingIntentCorrection.from_intent_payload(
                         item,
                         evidence_text=correction_evidence_text or "",
+                        pending_analysis=analysis,
                     )
-                    for item in correction_payloads
-                )
+                    analysis = correction.apply(
+                        analysis,
+                        player_evidence_text=correction_evidence_text or "",
+                        resolution_pending=True,
+                        committed=False,
+                    )
+                    correction_items.append(correction)
+                corrections = tuple(correction_items)
                 clarification_question = payload["clarification_question"]
                 if status == "corrected":
                     if not corrections or clarification_question is not None:
@@ -814,14 +826,6 @@ El esquema JSON es el contrato estructural."""
                             "no_change status cannot include edits or a clarification question"
                         )
 
-                analysis = pending_analysis
-                for correction in corrections:
-                    analysis = correction.apply(
-                        analysis,
-                        player_evidence_text=correction_evidence_text or "",
-                        resolution_pending=True,
-                        committed=False,
-                    )
                 if status == "needs_clarification":
                     analysis = replace(
                         analysis,
