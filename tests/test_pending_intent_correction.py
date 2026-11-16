@@ -613,6 +613,41 @@ def test_correction_batch_keeps_the_initial_catalogue_when_availability_changes(
         )
 
 
+def test_correction_batch_does_not_expose_partial_results_when_a_later_edit_fails():
+    pending = analysis()
+    first = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+        previous_value="Mara",
+        replacement=replacement("Aldric"),
+        source_excerpt="No, la destinataria es Aldric.",
+        argument_role=SemanticArgumentRole.RECIPIENT,
+    )
+    second = PendingIntentCorrection(
+        step_index=0,
+        slot=PendingCorrectionSlot.ACTION_ARGUMENT,
+        previous_value="la llave de hierro",
+        replacement=replacement("el cofre"),
+        source_excerpt="El objeto era el cofre.",
+        argument_role=SemanticArgumentRole.THEME,
+    )
+
+    with pytest.raises(ValueError, match="literal player evidence"):
+        apply_pending_intent_corrections(
+            pending,
+            (first, second),
+            player_evidence_text=first.source_excerpt,
+        )
+
+    # The first patch may have been applied to the private staged value, but
+    # no partially corrected analysis is returned or written into the input.
+    frame = pending.steps[0].action_frame
+    assert frame is not None
+    assert frame.arguments[0].mention.text == "la llave de hierro"
+    assert frame.arguments[1].mention.text == "Mara"
+    assert pending.steps[0].target_mentions == ("la llave de hierro", "Mara")
+
+
 def test_correction_batch_rejects_old_evidence_and_replacement_collisions():
     pending = analysis()
     stale = PendingIntentCorrection(
