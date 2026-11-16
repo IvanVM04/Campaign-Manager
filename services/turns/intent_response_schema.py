@@ -324,9 +324,29 @@ _PENDING_CORRECTION_SCHEMA = {
                 "relation_subject", "relation_object",
             ],
         },
-        "previous_value": {"type": "string", "minLength": 1, "maxLength": 120},
-        "replacement": _MENTION_SCHEMA,
-        "source_excerpt": {"type": "string", "minLength": 1, "maxLength": 300},
+        "previous_value": {
+            "type": "string",
+            "description": "Exact value in the stored pending slot; do not paraphrase or normalize it.",
+            "minLength": 1,
+            "maxLength": 120,
+        },
+        "replacement": {
+            **_MENTION_SCHEMA,
+            "description": (
+                "The replacement mention must be copied literally from the latest "
+                "player answer, not from the prior analysis, DM question or history."
+            ),
+        },
+        "source_excerpt": {
+            "type": "string",
+            "description": (
+                "One contiguous verbatim substring of the latest player answer. "
+                "It must contain replacement.text and explicitly support changing "
+                "previous_value."
+            ),
+            "minLength": 1,
+            "maxLength": 300,
+        },
         "argument_role": {
             "type": ["string", "null"],
             "enum": [
@@ -376,15 +396,32 @@ INTENT_ANALYSIS_RESPONSE_SCHEMA = {
     },
 }
 
-INTENT_CORRECTION_RESPONSE_SCHEMA = deepcopy(INTENT_ANALYSIS_RESPONSE_SCHEMA)
-INTENT_CORRECTION_RESPONSE_SCHEMA["required"] = [
-    "intent_analysis",
-    "pending_corrections",
-]
-INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]["pending_corrections"] = {
-    "type": "array",
-    "maxItems": 4,
-    "items": _PENDING_CORRECTION_SCHEMA,
+# Pending correction is intentionally a small edit proposal, not a second
+# full semantic interpretation. The deterministic application layer preserves
+# untouched fields and applies only evidence-bound slot replacements.
+INTENT_CORRECTION_RESPONSE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "status",
+        "pending_corrections",
+        "clarification_question",
+    ],
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": ["corrected", "needs_clarification", "no_change"],
+        },
+        "pending_corrections": {
+            "type": "array",
+            "maxItems": 4,
+            "items": _PENDING_CORRECTION_SCHEMA,
+        },
+        "clarification_question": {
+            "type": ["string", "null"],
+            "maxLength": 300,
+        },
+    },
 }
 
 MECHANICS_ONLY_RESPONSE_SCHEMA = deepcopy(
