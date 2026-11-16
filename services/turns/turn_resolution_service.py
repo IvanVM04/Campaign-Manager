@@ -4,7 +4,11 @@ from dataclasses import dataclass, replace
 
 from models.campaign_state import CampaignState
 from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
-from models.pending_intent_correction import (\n    PendingIntentCorrection,\n    apply_pending_intent_corrections,\n)\nfrom models.player_intent_analysis import PlayerIntentAnalysis
+from models.pending_intent_correction import (
+    PendingIntentCorrection,
+    apply_pending_intent_corrections,
+)
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
