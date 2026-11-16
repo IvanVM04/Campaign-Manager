@@ -597,8 +597,17 @@ class DiscourseContextBuilder:
                 "histórico en una mención del mensaje actual."
             )
 
-        if len(set(cls.topic_segments(history))) > 1 and not cls.reactivates_prior_topic(current_input):
-            lines.append("Historial con segmentos distintos: usa solo el segmento activo.")
+        if len(set(cls.topic_segments(history))) > 1:
+            if cls.reactivates_prior_topic(current_input):
+                lines.append(
+                    "Cambios de tema explícitos en el historial: los segmentos delimitan "
+                    "temas previos; el callback solo reactiva el segmento con anclas coincidentes."
+                )
+            else:
+                lines.append(
+                    "Cambios de tema explícitos en el historial: usa solo el segmento activo "
+                    "y no heredes referentes de segmentos anteriores."
+                )
 
         npc_lines = []
         for turn in scoped:
