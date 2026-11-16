@@ -29,7 +29,7 @@
       "id": "dp-topic-history-segment-02",
       "family": "topic_boundary",
       "critical": false,
-      "input": "Ella responde desde la puerta.",
+      "input": "Ella contesta en voz alta desde la puerta.",
       "recent_turns": [
         {
           "id": 502,
@@ -709,7 +709,7 @@
       "id": "dp-grammar-explicit-local-17",
       "family": "local_grammatical_agreement",
       "critical": true,
-      "input": "Ella responde a mi pregunta.",
+      "input": "Ella responde en voz alta a mi pregunta.",
       "recent_turns": [
         {
           "id": 660,
@@ -852,7 +852,7 @@
       "id": "dp-grammar-plural-abstention-20",
       "family": "local_grammatical_agreement",
       "critical": true,
-      "input": "Ellas responden desde el balcón.",
+      "input": "Ellas contestan en voz alta desde el balcón.",
       "recent_turns": [
         {
           "id": 663,
@@ -940,7 +940,7 @@
       "id": "dp-npc-ambiguous-alias-22",
       "family": "npc_attribution_quoted_speech",
       "critical": true,
-      "input": "No estoy seguro de quién lo dijo.",
+      "input": "No estoy seguro de quién lo dijo; ¿puedes identificar quién habló?",
       "recent_turns": [
         {
           "id": 671,
@@ -1138,7 +1138,7 @@
           "dm_question": "¿A quién protege Mara?",
           "player_answer": "Quise decir que Mara protege a Aldric, no a Bram.",
           "expected": {
-            "slot": "relation_endpoint",
+            "slot": "relation_object",
             "role": "object",
             "previous_value": "Bram",
             "replacement": "Aldric",

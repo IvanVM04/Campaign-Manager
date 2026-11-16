@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import Any
 
@@ -304,44 +304,53 @@ confiables, nunca hechos ni autorización de escritura. Si falta evidencia,
 omite la mención o abstente; no completes huecos con detalles plausibles.
 El esquema JSON es el contrato estructural."""
 
-    CORRECTION_SYSTEM_PROMPT = COMMON_LLM_TRUST_CONTRACT + """Eres el intérprete semántico de una aclaración pendiente.
-Devuelve exclusivamente el JSON de interpretación v2 y pending_corrections.
+    CORRECTION_SYSTEM_PROMPT = COMMON_LLM_TRUST_CONTRACT + """Eres el adjudicador de una corrección semántica pendiente.
+Devuelve exclusivamente el objeto JSON del contrato de corrección. NO
+devuelvas intent_analysis ni reconstruyas los pasos completos.
 
-La interpretación previa es un borrador no confiable, no un hecho ni autoridad.
-Conserva todos sus pasos, actores, modalidad, polaridad, resultados, argumentos
-y relaciones que la última respuesta no corrija. La pregunta del DM y la
-narración son contexto, nunca evidencia del jugador. Solo la última respuesta
-puede justificar una corrección nueva.
+La interpretación pendiente conserva toda la información previa. El código
+de aplicación aplicará los cambios tipados sobre esa interpretación. Tu única
+responsabilidad es decidir si la última respuesta corrige explícitamente un
+valor pendiente y, si es así, proponer el cambio mínimo y exacto.
 
-La evidencia de la interpretación revisada debe copiarse literalmente de la
-última respuesta del jugador. source_excerpt debe ser un fragmento continuo
-que incluya el predicado y las menciones revisadas. Predicate y relation
-predicates conservan la forma escrita exacta: no lematices ni conviertas los
-verbos al infinitivo. Mantén pronombres y demostrativos como aparecen; no
-sustituyas referencias por nombres canónicos recuperados del historial o de la
-interpretación pendiente. La descripción action puede conservar el sentido
-contextual, pero no sirve como evidencia literal.
+Usa uno de estos estados:
+- status="corrected": existe al menos una rectificación explícita, única y
+  fundamentada. Emite entre una y cuatro pending_corrections y
+  clarification_question=null.
+- status="needs_clarification": la respuesta es ambigua, no identifica una
+  alternativa única o no aporta evidencia suficiente para aplicar el cambio.
+  Emite pending_corrections=[] y una pregunta breve en clarification_question.
+- status="no_change": la respuesta confirma lo anterior o no rectifica ningún
+  valor pendiente y no hace falta otra aclaración. Emite pending_corrections=[]
+  y clarification_question=null.
 
-Emite pending_corrections=[] cuando la respuesta solo complete una ambigüedad,
-confirme lo anterior o no rectifique explícitamente un valor pendiente. Para
-cada corrección explícita, emite como máximo cuatro cambios tipados: target
-mention, action argument con argument_role, relation_subject o relation_object
-con relation_claim_index. previous_value debe coincidir exactamente con el
-valor pendiente. replacement.text y source_excerpt deben ser literales de la
-última respuesta. La interpretación completa debe reflejar esos mismos cambios.
-No cambies actor, modalidad, negación, atribución, dirección o tiempo sin
-evidencia explícita. Al reconstruir la categoría, distingue dialogue (acto de
-habla dentro de la ficción, incluso con pregunta indirecta dirigida a un
-personaje) de question (pregunta al DM/narrador: petición directa o
-implícita de información/aclaración) y de report (hecho u acción observada o
-relatada, incluido un
-acto físico de un NPC). Una frase de duda solo es una pregunta implícita si
-solicita una respuesta o identificación al DM; si solo relata incertidumbre,
-es report. El actor del paso es quien realiza el evento; una acción de NPC no
-es un intento del jugador.
-Para action_frame.family, los verbos de habla pertenecen a communication, no a
-interaction. Las correcciones no autorizan cambios del mundo ni resultados
-mecánicos. El esquema es el contrato estructural."""
+Cada corrección debe señalar exactamente un slot existente: target_mention,
+action_argument con argument_role, relation_subject o relation_object con
+relation_claim_index. step_index, previous_value y relation_claim_index deben
+referirse al estado pendiente proporcionado. previous_value debe coincidir
+exactamente con el valor almacenado; no lo reconstruyas a partir del texto.
+
+replacement.text y source_excerpt deben copiarse literalmente de la ÚLTIMA
+respuesta del jugador. No lematices, traduzcas ni parafrasees replacement.text.
+source_excerpt debe ser un fragmento continuo de esa respuesta que contenga
+replacement.text y exprese inequívocamente la rectificación. No uses el
+mensaje original, la pregunta del DM, la narración ni el historial como
+evidencia para una corrección nueva. No resuelvas
+pronombres o expresiones como «el otro» si no identifican un único reemplazo.
+
+No devuelvas valores para campos que no se corrigen. No reescribas la acción,
+el predicado, la categoría, el actor, la modalidad, la polaridad, el resultado,
+los argumentos no afectados, las relaciones no afectadas ni sus evidencias.
+No cambies el sujeto por cambiar el objeto ni inviertas la dirección de una
+relación. El servidor conserva todos esos campos y aplica exclusivamente los
+slots tipados mediante PendingIntentCorrection.apply().
+
+Una respuesta ambigua no es una corrección parcial: elige
+status="needs_clarification". Una respuesta sin rectificación ni ambigüedad
+de seguimiento usa status="no_change". Nunca inventes un nombre, ID,
+identidad, evidencia o autorización. Una corrección nunca autoriza una
+escritura en el mundo ni un resultado mecánico por sí sola.
+El esquema JSON es el contrato estructural."""
 
     def __init__(
         self,
@@ -646,19 +655,18 @@ mecánicos. El esquema es el contrato estructural."""
             evidence_text=evidence_text,
             pending_analysis=pending_analysis,
             correction_evidence_text=correction_evidence_text,
-            return_corrections=True,
         )
         if not isinstance(result, tuple):
             raise IntentInterpreterError(
                 "pending correction returned no correction metadata"
             )
         analysis, corrections = result
-        correction_evidence = evidence_text or player_input
+        verified_analysis = pending_analysis
         for correction in corrections:
             try:
-                correction.apply(
-                    pending_analysis,
-                    player_evidence_text=correction_evidence,
+                verified_analysis = correction.apply(
+                    verified_analysis,
+                    player_evidence_text=correction_evidence_text,
                     resolution_pending=True,
                     committed=False,
                 )
@@ -668,8 +676,17 @@ mecánicos. El esquema es el contrato estructural."""
                 ) from exc
             if not correction.matches_analysis(analysis):
                 raise IntentInterpreterError(
-                    "provider re-analysis does not reflect its explicit correction"
+                    "deterministic correction application does not match the returned state"
                 )
+        expected_analysis = replace(
+            verified_analysis,
+            requires_clarification=analysis.requires_clarification,
+            clarification_question=analysis.clarification_question,
+        )
+        if analysis != expected_analysis:
+            raise IntentInterpreterError(
+                "correction response changed fields outside the typed correction contract"
+            )
         return IntentInterpretationResult(
             analysis=analysis,
             corrections=corrections,
@@ -684,7 +701,6 @@ mecánicos. El esquema es el contrato estructural."""
         evidence_text: str | None,
         pending_analysis: PlayerIntentAnalysis | None = None,
         correction_evidence_text: str | None = None,
-        return_corrections: bool = False,
     ) -> (
         PlayerIntentAnalysis
         | tuple[PlayerIntentAnalysis, tuple[PendingIntentCorrection, ...]]
@@ -748,9 +764,92 @@ mecánicos. El esquema es el contrato estructural."""
             validation_stage = "top_level_contract"
             if not isinstance(payload, dict):
                 raise TypeError("intent response must be an object")
-            expected_fields = {"intent_analysis"}
             if pending_analysis is not None:
-                expected_fields.add("pending_corrections")
+                validation_stage = "pending_corrections_validation"
+                expected_fields = {
+                    "status",
+                    "pending_corrections",
+                    "clarification_question",
+                }
+                if set(payload) != expected_fields:
+                    raise ValueError("correction response has missing or unexpected fields")
+                status = payload["status"]
+                if status not in {"corrected", "needs_clarification", "no_change"}:
+                    raise ValueError("correction response has an unknown status")
+                correction_payloads = payload["pending_corrections"]
+                if (
+                    not isinstance(correction_payloads, list)
+                    or len(correction_payloads) > 4
+                ):
+                    raise ValueError("pending_corrections must contain at most four items")
+                corrections = tuple(
+                    PendingIntentCorrection.from_payload(
+                        item,
+                        evidence_text=correction_evidence_text or "",
+                    )
+                    for item in correction_payloads
+                )
+                clarification_question = payload["clarification_question"]
+                if status == "corrected":
+                    if not corrections or clarification_question is not None:
+                        raise ValueError(
+                            "corrected status requires edits and no clarification question"
+                        )
+                elif status == "needs_clarification":
+                    if corrections:
+                        raise ValueError(
+                            "needs_clarification status cannot include corrections"
+                        )
+                    if (
+                        not isinstance(clarification_question, str)
+                        or not clarification_question.strip()
+                        or len(clarification_question) > 300
+                    ):
+                        raise ValueError(
+                            "needs_clarification status requires a bounded question"
+                        )
+                else:
+                    if corrections or clarification_question is not None:
+                        raise ValueError(
+                            "no_change status cannot include edits or a clarification question"
+                        )
+
+                analysis = pending_analysis
+                for correction in corrections:
+                    analysis = correction.apply(
+                        analysis,
+                        player_evidence_text=correction_evidence_text or "",
+                        resolution_pending=True,
+                        committed=False,
+                    )
+                if status == "needs_clarification":
+                    analysis = replace(
+                        analysis,
+                        requires_clarification=True,
+                        clarification_question=clarification_question,
+                    )
+                elif status == "corrected":
+                    # An explicit, uniquely grounded edit resolves the value
+                    # currently being clarified. A no_change response, by
+                    # contrast, preserves any existing pending clarification.
+                    analysis = replace(
+                        analysis,
+                        requires_clarification=False,
+                        clarification_question=None,
+                    )
+                logger.info(
+                    "llm.intent.correction_completed",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "correction_status": status,
+                        "correction_count": len(corrections),
+                        "requires_clarification": analysis.requires_clarification,
+                    },
+                )
+                return analysis, corrections
+
+            expected_fields = {"intent_analysis"}
             if set(payload) != expected_fields:
                 raise ValueError("intent response has missing or unexpected fields")
             validation_stage = "intent_analysis_validation"
@@ -805,21 +904,6 @@ mecánicos. El esquema es el contrato estructural."""
                 evidence_text=evidence,
             )
             corrections: tuple[PendingIntentCorrection, ...] = ()
-            if pending_analysis is not None:
-                validation_stage = "pending_corrections_validation"
-                correction_payloads = payload["pending_corrections"]
-                if (
-                    not isinstance(correction_payloads, list)
-                    or len(correction_payloads) > 4
-                ):
-                    raise ValueError("pending_corrections must contain at most four items")
-                corrections = tuple(
-                    PendingIntentCorrection.from_payload(
-                        item,
-                        evidence_text=correction_evidence_text or "",
-                    )
-                    for item in correction_payloads
-                )
             logger.info(
                 "llm.intent.analysis_completed",
                 extra={
@@ -833,8 +917,6 @@ mecánicos. El esquema es el contrato estructural."""
                     "correction_count": len(corrections),
                 },
             )
-            if return_corrections:
-                return analysis, corrections
             return analysis
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             validation_field = None

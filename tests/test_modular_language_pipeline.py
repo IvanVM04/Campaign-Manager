@@ -1201,45 +1201,6 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "clarification_question": None,
         "relation_claims": [],
     }
-    corrected_payload = {
-        "schema_version": 2,
-        "category": "action",
-        "steps": [{
-            "index": 0,
-            "source_excerpt": evidence,
-            "actor": "player",
-            "action": "entregar la llave de hierro a Aldric",
-            "modality": "attempted",
-            "polarity": "positive",
-            "reported_outcome": "not_claimed",
-            "target_mentions": ["la llave de hierro", "Aldric"],
-            "attributed_to": None,
-            "action_frame": {
-                "predicate": "Entrego",
-                "family": "transfer",
-                "arguments": [
-                    {
-                        "role": "theme",
-                        "mention": {
-                            "text": "la llave de hierro",
-                            "kind_hint": "item_instance",
-                        },
-                    },
-                    {
-                        "role": "recipient",
-                        "mention": {
-                            "text": "Aldric",
-                            "kind_hint": "character",
-                        },
-                    },
-                ],
-            },
-        }],
-        "active_step_index": 0,
-        "requires_clarification": False,
-        "clarification_question": None,
-        "relation_claims": [],
-    }
     correction_payload = {
         "step_index": 0,
         "slot": "target_mention",
@@ -1250,8 +1211,9 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "relation_claim_index": None,
     }
     response = {
-        "intent_analysis": corrected_payload,
+        "status": "corrected",
         "pending_corrections": [correction_payload],
+        "clarification_question": None,
     }
     provider = FakeLLMProvider(response=json.dumps(response, ensure_ascii=False))
     interpreter = IntentInterpreter(provider)
@@ -1270,13 +1232,17 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     )
 
     assert result.analysis.steps[0].target_mentions == ("la llave de hierro", "Aldric")
+    assert result.analysis.steps[0].action == "entregar la llave de hierro a Aldric"
+    assert result.analysis.steps[0].action_frame.predicate == "Entrego"
     assert len(result.corrections) == 1
     assert result.corrections[0].matches_analysis(result.analysis)
     assert provider.call_count == 1
     assert INTENT_CORRECTION_RESPONSE_SCHEMA["required"] == [
-        "intent_analysis",
+        "status",
         "pending_corrections",
+        "clarification_question",
     ]
+    assert "intent_analysis" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "mechanics_decision" not in provider.prompts[0]
@@ -1579,3 +1545,201 @@ def test_intent_interpreter_reports_safe_validation_stage_without_response_conte
         interpreter.interpret(_context(), "Abro la puerta.")
 
     assert "PRIVATE_COMPLETION" not in str(error.value)
+
+
+
+def _pending_recipient_analysis_for_status_tests():
+    from models.player_intent_analysis import PlayerIntentAnalysis
+
+    source = "Entrego el mapa a Mara."
+    return PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": source,
+                "actor": "player",
+                "action": "entregar el mapa a Mara",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["el mapa", "Mara"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Entrego",
+                    "family": "transfer",
+                    "arguments": [
+                        {
+                            "role": "theme",
+                            "mention": {
+                                "text": "el mapa",
+                                "kind_hint": "item_instance",
+                            },
+                        },
+                        {
+                            "role": "recipient",
+                            "mention": {
+                                "text": "Mara",
+                                "kind_hint": "character",
+                            },
+                        },
+                    ],
+                },
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=source,
+    )
+
+
+@pytest.mark.parametrize(
+    ("status", "answer", "clarification_expected"),
+    [
+        ("no_change", "Sí, confirmo que era Mara.", False),
+        (
+            "needs_clarification",
+            "Me refería a la otra persona.",
+            True,
+        ),
+    ],
+)
+def test_pending_correction_status_preserves_pending_analysis_and_never_rewrites_fields(
+    status,
+    answer,
+    clarification_expected,
+):
+    original = "Entrego el mapa a Mara."
+    question = "¿A quién quieres entregar el mapa?"
+    pending = _pending_recipient_analysis_for_status_tests()
+    conversation = original + "\n\nDM: " + question + "\n" + answer
+    evidence = original + "\n\n" + answer
+    clarification_question = (
+        "¿Puedes decirme el nombre de la persona?"
+        if clarification_expected
+        else None
+    )
+    provider = FakeLLMProvider(response=json.dumps({
+        "status": status,
+        "pending_corrections": [],
+        "clarification_question": clarification_question,
+    }, ensure_ascii=False))
+
+    result = IntentInterpreter(provider).understand_pending(
+        _context(),
+        conversation,
+        pending_analysis=pending,
+        correction_evidence_text=answer,
+        evidence_text=evidence,
+    )
+
+    assert result.corrections == ()
+    assert result.analysis.steps == pending.steps
+    assert result.analysis.category is pending.category
+    assert result.analysis.active_step_index == pending.active_step_index
+    assert result.analysis.requires_clarification is clarification_expected
+    assert result.analysis.clarification_question == clarification_question
+    assert provider.call_count == 1
+
+
+
+def test_turn_pipeline_resolves_question_references_without_enabling_world_proposals(
+    monkeypatch,
+):
+    from services.llm_world import LLMWorldExtractor
+    from services.llm_world.operation_parser import OperationParser
+
+    class RecordingExtractor(LLMWorldExtractor):
+        def __init__(self):
+            super().__init__(
+                provider=FakeLLMProvider(response='{"operations": []}'),
+                operation_parser=OperationParser(),
+            )
+            self.call_count = 0
+
+        def propose(self, player_intent, context, **kwargs):
+            self.call_count += 1
+            return []
+
+    source = "¿Qué le ocurrió a ella?"
+    question = _analysis_payload(
+        category="question",
+        modality="question",
+        active_step_index=None,
+        source_excerpt=source,
+        action="preguntar qué le ocurrió a ella",
+        predicate="ocurrió",
+    )
+    question["steps"][0]["target_mentions"] = ["ella"]
+    question["steps"][0]["action_frame"]["arguments"] = [{
+        "role": "patient",
+        "mention": {
+            "text": "ella",
+            "kind_hint": "character",
+        },
+    }]
+    intent_provider = FakeLLMProvider(response=json.dumps({
+        "intent_analysis": question,
+    }, ensure_ascii=False))
+    mechanics_provider = FakeLLMProvider(response='{"decision":"none"}')
+    extractor = RecordingExtractor()
+    service = _build_resolution_service(
+        intent_provider,
+        mechanics_provider,
+        extractor,
+        enable_context_projection=True,
+    )
+    projection = WorldContextProjection(
+        world=WorldState(),
+        diagnostics=ContextProjectionDiagnostics(
+            estimated_tokens=0,
+            budget_tokens=4096,
+            available_counts=(),
+            candidate_counts=(),
+            selected_counts=(),
+        ),
+    )
+    monkeypatch.setattr(
+        service.context_builder,
+        "build_proposal_context",
+        lambda *args, **kwargs: projection,
+    )
+    resolved_mentions = []
+
+    def resolve_conversation(world, analysis, **kwargs):
+        resolved_mentions.append((world, analysis))
+        return SimpleNamespace(
+            references=(),
+            clarification_question="¿A cuál personaje te refieres con «ella»?",
+            candidates=(),
+            abstention_reason="discourse_candidates_ambiguous",
+        )
+
+    monkeypatch.setattr(
+        service.conversation_reference_resolver,
+        "resolve",
+        resolve_conversation,
+    )
+    monkeypatch.setattr(
+        service.world_reference_resolver,
+        "resolve",
+        lambda *args, **kwargs: pytest.fail(
+            "world-item resolution must remain disabled for a non-proposal question"
+        ),
+    )
+
+    plan = service.prepare_turn(_context(), source)
+
+    assert plan.clarification_question == (
+        "¿A cuál personaje te refieres con «ella»?"
+    )
+    assert len(resolved_mentions) == 1
+    assert resolved_mentions[0][1] is plan.intent_analysis
+    assert plan.intent_analysis.allows_world_proposal is False
+    assert mechanics_provider.call_count == 0
+    assert extractor.call_count == 0
+    assert plan.world_operations == ()
+    assert plan.ordered_operations == ()

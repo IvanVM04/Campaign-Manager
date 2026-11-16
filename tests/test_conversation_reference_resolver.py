@@ -497,3 +497,192 @@ def test_antecedent_at_the_twelfth_visible_turn_can_still_resolve():
     assert result.clarification_question is None
     assert result.references[0].entity_id == 1
     assert result.references[0].antecedent_turn_id == 200
+
+
+
+def _non_write_analysis(
+    utterance: str,
+    mention: str,
+    *,
+    category: str,
+    actor: str,
+    modality: str,
+    predicate: str,
+    family: str,
+) -> PlayerIntentAnalysis:
+    """Build a validated v2 utterance that must not authorize a world proposal."""
+    payload = {
+        "schema_version": 2,
+        "category": category,
+        "steps": [{
+            "index": 0,
+            "source_excerpt": utterance,
+            "actor": actor,
+            "action": "referirse a un personaje",
+            "modality": modality,
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": [mention],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": predicate,
+                "family": family,
+                "arguments": [{
+                    "role": "agent",
+                    "mention": {
+                        "text": mention,
+                        "kind_hint": "character",
+                    },
+                }],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+    return PlayerIntentAnalysis.from_payload(payload, source_text=utterance)
+
+
+def test_npc_report_reference_resolves_without_world_proposal_authorization():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    utterance = "Ella entra en la sala."
+    analysis = _non_write_analysis(
+        utterance,
+        "Ella",
+        category="report",
+        actor="npc",
+        modality="reported",
+        predicate="entra",
+        family="movement",
+    )
+    assert not analysis.allows_world_proposal
+
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=[
+            turn(130, "La guardia Mara espera junto a la puerta. "
+                      "El capitán Aldric observa el pasillo.")
+        ],
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+
+
+def test_npc_dialogue_reference_resolves_without_world_proposal_authorization():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    utterance = "Ella responde a mi pregunta."
+    analysis = _non_write_analysis(
+        utterance,
+        "Ella",
+        category="dialogue",
+        actor="npc",
+        modality="dialogue",
+        predicate="responde",
+        family="communication",
+    )
+    assert not analysis.allows_world_proposal
+
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=[
+            turn(131, "La guardia Mara espera junto a la puerta. "
+                      "El capitán Aldric observa el pasillo.")
+        ],
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+
+
+def test_dm_question_can_resolve_a_referent_without_world_proposal_authorization():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Aldric", entity_type="npc"),
+    })
+    utterance = "¿Qué le ocurrió a ella?"
+    analysis = _non_write_analysis(
+        utterance,
+        "ella",
+        category="question",
+        actor="player",
+        modality="question",
+        predicate="ocurrió",
+        family="other",
+    )
+    assert not analysis.allows_world_proposal
+
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=[
+            turn(132, "La guardia Mara espera junto a la puerta. "
+                      "El capitán Aldric observa el pasillo.")
+        ],
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+
+
+
+def test_literal_npc_attribution_is_resolved_even_without_target_mentions():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+    })
+    utterance = "Mara susurra que ha visto a Aldric."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "dialogue",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": utterance,
+                "actor": "npc",
+                "action": "Mara susurra que ha visto a Aldric",
+                "modality": "dialogue",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": [],
+                "attributed_to": "Mara",
+                "action_frame": {
+                    "predicate": "susurra",
+                    "family": "communication",
+                    "arguments": [],
+                },
+            }],
+            "active_step_index": None,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=utterance,
+    )
+    assert not analysis.allows_world_proposal
+
+    result = ConversationReferenceResolver().resolve(
+        world,
+        analysis,
+        recent_turns=(),
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1
+    assert result.references[0].mention == "Mara"

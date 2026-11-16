@@ -61,6 +61,10 @@ class ConversationReferenceResolver:
         "tabernero", "innkeeper", "mago", "wizard", "clerigo", "cleric",
         "arquero", "archer", "mercader", "merchant", "ladron", "thief",
     })
+    # Resolving a mention is an interpretation aid, not permission to
+    # adjudicate mechanics or propose a persistent world change. Include
+    # referential questions and future/conditional utterances as well as
+    # actionable and reported steps; downstream stages keep their own gates.
     _ELIGIBLE_MODALITIES = frozenset({
         IntentModality.ATTEMPTED,
         IntentModality.COMPLETED,
@@ -68,6 +72,9 @@ class ConversationReferenceResolver:
         IntentModality.REPORTED,
         IntentModality.CORRECTION,
         IntentModality.DIALOGUE,
+        IntentModality.QUESTION,
+        IntentModality.PLANNED,
+        IntentModality.CONDITIONAL,
     })
     _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
         SemanticObjectKind.CHARACTER: frozenset({"npc", "character", "person", "humanoid", "player"}),
@@ -410,9 +417,11 @@ class ConversationReferenceResolver:
             not isinstance(current_input, str) or not current_input.strip()
         ):
             raise ValueError("current_input must be non-empty text or None")
-        if not analysis.allows_world_proposal:
-            return ConversationReferenceResolution()
-
+        # Do not gate reference understanding on world-write eligibility.
+        # A report/dialogue/question can contain an important anaphoric mention
+        # even when it must never produce a persistent proposal. This resolver
+        # only returns evidence-backed references or clarification requests;
+        # TurnResolutionService and the proposal stage retain write authorization.
         last_step = (
             analysis.active_step_index
             if analysis.active_step_index is not None
@@ -431,6 +440,10 @@ class ConversationReferenceResolver:
                 (mention, SemanticObjectKind.UNKNOWN)
                 for mention in step.target_mentions
             ]
+            if step.attributed_to is not None:
+                mentions.append(
+                    (step.attributed_to, SemanticObjectKind.CHARACTER)
+                )
             if step.action_frame is not None:
                 mentions.extend(
                     (argument.mention.text, argument.mention.kind_hint)
