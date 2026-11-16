@@ -273,9 +273,13 @@ following changes against the merged PR #236 base:
   because `allows_world_proposal` is false.
 - Its eligible modalities now include question, planned and conditional
   mentions as well as action/report/dialogue references.
+- Literal `IntentStep.attributed_to` is included among the resolver's mentions,
+  even when no separate target or action-frame argument was emitted.
 - `TurnResolutionService` builds a bounded visible context projection when a
-  non-write turn contains literal target mentions, action-frame arguments or
-  relation claims, then runs conversation-reference resolution.
+  non-write turn contains literal target mentions, speaker attribution,
+  action-frame arguments or relation claims, then runs conversation-reference
+  resolution. These same literal speaker attributions are included among
+  context-selection queries.
 - Typed world-reference resolution is still invoked only for turns that pass
   `allows_world_proposal`.
 - The existing mechanics and extractor gates remain intact. New deterministic
@@ -299,9 +303,9 @@ following changes against the merged PR #236 base:
 
 ### Evaluation harness
 
-- The post-merge `relation_endpoint` fixture/helper mismatch is included in
-  this branch; the relation endpoint scenario now constructs the correct
-  pending relation state.
+- The post-merge correction fixture/helper mismatch is resolved using the
+  schema's canonical `relation_object` slot label; the relation endpoint
+  scenario now constructs the correct pending relation state.
 - The ambiguous two-recipient fixture no longer seeds a fabricated single
   recipient. Its pending analysis retains both alternatives and requires
   clarification.
