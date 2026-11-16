@@ -331,8 +331,9 @@ valor pendiente. replacement.text y source_excerpt deben ser literales de la
 No cambies actor, modalidad, negación, atribución, dirección o tiempo sin
 evidencia explícita. Al reconstruir la categoría, distingue dialogue (acto de
 habla dentro de la ficción, incluso con pregunta indirecta dirigida a un
-personaje) de question (petición directa o implícita de información/aclaración
-al DM/narrador) y de report (hecho u acción observada o relatada, incluido un
+personaje) de question (pregunta al DM/narrador: petición directa o
+implícita de información/aclaración) y de report (hecho u acción observada o
+relatada, incluido un
 acto físico de un NPC). Una frase de duda solo es una pregunta implícita si
 solicita una respuesta o identificación al DM; si solo relata incertidumbre,
 es report. El actor del paso es quien realiza el evento; una acción de NPC no
