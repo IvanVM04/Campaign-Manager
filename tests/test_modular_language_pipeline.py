@@ -1201,45 +1201,6 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "clarification_question": None,
         "relation_claims": [],
     }
-    corrected_payload = {
-        "schema_version": 2,
-        "category": "action",
-        "steps": [{
-            "index": 0,
-            "source_excerpt": evidence,
-            "actor": "player",
-            "action": "entregar la llave de hierro a Aldric",
-            "modality": "attempted",
-            "polarity": "positive",
-            "reported_outcome": "not_claimed",
-            "target_mentions": ["la llave de hierro", "Aldric"],
-            "attributed_to": None,
-            "action_frame": {
-                "predicate": "Entrego",
-                "family": "transfer",
-                "arguments": [
-                    {
-                        "role": "theme",
-                        "mention": {
-                            "text": "la llave de hierro",
-                            "kind_hint": "item_instance",
-                        },
-                    },
-                    {
-                        "role": "recipient",
-                        "mention": {
-                            "text": "Aldric",
-                            "kind_hint": "character",
-                        },
-                    },
-                ],
-            },
-        }],
-        "active_step_index": 0,
-        "requires_clarification": False,
-        "clarification_question": None,
-        "relation_claims": [],
-    }
     correction_payload = {
         "step_index": 0,
         "slot": "target_mention",
@@ -1250,8 +1211,9 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
         "relation_claim_index": None,
     }
     response = {
-        "intent_analysis": corrected_payload,
+        "status": "corrected",
         "pending_corrections": [correction_payload],
+        "clarification_question": None,
     }
     provider = FakeLLMProvider(response=json.dumps(response, ensure_ascii=False))
     interpreter = IntentInterpreter(provider)
@@ -1270,13 +1232,17 @@ def test_intent_interpreter_pending_correction_is_independent_of_mechanics():
     )
 
     assert result.analysis.steps[0].target_mentions == ("la llave de hierro", "Aldric")
+    assert result.analysis.steps[0].action == "entregar la llave de hierro a Mara"
+    assert result.analysis.steps[0].action_frame.predicate == "Entrego"
     assert len(result.corrections) == 1
     assert result.corrections[0].matches_analysis(result.analysis)
     assert provider.call_count == 1
     assert INTENT_CORRECTION_RESPONSE_SCHEMA["required"] == [
-        "intent_analysis",
+        "status",
         "pending_corrections",
+        "clarification_question",
     ]
+    assert "intent_analysis" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "mechanics_decision" not in INTENT_CORRECTION_RESPONSE_SCHEMA["properties"]
     assert "INTERPRETACIÓN PENDIENTE" in provider.prompts[0]
     assert "mechanics_decision" not in provider.prompts[0]
