@@ -385,7 +385,7 @@ def test_turn_planner_uses_only_the_latest_clarification_answer_as_correction_ev
     service, _proposal_calls, _narrative_calls = service_with_fake_models()
     pending = _pending_analysis()
     correction = _correction()
-    cumulative_evidence = ORIGINAL + "\\n\\n" + CORRECTION
+    cumulative_evidence = ORIGINAL + "\n\n" + CORRECTION
 
     class AdjudicatorWithStaleEvidence:
         def understand_pending(self, *args, **kwargs):
@@ -403,7 +403,7 @@ def test_turn_planner_uses_only_the_latest_clarification_answer_as_correction_ev
     ):
         service.resolver.prepare_turn(
             _turn_context(),
-            ORIGINAL + "\\n\\nDM: ¿A quién?\\nRespuesta: Sí, Aldric.",
+            ORIGINAL + "\n\nDM: ¿A quién?\nRespuesta: Sí, Aldric.",
             intent_evidence_text=cumulative_evidence,
             pending_intent_analysis=pending,
             pending_correction_evidence_text="Sí, Aldric.",
@@ -413,7 +413,7 @@ def test_turn_planner_uses_only_the_latest_clarification_answer_as_correction_ev
 def test_turn_planner_rejects_untyped_changes_in_provider_reanalysis():
     service, _proposal_calls, _narrative_calls = service_with_fake_models()
     pending = _pending_analysis()
-    evidence = ORIGINAL + "\\n\\n" + CORRECTION
+    evidence = ORIGINAL + "\n\n" + CORRECTION
     corrected_payload = _corrected_analysis(evidence).to_dict()
     corrected_payload["steps"][0]["action"] = (
         "entregar la llave de hierro a Aldric y añadir un cambio no autorizado"
@@ -441,7 +441,7 @@ def test_turn_planner_rejects_untyped_changes_in_provider_reanalysis():
     ):
         service.resolver.prepare_turn(
             _turn_context(),
-            ORIGINAL + "\\n\\nDM: ¿A quién?\\n" + CORRECTION,
+            ORIGINAL + "\n\nDM: ¿A quién?\n" + CORRECTION,
             intent_evidence_text=evidence,
             pending_intent_analysis=pending,
             pending_correction_evidence_text=CORRECTION,
