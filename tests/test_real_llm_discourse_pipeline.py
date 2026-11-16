@@ -47,13 +47,18 @@ def _correction_mentions_equivalent(left: str, right: str) -> bool:
     the correction parser. This helper only prevents evaluation from treating
     "mapa" and "el mapa" as different semantic replacements.
     """
-    def normalize(value: str) -> tuple[str, ...]:
+    def normalize(value: str) -> tuple[str | None, tuple[str, ...]]:
         tokens = tuple(value.casefold().split())
-        if tokens and tokens[0] in _SPANISH_DETERMINERS:
-            return tokens[1:]
-        return tokens
+        article = tokens[0] if tokens and tokens[0] in _SPANISH_DETERMINERS else None
+        return article, tokens[1:] if article is not None else tokens
 
-    return bool(normalize(left)) and normalize(left) == normalize(right)
+    left_article, left_tokens = normalize(left)
+    right_article, right_tokens = normalize(right)
+    return bool(left_tokens) and left_tokens == right_tokens and (
+        left_article is None
+        or right_article is None
+        or left_article == right_article
+    )
 
 
 def _live_intent_runtime():
