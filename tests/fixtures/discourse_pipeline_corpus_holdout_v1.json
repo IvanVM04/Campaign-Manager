@@ -1123,7 +1123,8 @@
         ],
         "correction": {
           "slot": "relation_object",
-          "role": "object",
+          "endpoint": "object",
+          "relation_claim_index": 0,
           "previous_value": "Bram",
           "replacement": "Aldric",
           "accepted": true
@@ -1139,7 +1140,8 @@
           "player_answer": "Quise decir que Mara protege a Aldric, no a Bram.",
           "expected": {
             "slot": "relation_object",
-            "role": "object",
+            "endpoint": "object",
+            "relation_claim_index": 0,
             "previous_value": "Bram",
             "replacement": "Aldric",
             "accepted": true
