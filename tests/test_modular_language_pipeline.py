@@ -1763,6 +1763,50 @@ def test_pending_correction_rejects_inconsistent_status_contracts(
     assert provider.call_count == 1
 
 
+def test_pending_correction_rejects_duplicate_slot_ids_in_one_response():
+    original = "Entrego el mapa a Mara."
+    answer = "No, quería decir Aldric, no Bram."
+    pending = _pending_recipient_analysis_for_status_tests()
+    provider = FakeLLMProvider(response=json.dumps({
+        "status": "corrected",
+        "pending_corrections": [
+            {
+                "slot_id": 7,
+                "previous_value": "Mara",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "quería decir Aldric",
+            },
+            {
+                "slot_id": 7,
+                "previous_value": "Aldric",
+                "replacement": {
+                    "text": "Bram",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "no Bram",
+            },
+        ],
+        "clarification_question": None,
+    }, ensure_ascii=False))
+
+    with pytest.raises(
+        IntentInterpreterError,
+        match="pending corrections must select distinct slot IDs",
+    ):
+        IntentInterpreter(provider).understand_pending(
+            _context(),
+            original + "\n\nDM: ¿A quién quieres entregar el mapa?\n" + answer,
+            pending_analysis=pending,
+            correction_evidence_text=answer,
+            evidence_text=original + "\n\n" + answer,
+        )
+
+    assert provider.call_count == 1
+
+
 def test_pending_correction_rejects_any_change_outside_typed_patch_slots(
     monkeypatch,
 ):
