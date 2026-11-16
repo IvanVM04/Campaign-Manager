@@ -452,3 +452,53 @@ def test_compact_intent_payload_rejects_legacy_selector_fields():
             evidence_text="No, la destinataria es Aldric.",
             pending_analysis=analysis(),
         )
+
+def test_compact_relation_selector_reports_when_previous_value_is_opposite_endpoint():
+    pending = relation_analysis()
+    with pytest.raises(
+        ValueError,
+        match="relation selector points to opposite endpoint",
+    ) as captured:
+        PendingIntentCorrection.from_intent_payload(
+            {
+                "step_index": 0,
+                "slot": "relation_subject:0",
+                "previous_value": "Bram",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "Quise decir que Mara protege a Aldric, no a Bram.",
+            },
+            evidence_text="Quise decir que Mara protege a Aldric, no a Bram.",
+            pending_analysis=pending,
+        )
+
+    # Diagnostics classify the mismatch without echoing player/model values.
+    assert "Bram" not in str(captured.value)
+    assert "Mara" not in str(captured.value)
+
+
+def test_compact_relation_selector_reports_unmatched_previous_value():
+    pending = relation_analysis()
+    with pytest.raises(
+        ValueError,
+        match="relation selector value matches neither pending endpoint",
+    ) as captured:
+        PendingIntentCorrection.from_intent_payload(
+            {
+                "step_index": 0,
+                "slot": "relation_object:0",
+                "previous_value": "Sable",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": "Quise decir que Mara protege a Aldric, no a Sable.",
+            },
+            evidence_text="Quise decir que Mara protege a Aldric, no a Sable.",
+            pending_analysis=pending,
+        )
+
+    assert "Sable" not in str(captured.value)
+    assert "Bram" not in str(captured.value)
