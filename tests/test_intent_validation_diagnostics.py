@@ -271,6 +271,60 @@ def test_remaining_intent_contract_failures_have_specific_safe_codes(
     assert diagnostic.reason == reason
 
 
+def test_interpreter_logs_selected_slot_for_unmatched_previous_value(
+    caplog: pytest.LogCaptureFixture,
+):
+    from tests.test_pending_intent_correction import relation_analysis
+
+    answer = "Quise decir que Mara protege a Aldric, no a Sable."
+    response = {
+        "status": "corrected",
+        "pending_corrections": [
+            {
+                "slot_id": 145,
+                "previous_value": "Sable",
+                "replacement": {
+                    "text": "Aldric",
+                    "kind_hint": "character",
+                },
+                "source_excerpt": answer,
+            }
+        ],
+        "clarification_question": None,
+    }
+    interpreter = IntentInterpreter(
+        FakeLLMProvider(response=json.dumps(response))
+    )
+
+    with (
+        caplog.at_level(
+            logging.WARNING,
+            logger="services.turns.intent_interpreter",
+        ),
+        pytest.raises(IntentInterpreterError) as captured,
+    ):
+        interpreter.understand_pending(
+            _context(),
+            "Mara protege a Bram.\\n\\nDM: ¿A quién protege Mara?\\n" + answer,
+            pending_analysis=relation_analysis(),
+            correction_evidence_text=answer,
+            evidence_text=answer,
+        )
+
+    error = captured.value
+    assert error.validation_reason == "correction_previous_value_mismatch"
+    record = next(
+        item
+        for item in caplog.records
+        if item.getMessage() == "llm.intent.invalid_response"
+    )
+    assert record.correction_selected_slot_id == 145
+    assert record.correction_selected_slot_type == "relation_object"
+    assert not hasattr(record, "correction_matching_slot_id")
+    for private_value in ("Sable", "Bram", "Aldric", "Mara"):
+        assert private_value not in repr(record.__dict__)
+
+
 def test_interpreter_logs_safe_catalogue_slot_mismatch_reason_code(
     caplog: pytest.LogCaptureFixture,
 ):
