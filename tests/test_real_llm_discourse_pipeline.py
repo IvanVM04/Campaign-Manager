@@ -605,9 +605,16 @@ def _pending_analysis(prior_input: str, expected: dict):
             source_text=prior_input,
         )
 
-    recipient = next(
-        (name for name in ("Aldric", "Mara") if name in prior_input),
-        "Aldric",
+    expected_recipient = expected.get("previous_value")
+    recipient = (
+        expected_recipient
+        if isinstance(expected_recipient, str)
+        and expected_recipient
+        and expected_recipient.casefold() in prior_input.casefold()
+        else next(
+            (name for name in ("Aldric", "Mara") if name in prior_input),
+            "Aldric",
+        )
     )
     lowered = prior_input.casefold()
     theme = (
@@ -655,8 +662,14 @@ def _pending_analysis(prior_input: str, expected: dict):
                 }
             ],
             "active_step_index": 0,
-            "requires_clarification": False,
-            "clarification_question": None,
+            "requires_clarification": (
+                recipient == "Mara o a Aldric"
+            ),
+            "clarification_question": (
+                "¿A cuál de las dos personas te refieres?"
+                if recipient == "Mara o a Aldric"
+                else None
+            ),
             "relation_claims": [],
         },
         source_text=prior_input,
