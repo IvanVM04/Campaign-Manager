@@ -14,15 +14,10 @@ from models.discourse_evidence import (
 from models.entity import Entity
 from models.player_intent_analysis import (
     IntentModality,
-    IntentPolarity,
     PlayerIntentAnalysis,
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
-from models.semantic_frames import (
-    SemanticModality,
-    SemanticObjectKind,
-    SemanticPolarity,
-)
+from models.semantic_frames import SemanticObjectKind
 from models.world_state import WorldState
 from services.discourse_context import DiscourseContextBuilder
 
