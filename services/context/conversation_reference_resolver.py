@@ -442,7 +442,7 @@ class ConversationReferenceResolver:
             ]
             if step.attributed_to is not None:
                 mentions.append(
-                    (step.attributed_to, SemanticObjectKind.UNKNOWN)
+                    (step.attributed_to, SemanticObjectKind.CHARACTER)
                 )
             if step.action_frame is not None:
                 mentions.extend(
