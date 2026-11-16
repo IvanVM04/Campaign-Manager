@@ -322,6 +322,10 @@ def test_interpreter_logs_safe_catalogue_slot_mismatch_reason_code(
         if item.getMessage() == "llm.intent.invalid_response"
     )
     assert record.validation_reason == "correction_previous_value_matches_other_slot"
+    assert record.correction_selected_slot_id == 144
+    assert record.correction_selected_slot_type == "relation_subject"
+    assert record.correction_matching_slot_id == 145
+    assert record.correction_matching_slot_type == "relation_object"
     assert "Bram" not in repr(record.__dict__)
     assert "Mara" not in repr(record.__dict__)
     assert "Aldric" not in repr(record.__dict__)
