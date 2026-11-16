@@ -147,8 +147,12 @@ class PendingIntentCorrection:
         ):
             raise ValueError("intent correction references a missing pending step")
 
-        previous_value = _validate_text(payload["previous_value"], "previous_value", 120)
-        source_excerpt = _validate_text(payload["source_excerpt"], "source_excerpt", 300)
+        previous_value = payload["previous_value"]
+        source_excerpt = payload["source_excerpt"]
+        if not isinstance(previous_value, str) or not isinstance(source_excerpt, str):
+            raise ValueError("intent correction values must be strings")
+        _validate_text(previous_value, "previous_value", 120)
+        _validate_text(source_excerpt, "source_excerpt", 300)
         replacement = SemanticMention.from_payload(
             payload["replacement"],
             evidence_text=evidence_text,
