@@ -31,13 +31,14 @@ within a pending analysis and remain position-stable as corrections replace
 text values. The JSON schema allows the bounded numeric interval; the backend
 rejects IDs that are not actually present in the current catalogue.
 
-The prompt groups action/target candidates under their parent step, where
-the action and original source excerpt are already available. Relation
-candidates are grouped under their parent relation claim, which carries the
-directed subject/predicate/object context. A slot entry therefore needs only
-its ID, kind and current value, plus the argument role when applicable. The
-parent context supplies the step or relation index without repeating it for
-every candidate, keeping the prompt catalogue compact.
+The prompt keeps the existing step and relation structure and adds IDs
+inside its semantic fields. Each step has
+`correction_slots.target_mentions` and
+`correction_slots.action_arguments`; each candidate contains only its ID and
+current value, plus the argument role when applicable. In a relation claim,
+the `subject` and `object` values are objects containing their ID and current
+value. The parent step or relation supplies the context, so the prompt does not
+repeat the step index, claim index or slot kind on every candidate.
 
 Generic `target_mention` candidates are omitted when the same normalized
 mention is already represented by an action argument or relation endpoint.
