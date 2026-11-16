@@ -549,8 +549,6 @@ El esquema JSON es el contrato estructural."""
                     separators=(",", ":"),
                     sort_keys=True,
                 )
-                + "\n=== ÚLTIMA RESPUESTA DEL JUGADOR ===\n"
-                + (correction_evidence_text or "")
                 + "\n"
             )
             conversation = player_input[-1600:]
