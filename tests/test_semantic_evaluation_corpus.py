@@ -127,3 +127,45 @@ def test_context_recall_and_secret_exclusion_are_measured_separately(record_prop
     assert "ruta secreta de contrabando" not in rendered
     assert "La capitana trabaja para los contrabandistas" not in rendered
     assert "Los guardias protegen la ruta oculta" not in rendered
+
+
+
+def test_semantic_frame_predicate_gold_sidecar_covers_immutable_holdout():
+    """Predicate labels extend measurements without mutating held-out utterances."""
+    corpus = _read("semantic_frame_corpus_holdout_v1.json")
+    annotations = _read("semantic_frame_predicate_gold_v1.json")
+
+    assert corpus["schema_version"] == 1
+    assert corpus["split"] == "held_out"
+    assert annotations["schema_version"] == 1
+    assert annotations["split"] == "held_out_annotations"
+    assert annotations["source_corpus"] == "semantic_frame_corpus_holdout_v1.json"
+
+    source_by_id = {item["id"]: item for item in corpus["scenarios"]}
+    annotation_by_id = {item["id"]: item for item in annotations["scenarios"]}
+    assert len(annotation_by_id) == len(annotations["scenarios"])
+    assert set(annotation_by_id) == set(source_by_id)
+    assert len(annotations["scenarios"]) == 20
+
+    action_count = relation_count = 0
+    for scenario_id, source in source_by_id.items():
+        annotation = annotation_by_id[scenario_id]
+        assert "input" not in annotation
+        assert "utterance" not in annotation
+        if source.get("expected_action_frame") is not None:
+            predicate = annotation.get("action_frame_predicate")
+            assert isinstance(predicate, str) and predicate
+            assert predicate in source["input"]
+            action_count += 1
+        else:
+            assert "action_frame_predicate" not in annotation
+        if source.get("expected_relation") is not None:
+            predicate = annotation.get("relation_predicate")
+            assert isinstance(predicate, str) and predicate
+            assert predicate in source["input"]
+            relation_count += 1
+        else:
+            assert "relation_predicate" not in annotation
+
+    assert action_count == 10
+    assert relation_count == 10

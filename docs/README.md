@@ -49,6 +49,7 @@ indexes over searching through dated audit history.
 - [PR #234 Discourse holdout fixture integrity](quality/pr-234-discourse-holdout-fixture-integrity.md) — supplies NPC speaker entities to the live prompt harness and validates literal expected mentions.
 
 - [Predicate-understanding audit (2026-11-17)](quality/predicate-understanding-audit-2026-11-17.md) — action/relation predicate coverage, live metrics, measurement gaps and remaining effort.
+- [PR #250 Predicate-specific evaluation and telemetry](quality/pr-250-predicate-evaluation-and-telemetry.md) — exact action/relation surface scoring, reproducible live JSON reports and privacy-safe usage telemetry.
 
 ## Active architectural contracts
 

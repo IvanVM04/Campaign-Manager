@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 from time import perf_counter
+from typing import Any
 
 import pytest
 
@@ -19,13 +20,20 @@ from models.world_state import WorldState
 from services.providers import OllamaProvider
 from services.turns.intent_interpreter import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
+from tests.semantic_evaluation_report import (
+    build_live_evaluation_report,
+    write_live_evaluation_report,
+)
+from tests.semantic_frame_evaluation import score_semantic_frame_scenario
 
 pytestmark = pytest.mark.real_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def _make_interpreter() -> IntentInterpreter:
+def _make_interpreter(
+    usage_events: list[dict[str, Any]] | None = None,
+) -> IntentInterpreter:
     provider = OllamaProvider(
         model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
         base_url=os.getenv(
@@ -33,6 +41,7 @@ def _make_interpreter() -> IntentInterpreter:
             OllamaProvider.DEFAULT_BASE_URL,
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+        metrics_callback=(usage_events.append if usage_events is not None else None),
     )
     return IntentInterpreter(provider=provider)
 
@@ -92,105 +101,6 @@ def _score_language_scenario(analysis, expected: dict) -> tuple[int, int, list[s
         failures.extend(
             f"{key}[{index}].{error}" for error in errors
         )
-    return matched, total, failures
-
-
-def _score_semantic_scenario(analysis, scenario: dict) -> tuple[int, int, list[str]]:
-    matched = 0
-    total = 0
-    failures: list[str] = []
-
-    expected_frame = scenario.get("expected_action_frame")
-    if expected_frame is not None:
-        frames = [
-            step.action_frame
-            for step in analysis.steps
-            if step.action_frame is not None
-        ]
-        total += 1
-        if frames:
-            matched += 1
-        else:
-            failures.append("action_frame: no frame returned")
-        family = expected_frame.get("family")
-        selected_frames = frames
-        if family is not None:
-            total += 1
-            family_matches = [
-                frame for frame in frames if frame.family.value == family
-            ]
-            if family_matches:
-                matched += 1
-                selected_frames = family_matches
-            else:
-                selected_frames = []
-                failures.append(
-                    f"action_frame.family: expected={family!r}; "
-                    f"observed={[frame.family.value for frame in frames]!r}"
-                )
-        for expected_argument in expected_frame["arguments"]:
-            total += 1
-            argument_matches = any(
-                argument.role.value == expected_argument["role"]
-                and argument.mention.text.casefold()
-                == expected_argument["mention"].casefold()
-                and argument.mention.kind_hint.value
-                == expected_argument["kind_hint"]
-                for frame in selected_frames
-                for argument in frame.arguments
-            )
-            if argument_matches:
-                matched += 1
-            else:
-                failures.append(
-                    f"action_frame.argument: expected={expected_argument!r}"
-                )
-
-    expected_relation = scenario.get("expected_relation")
-    if expected_relation is not None:
-        claims = analysis.relation_claims
-        subject = expected_relation["subject"].casefold()
-        object_ = expected_relation["object"].casefold()
-        direction_matches = [
-            claim for claim in claims
-            if claim.subject.text.casefold() == subject
-            and claim.object.text.casefold() == object_
-        ]
-        total += 1
-        if direction_matches:
-            matched += 1
-        else:
-            failures.append(
-                "relation direction: expected="
-                f"({expected_relation['subject']!r}, {expected_relation['object']!r}) "
-                f"observed={[(claim.subject.text, claim.object.text) for claim in claims]!r}"
-            )
-        for field, wanted in expected_relation.items():
-            if field in {"subject", "object"}:
-                continue
-            total += 1
-            observed_values = []
-            for claim in direction_matches:
-                if field == "attributed_to":
-                    observed = (
-                        None if claim.attributed_to is None
-                        else claim.attributed_to.text
-                    )
-                else:
-                    observed = getattr(claim, field, None)
-                    observed = _value(observed)
-                observed_values.append(observed)
-            if any(
-                (observed.casefold() if isinstance(observed, str) else observed)
-                == (wanted.casefold() if isinstance(wanted, str) else wanted)
-                for observed in observed_values
-            ):
-                matched += 1
-            else:
-                failures.append(
-                    f"relation.{field}: expected={wanted!r} "
-                    f"observed={observed_values!r}"
-                )
     return matched, total, failures
 
 
@@ -257,10 +167,11 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     print(ledger.render())
     if observational_failures:
         print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
+    assert not critical_failures, "\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
+    """Score action/relation surface predicates independently from other slots."""
     corpus = json.loads(
         (FIXTURES / "semantic_frame_corpus_holdout_v1.json").read_text(
             encoding="utf-8"
@@ -269,8 +180,47 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     assert corpus["schema_version"] == 1
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 18
+    predicate_gold = json.loads(
+        (FIXTURES / "semantic_frame_predicate_gold_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert predicate_gold["schema_version"] == 1
+    assert predicate_gold["split"] == "held_out_annotations"
+    predicate_by_id = {
+        item["id"]: item for item in predicate_gold["scenarios"]
+    }
+    assert set(predicate_by_id) == {
+        item["id"] for item in corpus["scenarios"]
+    }
 
-    interpreter = _make_interpreter()
+    # Attach sidecar gold only in memory. The original held-out corpus remains
+    # byte-for-byte unchanged and the annotation fixture contains no utterances.
+    scenarios = []
+    for item in corpus["scenarios"]:
+        scenario = dict(item)
+        gold = predicate_by_id[item["id"]]
+        if "action_frame_predicate" in gold:
+            frame = dict(scenario["expected_action_frame"])
+            frame["predicate"] = gold["action_frame_predicate"]
+            scenario["expected_action_frame"] = frame
+        if "relation_predicate" in gold:
+            relation = dict(scenario["expected_relation"])
+            relation["predicate"] = gold["relation_predicate"]
+            scenario["expected_relation"] = relation
+        scenarios.append(scenario)
+
+    scenario_filter = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID")
+    if scenario_filter:
+        scenarios = [item for item in scenarios if item["id"] == scenario_filter]
+        if len(scenarios) != 1:
+            raise ValueError(
+                "CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID must match one semantic-frame "
+                "held-out scenario"
+            )
+
+    usage_events: list[dict[str, Any]] = []
+    interpreter = _make_interpreter(usage_events)
     context = _make_context()
     ledger = SemanticEvaluationLedger()
     critical_failures: list[str] = []
@@ -278,7 +228,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     provider_calls = 0
     started = perf_counter()
 
-    for scenario in corpus["scenarios"]:
+    for scenario in scenarios:
         repetitions = 3 if scenario["critical"] else 1
         for repetition in range(repetitions):
             case_started = perf_counter()
@@ -288,13 +238,16 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     scenario["input"],
                 )
                 assert analysis.schema_version == 2
-                matched, total, failures = _score_semantic_scenario(
+                matched, total, failures = score_semantic_frame_scenario(
                     analysis,
                     scenario,
+                    ledger=ledger,
                 )
-            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed evaluation cases
+            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed cases
                 matched, total = 0, 1
                 failures = [f"provider/decoder error: {type(exc).__name__}: {exc}"]
+                # A rejected response still counts as a missing expected predicate.
+                score_semantic_frame_scenario(None, scenario, ledger=ledger)
             elapsed = perf_counter() - case_started
             provider_calls += 1
             ledger.record_case(
@@ -308,23 +261,58 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     f"{scenario['id']} repetition={repetition + 1}: "
                     + "; ".join(failures)
                 )
-                if scenario["critical"]:
+                if scenario["critical"] or scenario_filter:
                     critical_failures.append(description)
                 else:
                     observational_failures.append(description)
 
     total_seconds = perf_counter() - started
+    report = build_live_evaluation_report(
+        evaluation_name="semantic_frame_predicate_holdout",
+        corpus_name="semantic_frame_corpus_holdout_v1.json + semantic_frame_predicate_gold_v1.json",
+        provider=interpreter.provider,
+        ledger=ledger,
+        scenario_count=len(scenarios),
+        provider_calls=provider_calls,
+        elapsed_seconds=total_seconds,
+        usage_events=usage_events,
+        scenario_filter=scenario_filter,
+    )
+    report_path = write_live_evaluation_report(report)
     ledger.emit(record_property, prefix="semantic_holdout_frames")
-    record_property("semantic_holdout_frames_model", os.getenv(
-        "CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"
-    ))
-    record_property("semantic_holdout_frames_cases", len(corpus["scenarios"]))
+    metadata = report["metadata"]
+    record_property("semantic_holdout_frames_model", metadata["model"])
+    record_property(
+        "semantic_holdout_frames_model_digest",
+        metadata["model_digest"] or "unavailable",
+    )
+    record_property(
+        "semantic_holdout_frames_ollama_version",
+        metadata["ollama_version"] or "unavailable",
+    )
+    record_property(
+        "semantic_holdout_frames_timeout_seconds",
+        metadata["timeout_seconds"]
+        if metadata["timeout_seconds"] is not None
+        else "unavailable",
+    )
+    record_property(
+        "semantic_holdout_frames_git_commit",
+        metadata["git_commit"] or "unavailable",
+    )
+    record_property("semantic_holdout_frames_scenario_filter", scenario_filter or "all")
     record_property("semantic_holdout_frames_provider_calls", provider_calls)
     record_property("semantic_holdout_frames_total_seconds", round(total_seconds, 3))
+    record_property(
+        "semantic_holdout_frames_json_report",
+        report_path or "not_configured",
+    )
     print(ledger.render())
+    if report_path:
+        print(f"Predicate evaluation JSON report: {report_path}")
     if observational_failures:
         print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
+    assert not critical_failures, "\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):

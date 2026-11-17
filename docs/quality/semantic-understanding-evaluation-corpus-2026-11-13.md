@@ -110,3 +110,10 @@ Record the exact model digest, Ollama version, timeout, temperature/top-p/seed w
 The original 110-case corpus predates the advanced discourse implementation. PR #223 added deterministic discourse behavior; PR #226 separated production Intent, Mechanics and Consequence Planner roles. PR #227 now adds a distinct 28-case held-out tranche and deterministic harness, plus opt-in live evaluators for Intent/resolution/context, ellipsis action recovery, prompt-level NPC speaker-hint retention, multi-turn corrections, a positive NPC-fact update and a negative failed-compound-action control. The live tests report by family and stage; they remain unexecuted until the pinned local Ollama model is supplied. History-derived NPC hints remain DiscourseEvidence; they are not written into `IntentStep.attributed_to`, which is grounded in current player evidence.
 
 Do not fold the new cases into prompt examples or the original 110-case corpus. The complete 138-scenario inventory is 50 development + 88 held-out cases. Prompt retention and context retrieval are measured without logging their content. See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) and the [independent audit](language-understanding-audit-2026-11-14.md).
+
+
+## Predicate-specific evaluation (PR #250)
+
+The original 20-case `semantic_frame_corpus_holdout_v1.json` remains unchanged at schema version 1. PR #250 adds a separate `semantic_frame_predicate_gold_v1.json` sidecar keyed by those immutable scenario IDs; it contains no utterance text. This preserves the original held-out examples and the historical scoring baseline while adding exact, case-sensitive action/relation surface predicate annotations.
+
+The live evaluator joins the sidecar in memory and reports `action_frame_predicate_surface` and `relation_predicate_surface` separately from frame family, argument roles, relation direction and epistemic fields. The metrics measure exact written-form preservation, not full lexical-sense disambiguation. See [PR #250 predicate evaluation and telemetry](pr-250-predicate-evaluation-and-telemetry.md).

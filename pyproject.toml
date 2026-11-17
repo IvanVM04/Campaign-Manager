@@ -24,6 +24,7 @@ typing = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+junit_family = "legacy"
 markers = [
     "real_llm: tests that require a running Ollama instance",
 ]

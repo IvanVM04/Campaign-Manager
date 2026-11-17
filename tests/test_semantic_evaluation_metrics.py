@@ -61,6 +61,23 @@ def test_semantic_slot_metrics_reject_empty_family_and_signatures():
         )
 
 
+def test_semantic_slot_metrics_score_zero_f1_when_all_expected_slots_are_missing():
+    ledger = SemanticEvaluationLedger()
+    ledger.record_semantic_slots(
+        "missed_action_predicate",
+        expected_slots=("action:Camino",),
+        predicted_slots=(),
+    )
+
+    values = ledger.summary()["semantic_slot_quality"]["missed_action_predicate"]
+    assert values["true_positive"] == 0
+    assert values["false_positive"] == 0
+    assert values["false_negative"] == 1
+    assert values["precision"] is None
+    assert values["recall"] == 0.0
+    assert values["f1"] == 0.0
+
+
 def test_semantic_slot_metrics_report_unmeasured_families_without_inventing_scores():
     ledger = SemanticEvaluationLedger()
     ledger.record_semantic_slots(

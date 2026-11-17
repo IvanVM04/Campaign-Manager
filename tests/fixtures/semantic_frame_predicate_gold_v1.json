@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "split": "held_out_annotations",
+  "source_corpus": "semantic_frame_corpus_holdout_v1.json",
+  "description": "Predicate-only gold annotations keyed by the immutable IDs of the original held-out semantic-frame corpus. Does not duplicate or alter any held-out utterance. Keep evaluation-only; never copy labels into prompts.",
+  "scenarios": [
+    {
+      "id": "holdout-transfer-scroll",
+      "action_frame_predicate": "Entrego"
+    },
+    {
+      "id": "holdout-transfer-ring",
+      "action_frame_predicate": "entrega"
+    },
+    {
+      "id": "holdout-item-definition-vs-instance",
+      "action_frame_predicate": "Guardo"
+    },
+    {
+      "id": "holdout-item-use-instrument",
+      "action_frame_predicate": "Abro"
+    },
+    {
+      "id": "holdout-movement-path",
+      "action_frame_predicate": "Camino"
+    },
+    {
+      "id": "holdout-movement-companion",
+      "action_frame_predicate": "Acompaño"
+    },
+    {
+      "id": "holdout-combat-patient-tool",
+      "action_frame_predicate": "Golpeo"
+    },
+    {
+      "id": "holdout-containment",
+      "action_frame_predicate": "Guardo"
+    },
+    {
+      "id": "holdout-hide-location",
+      "action_frame_predicate": "Escondo"
+    },
+    {
+      "id": "holdout-perception-target",
+      "action_frame_predicate": "Observo"
+    },
+    {
+      "id": "holdout-relation-employment",
+      "relation_predicate": "trabaja"
+    },
+    {
+      "id": "holdout-relation-membership",
+      "relation_predicate": "pertenece"
+    },
+    {
+      "id": "holdout-relation-allegiance",
+      "relation_predicate": "jura lealtad"
+    },
+    {
+      "id": "holdout-relation-protection",
+      "relation_predicate": "protege"
+    },
+    {
+      "id": "holdout-relation-friendship",
+      "relation_predicate": "son amigos"
+    },
+    {
+      "id": "holdout-relation-hostility",
+      "relation_predicate": "odia"
+    },
+    {
+      "id": "holdout-relation-part-of",
+      "relation_predicate": "forma parte"
+    },
+    {
+      "id": "holdout-relation-negative",
+      "relation_predicate": "pertenece"
+    },
+    {
+      "id": "holdout-relation-reported",
+      "relation_predicate": "pertenece"
+    },
+    {
+      "id": "holdout-relation-temporal",
+      "relation_predicate": "pertenece"
+    }
+  ]
+}
