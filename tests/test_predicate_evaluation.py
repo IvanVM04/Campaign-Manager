@@ -112,10 +112,11 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
         ledger=ledger,
     )
 
-    assert matched == 1  # exact predicate matches although endpoint direction is wrong
+    assert matched == 2  # predicate and polarity match despite reversed direction
     assert total == 4
     assert any(item.startswith("relation direction:") for item in failures)
     assert not any(item.startswith("relation.predicate:") for item in failures)
+    assert not any(item.startswith("relation.polarity:") for item in failures)
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
     assert metrics["precision"] == 1.0
     assert metrics["recall"] == 1.0
@@ -252,4 +253,55 @@ def test_relation_predicate_surface_survives_a_missing_leading_article():
     assert metrics["precision"] == 1.0
     assert metrics["recall"] == 1.0
     assert metrics["f1"] == 1.0
+
+
+def test_action_arguments_are_scored_even_when_frame_family_is_wrong():
+    frame = SimpleNamespace(
+        predicate="Entrego",
+        family=SimpleNamespace(value="interaction"),
+        arguments=(
+            SimpleNamespace(
+                role=SimpleNamespace(value="theme"),
+                mention=SimpleNamespace(
+                    text="el pergamino",
+                    kind_hint=SimpleNamespace(value="item_instance"),
+                ),
+            ),
+            SimpleNamespace(
+                role=SimpleNamespace(value="recipient"),
+                mention=SimpleNamespace(
+                    text="Mara",
+                    kind_hint=SimpleNamespace(value="character"),
+                ),
+            ),
+        ),
+    )
+    scenario = {
+        "id": "action-family-independent-arguments",
+        "expected_action_frame": {
+            "predicate": "Entrego",
+            "family": "transfer",
+            "arguments": [
+                {
+                    "role": "theme",
+                    "mention": "el pergamino",
+                    "kind_hint": "item_instance",
+                },
+                {
+                    "role": "recipient",
+                    "mention": "Mara",
+                    "kind_hint": "character",
+                },
+            ],
+        },
+    }
+    matched, total, failures = score_semantic_frame_scenario(
+        _analysis(frames=(frame,)),
+        scenario,
+    )
+
+    assert matched == 4
+    assert total == 5
+    assert len(failures) == 1
+    assert failures[0].startswith("action_frame.family:")
 
