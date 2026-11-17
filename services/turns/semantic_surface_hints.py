@@ -740,11 +740,16 @@ def _make_relation_claim(
         modality = SemanticModality.QUESTION
     else:
         polarity = SemanticPolarity.POSITIVE
+        step_modality = SemanticModality(step.modality.value)
         modality = (
             SemanticModality.OBSERVED
-            if step.modality.value
-            in {"attempted", "completed", "observed", "reported"}
-            else SemanticModality(step.modality.value)
+            if step_modality
+            in {
+                SemanticModality.ATTEMPTED,
+                SemanticModality.COMPLETED,
+                SemanticModality.OBSERVED,
+            }
+            else step_modality
         )
     attributed_to = (
         SemanticMention(
