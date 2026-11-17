@@ -647,7 +647,7 @@ def test_discourse_holdout_distinguishes_npc_speech_from_npc_reported_actions():
     assert scenarios["dp-grammar-explicit-local-17"]["expected"]["intent"][
         "category"
     ] == "dialogue"
-    assert scenarios["dp-grammar-plural-abstention-20"]["expected"]["intent"][
+    assert scenarios["dp-grammar-plural-group-20"]["expected"]["intent"][
         "category"
     ] == "dialogue"
 

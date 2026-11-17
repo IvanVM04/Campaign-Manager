@@ -88,7 +88,7 @@ def test_entity_group_resolution_scores_each_member_without_collapsing_group():
 
 def test_entity_group_resolution_rejects_invalid_expected_and_observed_ids():
     ledger = SemanticEvaluationLedger()
-    with pytest.raises(ValueError, match="expected group"):
+    with pytest.raises(ValueError, match="expected entity group"):
         ledger.record_entity_group_resolution(
             expected_entity_ids=(11,),
             observed_entity_ids=(),
