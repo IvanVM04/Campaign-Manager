@@ -39,6 +39,8 @@ Set an output path and run the semantic-frame holdout:
 
 ```powershell
 $env:CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH = ".\\artifacts\\predicate-holdout.json"
+$env:CAMPAIGN_MANAGER_GIT_COMMIT = (git rev-parse HEAD).Trim()
+$env:CAMPAIGN_MANAGER_REAL_LLM_HARDWARE = "optional hardware label"
 python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v2" -v -s
 ```
 
