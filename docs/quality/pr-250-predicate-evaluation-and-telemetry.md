@@ -85,6 +85,8 @@ The new predicate metrics answer: "Did the model preserve the expected written p
 
 For relation claims, endpoint identity matching ignores only a leading Spanish article when comparing the two endpoints; it does not erase meaningful nouns/modifiers, reverse direction or normalize the predicate. This keeps the predicate metric from failing solely because a model omitted an initial article while preserving separate endpoint-direction scoring.
 
+Action argument roles are scored across returned action frames even when the frame family is wrong. Relation family, polarity, modality, attribution and temporal fields are scored against the unordered endpoint pair, while direction is scored separately against the ordered pair. These dimensions must not be silently converted into false negatives by a mismatch in another dimension.
+
 Do not label aggregate semantic-slot F1 as predicate accuracy. Report the new predicate metrics by their own names.
 
 ## Follow-up prompt/schema refinement
