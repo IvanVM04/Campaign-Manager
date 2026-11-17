@@ -6,7 +6,7 @@
     {
       "id": "dp-topic-current-shift-01",
       "family": "topic_boundary",
-      "critical": false,
+      "critical": true,
       "input": "Cambiando de tema, ¿qué ocurre en la biblioteca?",
       "recent_turns": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "dp-topic-history-segment-02",
       "family": "topic_boundary",
-      "critical": false,
+      "critical": true,
       "input": "Ella contesta en voz alta desde la puerta.",
       "recent_turns": [
         {
@@ -68,7 +68,7 @@
     {
       "id": "dp-topic-quoted-marker-03",
       "family": "topic_boundary",
-      "critical": false,
+      "critical": true,
       "input": "Mara susurra: «cambiando de tema» y después se ríe.",
       "recent_turns": [
         {
@@ -92,7 +92,7 @@
     {
       "id": "dp-topic-narrative-quote-04",
       "family": "topic_boundary",
-      "critical": false,
+      "critical": true,
       "input": "¿Qué quiso decir con esa frase?",
       "recent_turns": [
         {
@@ -126,7 +126,7 @@
     {
       "id": "dp-callback-mara-05",
       "family": "explicit_callback",
-      "critical": false,
+      "critical": true,
       "input": "Volviendo a lo de Mara, le pregunto por el mapa.",
       "recent_turns": [
         {
@@ -173,7 +173,7 @@
     {
       "id": "dp-callback-lighthouse-06",
       "family": "explicit_callback",
-      "critical": false,
+      "critical": true,
       "input": "Retomando la conversación sobre el faro, ¿quién dejó la llave?",
       "recent_turns": [
         {
@@ -207,7 +207,7 @@
     {
       "id": "dp-callback-earlier-07",
       "family": "explicit_callback",
-      "critical": false,
+      "critical": true,
       "input": "Como te dije antes, quiero continuar con el asunto de la carta.",
       "recent_turns": [
         {
@@ -241,7 +241,7 @@
     {
       "id": "dp-callback-not-explicit-08",
       "family": "explicit_callback",
-      "critical": false,
+      "critical": true,
       "input": "Ella vuelve a hablar conmigo.",
       "recent_turns": [
         {
@@ -843,7 +843,7 @@
       }
     },
     {
-      "id": "dp-grammar-plural-abstention-20",
+      "id": "dp-grammar-plural-group-20",
       "family": "local_grammatical_agreement",
       "critical": true,
       "input": "Ellas contestan en voz alta desde el balcón.",
@@ -879,7 +879,11 @@
         "reference": {
           "mention": "ellas",
           "entity_id": null,
-          "clarification": true
+          "entity_ids": [
+            1312,
+            1313
+          ],
+          "clarification": false
         },
         "intent": {
           "category": "dialogue"

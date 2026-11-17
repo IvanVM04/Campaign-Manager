@@ -100,3 +100,85 @@ def test_normal_intent_prompt_covers_callbacks_ellipsis_actor_and_evidence_bound
     assert "no lo sustituyas por el nombre" in prompt
     assert "etiqueta histórica de npc" in prompt
     assert "no copies de ellos nombres propios" in prompt
+
+
+
+def test_explicit_positive_npc_speech_report_is_normalized_to_dialogue_without_rewriting_evidence():
+    from models.player_intent_analysis import PlayerIntentAnalysis, UtteranceCategory
+    from models.semantic_frames import SemanticActionFamily
+    from services.turns.intent_interpreter import _normalize_explicit_npc_speech_report
+
+    utterance = "Ellas contestan en voz alta."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 2,
+            "category": "report",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": utterance,
+                "actor": "npc",
+                "action": "responder en voz alta",
+                "modality": "reported",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": [],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "contestan",
+                    "family": "social",
+                    "arguments": [],
+                },
+            }],
+            "active_step_index": None,
+            "requires_clarification": False,
+            "clarification_question": None,
+            "relation_claims": [],
+        },
+        source_text=utterance,
+    )
+
+    corrected = _normalize_explicit_npc_speech_report(analysis)
+    assert corrected is not None
+    assert corrected.category is UtteranceCategory.DIALOGUE
+    assert corrected.steps[0].actor.value == "npc"
+    assert corrected.steps[0].modality.value == "dialogue"
+    assert corrected.steps[0].source_excerpt == utterance
+    assert corrected.steps[0].action_frame.family is SemanticActionFamily.COMMUNICATION
+
+
+def test_explicit_npc_speech_normalization_does_not_rewrite_negation_or_quotes():
+    from models.player_intent_analysis import PlayerIntentAnalysis
+    from services.turns.intent_interpreter import _normalize_explicit_npc_speech_report
+
+    for utterance in (
+        "Ellas no contestan.",
+        'Mara repite: «Ellas contestan» y se marcha.',
+    ):
+        analysis = PlayerIntentAnalysis.from_payload(
+            {
+                "schema_version": 2,
+                "category": "report",
+                "steps": [{
+                    "index": 0,
+                    "source_excerpt": utterance,
+                    "actor": "npc",
+                    "action": "relatar una intervención",
+                    "modality": "reported",
+                    "polarity": "positive",
+                    "reported_outcome": "not_claimed",
+                    "target_mentions": [],
+                    "attributed_to": None,
+                    "action_frame": {
+                        "predicate": "contestan" if "contestan" in utterance else "repite",
+                        "family": "social",
+                        "arguments": [],
+                    },
+                }],
+                "active_step_index": None,
+                "requires_clarification": False,
+                "clarification_question": None,
+                "relation_claims": [],
+            },
+            source_text=utterance,
+        )
+        assert _normalize_explicit_npc_speech_report(analysis) is None

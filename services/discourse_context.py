@@ -22,6 +22,42 @@ class AttributedNpcUtterance:
     utterance: str
 
 
+@dataclass(frozen=True, slots=True)
+class DiscourseSelection[TurnT]:
+    """Auditable result of topic-scoping, including ambiguous selections."""
+
+    turns: tuple[TurnT, ...]
+    reason: str
+    anchor_tokens: tuple[str, ...] = ()
+    selected_segments: tuple[int, ...] = ()
+    ambiguous: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SurfacePronounMention:
+    """Literal current-utterance pronoun span without canonical identity."""
+
+    text: str
+    start: int
+    end: int
+    gender: str
+    number: str
+
+
+@dataclass(frozen=True, slots=True)
+class SpeechPredicateSignal:
+    """Explicit unquoted third-person subject + speech-predicate surface signal."""
+
+    subject: str
+    predicate: str
+    subject_start: int
+    subject_end: int
+    predicate_start: int
+    predicate_end: int
+    gender: str
+    number: str
+
+
 class DiscourseContextBuilder:
     """Render auditable discourse hints; never resolve identity or authorize writes."""
 
@@ -148,6 +184,73 @@ class DiscourseContextBuilder:
             value,
         )
 
+    @staticmethod
+    def _mask_quoted_spans(value: str) -> str:
+        """Mask quoted text without changing offsets in the source utterance."""
+        return re.sub(
+            r"«[^»]*»|“[^”]*”|\"[^\"]*\"|'[^']*'",
+            lambda match: " " * len(match.group(0)),
+            value,
+        )
+
+    @classmethod
+    def surface_pronoun_mentions(cls, value: str) -> tuple[SurfacePronounMention, ...]:
+        """Extract explicit third-person subject pronouns independently of model output."""
+        if not isinstance(value, str) or not value:
+            return ()
+        masked = cls._mask_quoted_spans(value)
+        pattern = re.compile(
+            r"(?<!\w)(?P<pronoun>ellas|ellos|ella|él|she|he|they)(?!\w)",
+            re.IGNORECASE,
+        )
+        found = []
+        for match in pattern.finditer(masked):
+            text = value[match.start("pronoun"):match.end("pronoun")]
+            features = cls.pronoun_agreement(text)
+            if features is not None:
+                found.append(
+                    SurfacePronounMention(
+                        text=text,
+                        start=match.start("pronoun"),
+                        end=match.end("pronoun"),
+                        gender=features[0],
+                        number=features[1],
+                    )
+                )
+        return tuple(found)
+
+    @classmethod
+    def speech_predicate_signals(cls, value: str) -> tuple[SpeechPredicateSignal, ...]:
+        """Detect explicit third-person pronoun subjects directly attached to speech verbs."""
+        if not isinstance(value, str) or not value:
+            return ()
+        masked = cls._mask_quoted_spans(value)
+        verbs = sorted(cls._SPEECH_VERBS.split("|"), key=len, reverse=True)
+        pattern = re.compile(
+            r"(?<!\w)(?P<subject>ellas|ellos|ella|él|she|he|they)\s+"
+            r"(?P<predicate>" + "|".join(re.escape(item) for item in verbs) + r")(?!\w)",
+            re.IGNORECASE,
+        )
+        signals = []
+        for match in pattern.finditer(masked):
+            subject = value[match.start("subject"):match.end("subject")]
+            predicate = value[match.start("predicate"):match.end("predicate")]
+            features = cls.pronoun_agreement(subject)
+            if features is not None:
+                signals.append(
+                    SpeechPredicateSignal(
+                        subject=subject,
+                        predicate=predicate,
+                        subject_start=match.start("subject"),
+                        subject_end=match.end("subject"),
+                        predicate_start=match.start("predicate"),
+                        predicate_end=match.end("predicate"),
+                        gender=features[0],
+                        number=features[1],
+                    )
+                )
+        return tuple(signals)
+
     @classmethod
     def _contains_unquoted_marker(
         cls,
@@ -190,15 +293,29 @@ class DiscourseContextBuilder:
         )
 
     @classmethod
-    def _callback_anchor_tokens(cls, value: str) -> frozenset[str]:
-        """Extract content words following an unquoted explicit callback marker."""
+    def _callback_anchor_sequence(cls, value: str) -> tuple[str, ...]:
+        """Extract unique callback anchors in the order used by the player."""
         normalized = cls.normalize(cls._without_quoted_spans(value))
         for marker in sorted(cls._REACTIVATION_MARKERS, key=len, reverse=True):
             pattern = re.escape(cls.normalize(marker)).replace(r"\ ", r"\s+")
             match = re.search(r"(?<!\w)" + pattern + r"(?!\w)", normalized)
-            if match is not None:
-                return cls._content_tokens(normalized[match.end():])
-        return frozenset()
+            if match is None:
+                continue
+            tail = normalized[match.end():]
+            content_tokens = cls._content_tokens(tail)
+            ordered: list[str] = []
+            seen: set[str] = set()
+            for token in re.findall(r"[a-z0-9]+", tail):
+                if token in content_tokens and token not in seen:
+                    ordered.append(token)
+                    seen.add(token)
+            return tuple(ordered)
+        return ()
+
+    @classmethod
+    def _callback_anchor_tokens(cls, value: str) -> frozenset[str]:
+        """Set view used for overlap scoring; metadata keeps source order."""
+        return frozenset(cls._callback_anchor_sequence(value))
 
     @classmethod
     def _subject_pronoun(cls, value: str) -> str | None:
@@ -360,24 +477,20 @@ class DiscourseContextBuilder:
         return tuple(result)
 
     @classmethod
-    def scope_history(
+    def select_history(
         cls,
         recent_turns: Iterable[DiscourseTurn] | None,
         current_input: str,
-    ) -> tuple[DiscourseTurn, ...]:
-        """Select the topic segment relevant to the current utterance.
-
-        Explicit callbacks use content words after the callback marker to select
-        an older segment. Ties remain together so the resolver can abstain.
-        A callback without a lexical anchor retains bounded history as ambiguous.
-        """
+    ) -> DiscourseSelection[DiscourseTurn]:
+        """Return topic scope and explicit diagnostics for every selection path."""
         history = tuple(list(recent_turns or ())[-cls.MAX_HISTORY_TURNS :])
         if not history:
-            return ()
+            return DiscourseSelection((), "no_history")
         if cls.reactivates_prior_topic(current_input):
-            anchors = cls._callback_anchor_tokens(current_input)
+            anchor_tokens = cls._callback_anchor_sequence(current_input)
+            anchors = frozenset(anchor_tokens)
             if not anchors:
-                return history
+                return DiscourseSelection(history, "callback_without_anchor", ambiguous=True)
             segments = cls.topic_segments(history)
             active_segment = segments[-1]
             earlier = {segment for segment in segments if segment < active_segment}
@@ -393,25 +506,58 @@ class DiscourseContextBuilder:
                     segment = segments[index]
                     scores[segment] = scores.get(segment, 0) + overlap
             if not scores:
-                return history
+                return DiscourseSelection(
+                    history,
+                    "callback_anchor_unmatched",
+                    anchor_tokens,
+                    ambiguous=True,
+                )
             best = max(scores.values())
-            selected = {segment for segment, score in scores.items() if score == best}
-            return tuple(
+            selected = tuple(sorted(
+                segment for segment, score in scores.items() if score == best
+            ))
+            selected_turns = tuple(
                 turn for turn, segment in zip(history, segments, strict=True)
                 if segment in selected
             )
+            return DiscourseSelection(
+                selected_turns,
+                "callback_anchor_match" if len(selected) == 1 else "callback_anchor_tie",
+                anchor_tokens,
+                selected,
+                ambiguous=len(selected) > 1,
+            )
         if cls.has_topic_shift(current_input):
-            return ()
+            return DiscourseSelection((), "current_topic_shift")
         segments = cls.topic_segments(history)
         active = segments[-1]
-        return tuple(
+        selected_turns = tuple(
             turn for turn, segment in zip(history, segments, strict=True)
             if segment == active
         )
+        return DiscourseSelection(
+            selected_turns,
+            "active_topic_segment",
+            selected_segments=(active,),
+        )
+
+    @classmethod
+    def scope_history(
+        cls,
+        recent_turns: Iterable[DiscourseTurn] | None,
+        current_input: str,
+    ) -> tuple[DiscourseTurn, ...]:
+        """Backward-compatible turn-only view of the typed discourse selection."""
+        return cls.select_history(recent_turns, current_input).turns
 
     @classmethod
     def pronoun_agreement(cls, mention: str) -> tuple[str, str] | None:
-        return cls._PRONOUNS.get(cls.normalize(mention).strip())
+        normalized = cls.normalize(mention).strip()
+        return cls._PRONOUNS.get(normalized) or {
+            "he": ("masculine", "singular"),
+            "she": ("feminine", "singular"),
+            "they": ("masculine", "plural"),
+        }.get(normalized)
 
     @classmethod
     def grammatical_features(
@@ -520,6 +666,17 @@ class DiscourseContextBuilder:
         scoped = cls.scope_history(history, current_input)
         visible = tuple(visible_entities)
         lines: list[str] = []
+        selection = cls.select_history(history, current_input)
+        lines.append(
+            "Selección discursiva tipada: "
+            + selection.reason
+            + (
+                " (anclas=" + ", ".join(selection.anchor_tokens) + ")"
+                if selection.anchor_tokens
+                else ""
+            )
+            + ("; ambigua, no elegir un antecedente automáticamente" if selection.ambiguous else "")
+        )
 
         if cls.reactivates_prior_topic(current_input):
             anchors = cls._callback_anchor_tokens(current_input)
@@ -584,6 +741,18 @@ class DiscourseContextBuilder:
                 + ", ".join(f"«{value}»" for value in speech)
                 + ". Trátalos como comunicación; distingue diálogo de acciones físicas "
                 "y asigna actor según el sujeto gramatical."
+            )
+        for signal in cls.speech_predicate_signals(current_input)[:2]:
+            lines.append(
+                "Señal superficial tipada de habla: sujeto="
+                + repr(signal.subject)
+                + ", predicado="
+                + repr(signal.predicate)
+                + ", concordancia="
+                + signal.gender
+                + "/"
+                + signal.number
+                + ". Procede del mensaje actual; no aporta identidad canónica."
             )
 
         pronoun_hint = cls._npc_pronoun_hint(current_input, scoped, visible)

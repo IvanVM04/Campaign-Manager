@@ -18,6 +18,10 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
@@ -25,6 +29,7 @@ from services.context import ContextBuilder
 from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
+from services.discourse_context import DiscourseContextBuilder
 from services.providers import LLMSettings
 from services.turns import IntentInterpreter, IntentInterpreterError
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
@@ -208,15 +213,9 @@ def _evaluate_action_frame(
     )
     failures = []
     if expected_family not in predicted_families:
-        failures.append(
-            f"action_frame.family: expected={expected_family!r} "
-            f"observed={predicted_families!r}"
-        )
+        failures.append("action_frame.family_mismatch")
     if sorted(expected_arguments) != sorted(predicted_arguments):
-        failures.append(
-            "action_frame.arguments: expected="
-            f"{sorted(expected_arguments)!r} observed={sorted(predicted_arguments)!r}"
-        )
+        failures.append("action_frame.arguments_mismatch")
     return failures
 
 
@@ -275,11 +274,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                     evidence_text=scenario["input"],
                 )
                 if analysis.category.value != expected_intent["category"]:
-                    case_failures.append(
-                        "intent.category: expected="
-                        f"{expected_intent['category']!r} "
-                        f"observed={analysis.category.value!r}"
-                    )
+                    case_failures.append("intent.category_mismatch")
                 action_contains = expected_intent.get("action_contains")
                 if action_contains is not None:
                     recovered = any(
@@ -293,11 +288,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         elapsed_seconds=0,
                     )
                     if not recovered:
-                        case_failures.append(
-                            f"intent.action_recovery: expected substring "
-                            f"{action_contains!r} in a step; observed="
-                            f"{[step.action for step in analysis.steps]!r}"
-                        )
+                        case_failures.append("intent.action_recovery_mismatch")
                 expected_npc_ids = scenario["expected"].get("npc_speaker_ids")
                 if expected_npc_ids is not None:
                     npc_entities = scenario.get("npc_entities", [])
@@ -340,10 +331,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         f"{scenario['family']}:retained_npc_hints"
                     ] += len(predicted_names)
                     if predicted_names != expected_names:
-                        case_failures.append(
-                            "discourse.npc_speaker_hint: expected="
-                            f"{expected_names!r} observed={predicted_names!r}"
-                        )
+                        case_failures.append("discourse.npc_speaker_hint_mismatch")
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
                     case_failures.extend(
@@ -355,12 +343,14 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         )
                     )
             except Exception as exc:  # noqa: BLE001 - provider/decoder failure is a failed case
-                detail = (
-                    str(exc)
+                error_kind = (
+                    "intent_interpreter"
                     if isinstance(exc, IntentInterpreterError)
                     else type(exc).__name__
                 )
-                case_failures.append(f"intent provider/decoder error: {detail}")
+                case_failures.append(
+                    f"intent.provider_or_decoder_error:{error_kind}"
+                )
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
                     _evaluate_action_frame(
@@ -395,9 +385,30 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                 elapsed_seconds=elapsed,
             )
 
+            selection = DiscourseContextBuilder.select_history(
+                recent_turns,
+                scenario["input"],
+            )
+            prompt_observations[
+                f"{scenario['family']}:selection_reason:{selection.reason}"
+            ] += 1
+            prompt_observations[
+                f"{scenario['family']}:surface_pronouns_detected"
+            ] += len(
+                DiscourseContextBuilder.surface_pronoun_mentions(
+                    scenario["input"]
+                )
+            )
+
             reference = scenario["expected"].get("reference")
             if reference is not None:
-                if reference["entity_id"] is not None:
+                expected_group_ids = tuple(reference.get("entity_ids", ()))
+                expected_entity_ids = expected_group_ids or (
+                    (reference["entity_id"],)
+                    if reference.get("entity_id") is not None
+                    else ()
+                )
+                if expected_entity_ids:
                     context_started = perf_counter()
                     context_data = context_builder.build(
                         context.world,
@@ -422,10 +433,9 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         for item in selected_entities
                     }
                     selected_ids.discard(None)
-                    expected_context_id = reference["entity_id"]
-                    context_hit = expected_context_id in selected_ids
+                    context_hit = set(expected_entity_ids).issubset(selected_ids)
                     ledger.record_context_recall(
-                        expected_entity_ids=(expected_context_id,),
+                        expected_entity_ids=expected_entity_ids,
                         retrieved_entity_ids=selected_ids,
                     )
                     ledger.record_case(
@@ -437,7 +447,11 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
 
                 resolution_started = perf_counter()
                 observed_id = None
+                observed_group_ids: tuple[int, ...] = ()
                 clarification = False
+                resolution_passed = False
+                expected_id = reference.get("entity_id")
+                expected_group_ids = tuple(reference.get("entity_ids", ()))
                 resolution_reason = "intent_interpretation_failed"
                 try:
                     if analysis is not None:
@@ -476,14 +490,33 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                             recent_turns=recent_turns,
                             current_input=scenario["input"],
                         )
-                        observed_id = (
-                            resolution.references[0].entity_id
+                        resolved = (
+                            resolution.references[0]
                             if len(resolution.references) == 1
                             else None
+                        )
+                        observed_id = (
+                            resolved.entity_id
+                            if isinstance(resolved, ResolvedConversationReference)
+                            else None
+                        )
+                        observed_group_ids = (
+                            resolved.entity_ids
+                            if isinstance(resolved, ResolvedConversationGroupReference)
+                            else ()
                         )
                         clarification = (
                             analysis.requires_clarification
                             or resolution.clarification_question is not None
+                        )
+                        reference_match = (
+                            observed_group_ids == expected_group_ids
+                            if expected_group_ids
+                            else observed_id == expected_id
+                        )
+                        resolution_passed = (
+                            reference_match
+                            and clarification is reference["clarification"]
                         )
                         if resolution.abstention_reason is not None:
                             resolution_reason = resolution.abstention_reason
@@ -498,6 +531,12 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         prompt_observations[
                             f"{scenario['family']}:resolver_references_returned"
                         ] += len(resolution.references)
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_group_references_returned"
+                        ] += sum(
+                            isinstance(item, ResolvedConversationGroupReference)
+                            for item in resolution.references
+                        )
                         prompt_observations[
                             f"{scenario['family']}:resolver_clarifications"
                         ] += int(resolution.clarification_question is not None)
@@ -520,41 +559,40 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         prompt_observations[
                             f"{scenario['family']}:resolver_not_invoked"
                         ] += 1
-                    expected_id = reference["entity_id"]
                     expected_abstention = reference["clarification"]
-                    resolution_passed = (
-                        observed_id == expected_id
-                        and clarification is expected_abstention
-                    )
-                    ledger.record_entity_resolution(
-                        expected_entity_id=expected_id,
-                        observed_entity_id=observed_id,
-                        expected_abstention=expected_abstention,
-                    )
-                    if not resolution_passed:
-                        case_failures.append(
-                            "resolution: expected_id="
-                            f"{expected_id!r}, observed_id={observed_id!r}, "
-                            f"expected_clarification={expected_abstention}, "
-                            f"observed_clarification={clarification}, "
-                            f"reason={resolution_reason}"
+                    if expected_group_ids:
+                        ledger.record_entity_group_resolution(
+                            expected_entity_ids=expected_group_ids,
+                            observed_entity_ids=observed_group_ids,
                         )
+                    else:
+                        ledger.record_entity_resolution(
+                            expected_entity_id=expected_id,
+                            observed_entity_id=observed_id,
+                            expected_abstention=expected_abstention,
+                        )
+                    if not resolution_passed:
+                        case_failures.append("resolution.reference_mismatch")
                 except Exception as exc:  # noqa: BLE001 - resolution error is a failed case
                     case_failures.append(
                         f"resolution error: {type(exc).__name__}"
                     )
-                    ledger.record_entity_resolution(
-                        expected_entity_id=reference["entity_id"],
-                        observed_entity_id=None,
-                        expected_abstention=reference["clarification"],
-                    )
+                    resolution_passed = False
+                    if expected_group_ids:
+                        ledger.record_entity_group_resolution(
+                            expected_entity_ids=expected_group_ids,
+                            observed_entity_ids=(),
+                        )
+                    else:
+                        ledger.record_entity_resolution(
+                            expected_entity_id=expected_id,
+                            observed_entity_id=None,
+                            expected_abstention=reference["clarification"],
+                        )
                 ledger.record_case(
                     f"resolution:{scenario['family']}",
                     expected_slots=1,
-                    matched_slots=int(
-                        observed_id == reference["entity_id"]
-                        and clarification is reference["clarification"]
-                    ),
+                    matched_slots=int(resolution_passed),
                     elapsed_seconds=perf_counter() - resolution_started,
                 )
 
@@ -625,6 +663,50 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     print(ledger.render())
     if observational_failures:
         print("Non-critical mismatches:\n" + "\n".join(observational_failures))
+    report_path = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH")
+    if report_path:
+        report_file = Path(report_path)
+        report_file.parent.mkdir(parents=True, exist_ok=True)
+        report_file.write_text(
+            json.dumps(
+                {
+                    # Persist only aggregate numeric outcomes. Detailed
+                    # model/player text and provider metadata stay in the
+                    # test output, not in this optional file.
+                    "schema_version": 4,
+                    "scenario_count": len(scenarios),
+                    "provider_calls": calls,
+                    "metrics": {
+                        "semantic_slot_precision": ledger.summary()[
+                            "semantic_slot_precision"
+                        ],
+                        "semantic_slot_recall": ledger.summary()[
+                            "semantic_slot_recall"
+                        ],
+                        "semantic_slot_f1": ledger.summary()[
+                            "semantic_slot_f1"
+                        ],
+                        "entity_link_precision": ledger.summary()[
+                            "entity_link_precision"
+                        ],
+                        "entity_link_recall": ledger.summary()[
+                            "entity_link_recall"
+                        ],
+                        "context_recall": ledger.summary()["context_recall"],
+                        "operation_precision": ledger.summary()["operation_precision"],
+                        "operation_recall": ledger.summary()["operation_recall"],
+                        "correct_abstentions": ledger.summary()["correct_abstentions"],
+                        "incorrect_abstentions": ledger.summary()["incorrect_abstentions"],
+                    },
+                    "critical_failure_count": len(failures),
+                    "observational_failure_count": len(observational_failures),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     assert not failures, "\n".join(failures) + "\n" + ledger.render()
 
 

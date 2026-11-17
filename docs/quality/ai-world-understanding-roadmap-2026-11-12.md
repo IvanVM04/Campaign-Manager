@@ -447,3 +447,15 @@ The current source of truth for residual language-understanding risks, architect
 The first corrective change is to keep proposal-context supplemental retrieval inside the same topic-scoped history used by Intent and reference resolution. Next priorities are a surface-mention inventory independent of model output, a transient group-reference contract, typed speech-act evidence, and evaluation gates that cannot silently accept a 0% callback family.
 
 Do not start another broad prompt rewrite or introduce vector infrastructure before these interfaces and measurements are corrected.
+
+## 15. PR #247 merged — align discourse-scoped retrieval
+
+PR #247 merged into main on 2026-11-17 at 9e91416dff8b0779047c8be68f947cf5aa446196. It ensures proposal-context supplemental retrieval uses the same selected topic history as Intent and reference resolution.
+
+## 16. PR #248 — consolidated discourse and reference pipeline hardening
+
+The next delivery consolidates the previously planned PRs #248–#251 into one coherent change. It adds independent current-surface pronoun spans, typed speech-predicate signals and narrow NPC speech-act normalization, typed topic selection, transient plural group references, group-safe routing around mechanics, group-aware consequence-planner context, explicit live gates for callbacks/topic boundaries, and privacy-safe JSON evaluation output.
+
+The single shared Intent analysis and deterministic authority boundaries remain unchanged. Group references are transient sets of individually visible canonical members: never a persistent group entity and never a single-target mechanics identifier.
+
+The live Ollama and SillyTavern acceptance checks remain separate from deterministic CI.

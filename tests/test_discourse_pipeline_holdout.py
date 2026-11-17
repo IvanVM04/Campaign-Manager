@@ -11,7 +11,10 @@ from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
@@ -254,21 +257,34 @@ def test_discourse_pipeline_deterministic_reference_cases_match_expected_abstent
             recent_turns=_turns(scenario),
             current_input=scenario["input"],
         )
+        resolved = result.references[0] if len(result.references) == 1 else None
         observed_id = (
-            result.references[0].entity_id
-            if len(result.references) == 1
+            resolved.entity_id
+            if isinstance(resolved, ResolvedConversationReference)
             else None
         )
+        observed_group_ids = (
+            resolved.entity_ids
+            if isinstance(resolved, ResolvedConversationGroupReference)
+            else ()
+        )
+        expected_group_ids = tuple(reference.get("entity_ids", ()))
         clarification = result.clarification_question is not None
+        reference_matches = (
+            observed_group_ids == expected_group_ids
+            if expected_group_ids
+            else observed_id == reference.get("entity_id")
+        )
         if (
-            observed_id != reference["entity_id"]
+            not reference_matches
             or clarification is not reference["clarification"]
         ):
             failures.append(
-                f"{scenario['id']}: expected_id={reference['entity_id']} "
-                f"observed_id={observed_id}, expected_clarification="
-                f"{reference['clarification']} observed={clarification}, "
-                f"reason={result.abstention_reason}"
+                f"{scenario['id']}: expected_id={reference.get('entity_id')}, "
+                f"expected_group_ids={expected_group_ids}, observed_id={observed_id}, "
+                f"observed_group_ids={observed_group_ids}, "
+                f"expected_clarification={reference['clarification']} "
+                f"observed={clarification}, reason={result.abstention_reason}"
             )
 
     assert not failures, "\n".join(failures)
@@ -631,7 +647,7 @@ def test_discourse_holdout_distinguishes_npc_speech_from_npc_reported_actions():
     assert scenarios["dp-grammar-explicit-local-17"]["expected"]["intent"][
         "category"
     ] == "dialogue"
-    assert scenarios["dp-grammar-plural-abstention-20"]["expected"]["intent"][
+    assert scenarios["dp-grammar-plural-group-20"]["expected"]["intent"][
         "category"
     ] == "dialogue"
 

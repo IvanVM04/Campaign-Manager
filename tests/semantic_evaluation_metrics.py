@@ -104,6 +104,27 @@ class SemanticEvaluationLedger:
             if observed_entity_id is not None:
                 self._entity_fp += 1
 
+    def record_entity_group_resolution(
+        self,
+        *,
+        expected_entity_ids: Iterable[int],
+        observed_entity_ids: Iterable[int],
+    ) -> None:
+        """Score a plural reference as a set of distinct canonical entities."""
+        expected = set(expected_entity_ids)
+        observed = set(observed_entity_ids)
+        for values, label in ((expected, "expected"), (observed, "observed")):
+            if any(
+                isinstance(value, bool) or not isinstance(value, int) or value < 1
+                for value in values
+            ):
+                raise ValueError(f"{label} group entity IDs must be positive integers")
+        if not 2 <= len(expected) <= 8:
+            raise ValueError("expected entity group must contain 2-8 unique IDs")
+        self._entity_tp += len(expected & observed)
+        self._entity_fp += len(observed - expected)
+        self._entity_fn += len(expected - observed)
+
     def record_context_recall(
         self,
         *,

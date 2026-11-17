@@ -15,7 +15,15 @@ from models.pending_intent_correction import (
     apply_pending_intent_corrections,
     build_pending_correction_candidates,
 )
-from models.player_intent_analysis import MAX_STEPS, PlayerIntentAnalysis
+from models.player_intent_analysis import (
+    MAX_STEPS,
+    IntentActor,
+    IntentModality,
+    IntentPolarity,
+    PlayerIntentAnalysis,
+    UtteranceCategory,
+)
+from models.semantic_frames import SemanticActionFamily
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.context import ContextBuilder
@@ -167,6 +175,51 @@ def _normalize_ungrounded_step_attributions(
     normalized = dict(intent_payload)
     normalized["steps"] = normalized_steps
     return normalized, tuple(cleared_indices)
+
+
+def _normalize_explicit_npc_speech_report(
+    analysis: PlayerIntentAnalysis,
+) -> PlayerIntentAnalysis | None:
+    """Correct only a positive NPC speech event misclassified as a generic report.
+
+    It requires one NPC step and a literal, unquoted third-person subject
+    directly attached to a known speech predicate. Evidence, mentions, identity
+    and authorization are left untouched.
+    """
+    if (
+        analysis.category is not UtteranceCategory.REPORT
+        or len(analysis.steps) != 1
+        or analysis.active_step_index is not None
+    ):
+        return None
+    step = analysis.steps[0]
+    if (
+        step.actor is not IntentActor.NPC
+        or step.modality not in {IntentModality.OBSERVED, IntentModality.REPORTED}
+        or step.polarity is not IntentPolarity.POSITIVE
+        or not DiscourseContextBuilder.speech_predicate_signals(step.source_excerpt)
+    ):
+        return None
+    action_frame = step.action_frame
+    if (
+        action_frame is not None
+        and action_frame.family is not SemanticActionFamily.COMMUNICATION
+    ):
+        action_frame = replace(
+            action_frame,
+            family=SemanticActionFamily.COMMUNICATION,
+        )
+    corrected_step = replace(
+        step,
+        modality=IntentModality.DIALOGUE,
+        action_frame=action_frame,
+    )
+    return replace(
+        analysis,
+        category=UtteranceCategory.DIALOGUE,
+        steps=(corrected_step,),
+        active_step_index=None,
+    )
 
 
 class IntentInterpreterError(RuntimeError):
@@ -561,11 +614,11 @@ El esquema JSON es el contrato estructural."""
     ) -> tuple[str, dict[str, int]]:
         if pending_analysis is None:
             character = context.active_character
-            scoped_turns = (
-                list(DiscourseContextBuilder.scope_history(recent_turns, player_input))
-                if recent_turns is not None
-                else []
+            discourse_selection = DiscourseContextBuilder.select_history(
+                recent_turns,
+                player_input,
             )
+            scoped_turns = list(discourse_selection.turns)
             context_data = self.context_builder.build(
                 context.world,
                 player_input,
@@ -1005,6 +1058,23 @@ El esquema JSON es el contrato estructural."""
                 source_text=player_input,
                 evidence_text=evidence,
             )
+            speech_normalization = _normalize_explicit_npc_speech_report(analysis)
+            if speech_normalization is not None:
+                signal_count = len(
+                    DiscourseContextBuilder.speech_predicate_signals(
+                        analysis.steps[0].source_excerpt
+                    )
+                )
+                analysis = speech_normalization
+                logger.warning(
+                    "llm.intent.explicit_npc_speech_normalized",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "normalization": "report_to_dialogue",
+                        "surface_signal_count": signal_count,
+                    },
+                )
             corrections: tuple[PendingIntentCorrection, ...] = ()
             logger.info(
                 "llm.intent.analysis_completed",

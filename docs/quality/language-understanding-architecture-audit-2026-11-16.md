@@ -365,16 +365,13 @@ El artefacto nuevo más importante no es otro prompt ni otra memoria persistente
 | 4 | Calibración de resolver y benchmark representativo | P2 | Umbrales basados en desarrollo etiquetado; held-out congelado |
 | 4 | Aceptación real en dos chats de SillyTavern | Gate de producto | Historial aislado, callbacks, plurales, NPC, aclaraciones, restart/replay |
 
-### Orden recomendado para las próximas PR
+### Orden consolidado de implementación
 
-- PR #247 (esta entrega): auditoría versionada + arreglo de consistencia del historial en la segunda recuperación.
-- PR #248: superficie de menciones/spans y diagnósticos de resolución; empezar por singular «ella/él» y el caso de omisión.
-- PR #249: grupo discursivo transitorio y semántica plural, con pruebas de abstención y visibilidad.
-- PR #250: señales tipadas de acto de habla y consistencia categorial, con positivos y negativos.
-- PR #251: selección discursiva tipada, instrumentación y gates por familia.
-- PR posterior: ampliar callbacks/topics implícitos y evaluar en held-out; no asumir que una lista mayor de marcadores soluciona el problema.
+- **PR #247 — fusionada:** auditoría versionada y corrección de consistencia de historial entre recuperación de Intent y recuperación de propuesta.
+- **PR #248 — consolidación actual:** agrupa las antiguas fases previstas #248–#251 en una sola entrega coherente: superficie de menciones independiente del LLM, referencias de grupo transitorias, señales tipadas de habla, selección discursiva tipada, límites de grupo frente a mecánicas individuales, diagnósticos por etapa y gates live explícitos para callbacks y topic boundaries.
+- **Siguiente fase, después de medir #248:** mejoras de callbacks semánticos, tópicos paralelos/implícitos y calibración del resolver. No se empezará una memoria persistente, embeddings o vector DB sin evidencia held-out de que la recuperación léxica tipada ya no es suficiente.
 
-Los números de PR son una secuencia de trabajo sugerida, no una afirmación de que ya existan.
+La PR #248 no intenta separar todas las responsabilidades de DiscourseContextBuilder en múltiples clases antes de estabilizar y medir los nuevos contratos. El refactor interno se hará cuando la frontera tipada resultante esté validada.
 
 ## 8. Criterios de aceptación no negociables
 
@@ -400,3 +397,20 @@ La corrección no modifica prompts, esquemas semánticos, política de abstenci�
 ## 10. Limitaciones y siguiente evidencia
 
 No se ejecutó Ollama ni SillyTavern desde esta auditoría. La nueva rama debe pasar CI determinista y el holdout del usuario debe repetirse con configuración fijada y metadata exportada. Los fallos de callbacks seguirán abiertos hasta que se demuestre mejora en los casos held-out y en una sesión real con dos chats.
+
+## 11. Consolidación posterior a PR #247 — PR #248
+
+PR #247 quedó fusionada en main el 2026-11-17, commit 9e91416dff8b0779047c8be68f947cf5aa446196. Su corrección de historial ya forma parte del baseline; no debe duplicarse como trabajo pendiente.
+
+La siguiente entrega reúne en una única PR las antiguas fases #248–#251. Incluye:
+- spans pronominales de tercera persona extraídos del fragmento literal actual, con exclusión de citas;
+- señales tipadas para pronombre sujeto + predicado de habla;
+- corrección determinista y acotada de un reporte positivo NPC a diálogo cuando la señal superficial es inequívoca;
+- selección discursiva tipada con razón, anclas, segmentos seleccionados y ambigüedad;
+- resultado transitorio de grupo para plural solo ante co-mención y concordancia explícitas;
+- separación estricta entre referencias de grupo y objetivos mecánicos singulares;
+- paso del grupo al planificador como miembros individuales, nunca como entidad persistente;
+- callbacks y topic boundaries como casos críticos del holdout live;
+- exportación JSON opcional de metadatos y métricas sintéticas, sin prompt, completion ni texto de campaña.
+
+No se modifica la autoridad de escritura, la persistencia durable, las migraciones ni los contratos de corrección. La validación live con Ollama y la aceptación completa en SillyTavern siguen siendo gates separados de CI.

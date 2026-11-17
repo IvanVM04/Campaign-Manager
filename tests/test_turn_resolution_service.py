@@ -4,11 +4,20 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
+from models.discourse_evidence import (
+    DiscourseEvidence,
+    DiscourseSource,
+    DiscourseSpeaker,
+)
 from models.entity import Entity
 from models.operation_result import (
     OperationStatus,
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupMember,
+    ResolvedConversationGroupReference,
+)
 from models.session_state import SessionState
 from models.turn_context import TurnContext
 from models.world_context_projection import (
@@ -1742,3 +1751,97 @@ def test_proposal_retrieval_uses_the_same_topic_scoped_history_as_intent(
     assert expected_query in context_builder.supplemental_queries
     for excluded in excluded_queries:
         assert excluded not in context_builder.supplemental_queries
+
+
+
+def test_action_against_resolved_plural_group_requests_member_or_group_clarification():
+    excerpt = "La guardia Mara y la mercadera Lía esperan junto al balcón."
+    group = ResolvedConversationGroupReference(
+        mention="ellas",
+        members=(
+            ResolvedConversationGroupMember(
+                entity_id=1,
+                entity_name="Mara",
+                evidence=(DiscourseEvidence(
+                    turn_id=401,
+                    source=DiscourseSource.PLAYER_INPUT,
+                    speaker=DiscourseSpeaker.PLAYER,
+                    mention="Mara",
+                    excerpt=excerpt,
+                    recency_rank=1,
+                ),),
+                confidence_score=92,
+                resolution_signals=("plural_group_co_mention",),
+            ),
+            ResolvedConversationGroupMember(
+                entity_id=2,
+                entity_name="Lía",
+                evidence=(DiscourseEvidence(
+                    turn_id=401,
+                    source=DiscourseSource.PLAYER_INPUT,
+                    speaker=DiscourseSpeaker.PLAYER,
+                    mention="Lía",
+                    excerpt=excerpt,
+                    recency_rank=1,
+                ),),
+                confidence_score=92,
+                resolution_signals=("plural_group_co_mention",),
+            ),
+        ),
+        antecedent_turn_id=401,
+    )
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Lía", entity_type="npc"),
+        20: Entity(id=20, name="Fungoso", entity_type="player"),
+    })
+    service, _dm, extractor, _applier = make_service(
+        context_builder=ContextBuilder(),
+    )
+    service.conversation_reference_resolver = SimpleNamespace(
+        resolve=lambda *args, **kwargs: SimpleNamespace(
+            references=(group,),
+            clarification_question=None,
+        )
+    )
+    utterance = "Ataco a ellas."
+    analysis = PlayerIntentAnalysis.from_payload(
+        {
+            "schema_version": 1,
+            "category": "action",
+            "steps": [{
+                "index": 0,
+                "source_excerpt": utterance,
+                "actor": "player",
+                "action": "atacar al grupo",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["ellas"],
+                "attributed_to": None,
+            }],
+            "active_step_index": 0,
+            "requires_clarification": False,
+            "clarification_question": None,
+        },
+        source_text=utterance,
+    )
+
+    plan = service.prepare_turn(
+        make_turn_context(world),
+        utterance,
+        intent_analysis_override=analysis,
+        recent_turns=[
+            SimpleNamespace(
+                id=401,
+                player_input=excerpt,
+                narrative="",
+            )
+        ],
+    )
+
+    assert plan.clarification_question is not None
+    assert "grupo" in plan.clarification_question.casefold()
+    assert "miembro concreto" in plan.clarification_question.casefold()
+    assert plan.world_operations == ()
+    assert extractor.calls == []
