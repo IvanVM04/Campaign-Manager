@@ -10,7 +10,7 @@ The 20-case semantic-frame holdout remains evaluation-only. No held-out utteranc
 
 ### 1. Gold predicates for every held-out frame and relation
 
-`semantic_frame_corpus_holdout_v1.json` is schema version 2. Every expected action frame and directed relation now declares the exact, case-sensitive surface predicate copied from its utterance.
+`semantic_frame_corpus_holdout_v1.json` remains byte-for-byte unchanged at schema version 1. New labels live in `semantic_frame_predicate_gold_v1.json`, a sidecar keyed by the original scenario IDs. It contains no duplicate utterances and declares exact, case-sensitive surface predicates for every action frame and directed relation.
 
 Examples:
 - `Entrego el pergamino...` → `Entrego`
@@ -41,7 +41,7 @@ Set an output path and run the semantic-frame holdout:
 $env:CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH = ".\\artifacts\\predicate-holdout.json"
 $env:CAMPAIGN_MANAGER_GIT_COMMIT = (git rev-parse HEAD).Trim()
 $env:CAMPAIGN_MANAGER_REAL_LLM_HARDWARE = "optional hardware label"
-python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v2" -v -s
+python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v1" -v -s
 ```
 
 The report includes the commit SHA (when supplied by the environment), model and digest, Ollama server version, timeout, `think`, scenario filter/count, provider-call count, elapsed time, aggregate metrics and allowlisted content-free provider usage counters.
