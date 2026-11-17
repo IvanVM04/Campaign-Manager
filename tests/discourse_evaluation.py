@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,12 +26,12 @@ def load_primary_actor_gold() -> dict[str, str]:
         raise ValueError("unsupported discourse actor gold contract")
     entries = payload.get("scenarios")
     if not isinstance(entries, list):
-        raise ValueError("discourse actor gold scenarios must be a list")
+        raise TypeError("discourse actor gold scenarios must be a list")
 
     result: dict[str, str] = {}
     for entry in entries:
         if not isinstance(entry, dict):
-            raise ValueError("discourse actor gold entries must be objects")
+            raise TypeError("discourse actor gold entries must be objects")
         scenario_id = entry.get("id")
         actor = entry.get("primary_actor")
         if not isinstance(scenario_id, str) or not scenario_id.strip():
@@ -126,7 +126,7 @@ def build_live_discourse_report(
     )
     return {
         "schema_version": 5,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
         "metadata": {
             "git_commit": safe_commit,
             "model": model,
