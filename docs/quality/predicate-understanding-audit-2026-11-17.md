@@ -262,3 +262,42 @@ python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semanti
 ```
 
 Para un diagnóstico de un solo caso, establecer `CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` con un ID del corpus. El filtro es estricto y no sustituye la evaluación completa.
+
+
+## 13. Primer baseline de predicados Ollama — 2026-11-17
+
+Ejecución local reportada desde la rama `feat/live-holdout-think-toggle`, con Gemma 4 12B Q4_K_M, digest `6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b`, Ollama 0.40.16, `think=false`, timeout 300 s. Se procesaron los 20 escenarios del holdout en 36 llamadas y 671,547 s.
+
+| Métrica | Resultado |
+|---|---:|
+| Action predicate surface F1 | 0,9714 |
+| Relation predicate surface F1 | 0,2143 |
+| Semantic slot F1 global | 0,6349 |
+| Action predicate TP/FP/FN | 17 / 0 / 1 |
+| Relation predicate TP/FP/FN | 3 / 7 / 15 |
+
+Esta ejecución **no pasa los gates críticos**. El valor más sólido es la copia de predicados de acción; los fallos dominantes son clasificación de familias/roles de action frame, extracción y clasificación de relation claims, spans de predicado relacional, polaridad/modality, atribución y referencias temporales.
+
+Diagnóstico concreto:
+- `Entrego`, `entrega` y `Guardo` se copian bien, pero en varios casos el frame se clasifica como `interaction` en lugar de `transfer`; en combate ocurre lo mismo frente a `combat`. Los roles `theme`, `recipient`, `patient` e `instrument` tampoco se preservan de forma consistente.
+- Los predicados relacionales incluyen preposiciones o negación (`pertenece a`, `jura lealtad a`, `no pertenece`) aunque el gold anota el núcleo léxico (`pertenece`, `jura lealtad`) y expresa negación en polarity/modality.
+- Hay confusión entre `ownership`, `possession` y `membership`; fallos de dirección/mentions; y omisiones de atribución y temporal_expression.
+- La métrica de relation predicate estaba condicionada a extremos textuales prácticamente exactos: una diferencia de artículo (`El anillo de plata` frente a `anillo de plata`) impedía siquiera comparar el predicado. Ese acoplamiento se corrige normalizando solo artículos iniciales para la identidad del extremo; la dirección y el predicado continúan puntuándose por separado.
+
+No se cambia el gold para acomodar esta ejecución. El scorer previo también condicionaba los argumentos de action frame a que la familia coincidiera, y los campos de relation claim a que la dirección coincidiera. Por tanto, algunos falsos negativos agregados podían estar acoplados a otro fallo. Los resultados anteriores quedan archivados como baseline histórico de la versión previa del scorer; no deben compararse directamente con los resultados posteriores.
+
+La PR #252 añadió esas taxonomías y correcciones del scorer sobre la rama de #251, pero su base era la rama de feature y no estuvo incluida en la ejecución local reportada. La intervención posterior #253 copia esas mejoras sobre el `main` actual y añade normalización superficial determinista y limpieza segura de campos opcionales no literales. El baseline de arriba sigue siendo histórico; la próxima ejecución debe usar el nuevo commit y el mismo modelo/digest/think para medir el cambio real.
+
+
+## 14. Intervención amplia de calidad semántica — PR #253
+
+La PR #253 incorpora al `main` actualizado la taxonomía de familias/roles y límites de predicados preparada en #252, y añade una capa `semantic_surface_hints` de reglas españolas acotadas a evidencia literal:
+- corrige familias y roles de patrones claros de transferencia, uso de objetos, combate, movimiento, percepción y ocultación;
+- extrae relaciones de construcciones explícitas y separa núcleo predicativo, extremos, negación, atribución y temporalidad;
+- se abstiene ante construcciones hipotéticas, especulativas, compuestas o relaciones de pertenencia a persona cuyo sentido no puede resolverse con seguridad;
+- elimina únicamente menciones/argumentos/claims opcionales no literales antes de la validación estricta, sin reconstruir predicados ni referencias;
+- mantiene independiente la puntuación de familia/argumentos y dirección/campos de relación.
+
+Los contratos deterministas cubren acciones de transferencia, combate, item-use, movimiento, percepción, ocultación y varias familias relacionales; también prueban que los predicados obligatorios no literales siguen siendo rechazados. El holdout gold y sus utterances originales permanecen sin cambios.
+
+La PR no se considera aceptada por la implementación o CI solamente: requiere repetir el holdout live completo con el mismo Gemma 4 12B Q4_K_M, digest, Ollama y `think=false`, conservar el JSON y comprobar que mejoran relaciones y roles sin falsos positivos, filtraciones ni cambios persistentes críticos.

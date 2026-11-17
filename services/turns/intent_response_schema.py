@@ -21,6 +21,13 @@ _MENTION_SCHEMA = {
         },
         "kind_hint": {
             "type": "string",
+            "description": (
+                "character=person/player character; creature=monster or animal; "
+                "location=place; item_instance=one concrete physical object; "
+                "item_definition=generic item type; faction=organization/group; "
+                "world_entity=other identifiable world object. Choose from literal "
+                "evidence only."
+            ),
             "enum": [
                 "character", "creature", "location", "item_definition",
                 "item_instance", "event", "faction", "resource",
@@ -37,6 +44,14 @@ _ACTION_ARGUMENT_SCHEMA = {
     "properties": {
         "role": {
             "type": "string",
+            "description": (
+                "agent=explicit performer; patient=animate target/being affected, "
+                "especially in combat; theme=thing moved or affected; recipient=receiver; "
+                "source=origin; destination=movement/placement endpoint; instrument=tool "
+                "used; location=where it occurs; path=route; companion=entity accompanying "
+                "the actor; container=physical holder containing the theme. Do not invent "
+                "implicit mentions or interchange recipient, destination and container."
+            ),
             "enum": [
                 "agent", "patient", "theme", "recipient", "source",
                 "destination", "instrument", "location", "path",
@@ -66,9 +81,14 @@ _ACTION_FRAME_SCHEMA = {
         "family": {
             "type": "string",
             "description": (
-                "Use communication for asking, telling, speaking, whispering or replying. "
-                "Use interaction for non-linguistic physical manipulation/contact, "
-                "not as a generic family for speech acts."
+                "Choose the most specific semantic family: movement for travel/path; "
+                "transfer for giving, receiving, storing or moving a theme; item_use for "
+                "using an item as a tool; combat for attacks/hostile maneuvers; perception "
+                "for sensing/observing; communication for speech acts; social for persuasion/"
+                "negotiation; state_change for explicit state alteration; creation for "
+                "making something; resource for gaining/spending resources. interaction is "
+                "only non-linguistic physical manipulation/contact when no narrower family applies; never "
+                "use it as a generic fallback for transfer, item_use or combat."
             ),
             "enum": [
                 "movement", "communication", "perception", "interaction",
@@ -98,8 +118,12 @@ _RELATION_CLAIM_SCHEMA = {
         "predicate": {
             "type": "string",
             "description": (
-                "Literal surface predicate copied from the current player evidence. "
-                "Preserve its written form; do not lemmatize, translate or paraphrase."
+                "Copy the exact lexical predicate from current player evidence. Preserve "
+                "conjugation and multiword lexical units (for example 'jura lealtad', "
+                "'forma parte', 'son amigos'), but exclude argument-introducing prepositions "
+                "('pertenece', not 'pertenece a'; 'trabaja', not 'trabaja para') and "
+                "negation markers ('no pertenece' has predicate 'pertenece'). Do not "
+                "lemmatize, translate or paraphrase."
             ),
             "minLength": 1,
             "maxLength": 120,
@@ -107,6 +131,13 @@ _RELATION_CLAIM_SCHEMA = {
         "object": _MENTION_SCHEMA,
         "relation_family": {
             "type": "string",
+            "description": (
+                "Distinguish ownership (title/property) from possession (physical custody) "
+                "and membership (belonging to an organization/group); employment (work "
+                "relationship); allegiance (loyalty/oath); kinship; friendship; hostility; "
+                "protection; part_of; spatial/containment; knowledge; obligation; and service. "
+                "Use the narrowest family supported by the predicate and endpoints."
+            ),
             "enum": [
                 "kinship", "ownership", "possession", "membership",
                 "employment", "allegiance", "friendship", "hostility",
@@ -114,9 +145,22 @@ _RELATION_CLAIM_SCHEMA = {
                 "obligation", "protection", "service", "other", "unknown",
             ],
         },
-        "polarity": {"type": "string", "enum": ["positive", "negative", "uncertain"]},
+        "polarity": {
+            "type": "string",
+            "description": (
+                "Semantic affirmation/negation of this relation. A lexical negator such as "
+                "'no' belongs here, not in predicate: 'no pertenece' => negative."
+            ),
+            "enum": ["positive", "negative", "uncertain"],
+        },
         "modality": {
             "type": "string",
+            "description": (
+                "Use negated for an explicitly denied relation; reported for a relation "
+                "attributed to a speaker/source; question for a queried relation; conditional "
+                "or planned only when the relation is hypothetical/future. Do not treat a "
+                "reported or negated relation as confirmed fact."
+            ),
             "enum": [
                 "attempted", "completed", "observed", "planned", "conditional",
                 "question", "dialogue", "reported", "negated", "correction",

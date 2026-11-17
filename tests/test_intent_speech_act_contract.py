@@ -182,3 +182,65 @@ def test_explicit_npc_speech_normalization_does_not_rewrite_negation_or_quotes()
             source_text=utterance,
         )
         assert _normalize_explicit_npc_speech_report(analysis) is None
+
+
+def test_normal_intent_prompt_defines_action_and_relation_semantic_taxonomies():
+    prompt = " ".join(IntentInterpreter.SYSTEM_PROMPT.casefold().split())
+
+    for required in (
+        "taxonomía de action frame",
+        "transfer",
+        "item_use",
+        "combat",
+        "movement",
+        "perception",
+        "interaction",
+        "no uses interaction como cajón de sastre",
+        "patient es el ser/objetivo afectado",
+        "instrument es la herramienta",
+        "taxonomía de relation claims",
+        "ownership",
+        "possession",
+        "membership",
+        "allegiance",
+        "límites del predicado relacional",
+        "pertenece» y no «pertenece a",
+        "jura lealtad",
+        "polarity es negative",
+        "modality es negated",
+    ):
+        assert required in prompt
+
+
+def test_semantic_frame_schema_explains_roles_predicate_boundaries_and_relations():
+    properties = _intent_properties(INTENT_ANALYSIS_RESPONSE_SCHEMA)
+    frame_properties = properties["steps"]["items"]["properties"][
+        "action_frame"
+    ]["properties"]
+    relation_properties = properties["relation_claims"]["items"]["properties"]
+
+    family_description = frame_properties["family"]["description"].casefold()
+    role_description = frame_properties["arguments"]["items"]["properties"][
+        "role"
+    ]["description"].casefold()
+    predicate_description = relation_properties["predicate"]["description"].casefold()
+    relation_family_description = relation_properties[
+        "relation_family"
+    ]["description"].casefold()
+    modality_description = relation_properties["modality"]["description"].casefold()
+
+    assert "transfer" in family_description
+    assert "item_use" in family_description
+    assert "combat" in family_description
+    assert "interaction" in family_description
+    assert "patient" in role_description
+    assert "instrument" in role_description
+    assert "container" in role_description
+    assert "pertenece a" in predicate_description
+    assert "negation markers" in predicate_description
+    assert "ownership" in relation_family_description
+    assert "possession" in relation_family_description
+    assert "membership" in relation_family_description
+    assert "reported" in modality_description
+    assert "negated" in modality_description
+
