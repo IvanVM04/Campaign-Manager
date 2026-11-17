@@ -78,8 +78,8 @@ def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_val
 
 def test_relation_predicate_surface_is_independent_of_relation_direction():
     claim = SimpleNamespace(
-        subject=SimpleNamespace(text="Otra persona"),
-        object=SimpleNamespace(text="Otro gremio"),
+        subject=SimpleNamespace(text="la guardia"),
+        object=SimpleNamespace(text="Mara"),
         predicate="trabaja",
         relation_family=SimpleNamespace(value="membership"),
         polarity=SimpleNamespace(value="positive"),
