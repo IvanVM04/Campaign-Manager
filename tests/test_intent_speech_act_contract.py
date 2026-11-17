@@ -183,6 +183,7 @@ def test_explicit_npc_speech_normalization_does_not_rewrite_negation_or_quotes()
         )
         assert _normalize_explicit_npc_speech_report(analysis) is None
 
+
 def test_normal_intent_prompt_defines_action_and_relation_semantic_taxonomies():
     prompt = " ".join(IntentInterpreter.SYSTEM_PROMPT.casefold().split())
 
