@@ -173,6 +173,24 @@ def test_high_confidence_action_templates_repair_family_and_typed_roles(
     assert summary.action_rules_applied
 
 
+def test_dialogue_does_not_reclassify_quoted_action_as_player_action():
+    source = "Le digo a Mara: «Entrego el pergamino a la capitana»."
+    analysis = _analysis(
+        source,
+        "Entrego",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        active_step_index=None,
+    )
+
+    normalized, summary = normalize_semantic_surface(analysis)
+
+    assert normalized.steps[0].action_frame.family.value == "interaction"
+    assert normalized.steps[0].action_frame.arguments == ()
+    assert summary.action_rules_applied == ()
+
+
 def test_hide_location_template_repairs_roles_without_guessing_a_family():
     source = "Escondo la moneda bajo la alfombra del dormitorio."
     normalized, summary = normalize_semantic_surface(_analysis(source, "Escondo"))
