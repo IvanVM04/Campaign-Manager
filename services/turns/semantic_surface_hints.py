@@ -841,18 +841,18 @@ def _make_relation_claim(
         return None
     if surface.negative or step.polarity.value == "negative":
         polarity = SemanticPolarity.NEGATIVE
-        modality = SemanticModality.NEGATED
     elif step.polarity.value == "uncertain":
         polarity = SemanticPolarity.UNCERTAIN
-        modality = SemanticModality(step.modality.value)
-    elif surface.attributed_to is not None:
-        polarity = SemanticPolarity.POSITIVE
-        modality = SemanticModality.REPORTED
-    elif "?" in source or "¿" in source:
-        polarity = SemanticPolarity.POSITIVE
-        modality = SemanticModality.QUESTION
     else:
         polarity = SemanticPolarity.POSITIVE
+
+    if surface.attributed_to is not None:
+        modality = SemanticModality.REPORTED
+    elif "?" in source or "¿" in source:
+        modality = SemanticModality.QUESTION
+    elif polarity is SemanticPolarity.NEGATIVE:
+        modality = SemanticModality.NEGATED
+    else:
         modality = SemanticModality(step.modality.value)
     attributed_to = (
         SemanticMention(
