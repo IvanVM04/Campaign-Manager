@@ -215,7 +215,10 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                         "request to the DM/narrator; report is an observed/recounted event, "
                         "especially a non-speech NPC action; plan is future/conditional. "
                         "Use the grammatical actor, not the person who sent the message. "
-                        "Only action/mixed may have a non-null active_step_index."
+                        "Only action/mixed may have a non-null active_step_index. "
+                        "Examples: 'Ella responde' is NPC dialogue; 'Ella entra' is an "
+                        "NPC report; 'Le pregunto a Mara' is player dialogue; a question "
+                        "to the DM about who spoke is question, not attributed NPC speech."
                     ),
                     "enum": [
                         "action", "question", "dialogue", "report",
@@ -259,7 +262,9 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                                     "The grammatical/fictional actor of this step, not the message sender. "
                                     "Use npc for an NPC described speaking or acting in third person; "
                                     "use player only when the player performs the act; use unknown when "
-                                    "the actor cannot be grounded."
+                                    "the actor cannot be grounded. A third-person NPC speech predicate "
+                                    "is dialogue by that NPC; a third-person physical event is a report "
+                                    "by that NPC. The message author is not automatically the actor."
                                 ),
                                 "enum": ["player", "npc", "other", "unknown"],
                             },
