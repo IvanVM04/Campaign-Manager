@@ -110,13 +110,28 @@ def test_live_report_is_reproducible_and_contains_only_allowlisted_diagnostics()
     assert report["metadata"]["model_digest"] == "digest"
     assert report["metadata"]["think"] is False
     assert report["run"]["elapsed_seconds"] == 12.346
-    assert report["diagnostics"]["provider_usage"][0] == {
-        "provider_role": "intent",
-        "prompt_bytes": 4096,
-        "eval_count": 120,
-        "think": False,
+    assert report["diagnostics"]["provider_usage_totals"] == {
+        "event_count": 1,
+        "prompt_bytes_total": 4096,
+        "prompt_bytes_max": 4096,
+        "prompt_eval_count_total": 0,
+        "prompt_eval_count_max": 0,
+        "eval_count_total": 120,
+        "eval_count_max": 120,
+        "load_duration_ms_total": 0,
+        "load_duration_ms_max": 0,
+        "prompt_eval_duration_ms_total": 0,
+        "prompt_eval_duration_ms_max": 0,
+        "eval_duration_ms_total": 0,
+        "eval_duration_ms_max": 0,
+        "total_duration_ms_total": 0,
+        "total_duration_ms_max": 0,
+        "duration_ms_total": 0,
+        "duration_ms_max": 0,
     }
     assert "must not be persisted" not in encoded
     assert "completion" not in encoded
+    assert "provider_model" not in encoded
+    assert "request_status" not in encoded
     assert "player_input" not in encoded
     assert "source_excerpt" not in encoded
