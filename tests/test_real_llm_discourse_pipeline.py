@@ -32,12 +32,12 @@ from services.context.conversation_reference_resolver import (
 from services.discourse_context import DiscourseContextBuilder
 from services.providers import LLMSettings
 from services.turns import IntentInterpreter, IntentInterpreterError
-from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 from tests.discourse_evaluation import (
     DiscourseControlLedger,
     build_live_discourse_report,
     load_primary_actor_gold,
 )
+from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
 
@@ -672,6 +672,19 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
 
     elapsed_total = perf_counter() - started
     ledger.emit(record_property, prefix="discourse_holdout")
+    control_summary = control_ledger.summary()
+    print("Discourse control accuracy: " + json.dumps(control_summary, sort_keys=True))
+    for dimension, values in control_summary.items():
+        record_property(
+            f"discourse_holdout_control_{dimension}_accuracy",
+            values["exact_accuracy"]
+            if values["exact_accuracy"] is not None
+            else "not_measured",
+        )
+        record_property(
+            f"discourse_holdout_control_{dimension}_cases",
+            values["cases"],
+        )
     record_property("discourse_holdout_model", provider.model)
     record_property("discourse_holdout_model_digest", provider.get_model_digest() or "unavailable")
     record_property(
