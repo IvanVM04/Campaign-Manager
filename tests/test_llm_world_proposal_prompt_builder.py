@@ -2,6 +2,11 @@ from types import SimpleNamespace
 
 from models.campaign_state import CampaignState
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.discourse_evidence import DiscourseEvidence, DiscourseSource, DiscourseSpeaker
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupMember,
+    ResolvedConversationGroupReference,
+)
 from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.llm_world.llm_world_context_renderer import LLMWorldContextRenderer
@@ -478,3 +483,55 @@ def test_v2_prompt_budget_compaction_does_not_reference_omitted_history():
             max_prompt_tokens=1,
         )
 
+
+
+
+def test_proposal_prompt_renders_plural_group_as_distinct_members_not_a_single_entity():
+    excerpt = "La guardia Mara y la mercadera Lía esperan junto al balcón."
+    mara_evidence = DiscourseEvidence(
+        turn_id=301,
+        source=DiscourseSource.PLAYER_INPUT,
+        speaker=DiscourseSpeaker.PLAYER,
+        mention="Mara",
+        excerpt=excerpt,
+        recency_rank=1,
+    )
+    lia_evidence = DiscourseEvidence(
+        turn_id=301,
+        source=DiscourseSource.PLAYER_INPUT,
+        speaker=DiscourseSpeaker.PLAYER,
+        mention="Lía",
+        excerpt=excerpt,
+        recency_rank=1,
+    )
+    group = ResolvedConversationGroupReference(
+        mention="Ellas",
+        members=(
+            ResolvedConversationGroupMember(
+                entity_id=1,
+                entity_name="Mara",
+                evidence=(mara_evidence,),
+                confidence_score=92,
+                resolution_signals=("plural_group_co_mention",),
+            ),
+            ResolvedConversationGroupMember(
+                entity_id=2,
+                entity_name="Lía",
+                evidence=(lia_evidence,),
+                confidence_score=92,
+                resolution_signals=("plural_group_co_mention",),
+            ),
+        ),
+        antecedent_turn_id=301,
+    )
+
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Ellas esperan junto al balcón.",
+        make_context(),
+        resolved_references=(group,),
+    )
+
+    assert "'Ellas' -> GRUPO ['Mara', 'Lía']" in prompt
+    assert "mantener los miembros como entidades distintas" in prompt
+    assert "no las colapses en un miembro" in prompt
+    assert "Un grupo no es un objetivo mecánico singular" in prompt
