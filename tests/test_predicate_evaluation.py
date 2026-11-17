@@ -218,3 +218,38 @@ def test_live_holdout_think_setting_rejects_invalid_values(monkeypatch):
     ):
         _optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK")
 
+def test_relation_predicate_surface_survives_a_missing_leading_article():
+    claim = SimpleNamespace(
+        subject=SimpleNamespace(text="anillo de plata"),
+        object=SimpleNamespace(text="Aldric"),
+        predicate="pertenece",
+        relation_family=SimpleNamespace(value="ownership"),
+        polarity=SimpleNamespace(value="positive"),
+        modality=SimpleNamespace(value="completed"),
+        source_excerpt="El anillo de plata pertenece a Aldric.",
+        attributed_to=None,
+        temporal_expression=None,
+    )
+    scenario = {
+        "id": "relation-predicate-article-01",
+        "expected_relation": {
+            "subject": "El anillo de plata",
+            "object": "Aldric",
+            "predicate": "pertenece",
+        },
+    }
+    ledger = SemanticEvaluationLedger()
+    matched, total, failures = score_semantic_frame_scenario(
+        _analysis(claims=(claim,)),
+        scenario,
+        ledger=ledger,
+    )
+
+    assert matched == 3
+    assert total == 3
+    assert failures == []
+    metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
+    assert metrics["precision"] == 1.0
+    assert metrics["recall"] == 1.0
+    assert metrics["f1"] == 1.0
+
