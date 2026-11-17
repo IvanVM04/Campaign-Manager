@@ -286,4 +286,18 @@ Diagnóstico concreto:
 
 No se cambia el gold para acomodar esta ejecución. El scorer previo también condicionaba los argumentos de action frame a que la familia coincidiera, y los campos de relation claim a que la dirección coincidiera. Por tanto, algunos falsos negativos agregados podían estar acoplados a otro fallo. Los resultados anteriores quedan archivados como baseline histórico de la versión previa del scorer; no deben compararse directamente con los resultados posteriores.
 
-El incremento #252 (dependiente del toggle live #251) refuerza taxonomías y límites de span en prompt/schema, y separa la puntuación de argumentos/familia y de dirección/campos de relación. Debe volver a ejecutarse el mismo modelo/digest/think sobre el holdout completo para obtener un baseline comparable con el scorer corregido y comprobar si mejora sin sacrificar los límites de evidencia.
+La PR #252 añadió esas taxonomías y correcciones del scorer sobre la rama de #251, pero su base era la rama de feature y no estuvo incluida en la ejecución local reportada. La intervención posterior #253 copia esas mejoras sobre el `main` actual y añade normalización superficial determinista y limpieza segura de campos opcionales no literales. El baseline de arriba sigue siendo histórico; la próxima ejecución debe usar el nuevo commit y el mismo modelo/digest/think para medir el cambio real.
+
+
+## 14. Intervención amplia de calidad semántica — PR #253
+
+La PR #253 incorpora al `main` actualizado la taxonomía de familias/roles y límites de predicados preparada en #252, y añade una capa `semantic_surface_hints` de reglas españolas acotadas a evidencia literal:
+- corrige familias y roles de patrones claros de transferencia, uso de objetos, combate, movimiento, percepción y ocultación;
+- extrae relaciones de construcciones explícitas y separa núcleo predicativo, extremos, negación, atribución y temporalidad;
+- se abstiene ante construcciones hipotéticas, especulativas, compuestas o relaciones de pertenencia a persona cuyo sentido no puede resolverse con seguridad;
+- elimina únicamente menciones/argumentos/claims opcionales no literales antes de la validación estricta, sin reconstruir predicados ni referencias;
+- mantiene independiente la puntuación de familia/argumentos y dirección/campos de relación.
+
+Los contratos deterministas cubren acciones de transferencia, combate, item-use, movimiento, percepción, ocultación y varias familias relacionales; también prueban que los predicados obligatorios no literales siguen siendo rechazados. El holdout gold y sus utterances originales permanecen sin cambios.
+
+La PR no se considera aceptada por la implementación o CI solamente: requiere repetir el holdout live completo con el mismo Gemma 4 12B Q4_K_M, digest, Ollama y `think=false`, conservar el JSON y comprobar que mejoran relaciones y roles sin falsos positivos, filtraciones ni cambios persistentes críticos.
