@@ -122,10 +122,25 @@ def build_live_discourse_report(
     # The semantic ledger exposes a sensitive-marker counter for in-memory
     # evaluation. Keep that diagnostic in JUnit output, but do not copy it into
     # a persistent report; it is not required for discourse benchmark scoring.
+    persisted_ledger_fields = (
+        "families",
+        "semantic_slot_quality",
+        "semantic_slot_precision",
+        "semantic_slot_recall",
+        "semantic_slot_f1",
+        "entity_link_precision",
+        "entity_link_recall",
+        "correct_abstentions",
+        "incorrect_abstentions",
+        "context_recall",
+        "operation_precision",
+        "operation_recall",
+        "critical_false_persistent_changes",
+    )
     safe_ledger_summary = {
-        key: value
-        for key, value in ledger_summary.items()
-        if key != "secret_leaks"
+        field: ledger_summary[field]
+        for field in persisted_ledger_fields
+        if field in ledger_summary
     }
 
     safe_think = think if isinstance(think, (bool, str)) else None
