@@ -31,6 +31,19 @@ pytestmark = pytest.mark.real_llm
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def _optional_bool_environment_variable(name: str) -> bool | None:
+    """Parse an optional boolean setting for live LLM evaluation."""
+    value = os.getenv(name)
+    if value is None:
+        return None
+    normalized = value.strip().casefold()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean (true/false)")
+
+
 def _make_interpreter(
     usage_events: list[dict[str, Any]] | None = None,
 ) -> IntentInterpreter:
@@ -41,6 +54,7 @@ def _make_interpreter(
             OllamaProvider.DEFAULT_BASE_URL,
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+        think=_optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK"),
         metrics_callback=(usage_events.append if usage_events is not None else None),
     )
     return IntentInterpreter(provider=provider)
