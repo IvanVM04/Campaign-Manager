@@ -77,6 +77,10 @@ def test_live_report_is_reproducible_and_contains_only_allowlisted_diagnostics()
         expected_slots=("actor:player",),
         predicted_slots=("actor:player",),
     )
+    ledger.record_secret_visibility(
+        "the hidden token is ABC123",
+        ("ABC123",),
+    )
     report = build_live_discourse_report(
         ledger_summary=ledger.summary(),
         control_summary=DiscourseControlLedger().summary(),
@@ -106,6 +110,8 @@ def test_live_report_is_reproducible_and_contains_only_allowlisted_diagnostics()
 
     encoded = json.dumps(report, ensure_ascii=False)
     assert report["schema_version"] == 5
+    assert "secret_leaks" not in report["metrics"]
+    assert "secret_leaks" not in encoded
     assert report["metadata"]["git_commit"] == "abc123"
     assert report["metadata"]["model_digest"] == "digest"
     assert report["metadata"]["think"] is False
