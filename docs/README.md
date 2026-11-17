@@ -51,6 +51,7 @@ indexes over searching through dated audit history.
 - [Predicate-understanding audit (2026-11-17)](quality/predicate-understanding-audit-2026-11-17.md) — action/relation predicate coverage, live metrics, measurement gaps and remaining effort.
 - [PR #250 Predicate-specific evaluation and telemetry](quality/pr-250-predicate-evaluation-and-telemetry.md) — exact action/relation surface scoring, reproducible live JSON reports and privacy-safe usage telemetry.
 - [Semantic-understanding hardening (2026-11-17)](quality/semantic-understanding-hardening-2026-11-17.md) — audit-led taxonomy, evidence-bound surface rules, optional-field sanitization and independent evaluation.
+- [Discourse-understanding evaluation and actor hardening (2026-11-17)](quality/discourse-understanding-evaluation-2026-11-17.md) — primary fictional-actor gold, independent topic/callback/ellipsis controls and privacy-safe live Ollama reports.
 
 ## Active architectural contracts
 
