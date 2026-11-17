@@ -129,12 +129,13 @@ _PERCEPTION_VERB_RE = re.compile(
 )
 _COMMUNICATION_VERB_RE = re.compile(
     r"\b(?:habl\w*|digo|dice|dicen|decir|dije|dijo|"
+    r"afirm\w*|asegur\w*|declar\w*|sostuv\w*|"
     r"cuent\w*|cont(?:ar|o|as|a|amos|an|é|ó|aron|aba|aban|ado|ando)|"
     r"pregunt\w*|respond\w*|susurr\w*|avis\w*)\b",
     re.IGNORECASE,
 )
 _TRANSFER_VERB_RE = re.compile(
-    r"\b(?:entreg\w*|devolv\w*|pas\w*|recib\w*|"
+    r"\b(?:entreg\w*|devolv\w*|recib\w*|"
     r"guard(?:o|as|a|amos|an|é|ó|aron|aba|aban|ar|ando|ado)|"
     r"deposit\w*|coloc\w*|met(?:o|es|e|emos|en|í|ió|ieron|er|iendo)|"
     r"sac(?:o|as|a|amos|an|é|ó|aron|ar|ando)|"
@@ -773,7 +774,9 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     # an incomplete relation into a single claim.
     if re.search(
         r"\b(?:pertenec\w*|trabaj\w*|proteg\w*|odi\w*|detest\w*|"
-        r"jur\w*\s+lealtad|form\w*\s+parte)\b",
+        r"jur\w*\s+lealtad|form\w*\s+parte|pose\w*|tien\w*|"
+        r"herman[oa]|madre|padre|hij[oa]|prim[oa]|t[ií][oa]|sirv\w*|"
+        r"conoc\w*|está|esta)\b",
         result.object,
         re.IGNORECASE,
     ):
