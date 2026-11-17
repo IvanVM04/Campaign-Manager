@@ -112,7 +112,8 @@ _LOCATION_WORDS = {
 }
 
 _COMBAT_VERB_RE = re.compile(
-    r"\b(?:golpe\w*|atac\w*|her\w*|apuñal\w*|dispar\w*|acuchill\w*)\b",
+    r"\b(?:golpe\w*|atac\w*|hiere|hieren|herí|heriste|herimos|hirió|"
+    r"hirieron|herir|herido|apuñal\w*|dispar\w*|acuchill\w*)\b",
     re.IGNORECASE,
 )
 _MOVEMENT_VERB_RE = re.compile(
@@ -710,8 +711,6 @@ def _relation_family_for_belongs_to(
         return SemanticRelationFamily.MEMBERSHIP
     if _guess_kind(subject) is SemanticObjectKind.ITEM_INSTANCE:
         return SemanticRelationFamily.OWNERSHIP
-    if object_[:1].isupper():
-        return SemanticRelationFamily.OWNERSHIP
     return SemanticRelationFamily.UNKNOWN
 
 
@@ -775,8 +774,8 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     if re.search(
         r"\b(?:pertenec\w*|trabaj\w*|proteg\w*|odi\w*|detest\w*|"
         r"jur\w*\s+lealtad|form\w*\s+parte|pose\w*|tien\w*|"
-        r"herman[oa]|madre|padre|hij[oa]|prim[oa]|t[ií][oa]|sirv\w*|"
-        r"conoc\w*|está|esta)\b",
+        r"es\s+(?:herman[oa]|madre|padre|hij[oa]|prim[oa]|t[ií][oa])|"
+        r"sirv\w*|conoc\w*|está|esta)\b",
         result.object,
         re.IGNORECASE,
     ):
