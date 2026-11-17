@@ -752,6 +752,11 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
         negative = bool(match.groupdict().get("negative"))
         if rule_id == "relation_belongs_to":
             family = _relation_family_for_belongs_to(subject, object_)
+            if family is SemanticRelationFamily.UNKNOWN:
+                # A person belonging to another person may express allegiance,
+                # service or another relation. Do not overwrite the model's
+                # interpretation with an unsupported ownership guess.
+                continue
         matches.append(
             _RelationSurface(
                 rule_id=rule_id,
