@@ -173,14 +173,15 @@ def test_high_confidence_action_templates_repair_family_and_typed_roles(
     assert summary.action_rules_applied
 
 
-def test_dialogue_does_not_reclassify_quoted_action_as_player_action():
+@pytest.mark.parametrize("modality", ["dialogue", "attempted"])
+def test_dialogue_does_not_reclassify_quoted_action_as_player_action(modality):
     source = "Le digo a Mara: «Entrego el pergamino a la capitana»."
     analysis = _analysis(
         source,
         "Entrego",
         family="interaction",
         category="dialogue",
-        modality="dialogue",
+        modality=modality,
         active_step_index=None,
     )
 
