@@ -861,3 +861,18 @@ def test_plural_pronoun_does_not_form_a_group_from_separate_unconnected_turns():
     assert result.references == ()
     assert result.clarification_question is not None
     assert result.abstention_reason == "plural_group_not_proven"
+
+
+
+def test_singular_pronoun_keeps_unique_antecedent_when_history_has_no_gender_cue():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Ella me responde.", "Ella"),
+        recent_turns=[turn(204, "Hablo con Mara junto a la puerta.")],
+    )
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].entity_id == 1

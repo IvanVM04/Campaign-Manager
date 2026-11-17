@@ -329,12 +329,15 @@ class ConversationReferenceResolver:
                     if isinstance(alias, str) and alias.strip()
                 }
                 observed_features.discard((None, None))
-                required_features = (
-                    (gender, "singular")
-                    if number == "plural"
-                    else (gender, number)
-                )
-                if required_features not in observed_features:
+                if number == "plural":
+                    # Plural identity is only established by an explicit
+                    # same-turn group co-mention with compatible singular
+                    # agreement for every member.
+                    if (gender, "singular") not in observed_features:
+                        continue
+                elif observed_features and (gender, number) not in observed_features:
+                    # Preserve the established conservative singular fallback:
+                    # absence of grammatical cues is not a contradiction.
                     continue
             score, signals = self._candidate_score(
                 evidence,
