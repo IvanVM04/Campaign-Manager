@@ -16,7 +16,12 @@ from models.player_intent_analysis import (
     IntentModality,
     PlayerIntentAnalysis,
 )
-from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupMember,
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+    ResolvedConversationReferenceResult,
+)
 from models.semantic_frames import SemanticObjectKind
 from models.world_state import WorldState
 from services.discourse_context import DiscourseContextBuilder
@@ -26,7 +31,7 @@ from .entity_reference_resolver import EntityReferenceResolver
 
 @dataclass(frozen=True, slots=True)
 class ConversationReferenceResolution:
-    references: tuple[ResolvedConversationReference, ...] = ()
+    references: tuple[ResolvedConversationReferenceResult, ...] = ()
     clarification_question: str | None = None
     candidates: tuple[DiscourseCandidate, ...] = ()
     abstention_reason: str | None = None
@@ -226,10 +231,10 @@ class ConversationReferenceResolver:
         current_input: str,
     ) -> dict[int, tuple[DiscourseEvidence, ...]]:
         evidence: dict[int, list[DiscourseEvidence]] = {}
-        turns = DiscourseContextBuilder.scope_history(
+        turns = DiscourseContextBuilder.select_history(
             recent_turns,
             current_input,
-        )[-self.MAX_HISTORY_TURNS :]
+        ).turns[-self.MAX_HISTORY_TURNS :]
         visible_entities = self._visible_entities(world)
         for recency_rank, turn in enumerate(reversed(turns), start=1):
             parts, turn_id = self._turn_parts(turn, world)
@@ -324,7 +329,12 @@ class ConversationReferenceResolver:
                     if isinstance(alias, str) and alias.strip()
                 }
                 observed_features.discard((None, None))
-                if observed_features and (gender, number) not in observed_features:
+                required_features = (
+                    (gender, "singular")
+                    if number == "plural"
+                    else (gender, number)
+                )
+                if required_features not in observed_features:
                     continue
             score, signals = self._candidate_score(
                 evidence,
@@ -341,6 +351,78 @@ class ConversationReferenceResolver:
                 )
             )
         return tuple(sorted(candidates, key=lambda item: (-item.score, item.entity_id)))
+
+    @classmethod
+    def _group_reference_from_candidates(
+        cls,
+        mention: str,
+        ranked: tuple[DiscourseCandidate, ...],
+    ) -> ResolvedConversationGroupReference | None:
+        """Build a group only from co-mentioned members with matching grammar."""
+        features = DiscourseContextBuilder.pronoun_agreement(mention)
+        if features is None or features[1] != "plural":
+            return None
+        gender = features[0]
+        buckets: dict[
+            tuple[int, DiscourseSource, DiscourseSpeaker, str, int],
+            dict[int, tuple[DiscourseCandidate, DiscourseEvidence]],
+        ] = {}
+        for candidate in ranked:
+            for evidence in candidate.evidence:
+                if evidence.turn_id is None:
+                    continue
+                grammatical = DiscourseContextBuilder.grammatical_features(
+                    evidence.excerpt,
+                    evidence.mention,
+                )
+                if grammatical != (gender, "singular"):
+                    continue
+                key = (
+                    evidence.turn_id,
+                    evidence.source,
+                    evidence.speaker,
+                    evidence.excerpt,
+                    evidence.recency_rank,
+                )
+                buckets.setdefault(key, {})[candidate.entity_id] = (candidate, evidence)
+
+        eligible = [
+            (key, members)
+            for key, members in buckets.items()
+            if 2 <= len(members) <= 8
+        ]
+        if not eligible:
+            return None
+        most_recent_rank = min(key[4] for key, _members in eligible)
+        most_recent = [
+            (key, members)
+            for key, members in eligible
+            if key[4] == most_recent_rank
+        ]
+        # Distinct co-mentions at the same recency are not a unique antecedent.
+        if len(most_recent) != 1:
+            return None
+        key, selected_members = most_recent[0]
+        members = tuple(
+            ResolvedConversationGroupMember(
+                entity_id=candidate.entity_id,
+                entity_name=candidate.entity_name,
+                evidence=(evidence,),
+                confidence_score=candidate.score,
+                resolution_signals=tuple(dict.fromkeys(
+                    (*candidate.signals, "plural_group_co_mention", "explicit_grammatical_agreement")
+                )),
+            )
+            for candidate, evidence in sorted(
+                selected_members.values(),
+                key=lambda pair: pair[0].entity_id,
+            )
+        )
+        return ResolvedConversationGroupReference(
+            mention=mention,
+            members=members,
+            antecedent_turn_id=key[0],
+        )
 
     def _other_role_candidates(
         self,
@@ -424,7 +506,7 @@ class ConversationReferenceResolver:
             else len(analysis.steps) - 1
         )
         references: list[ResolvedConversationReference] = []
-        seen: set[tuple[str, int]] = set()
+        seen: set[tuple[str, tuple[int, ...]]] = set()
 
         for step in analysis.steps[: last_step + 1]:
             # This is read-only reference comprehension. Negative or uncertain
@@ -445,6 +527,14 @@ class ConversationReferenceResolver:
                     (argument.mention.text, argument.mention.kind_hint)
                     for argument in step.action_frame.arguments
                 )
+            # Current surface pronouns remain discoverable even if the LLM
+            # omitted them from target_mentions and action_frame.arguments.
+            mentions.extend(
+                (surface.text, SemanticObjectKind.CHARACTER)
+                for surface in DiscourseContextBuilder.surface_pronoun_mentions(
+                    step.source_excerpt
+                )
+            )
             mentions.extend(
                 (mention.text, mention.kind_hint)
                 for claim in analysis.relation_claims
@@ -553,6 +643,45 @@ class ConversationReferenceResolver:
                         self._question(mention, names),
                         abstention_reason="explicit_reference_ambiguous",
                     )
+
+                pronoun_features = DiscourseContextBuilder.pronoun_agreement(mention)
+                if (
+                    not candidate_ids
+                    and self._is_anaphoric(mention)
+                    and pronoun_features is not None
+                    and pronoun_features[1] == "plural"
+                ):
+                    ranked = self._rank_candidates(
+                        visible_world,
+                        recent_turns,
+                        kind_hint=SemanticObjectKind.CHARACTER,
+                        mention=mention,
+                        current_input=current_input or step.source_excerpt,
+                    )
+                    group_reference = self._group_reference_from_candidates(
+                        mention,
+                        ranked,
+                    )
+                    if group_reference is None:
+                        names = self._candidate_names(ranked)
+                        return ConversationReferenceResolution(
+                            tuple(references),
+                            self._question(mention, names),
+                            candidates=ranked[:4],
+                            abstention_reason=(
+                                "plural_group_ambiguous"
+                                if len(ranked) >= 2
+                                else "plural_group_not_proven"
+                            ),
+                        )
+                    group_key = (
+                        self.entity_resolver.normalize(mention),
+                        group_reference.entity_ids,
+                    )
+                    if group_key not in seen:
+                        references.append(group_reference)
+                        seen.add(group_key)
+                    continue
 
                 if not candidate_ids and self._is_anaphoric(mention):
                     ranked = self._rank_candidates(
@@ -710,7 +839,7 @@ class ConversationReferenceResolver:
                         self._question(mention, ()),
                         abstention_reason="resolved_entity_not_visible",
                     )
-                key = (self.entity_resolver.normalize(mention), entity_id)
+                key = (self.entity_resolver.normalize(mention), (entity_id,))
                 if key not in seen:
                     references.append(
                         ResolvedConversationReference(
