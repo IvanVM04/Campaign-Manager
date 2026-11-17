@@ -93,12 +93,9 @@ def build_live_discourse_report(
     observational_failure_count: int,
 ) -> dict[str, Any]:
     """Build a reproducible aggregate-only artifact; never persist game text."""
-    safe_events = []
-    allowed_event_fields = (
-        "provider_role",
-        "provider_model",
-        "response_model",
-        "request_status",
+    # Persist aggregate numbers only. Provider event dictionaries may carry
+    # arbitrary text from an external process; never serialize them to disk.
+    numeric_fields = (
         "prompt_bytes",
         "prompt_eval_count",
         "eval_count",
@@ -107,16 +104,20 @@ def build_live_discourse_report(
         "eval_duration_ms",
         "total_duration_ms",
         "duration_ms",
-        "think",
-        "done",
-        "done_reason",
     )
-    for event in usage_events:
-        safe_events.append({
-            key: event.get(key)
-            for key in allowed_event_fields
-            if key in event
-        })
+    usage_totals: dict[str, int] = {
+        "event_count": len(usage_events),
+    }
+    for field in numeric_fields:
+        values = [
+            event.get(field)
+            for event in usage_events
+            if isinstance(event.get(field), int)
+            and not isinstance(event.get(field), bool)
+            and event.get(field) >= 0
+        ]
+        usage_totals[f"{field}_total"] = sum(values)
+        usage_totals[f"{field}_max"] = max(values, default=0)
 
     safe_think = think if isinstance(think, (bool, str)) else None
     safe_commit = (
@@ -148,6 +149,6 @@ def build_live_discourse_report(
         "diagnostics": {
             "family_calls": dict(sorted(family_calls.items())),
             "prompt_observations": dict(sorted(prompt_observations.items())),
-            "provider_usage": safe_events,
+            "provider_usage_totals": usage_totals,
         },
     }
