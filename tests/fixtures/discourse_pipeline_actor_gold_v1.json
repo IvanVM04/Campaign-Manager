@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "source_fixture": "discourse_pipeline_corpus_holdout_v1.json",
+  "description": "Gold label for the fictional actor of the primary step. Does not add or replace player-evidence text.",
+  "scenarios": [
+    {
+      "id": "dp-topic-current-shift-01",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-topic-history-segment-02",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-topic-quoted-marker-03",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-topic-narrative-quote-04",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-callback-mara-05",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-callback-lighthouse-06",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-callback-earlier-07",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-callback-not-explicit-08",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-ellipsis-repeat-09",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-ellipsis-same-10",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-ellipsis-continue-11",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-ellipsis-quoted-12",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-distance-boundary-13",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-distance-outside-window-14",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-distance-most-recent-15",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-distance-equal-focus-16",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-grammar-explicit-local-17",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-grammar-name-no-inference-18",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-grammar-contradictory-local-19",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-grammar-plural-group-20",
+      "primary_actor": "npc"
+    },
+    {
+      "id": "dp-npc-explicit-visible-21",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-npc-ambiguous-alias-22",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-npc-inactive-speaker-23",
+      "primary_actor": "player"
+    },
+    {
+      "id": "dp-npc-quote-contained-name-24",
+      "primary_actor": "player"
+    }
+  ]
+}
