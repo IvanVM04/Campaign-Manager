@@ -111,12 +111,6 @@ The original 110-case corpus predates the advanced discourse implementation. PR 
 
 Do not fold the new cases into prompt examples or the original 110-case corpus. The complete 138-scenario inventory is 50 development + 88 held-out cases. Prompt retention and context retrieval are measured without logging their content. See the [PR #227 execution specification](pr-227-held-out-discourse-pipeline-evaluation.md) and the [independent audit](language-understanding-audit-2026-11-14.md).
 
-## Predicate-specific evaluation (PR #250)
-
-The 20-case semantic-frame held-out corpus is schema version 2. Each expected action frame and directed relation includes a case-sensitive `predicate` field copied from the current utterance. Live metrics separate `action_frame_predicate_surface` and `relation_predicate_surface` from semantic frame family, argument roles, relation direction and epistemic fields.
-
-These metrics measure exact written-form preservation, not full lexical-sense disambiguation. Keep the dimensions separate when interpreting results: a predicate can be copied correctly while its frame or roles are wrong, and a correct frame family cannot compensate for a wrong predicate. See [PR #250 predicate evaluation and telemetry](pr-250-predicate-evaluation-and-telemetry.md).
-
 
 ## Predicate-specific evaluation (PR #250)
 
