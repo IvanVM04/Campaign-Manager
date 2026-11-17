@@ -35,6 +35,10 @@ from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
     INTENT_CORRECTION_RESPONSE_SCHEMA,
 )
+from .semantic_surface_hints import (
+    normalize_semantic_surface,
+    normalize_untrusted_intent_payload,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1120,6 +1124,36 @@ El esquema JSON es el contrato estructural."""
                         "normalization": "steps_array_position",
                     },
                 )
+            intent_payload, surface_sanitization = normalize_untrusted_intent_payload(
+                intent_payload,
+                player_input=player_input,
+                evidence_text=evidence,
+            )
+            if (
+                surface_sanitization.dropped_ungrounded_target_mentions
+                or surface_sanitization.dropped_ungrounded_action_arguments
+                or surface_sanitization.dropped_ungrounded_relation_claims
+                or surface_sanitization.widened_relation_evidence_spans
+            ):
+                logger.warning(
+                    "llm.intent.ungrounded_surface_fields_normalized",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "dropped_target_mentions": (
+                            surface_sanitization.dropped_ungrounded_target_mentions
+                        ),
+                        "dropped_action_arguments": (
+                            surface_sanitization.dropped_ungrounded_action_arguments
+                        ),
+                        "dropped_relation_claims": (
+                            surface_sanitization.dropped_ungrounded_relation_claims
+                        ),
+                        "widened_relation_evidence_spans": (
+                            surface_sanitization.widened_relation_evidence_spans
+                        ),
+                    },
+                )
             attribution_normalization = _normalize_ungrounded_step_attributions(
                 intent_payload,
                 evidence,
@@ -1170,6 +1204,19 @@ El esquema JSON es el contrato estructural."""
                         "provider_model": getattr(self.provider, "model", None),
                         "normalization": "report_to_dialogue",
                         "surface_signal_count": signal_count,
+                    },
+                )
+            analysis, surface_rules = normalize_semantic_surface(analysis)
+            if surface_rules.action_rules_applied or surface_rules.relation_rules_applied:
+                logger.info(
+                    "llm.intent.semantic_surface_rules_applied",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "action_rule_ids": list(surface_rules.action_rules_applied),
+                        "relation_rule_ids": list(surface_rules.relation_rules_applied),
+                        "action_rule_count": len(surface_rules.action_rules_applied),
+                        "relation_rule_count": len(surface_rules.relation_rules_applied),
                     },
                 )
             corrections: tuple[PendingIntentCorrection, ...] = ()
