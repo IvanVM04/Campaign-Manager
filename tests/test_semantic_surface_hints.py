@@ -139,6 +139,15 @@ def _arguments(analysis):
             },
         ),
         (
+            "Guardo la carta dentro del cofre de roble.",
+            "Guardo",
+            "transfer",
+            {
+                SemanticArgumentRole.THEME: ("la carta", "item_instance"),
+                SemanticArgumentRole.CONTAINER: ("cofre de roble", "world_entity"),
+            },
+        ),
+        (
             "Observo el mapa antiguo con una lupa.",
             "Observo",
             "perception",
@@ -271,6 +280,43 @@ def test_explicit_relation_templates_extract_direction_and_lexical_predicate(
     assert claim.predicate == predicate
     assert claim.relation_family.value == expected_family
     assert summary.relation_rules_applied == (expected_rule,)
+
+
+@pytest.mark.parametrize(
+    ("source", "predicate", "expected_family", "expected_subject", "expected_object"),
+    [
+        ("Mara es dueña de la llave.", "es dueña", "ownership", "Mara", "la llave"),
+        ("Mara posee la llave.", "posee", "ownership", "Mara", "la llave"),
+        ("Mara tiene la llave.", "tiene", "possession", "Mara", "la llave"),
+        ("Mara es hermana de Aldric.", "es hermana", "kinship", "Mara", "Aldric"),
+        ("Aldric sirve a la reina.", "sirve", "service", "Aldric", "la reina"),
+        ("Mara conoce a Aldric.", "conoce", "knowledge", "Mara", "Aldric"),
+        ("La llave está dentro de la caja.", "está", "containment", "La llave", "la caja"),
+    ],
+)
+def test_additional_relation_families_have_explicit_surface_constructions(
+    source,
+    predicate,
+    expected_family,
+    expected_subject,
+    expected_object,
+):
+    analysis = _analysis(
+        source,
+        predicate,
+        category="report",
+        modality="observed",
+        active_step_index=None,
+    )
+    normalized, summary = normalize_semantic_surface(analysis)
+
+    assert len(normalized.relation_claims) == 1
+    claim = normalized.relation_claims[0]
+    assert claim.subject.text == expected_subject
+    assert claim.object.text == expected_object
+    assert claim.predicate == predicate
+    assert claim.relation_family.value == expected_family
+    assert summary.relation_rules_applied
 
 
 def test_negative_relation_keeps_lexical_predicate_and_moves_negation_to_typed_fields():
