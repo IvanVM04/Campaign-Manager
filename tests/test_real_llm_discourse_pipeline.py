@@ -22,6 +22,8 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
 from services.context import ContextBuilder
+from services.discourse_context import DiscourseContextBuilder
+from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
@@ -395,6 +397,21 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                 elapsed_seconds=elapsed,
             )
 
+            selection = DiscourseContextBuilder.select_history(
+                recent_turns,
+                scenario["input"],
+            )
+            prompt_observations[
+                f"{scenario['family']}:selection_reason:{selection.reason}"
+            ] += 1
+            prompt_observations[
+                f"{scenario['family']}:surface_pronouns_detected"
+            ] += len(
+                DiscourseContextBuilder.surface_pronoun_mentions(
+                    scenario["input"]
+                )
+            )
+
             reference = scenario["expected"].get("reference")
             if reference is not None:
                 if reference["entity_id"] is not None:
@@ -498,6 +515,12 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         prompt_observations[
                             f"{scenario['family']}:resolver_references_returned"
                         ] += len(resolution.references)
+                        prompt_observations[
+                            f"{scenario['family']}:resolver_group_references_returned"
+                        ] += sum(
+                            isinstance(item, ResolvedConversationGroupReference)
+                            for item in resolution.references
+                        )
                         prompt_observations[
                             f"{scenario['family']}:resolver_clarifications"
                         ] += int(resolution.clarification_question is not None)
@@ -625,6 +648,32 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     print(ledger.render())
     if observational_failures:
         print("Non-critical mismatches:\n" + "\n".join(observational_failures))
+    report_path = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH")
+    if report_path:
+        report_file = Path(report_path)
+        report_file.parent.mkdir(parents=True, exist_ok=True)
+        report_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "model": provider.model,
+                    "model_digest": provider.get_model_digest() or None,
+                    "ollama_version": provider.get_server_version() or None,
+                    "scenario_count": len(scenarios),
+                    "provider_calls": calls,
+                    "family_calls": dict(family_calls),
+                    "observations": dict(prompt_observations),
+                    "metrics": ledger.summary(),
+                    "critical_failures": failures,
+                    "observational_failures": observational_failures,
+                    "usage_events": usage_summary,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     assert not failures, "\n".join(failures) + "\n" + ledger.render()
 
 
