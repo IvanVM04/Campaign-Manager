@@ -164,6 +164,15 @@ class SemanticEvaluationLedger:
     def _ratio(numerator: float, denominator: float) -> float | None:
         return None if denominator == 0 else round(numerator / denominator, 4)
 
+    @staticmethod
+    def _f1(true_positive: int, false_positive: int, false_negative: int) -> float | None:
+        # F1 is unmeasured only when there are no expected positives. When
+        # expected items exist but none are predicted, the measured F1 is 0.
+        if true_positive + false_negative == 0:
+            return None
+        denominator = 2 * true_positive + false_positive + false_negative
+        return round((2 * true_positive) / denominator, 4)
+
     def summary(self) -> dict[str, object]:
         families: dict[str, dict[str, object]] = {}
         for name, values in sorted(self._families.items()):
@@ -190,11 +199,7 @@ class SemanticEvaluationLedger:
             )
             precision = self._ratio(tp, tp + fp)
             recall = self._ratio(tp, tp + fn)
-            f1 = (
-                None
-                if precision is None or recall is None or precision + recall == 0
-                else round(2 * precision * recall / (precision + recall), 4)
-            )
+            f1 = self._f1(tp, fp, fn)
             semantic_slot_quality[family] = {
                 "true_positive": tp,
                 "false_positive": fp,
@@ -208,11 +213,7 @@ class SemanticEvaluationLedger:
             overall_fn += fn
         overall_precision = self._ratio(overall_tp, overall_tp + overall_fp)
         overall_recall = self._ratio(overall_tp, overall_tp + overall_fn)
-        overall_f1 = (
-            None
-            if overall_precision is None or overall_recall is None or overall_precision + overall_recall == 0
-            else round(2 * overall_precision * overall_recall / (overall_precision + overall_recall), 4)
-        )
+        overall_f1 = self._f1(overall_tp, overall_fp, overall_fn)
         return {
             "families": families,
             "semantic_slot_quality": semantic_slot_quality,
