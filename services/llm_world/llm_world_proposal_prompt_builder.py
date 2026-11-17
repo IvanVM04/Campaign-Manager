@@ -4,7 +4,11 @@ import json
 from typing import Any
 
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+    ResolvedConversationReferenceResult,
+)
 from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -158,6 +162,9 @@ class LLMWorldProposalPromptBuilder:
             "los IDs canónicos que entregue el backend. No inventes ni intercambies "
             "IDs entre entidades, definiciones de objetos, instancias físicas, "
             "recursos y eventos; nunca intercambies un ID entre espacios de nombres. "
+            "Las referencias GRUPO representan varios individuos distintos ya co-mencionados; "
+            "no las colapses en un miembro ni inventes una entidad de grupo. "
+            "Un grupo no es un objetivo mecánico singular. "
             "Ante ambigüedad no elijas uno al azar; pide "
             "aclaración o devuelve operaciones vacías; no dupliques registros "
             "conocidos.\n"
@@ -183,7 +190,7 @@ class LLMWorldProposalPromptBuilder:
         intent_analysis: PlayerIntentAnalysis | None = None,
         recent_turns: list[TurnRecord] | None = None,
         projection: WorldContextProjection | None = None,
-        resolved_references: tuple[ResolvedConversationReference, ...] = (),
+        resolved_references: tuple[ResolvedConversationReferenceResult, ...] = (),
         resolved_world_references: tuple[ResolvedWorldReference, ...] = (),
         allowed_operation_types: tuple[str, ...] = (),
         operation_registry: OperationMetadataRegistry | None = None,
@@ -256,13 +263,23 @@ class LLMWorldProposalPromptBuilder:
             )
 
         if not isinstance(resolved_references, tuple) or any(
-            not isinstance(item, ResolvedConversationReference) for item in resolved_references
+            not isinstance(item, (ResolvedConversationReference, ResolvedConversationGroupReference))
+            for item in resolved_references
         ):
             raise TypeError("resolved_references must be a tuple of trusted references")
-        reference_lines = [
-            f"{item.mention!r} -> {item.entity_name!r} ({item.match_kind})"
-            for item in resolved_references
-        ]
+        reference_lines = []
+        for item in resolved_references:
+            if isinstance(item, ResolvedConversationGroupReference):
+                members = ", ".join(repr(name) for name in item.entity_names)
+                reference_lines.append(
+                    f"{item.mention!r} -> GRUPO [{members}] "
+                    f"(co-mención gramatical en turno {item.antecedent_turn_id}); "
+                    "mantener los miembros como entidades distintas"
+                )
+            else:
+                reference_lines.append(
+                    f"{item.mention!r} -> {item.entity_name!r} ({item.match_kind})"
+                )
         reference_block = "\n".join(reference_lines) or "(sin referencias conversacionales resueltas)"
         if not isinstance(resolved_world_references, tuple) or any(
             not isinstance(item, ResolvedWorldReference)
