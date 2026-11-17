@@ -508,7 +508,7 @@ class ConversationReferenceResolver:
             if analysis.active_step_index is not None
             else len(analysis.steps) - 1
         )
-        references: list[ResolvedConversationReference] = []
+        references: list[ResolvedConversationReferenceResult] = []
         seen: set[tuple[str, tuple[int, ...]]] = set()
 
         for step in analysis.steps[: last_step + 1]:
