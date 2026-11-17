@@ -87,6 +87,28 @@ _ITEM_WORDS = {
     "tesoro",
     "lupa",
 }
+_PERSON_WORDS = {
+    "amigo",
+    "amiga",
+    "capitan",
+    "capitán",
+    "capitana",
+    "caballero",
+    "dama",
+    "guerrero",
+    "guerrera",
+    "maga",
+    "mago",
+    "mercader",
+    "monje",
+    "monja",
+    "reina",
+    "rey",
+    "soldado",
+    "compañero",
+    "compañera",
+    "aprendiz",
+}
 _LOCATION_WORDS = {
     "aldea",
     "bosque",
@@ -359,9 +381,9 @@ def _guess_kind(value: str, role: SemanticArgumentRole | None = None) -> Semanti
         SemanticArgumentRole.RECIPIENT,
         SemanticArgumentRole.COMPANION,
     }:
-        if folded.startswith(("el ", "la ", "los ", "las ", "un ", "una ")) and any(
-            token in tokens
-            for token in ("capitan", "capitana", "reina", "rey", "mercader", "guardia")
+        if (
+            folded.startswith(("el ", "la ", "los ", "las ", "un ", "una "))
+            and tokens & _PERSON_WORDS
         ):
             return SemanticObjectKind.CHARACTER
         if value[:1].isupper() and " " not in value.strip():
@@ -474,7 +496,14 @@ def _normalize_action_frame(
         item_use_match = _find_predicate_match(_ITEM_USE_VERB_RE, text, predicate)
         if item_use_match is not None:
             marker = _INSTRUMENT_RE.search(text[item_use_match.end():])
-            if marker is not None:
+            if (
+                marker is not None
+                and _guess_kind(
+                    marker.group("instrument"),
+                    SemanticArgumentRole.PATIENT,
+                )
+                not in {SemanticObjectKind.CHARACTER, SemanticObjectKind.CREATURE}
+            ):
                 selected_rule = "action_item_use"
                 selected_family = SemanticActionFamily.ITEM_USE
                 predicate_match = item_use_match
