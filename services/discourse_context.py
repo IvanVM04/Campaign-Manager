@@ -293,15 +293,29 @@ class DiscourseContextBuilder:
         )
 
     @classmethod
-    def _callback_anchor_tokens(cls, value: str) -> frozenset[str]:
-        """Extract content words following an unquoted explicit callback marker."""
+    def _callback_anchor_sequence(cls, value: str) -> tuple[str, ...]:
+        """Extract unique callback anchors in the order used by the player."""
         normalized = cls.normalize(cls._without_quoted_spans(value))
         for marker in sorted(cls._REACTIVATION_MARKERS, key=len, reverse=True):
             pattern = re.escape(cls.normalize(marker)).replace(r"\ ", r"\s+")
             match = re.search(r"(?<!\w)" + pattern + r"(?!\w)", normalized)
-            if match is not None:
-                return cls._content_tokens(normalized[match.end():])
-        return frozenset()
+            if match is None:
+                continue
+            tail = normalized[match.end():]
+            content_tokens = cls._content_tokens(tail)
+            ordered: list[str] = []
+            seen: set[str] = set()
+            for token in re.findall(r"[a-z0-9]+", tail):
+                if token in content_tokens and token not in seen:
+                    ordered.append(token)
+                    seen.add(token)
+            return tuple(ordered)
+        return ()
+
+    @classmethod
+    def _callback_anchor_tokens(cls, value: str) -> frozenset[str]:
+        """Set view used for overlap scoring; metadata keeps source order."""
+        return frozenset(cls._callback_anchor_sequence(value))
 
     @classmethod
     def _subject_pronoun(cls, value: str) -> str | None:
@@ -473,7 +487,8 @@ class DiscourseContextBuilder:
         if not history:
             return DiscourseSelection((), "no_history")
         if cls.reactivates_prior_topic(current_input):
-            anchors = cls._callback_anchor_tokens(current_input)
+            anchor_tokens = cls._callback_anchor_sequence(current_input)
+            anchors = frozenset(anchor_tokens)
             if not anchors:
                 return DiscourseSelection(history, "callback_without_anchor", ambiguous=True)
             segments = cls.topic_segments(history)
@@ -494,7 +509,7 @@ class DiscourseContextBuilder:
                 return DiscourseSelection(
                     history,
                     "callback_anchor_unmatched",
-                    tuple(sorted(anchors)),
+                    anchor_tokens,
                     ambiguous=True,
                 )
             best = max(scores.values())
@@ -508,7 +523,7 @@ class DiscourseContextBuilder:
             return DiscourseSelection(
                 selected_turns,
                 "callback_anchor_match" if len(selected) == 1 else "callback_anchor_tie",
-                tuple(sorted(anchors)),
+                anchor_tokens,
                 selected,
                 ambiguous=len(selected) > 1,
             )

@@ -317,8 +317,6 @@ class ConversationReferenceResolver:
                 continue
             if pronoun_features is not None:
                 gender, number = pronoun_features
-                if number == "plural":
-                    continue
                 observed_features = {
                     DiscourseContextBuilder.grammatical_features(item.excerpt, alias)
                     for item in evidence
