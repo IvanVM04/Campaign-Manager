@@ -237,6 +237,9 @@ def test_relation_predicate_surface_survives_a_missing_leading_article():
             "subject": "El anillo de plata",
             "object": "Aldric",
             "predicate": "pertenece",
+            "relation_family": "ownership",
+            "polarity": "positive",
+            "modality": "completed",
         },
     }
     ledger = SemanticEvaluationLedger()
@@ -246,8 +249,8 @@ def test_relation_predicate_surface_survives_a_missing_leading_article():
         ledger=ledger,
     )
 
-    assert matched == 2
-    assert total == 2
+    assert matched == 5
+    assert total == 5
     assert failures == []
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
     assert metrics["precision"] == 1.0
