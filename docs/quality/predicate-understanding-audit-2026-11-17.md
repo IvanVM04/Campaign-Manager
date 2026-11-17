@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-11-17  
 **Repositorio auditado:** `IvanVM04/Campaign-Manager`  
-**Baseline de código:** `main` en `2c3080583ef19f61a17c9c49cae68b69bc438358` (PR #248)  
+**Baseline de código:** `main` en `3b059f1898fe1ceed399052266614c9b8aa03ca6` (PR #249 documental fusionada sobre #248)  
 **Objetivo:** mejorar la comprensión del modelo sobre los predicados de acción y relación expresados por el jugador, mantener su evidencia literal y cerrar los fallos de discurso que todavía impiden aceptar esta fase.
 
 > Esta auditoría separa hechos verificables del repositorio, resultados de ejecuciones compartidas y estimaciones. No considera un test de contrato de prompt como prueba de que el modelo obedece el prompt.
@@ -248,3 +248,17 @@ La incertidumbre principal está en cuántas iteraciones requerirá el modelo pa
 - PRs #235, #236, #237, #246, #247 y #248.
 
 **Estado final de auditoría:** la base arquitectónica es buena y el score semántico reciente es prometedor, pero aún no existe evidencia suficiente para declarar cerrada la comprensión de predicados. El próximo incremento de calidad debe ser una PR de evaluación de predicados y corrección guiada por métricas, no otra reescritura general del prompt.
+
+
+## 12. Implementación P0 — PR #250
+
+La PR #250 incorpora gold superficial para todos los predicados de los 20 casos held-out de semantic frames, evaluación separada de predicados de acción y relación, comprobación de integridad que exige que cada gold aparezca literalmente en el input y exportación JSON opcional con metadata reproducible y telemetría allowlisted. No modifica prompts, validadores de producción ni autorización. La evaluación mide exactitud superficial (case-sensitive); no debe confundirse con un benchmark completo de desambiguación de sentidos léxicos.
+
+Ejecución live recomendada:
+
+```powershell
+$env:CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH = ".\\artifacts\\predicate-holdout.json"
+python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v2" -v -s
+```
+
+Para un diagnóstico de un solo caso, establecer `CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` con un ID del corpus. El filtro es estricto y no sustituye la evaluación completa.
