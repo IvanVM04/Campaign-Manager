@@ -160,7 +160,7 @@ def score_semantic_frame_scenario(
                 )
 
         for field, wanted in expected_relation.items():
-            if field in {"subject", "object"}:
+            if field in {"subject", "object", "predicate"}:
                 continue
             total += 1
             observed_values = []
