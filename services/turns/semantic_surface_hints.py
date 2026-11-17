@@ -415,7 +415,11 @@ def _agent_argument(
     frame: SemanticActionFrame,
 ) -> SemanticArgument | None:
     candidate = _trim_surface(text_before_predicate)
-    if not candidate:
+    if not candidate or "," in candidate:
+        return None
+    if _fold(candidate).startswith(
+        ("ayer ", "hoy ", "entonces ", "luego ", "después ", "despues ", "más tarde ", "mas tarde ")
+    ):
         return None
     if _fold(candidate) in {"yo", "nosotros", "nosotras"}:
         return None
