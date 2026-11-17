@@ -359,12 +359,11 @@ def _guess_kind(value: str, role: SemanticArgumentRole | None = None) -> Semanti
         SemanticArgumentRole.RECIPIENT,
         SemanticArgumentRole.COMPANION,
     }:
-        if folded.startswith(("el ", "la ", "los ", "las ", "un ", "una ")):
-            if any(
-                token in tokens
-                for token in {"capitan", "capitana", "reina", "rey", "mercader", "guardia"}
-            ):
-                return SemanticObjectKind.CHARACTER
+        if folded.startswith(("el ", "la ", "los ", "las ", "un ", "una ")) and any(
+            token in tokens
+            for token in ("capitan", "capitana", "reina", "rey", "mercader", "guardia")
+        ):
+            return SemanticObjectKind.CHARACTER
         if value[:1].isupper() and " " not in value.strip():
             return SemanticObjectKind.CHARACTER
     return SemanticObjectKind.UNKNOWN
@@ -1034,7 +1033,7 @@ def normalize_semantic_surface(
         # A uniquely recognized relation in this step supersedes model claims
         # for that step. Claims from other steps remain untouched.
         claims = [claim for claim in claims if claim.step_index != candidate.step_index]
-        if len(claims) < 8:
+        if len(claims) < MAX_RELATION_CLAIMS:
             claims.append(candidate)
 
     normalized_analysis = replace(
