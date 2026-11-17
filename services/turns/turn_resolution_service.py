@@ -674,7 +674,10 @@ class TurnResolutionService:
                     context,
                     intent_analysis,
                     context_projection=context_projection,
-                    resolved_references=resolved_references,
+                    resolved_references=tuple(
+                        item for item in resolved_references
+                        if isinstance(item, ResolvedConversationReference)
+                    ),
                     resolved_world_references=resolved_world_references,
                 )
             except MechanicsAdjudicatorError as exc:
