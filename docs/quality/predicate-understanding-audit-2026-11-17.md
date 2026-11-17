@@ -262,3 +262,28 @@ python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semanti
 ```
 
 Para un diagnóstico de un solo caso, establecer `CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` con un ID del corpus. El filtro es estricto y no sustituye la evaluación completa.
+
+
+## 13. Primer baseline de predicados Ollama — 2026-11-17
+
+Ejecución local reportada desde la rama `feat/live-holdout-think-toggle`, con Gemma 4 12B Q4_K_M, digest `6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b`, Ollama 0.40.16, `think=false`, timeout 300 s. Se procesaron los 20 escenarios del holdout en 36 llamadas y 671,547 s.
+
+| Métrica | Resultado |
+|---|---:|
+| Action predicate surface F1 | 0,9714 |
+| Relation predicate surface F1 | 0,2143 |
+| Semantic slot F1 global | 0,6349 |
+| Action predicate TP/FP/FN | 17 / 0 / 1 |
+| Relation predicate TP/FP/FN | 3 / 7 / 15 |
+
+Esta ejecución **no pasa los gates críticos**. El valor más sólido es la copia de predicados de acción; los fallos dominantes son clasificación de familias/roles de action frame, extracción y clasificación de relation claims, spans de predicado relacional, polaridad/modality, atribución y referencias temporales.
+
+Diagnóstico concreto:
+- `Entrego`, `entrega` y `Guardo` se copian bien, pero en varios casos el frame se clasifica como `interaction` en lugar de `transfer`; en combate ocurre lo mismo frente a `combat`. Los roles `theme`, `recipient`, `patient` e `instrument` tampoco se preservan de forma consistente.
+- Los predicados relacionales incluyen preposiciones o negación (`pertenece a`, `jura lealtad a`, `no pertenece`) aunque el gold anota el núcleo léxico (`pertenece`, `jura lealtad`) y expresa negación en polarity/modality.
+- Hay confusión entre `ownership`, `possession` y `membership`; fallos de dirección/mentions; y omisiones de atribución y temporal_expression.
+- La métrica de relation predicate estaba condicionada a extremos textuales prácticamente exactos: una diferencia de artículo (`El anillo de plata` frente a `anillo de plata`) impedía siquiera comparar el predicado. Ese acoplamiento se corrige normalizando solo artículos iniciales para la identidad del extremo; la dirección y el predicado continúan puntuándose por separado.
+
+No se cambia el gold para acomodar esta ejecución. El scorer previo también condicionaba los argumentos de action frame a que la familia coincidiera, y los campos de relation claim a que la dirección coincidiera. Por tanto, algunos falsos negativos agregados podían estar acoplados a otro fallo. Los resultados anteriores quedan archivados como baseline histórico de la versión previa del scorer; no deben compararse directamente con los resultados posteriores.
+
+El incremento #252 (dependiente del toggle live #251) refuerza taxonomías y límites de span en prompt/schema, y separa la puntuación de argumentos/familia y de dirección/campos de relación. Debe volver a ejecutarse el mismo modelo/digest/think sobre el holdout completo para obtener un baseline comparable con el scorer corregido y comprobar si mejora sin sacrificar los límites de evidencia.

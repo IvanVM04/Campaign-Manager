@@ -2,11 +2,47 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
+
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 
 def _value(value):
     return value.value if hasattr(value, "value") else value
+
+
+def _relation_endpoint_signature(value: str) -> str:
+    """Normalize only Spanish leading articles for endpoint identity matching."""
+    normalized = unicodedata.normalize("NFKC", value).casefold().strip()
+    normalized = re.sub(r"^[^\w]+|[^\w]+$", "", normalized)
+    tokens = normalized.split()
+    leading_articles = {
+        "el", "la", "los", "las", "un", "una", "unos", "unas", "al"
+    }
+    if tokens and tokens[0] in leading_articles:
+        tokens = tokens[1:]
+    return " ".join(tokens)
+
+
+def _same_unordered_relation_endpoints(
+    claim,
+    subject: str,
+    object_: str,
+) -> bool:
+    observed = sorted(
+        (
+            _relation_endpoint_signature(claim.subject.text),
+            _relation_endpoint_signature(claim.object.text),
+        )
+    )
+    expected = sorted(
+        (
+            _relation_endpoint_signature(subject),
+            _relation_endpoint_signature(object_),
+        )
+    )
+    return observed == expected
 
 
 def _record_predicate_surface(
@@ -66,7 +102,6 @@ def score_semantic_frame_scenario(
             failures.append("action_frame: no frame returned")
 
         family = expected_frame.get("family")
-        selected_frames = frames
         if family is not None:
             total += 1
             family_matches = [
@@ -74,9 +109,7 @@ def score_semantic_frame_scenario(
             ]
             if family_matches:
                 matched += 1
-                selected_frames = family_matches
             else:
-                selected_frames = []
                 failures.append(
                     f"action_frame.family: expected={family!r}; "
                     f"observed={[frame.family.value for frame in frames]!r}"
@@ -110,7 +143,7 @@ def score_semantic_frame_scenario(
                 == expected_argument["mention"].casefold()
                 and argument.mention.kind_hint.value
                 == expected_argument["kind_hint"]
-                for frame in selected_frames
+                for frame in frames
                 for argument in frame.arguments
             )
             if argument_matches:
@@ -126,8 +159,16 @@ def score_semantic_frame_scenario(
         object_ = expected_relation["object"].casefold()
         direction_matches = [
             claim for claim in claims
-            if claim.subject.text.casefold() == subject
-            and claim.object.text.casefold() == object_
+            if (
+                _relation_endpoint_signature(claim.subject.text)
+                == _relation_endpoint_signature(subject)
+                and _relation_endpoint_signature(claim.object.text)
+                == _relation_endpoint_signature(object_)
+            )
+        ]
+        unordered_endpoint_matches = [
+            claim for claim in claims
+            if _same_unordered_relation_endpoints(claim, subject, object_)
         ]
         total += 1
         if direction_matches:
@@ -143,11 +184,6 @@ def score_semantic_frame_scenario(
         expected_predicate = expected_relation.get("predicate")
         if expected_predicate is not None:
             total += 1
-            unordered_endpoint_matches = [
-                claim for claim in claims
-                if {claim.subject.text.casefold(), claim.object.text.casefold()}
-                == {subject, object_}
-            ]
             predicted_predicates = [
                 claim.predicate for claim in unordered_endpoint_matches
             ]
@@ -172,7 +208,9 @@ def score_semantic_frame_scenario(
                 continue
             total += 1
             observed_values = []
-            for claim in direction_matches:
+            # Family, polarity, modality and attribution belong to the
+            # relation claim regardless of which endpoint the model placed first.
+            for claim in unordered_endpoint_matches:
                 if field == "attributed_to":
                     observed = (
                         None if claim.attributed_to is None

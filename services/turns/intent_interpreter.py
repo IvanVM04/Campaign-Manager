@@ -344,6 +344,103 @@ describe manipulación o contacto físico no lingüístico con objetos o entidad
 Conserva los argumentos literales: el interlocutor puede ser recipient y el
 contenido expresado puede ser theme.
 
+TAXONOMÍA DE ACTION FRAME (elige la familia semántica más específica):
+- transfer: mover, entregar, recibir, guardar, colocar, retirar o cambiar la
+  posesión/ubicación de un tema. Identifica theme y, si aparece literalmente,
+  agent, recipient, source, destination o container. «Entrego la llave a Mara»
+  es transfer; «Guardo la carta dentro del cofre» también es transfer.
+- item_use: emplear un objeto como herramienta/recurso para ejecutar otra
+  acción. El objeto usado es instrument y el objeto sobre el que se actúa es
+  theme/patient. «Abro el cofre utilizando la llave» es item_use, no interaction.
+- combat: atacar, golpear, herir, empujar en una agresión, agarrar en combate
+  o realizar una maniobra hostil contra un adversario. El afectado es patient;
+  el arma/herramienta explícita es instrument.
+- movement: desplazarse, entrar, salir, caminar, viajar, acompañar o seguir una
+  ruta. Usa source, path, destination y companion solo cuando estén expresados.
+  «Acompaño a Bram hasta la puerta» es movement; Bram es companion.
+- perception: observar, ver, escuchar, detectar, examinar o percibir para
+  obtener información. El objetivo percibido es theme y el instrumento óptico
+  o sensorial explícito es instrument.
+- communication: producir o intercambiar lenguaje, incluyendo preguntar,
+  informar, responder, contar, susurrar y avisar.
+- social: influir en una relación o decisión mediante persuasión, negociación,
+  intimidación, engaño o trato interpersonal; no lo uses solo porque haya otra
+  persona presente.
+- state_change: alterar explícitamente un estado o propiedad, como abrir,
+  cerrar, desbloquear, reparar, equipar o transformar, cuando no prevalece una
+  acción más específica como item_use o transfer.
+- creation: fabricar, construir, escribir, cocinar o crear algo nuevo.
+- resource: obtener, gastar, consumir o modificar una cantidad de recurso.
+- interaction: reserva para manipulación/contacto físico con entidades u objetos
+  cuando ninguna familia anterior describe mejor la finalidad.
+- other/unknown: solo cuando la evidencia no permite una familia más específica.
+
+DESAMBIGUACIÓN Y ARGUMENTOS:
+- El significado y la finalidad prevalecen sobre la mera presencia de contacto
+  físico. No uses interaction como cajón de sastre si hay transferencia,
+  combate, movimiento, uso de herramienta, percepción o cambio de estado.
+- agent es quien ejecuta la acción; no inventes un agent implícito si su nombre
+  no aparece literalmente. El actor player/npc se registra por separado.
+- theme es la cosa trasladada o afectada; patient es el ser/objetivo afectado
+  por una acción, especialmente un golpe o ataque; recipient recibe algo;
+  instrument es la herramienta realmente utilizada.
+- destination es el destino de un movimiento o colocación; container es el
+  recipiente que contiene físicamente el theme; source es el origen; path es
+  la ruta; companion es quien acompaña al actor. No intercambies destination,
+  container y recipient por la simple aparición de una preposición.
+- kind_hint: character para personas/personajes; creature para monstruos o
+  animales no caracterizados como personajes; location para lugares;
+  item_instance para un objeto físico concreto; item_definition para el tipo
+  genérico de objeto; faction para organizaciones/grupos; world_entity para
+  otros objetos identificables del mundo. La palabra «concreta» o un objeto
+  individual favorece item_instance; el nombre de una clase/categoría favorece
+  item_definition.
+- Extrae menciones literales completas con sus determinantes y modificadores.
+  No añadas un sujeto tácito, un nombre recuperado del historial ni un objeto
+  que solo sea plausible por el contexto.
+
+TAXONOMÍA DE RELATION CLAIMS:
+- kinship: parentesco/familia («es hermana de»).
+- ownership: titularidad o propiedad de algo («la llave pertenece a Mara»).
+- possession: tenencia/custodia material sin afirmar que exista propiedad
+  («Mara lleva/sujeta la llave»). No uses possession como sustituto genérico
+  de ownership ni para pertenencia a una organización.
+- membership: pertenencia de una persona a una organización, gremio, orden,
+  equipo o grupo («Bram pertenece al gremio»).
+- employment: relación laboral o puesto de trabajo («Mara trabaja para la guardia»).
+- allegiance: lealtad, juramento o fidelidad a una persona, causa o facción.
+- friendship/hostility: amistad o enemistad explícita entre los extremos.
+- protection: un sujeto protege/defiende al objeto.
+- part_of: el sujeto es componente de un todo («la gema forma parte del tesoro»).
+- containment/spatial: ubicación dentro de un contenedor o relación espacial.
+- knowledge: conocimiento, información o familiaridad; obligation: deber, deuda
+  o compromiso exigible; service: servir a una persona u organización.
+- other/unknown: solo cuando no encaje una familia específica con evidencia.
+
+LÍMITES DEL PREDICADO RELACIONAL:
+- relation_claims[].predicate contiene el núcleo léxico verbal de la relación,
+  en su forma superficial exacta, no toda la secuencia que conecta los extremos.
+  Conserva locuciones léxicas de varias palabras: «jura lealtad», «forma parte»,
+  «son amigos». No las conviertas a infinitivo ni las parafrasees.
+- Excluye las preposiciones que solo introducen el extremo: «pertenece» y no
+  «pertenece a»; «trabaja» y no «trabaja para»; «jura lealtad» y no
+  «jura lealtad a». El extremo se registra en object.
+- Excluye marcadores de negación como «no» del predicate. En «no pertenece a
+  Aldric», predicate es «pertenece», polarity es negative y modality es negated.
+- Los verbos de atribución («afirma», «dice», «asegura») no sustituyen al
+  predicado de la relación incrustada. Para «El mercader afirma que el mapa
+  pertenece a Mara», registra la relación mapa→Mara con predicate «pertenece»,
+  modality reported y attributed_to «El mercader». No conviertas la afirmación
+  atribuida en un hecho confirmado.
+- En afirmaciones con tiempo, conserva temporal_expression literalmente
+  («Desde ayer») y no la incorpores al predicate.
+- subject y object son los extremos semánticos, no la preposición que los
+  introduce. Conserva el sintagma nominal literal, incluidos artículo y
+  modificadores; para «pertenece a Aldric», object es «Aldric», no «a Aldric».
+- Una relación negada o referida no desaparece: representa explícitamente su
+  polarity/modality/attributed_to. No la conviertas en una relación positiva
+  ni la descartes por no ser un hecho confirmado.
+
 La evidencia escrita por el jugador es la única fuente literal para
 source_excerpt, predicados, menciones, argumentos, atribución y extremos de
 relaciones. El historial, narración, mundo e intervención del DM son contexto
