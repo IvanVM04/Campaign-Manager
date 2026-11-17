@@ -83,4 +83,12 @@ The live Ollama evaluation remains opt-in and must be run against the configured
 
 The new predicate metrics answer: "Did the model preserve the expected written predicate span?" They do not, by themselves, prove full lexical-sense disambiguation. Frame family, argument roles, relation family/direction, polarity and modality are complementary semantic measurements.
 
+For relation claims, endpoint identity matching ignores only a leading Spanish article when comparing the two endpoints; it does not erase meaningful nouns/modifiers, reverse direction or normalize the predicate. This keeps the predicate metric from failing solely because a model omitted an initial article while preserving separate endpoint-direction scoring.
+
+Action argument roles are scored across returned action frames even when the frame family is wrong. Relation family, polarity, modality, attribution and temporal fields are scored against the unordered endpoint pair, while direction is scored separately against the ordered pair. These dimensions must not be silently converted into false negatives by a mismatch in another dimension.
+
 Do not label aggregate semantic-slot F1 as predicate accuracy. Report the new predicate metrics by their own names.
+
+## Follow-up prompt/schema refinement
+
+The semantic interpreter contract also defines the taxonomy for action families, argument roles, relation families, predicate boundaries, negation, reported attribution and temporal expressions. These rules are evaluation-guided and do not weaken literal-evidence validation. In particular, a relation predicate is its lexical core (for example, `pertenece`, not `pertenece a`); negation belongs in polarity/modality, and relationship family must distinguish ownership, possession and membership.
