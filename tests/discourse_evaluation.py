@@ -119,6 +119,15 @@ def build_live_discourse_report(
         usage_totals[f"{field}_total"] = sum(values)
         usage_totals[f"{field}_max"] = max(values, default=0)
 
+    # The semantic ledger exposes a sensitive-marker counter for in-memory
+    # evaluation. Keep that diagnostic in JUnit output, but do not copy it into
+    # a persistent report; it is not required for discourse benchmark scoring.
+    safe_ledger_summary = {
+        key: value
+        for key, value in ledger_summary.items()
+        if key != "secret_leaks"
+    }
+
     safe_think = think if isinstance(think, (bool, str)) else None
     safe_commit = (
         git_commit.strip()[:64]
@@ -144,7 +153,7 @@ def build_live_discourse_report(
             "critical_failure_count": critical_failure_count,
             "observational_failure_count": observational_failure_count,
         },
-        "metrics": ledger_summary,
+        "metrics": safe_ledger_summary,
         "discourse_controls": control_summary,
         "diagnostics": {
             "family_calls": dict(sorted(family_calls.items())),
