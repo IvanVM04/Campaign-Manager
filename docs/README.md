@@ -48,6 +48,8 @@ indexes over searching through dated audit history.
 - [PR #233 Intent attribution evidence grounding](quality/pr-233-intent-attribution-current-evidence.md) — clears history-only step attributions without weakening strict domain validation or authorizing world changes.
 - [PR #234 Discourse holdout fixture integrity](quality/pr-234-discourse-holdout-fixture-integrity.md) — supplies NPC speaker entities to the live prompt harness and validates literal expected mentions.
 
+- [Predicate-understanding audit (2026-11-17)](quality/predicate-understanding-audit-2026-11-17.md) — action/relation predicate coverage, live metrics, measurement gaps and remaining effort.
+
 ## Active architectural contracts
 
 - [Turn pipeline contract](architecture/turn-pipeline-compatibility.md) — the single supported durable turn lifecycle.
