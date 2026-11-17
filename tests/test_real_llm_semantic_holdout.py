@@ -170,19 +170,47 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     assert not critical_failures, "\n".join(critical_failures) + "\n" + ledger.render()
 
 
-def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
+def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     """Score action/relation surface predicates independently from other slots."""
     corpus = json.loads(
         (FIXTURES / "semantic_frame_corpus_holdout_v1.json").read_text(
             encoding="utf-8"
         )
     )
-    assert corpus["schema_version"] == 2
+    assert corpus["schema_version"] == 1
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 18
+    predicate_gold = json.loads(
+        (FIXTURES / "semantic_frame_predicate_gold_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert predicate_gold["schema_version"] == 1
+    assert predicate_gold["split"] == "held_out_annotations"
+    predicate_by_id = {
+        item["id"]: item for item in predicate_gold["scenarios"]
+    }
+    assert set(predicate_by_id) == {
+        item["id"] for item in corpus["scenarios"]
+    }
+
+    # Attach sidecar gold only in memory. The original held-out corpus remains
+    # byte-for-byte unchanged and the annotation fixture contains no utterances.
+    scenarios = []
+    for item in corpus["scenarios"]:
+        scenario = dict(item)
+        gold = predicate_by_id[item["id"]]
+        if "action_frame_predicate" in gold:
+            frame = dict(scenario["expected_action_frame"])
+            frame["predicate"] = gold["action_frame_predicate"]
+            scenario["expected_action_frame"] = frame
+        if "relation_predicate" in gold:
+            relation = dict(scenario["expected_relation"])
+            relation["predicate"] = gold["relation_predicate"]
+            scenario["expected_relation"] = relation
+        scenarios.append(scenario)
 
     scenario_filter = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID")
-    scenarios = corpus["scenarios"]
     if scenario_filter:
         scenarios = [item for item in scenarios if item["id"] == scenario_filter]
         if len(scenarios) != 1:
@@ -241,7 +269,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
     total_seconds = perf_counter() - started
     report = build_live_evaluation_report(
         evaluation_name="semantic_frame_predicate_holdout",
-        corpus_name="semantic_frame_corpus_holdout_v1.json",
+        corpus_name="semantic_frame_corpus_holdout_v1.json + semantic_frame_predicate_gold_v1.json",
         provider=interpreter.provider,
         ledger=ledger,
         scenario_count=len(scenarios),
