@@ -32,6 +32,11 @@ from services.context.conversation_reference_resolver import (
 from services.discourse_context import DiscourseContextBuilder
 from services.providers import LLMSettings
 from services.turns import IntentInterpreter, IntentInterpreterError
+from tests.discourse_evaluation import (
+    DiscourseControlLedger,
+    build_live_discourse_report,
+    load_primary_actor_gold,
+)
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
@@ -239,6 +244,8 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     interpreter, provider, context_builder, usage_events = _live_intent_runtime()
     resolver = ConversationReferenceResolver()
     ledger = SemanticEvaluationLedger()
+    control_ledger = DiscourseControlLedger()
+    primary_actor_gold = load_primary_actor_gold()
     failures: list[str] = []
     observational_failures: list[str] = []
     calls = 0
@@ -254,6 +261,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
             recent_turns = _recent_turns(scenario)
             expected_intent = scenario["expected"]["intent"]
             analysis = None
+            actor_scored = False
             case_failures: list[str] = []
             prompt_bytes = 0
             section_sizes: dict[str, int] = {}
@@ -275,6 +283,25 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                 )
                 if analysis.category.value != expected_intent["category"]:
                     case_failures.append("intent.category_mismatch")
+                expected_actor = primary_actor_gold.get(scenario["id"])
+                if expected_actor is not None:
+                    predicted_actor = (
+                        analysis.steps[0].actor.value
+                        if analysis.steps
+                        else "missing"
+                    )
+                    ledger.record_semantic_slots(
+                        "intent_primary_actor",
+                        expected_slots=(f"actor:{expected_actor}",),
+                        predicted_slots=(
+                            (f"actor:{predicted_actor}",)
+                            if predicted_actor in {"player", "npc", "other", "unknown"}
+                            else ()
+                        ),
+                    )
+                    actor_scored = True
+                    if predicted_actor != expected_actor:
+                        case_failures.append("intent.primary_actor_mismatch")
                 action_contains = expected_intent.get("action_contains")
                 if action_contains is not None:
                     recovered = any(
@@ -359,6 +386,13 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         ledger,
                         scenario["family"],
                     )
+                expected_actor = primary_actor_gold.get(scenario["id"])
+                if expected_actor is not None and not actor_scored:
+                    ledger.record_semantic_slots(
+                        "intent_primary_actor",
+                        expected_slots=(f"actor:{expected_actor}",),
+                        predicted_slots=(),
+                    )
 
             elapsed = perf_counter() - case_started
             calls += 1
@@ -389,6 +423,43 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                 recent_turns,
                 scenario["input"],
             )
+            control_ledger.record(
+                "history_scope",
+                expected=tuple(scenario["expected"]["scoped_turn_ids"]),
+                observed=tuple(
+                    item.id
+                    for item in DiscourseContextBuilder.scope_history(
+                        recent_turns,
+                        scenario["input"],
+                    )
+                ),
+            )
+            if "current_topic_shift" in scenario["expected"]:
+                control_ledger.record(
+                    "topic_shift",
+                    expected=scenario["expected"]["current_topic_shift"],
+                    observed=DiscourseContextBuilder.has_topic_shift(
+                        scenario["input"]
+                    ),
+                )
+            if "callback" in scenario["expected"]:
+                control_ledger.record(
+                    "callback",
+                    expected=scenario["expected"]["callback"],
+                    observed=DiscourseContextBuilder.reactivates_prior_topic(
+                        scenario["input"]
+                    ),
+                )
+            if "ellipsis_hint" in scenario["expected"]:
+                rendered_discourse = DiscourseContextBuilder.render(
+                    scenario["input"],
+                    recent_turns,
+                )
+                control_ledger.record(
+                    "ellipsis_hint",
+                    expected=scenario["expected"]["ellipsis_hint"],
+                    observed="Posible elipsis" in rendered_discourse,
+                )
             prompt_observations[
                 f"{scenario['family']}:selection_reason:{selection.reason}"
             ] += 1
@@ -610,6 +681,19 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
 
     elapsed_total = perf_counter() - started
     ledger.emit(record_property, prefix="discourse_holdout")
+    control_summary = control_ledger.summary()
+    print("Discourse control accuracy: " + json.dumps(control_summary, sort_keys=True))
+    for dimension, values in control_summary.items():
+        record_property(
+            f"discourse_holdout_control_{dimension}_accuracy",
+            values["exact_accuracy"]
+            if values["exact_accuracy"] is not None
+            else "not_measured",
+        )
+        record_property(
+            f"discourse_holdout_control_{dimension}_cases",
+            values["cases"],
+        )
     record_property("discourse_holdout_model", provider.model)
     record_property("discourse_holdout_model_digest", provider.get_model_digest() or "unavailable")
     record_property(
@@ -667,44 +751,28 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     if report_path:
         report_file = Path(report_path)
         report_file.parent.mkdir(parents=True, exist_ok=True)
+        think_value = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_THINK")
+        report = build_live_discourse_report(
+            ledger_summary=ledger.summary(),
+            control_summary=control_ledger.summary(),
+            prompt_observations=dict(prompt_observations),
+            family_calls=dict(family_calls),
+            usage_events=usage_events,
+            model=provider.model,
+            model_digest=provider.get_model_digest(),
+            ollama_version=provider.get_server_version(),
+            timeout_seconds=provider.timeout,
+            think=think_value,
+            git_commit=os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT"),
+            scenario_filter=scenario_filter,
+            scenario_count=len(scenarios),
+            provider_calls=calls,
+            elapsed_seconds=elapsed_total,
+            critical_failure_count=len(failures),
+            observational_failure_count=len(observational_failures),
+        )
         report_file.write_text(
-            json.dumps(
-                {
-                    # Persist only aggregate numeric outcomes. Detailed
-                    # model/player text and provider metadata stay in the
-                    # test output, not in this optional file.
-                    "schema_version": 4,
-                    "scenario_count": len(scenarios),
-                    "provider_calls": calls,
-                    "metrics": {
-                        "semantic_slot_precision": ledger.summary()[
-                            "semantic_slot_precision"
-                        ],
-                        "semantic_slot_recall": ledger.summary()[
-                            "semantic_slot_recall"
-                        ],
-                        "semantic_slot_f1": ledger.summary()[
-                            "semantic_slot_f1"
-                        ],
-                        "entity_link_precision": ledger.summary()[
-                            "entity_link_precision"
-                        ],
-                        "entity_link_recall": ledger.summary()[
-                            "entity_link_recall"
-                        ],
-                        "context_recall": ledger.summary()["context_recall"],
-                        "operation_precision": ledger.summary()["operation_precision"],
-                        "operation_recall": ledger.summary()["operation_recall"],
-                        "correct_abstentions": ledger.summary()["correct_abstentions"],
-                        "incorrect_abstentions": ledger.summary()["incorrect_abstentions"],
-                    },
-                    "critical_failure_count": len(failures),
-                    "observational_failure_count": len(observational_failures),
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-                indent=2,
-            ),
+            json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2),
             encoding="utf-8",
         )
     assert not failures, "\n".join(failures) + "\n" + ledger.render()

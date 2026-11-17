@@ -26,6 +26,12 @@ def test_normal_intent_prompt_separates_dialogue_question_and_report():
     )
     assert "la guardia cruza el puente" in normal
     assert "le consulto a la guardia" in normal
+    assert "matriz de decisión para el actor primario" in normal
+    assert "ella responde en voz alta" in normal
+    assert "ella entra en la sala" in normal
+    assert "ellas contestan desde el balcón" in normal
+    assert "le pregunto a mara por el mapa" in normal
+    assert "quién habló" in normal
 
 
 def test_normal_intent_schema_describes_global_category_and_communication_family():
@@ -41,6 +47,13 @@ def test_normal_intent_schema_describes_global_category_and_communication_family
     assert "dm/narrator" in category_description
     assert "implicit request" in category_description
     assert "non-speech npc action" in category_description
+    assert "ella responde" in category_description
+    assert "npc dialogue" in category_description
+    actor_description = properties["steps"]["items"]["properties"][
+        "actor"
+    ]["description"].casefold()
+    assert "third-person npc speech predicate" in actor_description
+    assert "message author is not automatically the actor" in actor_description
     assert "communication" in family_description
     assert "interaction" in family_description
     assert "non-linguistic" in family_description
