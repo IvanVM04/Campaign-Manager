@@ -7,6 +7,7 @@ results establish per-family baselines; critical safety cases remain hard gates.
 import json
 import os
 from pathlib import Path
+from typing import Any
 from time import perf_counter
 
 import pytest
@@ -31,7 +32,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _make_interpreter(
-    usage_events: list[dict[str, object]] | None = None,
+    usage_events: list[dict[str, Any]] | None = None,
 ) -> IntentInterpreter:
     provider = OllamaProvider(
         model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
@@ -190,7 +191,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
                 "held-out scenario"
             )
 
-    usage_events: list[dict[str, object]] = []
+    usage_events: list[dict[str, Any]] = []
     interpreter = _make_interpreter(usage_events)
     context = _make_context()
     ledger = SemanticEvaluationLedger()
@@ -263,7 +264,9 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
     )
     record_property(
         "semantic_holdout_frames_timeout_seconds",
-        metadata["timeout_seconds"] if metadata["timeout_seconds"] is not None else "unavailable",
+        metadata["timeout_seconds"]
+        if metadata["timeout_seconds"] is not None
+        else "unavailable",
     )
     record_property(
         "semantic_holdout_frames_git_commit",
@@ -272,7 +275,10 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
     record_property("semantic_holdout_frames_scenario_filter", scenario_filter or "all")
     record_property("semantic_holdout_frames_provider_calls", provider_calls)
     record_property("semantic_holdout_frames_total_seconds", round(total_seconds, 3))
-    record_property("semantic_holdout_frames_json_report", report_path or "not_configured")
+    record_property(
+        "semantic_holdout_frames_json_report",
+        report_path or "not_configured",
+    )
     print(ledger.render())
     if report_path:
         print(f"Predicate evaluation JSON report: {report_path}")
