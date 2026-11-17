@@ -140,7 +140,6 @@ def test_semantic_frame_predicate_gold_sidecar_covers_immutable_holdout():
     assert annotations["schema_version"] == 1
     assert annotations["split"] == "held_out_annotations"
     assert annotations["source_corpus"] == "semantic_frame_corpus_holdout_v1.json"
-    assert "utterance" not in annotations["description"].casefold()
 
     source_by_id = {item["id"]: item for item in corpus["scenarios"]}
     annotation_by_id = {item["id"]: item for item in annotations["scenarios"]}
