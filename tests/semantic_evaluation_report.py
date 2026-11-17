@@ -50,7 +50,7 @@ def build_live_evaluation_report(
     scenario_count: int,
     provider_calls: int,
     elapsed_seconds: float,
-    usage_events: list[dict[str, object]],
+    usage_events: list[dict[str, Any]],
     scenario_filter: str | None = None,
 ) -> dict[str, Any]:
     """Build a content-free report; no prompts, completions or player text."""
@@ -93,6 +93,7 @@ def build_live_evaluation_report(
             "scenario_filter": scenario_filter,
             "github_run_id": os.getenv("GITHUB_RUN_ID") or None,
             "github_run_attempt": os.getenv("GITHUB_RUN_ATTEMPT") or None,
+            "hardware_label": os.getenv("CAMPAIGN_MANAGER_REAL_LLM_HARDWARE") or None,
         },
         "metrics": ledger.summary(),
         "provider_usage": safe_usage,
