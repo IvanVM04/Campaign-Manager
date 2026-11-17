@@ -166,7 +166,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     print(ledger.render())
     if observational_failures:
         print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\n" + ledger.render()
+    assert not critical_failures, "\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
@@ -277,8 +277,8 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v2(record_property):
     if report_path:
         print(f"Predicate evaluation JSON report: {report_path}")
     if observational_failures:
-        print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
-    assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
+        print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
+    assert not critical_failures, "\n".join(critical_failures) + "\n" + ledger.render()
 
 
 def test_real_ollama_emits_evidence_bound_recipient_correction(record_property):
