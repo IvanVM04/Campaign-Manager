@@ -15,22 +15,27 @@ def _value(value):
 def _relation_endpoint_signature(value: str) -> str:
     """Normalize only Spanish leading articles for endpoint identity matching."""
     normalized = unicodedata.normalize("NFKC", value).casefold().strip()
-    normalized = re.sub(r"^[^\\w]+|[^\\w]+$", "", normalized)
+    normalized = re.sub(r"^[^\w]+|[^\w]+$", "", normalized)
     tokens = normalized.split()
-    if tokens and tokens[0] in {"el", "la", "los", "las", "un", "una", "unos", "unas", "al"}:
+    leading_articles = {"el", "la", "los", "las", "un", "una", "unos", "unas", "al"}
+    if tokens and tokens[0] in leading_articles:
         tokens = tokens[1:]
     return " ".join(tokens)
 
 
 def _same_unordered_relation_endpoints(claim, subject: str, object_: str) -> bool:
-    observed = sorted((
-        _relation_endpoint_signature(claim.subject.text),
-        _relation_endpoint_signature(claim.object.text),
-    ))
-    expected = sorted((
-        _relation_endpoint_signature(subject),
-        _relation_endpoint_signature(object_),
-    ))
+    observed = sorted(
+        (
+            _relation_endpoint_signature(claim.subject.text),
+            _relation_endpoint_signature(claim.object.text),
+        )
+    )
+    expected = sorted(
+        (
+            _relation_endpoint_signature(subject),
+            _relation_endpoint_signature(object_),
+        )
+    )
     return observed == expected
 
 
