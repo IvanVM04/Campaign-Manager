@@ -445,12 +445,17 @@ def _normalize_action_frame(
         return None, None
     text = step.source_excerpt
     predicate = frame.predicate
-    rules: tuple[tuple[str, re.Pattern[str], SemanticActionFamily], ...] = (
+    all_rules: tuple[tuple[str, re.Pattern[str], SemanticActionFamily], ...] = (
         ("action_combat", _COMBAT_VERB_RE, SemanticActionFamily.COMBAT),
         ("action_movement", _MOVEMENT_VERB_RE, SemanticActionFamily.MOVEMENT),
         ("action_perception", _PERCEPTION_VERB_RE, SemanticActionFamily.PERCEPTION),
         ("action_communication", _COMMUNICATION_VERB_RE, SemanticActionFamily.COMMUNICATION),
         ("action_transfer", _TRANSFER_VERB_RE, SemanticActionFamily.TRANSFER),
+    )
+    rules = (
+        (("action_communication", _COMMUNICATION_VERB_RE, SemanticActionFamily.COMMUNICATION),)
+        if step.modality in {SemanticModality.DIALOGUE, SemanticModality.QUESTION}
+        else all_rules
     )
     selected_rule: str | None = None
     selected_family = frame.family
