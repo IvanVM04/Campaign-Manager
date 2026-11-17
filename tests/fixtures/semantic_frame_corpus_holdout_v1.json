@@ -1,7 +1,7 @@
 {
-  "schema_version": 2,
+  "schema_version": 1,
   "split": "held_out",
-  "description": "Held-out action-frame and directed-relation cases. Reserved for measurement; do not turn these exact utterances into few-shot prompt examples. Schema v2 adds exact, case-sensitive surface predicate gold for every action frame and directed relation; labels are evaluation-only and must not enter prompts.",
+  "description": "Held-out action-frame and directed-relation cases. Reserved for measurement; do not turn these exact utterances into few-shot prompt examples.",
   "scenarios": [
     {
       "id": "holdout-transfer-scroll",
@@ -21,8 +21,7 @@
             "mention": "la capitana",
             "kind_hint": "character"
           }
-        ],
-        "predicate": "Entrego"
+        ]
       }
     },
     {
@@ -48,8 +47,7 @@
             "mention": "Aldric",
             "kind_hint": "character"
           }
-        ],
-        "predicate": "entrega"
+        ]
       }
     },
     {
@@ -70,8 +68,7 @@
             "mention": "mi mochila",
             "kind_hint": "item_instance"
           }
-        ],
-        "predicate": "Guardo"
+        ]
       }
     },
     {
@@ -92,8 +89,7 @@
             "mention": "la llave de cobre",
             "kind_hint": "item_instance"
           }
-        ],
-        "predicate": "Abro"
+        ]
       }
     },
     {
@@ -119,8 +115,7 @@
             "mention": "la torre",
             "kind_hint": "location"
           }
-        ],
-        "predicate": "Camino"
+        ]
       }
     },
     {
@@ -141,8 +136,7 @@
             "mention": "la puerta norte",
             "kind_hint": "location"
           }
-        ],
-        "predicate": "Acompaño"
+        ]
       }
     },
     {
@@ -163,8 +157,7 @@
             "mention": "el martillo de guerra",
             "kind_hint": "item_instance"
           }
-        ],
-        "predicate": "Golpeo"
+        ]
       }
     },
     {
@@ -185,8 +178,7 @@
             "mention": "el cofre de roble",
             "kind_hint": "world_entity"
           }
-        ],
-        "predicate": "Guardo"
+        ]
       }
     },
     {
@@ -206,8 +198,7 @@
             "mention": "bajo la alfombra del dormitorio",
             "kind_hint": "location"
           }
-        ],
-        "predicate": "Escondo"
+        ]
       }
     },
     {
@@ -228,8 +219,7 @@
             "mention": "una lupa",
             "kind_hint": "item_instance"
           }
-        ],
-        "predicate": "Observo"
+        ]
       }
     },
     {
@@ -254,8 +244,7 @@
         "subject": "Bram",
         "object": "el gremio de cartógrafos",
         "relation_family": "membership",
-        "polarity": "positive",
-        "predicate": "pertenece"
+        "polarity": "positive"
       }
     },
     {
@@ -267,8 +256,7 @@
         "subject": "Aldric",
         "object": "la reina",
         "relation_family": "allegiance",
-        "polarity": "positive",
-        "predicate": "jura lealtad"
+        "polarity": "positive"
       }
     },
     {
@@ -280,8 +268,7 @@
         "subject": "La orden",
         "object": "los habitantes del puerto",
         "relation_family": "protection",
-        "polarity": "positive",
-        "predicate": "protege"
+        "polarity": "positive"
       }
     },
     {
@@ -293,8 +280,7 @@
         "subject": "Mara",
         "object": "Aldric",
         "relation_family": "friendship",
-        "polarity": "positive",
-        "predicate": "son amigos"
+        "polarity": "positive"
       }
     },
     {
@@ -306,8 +292,7 @@
         "subject": "El ogro",
         "object": "el capitán",
         "relation_family": "hostility",
-        "polarity": "positive",
-        "predicate": "odia"
+        "polarity": "positive"
       }
     },
     {
@@ -319,8 +304,7 @@
         "subject": "La gema azul",
         "object": "el tesoro real",
         "relation_family": "part_of",
-        "polarity": "positive",
-        "predicate": "forma parte"
+        "polarity": "positive"
       }
     },
     {
@@ -347,8 +331,7 @@
         "object": "Mara",
         "relation_family": "ownership",
         "modality": "reported",
-        "attributed_to": "El mercader",
-        "predicate": "pertenece"
+        "attributed_to": "El mercader"
       }
     },
     {
@@ -361,8 +344,7 @@
         "object": "Mara",
         "relation_family": "ownership",
         "polarity": "positive",
-        "temporal_expression": "Desde ayer",
-        "predicate": "pertenece"
+        "temporal_expression": "Desde ayer"
       }
     }
   ]
