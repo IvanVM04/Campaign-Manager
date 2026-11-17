@@ -92,3 +92,7 @@ Do not label aggregate semantic-slot F1 as predicate accuracy. Report the new pr
 ## Follow-up prompt/schema refinement
 
 The semantic interpreter contract also defines the taxonomy for action families, argument roles, relation families, predicate boundaries, negation, reported attribution and temporal expressions. These rules are evaluation-guided and do not weaken literal-evidence validation. In particular, a relation predicate is its lexical core (for example, `pertenece`, not `pertenece a`); negation belongs in polarity/modality, and relationship family must distinguish ownership, possession and membership.
+
+## Follow-up implementation
+
+The broader evidence-bound semantic normalizer and its validation rules are documented in [semantic-understanding-hardening-2026-11-17.md](semantic-understanding-hardening-2026-11-17.md). It is an opt-in-free part of the semantic interpreter path but only repairs high-confidence explicit constructions; ambiguous language remains with the LLM and the strict domain validator.
