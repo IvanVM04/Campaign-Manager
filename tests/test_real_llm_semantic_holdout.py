@@ -151,7 +151,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
                     f"{scenario['id']} repetition={repetition + 1}: "
                     + "; ".join(failures)
                 )
-                if scenario["critical"] or scenario_filter:
+                if scenario["critical"]:
                     critical_failures.append(description)
                 else:
                     observational_failures.append(description)
@@ -261,7 +261,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     f"{scenario['id']} repetition={repetition + 1}: "
                     + "; ".join(failures)
                 )
-                if scenario["critical"]:
+                if scenario["critical"] or scenario_filter:
                     critical_failures.append(description)
                 else:
                     observational_failures.append(description)
