@@ -381,10 +381,7 @@ def _guess_kind(value: str, role: SemanticArgumentRole | None = None) -> Semanti
         SemanticArgumentRole.RECIPIENT,
         SemanticArgumentRole.COMPANION,
     }:
-        if (
-            folded.startswith(("el ", "la ", "los ", "las ", "un ", "una "))
-            and tokens & _PERSON_WORDS
-        ):
+        if tokens & _PERSON_WORDS:
             return SemanticObjectKind.CHARACTER
         if value[:1].isupper() and " " not in value.strip():
             return SemanticObjectKind.CHARACTER
@@ -896,12 +893,12 @@ def _make_relation_claim(
             step_index=step.index,
             subject=SemanticMention(
                 surface.subject,
-                _guess_kind(surface.subject),
+                _guess_kind(surface.subject, SemanticArgumentRole.AGENT),
             ),
             predicate=surface.predicate,
             object=SemanticMention(
                 surface.object,
-                _guess_kind(surface.object),
+                _guess_kind(surface.object, SemanticArgumentRole.PATIENT),
             ),
             relation_family=surface.family,
             polarity=polarity,
