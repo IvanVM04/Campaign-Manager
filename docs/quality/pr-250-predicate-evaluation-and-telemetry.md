@@ -44,7 +44,15 @@ $env:CAMPAIGN_MANAGER_REAL_LLM_HARDWARE = "optional hardware label"
 python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v1" -v -s
 ```
 
-The report includes the commit SHA (when supplied by the environment), model and digest, Ollama server version, timeout, `think`, scenario filter/count, provider-call count, elapsed time, aggregate metrics and allowlisted content-free provider usage counters.
+The optional `CAMPAIGN_MANAGER_REAL_LLM_THINK` environment variable controls Ollama reasoning for this live holdout only:
+- `false` (also `0`, `no`, `off`) sends `think: false`.
+- `true` (also `1`, `yes`, `on`) sends `think: true`.
+- Unset preserves the model/provider default.
+- Any other value fails fast with a configuration error.
+
+This is useful for comparing latency, but a faster run is not automatically equivalent: verify structured-output validity and semantic metrics before preferring one mode. The effective setting is captured in report metadata.
+
+The report includes the commit SHA (when supplied by the environment), model and digest, Ollama server version, timeout, effective `think`, scenario filter/count, provider-call count, elapsed time, aggregate metrics and allowlisted content-free provider usage counters.
 
 It never stores prompts, completions, player utterances, campaign state, raw exceptions or rejected values. Without a configured path, the test still prints the metrics and records JUnit properties.
 
