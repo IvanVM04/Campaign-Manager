@@ -203,7 +203,7 @@ def test_normal_intent_prompt_defines_action_and_relation_semantic_taxonomies():
         "membership",
         "allegiance",
         "límites del predicado relacional",
-        "pertenece y no pertenece a",
+        "pertenece» y no «pertenece a",
         "jura lealtad",
         "polarity es negative",
         "modality es negated",
