@@ -85,3 +85,22 @@ def test_entity_group_resolution_scores_each_member_without_collapsing_group():
     assert result["entity_link_precision"] == 0.6667
     assert result["entity_link_recall"] == 1.0
 
+
+def test_entity_group_resolution_rejects_invalid_expected_and_observed_ids():
+    ledger = SemanticEvaluationLedger()
+    with pytest.raises(ValueError, match="expected group"):
+        ledger.record_entity_group_resolution(
+            expected_entity_ids=(11,),
+            observed_entity_ids=(),
+        )
+    with pytest.raises(ValueError, match="positive integers"):
+        ledger.record_entity_group_resolution(
+            expected_entity_ids=(11, 12),
+            observed_entity_ids=(True,),
+        )
+    with pytest.raises(ValueError, match="positive integers"):
+        ledger.record_entity_group_resolution(
+            expected_entity_ids=(True, 12),
+            observed_entity_ids=(),
+        )
+

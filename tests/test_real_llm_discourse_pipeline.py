@@ -18,7 +18,10 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
-from models.resolved_conversation_reference import ResolvedConversationGroupReference
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
@@ -667,28 +670,17 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         report_file.write_text(
             json.dumps(
                 {
-                    "schema_version": 2,
-                    "model": provider.model,
-                    "model_digest": provider.get_model_digest() or None,
-                    "ollama_version": provider.get_server_version() or None,
+                    # Persist aggregate counters only. Model names, server
+                    # metadata, usage events and failure text stay out of this
+                    # optional file; detailed diagnostics remain in JUnit/logs.
+                    "schema_version": 3,
                     "scenario_count": len(scenarios),
                     "provider_calls": calls,
-                    "family_calls": dict(family_calls),
-                    "observations": dict(prompt_observations),
+                    "family_call_counts": dict(family_calls),
+                    "observation_counts": dict(prompt_observations),
                     "metrics": ledger.summary(),
-                    # Persist only fixture scenario IDs and static failure
-                    # codes; detailed model/player text remains in memory.
-                    "critical_failures": [
-                        failure.split(" repetition=", 1)[0] + ":"
-                        + failure.split(": ", 1)[1]
-                        for failure in failures
-                    ],
-                    "observational_failures": [
-                        failure.split(" repetition=", 1)[0] + ":"
-                        + failure.split(": ", 1)[1]
-                        for failure in observational_failures
-                    ],
-                    "usage_events": usage_summary,
+                    "critical_failure_count": len(failures),
+                    "observational_failure_count": len(observational_failures),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
