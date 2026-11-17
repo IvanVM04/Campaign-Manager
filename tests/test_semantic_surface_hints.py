@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.semantic_frames import SemanticArgumentRole, SemanticActionFamily
+from models.semantic_frames import SemanticActionFamily, SemanticArgumentRole
 from services.turns.semantic_surface_hints import (
     normalize_semantic_surface,
     normalize_untrusted_intent_payload,
