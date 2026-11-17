@@ -172,7 +172,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_employment_para",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>trabaj\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>trabaj\w*)\s+"
             r"para\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -190,7 +190,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_ownership_dueno",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>es\s+dueñ[oa])\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>es\s+dueñ[oa])\s+"
             r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -199,7 +199,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_ownership_poseer",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>pose\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>pose\w*)\s+"
             r"(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -208,7 +208,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_possession_tener",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>tien\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>tien\w*)\s+"
             r"(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -217,7 +217,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_kinship",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>es\s+(?:herman[oa]|"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>es\s+(?:herman[oa]|"
             r"madre|padre|hij[oa]|prim[oa]|t[ií][oa]))\s+"
             r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
@@ -227,7 +227,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_service",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>sirv\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>sirv\w*)\s+"
             r"a\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -236,7 +236,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_knowledge",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>conoc\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>conoc\w*)\s+"
             r"a\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -245,7 +245,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_containment",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>está|esta)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>está|esta)\s+"
             r"dentro\s+de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -254,7 +254,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_allegiance",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>jur\w*\s+lealtad)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>jur\w*\s+lealtad)\s+"
             r"a\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -263,7 +263,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_protection",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>proteg\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>proteg\w*)\s+"
             r"a\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -272,7 +272,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_hostility",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>odi\w*|detest\w*)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>odi\w*|detest\w*)\s+"
             r"a(?:l)?\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -281,7 +281,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_friendship",
         re.compile(
-            r"^(?P<subject>.+?)\s+y\s+(?P<object>.+?)\s+"
+            r"^(?P<subject>.+?)\s+y\s+(?P<object>.+?)\s+(?P<negative>no\s+)?"
             r"(?P<predicate>son\s+amig(?:o|a)s?)$",
             re.IGNORECASE,
         ),
@@ -290,7 +290,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_part_of",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<predicate>form\w*\s+parte)\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>form\w*\s+parte)\s+"
             r"(?:de\s+el|de\s+la|de\s+los|de\s+las|del|de)\s+"
             r"(?P<object>.+)$",
             re.IGNORECASE,
