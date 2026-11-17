@@ -414,3 +414,12 @@ La siguiente entrega reúne en una única PR las antiguas fases #248–#251. Inc
 - exportación JSON opcional de metadatos y métricas sintéticas, sin prompt, completion ni texto de campaña.
 
 No se modifica la autoridad de escritura, la persistencia durable, las migraciones ni los contratos de corrección. La validación live con Ollama y la aceptación completa en SillyTavern siguen siendo gates separados de CI.
+
+
+## 12. Seguimiento de predicados — auditoría 2026-11-17
+
+La auditoría específica `predicate-understanding-audit-2026-11-17.md` confirma que el validador de `SemanticActionFrame` comprueba que el predicado es evidencia literal, pero el held-out de action frames no puntúa el predicado emitido: puntúa frame, familia y argumentos. Los predicados de relación solo se puntúan cuando el fixture incluye explícitamente `expected_relation.predicate`. El F1 semántico alto no equivale, por tanto, a un score de comprensión de predicados.
+
+El último log compartido disponible informa 94,74% de semantic-slot F1, 100% de entity-link precision y 71,43% de recall; el documento de PR #246 había informado 100%/100%. Se registra la discrepancia, no se promedian ambas ejecuciones. Ese mismo log mantiene callback en 0% y topic boundary en 25%, aunque las abstenciones fueron correctas y no hubo cambios persistentes críticos falsos ni filtraciones.
+
+El siguiente P0 es añadir gold de predicados de acción y métricas separadas (literalidad, clase semántica, valencia/roles), capturar metadata completa y ejecutar el holdout fijado antes de nuevos cambios generales de prompt. La aceptación Ollama y SillyTavern sigue siendo un gate pendiente.
