@@ -18,15 +18,15 @@ import pytest
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
+from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_state import WorldState
 from services.context import ContextBuilder
-from services.discourse_context import DiscourseContextBuilder
-from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from services.context.conversation_reference_resolver import (
     ConversationReferenceResolver,
 )
+from services.discourse_context import DiscourseContextBuilder
 from services.providers import LLMSettings
 from services.turns import IntentInterpreter, IntentInterpreterError
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger

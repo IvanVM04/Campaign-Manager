@@ -6,7 +6,7 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar, TypeVar
 
 DiscourseTurn = TypeVar("DiscourseTurn")
 
@@ -23,10 +23,10 @@ class AttributedNpcUtterance:
 
 
 @dataclass(frozen=True, slots=True)
-class DiscourseSelection(Generic[DiscourseTurn]):
+class DiscourseSelection[TurnT]:
     """Auditable result of topic-scoping, including ambiguous selections."""
 
-    turns: tuple[DiscourseTurn, ...]
+    turns: tuple[TurnT, ...]
     reason: str
     anchor_tokens: tuple[str, ...] = ()
     selected_segments: tuple[int, ...] = ()

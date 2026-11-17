@@ -4,16 +4,20 @@ import pytest
 
 from models.campaign_state import CampaignState
 from models.character_state import CharacterState
-from models.entity import Entity
-from models.discourse_evidence import DiscourseEvidence, DiscourseSource, DiscourseSpeaker
-from models.resolved_conversation_reference import (
-    ResolvedConversationGroupMember,
-    ResolvedConversationGroupReference,
+from models.discourse_evidence import (
+    DiscourseEvidence,
+    DiscourseSource,
+    DiscourseSpeaker,
 )
+from models.entity import Entity
 from models.operation_result import (
     OperationStatus,
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupMember,
+    ResolvedConversationGroupReference,
+)
 from models.session_state import SessionState
 from models.turn_context import TurnContext
 from models.world_context_projection import (

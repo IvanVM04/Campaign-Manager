@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from models.entity import Entity
 from models.player_intent_analysis import PlayerIntentAnalysis
+from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from models.semantic_frames import SemanticObjectKind
 from models.world_state import WorldState
 from services.context.conversation_reference_resolver import (
@@ -804,8 +805,6 @@ def test_surface_pronoun_is_resolved_when_the_model_omits_it_from_its_frame():
 
 
 def test_plural_pronoun_resolves_only_to_a_co_mentioned_grammatical_group():
-    from models.resolved_conversation_reference import ResolvedConversationGroupReference
-
     world = WorldState(entities={
         1: Entity(id=1, name="Mara", entity_type="npc"),
         2: Entity(id=2, name="Lía", entity_type="npc"),
