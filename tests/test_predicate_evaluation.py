@@ -80,7 +80,7 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
     claim = SimpleNamespace(
         subject=SimpleNamespace(text="Otra persona"),
         object=SimpleNamespace(text="Otro gremio"),
-        predicate="pertenece",
+        predicate="trabaja",
         relation_family=SimpleNamespace(value="membership"),
         polarity=SimpleNamespace(value="positive"),
         modality=SimpleNamespace(value="completed"),
@@ -105,14 +105,14 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
         ledger=ledger,
     )
 
-    assert matched == 1  # polarity matches; endpoints, predicate and family do not
-    assert total == 5
+    assert matched == 1  # exact predicate matches although endpoints are wrong
+    assert total == 4
     assert any(item.startswith("relation direction:") for item in failures)
-    assert any(item.startswith("relation.predicate:") for item in failures)
+    assert not any(item.startswith("relation.predicate:") for item in failures)
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
-    assert metrics["precision"] == 0.0
-    assert metrics["recall"] == 0.0
-    assert metrics["f1"] == 0.0
+    assert metrics["precision"] == 1.0
+    assert metrics["recall"] == 1.0
+    assert metrics["f1"] == 1.0
 
 
 def test_missing_action_predicate_is_a_false_negative():
