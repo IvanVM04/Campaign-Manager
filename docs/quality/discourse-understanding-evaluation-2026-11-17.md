@@ -53,10 +53,10 @@ The live discourse report is upgraded to schema version 5 and records:
 - commit SHA, model name/digest, Ollama server version, timeout and configured reasoning mode;
 - scenario count/filter, provider calls and elapsed time;
 - semantic ledger and independent discourse-control scores;
-- per-family call counts, prompt-size/retention counters and provider usage counters from a strict allowlist;
+- per-family call counts, prompt-size/retention counters and numeric provider-usage aggregates only;
 - critical and observational failure counts.
 
-It does not persist prompts, completions, utterances, player input, narrative, source excerpts, campaign state, raw exceptions or rejected payloads. The usage allowlist is applied when constructing the report, even if the provider callback contains additional fields.
+It does not persist prompts, completions, utterances, player input, narrative, source excerpts, campaign state, raw exceptions or rejected payloads. Only non-negative numeric timing/token counters are aggregated from provider callbacks. No provider event dictionary or provider-supplied text value is persisted, even when its key appears in the runtime telemetry payload.
 
 ### 4. Actor decision contract
 
