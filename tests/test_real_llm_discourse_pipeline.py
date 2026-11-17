@@ -670,15 +670,34 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         report_file.write_text(
             json.dumps(
                 {
-                    # Persist aggregate counters only. Model names, server
-                    # metadata, usage events and failure text stay out of this
-                    # optional file; detailed diagnostics remain in JUnit/logs.
-                    "schema_version": 3,
+                    # Persist only aggregate numeric outcomes. Detailed
+                    # model/player text and provider metadata stay in the
+                    # test output, not in this optional file.
+                    "schema_version": 4,
                     "scenario_count": len(scenarios),
                     "provider_calls": calls,
-                    "family_call_counts": dict(family_calls),
-                    "observation_counts": dict(prompt_observations),
-                    "metrics": ledger.summary(),
+                    "metrics": {
+                        "semantic_slot_precision": ledger.summary()[
+                            "semantic_slot_precision"
+                        ],
+                        "semantic_slot_recall": ledger.summary()[
+                            "semantic_slot_recall"
+                        ],
+                        "semantic_slot_f1": ledger.summary()[
+                            "semantic_slot_f1"
+                        ],
+                        "entity_link_precision": ledger.summary()[
+                            "entity_link_precision"
+                        ],
+                        "entity_link_recall": ledger.summary()[
+                            "entity_link_recall"
+                        ],
+                        "context_recall": ledger.summary()["context_recall"],
+                        "operation_precision": ledger.summary()["operation_precision"],
+                        "operation_recall": ledger.summary()["operation_recall"],
+                        "correct_abstentions": ledger.summary()["correct_abstentions"],
+                        "incorrect_abstentions": ledger.summary()["incorrect_abstentions"],
+                    },
                     "critical_failure_count": len(failures),
                     "observational_failure_count": len(observational_failures),
                 },
