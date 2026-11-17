@@ -317,6 +317,22 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   actual. Usa mixed solo cuando el mensaje contenga actos distintos que
   realmente pertenezcan a categorías diferentes.
 
+MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
+- «Ella responde en voz alta» describe habla de un NPC: dialogue, actor=npc,
+  modality=dialogue. No lo conviertas en una acción del jugador.
+- «Ella entra en la sala» describe un evento físico de un NPC: report,
+  actor=npc, modality=observed/reported. La tercera persona no es un intento
+  del jugador.
+- «Ellas contestan desde el balcón» conserva un sujeto NPC plural: dialogue,
+  actor=npc. No lo colapses en una sola entidad ni inventes nombres.
+- «Le pregunto a Mara por el mapa» es dialogue, actor=player, family=communication:
+  el jugador realiza el acto de habla aunque el destinatario sea un NPC.
+- «¿Quién habló?» dirigido al DM es question; no atribuyas un hablante NPC
+  solo porque exista una cita en el historial.
+- En «Mara dice: “Aldric abre la puerta”», distingue al hablante Mara del
+  agente de la acción citada Aldric. No intercambies speaker, actor y
+  destinatario, ni trates la cita como una acción del jugador.
+
 CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
 - actor identifica quién realiza el acto en la ficción, no quién ha escrito el
   mensaje. Una acción física descrita en tercera persona por un NPC es report
