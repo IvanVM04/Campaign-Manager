@@ -778,3 +778,86 @@ def test_negative_relation_endpoints_remain_resolvable_without_write_authority()
 
     assert result.clarification_question is None
     assert {reference.entity_id for reference in result.references} == {1, 2}
+
+
+
+def test_surface_pronoun_is_resolved_when_the_model_omits_it_from_its_frame():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+    })
+    utterance = "Ella responde en voz alta."
+    # The model only emits an unrelated literal mention; the independent
+    # surface scanner still offers "Ella" to the deterministic resolver.
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis(utterance, "voz alta"),
+        recent_turns=[
+            turn(200, "La guardia Mara espera junto a la puerta."),
+        ],
+        current_input=utterance,
+    )
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].mention == "Ella"
+    assert result.references[0].entity_id == 1
+    assert result.references[0].antecedent_turn_id == 200
+
+
+def test_plural_pronoun_resolves_only_to_a_co_mentioned_grammatical_group():
+    from models.resolved_conversation_reference import ResolvedConversationGroupReference
+
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Lía", entity_type="npc"),
+    })
+    utterance = "Ellas contestan en voz alta desde el balcón."
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis(
+            utterance,
+            "balcón",
+            category="report",
+            actor="npc",
+            modality="reported",
+            active_step_index=None,
+        ),
+        recent_turns=[
+            turn(201, "La guardia Mara y la mercadera Lía esperan junto al balcón."),
+        ],
+        current_input=utterance,
+    )
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    group = result.references[0]
+    assert isinstance(group, ResolvedConversationGroupReference)
+    assert group.mention == "Ellas"
+    assert group.entity_ids == (1, 2)
+    assert group.entity_names == ("Mara", "Lía")
+    assert group.antecedent_turn_id == 201
+
+
+def test_plural_pronoun_does_not_form_a_group_from_separate_unconnected_turns():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Lía", entity_type="npc"),
+    })
+    utterance = "Ellas contestan."
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis(
+            utterance,
+            "contestan",
+            category="report",
+            actor="npc",
+            modality="reported",
+            active_step_index=None,
+        ),
+        recent_turns=[
+            turn(202, "La guardia Mara espera junto a la puerta."),
+            turn(203, "La mercadera Lía llega desde el mercado."),
+        ],
+        current_input=utterance,
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "plural_group_not_proven"

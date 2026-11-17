@@ -321,3 +321,48 @@ def test_callback_anchor_in_current_segment_does_not_fake_reopening_an_older_top
 
     assert "sin ancla que coincida con el historial" in rendered
     assert "seleccionan el/los segmentos históricos" not in rendered
+
+
+
+def test_typed_discourse_selection_exposes_callback_reason_anchor_and_segment():
+    history = [
+        turn(70, "Hablo con Mara sobre el mapa."),
+        turn(71, "Cambiando de tema, inspecciono la torre."),
+        turn(72, "Busco una entrada lateral."),
+    ]
+    selection = DiscourseContextBuilder.select_history(
+        history,
+        "Volviendo a lo de Mara, le pregunto por el mapa.",
+    )
+    assert selection.reason == "callback_anchor_match"
+    assert selection.anchor_tokens == ("mara", "mapa")
+    assert selection.selected_segments == (0,)
+    assert [item.id for item in selection.turns] == [70]
+    assert selection.ambiguous is False
+
+
+def test_surface_pronoun_spans_are_literal_and_quoted_pronouns_are_ignored():
+    text = 'Ellas contestan y Mara repite: «ella responde»'
+    mentions = DiscourseContextBuilder.surface_pronoun_mentions(text)
+    assert [item.text for item in mentions] == ["Ellas"]
+    assert mentions[0].gender == "feminine"
+    assert mentions[0].number == "plural"
+    assert text[mentions[0].start:mentions[0].end] == "Ellas"
+
+
+def test_subject_linked_speech_signals_exclude_quotes_and_negated_interveners():
+    signal = DiscourseContextBuilder.speech_predicate_signals(
+        "Ellas contestan en voz alta."
+    )
+    assert len(signal) == 1
+    assert signal[0].subject == "Ellas"
+    assert signal[0].predicate == "contestan"
+    assert signal[0].gender == "feminine"
+    assert signal[0].number == "plural"
+
+    assert DiscourseContextBuilder.speech_predicate_signals(
+        'Mara repite: «Ellas contestan» y se marcha.'
+    ) == ()
+    assert DiscourseContextBuilder.speech_predicate_signals(
+        "Ellas no contestan."
+    ) == ()
