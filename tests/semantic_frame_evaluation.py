@@ -142,7 +142,14 @@ def score_semantic_frame_scenario(
         expected_predicate = expected_relation.get("predicate")
         if expected_predicate is not None:
             total += 1
-            predicted_predicates = [claim.predicate for claim in claims]
+            unordered_endpoint_matches = [
+                claim for claim in claims
+                if {claim.subject.text.casefold(), claim.object.text.casefold()}
+                == {subject, object_}
+            ]
+            predicted_predicates = [
+                claim.predicate for claim in unordered_endpoint_matches
+            ]
             predicate_matched = _record_predicate_surface(
                 ledger,
                 metric_family="relation_predicate_surface",
