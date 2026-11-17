@@ -523,6 +523,15 @@ def _normalize_action_frame(
                 if match.group("instrument")
                 else None
             )
+            if (
+                instrument is not None
+                and _guess_kind(
+                    instrument.mention.text,
+                    SemanticArgumentRole.PATIENT,
+                )
+                in {SemanticObjectKind.CHARACTER, SemanticObjectKind.CREATURE}
+            ):
+                instrument = None
             new_arguments.extend(
                 argument for argument in (patient, instrument) if argument is not None
             )
@@ -542,6 +551,15 @@ def _normalize_action_frame(
                 text,
                 existing_frame=frame,
             )
+            if (
+                instrument is not None
+                and _guess_kind(
+                    instrument.mention.text,
+                    SemanticArgumentRole.PATIENT,
+                )
+                in {SemanticObjectKind.CHARACTER, SemanticObjectKind.CREATURE}
+            ):
+                instrument = None
             new_arguments.extend(
                 argument for argument in (theme, instrument) if argument is not None
             )
@@ -603,6 +621,15 @@ def _normalize_action_frame(
             if marker is not None
             else None
         )
+        if (
+            instrument is not None
+            and _guess_kind(
+                instrument.mention.text,
+                SemanticArgumentRole.PATIENT,
+            )
+            in {SemanticObjectKind.CHARACTER, SemanticObjectKind.CREATURE}
+        ):
+            instrument = None
         new_arguments.extend(
             argument for argument in (theme, instrument) if argument is not None
         )
@@ -812,9 +839,12 @@ def _make_relation_claim(
         for value in literal_values
     ):
         return None
-    if surface.negative:
+    if surface.negative or step.polarity.value == "negative":
         polarity = SemanticPolarity.NEGATIVE
         modality = SemanticModality.NEGATED
+    elif step.polarity.value == "uncertain":
+        polarity = SemanticPolarity.UNCERTAIN
+        modality = SemanticModality(step.modality.value)
     elif surface.attributed_to is not None:
         polarity = SemanticPolarity.POSITIVE
         modality = SemanticModality.REPORTED
@@ -823,17 +853,7 @@ def _make_relation_claim(
         modality = SemanticModality.QUESTION
     else:
         polarity = SemanticPolarity.POSITIVE
-        step_modality = SemanticModality(step.modality.value)
-        modality = (
-            SemanticModality.OBSERVED
-            if step_modality
-            in {
-                SemanticModality.ATTEMPTED,
-                SemanticModality.COMPLETED,
-                SemanticModality.OBSERVED,
-            }
-            else step_modality
-        )
+        modality = SemanticModality(step.modality.value)
     attributed_to = (
         SemanticMention(
             surface.attributed_to,
