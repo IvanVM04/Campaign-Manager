@@ -129,7 +129,8 @@ _PERCEPTION_VERB_RE = re.compile(
 )
 _COMMUNICATION_VERB_RE = re.compile(
     r"\b(?:habl\w*|digo|dice|dicen|decir|dije|dijo|"
-    r"cont\w*|pregunt\w*|respond\w*|susurr\w*|avis\w*)\b",
+    r"cuent\w*|cont(?:ar|o|as|a|amos|an|é|ó|aron|aba|aban|ado|ando)|"
+    r"pregunt\w*|respond\w*|susurr\w*|avis\w*)\b",
     re.IGNORECASE,
 )
 _TRANSFER_VERB_RE = re.compile(
@@ -183,6 +184,70 @@ _RELATION_PATTERNS: tuple[
             re.IGNORECASE,
         ),
         SemanticRelationFamily.UNKNOWN,
+    ),
+    (
+        "relation_ownership_dueno",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>es\\s+dueñ[oa])\\s+"
+            r"de\\s+(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.OWNERSHIP,
+    ),
+    (
+        "relation_ownership_poseer",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>pose\\w*)\\s+"
+            r"(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.OWNERSHIP,
+    ),
+    (
+        "relation_possession_tener",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>tien\\w*)\\s+"
+            r"(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.POSSESSION,
+    ),
+    (
+        "relation_kinship",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>es\\s+(?:herman[oa]|"
+            r"madre|padre|hij[oa]|prim[oa]|t[ií][oa]))\\s+"
+            r"de\\s+(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.KINSHIP,
+    ),
+    (
+        "relation_service",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>sirv\\w*)\\s+"
+            r"a\\s+(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.SERVICE,
+    ),
+    (
+        "relation_knowledge",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>conoc\\w*)\\s+"
+            r"a\\s+(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.KNOWLEDGE,
+    ),
+    (
+        "relation_containment",
+        re.compile(
+            r"^(?P<subject>.+?)\\s+(?P<predicate>está|esta)\\s+"
+            r"dentro\\s+de\\s+(?P<object>.+)$",
+            re.IGNORECASE,
+        ),
+        SemanticRelationFamily.CONTAINMENT,
     ),
     (
         "relation_allegiance",
