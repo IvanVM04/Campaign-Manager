@@ -136,7 +136,8 @@ def score_semantic_frame_scenario(
             failures.append(
                 "relation direction: expected="
                 f"({expected_relation['subject']!r}, {expected_relation['object']!r}) "
-                f"observed={[(claim.subject.text, claim.object.text) for claim in claims]!r}"
+                "observed="
+                f"{[(claim.subject.text, claim.object.text) for claim in claims]!r}"
             )
 
         expected_predicate = expected_relation.get("predicate")
