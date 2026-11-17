@@ -102,7 +102,6 @@ def score_semantic_frame_scenario(
             failures.append("action_frame: no frame returned")
 
         family = expected_frame.get("family")
-        selected_frames = frames
         if family is not None:
             total += 1
             family_matches = [
@@ -110,9 +109,7 @@ def score_semantic_frame_scenario(
             ]
             if family_matches:
                 matched += 1
-                selected_frames = family_matches
             else:
-                selected_frames = []
                 failures.append(
                     f"action_frame.family: expected={family!r}; "
                     f"observed={[frame.family.value for frame in frames]!r}"
@@ -146,7 +143,7 @@ def score_semantic_frame_scenario(
                 == expected_argument["mention"].casefold()
                 and argument.mention.kind_hint.value
                 == expected_argument["kind_hint"]
-                for frame in selected_frames
+                for frame in frames
                 for argument in frame.arguments
             )
             if argument_matches:
@@ -169,6 +166,10 @@ def score_semantic_frame_scenario(
                 == _relation_endpoint_signature(object_)
             )
         ]
+        unordered_endpoint_matches = [
+            claim for claim in claims
+            if _same_unordered_relation_endpoints(claim, subject, object_)
+        ]
         total += 1
         if direction_matches:
             matched += 1
@@ -183,10 +184,6 @@ def score_semantic_frame_scenario(
         expected_predicate = expected_relation.get("predicate")
         if expected_predicate is not None:
             total += 1
-            unordered_endpoint_matches = [
-                claim for claim in claims
-                if _same_unordered_relation_endpoints(claim, subject, object_)
-            ]
             predicted_predicates = [
                 claim.predicate for claim in unordered_endpoint_matches
             ]
@@ -211,7 +208,9 @@ def score_semantic_frame_scenario(
                 continue
             total += 1
             observed_values = []
-            for claim in direction_matches:
+            # Family, polarity, modality and attribution belong to the
+            # relation claim regardless of which endpoint the model placed first.
+            for claim in unordered_endpoint_matches:
                 if field == "attributed_to":
                     observed = (
                         None if claim.attributed_to is None
