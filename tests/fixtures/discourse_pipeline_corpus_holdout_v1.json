@@ -843,7 +843,7 @@
       }
     },
     {
-      "id": "dp-grammar-plural-abstention-20",
+      "id": "dp-grammar-plural-group-20",
       "family": "local_grammatical_agreement",
       "critical": true,
       "input": "Ellas contestan en voz alta desde el balcón.",
@@ -879,7 +879,11 @@
         "reference": {
           "mention": "ellas",
           "entity_id": null,
-          "clarification": true
+          "entity_ids": [
+            1312,
+            1313
+          ],
+          "clarification": false
         },
         "intent": {
           "category": "dialogue"

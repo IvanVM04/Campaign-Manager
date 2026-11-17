@@ -72,3 +72,15 @@ def test_semantic_slot_metrics_report_unmeasured_families_without_inventing_scor
     assert values["precision"] == 0.0
     assert values["recall"] is None
     assert values["f1"] is None
+
+def test_entity_group_resolution_scores_each_canonical_member_without_collapsing_group():
+    ledger = SemanticEvaluationLedger()
+    ledger.record_entity_group_resolution(
+        expected_entity_ids=(11, 12),
+        observed_entity_ids=(11, 12, 13),
+    )
+
+    result = ledger.summary()
+    assert result["entity_link_precision"] == 0.6667
+    assert result["entity_link_recall"] == 1.0
+

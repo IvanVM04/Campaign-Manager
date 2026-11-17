@@ -358,11 +358,11 @@ class ConversationReferenceResolver:
         cls,
         mention: str,
         ranked: tuple[DiscourseCandidate, ...],
-    ) -> ResolvedConversationGroupReference | None:
+    ) -> tuple[ResolvedConversationGroupReference | None, str | None]:
         """Build a group only from co-mentioned members with matching grammar."""
         features = DiscourseContextBuilder.pronoun_agreement(mention)
         if features is None or features[1] != "plural":
-            return None
+            return None, "plural_group_not_proven"
         gender = features[0]
         buckets: dict[
             tuple[int, DiscourseSource, DiscourseSpeaker, str, int],
@@ -393,7 +393,7 @@ class ConversationReferenceResolver:
             if 2 <= len(members) <= 8
         ]
         if not eligible:
-            return None
+            return None, "plural_group_not_proven"
         most_recent_rank = min(key[4] for key, _members in eligible)
         most_recent = [
             (key, members)
@@ -402,7 +402,7 @@ class ConversationReferenceResolver:
         ]
         # Distinct co-mentions at the same recency are not a unique antecedent.
         if len(most_recent) != 1:
-            return None
+            return None, "plural_group_ambiguous"
         key, selected_members = most_recent[0]
         members = tuple(
             ResolvedConversationGroupMember(
@@ -419,10 +419,13 @@ class ConversationReferenceResolver:
                 key=lambda pair: pair[0].entity_id,
             )
         )
-        return ResolvedConversationGroupReference(
-            mention=mention,
-            members=members,
-            antecedent_turn_id=key[0],
+        return (
+            ResolvedConversationGroupReference(
+                mention=mention,
+                members=members,
+                antecedent_turn_id=key[0],
+            ),
+            None,
         )
 
     def _other_role_candidates(
@@ -659,9 +662,8 @@ class ConversationReferenceResolver:
                         mention=mention,
                         current_input=current_input or step.source_excerpt,
                     )
-                    group_reference = self._group_reference_from_candidates(
-                        mention,
-                        ranked,
+                    group_reference, group_abstention_reason = (
+                        self._group_reference_from_candidates(mention, ranked)
                     )
                     if group_reference is None:
                         names = self._candidate_names(ranked)
@@ -670,9 +672,7 @@ class ConversationReferenceResolver:
                             self._question(mention, names),
                             candidates=ranked[:4],
                             abstention_reason=(
-                                "plural_group_ambiguous"
-                                if len(ranked) >= 2
-                                else "plural_group_not_proven"
+                                group_abstention_reason or "plural_group_not_proven"
                             ),
                         )
                     group_key = (
