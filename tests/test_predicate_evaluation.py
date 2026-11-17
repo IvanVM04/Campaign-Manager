@@ -4,11 +4,11 @@ import json
 from types import SimpleNamespace
 
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
-from tests.semantic_frame_evaluation import score_semantic_frame_scenario
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
 )
+from tests.semantic_frame_evaluation import score_semantic_frame_scenario
 
 
 def _frame(predicate: str, family: str = "transfer"):
