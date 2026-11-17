@@ -439,6 +439,8 @@ def _agent_argument(
 
 def _normalize_action_frame(
     step: IntentStep,
+    *,
+    speech_only: bool = False,
 ) -> tuple[SemanticActionFrame | None, str | None]:
     frame = step.action_frame
     if frame is None:
@@ -454,7 +456,8 @@ def _normalize_action_frame(
     )
     rules = (
         (("action_communication", _COMMUNICATION_VERB_RE, SemanticActionFamily.COMMUNICATION),)
-        if step.modality in {SemanticModality.DIALOGUE, SemanticModality.QUESTION}
+        if speech_only
+        or step.modality in {SemanticModality.DIALOGUE, SemanticModality.QUESTION}
         else all_rules
     )
     selected_rule: str | None = None
@@ -1005,8 +1008,9 @@ def normalize_semantic_surface(
 
     normalized_steps: list[IntentStep] = []
     action_rules: list[str] = []
+    speech_only = analysis.category.value in {"dialogue", "question"}
     for step in analysis.steps:
-        frame, rule_id = _normalize_action_frame(step)
+        frame, rule_id = _normalize_action_frame(step, speech_only=speech_only)
         normalized_steps.append(
             step if frame is step.action_frame else replace(step, action_frame=frame)
         )
