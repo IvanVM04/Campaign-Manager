@@ -2,11 +2,36 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
+
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 
 def _value(value):
     return value.value if hasattr(value, "value") else value
+
+
+def _relation_endpoint_signature(value: str) -> str:
+    """Normalize only Spanish leading articles for endpoint identity matching."""
+    normalized = unicodedata.normalize("NFKC", value).casefold().strip()
+    normalized = re.sub(r"^[^\\w]+|[^\\w]+$", "", normalized)
+    tokens = normalized.split()
+    if tokens and tokens[0] in {"el", "la", "los", "las", "un", "una", "unos", "unas", "al"}:
+        tokens = tokens[1:]
+    return " ".join(tokens)
+
+
+def _same_unordered_relation_endpoints(claim, subject: str, object_: str) -> bool:
+    observed = sorted((
+        _relation_endpoint_signature(claim.subject.text),
+        _relation_endpoint_signature(claim.object.text),
+    ))
+    expected = sorted((
+        _relation_endpoint_signature(subject),
+        _relation_endpoint_signature(object_),
+    ))
+    return observed == expected
 
 
 def _record_predicate_surface(
@@ -126,8 +151,12 @@ def score_semantic_frame_scenario(
         object_ = expected_relation["object"].casefold()
         direction_matches = [
             claim for claim in claims
-            if claim.subject.text.casefold() == subject
-            and claim.object.text.casefold() == object_
+            if (
+                _relation_endpoint_signature(claim.subject.text)
+                == _relation_endpoint_signature(subject)
+                and _relation_endpoint_signature(claim.object.text)
+                == _relation_endpoint_signature(object_)
+            )
         ]
         total += 1
         if direction_matches:
@@ -145,8 +174,7 @@ def score_semantic_frame_scenario(
             total += 1
             unordered_endpoint_matches = [
                 claim for claim in claims
-                if {claim.subject.text.casefold(), claim.object.text.casefold()}
-                == {subject, object_}
+                if _same_unordered_relation_endpoints(claim, subject, object_)
             ]
             predicted_predicates = [
                 claim.predicate for claim in unordered_endpoint_matches
