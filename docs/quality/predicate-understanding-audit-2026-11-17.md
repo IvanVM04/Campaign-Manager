@@ -252,13 +252,13 @@ La incertidumbre principal está en cuántas iteraciones requerirá el modelo pa
 
 ## 12. Implementación P0 — PR #250
 
-La PR #250 incorpora gold superficial para todos los predicados de los 20 casos held-out de semantic frames, evaluación separada de predicados de acción y relación, comprobación de integridad que exige que cada gold aparezca literalmente en el input y exportación JSON opcional con metadata reproducible y telemetría allowlisted. No modifica prompts, validadores de producción ni autorización. La evaluación mide exactitud superficial (case-sensitive); no debe confundirse con un benchmark completo de desambiguación de sentidos léxicos.
+La PR #250 conserva intacto el fixture original de 20 casos y añade un sidecar `semantic_frame_predicate_gold_v1.json` enlazado por los IDs existentes, sin duplicar frases. Incorpora evaluación separada de predicados de acción y relación, comprobación de integridad que exige que cada gold aparezca literalmente en el input original y exportación JSON opcional con metadata reproducible y telemetría allowlisted. No modifica prompts, validadores de producción ni autorización. La evaluación mide exactitud superficial (case-sensitive); no debe confundirse con un benchmark completo de desambiguación de sentidos léxicos.
 
 Ejecución live recomendada:
 
 ```powershell
 $env:CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH = ".\\artifacts\\predicate-holdout.json"
-python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v2" -v -s
+python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "semantic_frame_corpus_v1" -v -s
 ```
 
 Para un diagnóstico de un solo caso, establecer `CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` con un ID del corpus. El filtro es estricto y no sustituye la evaluación completa.
