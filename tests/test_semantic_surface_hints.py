@@ -518,9 +518,8 @@ def test_belongs_to_a_person_is_not_assumed_to_be_ownership():
         )
     )
 
-    assert len(normalized.relation_claims) == 1
-    assert normalized.relation_claims[0].relation_family.value == "unknown"
-    assert summary.relation_rules_applied == ("relation_belongs_to",)
+    assert normalized.relation_claims == ()
+    assert summary.relation_rules_applied == ()
 
 
 def test_reported_relation_is_not_confused_with_an_action_frame_family():
