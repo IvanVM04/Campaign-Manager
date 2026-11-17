@@ -736,7 +736,7 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     clause = _trim_surface(clause)
     if not clause:
         return None
-    if clause.startswith(("si ", "quizá ", "quizas ", "tal vez ")):
+    if re.match(r"^(?:si|quizá|quizas|tals+vez)\\b", _fold(clause)):
         return None
 
     matches: list[_RelationSurface] = []
