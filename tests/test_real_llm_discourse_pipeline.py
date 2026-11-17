@@ -261,6 +261,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
             recent_turns = _recent_turns(scenario)
             expected_intent = scenario["expected"]["intent"]
             analysis = None
+            actor_scored = False
             case_failures: list[str] = []
             prompt_bytes = 0
             section_sizes: dict[str, int] = {}
@@ -298,6 +299,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                             else ()
                         ),
                     )
+                    actor_scored = True
                     if predicted_actor != expected_actor:
                         case_failures.append("intent.primary_actor_mismatch")
                 action_contains = expected_intent.get("action_contains")
@@ -383,6 +385,13 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         expected_frame,
                         ledger,
                         scenario["family"],
+                    )
+                expected_actor = primary_actor_gold.get(scenario["id"])
+                if expected_actor is not None and not actor_scored:
+                    ledger.record_semantic_slots(
+                        "intent_primary_actor",
+                        expected_slots=(f"actor:{expected_actor}",),
+                        predicted_slots=(),
                     )
 
             elapsed = perf_counter() - case_started
