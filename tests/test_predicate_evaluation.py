@@ -47,8 +47,10 @@ def test_action_predicate_surface_is_scored_independently_of_frame_family():
     assert len(failures) == 1
     assert failures[0].startswith("action_frame.family:")
     report = ledger.summary()
-    assert report["families"]["predicate_surface:action_frame_predicate_surface"]["case_accuracy"] == 1.0
-    assert report["semantic_slot_quality"]["action_frame_predicate_surface"]["f1"] == 1.0
+    family = report["families"]["predicate_surface:action_frame_predicate_surface"]
+    quality = report["semantic_slot_quality"]["action_frame_predicate_surface"]
+    assert family["case_accuracy"] == 1.0
+    assert quality["f1"] == 1.0
 
 
 def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_valid():
@@ -70,7 +72,9 @@ def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_val
     assert matched == 2  # frame existence and family pass; the predicate does not
     assert total == 3
     assert any(item.startswith("action_frame.predicate:") for item in failures)
-    metrics = ledger.summary()["semantic_slot_quality"]["action_frame_predicate_surface"]
+    metrics = ledger.summary()["semantic_slot_quality"][
+        "action_frame_predicate_surface"
+    ]
     assert metrics["precision"] == 0.0
     assert metrics["recall"] == 0.0
     assert metrics["f1"] == 0.0
@@ -105,7 +109,7 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
         ledger=ledger,
     )
 
-    assert matched == 1  # exact predicate matches although endpoints are wrong
+    assert matched == 1  # exact predicate matches although endpoint direction is wrong
     assert total == 4
     assert any(item.startswith("relation direction:") for item in failures)
     assert not any(item.startswith("relation.predicate:") for item in failures)
