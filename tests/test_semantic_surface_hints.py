@@ -506,6 +506,41 @@ def test_reported_relation_widens_only_a_literal_single_step_evidence_span():
     assert summary.widened_relation_evidence_spans == 1
 
 
+def test_belongs_to_a_person_is_not_assumed_to_be_ownership():
+    source = "Mara pertenece a Aldric."
+    normalized, summary = normalize_semantic_surface(
+        _analysis(
+            source,
+            "pertenece",
+            category="report",
+            modality="observed",
+            active_step_index=None,
+        )
+    )
+
+    assert len(normalized.relation_claims) == 1
+    assert normalized.relation_claims[0].relation_family.value == "unknown"
+    assert summary.relation_rules_applied == ("relation_belongs_to",)
+
+
+def test_reported_relation_is_not_confused_with_an_action_frame_family():
+    source = "El mercader afirma que el mapa pertenece a Mara."
+    normalized, summary = normalize_semantic_surface(
+        _analysis(
+            source,
+            "afirma",
+            category="report",
+            modality="reported",
+            actor="npc",
+            active_step_index=None,
+        )
+    )
+
+    assert normalized.steps[0].action_frame.family.value == "communication"
+    assert normalized.relation_claims[0].relation_family.value == "ownership"
+    assert summary.action_rules_applied == ("action_communication",)
+
+
 def test_non_literal_predicate_is_not_sanitized_or_reconstructed():
     source = "Golpeo al ogro."
     payload = {
