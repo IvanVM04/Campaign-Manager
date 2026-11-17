@@ -383,6 +383,7 @@ def test_temporal_relation_preserves_temporal_expression_as_a_separate_field():
     [
         "Si Mara pertenece al gremio, podrá entrar.",
         "Quizá Mara trabaja para la guardia.",
+        "TAL VEZ Mara trabaja para la guardia.",
         "Mara pertenece al gremio y protege a Bram.",
     ],
 )
