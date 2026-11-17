@@ -210,15 +210,9 @@ def _evaluate_action_frame(
     )
     failures = []
     if expected_family not in predicted_families:
-        failures.append(
-            f"action_frame.family: expected={expected_family!r} "
-            f"observed={predicted_families!r}"
-        )
+        failures.append("action_frame.family_mismatch")
     if sorted(expected_arguments) != sorted(predicted_arguments):
-        failures.append(
-            "action_frame.arguments: expected="
-            f"{sorted(expected_arguments)!r} observed={sorted(predicted_arguments)!r}"
-        )
+        failures.append("action_frame.arguments_mismatch")
     return failures
 
 
@@ -277,11 +271,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                     evidence_text=scenario["input"],
                 )
                 if analysis.category.value != expected_intent["category"]:
-                    case_failures.append(
-                        "intent.category: expected="
-                        f"{expected_intent['category']!r} "
-                        f"observed={analysis.category.value!r}"
-                    )
+                    case_failures.append("intent.category_mismatch")
                 action_contains = expected_intent.get("action_contains")
                 if action_contains is not None:
                     recovered = any(
@@ -295,11 +285,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         elapsed_seconds=0,
                     )
                     if not recovered:
-                        case_failures.append(
-                            f"intent.action_recovery: expected substring "
-                            f"{action_contains!r} in a step; observed="
-                            f"{[step.action for step in analysis.steps]!r}"
-                        )
+                        case_failures.append("intent.action_recovery_mismatch")
                 expected_npc_ids = scenario["expected"].get("npc_speaker_ids")
                 if expected_npc_ids is not None:
                     npc_entities = scenario.get("npc_entities", [])
@@ -342,10 +328,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         f"{scenario['family']}:retained_npc_hints"
                     ] += len(predicted_names)
                     if predicted_names != expected_names:
-                        case_failures.append(
-                            "discourse.npc_speaker_hint: expected="
-                            f"{expected_names!r} observed={predicted_names!r}"
-                        )
+                        case_failures.append("discourse.npc_speaker_hint_mismatch")
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
                     case_failures.extend(
@@ -357,12 +340,14 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         )
                     )
             except Exception as exc:  # noqa: BLE001 - provider/decoder failure is a failed case
-                detail = (
-                    str(exc)
+                error_kind = (
+                    "intent_interpreter"
                     if isinstance(exc, IntentInterpreterError)
                     else type(exc).__name__
                 )
-                case_failures.append(f"intent provider/decoder error: {detail}")
+                case_failures.append(
+                    f"intent.provider_or_decoder_error:{error_kind}"
+                )
                 expected_frame = expected_intent.get("action_frame")
                 if expected_frame is not None:
                     _evaluate_action_frame(
@@ -555,13 +540,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                         expected_abstention=expected_abstention,
                     )
                     if not resolution_passed:
-                        case_failures.append(
-                            "resolution: expected_id="
-                            f"{expected_id!r}, observed_id={observed_id!r}, "
-                            f"expected_clarification={expected_abstention}, "
-                            f"observed_clarification={clarification}, "
-                            f"reason={resolution_reason}"
-                        )
+                        case_failures.append("resolution.reference_mismatch")
                 except Exception as exc:  # noqa: BLE001 - resolution error is a failed case
                     case_failures.append(
                         f"resolution error: {type(exc).__name__}"
@@ -655,7 +634,7 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
         report_file.write_text(
             json.dumps(
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "model": provider.model,
                     "model_digest": provider.get_model_digest() or None,
                     "ollama_version": provider.get_server_version() or None,
@@ -664,8 +643,18 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
                     "family_calls": dict(family_calls),
                     "observations": dict(prompt_observations),
                     "metrics": ledger.summary(),
-                    "critical_failures": failures,
-                    "observational_failures": observational_failures,
+                    # Persist only fixture scenario IDs and static failure
+                    # codes; detailed model/player text remains in memory.
+                    "critical_failures": [
+                        failure.split(" repetition=", 1)[0] + ":"
+                        + failure.split(": ", 1)[1]
+                        for failure in failures
+                    ],
+                    "observational_failures": [
+                        failure.split(" repetition=", 1)[0] + ":"
+                        + failure.split(": ", 1)[1]
+                        for failure in observational_failures
+                    ],
                     "usage_events": usage_summary,
                 },
                 ensure_ascii=False,
