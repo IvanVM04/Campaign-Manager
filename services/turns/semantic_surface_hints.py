@@ -14,6 +14,7 @@ from typing import Any
 
 from models.player_intent_analysis import IntentStep, PlayerIntentAnalysis
 from models.semantic_frames import (
+    MAX_RELATION_CLAIMS,
     SemanticActionFamily,
     SemanticActionFrame,
     SemanticArgument,
@@ -26,7 +27,6 @@ from models.semantic_frames import (
     SemanticRelationFamily,
 )
 
-_SPACE_RE = re.compile(r"\s+")
 _END_PUNCTUATION = " \t\r\n.,;:!?¡¿'\"“”«»"
 _ORGANIZATION_WORDS = {
     "asociacion",
@@ -366,10 +366,12 @@ def _agent_argument(
     )
 
 
-def _normalize_action_frame(step: IntentStep) -> tuple[SemanticActionFrame, str | None]:
+def _normalize_action_frame(
+    step: IntentStep,
+) -> tuple[SemanticActionFrame | None, str | None]:
     frame = step.action_frame
     if frame is None:
-        return frame, None
+        return None, None
     text = step.source_excerpt
     predicate = frame.predicate
     rules: tuple[tuple[str, re.Pattern[str], SemanticActionFamily], ...] = (
