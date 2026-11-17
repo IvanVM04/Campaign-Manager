@@ -9,7 +9,11 @@ from models.pending_intent_correction import (
     apply_pending_intent_corrections,
 )
 from models.player_intent_analysis import PlayerIntentAnalysis
-from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+    ResolvedConversationReferenceResult,
+)
 from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
@@ -444,7 +448,7 @@ class TurnResolutionService:
                 intent_corrections=intent_corrections,
             )
         context_projection = None
-        resolved_references: tuple[ResolvedConversationReference, ...] = ()
+        resolved_references: tuple[ResolvedConversationReferenceResult, ...] = ()
         resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
         needs_mechanics_context = (
             self.intent_interpreter is not None
@@ -495,12 +499,11 @@ class TurnResolutionService:
             # use the same topic-scoped transcript. Re-introducing the full
             # recent history here can bring back entities from a topic that
             # the discourse selector deliberately excluded.
-            discourse_history = list(
-                DiscourseContextBuilder.scope_history(
-                    recent_turns or (),
-                    normalized_input,
-                )
+            discourse_selection = DiscourseContextBuilder.select_history(
+                recent_turns or (),
+                normalized_input,
             )
+            discourse_history = list(discourse_selection.turns)
             try:
                 semantic_queries = tuple(
                     dict.fromkeys(
@@ -604,6 +607,30 @@ class TurnResolutionService:
                     "proposal context selection failed"
                 ) from exc
 
+        group_references = tuple(
+            item
+            for item in resolved_references
+            if isinstance(item, ResolvedConversationGroupReference)
+        )
+        if group_references and intent_analysis.is_actionable:
+            mention = group_references[0].mention
+            question = (
+                f"Has mencionado al grupo «{mention}». "
+                "¿Quieres actuar sobre el grupo completo o sobre un miembro concreto?"
+            )[:300]
+            return TurnResolutionPlan(
+                player_input=normalized_input,
+                narrative=question,
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                clarification_question=question,
+                mechanics_decision=decision,
+                intent_analysis=intent_analysis,
+                intent_evidence_text=normalized_evidence_text,
+                intent_corrections=intent_corrections,
+            )
+
         # Stage 3: mechanics runs only after deterministic references have
         # resolved. An ambiguous target must be clarified before any check.
         if (
@@ -621,7 +648,10 @@ class TurnResolutionService:
                     context,
                     intent_analysis,
                     context_projection=context_projection,
-                    resolved_references=resolved_references,
+                    resolved_references=tuple(
+                        item for item in resolved_references
+                        if isinstance(item, ResolvedConversationReference)
+                    ),
                     resolved_world_references=resolved_world_references,
                 )
             except MechanicsAdjudicatorError as exc:
