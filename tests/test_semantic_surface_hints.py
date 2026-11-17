@@ -192,6 +192,17 @@ def test_dialogue_does_not_reclassify_quoted_action_as_player_action(modality):
     assert summary.action_rules_applied == ()
 
 
+def test_item_use_rule_does_not_treat_a_person_as_an_instrument():
+    source = "Abro el cofre con Mara."
+    normalized, summary = normalize_semantic_surface(
+        _analysis(source, "Abro", family="interaction")
+    )
+
+    assert normalized.steps[0].action_frame.family.value == "interaction"
+    assert normalized.steps[0].action_frame.arguments == ()
+    assert summary.action_rules_applied == ()
+
+
 def test_hide_location_template_repairs_roles_without_guessing_a_family():
     source = "Escondo la moneda bajo la alfombra del dormitorio."
     normalized, summary = normalize_semantic_surface(_analysis(source, "Escondo"))
