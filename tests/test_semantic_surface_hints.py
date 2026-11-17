@@ -309,6 +309,8 @@ def test_explicit_relation_templates_extract_direction_and_lexical_predicate(
     assert claim.object.text == expected_object
     assert claim.predicate == predicate
     assert claim.relation_family.value == expected_family
+    if expected_subject in {"Mara", "Aldric", "Bram"}:
+        assert claim.subject.kind_hint.value == "character"
     assert summary.relation_rules_applied == (expected_rule,)
 
 
