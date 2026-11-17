@@ -87,7 +87,7 @@ _ACTION_FRAME_SCHEMA = {
                 "for sensing/observing; communication for speech acts; social for persuasion/"
                 "negotiation; state_change for explicit state alteration; creation for "
                 "making something; resource for gaining/spending resources. interaction is "
-                "only physical manipulation/contact when no narrower family applies; never "
+                "only non-linguistic physical manipulation/contact when no narrower family applies; never "
                 "use it as a generic fallback for transfer, item_use or combat."
             ),
             "enum": [
