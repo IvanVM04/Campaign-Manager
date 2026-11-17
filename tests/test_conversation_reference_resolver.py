@@ -835,6 +835,29 @@ def test_plural_pronoun_resolves_only_to_a_co_mentioned_grammatical_group():
     assert group.antecedent_turn_id == 201
 
 
+def test_plural_pronoun_abstains_when_multiple_same_recency_groups_compete():
+    world = WorldState(entities={
+        1: Entity(id=1, name="Mara", entity_type="npc"),
+        2: Entity(id=2, name="Lía", entity_type="npc"),
+        3: Entity(id=3, name="Nora", entity_type="npc"),
+        4: Entity(id=4, name="Sira", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis("Ellas contestan.", "Ellas"),
+        recent_turns=[
+            turn(
+                205,
+                "La guardia Mara y la mercadera Lía esperan.",
+                "La hechicera Nora y la capitana Sira también esperan.",
+            ),
+        ],
+    )
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "plural_group_ambiguous"
+
+
 def test_plural_pronoun_does_not_form_a_group_from_separate_unconnected_turns():
     world = WorldState(entities={
         1: Entity(id=1, name="Mara", entity_type="npc"),
