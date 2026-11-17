@@ -357,6 +357,46 @@ def test_negative_relation_keeps_lexical_predicate_and_moves_negation_to_typed_f
     assert claim.modality.value == "negated"
 
 
+def test_negative_relation_surface_is_separated_from_reported_modality():
+    source = "El mercader afirma que el anillo no pertenece a Aldric."
+    normalized, _ = normalize_semantic_surface(
+        _analysis(
+            source,
+            "afirma",
+            category="report",
+            modality="reported",
+            actor="npc",
+            active_step_index=None,
+        )
+    )
+
+    claim = normalized.relation_claims[0]
+    assert claim.predicate == "pertenece"
+    assert claim.polarity.value == "negative"
+    assert claim.modality.value == "reported"
+    assert claim.attributed_to is not None
+    assert claim.attributed_to.text == "El mercader"
+
+
+def test_negative_protection_relation_keeps_negation_out_of_predicate():
+    source = "La orden no protege a los habitantes del puerto."
+    normalized, _ = normalize_semantic_surface(
+        _analysis(
+            source,
+            "protege",
+            category="report",
+            modality="observed",
+            active_step_index=None,
+        )
+    )
+
+    claim = normalized.relation_claims[0]
+    assert claim.predicate == "protege"
+    assert claim.relation_family.value == "protection"
+    assert claim.polarity.value == "negative"
+    assert claim.modality.value == "negated"
+
+
 def test_reported_relation_preserves_literal_attribution_and_reported_modality():
     source = "El mercader afirma que el mapa pertenece a Mara."
     normalized, _ = normalize_semantic_surface(
