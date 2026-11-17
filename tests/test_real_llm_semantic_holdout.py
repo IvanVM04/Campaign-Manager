@@ -7,8 +7,8 @@ results establish per-family baselines; critical safety cases remain hard gates.
 import json
 import os
 from pathlib import Path
-from typing import Any
 from time import perf_counter
+from typing import Any
 
 import pytest
 
@@ -20,11 +20,11 @@ from models.world_state import WorldState
 from services.providers import OllamaProvider
 from services.turns.intent_interpreter import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
-from tests.semantic_frame_evaluation import score_semantic_frame_scenario
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
 )
+from tests.semantic_frame_evaluation import score_semantic_frame_scenario
 
 pytestmark = pytest.mark.real_llm
 
