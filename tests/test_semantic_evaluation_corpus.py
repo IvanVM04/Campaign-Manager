@@ -48,6 +48,17 @@ def test_semantic_evaluation_corpus_has_at_least_one_hundred_unique_cases():
                 family = scenario.get("family")
                 assert isinstance(family, str) and family.strip(), scenario_id
                 family_counts[family] += 1
+                if corpus_name == "semantic-frame-held-out":
+                    action_frame = scenario.get("expected_action_frame")
+                    if action_frame is not None:
+                        predicate = action_frame.get("predicate")
+                        assert isinstance(predicate, str) and predicate, scenario_id
+                        assert predicate in scenario["input"], scenario_id
+                    relation = scenario.get("expected_relation")
+                    if relation is not None:
+                        predicate = relation.get("predicate")
+                        assert isinstance(predicate, str) and predicate, scenario_id
+                        assert predicate in scenario["input"], scenario_id
                 if "input" in scenario:
                     assert scenario["input"].strip(), scenario_id
                 if "utterance" in scenario:
