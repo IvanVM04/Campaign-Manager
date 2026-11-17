@@ -188,8 +188,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_ownership_dueno",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>es\\s+dueñ[oa])\\s+"
-            r"de\\s+(?P<object>.+)$",
+            r"^(?P<subject>.+?)\s+(?P<predicate>es\s+dueñ[oa])\s+"
+            r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
         SemanticRelationFamily.OWNERSHIP,
@@ -197,7 +197,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_ownership_poseer",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>pose\\w*)\\s+"
+            r"^(?P<subject>.+?)\s+(?P<predicate>pose\w*)\s+"
             r"(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -206,7 +206,7 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_possession_tener",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>tien\\w*)\\s+"
+            r"^(?P<subject>.+?)\s+(?P<predicate>tien\w*)\s+"
             r"(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -215,9 +215,9 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_kinship",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>es\\s+(?:herman[oa]|"
-            r"madre|padre|hij[oa]|prim[oa]|t[ií][oa]))\\s+"
-            r"de\\s+(?P<object>.+)$",
+            r"^(?P<subject>.+?)\s+(?P<predicate>es\s+(?:herman[oa]|"
+            r"madre|padre|hij[oa]|prim[oa]|t[ií][oa]))\s+"
+            r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
         SemanticRelationFamily.KINSHIP,
@@ -225,8 +225,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_service",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>sirv\\w*)\\s+"
-            r"a\\s+(?P<object>.+)$",
+            r"^(?P<subject>.+?)\s+(?P<predicate>sirv\w*)\s+"
+            r"a\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
         SemanticRelationFamily.SERVICE,
@@ -234,8 +234,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_knowledge",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>conoc\\w*)\\s+"
-            r"a\\s+(?P<object>.+)$",
+            r"^(?P<subject>.+?)\s+(?P<predicate>conoc\w*)\s+"
+            r"a\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
         SemanticRelationFamily.KNOWLEDGE,
@@ -243,8 +243,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_containment",
         re.compile(
-            r"^(?P<subject>.+?)\\s+(?P<predicate>está|esta)\\s+"
-            r"dentro\\s+de\\s+(?P<object>.+)$",
+            r"^(?P<subject>.+?)\s+(?P<predicate>está|esta)\s+"
+            r"dentro\s+de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
         SemanticRelationFamily.CONTAINMENT,
