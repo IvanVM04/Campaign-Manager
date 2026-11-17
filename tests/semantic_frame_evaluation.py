@@ -18,7 +18,7 @@ def _relation_endpoint_signature(value: str) -> str:
     normalized = re.sub(r"^[^\w]+|[^\w]+$", "", normalized)
     tokens = normalized.split()
     leading_articles = {
-        "el", "la", "los", "las", "un", "una", "unos", "unas", "al"
+        "el", "la", "los", "las", "un", "una", "unos", "unas", "al", "del"
     }
     if tokens and tokens[0] in leading_articles:
         tokens = tokens[1:]
@@ -139,8 +139,8 @@ def score_semantic_frame_scenario(
             total += 1
             argument_matches = any(
                 argument.role.value == expected_argument["role"]
-                and argument.mention.text.casefold()
-                == expected_argument["mention"].casefold()
+                and _relation_endpoint_signature(argument.mention.text)
+                == _relation_endpoint_signature(expected_argument["mention"])
                 and argument.mention.kind_hint.value
                 == expected_argument["kind_hint"]
                 for frame in frames
