@@ -55,7 +55,8 @@ Any future migration adding a campaign-owned table must decide explicitly whethe
 
 - SQLite is canonical for persisted campaign, character, equipment, combat, clock, effect and turn-resolution state.
 - `WorldService.world` is a runtime cache of the world tables. Mutations that write world entities/items/resources/events outside `WorldService` must refresh that cache after commit while holding the campaign lock. Character creation was the missing tracked path fixed here; combat creature creation already reloads after commit.
-- The lock serializes request workflows that share a runtime. It is an `RLock`, so route-level locking can safely call nested services that also acquire it.
+- The lock serializes short operations that read, refresh or publish the shared in-memory campaign cache, including detached snapshot capture and prepared commit. It is an `RLock` so nested cache-safe services can acquire it reentrantly.
+- Durable native/SillyTavern turn planning, clarification/manual-roll provider work and narration do not hold the campaign lock. Snapshot capture acquires the lock before its DEFERRED read transaction; prepared commit acquires it before its IMMEDIATE write transaction. This consistent lock-before-SQLite order avoids inversion.
 - SQLite transaction contexts own commit/rollback. In-memory state must not be published as authoritative until persistence succeeds; `WorldService.apply_turn_operations()` preserves the original `WorldState` identity and restores it on rollback.
 - Campaign revision triggers participate in the same SQLite transaction and roll back with it. Durable turn planning compares captured and current revisions before consequence application.
 - Direct repository calls from tests/maintenance scripts are outside the HTTP lock contract; production writers must go through the campaign-scoped application/route path.

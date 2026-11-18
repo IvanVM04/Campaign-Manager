@@ -20,15 +20,15 @@ The `campaign_state_versions` table provides a monotonic revision per campaign. 
 
 ## Turn processing
 
-The internal DM turn flow reads its initial revision and complete context within one DEFERRED transaction. LLM planning occurs after that connection is released. Before applying the plan, the service starts an IMMEDIATE transaction and compares the current revision with the captured revision. A mismatch rejects the stale plan without applying any operations.
+The internal DM turn flow acquires the process-local campaign cache lock briefly, then reads its initial revision and complete context/history within one DEFERRED transaction. The loader refreshes the shared cache and returns a deep-detached `TurnContext`/history snapshot. The lock and read connection are released before intent, mechanics, proposal or narration provider calls. Before applying a plan, the prepared-commit service reacquires the same lock **before** starting an IMMEDIATE transaction, compares the current revision and context/history with the captured snapshot, and applies consequences only if they still match. A mismatch rejects the stale plan without applying any operations.
 
-SillyTavern integration follows the same pattern: it captures a consistent campaign context and revision before extraction, then checks the revision inside the authoritative IMMEDIATE transaction before snapshot restoration or operation application.
+SillyTavern integration, clarification and manual-roll continuation follow the same detached-snapshot/short-commit-lock pattern. API routes do not wrap provider preparation in a campaign lock; they acquire it only for cache-backed context rendering after the durable service has returned.
 
 Manual-roll requests retain the revision captured when the roll was requested. If campaign state changes while the player is rolling, submission is rejected and the action must be retried against fresh context.
 
 ## Boundaries
 
-This protects database-backed campaign state across service instances and processes. It does not replace the in-process `TurnExecutionLock`, provide distributed locking, or make arbitrary in-memory mutations safe. Callers must continue to reload authoritative state when opening a new processing snapshot and restore in-memory objects after rollback.
+This protects database-backed campaign state across service instances and processes. The in-process `TurnExecutionLock` protects short reads/publications of the shared runtime cache and the prepared-commit critical section; it is deliberately not held across provider calls. Always acquire it before opening a SQLite transaction when both are needed. It does not provide distributed locking or make arbitrary in-memory mutations safe. Callers must continue to reload authoritative state when opening a new processing snapshot and restore in-memory objects after rollback.
 
 The revision is intentionally conservative: any campaign-scoped row mutation invalidates a plan, even if the changed row would not have affected that plan. This favors correctness over avoiding occasional retries.
 

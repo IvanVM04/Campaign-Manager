@@ -1,4 +1,6 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import pytest
 
@@ -502,3 +504,85 @@ def test_native_idempotency_key_rejects_different_player_input():
 
     assert len(proposal_calls) == 1
     assert len(narrative_calls) == 1
+
+
+def test_native_turn_planning_releases_lock_and_rejects_a_stale_detached_snapshot(
+    monkeypatch,
+):
+    from operations.world_operations import CreateEntityOperation
+    from services.turns.turn_resolution_service import TurnResolutionPlan
+
+    service, _, _ = service_with_fake_models()
+    planning_started = Event()
+    release_planning = Event()
+    captured_worlds = []
+
+    def blocked_prepare(context, player_input, **kwargs):
+        captured_worlds.append(context.world)
+        assert context.world is not service.world_service.world
+        planning_started.set()
+        if not release_planning.wait(timeout=8):
+            raise AssertionError("test did not release the model-planning phase")
+        assert context.world.entities == {}
+        return TurnResolutionPlan(
+            player_input=player_input,
+            narrative="",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+        )
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", blocked_prepare)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            turn_future = executor.submit(
+                service.play_turn,
+                "Miro alrededor.",
+                idempotency_key="native-detached-snapshot-001",
+            )
+            assert planning_started.wait(timeout=5)
+
+            def publish_concurrent_change():
+                with service.turn_execution_lock.acquire():
+                    return service.world_service.apply_operations_and_save(
+                        [
+                            CreateEntityOperation(
+                                name="Concurrente",
+                                entity_type="npc",
+                                description="Creado mientras el proveedor planificaba.",
+                            )
+                        ]
+                    )
+
+            write_result = executor.submit(publish_concurrent_change).result(timeout=5)
+            assert write_result.success is True
+            assert "Concurrente" in [
+                entity.name
+                for entity in service.world_service.get_world().entities.values()
+            ]
+
+            release_planning.set()
+            with pytest.raises(
+                DurableNativeTurnError,
+                match="campaign state changed",
+            ):
+                turn_future.result(timeout=10)
+    finally:
+        release_planning.set()
+
+    assert captured_worlds
+    record = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-detached-snapshot-001",
+        scope=service.scope,
+    )
+    assert record is not None
+    assert record.lifecycle_state == "rejected"
+    persisted_world = service.world_service.repository.load_world(
+        campaign_id=service.scope.campaign_id
+    )
+    assert any(
+        entity.name == "Concurrente"
+        for entity in persisted_world.entities.values()
+    )

@@ -19,7 +19,7 @@ not existing behavior of this package.
 ## Package modules
 
 - `dm_service.py` — generates presentation prose from committed evidence.
-- `turn_execution_lock.py` — canonical process-local lock shared by turn coordinators.
+- `turn_execution_lock.py` — canonical process-local lock for short cache snapshot, read-projection and commit critical sections; it must not be held during provider planning or narration.
 - `turn_resolution_codec.py` — canonical JSON codec for durable resolution records.
 - `intent_interpreter.py` — one coherent, evidence-bound `PlayerIntentAnalysis` v2 response; action steps, frames, relations, discourse and attribution remain one semantic unit.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
@@ -175,3 +175,21 @@ silently truncated to fit a prompt.
 - Clarifications and manual rolls resume the original durable resolution.
 - Routers remain transport adapters, not lifecycle authorities.
 - Do not reintroduce the removed narrative-first mutation endpoint or snapshot restoration.
+
+
+## Snapshot isolation and lock scope
+
+Durable execution captures campaign context, recent history and revision under
+one DEFERRED read transaction while briefly holding the campaign cache lock.
+The returned `TurnContext` and history are deep-detached from the mutable
+`WorldService` runtime cache. Intent interpretation, mechanics adjudication,
+structured proposals and narration run after the lock and read transaction
+have been released.
+
+The prepared-commit boundary reacquires the campaign lock **before** opening
+its IMMEDIATE SQLite transaction. It reloads the authoritative context,
+rechecks the campaign revision and history, and only then applies operations
+and publishes the cache changes. A stale snapshot is rejected rather than
+merged. Clarification and manual-roll continuation use the same snapshot and
+commit boundaries. Keep the lock-before-SQLite ordering consistent for every
+writer to avoid lock inversion.

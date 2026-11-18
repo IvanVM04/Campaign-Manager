@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import replace
-
 from contextlib import nullcontext
+from dataclasses import replace
 
 from database import transaction
 

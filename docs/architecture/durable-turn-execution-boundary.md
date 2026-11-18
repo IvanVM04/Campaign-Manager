@@ -18,16 +18,16 @@ The public service remains the composition and compatibility façade. It retains
 
 ## Execution sequence
 
-1. Read a consistent campaign/context/history snapshot and current campaign revision in a read transaction.
+1. Acquire the campaign cache lock briefly, then read a consistent campaign/context/history snapshot and current campaign revision in one DEFERRED transaction. Detach the returned world/history objects from the runtime cache before releasing the lock.
 2. Normalize the request identity and calculate its fingerprint from player input, session identity and dice mode.
 3. In a short `IMMEDIATE` transaction, load or create the campaign-scoped resolution identity. Repeated identity with a different fingerprint is rejected; matching completed/in-flight identities resume their existing state.
 4. Claim planning with a lease token. The token fences off a late worker after another attempt reclaims the expired lease.
 5. Prepare mechanics and structured consequence proposals outside a write transaction. A manual roll or clarification transitions to `awaiting_input` and stores the challenge evidence; no consequence is applied.
 6. Persist the immutable proposal and mechanics evidence as `prepared`, conditionally on the attempt's planning lease.
-7. Hand the prepared plan to `DurableTurnPreparedCommitService`. It opens one `IMMEDIATE` transaction, rechecks campaign revision/context/history, applies all validated consequences, records operation outcomes/resulting revision and advances the resolution to `narration_pending`.
+7. Hand the prepared plan to `DurableTurnPreparedCommitService`. It acquires the campaign cache lock **before** opening one `IMMEDIATE` transaction, rechecks campaign revision/context/history, applies all validated consequences, records operation outcomes/resulting revision and advances the resolution to `narration_pending`.
 8. Native callers resume narration after commit. External adapters receive the committed preparation and complete the presentation through the existing external lifecycle.
 
-Provider calls and narration are outside the write transaction. A stale or failed prepared commit rolls back the consequence application. A post-commit narration failure is recoverable from `narration_pending` and must never call the proposal/applier again for that resolution.
+Provider calls and narration are outside both the SQLite write transaction **and** the campaign cache lock. A stale or failed prepared commit rolls back the consequence application. Narration obtains its own detached snapshot under a short lock, releases it for the provider call, and reacquires it only for transcript/lifecycle persistence. A post-commit narration failure is recoverable from `narration_pending` and must never call the proposal/applier again for that resolution.
 
 ## Typed failure contract
 
@@ -48,12 +48,14 @@ The exception chain still has precedence for provider outages and malformed prov
 - One resolution identity per campaign/adapter namespace/idempotency key.
 - The fingerprint semantics remain unchanged: normalized player input, session ID and dice mode.
 - Only the current lease token may transition a planning attempt.
-- Planning and provider work never hold a SQLite write transaction.
+- Planning and provider work hold neither a SQLite write transaction nor the campaign cache lock.
+- Provider-facing `TurnContext.world` objects are deep-detached from `WorldService.world`; an intervening writer cannot mutate an in-flight snapshot.
+- The prepared commit acquires the cache lock before SQLite's IMMEDIATE transaction, then validates the optimistic revision/context guard before publishing changes.
 - Revision/context/history are revalidated immediately before consequence application.
 - Consequence mutations, operation evidence, resulting revision and lifecycle transition remain atomic.
 - Narration retries never replay consequences or mechanics.
 - Clarification and manual-roll submissions resume the original resolution, preserving their challenge identity.
-- Campaign scoping and the existing process-local turn lock remain unchanged.
+- Campaign scoping and the process-local deployment boundary remain unchanged. The turn lock protects short snapshot/cache/commit critical sections, not entire provider workflows.
 
 ## Explicit non-goals
 
