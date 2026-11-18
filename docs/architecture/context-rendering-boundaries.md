@@ -1,3 +1,5 @@
+> **Historical implementation snapshot.** This generic renderer boundary predates the bounded structured proposal pipeline. Use [the current Context package guide](../../services/context/README.md) and [LLM proposal context boundary](llm-world-context-rendering-boundaries.md) for present ownership. Preserve this file as background for the older generic `ContextRenderer` contract.
+
 # Context rendering boundary
 
 ## Ownership
