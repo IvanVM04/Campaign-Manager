@@ -353,6 +353,145 @@ def test_explicit_decision_does_not_cancel_a_distinct_later_player_attempt():
     assert normalized["steps"][1]["polarity"] == "positive"
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Prefiero no forzar el portón.",
+        "No quiero cruzar el patio.",
+        "No voy a entrar en la sala.",
+        "Me niego a abrir el cofre.",
+        "Me abstengo de entrar en la cripta.",
+        "Desisto de buscar la llave.",
+        "Cancelo mi intento de trepar por el muro.",
+        "Abandono la idea de robar la bolsa.",
+    ],
+)
+def test_explicit_refusal_and_abandoned_intent_are_non_actionable(source):
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(_step(source, modality="attempted", outcome="uncertain")),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_decision_not_to_act" in summary.applied_rules
+
+
+def test_decision_language_inside_player_dialogue_is_not_a_player_intent():
+    source = 'Le digo a Mara: «He decidido no entrar en la torre».'
+    payload = _payload(_step(source), category="action", active=0)
+
+    normalized, _ = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "dialogue"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "dialogue"
+
+
+def test_reported_negative_proposition_keeps_source_and_negative_polarity():
+    source = "Un viajero asegura que no entró en la torre."
+    payload = _payload(
+        _step(
+            "no entró en la torre",
+            actor="other",
+            modality="reported",
+            outcome="not_claimed",
+        ),
+        category="report",
+        active=None,
+    )
+    payload["steps"][0]["polarity"] = "negative"
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "other"
+    assert step["modality"] == "reported"
+    assert step["polarity"] == "negative"
+    assert step["attributed_to"] == "Un viajero"
+    assert "explicit_reported_speaker" in summary.applied_rules
+
+
+def test_uncertainty_about_another_entity_does_not_taint_a_full_excerpt_attempt():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    payload = _payload(
+        _step(source, modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_epistemic_uncertainty" not in summary.applied_rules
+
+
+def test_uncertainty_attached_to_attempt_result_is_preserved_with_narrow_excerpt():
+    source = "Intento abrir la puerta, pero no sé si lo consigo."
+    payload = _payload(
+        _step("Intento abrir la puerta", modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert normalized["steps"][0]["reported_outcome"] == "uncertain"
+    assert "unreported_attempt_outcome" not in summary.applied_rules
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "No consigo abrir la puerta.",
+        "No puedo abrir la puerta.",
+        "No logro desbloquear el cofre.",
+    ],
+)
+def test_direct_inability_to_complete_action_is_a_resolved_failure(source):
+    payload = _payload(
+        _step(source, modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["modality"] == "completed"
+    assert normalized["steps"][0]["polarity"] == "positive"
+    assert normalized["steps"][0]["reported_outcome"] == "failure"
+    assert "explicit_attempt_failure_outcome" in summary.applied_rules
+
+
 def test_explicit_no_era_sino_correction_is_not_a_new_action():
     source = "No era el mapa viejo, sino el pergamino sellado."
     payload = _payload(_step(source), active=0)
