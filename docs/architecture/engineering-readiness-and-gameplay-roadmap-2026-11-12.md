@@ -1,3 +1,5 @@
+> **Historical readiness/estimate snapshot — 2026-11-12.** The numeric readiness estimates, PR #214 baseline and UI deferral statements are point-in-time only. The current implementation status and work order are in [current system state](current-state-2026-11-18.md), [product requirements](../product/product-requirements-2026-11-18.md) and [quality roadmap](../quality/quality-roadmap-2026-11-18.md).
+
 # Engineering readiness and gameplay roadmap — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
