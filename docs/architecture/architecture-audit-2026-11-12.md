@@ -1,3 +1,5 @@
+> **Historical audit — baseline PR #205, superseded as current status on 2026-11-18.** Do not use its PR #215/#216 revalidation paragraphs as current implementation status. Consult [current system state](current-state-2026-11-18.md) and [current quality roadmap](../quality/quality-roadmap-2026-11-18.md).
+
 # Architecture and modularity audit — 2026-11-12
 
 **Repository:** IvanVM04/Campaign-Manager  
