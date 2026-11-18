@@ -1,3 +1,5 @@
+> **Historical corpus snapshot — 2026-11-13.** This document describes the earlier 110-scenario corpus and its gold/scoring contract. It is not the full current inventory: the current quality roadmap records later base corpora and the separate 14-case PR #255 compound-intent holdout. Preserve the original fixture baseline and scoring definitions; use the [current quality roadmap](quality-roadmap-2026-11-18.md) for the latest inventory.
+
 # Semantic-understanding evaluation corpus — 2026-11-13
 
 **Foundation:** PR #220 introduced the 110-scenario corpus; PR #222 extends semantic-slot scoring and PR #227 adds a separate 28-case held-out discourse/pipeline tranche (138 scenarios total).  
