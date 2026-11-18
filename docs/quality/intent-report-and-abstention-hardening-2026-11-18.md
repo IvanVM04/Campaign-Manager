@@ -43,7 +43,7 @@ The hardening now distinguishes three cases that must not collapse into one sign
 
 The refusal rule is excluded from player dialogue and reported-source constructions. A negative proposition inside quoted speech or a reported claim retains that speaker/modality and does not become a player refusal. Reported uncertainty is scoped to its proposition; a distinct player action can follow it in the same sentence or a later sentence. The attribution evidence span ends with the reported clause rather than absorbing a later action.
 
-The held-out language corpus now includes separate cases for preference/refusal, negative dialogue, direct failure, and an uncertain report followed by a live player attempt. These examples remain holdout-only and are not copied into the prompt.
+The held-out language corpus now contains 34 scenarios. New cases cover preference/refusal, negative dialogue, direct failure, uncertain reports followed by live actions, uncertainty about an attempt's own result, unrelated uncertainty after an attempt, an NPC report followed by a player action in the same sentence, and a refusal followed by a distinct attempt. All eight new cases are critical three-repetition gates; they remain holdout-only and are not copied into the prompt.
 
 ## Evidence and safety invariants
 
@@ -65,8 +65,6 @@ The deterministic tests cover:
 - preservation of a genuinely distinct later positive attempt, including after a reported uncertain clause;
 - interpreter-level assertions that uncertain reports and negative decisions are not actionable and do not authorize a world proposal.
 
-The existing held-out holdout-uncertain-rumour scenario remains a critical three-repetition gate. holdout-negated-entry is promoted to a critical three-repetition gate because misclassifying an explicit decision not to act as an attempt can incorrectly advance mechanics or world resolution.
-
-The compound observation-then-attempt holdout remains unchanged and critical. No held-out expected semantic fields are changed to make the tests pass.
+The original critical rumour, compound-observation and refusal scenarios remain gates. The new critical gates separately exercise the distinctions above over three repetitions. No held-out expected semantic fields are changed to make the tests pass.
 
 Local Ollama verification should use the same pinned model digest and provider settings as the baseline, and should include both the full language-understanding holdout and the integrated failed-compound-action test. Passing deterministic CI does not substitute for this real-provider verification.
