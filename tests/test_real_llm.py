@@ -633,9 +633,6 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
     assert plan.world_operations == ()
     assert plan.ordered_operations == ()
 
-    record_property("integrated_intent_model", providers["intent"].model)
-    record_property("integrated_mechanics_model", providers["mechanics"].model)
-    record_property("integrated_extraction_model", providers["extraction"].model)
     record_property("integrated_schema_version", plan.intent_analysis.schema_version)
     record_property("integrated_step_count", len(plan.intent_analysis.steps))
     record_property("integrated_active_step_index", plan.intent_analysis.active_step_index)

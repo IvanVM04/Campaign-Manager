@@ -2,8 +2,8 @@
 
 ## Why this change exists
 
-The local evaluation on commit \`74454130125060e56951f41a48a022be2dc3e7ea\`
-used \`gemma4:12b-it-q4_K_M\`, Ollama \`0.40.16\`, thinking disabled and 20
+The local evaluation on commit `74454130125060e56951f41a48a022be2dc3e7ea`
+used `gemma4:12b-it-q4_K_M`, Ollama `0.40.16`, thinking disabled and 20
 semantic-frame scenarios (36 provider calls). The semantic-frame holdout passed
 with semantic-slot F1 0.973, recall 1.0, action-predicate F1 1.0 and
 relation-predicate F1 0.9474 (two false positives).
@@ -19,23 +19,23 @@ These are different failure classes and must remain separately observable.
 
 ## Mechanics response contract
 
-The mechanics-only provider schema previously required only \`decision\`, while
+The mechanics-only provider schema previously required only `decision`, while
 the typed parser required different fields for checks, clarification and
-\`none\`. Its string fields also allowed localized values that the rules engine
-could not convert to \`Skill\` or \`Ability\`.
+`none`. Its string fields also allowed localized values that the rules engine
+could not convert to `Skill` or `Ability`.
 
 The mechanics-only schema now has one fixed object shape with nine required
 keys:
 
-- \`decision\`
-- \`question\`
-- \`dc\`
-- \`advantage\`
-- \`disadvantage\`
-- \`modifier\`
-- \`reason\`
-- \`skill\`
-- \`ability\`
+- `decision`
+- `question`
+- `dc`
+- `advantage`
+- `disadvantage`
+- `modifier`
+- `reason`
+- `skill`
+- `ability`
 
 Fields not owned by the selected decision are explicitly null. Skill and
 ability use the exact lowercase enum values exported by the D&D 5e rules
@@ -45,7 +45,7 @@ The older combined compatibility contract remains separate.
 
 The mechanics prompt explicitly forbids translated or explanatory identifiers.
 The rules engine remains responsible for deriving a default ability from a
-skill when \`ability\` is null, and for all rolls and outcomes.
+skill when `ability` is null, and for all rolls and outcomes.
 
 ## Evidence-local language normalization
 
@@ -60,14 +60,13 @@ unambiguous local evidence:
   before a separately expressed later attempt; the second step remains active.
 - A single-step conditional future is a plan with a null active-step pointer.
 - An explicit attempted action followed by a lexical failure clause is marked
-  as resolved with \`reported_outcome=failure\`. A two-step model split is
+  as resolved with `reported_outcome=failure`. A two-step model split is
   collapsed only when step two is the failure clause and there are no relation
   claims that would need re-indexing.
 - Explicit “not X, but Y” correction language is marked as correction, not a
   new attempt.
-- A literal speaker plus a reporting predicate and a \`que\` clause preserves
-  attribution inside the step excerpt. Indefinite speakers are represented as
-  \`other\`, not silently promoted to a named NPC.
+- A literal speaker, reporting predicate and `que` clause preserve attribution
+  inside the step excerpt. Indefinite speakers remain `other`.
 - Explicit epistemic markers mark the claim uncertain and clear the active
   action pointer. They do not become confirmed world facts.
 
@@ -86,9 +85,8 @@ thinking value, commit, hardware label, family metrics, failure counts and a
 content-free provider usage summary in JUnit properties. It still does not log
 prompts or completions.
 
-The integrated probe now applies \`CAMPAIGN_MANAGER_REAL_LLM_THINK\` to each
-role unless that role has its own explicit \`CAMPAIGN_MANAGER_LLM_<ROLE>_THINK\`
-setting. It records per-role model, digest, timeout, thinking value and safe
+The integrated probe applies `CAMPAIGN_MANAGER_REAL_LLM_THINK` to each role
+unless that role has its own `CAMPAIGN_MANAGER_LLM_<ROLE>_THINK` setting. It records per-role model, digest, timeout, thinking value and safe
 usage totals before re-raising a preparation failure, so diagnostics survive
 a failed mechanics or proposal stage.
 
@@ -96,18 +94,18 @@ a failed mechanics or proposal stage.
 
 Offline regression scope:
 
-\`\`\`powershell
+```powershell
 python -m pytest tests/test_mechanics_adjudicator.py tests/test_modular_language_pipeline.py tests/test_intent_surface_normalization.py -q
 python -m pytest tests/test_predicate_evaluation.py -q
-\`\`\`
+```
 
 Live acceptance remains opt-in and must be rerun against the exact model tag
 and Ollama installation used for the previous baseline:
 
-\`\`\`powershell
+```powershell
 python -m pytest tests/test_real_llm_semantic_holdout.py -m real_llm -k "held_out_language_understanding_corpus_v1" -v -s
 python -m pytest tests/test_real_llm.py -m real_llm -k "integrated_pipeline_does_not_advance_failed_compound_action" -v -s
-\`\`\`
+```
 
 This PR does not claim a new live-model pass. The semantic-frame result from
 the prior commit remains a historical measurement; after merging, rerun the

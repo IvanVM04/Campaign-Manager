@@ -12,11 +12,11 @@ from models.world_state import WorldState
 from rules_engine.dnd5e_2014.core.abilities import Ability
 from rules_engine.dnd5e_2014.core.skills import Skill
 from services.providers import FakeLLMProvider
-from services.turns.intent_response_schema import MECHANICS_ONLY_RESPONSE_SCHEMA
 from services.turns import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
 )
+from services.turns.intent_response_schema import MECHANICS_ONLY_RESPONSE_SCHEMA
 
 
 @pytest.mark.parametrize(
