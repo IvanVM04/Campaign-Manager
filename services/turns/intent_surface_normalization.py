@@ -46,7 +46,7 @@ _EXPLICIT_CORRECTION_RE = re.compile(
 _EPISTEMIC_UNCERTAINTY_RE = re.compile(
     r"\b(?:sospech\w*|sospechos\w*|no\s+tengo\s+pruebas|no\s+hay\s+pruebas|"
     r"no\s+dispongo\s+de\s+(?:pruebas|evidencias)|"
-    r"no\s+sabe\s+si|no\s+sabes\s+si|no\s+sabemos\s+si|"
+    r"no\s+sabe\s+si|no\s+sabes\s+si|no\s+sabemos\s+si|no\s+recuerda\s+si|"
     r"no\s+sé\s+si|no\s+se\s+si|ignora\s+si|desconoce\s+si|"
     r"no\s+estoy\s+segur\w*|no\s+estamos\s+segur\w*|"
     r"quizá|quizas|tal\s+vez|puede\s+que|es\s+posible\s+que|"
@@ -353,19 +353,26 @@ def normalize_intent_surface_payload(
                 normalized["category"] = "action"
                 normalized["active_step_index"] = None
                 rules.append("explicit_abstention_state_collapsed")
-            elif normalized.get("active_step_index") == decision_index:
-                normalized["active_step_index"] = None
-                if any(
-                    step.get("actor") == "player"
-                    and step.get("modality") == "attempted"
-                    and step.get("polarity") == "positive"
+            else:
+                distinct_attempt_indices = [
+                    index
                     for index, step in enumerate(steps)
                     if index != decision_index
-                ):
+                    and step.get("actor") == "player"
+                    and step.get("modality") == "attempted"
+                    and step.get("polarity") == "positive"
+                ]
+                if normalized.get("active_step_index") == decision_index:
+                    normalized["active_step_index"] = (
+                        distinct_attempt_indices[0]
+                        if distinct_attempt_indices
+                        else None
+                    )
+                if distinct_attempt_indices:
                     normalized["category"] = "mixed"
-            elif len(steps) == 1:
-                normalized["category"] = "action"
-                normalized["active_step_index"] = None
+                elif len(steps) == 1:
+                    normalized["category"] = "action"
+                    normalized["active_step_index"] = None
 
     # Existing refusal constructions remain supported, but must not reprocess
     # the broader explicit-decision pattern handled above.
@@ -577,7 +584,7 @@ def normalize_intent_surface_payload(
         speaker = speaker_match.group("speaker").strip()
         indefinite = _fold(speaker).startswith(("un ", "una "))
         body_start = speaker_match.end()
-        sentence_end_match = re.search(r"[.!?](?:[»”\\"']?)(?=\\s|$)", evidence[body_start:])
+        sentence_end_match = re.search(r"[.!?](?=\\s|$)", evidence[body_start:])
         scope_end = (
             body_start + sentence_end_match.start() + 1
             if sentence_end_match is not None
@@ -594,7 +601,8 @@ def normalize_intent_surface_payload(
                 continue
             end = start + len(excerpt)
             if start < scope_end and end > body_start and end <= scope_end:
-                reported_indices.append(index)
+                if len(evidence) <= 300 or _fold(speaker) in _fold(excerpt):
+                    reported_indices.append(index)
 
         if reported_indices:
             reported_scope = evidence[body_start:scope_end]
