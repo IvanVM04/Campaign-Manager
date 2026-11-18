@@ -33,6 +33,18 @@ A genuinely distinct later positive attempt is preserved in order and can remain
 
 Negative steps remain non-actionable: they cannot become active attempts or independently authorize world proposals. An epistemically uncertain reported step is also resolved as a speech act for sequence ordering, so it does not block a distinct later positive player attempt; the uncertain report itself remains ineligible to authorize a proposal.
 
+## Broader polarity, failure and speech-scope coverage
+
+The hardening now distinguishes three cases that must not collapse into one signal:
+
+- An explicit first-person refusal or abandoned intention (for example, preferring not to act, refusing, abstaining, cancelling an attempt, or abandoning an action idea) is a resolved negative intent.
+- A direct inability/result statement such as not managing to open something is a resolved failure when it explicitly describes the attempted action. It is not the same as choosing not to try.
+- Uncertainty is attached to an attempt outcome only when the wording explicitly refers to that outcome (for example, not knowing whether the attempt succeeded). A doubt about a guard or another unrelated fact does not deactivate the player's attempt.
+
+The refusal rule is excluded from player dialogue and reported-source constructions. A negative proposition inside quoted speech or a reported claim retains that speaker/modality and does not become a player refusal. Reported uncertainty is scoped to its proposition; a distinct player action can follow it in the same sentence or a later sentence. The attribution evidence span ends with the reported clause rather than absorbing a later action.
+
+The held-out language corpus now includes separate cases for preference/refusal, negative dialogue, direct failure, and an uncertain report followed by a live player attempt. These examples remain holdout-only and are not copied into the prompt.
+
 ## Evidence and safety invariants
 
 - source_excerpt must remain literal player-authored evidence.
@@ -47,10 +59,10 @@ Negative steps remain non-actionable: they cannot become active attempts or inde
 
 The deterministic tests cover:
 
-- multi-step reported claims with same-sentence uncertainty;
+- multi-step reported claims with same-sentence uncertainty, including an independent player action in the same sentence;
 - non-propagation into a later independent player action;
-- negative decisions with an abstention-state continuation;
-- preservation of a genuinely distinct later positive attempt;
+- negative decisions with an abstention-state continuation and varied refusal forms;
+- preservation of a genuinely distinct later positive attempt, including after a reported uncertain clause;
 - interpreter-level assertions that uncertain reports and negative decisions are not actionable and do not authorize a world proposal.
 
 The existing held-out holdout-uncertain-rumour scenario remains a critical three-repetition gate. holdout-negated-entry is promoted to a critical three-repetition gate because misclassifying an explicit decision not to act as an attempt can incorrectly advance mechanics or world resolution.
