@@ -280,6 +280,41 @@ def test_uncertain_report_is_resolved_before_a_later_player_attempt():
     assert analysis.is_actionable is True
 
 
+def test_negative_report_is_resolved_before_a_later_player_attempt():
+    source = "El viajero afirma que no vio huellas. Ataco al guardia."
+    value = payload(
+        steps=[
+            step(
+                index=0,
+                excerpt="El viajero afirma que no vio huellas",
+                actor="other",
+                action="informar de ausencia de huellas",
+                modality="reported",
+                polarity="negative",
+                attributed_to="El viajero",
+                targets=[],
+            ),
+            step(
+                index=1,
+                excerpt="Ataco al guardia",
+                actor="player",
+                action="atacar al guardia",
+                modality="attempted",
+                targets=["guardia"],
+            ),
+        ],
+        active=1,
+        category="mixed",
+    )
+
+    analysis = PlayerIntentAnalysis.from_payload(value, source_text=source)
+
+    assert analysis.steps[0].modality is IntentModality.REPORTED
+    assert analysis.steps[0].polarity.value == "negative"
+    assert analysis.active_step_index == 1
+    assert analysis.is_actionable is True
+
+
 def test_active_step_cannot_skip_an_earlier_attempt():
     value = payload(steps=[
         step(index=0, excerpt="Ataco al guardia", modality="attempted"),
