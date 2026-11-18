@@ -89,13 +89,34 @@ coreference: broader ellipsis, correction chains and paraphrases remain open
 and require a labelled evaluation corpus.
 
 
-## Advanced discourse signals (PR #223)
+## Current discourse and reference signals (PR #255)
 
-`services.discourse_context.DiscourseContextBuilder` produces a bounded index from the current utterance
-and the last twelve turns already scoped to the current chat. It recognizes
-explicit topic changes and callbacks, marks likely elliptical/deictic input,
-extracts only explicitly labelled quotations from visible active NPCs, and
-reports grammatical agreement only when a local article/apposition is literal
-evidence. It never infers gender from proper names, creates group identities,
-or grants write authority. Entity and typed-world references share the same
-topic-scoped history. Ambiguous or plural-to-individual references abstain.
+The discourse/reference path is an application-generated, bounded evidence index;
+it is not canonical world state and does not authorize writes. It uses the current
+utterance and a bounded recent transcript already scoped to the same conversation.
+The PR #255 increment builds on the earlier PR #223/#246–#248 work and adds:
+
+- narrow Spanish dative-clitic surface cues (`le/les`) for supported speech/
+  interaction verb patterns; literal span/casing is preserved and explicit
+  recipient complements are coalesced rather than emitted as duplicate targets;
+- named-NPC speech signals only when the current visibility/evidence rules identify
+  exactly one eligible visible active NPC; speaker signals are evidence only,
+  not canonical IDs or permission to mutate;
+- callback anchor scoping to the introductory clause rather than unrelated
+  continuation text;
+- explicit-negation sequencing so a negated step can precede a later active
+  attempt without authorizing the negative step as a world proposal;
+- a 14-case compound-intent held-out set with independent per-step gold for
+  order, actor, modality and polarity.
+
+These are bounded cues and evaluated contracts, not general Spanish/English
+coreference or a claim that the live model always interprets discourse correctly.
+Plural-to-individual ambiguity, hidden/uncertain antecedents and insufficient
+evidence must continue to abstain. The current product target also calls for
+knowledge scopes across several controlled player characters and a player-
+selected context panel; those capabilities are not implemented by the current
+single-active-character selector.
+
+See [the current product requirements](../../docs/product/product-requirements-2026-11-18.md),
+[the current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md)
+and [PR #255 delivery record](../../docs/quality/player-message-comprehension-phase-2026-11-18.md).
