@@ -2,6 +2,9 @@
 
 # Campaign Manager — architecture map for maintainers and coding agents
 
+> **Superseded snapshot (2026-11-18):** this map describes the 12 Nov repository state. Use [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md) for current package ownership, routes and implementation status, and [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md) for current findings. Preserve this page as historical evidence.
+
+
 **Verified base:** `main` at `184126110c713cff4c9bd1da96786f2c49fc5145` (2026-11-13, PR #218 merged).  
 **Purpose:** provide one fast, source-linked navigation map. This is an index and work register, not a replacement for package documentation or lifecycle contracts.
 

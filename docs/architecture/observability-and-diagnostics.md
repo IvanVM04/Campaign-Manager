@@ -88,14 +88,21 @@ HTTP errors retain the stable `code` / `detail` envelope and now echo
 `X-Request-ID`. Unexpected exceptions keep their stack trace server-side,
 with a generic client-safe 500 response.
 
-## Technical logs are not the activity timeline
+## Technical logs are not a player activity timeline
 
-Do not make the future player interface read a log file or parse log messages.
-PR #209 is planned as a separate typed, campaign-scoped activity history for
-important player-visible transitions, with explicit safe read models and
-pagination. Technical logs remain diagnostic, rotatable and potentially
-verbose; activity history is durable product data with a different visibility
-and retention contract.
+Technical logs are diagnostic data only. The current application does not
+provide a separate typed, player-facing campaign activity timeline or a
+general activity-feed API. World events are campaign facts with their own
+epistemic/visibility semantics; they are not a substitute for a complete
+timeline of player-visible application transitions.
+
+Do not make the player interface read a log file or parse log messages. If a
+campaign activity timeline is implemented later, it must be a distinct,
+campaign-scoped domain/read-model contract with explicit event types,
+pagination, visibility, retention and migration behavior. It must not expose
+prompts, completions, credentials, GM-only notes or technical error details.
+The earlier PR #209 plan is historical planning context, not evidence that this
+feature exists.
 
 ## Validation
 

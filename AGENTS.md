@@ -5,10 +5,10 @@ Read this file before making repository changes.
 ## Start here
 
 1. Read [the documentation hub](docs/README.md).
-2. Read the [current system state and architecture map](docs/architecture/current-state-2026-11-18.md), [product requirements v0.2](docs/product/product-requirements-2026-11-18.md) and [current quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
-3. Read the [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [change-impact map](docs/architecture/change-impact-map-2026-11-12.md) and [capability dependency matrix](docs/architecture/package-dependency-matrix.md).
-4. Read the relevant package `README.md` and active technical contract before changing a capability.
-5. Read the current [documentation freshness audit](docs/architecture/documentation-audit-2026-11-18.md) when editing documentation. The dated CI/test audits remain historical; use the current quality roadmap and latest workflow evidence for present status.
+2. Read the [current system state](docs/architecture/current-state-2026-11-18.md), [current architecture map](docs/architecture/architecture-map-2026-11-18.md), [current architecture audit](docs/architecture/architecture-audit-2026-11-18.md) and [current change-impact map](docs/architecture/change-impact-map-2026-11-18.md).
+3. Read the [product requirements v0.2](docs/product/product-requirements-2026-11-18.md) and [current quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
+4. Read the [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [capability dependency matrix](docs/architecture/package-dependency-matrix.md), relevant package `README.md` and active technical contract before changing a capability.
+5. Read the [documentation freshness audit](docs/architecture/documentation-audit-2026-11-18.md) when editing documentation. Dated CI/test audits are historical; use the current quality roadmap and latest workflow evidence for present status.
 
 Dated audits and PR implementation records are historical snapshots unless explicitly designated as current. Inspect source and current contracts before treating an old recommendation, count or status as pending.
 

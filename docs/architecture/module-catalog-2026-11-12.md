@@ -3,7 +3,7 @@
 # Shared-layer module catalogue — 2026-11-12
 
 **Verified against:** main at a14d1568ba852cd545caaf06e9efd48a4f925b03 (PR #205 merged).  
-**Navigation rule:** the [current architecture map](current-state-2026-11-18.md) describes present packages and end-to-end flows. This catalogue preserves the shared-layer inventory from its original baseline; it is a navigation aid, not a proposal to split every file.
+**Navigation rule:** the [current architecture map](current-state-2026-11-18.md) describes present packages and end-to-end flows. This catalogue preserves the shared-layer inventory from its original baseline; it is a navigation aid, not a proposal to split every file. For the 2026-11-18 package/flow view, use [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md), not this dated inventory.
 
 ## Read this before changing shared layers
 

@@ -1,4 +1,7 @@
 > **Historical document — superseded by the 2026-11-12 legacy-retirement cleanup.**
+
+> **Superseded implementation snapshot:** this file describes the retired `process_turn()` / `LegacySillyTavernTurnService` path. That route and service have been removed. Do not follow its implementation advice or reintroduce the old writer. See [legacy retirement](legacy-retirement-2026-11-12.md), [turn pipeline contract](turn-pipeline-compatibility.md), [durable SillyTavern adapter](sillytavern-durable-turn-adapter.md) and [current architecture audit](architecture-audit-2026-11-18.md).
+
 > The narrative-first extractor, static legacy prompt builder, deprecated
 > `POST /integration/turn`, legacy turn service and runtime snapshot
 > reconciliation described below have been removed. Migration 029 archives

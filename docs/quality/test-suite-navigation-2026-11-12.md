@@ -2,6 +2,9 @@
 
 # Test-suite navigation — 2026-11-12
 
+> **Superseded test navigation (2026-11-18):** this page describes the PR #205/#208 test split. Use [test-suite-navigation-2026-11-18.md](test-suite-navigation-2026-11-18.md) for the current test map and [quality-roadmap-2026-11-18.md](quality-roadmap-2026-11-18.md) for current CI/live gates.
+
+
 **Baseline:** `main` after PR #208, commit `96b0232395de670d4ef4c4fa658eae88dd8f3c34`.  
 **History:** PR #205 reorganized the durable-turn and context suites without changing production behavior. PRs #207 and #208 subsequently added scale/proposal probes and structured observability. This page retains the original split details and adds the current quality/acceptance map.
 

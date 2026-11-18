@@ -8,8 +8,10 @@ Read these first. They describe the current product target, source-verified impl
 
 - [Product requirements v0.2](product/product-requirements-2026-11-18.md) — product direction, confirmed design decisions, functional/non-functional requirements, desired UI, acceptance gates and proposed ideas clearly separated from approved requirements.
 - [Current system state and architecture map](architecture/current-state-2026-11-18.md) — source-verified implementation state, current turn workflow, package ownership, persistence/schema version, security boundary, verified CI and explicit product gaps.
+- [Current architecture map](architecture/architecture-map-2026-11-18.md), [architecture audit](architecture/architecture-audit-2026-11-18.md) and [change-impact map](architecture/change-impact-map-2026-11-18.md) — complementary package/flow map, source-verified technical risks and regression surfaces.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
 - [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — current quality/AI risks, verified CI baseline, live acceptance gates and sequenced priorities.
+- [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.
 

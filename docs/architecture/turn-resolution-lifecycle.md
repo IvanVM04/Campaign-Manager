@@ -2,141 +2,150 @@
 
 # Durable turn-resolution lifecycle contract
 
-**Status:** Proposed architecture contract (PR #28)
-**Scope:** Native campaign turns and external adapters, including SillyTavern
-**Implementation:** PRs #29-#31 (native automatic turns and SillyTavern adapter); manual-input continuation remains a follow-up
+**Status:** implemented current application contract, verified 2026-11-18  
+**Code baseline:** `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255)  
+**Schema:** 34  
+**Scope:** native campaign turns and external adapters, including SillyTavern.
 
-## 1. Purpose
+This page describes the implemented durable lifecycle. The historical design was proposed in PR #28 and implemented incrementally in PRs #29–#31 and subsequent hardening. The document is no longer a proposal. Current source and tests take precedence if a future implementation changes a detail.
 
-A campaign turn must have one durable, auditable resolution whose domain consequences are applied at most once. Narrative generation is a separate, retryable projection of that committed resolution.
+## 1. Purpose and authority
 
-This contract closes a gap in the current native flow: `TurnResolutionService.prepare_turn()` currently generates DM prose and then asks `LLMWorldExtractor` to infer persistent operations from that prose. The resulting plan is applied and the narrative is stored in the same transaction. This is not yet the target pipeline: prose is acting as an intermediate source for proposed state changes, and a failure after the state commit cannot be recovered independently from narration.
+A logical player action has one durable resolution. Domain consequences are committed at most once. Narration is a separate, retryable presentation of the committed outcome.
 
-This PR defines the target boundary and invariants only. It does not add a table, migration, service, API endpoint, or behaviour change.
+| Responsibility | Owner |
+|---|---|
+| Request identity, idempotency, lifecycle transitions and recovery | Durable turn application services |
+| Intent interpretation | `IntentInterpreter` and validated `PlayerIntentAnalysis` |
+| Canonical identity and visible-reference selection | Deterministic context/application resolvers |
+| Mechanics decision | `MechanicsAdjudicator` |
+| Random rolls and supported calculations | Deterministic rules/application code |
+| Candidate world consequences | Structured LLM proposal pipeline |
+| Permission, semantic validation and mutation | Domain/application services and world appliers |
+| Persistence | Repositories using caller-owned transactions |
+| Presentation | Native `DMService` or an external client such as SillyTavern |
 
-## 2. Domain vocabulary and ownership
+LLM output is untrusted. It cannot assign canonical IDs, grant permissions, select dice results, write SQLite or override committed mechanics. Narration is not a source of world operations.
 
-- **Turn request:** normalized player intent plus campaign scope, adapter identity, idempotency identity, and optional client metadata.
-- **Turn context:** a consistent read snapshot of campaign, session, character, world, recent history, and campaign state revision.
-- **Adjudication:** a validated decision about clarification, authority, required checks, and applicable rules.
-- **Mechanics result:** deterministic result produced by the selected ruleset from trusted character/world data and dice inputs. The model may propose a check; it does not supply the authoritative total or mutate state.
-- **Consequence proposal:** structured, typed domain operations proposed for a turn. A proposal is untrusted until application-level validation succeeds.
-- **Committed resolution:** immutable record of the accepted request, context revision, adjudication/mechanics evidence, validated consequence set, and operation results.
-- **Narration:** user-facing prose generated from the committed resolution and the relevant context. It is not an instruction to mutate domain state.
+## 2. Domain vocabulary
 
-The application turn use case owns authorization, validation, idempotency, state transitions, and transaction boundaries. Rules engines own deterministic mechanics. Domain services own domain invariants. Repositories persist records using caller-owned transactions. Native API and integrations are adapters; none may implement a competing resolution pipeline.
+- **Turn request:** player input plus campaign scope, idempotency/adapter identity, conversation identity when applicable, and roll mode.
+- **Turn context:** consistent campaign/session/character/world/history projection plus the captured campaign revision.
+- **Intent analysis:** validated, versioned semantic interpretation of the player's message. V1 remains readable; V2 carries action frames and directed relation claims.
+- **Challenge:** a durable clarification or manual-roll request that pauses the same logical turn.
+- **Prepared plan:** validated structure/proposal and expected context revision persisted before domain mutation.
+- **Committed resolution:** the durable record of the accepted intent, validated consequences, mechanics/operation evidence and resulting campaign revision.
+- **Narration:** user-facing prose based on committed evidence. It never authorizes another mutation.
 
-## 3. Lifecycle
+## 3. Implemented lifecycle
 
-The durable lifecycle uses these conceptual states:
+The durable record uses these lifecycle states:
 
 | State | Meaning | Allowed next states |
 |---|---|---|
-| `accepted` | Request identity and normalized input have been claimed durably. | `planning`, `rejected` |
-| `planning` | Context/adjudication/mechanics/consequence proposal is being prepared outside a write transaction. | `awaiting_input`, `prepared`, `rejected`, retryable `accepted` |
-| `awaiting_input` | A specific player decision or manual roll is required; the request and expected context revision remain durable. | `planning`, `rejected` |
-| `prepared` | Immutable proposal and expected context revision are persisted; no domain consequences have been applied. | `committed`, `rejected` |
-| `committed` | Consequences, operation results, resulting state revision, and the committed resolution are persisted atomically. | `narration_pending` |
-| `narration_pending` | The committed resolution is awaiting user-facing prose. | `completed` |
-| `completed` | Narration is persisted and the turn is fully presented. | terminal |
-| `rejected` | The request/proposal was invalid, unauthorized, stale, or otherwise refused before consequence commit. | terminal |
+| `accepted` | The logical request identity has been claimed. | `planning`, `rejected` |
+| `planning` | Context, intent, mechanics and consequence proposal are being prepared. Provider work is outside write transactions. | `accepted` (retry/reclaim), `awaiting_input`, `prepared`, `rejected` |
+| `awaiting_input` | A player clarification or manual d20 result is required; challenge details and context revision are persisted. | `planning`, `rejected` |
+| `prepared` | Proposal and expected revision are persisted; domain consequences have not yet been applied. | `committed`, `rejected` |
+| `committed` | Consequences, operation results and resulting revision were committed atomically. | `narration_pending` |
+| `narration_pending` | Consequences are committed; narration or its persistence still needs completion. | `completed` |
+| `completed` | Presentation is persisted. | terminal |
+| `rejected` | The request/proposal was rejected before consequence commit. | terminal |
 
-A transient provider or infrastructure error before commit is an attempt failure, not evidence that domain state changed. It must be recorded as retry metadata (attempt count, safe error category, timestamps) and must not create a terminal committed result. A crash while `planning` is recoverable by reclaiming an expired attempt. A crash after commit resumes at `narration_pending`; it never reruns consequence application.
+A commit never returns to planning. A new player correction after a committed turn is a new logical action; pending clarification is not.
 
-No transition may move a committed resolution back to planning or apply a second consequence set. A correction is a new, explicitly linked resolution, not mutation of historical committed data.
+## 4. Entry points
 
-## 4. Required invariants
+### Native API
 
-### 4.1 Idempotency and identity
+- `POST /turn` — start or resume a native durable turn; optional `Idempotency-Key`; `dice_mode` is `automatic` or `manual`.
+- `POST /turn/clarification` — submit a response to a pending clarification.
+- `POST /turn/roll` — submit the requested manual d20 result(s).
+- `GET /turns` — read campaign/session transcript records.
 
-1. Every request has a stable idempotency key scoped to its campaign and adapter/client namespace.
-2. The request fingerprint covers normalized player input and all fields that can change its meaning (including relevant adapter turn/version identity and explicit decision inputs).
-3. Repeating the same key and same fingerprint returns the existing lifecycle/result; it does not call the consequence applier again.
-4. Repeating the same key with a different fingerprint is a conflict and must not overwrite the original request.
-5. Adapter versioning is distinct from idempotency. A regeneration/version is a separate candidate resolution and may supersede a prior version only through an explicit adapter policy. Superseding a record must never silently undo already committed world changes.
-6. Uniqueness must be enforced by the database, not only by a process-local lock or cache.
+### SillyTavern adapter
 
-### 4.2 Context and stale-plan protection
+- `POST /integration/context` — context/history projection.
+- `POST /integration/turn/resolve` — claim and resolve the player action before SillyTavern narration.
+- `POST /integration/turn/clarification` and `/roll` — continue the original request.
+- `GET /integration/turn/{external_turn_id}` — transcript state.
+- `GET /integration/turn/{external_turn_id}/clarification` and `/manual-roll` — challenge recovery projections.
+- `POST /integration/turn/complete` — persist narrative/version against the already committed resolution. It does not apply consequences.
 
-1. Planning reads a consistent campaign snapshot and its monotonic state revision.
-2. Provider/LLM work happens without holding a SQLite write transaction.
-3. Before commit, the application opens a short `BEGIN IMMEDIATE` transaction and revalidates campaign scope, state revision, relevant context/history, actor authority, target identity, ownership, and operation preconditions.
-4. A stale proposal is rejected or replanned from a fresh context; it is never applied against a different state than the one it was prepared for.
-5. The committed record stores the revision it was based on and the resulting revision.
+SillyTavern uses a stable `external_turn_id` for the player action and a required `conversation_id` to scope history and challenge ownership. The old narrative-first `POST /integration/turn` endpoint is removed and returns 404. See the [adapter contract](sillytavern-durable-turn-adapter.md).
 
-### 4.3 Atomic consequence commit
+## 5. Intent, mechanics and consequence stages
 
-The following must commit or roll back together in one write transaction:
+The production turn path uses separate roles:
 
-- accepted validated consequence operations and their deterministic domain mutations;
-- operation-level outcomes and the resolution evidence needed to explain the result;
-- transition to `committed` / `narration_pending`;
-- the resulting campaign state revision and idempotency identity.
+1. `IntentInterpreter` receives current player evidence, bounded same-chat history and compact visible context. It returns one `PlayerIntentAnalysis`.
+2. Model output is schema-checked and literal evidence is validated. Deterministic resolvers attach canonical entity IDs only after campaign, activity, visibility and ambiguity checks.
+3. `MechanicsAdjudicator` runs only for an actionable, non-clarification active step with a usable active character. It returns a mechanics decision, not a roll result.
+4. Application/rules code computes supported mechanics. Automatic dice use the backend random source; manual mode requests player-supplied values and validates them against the stored challenge.
+5. The structured consequence proposer receives the same validated analysis, trusted resolved references, bounded detached world projection and confirmed mechanics. It does not reinterpret the raw player message.
+6. Domain services validate permissions, scope, entity existence, ownership, resource constraints and operation preconditions before applying mutations.
+7. Narration uses the committed result.
 
-A partial consequence set is not a successful turn. If an operation fails and the contract requires all-or-nothing semantics, the transaction rolls back. If a future domain explicitly supports partial success, that policy must be represented in the typed resolution and tested; it must not be inferred from narrative wording.
+Questions, reports, hypotheticals, negations, non-actionable observations and ambiguous references must not accidentally authorize mechanics or persistent operations.
 
-### 4.4 Narration isolation
+## 6. Durable challenge continuation
 
-1. Narration starts only after the consequence transaction commits.
-2. Narration input includes the committed operation proposal, authoritative operation outcomes, mechanics evidence, and an explicitly selected read context; it cannot modify the resolution or domain state.
-3. Narration failure leaves the turn in `narration_pending` with committed consequences intact.
-4. Retrying narration may produce a replacement narrative, but cannot reapply operations, reroll mechanics, or change committed outcomes.
-5. Persist the final narrative and transition to `completed` atomically.
-6. The UI/API must distinguish “consequences committed, narration pending” from “turn failed”.
+Clarification and manual-roll challenges are stored with the durable resolution (including challenge state in the persisted adjudication payload). They are not merely held in a transient service dictionary.
 
-### 4.5 Trust boundary for AI proposals
+- A challenge is tied to its original resolution and, for the external adapter, its conversation.
+- The answer/result is validated against the stored challenge and context revision.
+- The original intent analysis is reused for manual-roll continuation.
+- Pending-intent clarification applies literal, bounded edits to the stored analysis and preserves untouched fields.
+- Accepted manual-roll submissions are idempotent; conflicting results for the same accepted challenge are rejected.
+- SillyTavern can query challenge state again after a browser/extension restart.
+- Repeated clarification rounds continue the same durable turn; the answer is not treated as a new player action.
 
-- AI output is an untrusted proposal, never an authorization grant.
-- Actor, target, campaign scope, item ownership, resource balances, preconditions, and allowed operation types are resolved/validated by application and domain code.
-- Mechanical values are recomputed by deterministic rules code.
-- Narrative text is not parsed as the authoritative source of consequences.
-- The transitional narrative extractor may remain behind a compatibility adapter while migration proceeds, but its output must be treated as an untrusted proposal and must not define final truth. The target design is a structured proposal channel independent of final prose.
+The current clarification primitive is not the full product-level configurable uncertainty system. A calibrated confidence threshold and general resumable checkpoint model for arbitrary partially resolved compound steps remain future requirements (see product requirements FR-AI-11–14).
 
-## 5. Transaction and recovery boundaries
+## 7. Idempotency, stale-context protection and transactions
 
-| Boundary | Work allowed | Transaction rule |
-|---|---|---|
-| Accept request | Normalize, fingerprint, claim idempotency identity | Short transaction; durable before expensive provider calls |
-| Plan | Context read, adjudication, deterministic rolls, structured proposal generation | Read transaction only for snapshot; no write transaction held during provider calls |
-| Store prepared plan | Persist immutable proposal and expected revision | Short transaction |
-| Commit consequences | Revalidate + apply + store outcomes + lifecycle transition | One `BEGIN IMMEDIATE` transaction |
-| Narrate | Generate prose from committed resolution | No domain write transaction |
-| Complete narration | Store prose + mark completed | Short transaction; conditional on still being narration-pending |
+1. The request has a stable identity scoped by campaign and adapter/client namespace.
+2. A request fingerprint covers fields that alter meaning, including player input, session, dice mode and conversation identity where applicable.
+3. Same identity plus same fingerprint returns/resumes the existing request; a conflicting fingerprint is rejected.
+4. Planning reads a consistent context and campaign revision.
+5. Provider calls and narration occur outside SQLite write transactions.
+6. Before commit, the application checks campaign scope, current revision, request/challenge identity, lease ownership, and operation preconditions.
+7. Consequence application, operation outcomes, resolution transition and resulting campaign revision commit together in a short `BEGIN IMMEDIATE` transaction.
+8. Failures roll back database changes and restore the in-memory publication boundary; stale plans are rejected/replanned rather than applied to a different world.
 
-Recovery rules:
+The campaign-local `TurnExecutionLock` serializes workflows inside the supported single process. It is not a distributed lock and does not support multiple Uvicorn workers.
 
-- Expired planning attempts can be reclaimed with a lease/attempt token; a late worker must fail its conditional transition.
-- A prepared plan is either committed after revalidation or rejected as stale; it is not blindly replayed.
-- If the process stops after consequence commit, a worker/next request can discover `narration_pending` and continue narration.
-- If the process stops during narration, narration can be retried safely.
-- Manual rolls and clarification waits must be durable if they are part of a request that the product promises to resume after restart. Their submitted response is validated against the stored request and context revision.
-- Recovery must not depend on in-memory `_pending_manual_rolls`, a local lock, or an integration process cache.
+## 8. Narration, retries and regeneration
 
-## 6. Relationship to existing persistence
+- Consequences commit before the client generates or stores the narrative.
+- A narration/provider failure after commit leaves the resolution resumable at `narration_pending`.
+- Retrying the same logical request cannot repeat damage, resource consumption, event creation, item transfer or mechanics.
+- SillyTavern swipes/regenerations create transcript/narrative versions against the same committed outcome. They do not restore snapshots, rerun the rules engine or apply world operations again.
+- The completion endpoint validates identity/version and persists presentation only.
 
-The existing `turns` table and `TurnRecord` are historical records with narrative, operation counts, external turn ID, version, status, and optional snapshot. They are not yet a complete durable resolution lifecycle: they do not represent accepted/planning/prepared/narration-pending states, persisted proposals, attempt leases, or a separate narration result.
+There is no background recovery worker. Recovery is request-driven by a retry or a client reading the durable turn/challenge state. Do not describe or build a worker as if it already exists.
 
-The existing `campaign_state_versions` mechanism supplies the monotonic revision primitive needed for stale-plan checks. The existing `TurnRepository` and turn history must be inspected and extended rather than duplicated. SillyTavern's external turn/version/snapshot lifecycle is an adapter concern and must map onto this shared application contract without replacing it.
+## 9. Persistence and migrations
 
-No second “turns” table or parallel campaign revision counter should be introduced. The next implementation design must decide whether to evolve `turns` or add a narrowly scoped resolution record linked to it, based on concrete compatibility and data-retention analysis.
+The durable execution envelope is stored in `turn_resolutions`, linked to transcript/turn records and protected by database constraints and lifecycle-specific repository checks. The record includes conversation scope, lifecycle state, versioned `intent_json`, proposal/mechanics/adjudication evidence, context/resulting revisions and lease/retry metadata.
 
-## 7. Migration plan
+- Migration 022 introduced the durable resolution envelope.
+- Migration 023 added the resulting campaign revision.
+- Migration 033 added persisted versioned intent analysis and source fingerprint, with protection against editing committed evidence.
+- Migration 034 added SillyTavern conversation identity and scoped history indexes.
+- Current `CURRENT_VERSION` is 34.
 
-This contract is intentionally implemented incrementally:
+Historical snapshot JSON is retained in the inert `turn_snapshot_archive` table by migration 029. It is not read/restored at runtime.
 
-1. **PR #28 (merged):** define lifecycle vocabulary, invariants, trust boundary, and recovery/transaction boundaries. Documentation only.
-2. **PR #29:** add migration 022 and a linked `turn_resolutions` execution envelope, model, repository, lifecycle constraints, idempotency uniqueness, lease claims, and migration/model/repository tests. The live turn pipeline is not wired yet.
-3. **PR #30:** wire native automatic turn execution to durable accept/prepare/commit/narration-pending/completed boundaries; generate typed consequence proposals from player intent; commit domain consequences, operation evidence, and the resulting revision atomically; retry narration without reapplying consequences. Migration 023 adds `resulting_revision` to the execution envelope.
-4. **PR #31:** adapt SillyTavern to the same application use case and preserve regeneration/snapshot compatibility.
-5. Follow-up work: durable manual-roll/clarification continuation, recovery worker/operational orchestration, and any multi-process deployment guarantees.
+## 10. Explicit limitations
 
-Each implementation PR must include failure-injection tests for its boundary and must preserve campaign isolation and existing API/adapter compatibility.
+- One active-character pointer currently drives the campaign turn context; configurable simultaneous multi-PJ control is not implemented.
+- NPC delegation requests/approvals/revocation are product requirements, not current domain contracts.
+- The confidence threshold and arbitrary partial compound-turn checkpointing described in product v0.2 are not yet implemented.
+- Supported mechanics remain a deterministic subset of D&D 5e 2014.
+- The application is local, single-user, single-process and single-worker.
+- A green deterministic CI run does not prove live Ollama semantic quality or a real SillyTavern session.
 
-## 8. Explicit non-goals
+## 11. Historical design record
 
-- No schema or migration in this PR.
-- No new generic workflow engine, message broker, event-sourcing framework, or distributed lock.
-- No multi-worker deployment enablement.
-- No VTT/UI work.
-- No wholesale rewrite of `TurnResolutionService` or SillyTavern integration.
-- No silent change to external turn identity, regeneration semantics, or historical turn records.
+PR #28 introduced the initial proposal and invariants; PRs #29–#31 delivered the initial durable store/native flow/adapter integration. This page now documents the implemented contract. The historical PR descriptions and earlier architecture snapshots remain evidence of their original proposal/implementation sequence, not current status.

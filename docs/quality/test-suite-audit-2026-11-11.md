@@ -1,5 +1,8 @@
 > **Point-in-time inventory:** the line counts and proposed test reorganizations below describe the suite on 2026-11-11. PR #193 and the 2026-11-12 legacy-retirement cleanup subsequently moved and retired several of these files. Use the revalidation section at the end for the current disposition; do not use the older inventory table as a live file list.
 
+> **Historical suite audit (2026-11-11):** counts, file sizes and proposed splits describe that test-tree snapshot. Use [test-suite-navigation-2026-11-18.md](test-suite-navigation-2026-11-18.md) for current test navigation and [quality-roadmap-2026-11-18.md](quality-roadmap-2026-11-18.md) for current acceptance gates.
+
+
 # Test-suite audit — 2026-11-11
 
 **Repository:** `IvanVM04/Campaign-Manager`  

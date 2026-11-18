@@ -14,8 +14,8 @@ The application should own the campaign state and the turn-resolution workflow. 
 
 ### Table authority
 
-* **Player authority:** the human player decides the intentions, actions, dialogue and choices of the one or more player characters they currently control.
-* **Dungeon Master authority:** the AI DM controls the world, environment, events, and NPCs that have not explicitly been delegated to a player.
+* **Player authority:** the human player decides the intentions, actions, dialogue and choices of the one or more player characters they currently control. A campaign may therefore have several player characters without becoming a multiplayer/shared-table product.
+* **Dungeon Master authority:** the AI DM controls the world, environment, events and NPCs that have not explicitly been delegated to a player. NPC delegation must be explicit and approved by the current authority; the full request/approval/revocation model is a product requirement, not yet an implemented domain feature.
 * **Rules authority:** the rules engine resolves mechanical outcomes. The DM may adjudicate circumstances and call for appropriate checks, but generated narration must not override a mechanical result.
 * **Application authority:** the application validates and persists state changes. An LLM must never write directly to the database or bypass domain validation.
 
@@ -53,7 +53,7 @@ Not every action requires a roll. The DM should use the rules and the fictional 
 
 **Not in the initial scope:** a virtual tabletop, tactical map editor, token movement, fog of war or real-time tabletop collaboration. These may be considered as a distant future extension after the core game experience is reliable.
 
-The application is **single-human-player by design**: one person plays and manages campaigns, and may control one or several player characters within a campaign. This does not mean one protagonist per campaign. Multiplayer, shared tables, accounts and campaign membership are not part of the initial scope. Remote access or hosted deployment is not part of the initial release and would require a separate security review.
+The application is **single-human-player by design**: one person plays and manages campaigns, and may control one or several player characters within a campaign. This does not mean one protagonist per campaign. Multiplayer/shared tables, accounts and campaign membership are not part of the initial scope. Remote hosting, VTT, tactical map editor, token movement and fog of war are also deferred. Remote access would require a separate authentication/authorization and security design.
 
 ### Architectural direction
 
@@ -73,7 +73,7 @@ This is the target architecture, not a description of completed modules. Existin
 
 ## Product requirements and quality plan
 
-The current product scope, functional and non-functional requirements, implementation status and release gates are documented in the [product requirements v0.2](docs/product/product-requirements-2026-11-18.md). The current audit and ordered improvement phases are in the [quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
+The current product scope, functional and non-functional requirements, implementation status and release gates are documented in the [product requirements v0.2](docs/product/product-requirements-2026-11-18.md). The source-verified implementation state and engineering risks are recorded in the [current system-state map](docs/architecture/current-state-2026-11-18.md), [current architecture map](docs/architecture/architecture-map-2026-11-18.md) and [current architecture audit](docs/architecture/architecture-audit-2026-11-18.md). The [quality roadmap](docs/quality/quality-roadmap-2026-11-18.md) remains the ordered source for current priorities.
 
 ---
 
@@ -81,7 +81,7 @@ The current product scope, functional and non-functional requirements, implement
 
 * **Persistent campaign state** backed by SQLite.
 * **REST API** built with FastAPI.
-* **Durable SillyTavern integration**: provides scoped context/transcript input, resolves and commits consequences through the shared turn lifecycle, then persists narrative versions without replaying mechanics.
+* **Durable SillyTavern integration**: the current external narrative client provides scoped context/transcript input, resolves and commits consequences through the shared turn lifecycle, then persists narrative versions without replaying mechanics. It is not the only intended client; a first-party UI is a later product goal.
 * **LLM-based structured proposals**, converting player intent into validated world-operation proposals.
 * **Structured world operations** instead of allowing the LLM to directly modify the database.
 * **In-memory `WorldState`** for efficient world manipulation.
@@ -692,7 +692,7 @@ Validated areas include:
 * end-to-end `context → turn → context` behaviour;
 * automated CI testing and Ruff linting.
 
-The current implementation is focused on **reliable campaign state management, structured interpretation/proposals and durable integration workflows**. It is still not a complete D&D 5e 2014 rules engine, complete character builder, full combat/spellcasting system or first-party UI. The current source-verified boundaries and product gaps are recorded in the [system-state map](docs/architecture/current-state-2026-11-18.md) and [product requirements v0.2](docs/product/product-requirements-2026-11-18.md).
+The current implementation includes a durable AI-DM turn pipeline for intent interpretation, mechanics adjudication, structured consequence proposals, deterministic validation/application, durable clarification/manual-roll continuation and post-commit narration. It remains focused on reliable campaign state management and integration correctness, not a complete playable D&D campaign. It is still not a complete D&D 5e 2014 rules engine, complete character builder, full combat/spellcasting system or first-party UI. The current source-verified boundaries and product gaps are recorded in the [system-state map](docs/architecture/current-state-2026-11-18.md) and [product requirements v0.2](docs/product/product-requirements-2026-11-18.md).
 
 The latest main CI after PR #257 passed 2,042 deterministic tests, deselected 22 `real_llm` cases and reported 85.14% combined line/branch coverage; CodeQL passed. This verifies repository checks, not a full current live-model benchmark or end-to-end SillyTavern acceptance.
 

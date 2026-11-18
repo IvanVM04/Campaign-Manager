@@ -6,6 +6,7 @@
 
 - `ContextBuilder` and `ProposalContextSelector` own deterministic retrieval, graph expansion, relevance ranking and bounded selection.
 - `models/world_context_projection.py` defines the detached, typed projection and diagnostics contract.
+- `LLMWorldContextRenderer` renders either a `TurnContext` or the selected projection into localized, deterministic prompt sections; it does not own retrieval or canonical state.
 - `TurnResolutionService` orchestrates context selection and passes the projection inward to `services/llm_world`.
 - `LLMWorldProposalPromptBuilder` renders the single active structured consequence-proposal prompt from typed context, shared `PlayerIntentAnalysis`, trusted resolved references, confirmed mechanics and the operation registry.
 - `LLMWorldExtractor.propose()` coordinates the provider call, response parsing, model-proposable operation gate and one bounded repair.

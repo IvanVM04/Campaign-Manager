@@ -1,5 +1,8 @@
 # Change-impact map — 2026-11-12
 
+> **Superseded snapshot (2026-11-18):** use [change-impact-map-2026-11-18.md](change-impact-map-2026-11-18.md) for current code ownership, dependencies and regression surfaces. This file preserves its earlier review map.
+
+
 **Purpose:** show which files, contracts and tests must be reviewed together when changing a cross-cutting behavior. This is a review checklist, not a runtime dependency map. The [capability dependency matrix](package-dependency-matrix.md) remains authoritative for allowed imports.
 
 ## Rule: trace behavior in both directions

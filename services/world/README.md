@@ -36,8 +36,8 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - [x] Centralize secret-event filtering for world, collection, memory and export reads.
 - [ ] Add authenticated GM/player principals and per-campaign authorization before remote or multi-user exposure.
 - [x] Extract mixed turn-operation dispatch and preserve the shared caller-owned transaction; rollback tests cover operation failures.
-- [ ] Verify campaign scoping and stale-context/revision checks at the application boundary.
-- [ ] Add architecture tests preventing prompt/extraction code from writing repositories directly.
+- [x] Enforce campaign-scoped operations and stale-context/revision checks at the durable turn/application boundary; see `DurableTurnPreparedCommitService`, turn revision/lease tests and `tests/test_durable_turn_prepared_commit_service.py`.
+- [x] Enforce package direction that prevents `services/llm_world` from importing `repositories`, `database`, `services.context` or world mutation packages; `tests/test_architecture_boundaries.py` checks the dependency matrix. This is an import-boundary guarantee, not a sandbox for arbitrary dynamic imports.
 - [ ] Review serializer consumers before changing its output contract.
 - [x] Remove former flat world compatibility shims after caller migration; canonical imports remain under `services.world`.
 
