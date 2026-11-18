@@ -135,7 +135,7 @@ _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
 )
 _ABSTENTION_STATE_RE = re.compile(
     r"\b(?:y\s+)?(?:permanezco|me\s+quedo|me\s+mantengo)\s+"
-    r"(?:fuera|afuera|al\s+exterior)\b",
+    r"(?:fuera|afuera|al\s+exterior)\b[.,;]?",
     re.IGNORECASE,
 )
 
@@ -339,7 +339,10 @@ def normalize_intent_surface_payload(
                 if start < 0:
                     continue
                 end = start + len(excerpt)
-                if any(start < span_end and end > span_start for span_start, span_end in continuation_spans):
+                if any(
+                    start >= span_start and end <= span_end
+                    for span_start, span_end in continuation_spans
+                ):
                     continuation_indices.add(index)
 
             other_indices = set(range(len(steps))) - {decision_index}
