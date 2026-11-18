@@ -96,16 +96,16 @@ class LLMWorldResponseParser:
                 else None
             )
             if metadata is not None:
-                # Keep the model surface narrower than the trusted domain
-                # constructor. Fields such as CreateEventOperation.secret
-                # remain available to trusted workflows, never to the LLM.
-                for field_name in metadata.model_hidden_fields:
-                    normalized.pop(field_name, None)
-            if operation_type == "create_event":
-                # Provenance and visibility are application-owned policy.
-                normalized.pop("epistemic_status", None)
-                normalized.pop("provenance_source", None)
-                normalized.pop("visibility_scope", None)
+                # Fail closed: tolerate only the discriminator, structural
+                # reference wrapper and explicitly model-allowed domain fields.
+                allowed_keys = {
+                    "type",
+                    "ref",
+                    *(field.name for field in metadata.model_fields),
+                }
+                for field_name in tuple(normalized):
+                    if field_name not in allowed_keys:
+                        normalized.pop(field_name, None)
             normalized_operations.append(normalized)
 
         try:

@@ -90,7 +90,8 @@ class OperationMetadata:
     model_proposable: bool
     reference_fields: tuple[str, ...]
     example: Mapping[str, Any]
-    model_hidden_fields: tuple[str, ...] = ()
+    # None means that no model-facing contract was declared.
+    model_allowed_fields: tuple[str, ...] | None = None
 
     @property
     def dataclass_fields(self) -> tuple[Any, ...]:
@@ -99,9 +100,14 @@ class OperationMetadata:
 
     @property
     def model_fields(self) -> tuple[Any, ...]:
-        """Fields the model is allowed to propose for this operation."""
-        hidden = set(self.model_hidden_fields)
-        return tuple(field for field in self.dataclass_fields if field.name not in hidden)
+        """Only the explicitly allowlisted fields exposed to model proposals."""
+        if self.model_allowed_fields is None:
+            return ()
+        allowed = set(self.model_allowed_fields)
+        return tuple(
+            field for field in self.dataclass_fields
+            if field.name in allowed
+        )
 
     @property
     def required_fields(self) -> tuple[str, ...]:
@@ -216,7 +222,7 @@ def _metadata(
     reference_fields: tuple[str, ...] = (),
     example: dict[str, Any],
     model_proposable: bool,
-    model_hidden_fields: tuple[str, ...] = (),
+    model_allowed_fields: tuple[str, ...] | None = None,
 ) -> OperationMetadata:
     if model_proposable and issubclass(operation_class, CharacterOperation):
         raise ValueError(
@@ -229,21 +235,33 @@ def _metadata(
             f"Unknown reference fields for {name}: "
             + ", ".join(sorted(unknown_references))
         )
-    unknown_model_hidden = set(model_hidden_fields) - declared_fields
-    if unknown_model_hidden:
+    if model_proposable and model_allowed_fields is None:
         raise ValueError(
-            f"Unknown model-hidden fields for {name}: "
-            + ", ".join(sorted(unknown_model_hidden))
+            f"Model-proposable operation {name!r} requires an explicit field allowlist"
         )
-    required_model_hidden = {
+    allowed_fields = tuple(model_allowed_fields or ())
+    if len(allowed_fields) != len(set(allowed_fields)):
+        raise ValueError(f"Duplicate model-allowed fields for {name}")
+    unknown_model_allowed = set(allowed_fields) - declared_fields
+    if unknown_model_allowed:
+        raise ValueError(
+            f"Unknown model-allowed fields for {name}: "
+            + ", ".join(sorted(unknown_model_allowed))
+        )
+    if not model_proposable and allowed_fields:
+        raise ValueError(
+            f"Non-proposable operation {name!r} cannot expose model fields"
+        )
+    required_constructor_fields = {
         field.name
         for field in fields(operation_class)
         if field.default is MISSING and field.default_factory is MISSING
-    } & set(model_hidden_fields)
-    if required_model_hidden:
+    }
+    missing_required = required_constructor_fields - set(allowed_fields)
+    if model_proposable and missing_required:
         raise ValueError(
-            f"Required fields cannot be hidden from model proposals for {name}: "
-            + ", ".join(sorted(required_model_hidden))
+            f"Required constructor fields are not model-allowed for {name}: "
+            + ", ".join(sorted(missing_required))
         )
     return OperationMetadata(
         name=name,
@@ -252,7 +270,7 @@ def _metadata(
         model_proposable=model_proposable,
         reference_fields=reference_fields,
         example=MappingProxyType(dict(example)),
-        model_hidden_fields=tuple(sorted(set(model_hidden_fields))),
+        model_allowed_fields=allowed_fields if model_proposable else (),
     )
 
 
@@ -375,15 +393,21 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                 "entity_type": "npc",
                 "description": "Tabernero.",
             },
-            model_proposable=True,
+            model_allowed_fields=("name", "entity_type", "description", "notes", "active", "aliases"),
+                  model_allowed_fields=("item_id", "instance_number", "owner_id", "location_id", "condition", "notes", "active"),
+                  model_allowed_fields=("relation_id", "subject_id", "relation_type", "target_id", "metadata"),
+                  model_allowed_fields=("event_id", "event_type", "title", "description", "consequences", "session_id", "metadata"),
+                  model_proposable=True,
         ),
         _metadata("update_entity", UpdateEntityOperation,
                   reference_fields=("entity_id",),
                   example={"type": "update_entity", "entity_id": 12,
                            "description": "Tiene una herida reciente."},
+                  model_allowed_fields=("entity_id", "name", "entity_type", "description", "notes", "active", "aliases"),
                   model_proposable=True),
         _metadata("create_item", CreateItemOperation,
                   example={"type": "create_item", "name": "Llave de hierro"},
+                  model_allowed_fields=("name", "description", "significance", "unique", "notes", "weapon_key", "armor_key", "equipment_slot"),
                   model_proposable=True),
         _metadata("create_item_instance", CreateItemInstanceOperation,
                   reference_fields=("item_id", "owner_id", "location_id"),
@@ -393,28 +417,34 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                   reference_fields=("instance_id", "owner_id", "location_id"),
                   example={"type": "update_item_instance", "instance_id": 8,
                            "condition": "dañado"},
+                  model_allowed_fields=("instance_id", "owner_id", "location_id", "condition", "notes", "active"),
                   model_proposable=True),
         _metadata("transfer_item", TransferItemOperation,
                   reference_fields=("instance_id", "new_owner_id"),
                   example={"type": "transfer_item", "instance_id": 8, "new_owner_id": 12},
+                  model_allowed_fields=("instance_id", "new_owner_id"),
                   model_proposable=True),
         _metadata("create_resource", CreateResourceOperation,
                   example={"type": "create_resource", "name": "Oro", "unit": "mo"},
+                  model_allowed_fields=("name", "resource_type", "unit", "notes"),
                   model_proposable=True),
         _metadata("gain_resource", GainResourceOperation,
                   reference_fields=("resource_id", "owner_id"),
                   example={"type": "gain_resource", "resource_id": 2,
                            "owner_id": 12, "amount": 10},
+                  model_allowed_fields=("resource_id", "owner_id", "amount"),
                   model_proposable=True),
         _metadata("spend_resource", SpendResourceOperation,
                   reference_fields=("resource_id", "owner_id"),
                   example={"type": "spend_resource", "resource_id": 2,
                            "owner_id": 12, "amount": 5},
+                  model_allowed_fields=("resource_id", "owner_id", "amount"),
                   model_proposable=True),
         _metadata("transfer_resource", TransferResourceOperation,
                   reference_fields=("resource_id", "subject_id", "target_id"),
                   example={"type": "transfer_resource", "resource_id": 2,
                            "subject_id": 12, "target_id": 14, "amount": 5},
+                  model_allowed_fields=("resource_id", "subject_id", "target_id", "amount"),
                   model_proposable=True),
         _metadata("create_relation", CreateRelationOperation,
                   reference_fields=("subject_id", "target_id"),
@@ -425,9 +455,11 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                   reference_fields=("target_id",),
                   example={"type": "update_relation", "relation_id": "guardia_mercado",
                            "active": False},
+                  model_allowed_fields=("relation_id", "relation_type", "target_id", "metadata", "active"),
                   model_proposable=True),
         _metadata("remove_relation", RemoveRelationOperation,
                   example={"type": "remove_relation", "relation_id": "guardia_mercado"},
+                  model_allowed_fields=("relation_id"),
                   model_proposable=True),
         # Event provenance/visibility must be supplied by a trusted workflow;
         # LLM proposals cannot create canonical campaign history.
@@ -435,8 +467,7 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                   reference_fields=("session_id",),
                   example={"type": "create_event", "event_id": "mercader_amenazado",
                            "event_type": "social", "title": "El mercader fue amenazado"},
-                  model_proposable=True,
-                  model_hidden_fields=("secret",)),
+                  model_proposable=True,),
         _metadata("change_character_hp", ChangeCharacterHpOperation,
                   reference_fields=("entity_id",),
                   example={"type": "change_character_hp", "entity_id": 12, "amount": -4},
