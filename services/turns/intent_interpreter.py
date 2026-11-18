@@ -286,12 +286,21 @@ category="mixed" puede tener active_step_index distinto de null. Para
 question, dialogue, report, plan, correction o unknown, active_step_index
 debe ser null, aunque el mensaje mencione una acción, una intención futura o
 una acción citada. No conviertas una pregunta informativa en una acción
-mecánica activa. Un NPC nunca da órdenes en nombre del jugador. Una cita,
-rumor o inferencia no es un hecho confirmado. No conviertas el resultado
-deseado en resultado ocurrido.
+mecánica activa. Un NPC nunca da órdenes en nombre del jugador. Una cita, rumor o inferencia no es un hecho confirmado. Una reserva
+epistémica sobre una afirmación reportada conserva su atribución e incertidumbre
+aunque el modelo la separe en otro step; no la propagues a acciones posteriores.
+El resultado deseado no es un resultado ocurrido.
+Distingue abstención («no quiero/no voy a», «prefiero no», «me niego a»,
+«decido no»), fracaso («no consigo/no puedo abrir», al describir un intento)
+e incertidumbre del resultado («no sé si lo consigo»). La negación citada o
+reportada no es decisión del jugador; una nueva cláusula explícita suya
+(«pero decido no...») sí se atribuye al jugador. Permanecer fuera solo confirma
+la abstención. Si reporte y acción no se separan en pasos, pide aclaración.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
-ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
-de concordancia. No deduzcas género o identidad por un nombre propio.
+ambigüedad pide aclaración. Una petición implícitamente dirigida al DM es
+question si solicita información; una duda sin petición es report. Respeta
+cambios de tema, hablante y concordancia. No deduzcas género o identidad por
+un nombre propio.
 
 Reglas para clasificar el acto global y el hablante (no te guíes solo por el
 tiempo verbal ni por la presencia de una interrogativa subordinada):
@@ -299,8 +308,9 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   jugador; el paso activo debe tener actor="player" y modality="attempted".
 - category="dialogue" cuando el centro es un acto de comunicación dentro de la
   ficción: el jugador pregunta, dice, cuenta o responde a un personaje, o un
-  personaje habla, susurra, pregunta o responde. Usa actor="npc" cuando el
-  personaje sea quien habla. Una pregunta indirecta dirigida a un personaje
+  personaje habla, susurra, pregunta o responde. Si habla un NPC, el acto
+  global es dialogue; usa actor="npc" cuando el personaje sea quien habla.
+  Nunca action del jugador para el contenido que solo realiza o cita un NPC. Una pregunta indirecta dirigida a un personaje
   sigue siendo dialogue, no question. Ejemplo: «Le consulto a la guardia si
   vio pasar al mensajero» es dialogue y su action_frame.family es
   communication.
@@ -326,44 +336,29 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   «cuando termine...» con un hipotético «si termina...».
 
 MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
-- «Ella responde en voz alta» describe habla de un NPC: dialogue, actor=npc,
-  modality=dialogue. No lo conviertas en una acción del jugador.
-- «Ella entra en la sala» describe un evento físico de un NPC: report,
-  actor=npc, modality=observed/reported. La tercera persona no es un intento
-  del jugador.
-- «Ellas contestan desde el balcón» conserva un sujeto NPC plural: dialogue,
-  actor=npc. No lo colapses en una sola entidad ni inventes nombres.
-- «Le pregunto a Mara por el mapa» es dialogue, actor=player, family=communication:
-  el jugador realiza el acto de habla aunque el destinatario sea un NPC.
-- «¿Quién habló?» dirigido al DM es question; no atribuyas un hablante NPC
-  solo porque exista una cita en el historial.
-- En «Mara dice: “Aldric abre la puerta”», distingue al hablante Mara del
-  agente de la acción citada Aldric. No intercambies speaker, actor y
-  destinatario, ni trates la cita como una acción del jugador.
+- actor identifica quién realiza el acto en la ficción, no quién escribe:
+  NPC que habla = dialogue (actor=npc); evento físico de NPC = report;
+  jugador que habla a un personaje = dialogue (actor=player); pregunta al
+  DM/narrador = question. Si habla un NPC, el acto global es dialogue; una
+  interrogativa dirigida a un personaje sigue siendo dialogue.
+- Un predicado lingüístico (decir, preguntar, responder, contar, avisar) es
+  comunicación. Nunca action del jugador para el contenido que solo realiza
+  o cita un NPC. «Ella responde en voz alta» es dialogue de NPC; «Ella entra
+  en la sala» es report; «Ellas contestan desde el balcón» conserva el grupo;
+  «Le pregunto a Mara por el mapa» es dialogue del jugador; «¿Quién habló?»
+  es question al DM.
+- Distingue hablante, agente citado y destinatario: en «Mara dice: “Aldric
+  abre la puerta”», Mara es fuente y Aldric el agente citado.
 
 CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
-- actor identifica quién realiza el acto en la ficción, no quién ha escrito el
-  mensaje. Una acción física descrita en tercera persona por un NPC es report
-  con actor=npc y modalidad observed/reported, nunca action del jugador.
-- Un predicado lingüístico (decir, preguntar, responder, contestar, hablar,
-  susurrar o equivalentes) describe comunicación. Si habla un NPC, el acto
-  global es dialogue con actor=npc; no lo clasifiques como report solo porque
-  el jugador narre la intervención. Una acción física no verbal de un NPC sí
-  es report. Si el jugador habla a un personaje, dialogue con actor=player.
-- Para «ella/él» usa únicamente pistas gramaticales explícitas del historial
-  y el índice de continuidad. Una pista puede ayudar a distinguir actor NPC
-  de actor player, pero no lo sustituyas por el nombre de una entidad.
-  Para «ellas/ellos», conserva el sujeto como grupo; no lo reduzcas a un NPC.
-- En un callback explícito, prioriza el segmento histórico seleccionado por
-  los términos del tema reabierto. No mezcles antecedentes de segmentos más
-  recientes que no coinciden con ese tema. Si hay varios segmentos igualmente
-  compatibles o no existe ancla clara, pide aclaración en vez de elegir.
-- En una elipsis, el antecedente de jugador más reciente y compatible puede
-  recuperar el significado de action. «Hazlo otra vez» expresa un nuevo
-  intento de repetir esa acción; «continúa/sigue» requiere que la continuidad
-  esté clara. Si hay varios antecedentes plausibles, pide aclaración.
-  Aunque recuperes el significado, conserva como evidencia solo el mensaje
-  actual; no copies los verbos, nombres, argumentos ni predicados históricos.
+- Usa historial solo con antecedente único; conserva grupos plurales y pide
+  aclaración si hay varios. No recuperes nombres como evidencia: no copies de
+  ellos nombres propios del historial para rellenar la evidencia actual.
+- En callbacks prioriza el segmento histórico seleccionado. «Hazlo otra vez»
+  requiere el antecedente de jugador más reciente, único y pendiente;
+  «continúa/sigue» exige continuidad inequívoca. Una etiqueta histórica de NPC
+  no determina actor actual: no lo sustituyas por el nombre. La evidencia
+  sigue siendo exclusivamente el mensaje actual.
 
 SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
 - Crea un step separado para cada evento o acto con predicado y función
@@ -400,9 +395,14 @@ SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
   que su resultado ya ocurrió.
 - Una acción explícitamente negada se conserva como modality="negated" y
   polarity="negative". Es un paso resuelto no accionable, no el intento activo.
-  Si después aparece un intento positivo del jugador, el índice activo apunta
-  a ese paso posterior y el paso negado permanece intacto. Nunca conviertas
-  una negación en una operación ni la elimines para simplificar la secuencia.
+  Una decisión en primera persona de no realizar un infinitivo (por ejemplo,
+  «decido no cruzar la galería») es una negación explícita aunque no aparezca
+  el verbo «intentar». Una frase posterior que solo confirma la abstención
+  (por ejemplo, permanecer fuera o quedarse al otro lado) no es un nuevo
+  intento ni una operación independiente. Si después aparece un intento
+  positivo y distinto del jugador, el índice activo apunta a ese paso posterior
+  y el paso negado permanece intacto. Nunca conviertas una negación en una
+  operación ni la elimines para simplificar la secuencia.
 
 En action_frame.family, usa communication para actos lingüísticos como
 preguntar, decir, contar, hablar, susurrar, avisar y responder. No uses
@@ -542,21 +542,12 @@ Reglas estrictas de evidencia superficial:
   o índice discursivo, o se obtiene resolviendo allí un pronombre como «ella»
   o «él», devuelve null.
 
-FRONTERA DE EVIDENCIA CUANDO HAY HISTORIAL
-- El historial, el índice de continuidad y las pistas de concordancia son
-  contexto no confiable, nunca texto escrito por el jugador en este turno.
-  No copies de ellos nombres propios a target_mentions, argumentos, extremos
-  de relaciones, attributed_to, predicate ni source_excerpt.
-- Si el jugador escribe «Ella», conserva «Ella» como mención superficial
-  cuando corresponda; aunque el contexto sugiera «Mara», no devuelvas «Mara»
-  como si apareciera en el mensaje actual. Si no hay nombre literal en la
-  evidencia actual, attributed_to debe ser null.
-- Si una etiqueta histórica de NPC corresponde a varios NPC visibles, no
-  selecciones un hablante ni lo conviertas en argumento. Para una pregunta al
-  DM sobre quién habló, clasifica question y deja sin atribución la identidad
-  que no pueda justificarse.
-- No relajes estas reglas para callbacks ni elipsis: solo el significado de
-  action puede recuperar contexto; las menciones y citas siguen siendo literales.
+HISTORIAL Y EVIDENCIA
+El historial, mundo, narración del DM e índice discursivo aportan contexto,
+nunca palabras para source_excerpt, predicate, menciones, argumentos,
+relaciones o attributed_to. Conserva «ella/él» literalmente; no lo sustituyas
+por un nombre histórico. Si la fuente no está nombrada en el mensaje actual,
+attributed_to=null. Ante hablantes o grupos ambiguos, abstente o pide aclaración.
 
 El campo action es una descripción semántica concisa y puede recuperar el
 significado de una elipsis inequívoca; no convierte sus palabras en evidencia

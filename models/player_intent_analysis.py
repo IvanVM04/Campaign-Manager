@@ -189,10 +189,11 @@ class PlayerIntentAnalysis:
             # utterance without blocking the active-step pointer.
             if previous.modality is IntentModality.NEGATED:
                 return previous.polarity is IntentPolarity.NEGATIVE
-            return (
-                previous.modality in resolved_modalities
-                and previous.polarity is IntentPolarity.POSITIVE
-            )
+            # Polarity describes the content of a completed speech/report/
+            # observation, not whether that step itself remains unresolved.
+            # Positive, negative and uncertain reports are all resolved acts;
+            # their polarity still controls whether they can support a proposal.
+            return previous.modality in resolved_modalities
 
         if self.active_step_index is not None and any(
             not is_resolved_before_active(previous)

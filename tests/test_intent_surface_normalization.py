@@ -225,6 +225,396 @@ def test_explicit_suspicion_is_uncertain_and_not_actionable():
     assert "explicit_epistemic_uncertainty" in summary.applied_rules
 
 
+@pytest.mark.parametrize(
+    ("source", "first_excerpt", "second_excerpt"),
+    [
+        (
+            (
+                "Una exploradora asegura que encontró señales al norte, "
+                "aunque no recuerda si eran recientes."
+            ),
+            "encontró señales al norte",
+            "aunque no recuerda si eran recientes",
+        ),
+        (
+            (
+                "Un cartógrafo afirma que la senda termina junto al río, "
+                "pero ignora si el puente sigue en pie."
+            ),
+            "la senda termina junto al río",
+            "pero ignora si el puente sigue en pie",
+        ),
+    ],
+)
+def test_reported_speaker_and_uncertainty_scope_across_split_steps(
+    source, first_excerpt, second_excerpt
+):
+    first = _step(first_excerpt, actor="player", modality="attempted")
+    second = dict(_step(second_excerpt, actor="player", modality="attempted"), index=1)
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "other"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][0]["attributed_to"] in {
+        "Una exploradora",
+        "Un cartógrafo",
+    }
+    assert normalized["steps"][1]["actor"] == "other"
+    assert normalized["steps"][1]["modality"] == "reported"
+    assert normalized["steps"][1]["polarity"] == "uncertain"
+    assert "explicit_reported_clause_uncertainty" in summary.applied_rules
+
+
+def test_unsplit_report_plus_player_action_fails_closed_for_clarification():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    step = _step(source, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(step, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "unknown"
+    assert normalized["active_step_index"] is None
+    assert normalized["requires_clarification"] is True
+    assert normalized["clarification_question"]
+    assert "reported_action_not_split_requires_clarification" in summary.applied_rules
+
+
+def test_narrow_step_excerpt_spanning_report_and_action_fails_closed():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    merged_excerpt = (
+        "vio un wyvern al este, aunque no sabe si era real, "
+        "pero yo intento seguir el rastro"
+    )
+    step = _step(merged_excerpt, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    payload = _payload(step, category="action", active=0)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "unknown"
+    assert normalized["active_step_index"] is None
+    assert normalized["requires_clarification"] is True
+    assert "reported_action_not_split_requires_clarification" in summary.applied_rules
+
+
+def test_reported_clause_does_not_absorb_linked_same_sentence_player_attempt():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    first = _step("vio un wyvern al este", actor="player", modality="attempted")
+    second = dict(
+        _step("aunque no sabe si era real", actor="player", modality="attempted"),
+        index=1,
+    )
+    third = dict(
+        _step("pero yo intento seguir el rastro", actor="player", modality="attempted"),
+        index=2,
+    )
+
+    normalized, _ = normalize_intent_surface_payload(
+        _payload(first, second, third, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 2
+    assert normalized["steps"][0]["actor"] == "other"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][0]["attributed_to"] == "Un viajero"
+    assert normalized["steps"][1]["actor"] == "other"
+    assert normalized["steps"][1]["polarity"] == "uncertain"
+    assert normalized["steps"][2]["actor"] == "player"
+    assert normalized["steps"][2]["modality"] == "attempted"
+    assert normalized["steps"][2]["polarity"] == "positive"
+    assert "pero yo intento seguir el rastro" in normalized["steps"][2]["source_excerpt"]
+
+
+def test_reported_uncertainty_does_not_capture_a_later_player_action():
+    source = (
+        "Una exploradora asegura que encontró señales al norte, "
+        "aunque no recuerda si eran recientes. Después intento seguir el rastro."
+    )
+    first = _step("encontró señales al norte", actor="player", modality="attempted")
+    second = dict(
+        _step("aunque no recuerda si eran recientes", actor="player", modality="attempted"),
+        index=1,
+    )
+    third = dict(
+        _step("Después intento seguir el rastro", actor="player", modality="attempted"),
+        index=2,
+    )
+
+    normalized, _ = normalize_intent_surface_payload(
+        _payload(first, second, third, category="action", active=2),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 2
+    assert normalized["steps"][0]["attributed_to"] == "Una exploradora"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][2]["actor"] == "player"
+    assert normalized["steps"][2]["modality"] == "attempted"
+    assert normalized["steps"][2]["polarity"] == "positive"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Decido no entrar en la fortaleza y permanezco fuera.",
+        "He decidido no cruzar el puente y me quedo al exterior.",
+    ],
+)
+def test_explicit_decision_not_to_act_absorbs_abstention_state(source):
+    first = _step(source.split(" y ")[0], modality="attempted", outcome="uncertain")
+    continuation_text = source.split(" y ", 1)[1]
+    second = dict(
+        _step(continuation_text, modality="attempted", outcome="uncertain"),
+        index=1,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][0]["source_excerpt"] == source
+    assert "explicit_decision_not_to_act" in summary.applied_rules
+    assert "explicit_abstention_state_collapsed" in summary.applied_rules
+
+
+def test_reported_npc_then_player_refusal_removes_only_abstention_state():
+    source = (
+        "Mara me cuenta que el puente está cerrado, "
+        "pero decido no cruzar y permanezco en esta orilla."
+    )
+    first = _step(
+        "el puente está cerrado",
+        actor="npc",
+        modality="reported",
+    )
+    second = dict(
+        _step("pero decido no cruzar", modality="attempted"),
+        index=1,
+    )
+    third = dict(
+        _step("y permanezco en esta orilla", modality="attempted"),
+        index=2,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, third, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] is None
+    assert len(normalized["steps"]) == 2
+    assert normalized["steps"][0]["actor"] == "npc"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["attributed_to"] == "Mara"
+    assert normalized["steps"][1]["actor"] == "player"
+    assert normalized["steps"][1]["modality"] == "negated"
+    assert normalized["steps"][1]["polarity"] == "negative"
+    assert "explicit_decision_not_to_act" in summary.applied_rules
+    assert "explicit_abstention_state_collapsed" in summary.applied_rules
+
+
+def test_explicit_decision_does_not_cancel_a_distinct_later_player_attempt():
+    source = "Decido no entrar en la fortaleza y después intento abrir la puerta."
+    first = _step("Decido no entrar en la fortaleza", modality="attempted")
+    second = dict(
+        _step("después intento abrir la puerta", modality="attempted"),
+        index=1,
+    )
+
+    normalized, _ = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 1
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][1]["modality"] == "attempted"
+    assert normalized["steps"][1]["polarity"] == "positive"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Prefiero no forzar el portón.",
+        "No quiero cruzar el patio.",
+        "No voy a entrar en la sala.",
+        "Me niego a abrir el cofre.",
+        "Me abstengo de entrar en la cripta.",
+        "Desisto de buscar la llave.",
+        "Cancelo mi intento de trepar por el muro.",
+        "Abandono la idea de robar la bolsa.",
+    ],
+)
+def test_explicit_refusal_and_abandoned_intent_are_non_actionable(source):
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(_step(source, modality="attempted", outcome="uncertain")),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_decision_not_to_act" in summary.applied_rules
+
+
+def test_decision_language_inside_player_dialogue_is_not_a_player_intent():
+    source = 'Le digo a Mara: «He decidido no entrar en la torre».'
+    payload = _payload(_step(source), category="action", active=0)
+
+    normalized, _ = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "dialogue"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "dialogue"
+
+
+def test_reported_negative_proposition_keeps_source_and_negative_polarity():
+    source = "Un viajero asegura que no entró en la torre."
+    payload = _payload(
+        _step(
+            "no entró en la torre",
+            actor="other",
+            modality="reported",
+            outcome="not_claimed",
+        ),
+        category="report",
+        active=None,
+    )
+    payload["steps"][0]["polarity"] = "negative"
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "other"
+    assert step["modality"] == "reported"
+    assert step["polarity"] == "negative"
+    assert step["attributed_to"] == "Un viajero"
+    assert "explicit_reported_speaker" in summary.applied_rules
+
+
+def test_uncertainty_about_another_entity_does_not_taint_a_full_excerpt_attempt():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    payload = _payload(
+        _step(source, modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_epistemic_uncertainty" not in summary.applied_rules
+
+
+def test_uncertainty_attached_to_attempt_result_is_preserved_with_narrow_excerpt():
+    source = "Intento abrir la puerta, pero no sé si lo consigo."
+    payload = _payload(
+        _step("Intento abrir la puerta", modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert normalized["steps"][0]["reported_outcome"] == "uncertain"
+    assert "unreported_attempt_outcome" not in summary.applied_rules
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "No consigo abrir la puerta.",
+        "No puedo abrir la puerta.",
+        "No logro desbloquear el cofre.",
+    ],
+)
+def test_direct_inability_to_complete_action_is_a_resolved_failure(source):
+    payload = _payload(
+        _step(source, modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["modality"] == "completed"
+    assert normalized["steps"][0]["polarity"] == "positive"
+    assert normalized["steps"][0]["reported_outcome"] == "failure"
+    assert "explicit_attempt_failure_outcome" in summary.applied_rules
+
+
 def test_explicit_no_era_sino_correction_is_not_a_new_action():
     source = "No era el mapa viejo, sino el pergamino sellado."
     payload = _payload(_step(source), active=0)
@@ -680,3 +1070,288 @@ def test_uncertainty_about_another_entity_does_not_cancel_a_future_plan():
     assert normalized["active_step_index"] is None
     assert normalized["steps"][0]["modality"] == "planned"
     assert "explicit_epistemic_uncertainty" not in summary.applied_rules
+
+
+
+def test_interpreter_fails_closed_when_report_and_action_are_one_unsplit_step():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    step = _step(source, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(step, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "unknown"
+    assert analysis.active_step_index is None
+    assert analysis.requires_clarification
+    assert not analysis.is_actionable
+    assert not analysis.allows_world_proposal
+
+
+def test_interpreter_keeps_later_player_attempt_after_uncertain_multi_step_report():
+    source = (
+        "Un explorador asegura que hay un campamento al norte, "
+        "aunque no está seguro. Después intento acercarme al campamento."
+    )
+    first = _step("hay un campamento al norte", actor="other", modality="reported")
+    first["action_frame"] = {
+        "predicate": "hay",
+        "family": "other",
+        "arguments": [],
+    }
+    second = dict(
+        _step("aunque no está seguro", actor="other", modality="reported"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "está",
+        "family": "other",
+        "arguments": [],
+    }
+    third = dict(
+        _step(
+            "Después intento acercarme al campamento",
+            actor="player",
+            modality="attempted",
+        ),
+        index=2,
+    )
+    third["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {
+                "intent_analysis": _payload(
+                    first,
+                    second,
+                    third,
+                    category="action",
+                    active=0,
+                )
+            },
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "mixed"
+    assert analysis.active_step_index == 2
+    assert analysis.steps[0].actor.value == "other"
+    assert analysis.steps[0].modality.value == "reported"
+    assert analysis.steps[0].polarity.value == "uncertain"
+    assert analysis.steps[0].attributed_to == "Un explorador"
+    assert analysis.steps[1].actor.value == "other"
+    assert analysis.steps[1].polarity.value == "uncertain"
+    assert analysis.steps[2].actor.value == "player"
+    assert analysis.steps[2].modality.value == "attempted"
+    assert analysis.steps[2].polarity.value == "positive"
+    assert analysis.is_actionable
+    assert analysis.allows_world_proposal
+
+
+def test_interpreter_does_not_turn_an_uncertain_other_entity_into_reported_attempt():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    step = _step(source, modality="attempted", outcome="uncertain")
+    step["action_frame"] = {
+        "predicate": "Intento",
+        "family": "state_change",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(step, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "action"
+    assert analysis.active_step_index == 0
+    assert analysis.steps[0].modality.value == "attempted"
+    assert analysis.steps[0].reported_outcome.value == "not_claimed"
+    assert analysis.is_actionable
+
+
+def test_interpreter_keeps_npc_report_and_player_refusal_as_separate_resolved_steps():
+    source = (
+        "Mara me cuenta que el puente está cerrado, "
+        "pero decido no cruzar y permanezco en esta orilla."
+    )
+    first = _step(
+        "el puente está cerrado",
+        actor="npc",
+        modality="reported",
+    )
+    first["action_frame"] = {
+        "predicate": "está",
+        "family": "other",
+        "arguments": [],
+    }
+    second = dict(
+        _step("pero decido no cruzar", modality="attempted"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "cruzar",
+        "family": "movement",
+        "arguments": [],
+    }
+    third = dict(
+        _step("y permanezco en esta orilla", modality="attempted"),
+        index=2,
+    )
+    third["action_frame"] = {
+        "predicate": "permanezco",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, third, category="action", active=1)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "mixed"
+    assert analysis.active_step_index is None
+    assert len(analysis.steps) == 2
+    assert analysis.steps[0].actor.value == "npc"
+    assert analysis.steps[0].modality.value == "reported"
+    assert analysis.steps[0].attributed_to == "Mara"
+    assert analysis.steps[1].actor.value == "player"
+    assert analysis.steps[1].modality.value == "negated"
+    assert analysis.steps[1].polarity.value == "negative"
+    assert not analysis.is_actionable
+
+
+def test_interpreter_keeps_split_reported_uncertainty_non_factual():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real."
+    )
+    first = _step("vio un wyvern al este", modality="attempted", outcome="uncertain")
+    first["action_frame"] = {
+        "predicate": "vio",
+        "family": "other",
+        "arguments": [],
+    }
+    second = dict(
+        _step("aunque no sabe si era real", modality="attempted", outcome="uncertain"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "sabe",
+        "family": "other",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "report"
+    assert analysis.active_step_index is None
+    assert analysis.steps[0].actor.value == "other"
+    assert analysis.steps[0].modality.value == "reported"
+    assert analysis.steps[0].polarity.value == "uncertain"
+    assert analysis.steps[0].attributed_to == "Un viajero"
+    assert not analysis.is_actionable
+    assert not analysis.allows_world_proposal
+
+
+def test_interpreter_keeps_explicit_abstention_non_actionable_when_model_splits_steps():
+    source = "Decido no entrar en la fortaleza y permanezco fuera."
+    first = _step(
+        "Decido no entrar en la fortaleza",
+        modality="attempted",
+        outcome="uncertain",
+    )
+    first["action_frame"] = {
+        "predicate": "entrar",
+        "family": "movement",
+        "arguments": [],
+    }
+    second = dict(
+        _step("permanezco fuera.", modality="attempted", outcome="uncertain"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "permanezco",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, category="action", active=1)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "action"
+    assert analysis.active_step_index is None
+    assert len(analysis.steps) == 1
+    assert analysis.steps[0].modality.value == "negated"
+    assert analysis.steps[0].polarity.value == "negative"
+    assert not analysis.is_actionable
+    assert not analysis.allows_world_proposal
