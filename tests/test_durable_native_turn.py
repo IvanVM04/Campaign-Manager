@@ -516,14 +516,20 @@ def test_native_turn_planning_releases_lock_and_rejects_a_stale_detached_snapsho
     planning_started = Event()
     release_planning = Event()
     captured_worlds = []
+    captured_entity_names = []
 
     def blocked_prepare(context, player_input, **kwargs):
         captured_worlds.append(context.world)
+        captured_entity_names.append(
+            tuple(sorted(entity.name for entity in context.world.entities.values()))
+        )
         assert context.world is not service.world_service.world
         planning_started.set()
         if not release_planning.wait(timeout=8):
             raise AssertionError("test did not release the model-planning phase")
-        assert context.world.entities == {}
+        assert tuple(sorted(
+            entity.name for entity in context.world.entities.values()
+        )) == captured_entity_names[-1]
         return TurnResolutionPlan(
             player_input=player_input,
             narrative="",
@@ -565,7 +571,7 @@ def test_native_turn_planning_releases_lock_and_rejects_a_stale_detached_snapsho
             release_planning.set()
             with pytest.raises(
                 DurableNativeTurnError,
-                match="campaign state changed",
+                match="native turn execution failed",
             ):
                 turn_future.result(timeout=10)
     finally:
