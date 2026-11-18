@@ -3,6 +3,11 @@
 This is the starting point for maintainers and coding agents. Prefer current
 indexes over searching through dated audit history.
 
+## Product definition
+
+- [Product requirements baseline (Spanish)](product/product-requirements-2026-11-18.md) — product scope, functional/non-functional requirements, implementation status and release acceptance criteria.
+- [Current quality audit and roadmap (Spanish)](quality/quality-roadmap-2026-11-18.md) — verified CI baseline, current AI-quality risks and ordered improvement phases.
+
 ## Shared contracts
 
 - [Models and shared contracts](../models/README.md) — canonical semantic and durable value contracts, trust rules and model-layer change guidance.
