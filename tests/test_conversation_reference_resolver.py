@@ -218,6 +218,29 @@ def test_ambiguous_recent_turn_requests_clarification_instead_of_guessing():
     assert result.clarification_question is not None
 
 
+def test_explicit_tonic_pronoun_coalesces_its_dative_clitic():
+    utterance = "Le pregunto a él si ha visto la llave."
+    world = WorldState(entities={
+        1303: Entity(id=1303, name="Mara", entity_type="npc"),
+        1304: Entity(id=1304, name="Bram", entity_type="npc"),
+    })
+    result = ConversationReferenceResolver().resolve(
+        world,
+        make_analysis(utterance, "él"),
+        recent_turns=[
+            turn(640, "Hablo con Mara sobre el puerto."),
+            turn(641, "Hablo con Bram sobre la llave."),
+        ],
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert result.references[0].mention == "él"
+    assert result.references[0].entity_id == 1304
+    assert result.references[0].antecedent_turn_id == 641
+
+
 def test_other_guard_resolves_only_when_one_other_visible_role_matches():
     world = WorldState(entities={
         1: Entity(id=1, name="Bram", entity_type="npc", description="Guardia del puente."),
