@@ -418,6 +418,43 @@ def test_explicit_decision_not_to_act_absorbs_abstention_state(source):
     assert "explicit_abstention_state_collapsed" in summary.applied_rules
 
 
+def test_reported_npc_then_player_refusal_removes_only_abstention_state():
+    source = (
+        "Mara me cuenta que el puente está cerrado, "
+        "pero decido no cruzar y permanezco en esta orilla."
+    )
+    first = _step(
+        "el puente está cerrado",
+        actor="npc",
+        modality="reported",
+    )
+    second = dict(
+        _step("pero decido no cruzar", modality="attempted"),
+        index=1,
+    )
+    third = dict(
+        _step("y permanezco en esta orilla", modality="attempted"),
+        index=2,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, third, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] is None
+    assert len(normalized["steps"]) == 2
+    assert normalized["steps"][0]["actor"] == "npc"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["attributed_to"] == "Mara"
+    assert normalized["steps"][1]["actor"] == "player"
+    assert normalized["steps"][1]["modality"] == "negated"
+    assert normalized["steps"][1]["polarity"] == "negative"
+    assert "explicit_decision_not_to_act" in summary.applied_rules
+    assert "explicit_abstention_state_collapsed" in summary.applied_rules
+
+
 def test_explicit_decision_does_not_cancel_a_distinct_later_player_attempt():
     source = "Decido no entrar en la fortaleza y después intento abrir la puerta."
     first = _step("Decido no entrar en la fortaleza", modality="attempted")
