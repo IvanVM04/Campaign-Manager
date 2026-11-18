@@ -272,6 +272,30 @@ def test_reported_speaker_and_uncertainty_scope_across_split_steps(
     assert "explicit_reported_clause_uncertainty" in summary.applied_rules
 
 
+def test_unsplit_report_plus_player_action_fails_closed_for_clarification():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    step = _step(source, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(step, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "unknown"
+    assert normalized["active_step_index"] is None
+    assert normalized["requires_clarification"] is True
+    assert normalized["clarification_question"]
+    assert "reported_action_not_split_requires_clarification" in summary.applied_rules
+
+
 def test_reported_clause_does_not_absorb_linked_same_sentence_player_attempt():
     source = (
         "Un viajero asegura que vio un wyvern al este, "
