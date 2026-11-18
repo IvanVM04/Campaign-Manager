@@ -1008,6 +1008,39 @@ def test_uncertainty_about_another_entity_does_not_cancel_a_future_plan():
 
 
 
+def test_interpreter_fails_closed_when_report_and_action_are_one_unsplit_step():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    step = _step(source, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(step, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "unknown"
+    assert analysis.active_step_index is None
+    assert analysis.requires_clarification
+    assert not analysis.is_actionable
+    assert not analysis.allows_world_proposal
+
+
 def test_interpreter_keeps_later_player_attempt_after_uncertain_multi_step_report():
     source = (
         "Un explorador asegura que hay un campamento al norte, "
