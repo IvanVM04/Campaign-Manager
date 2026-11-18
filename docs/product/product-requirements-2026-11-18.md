@@ -265,9 +265,10 @@ Una capacidad no se considera terminada por tener un prompt, una clase o un test
 Este documento se ha contrastado con el estado del repositorio y sus contratos actuales. Los puntos de entrada recomendados son:
 
 - [README del proyecto](../../README.md) — visión, límites y flujos principales.
-- [Mapa de arquitectura](../architecture/architecture-map-2026-11-12.md).
-- [Contrato del pipeline de turnos](../architecture/turn-pipeline-compatibility.md).
-- [Ciclo durable de resolución](../architecture/turn-resolution-lifecycle.md).
+- [Estado actual y mapa de arquitectura](../architecture/current-state-2026-11-18.md).
+- [Contrato activo del pipeline de turnos](../architecture/turn-pipeline-compatibility.md).
+- [Auditoría documental y clasificación de snapshots](../architecture/documentation-audit-2026-11-18.md).
+- [Ciclo durable de resolución](../architecture/turn-resolution-lifecycle.md) — propuesta PR #28 conservada como referencia histórica, no contrato activo.
 - [Guía de modelos y contratos compartidos](../../models/README.md).
 - [Servicios de turnos](../../services/turns/README.md).
 - [Servicios de contexto](../../services/context/README.md).
