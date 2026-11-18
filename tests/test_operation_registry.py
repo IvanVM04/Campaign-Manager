@@ -11,6 +11,7 @@ from services.llm_world.operation_registry import (
     _metadata,
 )
 
+
 def test_registry_and_parser_share_the_same_operation_classes():
     parser = OperationParser()
 
