@@ -409,6 +409,74 @@
           "modality": "dialogue"
         }
       }
+    },
+    {
+      "id": "holdout-negated-preference",
+      "family": "negation_failure",
+      "input": "Prefiero no forzar el portón del almacén.",
+      "critical": false,
+      "expected": {
+        "category": "action",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "negated",
+          "polarity": "negative"
+        }
+      }
+    },
+    {
+      "id": "holdout-negative-dialogue",
+      "family": "quoted_speech",
+      "input": "Le digo a Mara: «He decidido no entrar en el almacén».",
+      "critical": false,
+      "expected": {
+        "category": "dialogue",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "modality": "dialogue"
+        }
+      }
+    },
+    {
+      "id": "holdout-failed-direct",
+      "family": "negation_failure",
+      "input": "No consigo abrir el cofre del archivo.",
+      "critical": false,
+      "expected": {
+        "category": "action",
+        "active_step_index": null,
+        "requires_clarification": false,
+        "step": {
+          "actor": "player",
+          "reported_outcome": "failure"
+        }
+      }
+    },
+    {
+      "id": "holdout-uncertain-report-follow-up-action",
+      "family": "epistemic_uncertainty",
+      "input": "Un explorador asegura que hay un campamento al norte, aunque no está seguro. Después intento acercarme al campamento.",
+      "critical": false,
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "requires_clarification": false,
+        "first_step": {
+          "actor": "other",
+          "modality": "reported",
+          "polarity": "uncertain",
+          "attributed_to": "Un explorador"
+        },
+        "step": {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      }
     }
   ]
 }
