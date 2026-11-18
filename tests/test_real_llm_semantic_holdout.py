@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -128,7 +128,9 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 24
 
-    interpreter = _make_interpreter()
+    usage_events: list[dict[str, Any]] = []
+    interpreter = _make_interpreter(usage_events)
+    provider = cast(OllamaProvider, interpreter.provider)
     context = _make_context()
     ledger = SemanticEvaluationLedger()
     critical_failures: list[str] = []
@@ -172,12 +174,70 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
 
     total_seconds = perf_counter() - started
     ledger.emit(record_property, prefix="semantic_holdout_intent")
-    record_property("semantic_holdout_intent_model", os.getenv(
-        "CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"
-    ))
+    usage_summary = {
+        "calls": len(usage_events),
+        "failed_requests": sum(
+            event.get("request_status") == "failed" for event in usage_events
+        ),
+        "duration_ms_total": round(
+            sum(float(event.get("duration_ms", 0)) for event in usage_events), 3
+        ),
+        "prompt_bytes_total": sum(
+            int(event.get("prompt_bytes", 0)) for event in usage_events
+        ),
+        "prompt_tokens_total": sum(
+            int(event.get("prompt_eval_count", 0)) for event in usage_events
+        ),
+        "completion_tokens_total": sum(
+            int(event.get("eval_count", 0)) for event in usage_events
+        ),
+    }
+    record_property("semantic_holdout_intent_model", provider.model)
+    record_property(
+        "semantic_holdout_intent_model_digest",
+        provider.get_model_digest() or "unavailable",
+    )
+    record_property(
+        "semantic_holdout_intent_ollama_version",
+        provider.get_server_version() or "unavailable",
+    )
+    record_property("semantic_holdout_intent_timeout_seconds", provider.timeout)
+    record_property(
+        "semantic_holdout_intent_think",
+        "server_default" if provider.think is None else str(provider.think).lower(),
+    )
+    record_property(
+        "semantic_holdout_intent_git_commit",
+        os.getenv("GITHUB_SHA")
+        or os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
+        or "unavailable",
+    )
+    record_property(
+        "semantic_holdout_intent_hardware",
+        os.getenv("CAMPAIGN_MANAGER_REAL_LLM_HARDWARE") or "unspecified",
+    )
     record_property("semantic_holdout_intent_cases", len(corpus["scenarios"]))
     record_property("semantic_holdout_intent_provider_calls", provider_calls)
     record_property("semantic_holdout_intent_total_seconds", round(total_seconds, 3))
+    record_property(
+        "semantic_holdout_intent_critical_failure_count",
+        len(critical_failures),
+    )
+    record_property(
+        "semantic_holdout_intent_observational_failure_count",
+        len(observational_failures),
+    )
+    record_property(
+        "semantic_holdout_intent_provider_error_case_count",
+        sum(
+            "provider/decoder error:" in item
+            for item in critical_failures + observational_failures
+        ),
+    )
+    record_property(
+        "semantic_holdout_intent_provider_usage",
+        json.dumps(usage_summary, sort_keys=True, separators=(",", ":")),
+    )
     print(ledger.render())
     if observational_failures:
         print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
