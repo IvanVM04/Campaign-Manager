@@ -229,12 +229,18 @@ def test_explicit_suspicion_is_uncertain_and_not_actionable():
     ("source", "first_excerpt", "second_excerpt"),
     [
         (
-            "Una exploradora asegura que encontró señales al norte, aunque no recuerda si eran recientes.",
+            (
+                "Una exploradora asegura que encontró señales al norte, "
+                "aunque no recuerda si eran recientes."
+            ),
             "encontró señales al norte",
             "aunque no recuerda si eran recientes",
         ),
         (
-            "Un cartógrafo afirma que la senda termina junto al río, pero ignora si el puente sigue en pie.",
+            (
+                "Un cartógrafo afirma que la senda termina junto al río, "
+                "pero ignora si el puente sigue en pie."
+            ),
             "la senda termina junto al río",
             "pero ignora si el puente sigue en pie",
         ),
