@@ -78,8 +78,8 @@ Los 22 tests excluidos son de tipo real_llm. CI no certifica la calidad actual d
 
 ### 4.1 Documentos nuevos
 
-- [current-state-2026-11-18.md](current-state-2026-11-18.md): mapa de implementación, flujo durable, paquetes, persistencia/migraciones, seguridad, CI y gaps de producto.
-- [documentation-audit-2026-11-18.md](documentation-audit-2026-11-18.md): este inventario y registro de frescura.
+- [current-state-2026-11-18.md](current-state-2026-11-18.md): mapa de implementación, flujo durable, paquetes, persistencia/migraciones, seguridad, CI y gaps de producto. (Creado durante esta auditoría; fuera del inventario base de main.)
+- [documentation-audit-2026-11-18.md](documentation-audit-2026-11-18.md): este inventario y registro de frescura. (Creado durante esta auditoría; fuera del inventario base de main.)
 
 ### 4.2 Documentos activos actualizados
 
@@ -145,6 +145,7 @@ La clasificación distingue **actual** (fuente vigente), **apoyo** (contrato/gu�
 | campaign-state-revisions.md | Apoyo vigente. Revisión de campaña/fencing. |
 | combat-attack-profile-boundary.md | Apoyo vigente. Selección de perfil de ataque. |
 | combat-character-state-audit-2026-11-12.md | Apoyo/snapshot focalizado; ownership del vertical slice, no estado total del combate. |
+| change-impact-map-2026-11-12.md | Apoyo. Checklist transversal de revisión; verificar contra routers/tests actuales antes de cada cambio, no es mapa de imports. |
 | context-rendering-boundaries.md | Histórico. Renderer genérico previo al proposal-context actual; banner añadido. |
 | dnd5e-2014-rules-engine.md | Apoyo vigente. Subconjunto determinista 2014, no reglas completas. |
 | durable-challenge-state-boundary.md | Contrato activo de lectura de challenge. |
@@ -157,6 +158,7 @@ La clasificación distingue **actual** (fuente vigente), **apoyo** (contrato/gu�
 | llm-world-context-rendering-boundaries.md | Contrato activo reescrito en esta rama. |
 | llm-world-proposal-prompt-boundary.md | Contrato activo del proposal path. |
 | migration-catalog-2026-11-12.md | Catálogo activo; versión 34 coincide con código. Fecha original conservada. |
+| module-catalog-2026-11-12.md | Snapshot de inventario de capas compartidas contra PR #205; banner añadido y navegación a la fuente actual. Verificar nombres/rutas contra el source antes de cambios. |
 | observability-and-diagnostics.md | Contrato activo de logs/telemetría. |
 | package-dependency-matrix.md | Contrato activo; referencia al mapa actual actualizada. |
 | sillytavern-adapter-boundary-2026-11-12.md | Contrato activo del adapter. La fecha indica su introducción. |
