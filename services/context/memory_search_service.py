@@ -382,6 +382,10 @@ class MemorySearchService:
         results = []
 
         for instance in world.item_instances.values():
+            # Inactive physical copies are historical records, not current
+            # candidates for player-facing memory/context retrieval.
+            if not getattr(instance, "active", True):
+                continue
             if self._matches(
                 query,
                 getattr(instance, "item_id", None),
@@ -465,6 +469,10 @@ class MemorySearchService:
         results = []
 
         for relation in world.relations.values():
+            # Match the export/expansion policy: inactive relationships are
+            # not current retrieval candidates.
+            if not getattr(relation, "active", True):
+                continue
             if self._matches(
                 query,
                 getattr(relation, "relation_type", None),

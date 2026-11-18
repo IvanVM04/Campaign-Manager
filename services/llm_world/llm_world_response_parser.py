@@ -89,8 +89,20 @@ class LLMWorldResponseParser:
         normalized_operations: list[dict[str, Any]] = []
         for raw_operation in raw_operations:
             normalized = dict(raw_operation)
-            if normalized.get("type") == "create_event":
-                # These values are controlled by the application, never by the model.
+            operation_type = normalized.get("type")
+            metadata = (
+                self.operation_registry.get(operation_type)
+                if isinstance(operation_type, str)
+                else None
+            )
+            if metadata is not None:
+                # Keep the model surface narrower than the trusted domain
+                # constructor. Fields such as CreateEventOperation.secret
+                # remain available to trusted workflows, never to the LLM.
+                for field_name in metadata.model_hidden_fields:
+                    normalized.pop(field_name, None)
+            if operation_type == "create_event":
+                # Provenance and visibility are application-owned policy.
                 normalized.pop("epistemic_status", None)
                 normalized.pop("provenance_source", None)
                 normalized.pop("visibility_scope", None)

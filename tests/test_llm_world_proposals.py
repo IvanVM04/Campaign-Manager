@@ -265,26 +265,48 @@ def test_model_created_event_cannot_promote_its_provenance_to_canon():
     assert event.visibility_scope == "public"
 
 
-def test_model_created_secret_event_stays_gm_only_inference():
+def test_model_created_event_cannot_control_visibility():
     from services.world.world_applier import WorldApplier
 
     parser = LLMWorldResponseParser(OperationParser())
     operations = parser.parse_operations({
         "operations": [{
             "type": "create_event",
-            "event_id": "secret-rumor-01",
+            "event_id": "model-event-01",
             "event_type": "rumor",
             "title": "El faro está maldito",
             "secret": True,
+            "visibility_scope": "gm_only",
             "epistemic_status": "confirmed",
             "provenance_source": "gm_authored",
         }]
     })
 
+    assert operations[0].secret is False
     world = WorldState()
     result = WorldApplier().apply(world, operations[0])
     assert result.success is True
-    event = world.events["secret-rumor-01"]
+    event = world.events["model-event-01"]
     assert event.epistemic_status == "inference"
     assert event.provenance_source == "model_inference"
-    assert event.visibility_scope == "gm_only"
+    assert event.secret is False
+    assert event.visibility_scope == "public"
+
+
+def test_trusted_workflow_can_still_create_a_gm_only_event():
+    from operations.world_operations import CreateEventOperation
+    from services.world.world_applier import WorldApplier
+
+    world = WorldState()
+    operation = CreateEventOperation(
+        event_id="trusted-secret-01",
+        event_type="secret",
+        title="La cámara oculta",
+        secret=True,
+    )
+
+    result = WorldApplier().apply(world, operation)
+
+    assert result.success is True
+    assert world.events["trusted-secret-01"].secret is True
+    assert world.events["trusted-secret-01"].visibility_scope == "gm_only"

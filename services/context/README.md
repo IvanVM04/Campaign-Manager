@@ -49,6 +49,7 @@ The byte-based budget is an upper bound rather than a model-specific token count
 - [ ] Consider tokenizer-aware accounting only after a provider exposes a reliable tokenizer contract.
 - [x] Keep rendering independent from transport response formatting.
 - [x] Apply the same event visibility policy to direct search, graph expansion, proposal selection and public export.
+- [x] Apply active-record eligibility consistently to direct retrieval and expansion for domain types that actually carry an `active` field (entities, item instances and relations). Item definitions, resources, balances and events do not currently expose that lifecycle flag; historical/superseded events remain distinguishable from current facts.
 - [x] Preserve the existing ContextBuilder facade unless a distinct policy boundary emerges; no broad decomposition is currently justified.
 
 ## Migration status
