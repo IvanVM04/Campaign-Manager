@@ -1,3 +1,5 @@
+> **Historical proposal — superseded by the implemented durable lifecycle.** This file records the original PR #28 design and its then-future migration plan. Its statements that the current flow is narrative-first, that manual-roll/clarification continuation is a follow-up, and that `turn_resolutions` is not implemented are obsolete. Use [the active turn-pipeline contract](turn-pipeline-compatibility.md), [durable execution boundary](durable-turn-execution-boundary.md), [SillyTavern adapter contract](sillytavern-durable-turn-adapter.md) and the [current system state](current-state-2026-11-18.md) for present behaviour. The original proposal is retained unchanged below for architectural history.
+
 # Durable turn-resolution lifecycle contract
 
 **Status:** Proposed architecture contract (PR #28)
