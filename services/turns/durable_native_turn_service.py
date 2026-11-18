@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import replace
+
+from contextlib import nullcontext
+
+from database import transaction
 
 from models.campaign_scope import CampaignScope
 from models.turn_record import TurnRecord
@@ -64,8 +69,11 @@ class DurableNativeTurnService:
             resolver=resolver,
             revision_repository=self.revision_repository,
             resolution_repository=self.resolution_repository,
-            context_loader=lambda conn, conversation_id=None: self._context_and_history(conn, conversation_id=conversation_id),
+            context_loader=lambda conn, conversation_id=None: self._context_and_history(
+                conn, conversation_id=conversation_id, detached=False
+            ),
             operation_results_serializer=self._operation_results_json,
+            turn_execution_lock=turn_execution_lock,
             error_type=DurableNativeTurnError,
         )
         self.clarification_submission_service = (
@@ -89,6 +97,9 @@ class DurableNativeTurnService:
             context_loader=lambda conn, conversation_id=None: self._context_and_history(
                 conn, conversation_id=conversation_id
             ),
+            snapshot_loader=lambda conversation_id=None: self._capture_turn_snapshot(
+                conversation_id=conversation_id
+            ),
             error_type=DurableNativeTurnError,
         )
 
@@ -104,6 +115,9 @@ class DurableNativeTurnService:
                 conn, conversation_id=conversation_id
             ),
             turn_execution_lock=turn_execution_lock,
+            snapshot_loader=lambda conversation_id=None: self._capture_turn_snapshot(
+                conversation_id=conversation_id
+            ),
             error_type=DurableNativeTurnError,
         )
 
@@ -133,7 +147,14 @@ class DurableNativeTurnService:
     def _operation_results_json(result: TurnResolutionResult) -> str:
         return TurnResolutionCodec.operation_results_json(result)
 
-    def _context_and_history(self, conn, *, conversation_id: str | None = None):
+    def _context_and_history(
+        self,
+        conn,
+        *,
+        conversation_id: str | None = None,
+        detached: bool = True,
+    ):
+        """Load a coherent campaign view and optionally detach it from the runtime cache."""
         context = self.context_service.get_turn_context(
             campaign_id=self.scope.campaign_id,
             conn=conn,
@@ -156,7 +177,35 @@ class DurableNativeTurnService:
             scope=self.scope,
             conn=conn,
         )
+        if detached:
+            # Provider work must never hold a reference to the mutable runtime cache.
+            return copy.deepcopy(context), copy.deepcopy(recent)
+        # Prepared commits use this path while holding the campaign lock.
         return context, recent
+
+    def _capture_turn_snapshot(
+        self,
+        *,
+        conversation_id: str | None = None,
+    ):
+        """Capture context/history/revision under a short cache lock and read transaction."""
+        lock = (
+            self.turn_execution_lock.acquire()
+            if self.turn_execution_lock is not None
+            else nullcontext()
+        )
+        with lock:
+            with transaction("DEFERRED") as conn:
+                context, recent = self._context_and_history(
+                    conn,
+                    conversation_id=conversation_id,
+                    detached=True,
+                )
+                revision = self.revision_repository.get_revision(
+                    self.scope.campaign_id,
+                    conn=conn,
+                )
+        return context, recent, revision
 
     def _plan_from_record(self, record: TurnResolutionRecord) -> TurnResolutionPlan:
         return TurnResolutionCodec.plan_from_record(

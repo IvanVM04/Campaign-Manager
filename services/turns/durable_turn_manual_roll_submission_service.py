@@ -71,9 +71,9 @@ class DurableTurnManualRollSubmissionService:
                     turn = service.turn_repository.get_turn(record.turn_id, scope=service.scope)
                     return service._result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "prepared":
-                    with transaction("DEFERRED") as conn:
-                        context, recent = service._context_and_history(conn, conversation_id=record.conversation_id)
-                        revision = service.revision_repository.get_revision(service.scope.campaign_id, conn=conn)
+                    context, recent, revision = service._capture_turn_snapshot(
+                        conversation_id=record.conversation_id
+                    )
                     if revision != record.context_revision:
                         raise self.error_type("prepared manual roll became stale before commit")
                     plan = service._plan_from_record(record)
@@ -94,9 +94,9 @@ class DurableTurnManualRollSubmissionService:
                     return service._preparation_from_record(saved) if defer_narration else service._resume_narration(saved, already_processed=True)
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise self.error_type("manual roll challenge is no longer pending")
-            with transaction("DEFERRED") as conn:
-                context, recent = service._context_and_history(conn)
-                revision = service.revision_repository.get_revision(service.scope.campaign_id, conn=conn)
+            context, recent, revision = service._capture_turn_snapshot(
+                conversation_id=record.conversation_id
+            )
             if revision != pending.get("context_revision") or revision != record.context_revision:
                 expected_state = record.lifecycle_state
                 lease_token = None
@@ -176,7 +176,4 @@ class DurableTurnManualRollSubmissionService:
             )
             saved = service.resolution_repository.get(record.id, scope=service.scope)
             return service._preparation_from_record(saved) if defer_narration else service._resume_narration(saved, already_processed=False)
-        if service.turn_execution_lock is None:
-            return submit()
-        with service.turn_execution_lock.acquire():
-            return submit()
+        return submit()

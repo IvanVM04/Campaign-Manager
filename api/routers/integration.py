@@ -131,13 +131,13 @@ def resolve_silly_tavern_turn(data: SillyTavernTurnResolveIn):
     """Commit a SillyTavern turn's consequences before external narration begins."""
     runtime = get_current_runtime()
     try:
+        preparation = runtime.durable_native_turn_service.prepare_external_turn(
+            data.player_input,
+            external_turn_id=data.external_turn_id,
+            dice_mode=data.dice_mode,
+            conversation_id=data.conversation_id,
+        )
         with runtime.turn_execution_lock.acquire():
-            preparation = runtime.durable_native_turn_service.prepare_external_turn(
-                data.player_input,
-                external_turn_id=data.external_turn_id,
-                dice_mode=data.dice_mode,
-                conversation_id=data.conversation_id,
-            )
             if data.additional_query:
                 context_result = runtime.silly_tavern_integration_service.get_context(
                     data.query,
@@ -199,13 +199,13 @@ def get_silly_tavern_manual_roll_state(external_turn_id: str):
 def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
     runtime = get_current_runtime()
     try:
+        preparation = runtime.durable_native_turn_service.submit_manual_roll(
+            data.pending_roll_id, tuple(data.rolls),
+            adapter_namespace="sillytavern", defer_narration=True,
+            answer_external_turn_id=data.answer_external_turn_id,
+            conversation_id=data.conversation_id,
+        )
         with runtime.turn_execution_lock.acquire():
-            preparation = runtime.durable_native_turn_service.submit_manual_roll(
-                data.pending_roll_id, tuple(data.rolls),
-                adapter_namespace="sillytavern", defer_narration=True,
-                answer_external_turn_id=data.answer_external_turn_id,
-                conversation_id=data.conversation_id,
-            )
             if data.additional_query:
                 context_result = runtime.silly_tavern_integration_service.get_context(
                     data.query,
@@ -246,15 +246,15 @@ def submit_silly_tavern_manual_roll(data: SillyTavernManualRollIn):
 def submit_silly_tavern_clarification(data: SillyTavernClarificationIn):
     runtime = get_current_runtime()
     try:
+        preparation = runtime.durable_native_turn_service.submit_clarification(
+            data.pending_clarification_id,
+            data.answer,
+            adapter_namespace="sillytavern",
+            defer_narration=True,
+            answer_external_turn_id=data.answer_external_turn_id,
+            conversation_id=data.conversation_id,
+        )
         with runtime.turn_execution_lock.acquire():
-            preparation = runtime.durable_native_turn_service.submit_clarification(
-                data.pending_clarification_id,
-                data.answer,
-                adapter_namespace="sillytavern",
-                defer_narration=True,
-                answer_external_turn_id=data.answer_external_turn_id,
-                conversation_id=data.conversation_id,
-            )
             if data.additional_query:
                 context_result = runtime.silly_tavern_integration_service.get_context(
                     data.query,
