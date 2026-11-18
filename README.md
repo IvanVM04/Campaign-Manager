@@ -81,7 +81,7 @@ The current product scope, functional and non-functional requirements, implement
 
 * **Persistent campaign state** backed by SQLite.
 * **REST API** built with FastAPI.
-* **SillyTavern integration** for processing generated narratives.
+* **Durable SillyTavern integration**: provides scoped context/transcript input, resolves and commits consequences through the shared turn lifecycle, then persists narrative versions without replaying mechanics.
 * **LLM-based structured proposals**, converting player intent into validated world-operation proposals.
 * **Structured world operations** instead of allowing the LLM to directly modify the database.
 * **In-memory `WorldState`** for efficient world manipulation.
