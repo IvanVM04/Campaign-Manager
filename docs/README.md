@@ -57,6 +57,7 @@ These documents describe current production boundaries. Prefer them over histori
 - [Structured world-proposal prompt boundary](architecture/llm-world-proposal-prompt-boundary.md) — single active consequence proposal contract.
 - [LLM world-context boundary](architecture/llm-world-context-rendering-boundaries.md) — typed, detached, bounded proposal context.
 - [SQLite transaction ownership](architecture/sqlite-transaction-ownership.md) — connection and transaction responsibilities.
+- [SQLite maintenance and recovery](architecture/sqlite-maintenance-and-recovery.md) — offline integrity checks, consistent backups and guarded restoration.
 - [Campaign state revisions](architecture/campaign-state-revisions.md) — revision/fencing semantics.
 - [World applier boundaries](architecture/world-applier-boundaries.md) — validated domain application.
 - [Package dependency matrix](architecture/package-dependency-matrix.md) — enforced architectural dependency rules.

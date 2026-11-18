@@ -576,7 +576,7 @@ def test_readiness_returns_503_when_database_is_unavailable(
 def test_serialize_mechanics_result_exposes_dice_audit_data():
     from types import SimpleNamespace
 
-    from app import _serialize_mechanics_result
+    from api.routers.turns import _serialize_mechanics_result
     from rules_engine.dnd5e_2014.core.abilities import Ability
     from rules_engine.dnd5e_2014.core.dice import RollMode
     from rules_engine.dnd5e_2014.core.skills import Skill
@@ -861,3 +861,4 @@ def test_application_shutdown_clears_cached_campaign_runtimes(monkeypatch):
     with TestClient(application.app):
         pass
     assert calls == ["shutdown"]
+

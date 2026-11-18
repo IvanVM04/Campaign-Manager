@@ -1,7 +1,7 @@
 # Estado actual y mapa de arquitectura — 2026-11-18
 
-**Baseline documental auditado:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
-**Último baseline de código:** `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255); las PR #256 y #257 actualizaron documentación, no el comportamiento de producción.  
+**Baseline de código auditado:** main — ae52afcf9c172514a5d119fe301de11255f08091 (PR #261 fusionada; baseline previo a esta actualización).  
+**Última implementación integrada:** PR #261, que endurece los contratos de allowlist del LLM y aísla snapshots de turno mientras reduce el alcance de los locks.  
 **Método:** inspección estática del árbol, contratos, routers, migraciones, guías de paquetes, índices y evidencias de CI. No es una certificación de una sesión local de Ollama/SillyTavern.
 
 > Este es el mapa vigente a fecha 2026-11-18. Los mapas y auditorías fechados anteriormente son snapshots históricos; explican decisiones y hallazgos de su fecha, pero no deben usarse como fuente actual cuando difieran de este documento o del código.
@@ -92,6 +92,8 @@ Dirección de dependencias: routers API → runtime/application services → cap
 ## 6. Persistencia, migraciones y concurrencia
 
 - SQLite es la persistencia canónica.
+- `database.py` configura claves foráneas y espera de ocupación en cada conexión; el modo WAL persistente se establece durante la inicialización del esquema, no se vuelve a negociar en cada lectura/escritura.
+- `scripts/db_maintenance.py` proporciona comprobación de integridad, backup online mediante `sqlite3.Connection.backup` y restauración offline de backups con versión de esquema compatible. La restauración exige detener el backend, valida integridad y claves foráneas, conserva automáticamente un backup pre-restauración y reemplaza el archivo mediante staging en el mismo directorio.
 - `migrations.py` declara `CURRENT_VERSION = 34`; la migración 034 añade `conversation_id` a turnos y resoluciones y los índices de historial por chat.
 - Las migraciones son forward-only y el registry `MIGRATIONS` es la lista de ejecución.
 - `CampaignRuntime` mantiene `WorldState` en memoria por campaña y la ejecución usa locks de proceso/campaña. Ejecutar con un solo worker; procesos separados tendrían caches y locks independientes.
@@ -114,8 +116,8 @@ En el commit documental `4a3a2549...` (PR #257 fusionada) se observaron:
 
 | Ejecución | Resultado |
 |---|---|
-| [Tests #44270598043](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598043) | Success: 2.042 passed, 22 deselected, 85,14 % de cobertura combinada. Ruff, ambos alcances Pyright, JavaScript y CI summary correctos. |
-| [CodeQL #44270598070](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598070) | Success. |
+| [Tests #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385868) | Success: 2.050 passed, 22 deselected, 85,18 % de cobertura combinada. Ruff, ambos alcances Pyright, JavaScript y CI summary correctos. |
+| [CodeQL #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385883) | Success. |
 
 Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión real de SillyTavern. El baseline de modelo y la aceptación integral del adaptador son gates separados. No se registra aquí como aceptado un benchmark live completo posterior a PR #255.
 
@@ -142,3 +144,11 @@ Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión re
 - [Matriz de dependencias](package-dependency-matrix.md), [catálogo de migraciones](migration-catalog-2026-11-12.md) y [observabilidad](observability-and-diagnostics.md).
 - [Hub documental](../README.md), [README de proyecto](../../README.md) y [guías de paquetes](../../services/).
 
+
+
+## 11. Mantenimiento y ciclo de vida de la aplicación
+
+- FastAPI libera los runtimes de campaña mediante el contrato lifespan, evitando el hook de apagado obsoleto.
+- Los helpers de construcción no utilizados que estaban exportados accidentalmente desde app.py se han retirado. El serializador de mecánicas sigue perteneciendo al router de turnos y ya no se reexporta desde el módulo de composición.
+- Las operaciones de backup/restore son herramientas offline, no endpoints HTTP. No se debe restaurar una base mientras el servidor está activo.
+- La guía operativa se encuentra en [SQLite maintenance and recovery](sqlite-maintenance-and-recovery.md).
