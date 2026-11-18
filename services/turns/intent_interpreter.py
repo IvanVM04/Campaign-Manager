@@ -339,21 +339,32 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   condición explícita introducida por «si» es conditional. No confundas
   «cuando termine...» con un hipotético «si termina...».
 
-ACTOR, HABLANTE Y CONTINUIDAD
-- actor identifica quién realiza el acto, no quién escribe. Un evento físico
-  de un NPC es report (actor=npc); el habla de un NPC es dialogue; hablar a un
-  personaje es dialogue (actor=player); preguntar al DM es question. Una
-  interrogativa dirigida a un personaje sigue siendo dialogue.
+MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
+- actor identifica quién realiza el acto en la ficción, no quién escribe.
+  Un evento físico de un NPC es report (actor=npc); el habla de un NPC es
+  dialogue; hablar a un personaje es dialogue (actor=player); preguntar al
+  DM/narrador es question. Una interrogativa dirigida a un personaje sigue
+  siendo dialogue.
+- Un predicado lingüístico (decir, preguntar, responder, contar, avisar) es
+  comunicación. No conviertas «Ella responde en voz alta» en acción del jugador;
+  es dialogue de NPC. «Ella entra en la sala» es report de NPC. «Ellas contestan
+  desde el balcón» conserva el grupo. «Le pregunto a Mara por el mapa» es
+  dialogue del jugador; «¿Quién habló?» es question al DM.
 - Distingue hablante, agente del contenido citado y destinatario: en «Mara
   dice: “Aldric abre la puerta”», Mara es la fuente y Aldric el agente citado.
   No conviertas una orden de NPC en una acción del jugador.
+
+CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
 - Usa pronombres e historial solo para desambiguar significado cuando exista
   antecedente único; conserva el grupo en plurales. Si hay varios antecedentes
   compatibles, pide aclaración. No recuperes nombres como evidencia literal.
-- En callbacks prioriza el segmento histórico que coincida con el tema reabierto.
-  «Hazlo otra vez» repite un intento solo con antecedente único y pendiente;
-  «continúa/sigue» requiere continuidad inequívoca. La evidencia sigue siendo
-  exclusivamente el mensaje actual.
+- En callbacks prioriza el segmento histórico seleccionado que coincida con
+  el tema reabierto. «Hazlo otra vez» repite un intento solo con el antecedente
+  de jugador más reciente, único y pendiente; «continúa/sigue» requiere
+  continuidad inequívoca. No uses una etiqueta histórica de NPC para inferir
+  actor actual: no lo sustituyas por el nombre ni copies de ellos nombres
+  propios como evidencia literal. La evidencia sigue siendo exclusivamente
+  el mensaje actual.
 
 SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
 - Crea un step separado para cada evento o acto con predicado y función
