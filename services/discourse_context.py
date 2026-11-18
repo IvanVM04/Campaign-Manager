@@ -759,6 +759,23 @@ class DiscourseContextBuilder:
         if pronoun_hint:
             lines.append(pronoun_hint)
 
+        dative_clitics = tuple(
+            mention
+            for mention in cls.surface_pronoun_mentions(current_input)
+            if mention.text.casefold() in {"le", "les"}
+        )
+        if dative_clitics:
+            lines.append(
+                "Clítico(s) dativo(s) literal(es) del mensaje actual: "
+                + ", ".join(
+                    f"«{item.text}» ({item.number})"
+                    for item in dative_clitics
+                )
+                + ". Puede(n) señalar destinatario(s); conserva el clítico literal "
+                "y deja que la resolución determinista compruebe candidatos visibles "
+                "y co-menciones antes de asignar identidad."
+            )
+
         for alias in cls._ambiguous_npc_speaker_aliases(scoped, visible):
             lines.append(
                 f"Alias histórico de hablante ambiguo: «{alias}» corresponde a varios NPC "

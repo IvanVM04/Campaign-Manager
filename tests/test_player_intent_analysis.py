@@ -475,3 +475,67 @@ def test_legacy_indirect_question_is_a_proposable_player_speech_act():
     assert analysis.steps[0].actor is IntentActor.PLAYER
     assert analysis.is_actionable is False
     assert analysis.allows_world_proposal is True
+
+
+
+def test_explicitly_negated_step_does_not_block_a_later_positive_attempt():
+    source = "No abro la puerta; intento levantar la reja."
+    analysis = PlayerIntentAnalysis.from_payload(
+        payload(
+            category="mixed",
+            active=1,
+            steps=[
+                step(
+                    index=0,
+                    excerpt="No abro la puerta",
+                    action="no abrir la puerta",
+                    modality="negated",
+                    polarity="negative",
+                    targets=["la puerta"],
+                ),
+                step(
+                    index=1,
+                    excerpt="intento levantar la reja",
+                    action="levantar la reja",
+                    modality="attempted",
+                    polarity="positive",
+                    targets=["la reja"],
+                ),
+            ],
+        ),
+        source_text=source,
+    )
+
+    assert analysis.active_step_index == 1
+    assert analysis.is_actionable is True
+    assert analysis.allows_world_proposal is True
+
+
+@pytest.mark.parametrize("polarity", ["positive", "uncertain"])
+def test_non_negative_earlier_negated_step_still_blocks_active_step(polarity):
+    with pytest.raises(ValueError, match="active step cannot skip an earlier unresolved"):
+        PlayerIntentAnalysis.from_payload(
+            payload(
+                category="mixed",
+                active=1,
+                steps=[
+                    step(
+                        index=0,
+                        excerpt="No abro la puerta",
+                        action="no abrir la puerta",
+                        modality="negated",
+                        polarity=polarity,
+                        targets=["la puerta"],
+                    ),
+                    step(
+                        index=1,
+                        excerpt="intento levantar la reja",
+                        action="levantar la reja",
+                        modality="attempted",
+                        polarity="positive",
+                        targets=["la reja"],
+                    ),
+                ],
+            ),
+            source_text="No abro la puerta; intento levantar la reja.",
+        )

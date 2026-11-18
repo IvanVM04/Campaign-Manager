@@ -328,12 +328,21 @@ class ConversationReferenceResolver:
                 }
                 observed_features.discard((None, None))
                 if number == "plural":
-                    # Plural identity is only established by an explicit
-                    # same-turn group co-mention with compatible singular
-                    # agreement for every member.
-                    if (gender, "singular") not in observed_features:
+                    # Plural identity still requires an explicit same-turn
+                    # co-mention. A dative "les" has no grammatical gender, so
+                    # mixed-gender groups are valid only when that full set is
+                    # independently established by the group builder.
+                    if not any(
+                        number_seen == "singular"
+                        and (gender == "unknown" or gender_seen == gender)
+                        for gender_seen, number_seen in observed_features
+                    ):
                         continue
-                elif observed_features and (gender, number) not in observed_features:
+                elif (
+                    gender != "unknown"
+                    and observed_features
+                    and (gender, number) not in observed_features
+                ):
                     # Preserve the established conservative singular fallback:
                     # absence of grammatical cues is not a contradiction.
                     continue
@@ -376,7 +385,11 @@ class ConversationReferenceResolver:
                     evidence.excerpt,
                     evidence.mention,
                 )
-                if grammatical != (gender, "singular"):
+                if (
+                    grammatical is None
+                    or grammatical[1] != "singular"
+                    or (gender != "unknown" and grammatical[0] != gender)
+                ):
                     continue
                 key = (
                     evidence.turn_id,

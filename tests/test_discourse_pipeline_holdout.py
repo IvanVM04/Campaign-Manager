@@ -661,3 +661,62 @@ def test_live_correction_holdout_allows_optional_spanish_articles_only():
     assert _correction_mentions_equivalent("mapa", "el mapa")
     assert not _correction_mentions_equivalent("el mapa", "la carta")
     assert not _correction_mentions_equivalent("el mapa antiguo", "mapa")
+
+
+
+def test_resolver_discovers_dative_singular_when_intent_omits_the_clitic():
+    resolver = ConversationReferenceResolver()
+    world = _world([
+        {"id": 1401, "name": "Mara", "entity_type": "npc", "active": True},
+    ])
+    recent_turns = [
+        TurnRecord(
+            id=1401,
+            player_input="Hablo con Mara sobre la llave.",
+            narrative="",
+        )
+    ]
+    utterance = "Le pregunto por la llave."
+    analysis = PlayerIntentAnalysis.conservative_legacy(utterance)
+
+    result = resolver.resolve(
+        world,
+        analysis,
+        recent_turns=recent_turns,
+        current_input=utterance,
+    )
+
+    assert len(result.references) == 1
+    assert isinstance(result.references[0], ResolvedConversationReference)
+    assert result.references[0].mention == "Le"
+    assert result.references[0].entity_id == 1401
+    assert result.clarification_question is None
+
+
+def test_resolver_builds_mixed_gender_plural_group_from_dative_les():
+    resolver = ConversationReferenceResolver()
+    world = _world([
+        {"id": 1411, "name": "Mara", "entity_type": "npc", "active": True},
+        {"id": 1412, "name": "Aldric", "entity_type": "npc", "active": True},
+    ])
+    recent_turns = [
+        TurnRecord(
+            id=1411,
+            player_input="La guardia Mara y el capitán Aldric esperan junto al balcón.",
+            narrative="",
+        )
+    ]
+    utterance = "Les pregunto si vieron la llave."
+    analysis = PlayerIntentAnalysis.conservative_legacy(utterance)
+
+    result = resolver.resolve(
+        world,
+        analysis,
+        recent_turns=recent_turns,
+        current_input=utterance,
+    )
+
+    assert len(result.references) == 1
+    assert isinstance(result.references[0], ResolvedConversationGroupReference)
+    assert result.references[0].entity_ids == (1411, 1412)
+    assert result.clarification_question is None

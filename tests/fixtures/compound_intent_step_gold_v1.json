@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "split": "held_out_annotations",
+  "description": "Per-step actor, modality and polarity labels. Contains no utterances or prompt examples.",
+  "scenarios": [
+    {
+      "id": "compound-intent-01",
+      "steps": [
+        {
+          "actor": "player",
+          "modality": "completed",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-02",
+      "steps": [
+        {
+          "actor": "player",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-03",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "reported",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-04",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-05",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-06",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "npc",
+          "modality": "reported",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-07",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "npc",
+          "modality": "reported",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-08",
+      "steps": [
+        {
+          "actor": "player",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-09",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-10",
+      "steps": [
+        {
+          "actor": "player",
+          "modality": "negated",
+          "polarity": "negative"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-11",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "conditional",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "planned",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "planned",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-12",
+      "steps": [
+        {
+          "actor": "player",
+          "modality": "observed",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-13",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "dialogue",
+          "polarity": "positive"
+        }
+      ]
+    },
+    {
+      "id": "compound-intent-14",
+      "steps": [
+        {
+          "actor": "npc",
+          "modality": "dialogue",
+          "polarity": "positive"
+        },
+        {
+          "actor": "player",
+          "modality": "attempted",
+          "polarity": "positive"
+        }
+      ]
+    }
+  ]
+}

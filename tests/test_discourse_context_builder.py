@@ -366,3 +366,15 @@ def test_subject_linked_speech_signals_exclude_quotes_and_negated_interveners():
     assert DiscourseContextBuilder.speech_predicate_signals(
         "Ellas no contestan."
     ) == ()
+
+
+
+def test_render_explains_dative_clitics_without_assigning_a_referent():
+    rendered = DiscourseContextBuilder.render(
+        "Le pregunto por el mapa y les respondo después.",
+        (),
+    )
+
+    assert "Clítico(s) dativo(s) literal(es)" in rendered
+    assert "conserva el clítico literal" in rendered
+    assert "asignar identidad" in rendered
