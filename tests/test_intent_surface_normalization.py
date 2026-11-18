@@ -950,6 +950,107 @@ def test_uncertainty_about_another_entity_does_not_cancel_a_future_plan():
 
 
 
+def test_interpreter_keeps_later_player_attempt_after_uncertain_multi_step_report():
+    source = (
+        "Un explorador asegura que hay un campamento al norte, "
+        "aunque no está seguro. Después intento acercarme al campamento."
+    )
+    first = _step("hay un campamento al norte", actor="other", modality="reported")
+    first["action_frame"] = {
+        "predicate": "hay",
+        "family": "other",
+        "arguments": [],
+    }
+    second = dict(
+        _step("aunque no está seguro", actor="other", modality="reported"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "está",
+        "family": "other",
+        "arguments": [],
+    }
+    third = dict(
+        _step(
+            "Después intento acercarme al campamento",
+            actor="player",
+            modality="attempted",
+        ),
+        index=2,
+    )
+    third["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {
+                "intent_analysis": _payload(
+                    first,
+                    second,
+                    third,
+                    category="action",
+                    active=0,
+                )
+            },
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "mixed"
+    assert analysis.active_step_index == 2
+    assert analysis.steps[0].actor.value == "other"
+    assert analysis.steps[0].modality.value == "reported"
+    assert analysis.steps[0].polarity.value == "uncertain"
+    assert analysis.steps[0].attributed_to == "Un explorador"
+    assert analysis.steps[1].actor.value == "other"
+    assert analysis.steps[1].polarity.value == "uncertain"
+    assert analysis.steps[2].actor.value == "player"
+    assert analysis.steps[2].modality.value == "attempted"
+    assert analysis.steps[2].polarity.value == "positive"
+    assert analysis.is_actionable
+    assert analysis.allows_world_proposal
+
+
+def test_interpreter_does_not_turn_an_uncertain_other_entity_into_reported_attempt():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    step = _step(source, modality="attempted", outcome="uncertain")
+    step["action_frame"] = {
+        "predicate": "Intento",
+        "family": "state_change",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(step, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "action"
+    assert analysis.active_step_index == 0
+    assert analysis.steps[0].modality.value == "attempted"
+    assert analysis.steps[0].reported_outcome.value == "not_claimed"
+    assert analysis.is_actionable
+
+
 def test_interpreter_keeps_split_reported_uncertainty_non_factual():
     source = (
         "Un viajero asegura que vio un wyvern al este, "
