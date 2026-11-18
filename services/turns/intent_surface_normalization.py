@@ -99,6 +99,17 @@ _FIRST_PERSON_ACTIVE_CLAUSE_RE = re.compile(
     r"(?:(?:yo)\s+)?(?:intento|trato\s+de|pruebo|procuro)\b",
     re.IGNORECASE,
 )
+_INDEPENDENT_PLAYER_ACTION_AFTER_REPORT_RE = re.compile(
+    r"\b(?:(?:y\s+)?(?:después|despues|luego|a\s+continuación)|"
+    r"(?:y|pero|entonces))\s+(?:(?:yo)\s+)?"
+    r"(?:intento|trato\s+de|pruebo|procuro|decido|he\s+decidido|"
+    r"prefiero|opto\s+por|no\s+quiero|no\s+voy\s+a|me\s+niego\s+a|"
+    r"me\s+abstengo\s+de|abro|cierro|desbloqueo|recojo|tomo|cojo|"
+    r"guardo|saco|coloco|entrego|recibo|enciendo|apago|rompo|muevo|"
+    r"levanto|agarro|cruzo|activo|desato|sujeto|me\s+acerco|"
+    r"me\s+dirijo|me\s+muevo)\b",
+    re.IGNORECASE,
+)
 _FIRST_PERSON_FUTURE_RE = re.compile(
     r"\b[\wáéíóúüñ]+(?:ré|remos)\b",
     re.IGNORECASE,
@@ -707,8 +718,17 @@ def normalize_intent_surface_payload(
             else len(evidence)
         )
         folded_evidence = evidence.casefold()
+        independent_action_match = _INDEPENDENT_PLAYER_ACTION_AFTER_REPORT_RE.search(
+            evidence[body_start:scope_end]
+        )
+        reported_scope_end = (
+            body_start + independent_action_match.start()
+            if independent_action_match is not None
+            else scope_end
+        )
         reported_indices: list[int] = []
         reported_excerpt_ends: dict[int, int] = {}
+        collapsed_report_action_indices: list[int] = []
         for index, step in enumerate(steps):
             excerpt = step.get("source_excerpt")
             if not isinstance(excerpt, str) or not excerpt.strip():
@@ -717,6 +737,12 @@ def normalize_intent_surface_payload(
             if start < 0:
                 continue
             end = start + len(excerpt)
+            if (
+                independent_action_match is not None
+                and start <= body_start
+                and end > reported_scope_end
+            ):
+                collapsed_report_action_indices.append(index)
             preceding_report_text = evidence[body_start:start]
             follows_independent_linker = re.search(
                 r"\b(?:y|pero|entonces|después|despues|luego)\s*$",
@@ -740,14 +766,30 @@ def normalize_intent_surface_payload(
             if (
                 start < scope_end
                 and end > body_start
-                and end <= scope_end
+                and end <= reported_scope_end
                 and (len(evidence) <= 300 or _fold(speaker) in _fold(excerpt))
             ):
                 reported_indices.append(index)
                 reported_excerpt_ends[index] = end
 
+        if (
+            not reported_indices
+            and collapsed_report_action_indices
+            and independent_action_match is not None
+            and normalized.get("category") in {"action", "mixed"}
+        ):
+            normalized["category"] = "unknown"
+            normalized["active_step_index"] = None
+            normalized["requires_clarification"] = True
+            normalized["clarification_question"] = (
+                "He detectado una afirmación referida y una acción dentro del "
+                "mismo paso. ¿Puedes separar qué te han contado de lo que "
+                "quieres hacer?"
+            )
+            rules.append("reported_action_not_split_requires_clarification")
+
         if reported_indices:
-            reported_scope = evidence[body_start:scope_end]
+            reported_scope = evidence[body_start:reported_scope_end]
             scope_is_uncertain = (
                 _EPISTEMIC_UNCERTAINTY_RE.search(reported_scope) is not None
             )
