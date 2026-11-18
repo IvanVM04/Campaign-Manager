@@ -71,6 +71,12 @@ This is the target architecture, not a description of completed modules. Existin
 
 ---
 
+## Product requirements and quality plan
+
+The current product scope, functional and non-functional requirements, implementation status and release gates are documented in the [product requirements baseline](docs/product/product-requirements-2026-11-18.md). The current audit and ordered improvement phases are in the [quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
+
+---
+
 ## Features
 
 * **Persistent campaign state** backed by SQLite.
