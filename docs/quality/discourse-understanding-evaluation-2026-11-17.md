@@ -1,3 +1,5 @@
+> **Historical evaluation snapshot — before PR #255.** Its balanced cases, metrics and limitations describe the state at that time. PR #255 subsequently added dative-clitic reference cues, named-NPC speech signals, callback anchor scoping, negated-step sequencing and compound-intent holdout coverage. See the [PR #255 delivery record](player-message-comprehension-phase-2026-11-18.md) and [current quality roadmap](quality-roadmap-2026-11-18.md).
+
 # Discourse understanding evaluation and actor hardening — 2026-11-17
 
 ## Purpose
