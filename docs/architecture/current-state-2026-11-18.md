@@ -136,7 +136,7 @@ Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión re
 
 - [Requisitos de producto v0.2](../product/product-requirements-2026-11-18.md) — alcance y requisitos deseados, con estados de implementación.
 - [Hoja de ruta de calidad 2026-11-18](../quality/quality-roadmap-2026-11-18.md) — prioridades de calidad, gates live y fases de entrega.
-- [Mapa de paquetes y ejecución](architecture-map-2026-11-18.md) — ownership y rutas de ejecución de alto nivel.
+- [Mapa de paquetes y ejecución](current-state-2026-11-18.md) — ownership y rutas de ejecución de alto nivel.
 - [Contrato del pipeline de turnos](turn-pipeline-compatibility.md) — rutas activas y lifecycle.
 - [Lifecycle durable](turn-resolution-lifecycle.md) es un documento de diseño antiguo; usar el contrato activo anterior y el código actual.
 - [Matriz de dependencias](package-dependency-matrix.md), [catálogo de migraciones](migration-catalog-2026-11-12.md) y [observabilidad](observability-and-diagnostics.md).
