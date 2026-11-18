@@ -47,17 +47,21 @@ operations for that failed action.
 6. **Spatial role mentions.** Hiding-location templates now retain the
    preposition in the location mention (`bajo la alfombra...`) and tests
    cover all five supported prepositions.
-7. **Additional language edge cases.** Refusals such as «No quiero intentar»
+7. **Step-local evidence scope.** Epistemic markers are read from the
+   referenced step excerpt before changing its outcome or modality. An
+   uncertainty about a different actor/event in the same message cannot taint
+   an otherwise explicit action attempt or future plan.
+8. **Additional language edge cases.** Refusals such as «No quiero intentar»
    remain negated and non-actionable. Explicit «no consigo» failures resolve
    the attempt even when the sentence does not use «pero». Sequence linkers
    may be located between excerpts or at the start of the later excerpt,
    while literal ordering checks remain mandatory.
-8. **Prompt/schema alignment.** Intent prompt and schema now define
+9. **Prompt/schema alignment.** Intent prompt and schema now define
    unreported outcomes, player observations, first-person future plans and
    completed-action-then-attempt sequences. `mixed` includes materially
    different modalities across ordered steps, even when both are player
    actions; this matches the existing compound-step evaluation contract.
-9. **Targeted live diagnostics.** The language-understanding holdout accepts
+10. **Targeted live diagnostics.** The language-understanding holdout accepts
    `CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID`, matching the semantic-frame
    holdout. A selected scenario is treated as a gate even if it is normally
    observational, and the selected ID is recorded in JUnit properties.
@@ -73,6 +77,8 @@ operations for that failed action.
 - The outcome repair does not invent an active-step pointer or grant
   mechanical authorization when the model left that pointer unset.
 - Explicitly refused attempts are not reclassified as positive attempts.
+- Epistemic signals from unrelated clauses are not copied into another
+  step's state.
 - A completed first action is inferred only when a first-person present-tense
   predicate, two ordered literal excerpts and an explicit sequence linker
   support the interpretation.

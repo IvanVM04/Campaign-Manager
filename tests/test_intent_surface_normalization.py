@@ -641,3 +641,42 @@ def test_negative_result_cannot_be_mistaken_for_explicit_success():
     assert normalized["steps"][0]["reported_outcome"] == "failure"
     assert normalized["active_step_index"] is None
     assert "explicit_attempt_success_outcome" not in summary.applied_rules
+
+
+
+def test_uncertainty_about_another_entity_does_not_contaminate_attempt_outcome():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    payload = _payload(
+        _step("Intento abrir la puerta", modality="attempted", outcome="uncertain"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_epistemic_uncertainty" not in summary.applied_rules
+
+
+def test_uncertainty_about_another_entity_does_not_cancel_a_future_plan():
+    source = "Mañana viajaré al puerto. Quizá el guardia despierte."
+    payload = _payload(
+        _step("Mañana viajaré al puerto"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "plan"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["modality"] == "planned"
+    assert "explicit_epistemic_uncertainty" not in summary.applied_rules

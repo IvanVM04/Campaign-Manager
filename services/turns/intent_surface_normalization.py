@@ -141,6 +141,18 @@ def _widen_excerpt(step: dict[str, Any], evidence: str) -> None:
         step["source_excerpt"] = excerpt
 
 
+def _step_evidence(step: dict[str, Any], evidence: str) -> str:
+    """Scope semantic signals to this step when its excerpt is evidence-bound."""
+    excerpt = step.get("source_excerpt")
+    if (
+        isinstance(excerpt, str)
+        and excerpt.strip()
+        and _fold(excerpt) in _fold(evidence)
+    ):
+        return excerpt
+    return evidence
+
+
 def _steps_follow_explicit_sequence(
     evidence: str,
     first_step: dict[str, Any],
@@ -332,7 +344,7 @@ def normalize_intent_surface_payload(
     # uncertainty and literal success/failure evidence remain distinguishable.
     if len(steps) == 1 and normalized.get("category") in {"action", "mixed"}:
         step = steps[0]
-        step_evidence = evidence
+        step_evidence = _step_evidence(step, evidence)
         explicitly_uncertain = _EPISTEMIC_UNCERTAINTY_RE.search(step_evidence)
         explicitly_failed = _FAILURE_RE.search(step_evidence)
         explicitly_succeeded = _EXPLICIT_SUCCESS_RE.search(step_evidence)
@@ -396,7 +408,9 @@ def normalize_intent_surface_payload(
             evidence,
             re.IGNORECASE,
         )
-        and _EPISTEMIC_UNCERTAINTY_RE.search(evidence) is None
+        and _EPISTEMIC_UNCERTAINTY_RE.search(
+            _step_evidence(steps[0], evidence)
+        ) is None
         and normalized.get("category") not in {"question", "dialogue", "correction"}
         and _REPORTED_SPEAKER_RE.search(evidence) is None
     ):
@@ -405,7 +419,6 @@ def normalize_intent_surface_payload(
         step["modality"] = "planned"
         step["polarity"] = "positive"
         step["reported_outcome"] = "not_claimed"
-        _widen_excerpt(step, evidence)
         normalized["category"] = "plan"
         normalized["active_step_index"] = None
         rules.append("explicit_first_person_future_plan")
@@ -483,7 +496,10 @@ def normalize_intent_surface_payload(
         rules.append("explicit_reported_speaker")
 
     # Epistemic markers express uncertainty, not positive world knowledge.
-    if len(steps) == 1 and _EPISTEMIC_UNCERTAINTY_RE.search(evidence):
+    if (
+        len(steps) == 1
+        and _EPISTEMIC_UNCERTAINTY_RE.search(_step_evidence(steps[0], evidence))
+    ):
         step = steps[0]
         step["polarity"] = "uncertain"
         if normalized.get("category") not in {"question", "dialogue", "correction"}:
