@@ -3,6 +3,7 @@
 **Versión:** 0.2 — requisitos ampliados y dirección de UX  
 **Fecha:** 2026-11-18  
 **Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255). **Baseline documental:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
+**Inventario:** 71 requisitos funcionales y 20 no funcionales, con IDs estables.  
 **Estado:** decisiones de producto ampliadas a partir de feedback explícito; las capacidades siguen pendientes salvo donde se indique lo contrario.
 
 > Este documento define qué producto queremos construir y separa los requisitos de las capacidades que el repositorio implementa hoy. Que un requisito aparezca aquí no significa que esté terminado ni que haya superado una prueba con Ollama/SillyTavern.
