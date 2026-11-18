@@ -176,7 +176,6 @@ class DurableTurnManualRollSubmissionService:
             )
             saved = service.resolution_repository.get(record.id, scope=service.scope)
             return service._preparation_from_record(saved) if defer_narration else service._resume_narration(saved, already_processed=False)
-        if service.turn_execution_lock is None:
-            return submit()
-        with service.turn_execution_lock.acquire():
-            return submit()
+        # Snapshot capture and commit take the shared lock only briefly.
+        # Manual-roll continuation may need provider inference; do not serialize it.
+        return submit()

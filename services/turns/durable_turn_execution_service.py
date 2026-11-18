@@ -145,14 +145,9 @@ class DurableTurnExecutionService:
     ):
         if dice_mode not in {"automatic", "manual"}:
             raise DurableNativeTurnError("dice_mode must be automatic or manual")
-        if self.turn_execution_lock is None:
-            return self._play_turn_locked(
-                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
-            )
-        with self.turn_execution_lock.acquire():
-            return self._play_turn_locked(
-                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
-            )
+        return self._play_turn_locked(
+            player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
+        )
 
     def prepare_external_turn(
         self,
@@ -250,10 +245,7 @@ class DurableTurnExecutionService:
                 )
             return result
 
-        if self.turn_execution_lock is None:
-            return prepare()
-        with self.turn_execution_lock.acquire():
-            return prepare()
+        return prepare()
 
     def _play_turn_locked(
         self,

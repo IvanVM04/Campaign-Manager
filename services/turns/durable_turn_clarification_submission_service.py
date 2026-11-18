@@ -379,10 +379,9 @@ class DurableTurnClarificationSubmissionService:
                     "clarification resolution failed"
                 ) from exc
 
-        if service.turn_execution_lock is None:
-            return submit()
-        with service.turn_execution_lock.acquire():
-            return submit()
+        # Snapshot capture and commit take the shared lock only briefly.
+        # Clarification inference must run concurrently with other campaign turns.
+        return submit()
 
     def _resume_prepared_clarification(
         self,

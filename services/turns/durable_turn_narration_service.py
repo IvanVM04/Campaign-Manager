@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from database import transaction
@@ -34,6 +36,8 @@ class DurableTurnNarrationService:
         self.turn_execution_lock = turn_execution_lock
         self.context_loader = context_loader
         self.error_type = error_type
+        self._narration_locks_guard = threading.Lock()
+        self._narration_locks: dict[int, tuple[threading.Lock, int]] = {}
 
     def complete_external_narration(
         self,
@@ -303,7 +307,58 @@ class DurableTurnNarrationService:
             ),
         }
 
+    @contextmanager
+    def _resolution_narration_lock(self, resolution_id: int):
+        """Serialize duplicate narration attempts for one resolution only."""
+        with self._narration_locks_guard:
+            entry = self._narration_locks.get(resolution_id)
+            if entry is None:
+                lock = threading.Lock()
+                users = 0
+            else:
+                lock, users = entry
+            self._narration_locks[resolution_id] = (lock, users + 1)
+        try:
+            with lock:
+                yield
+        finally:
+            with self._narration_locks_guard:
+                current_lock, current_users = self._narration_locks[resolution_id]
+                if current_users == 1:
+                    self._narration_locks.pop(resolution_id, None)
+                else:
+                    self._narration_locks[resolution_id] = (
+                        current_lock,
+                        current_users - 1,
+                    )
+
     def resume_narration(
+        self,
+        record: TurnResolutionRecord,
+        *,
+        already_processed: bool,
+    ):
+        with self._resolution_narration_lock(record.id):
+            current = self.resolution_repository.get(
+                record.id, scope=self.scope
+            )
+            if current is None:
+                raise self.error_type("turn resolution no longer exists")
+            if current.lifecycle_state == "completed":
+                turn = self.turn_repository.get_turn(
+                    current.turn_id, scope=self.scope
+                )
+                if turn is None:
+                    raise self.error_type("completed resolution has no transcript")
+                return self.result_from_completed_record(
+                    current, turn, already_processed=True
+                )
+            return self._resume_narration_locked(
+                current,
+                already_processed=already_processed,
+            )
+
+    def _resume_narration_locked(
         self,
         record: TurnResolutionRecord,
         *,
