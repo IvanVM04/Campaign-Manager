@@ -1,5 +1,7 @@
 # Campaign writer, lock and cache-coherence audit (F-13)
 
+> **Estado actualizado — 2026-11-18:** la matriz de rutas se revisó contra el código actual. La antigua ruta narrativa-first `POST /integration/turn` fue retirada y devuelve 404; la fila histórica original se reemplaza abajo por su estado actual. Para el mapa global y el baseline de CI, consulte [estado actual del sistema](current-state-2026-11-18.md). Los hallazgos PR #78 que originaron este documento se conservan como contexto histórico.
+
 **Scope:** all tracked FastAPI routes that mutate campaign-owned state, plus routes that lazily initialize it.
 **Deployment assumption:** one application process and one worker. `TurnExecutionLock` is process-local; SQLite transactions and revision triggers protect persistence, but this is not a distributed lock.
 
@@ -35,7 +37,7 @@ PR #78 fixes these boundaries:
 | `POST /entities/{id}/effects`, `PATCH /effects/{id}/status`, `DELETE /effects/{id}` | `PersistentEffectService`; `transaction("IMMEDIATE")` | Route acquires campaign lock | Persistent effects/timers are transactionally persisted and revision-triggered. No `WorldState` cache is maintained for effect rows. |
 | `POST /turn`, `POST /turn/roll`, `POST /turn/clarification` | `DurableNativeTurnService`; short explicit SQLite transactions, with `IMMEDIATE` for claims/commit | Service acquires shared campaign lock | Captures and validates campaign revision; consequences and durable resolution commit atomically. `WorldService` publishes the committed world state and restores its prior state on rollback. |
 | `POST /integration/turn/resolve`, `/roll`, `/clarification`, `/complete` | `DurableNativeTurnService` plus context adapter | Route or durable service acquires shared campaign lock (completion acquires internally) | Same durable revision/commit contract as native turns. |
-| Deprecated `POST /integration/turn` | `SillyTavernIntegrationService.process_turn()`; legacy transaction and snapshot reconciliation | Service acquires shared campaign lock | Legacy path retains snapshot rollback/reconciliation behavior; do not extend it. |
+| Removed `POST /integration/turn` | No writer; the route is retired and returns 404 | Not applicable | Do not reintroduce the narrative-first mutation path or snapshot restoration. Use `POST /integration/turn/resolve`, continuation routes and `/complete` above. |
 | `POST /integration/context`, integration state GETs, world/memory/export GETs | Read/context assembly | Route acquires lock where it reads shared in-memory world or multiple related projections | Read-only; lock provides a consistent in-process view. |
 
 ## Revision-trigger coverage
