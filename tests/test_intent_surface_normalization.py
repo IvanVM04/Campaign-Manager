@@ -1207,6 +1207,66 @@ def test_interpreter_does_not_turn_an_uncertain_other_entity_into_reported_attem
     assert analysis.is_actionable
 
 
+def test_interpreter_keeps_npc_report_and_player_refusal_as_separate_resolved_steps():
+    source = (
+        "Mara me cuenta que el puente está cerrado, "
+        "pero decido no cruzar y permanezco en esta orilla."
+    )
+    first = _step(
+        "el puente está cerrado",
+        actor="npc",
+        modality="reported",
+    )
+    first["action_frame"] = {
+        "predicate": "está",
+        "family": "other",
+        "arguments": [],
+    }
+    second = dict(
+        _step("pero decido no cruzar", modality="attempted"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "cruzar",
+        "family": "movement",
+        "arguments": [],
+    }
+    third = dict(
+        _step("y permanezco en esta orilla", modality="attempted"),
+        index=2,
+    )
+    third["action_frame"] = {
+        "predicate": "permanezco",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, third, category="action", active=1)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "mixed"
+    assert analysis.active_step_index is None
+    assert len(analysis.steps) == 2
+    assert analysis.steps[0].actor.value == "npc"
+    assert analysis.steps[0].modality.value == "reported"
+    assert analysis.steps[0].attributed_to == "Mara"
+    assert analysis.steps[1].actor.value == "player"
+    assert analysis.steps[1].modality.value == "negated"
+    assert analysis.steps[1].polarity.value == "negative"
+    assert not analysis.is_actionable
+
+
 def test_interpreter_keeps_split_reported_uncertainty_non_factual():
     source = (
         "Un viajero asegura que vio un wyvern al este, "
