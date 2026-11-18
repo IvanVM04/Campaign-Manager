@@ -98,10 +98,9 @@ def test_init_db_enables_persistent_wal_and_connection_integrity_pragmas():
 
 
 def test_get_conn_rolls_back_when_connection_body_raises():
-    with pytest.raises(RuntimeError, match="abort connection"):
-        with get_conn() as conn:
-            conn.execute("CREATE TABLE connection_rollback_probe (value TEXT)")
-            raise RuntimeError("abort connection")
+    with pytest.raises(RuntimeError, match="abort connection"), get_conn() as conn:
+        conn.execute("CREATE TABLE connection_rollback_probe (value TEXT)")
+        raise RuntimeError("abort connection")
 
     with get_conn() as conn:
         table = conn.execute(

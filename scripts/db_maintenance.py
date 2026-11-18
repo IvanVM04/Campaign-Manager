@@ -20,8 +20,8 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from database import DB_PATH, SQLITE_BUSY_TIMEOUT_MS, SQLITE_TIMEOUT_SECONDS  # noqa: E402
-from migrations import CURRENT_VERSION  # noqa: E402
+from database import DB_PATH, SQLITE_BUSY_TIMEOUT_MS, SQLITE_TIMEOUT_SECONDS
+from migrations import CURRENT_VERSION
 
 
 class DatabaseMaintenanceError(RuntimeError):
