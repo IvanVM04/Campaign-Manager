@@ -512,8 +512,8 @@ def test_explicitly_negated_attempt_is_not_made_actionable(source):
 @pytest.mark.parametrize(
     "source",
     [
-        "Intento abrir la puerta, pero no consigo mover el cerrojo.",
-        "Intento encender la antorcha, pero no lo consigo.",
+        "Intento abrir la puerta: no consigo mover el cerrojo.",
+        "Intento encender la antorcha y no lo consigo.",
     ],
 )
 def test_explicit_failure_without_but_is_still_a_resolved_failure(source):
