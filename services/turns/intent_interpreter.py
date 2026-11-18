@@ -294,6 +294,13 @@ proposición reportada; si el modelo separa la reserva en otro step, no pierdas
 la incertidumbre del contenido al que se refiere. No extiendas esa reserva a
 una acción del jugador que aparezca en una oración posterior. No conviertas
 el resultado deseado en resultado ocurrido.
+La negación y la incertidumbre tienen alcance por proposición y por hablante,
+no por frase completa: «no quiero/no voy a», «prefiero no», «me niego a» o
+«decido no» expresan abstención; «no consigo/no puedo abrir» comunica fracaso
+cuando describe un intento; «no sé si lo consigo» expresa incertidumbre sobre
+ese resultado. Una negación dentro de diálogo citado o discurso referido no es
+una decisión del jugador. No dejes que una duda sobre otro personaje/objeto
+cancele un intento positivo distinto.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
 ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
