@@ -181,12 +181,90 @@ Una tirada se justifica por incertidumbre real, no por la mera descripción de u
 acción. No adjudiques pasos posteriores ni cambies la modalidad o el resultado.
 CD entre 1 y 30; ventaja, desventaja y modificador solo con evidencia concreta.
 No tires dados ni determines el resultado: eso pertenece al motor determinista.
-Devuelve solo el objeto JSON exigido por el esquema mecánico."""
+
+CONTRATO DE IDENTIFICADORES
+Devuelve siempre las nueve claves del esquema mecánico. Las claves que no
+correspondan a la decisión elegida deben ser null.
+- decision=none: todas las demás claves null.
+- decision=clarification: question contiene una pregunta breve; el resto null.
+- decision=skill_check: skill usa un identificador minúsculo exacto del motor
+  (por ejemplo athletics, stealth o perception); ability es null salvo que se
+  necesite una característica alternativa válida; dc es entero; advantage y
+  disadvantage son booleanos; modifier es entero; reason es texto breve.
+- decision=ability_check o saving_throw: ability usa strength, dexterity,
+  constitution, intelligence, wisdom o charisma; skill=null; los campos de
+  tirada y reason son obligatorios.
+Nunca traduzcas identificadores: «Atletismo» no es un valor válido para skill;
+usa athletics. «FUE/CON» no es un valor válido para ability; usa strength o
+constitution, según la característica elegida. No añadas explicaciones,
+unidades, alternativas ni texto libre dentro de skill o ability.
+Devuelve solo JSON que cumpla exactamente el esquema mecánico."""
+
+    @staticmethod
+    def _compact_mechanics_only_payload(payload: dict) -> dict:
+        """Validate the fixed nullable schema and adapt it to the typed parser."""
+        expected = {
+            "decision", "question", "dc", "advantage", "disadvantage",
+            "modifier", "reason", "skill", "ability",
+        }
+        if set(payload) != expected:
+            return payload
+
+        decision = payload["decision"]
+        if decision == MechanicsDecisionType.NONE.value:
+            if any(payload[field] is not None for field in expected - {"decision"}):
+                raise ValueError("none decision contains mechanics fields")
+            return {"decision": decision}
+
+        if decision == MechanicsDecisionType.CLARIFICATION.value:
+            question = payload["question"]
+            if not isinstance(question, str) or not question.strip():
+                raise ValueError("clarification question is required")
+            if any(
+                payload[field] is not None
+                for field in expected - {"decision", "question"}
+            ):
+                raise ValueError("clarification contains unexpected mechanics fields")
+            return {"decision": decision, "question": question}
+
+        if decision not in {
+            MechanicsDecisionType.SKILL_CHECK.value,
+            MechanicsDecisionType.ABILITY_CHECK.value,
+            MechanicsDecisionType.SAVING_THROW.value,
+        }:
+            raise ValueError("unsupported mechanics decision")
+
+        if payload["question"] is not None:
+            raise ValueError("mechanics check cannot include a clarification question")
+        check_fields = ("dc", "advantage", "disadvantage", "modifier", "reason")
+        if any(payload[field] is None for field in check_fields):
+            raise ValueError("mechanics check is missing required decision fields")
+
+        compact = {
+            "decision": decision,
+            "dc": payload["dc"],
+            "advantage": payload["advantage"],
+            "disadvantage": payload["disadvantage"],
+            "modifier": payload["modifier"],
+            "reason": payload["reason"],
+        }
+        if decision == MechanicsDecisionType.SKILL_CHECK.value:
+            if not isinstance(payload["skill"], str) or not payload["skill"].strip():
+                raise ValueError("skill_check requires a skill identifier")
+            if payload["ability"] is not None:
+                compact["ability"] = payload["ability"]
+            compact["skill"] = payload["skill"]
+        else:
+            if payload["skill"] is not None or payload["ability"] is None:
+                raise ValueError("ability and saving throws require only an ability")
+            compact["ability"] = payload["ability"]
+        return compact
 
     @staticmethod
     def _mechanics_decision_from_payload(payload: object) -> MechanicsDecision:
         if not isinstance(payload, dict):
             raise TypeError("mechanics decision must be an object")
+        payload = MechanicsAdjudicator._compact_mechanics_only_payload(payload)
         if not isinstance(payload.get("decision"), str):
             raise TypeError("mechanics decision must include decision")
         decision_type = MechanicsDecisionType(payload["decision"])

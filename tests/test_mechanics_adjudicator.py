@@ -16,6 +16,7 @@ from services.turns import (
     MechanicsAdjudicator,
     MechanicsAdjudicatorError,
 )
+from services.turns.intent_response_schema import MECHANICS_ONLY_RESPONSE_SCHEMA
 
 
 @pytest.mark.parametrize(
@@ -54,6 +55,94 @@ def test_adjudicator_parses_supported_decisions(payload, expected):
     decision = adjudicator.adjudicate(make_turn_context(), "Intento algo.")
 
     assert decision.decision is expected
+
+
+def test_mechanics_only_schema_requires_a_complete_nullable_contract():
+    assert MECHANICS_ONLY_RESPONSE_SCHEMA["required"] == [
+        "decision", "question", "dc", "advantage", "disadvantage",
+        "modifier", "reason", "skill", "ability",
+    ]
+    properties = MECHANICS_ONLY_RESPONSE_SCHEMA["properties"]
+    assert "athletics" in properties["skill"]["enum"]
+    assert "Atletismo" not in properties["skill"]["enum"]
+    assert "strength" in properties["ability"]["enum"]
+    assert "FUE/CON" not in properties["ability"]["enum"]
+
+
+def test_adjudicator_parses_complete_nullable_skill_check_payload():
+    payload = {
+        "decision": "skill_check",
+        "question": None,
+        "dc": 15,
+        "advantage": False,
+        "disadvantage": False,
+        "modifier": 0,
+        "reason": "La superficie exige esfuerzo.",
+        "skill": "athletics",
+        "ability": None,
+    }
+
+    decision = MechanicsAdjudicator._mechanics_decision_from_payload(payload)
+
+    assert decision.decision is MechanicsDecisionType.SKILL_CHECK
+    assert decision.skill is Skill.ATHLETICS
+    assert decision.ability is None
+    assert decision.dc == 15
+
+
+def test_adjudicator_parses_complete_nullable_none_and_clarification():
+    fields = {
+        "question": None,
+        "dc": None,
+        "advantage": None,
+        "disadvantage": None,
+        "modifier": None,
+        "reason": None,
+        "skill": None,
+        "ability": None,
+    }
+    none_payload = {"decision": "none", **fields}
+    none_decision = MechanicsAdjudicator._mechanics_decision_from_payload(
+        none_payload
+    )
+    clarification_payload = {
+        "decision": "clarification",
+        **fields,
+        "question": "¿Qué cerradura intentas abrir?",
+    }
+    clarification_decision = MechanicsAdjudicator._mechanics_decision_from_payload(
+        clarification_payload
+    )
+
+    assert none_decision.decision is MechanicsDecisionType.NONE
+    assert clarification_decision.decision is MechanicsDecisionType.CLARIFICATION
+    assert clarification_decision.question == "¿Qué cerradura intentas abrir?"
+
+
+@pytest.mark.parametrize(
+    ("decision", "skill", "ability"),
+    [
+        ("skill_check", "Atletismo", None),
+        ("ability_check", None, "FUE/CON"),
+    ],
+)
+def test_adjudicator_rejects_localized_or_explanatory_mechanics_identifiers(
+    decision, skill, ability
+):
+    payload = {
+        "decision": decision,
+        "question": None,
+        "dc": 15,
+        "advantage": False,
+        "disadvantage": False,
+        "modifier": 0,
+        "reason": "Prueba de contrato.",
+        "skill": skill,
+        "ability": ability,
+    }
+
+    with pytest.raises(ValueError):
+        MechanicsAdjudicator._mechanics_decision_from_payload(payload)
 
 
 def test_skill_check_is_typed():

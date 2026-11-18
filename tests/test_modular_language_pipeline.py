@@ -698,7 +698,10 @@ def test_mechanics_adjudicator_uses_only_active_validated_step_and_mechanics_sch
     assert decision.decision is MechanicsDecisionType.SKILL_CHECK
     assert decision.skill.value == "athletics"
     assert provider.call_count == 1
-    assert MECHANICS_ONLY_RESPONSE_SCHEMA["required"] == ["decision"]
+    assert MECHANICS_ONLY_RESPONSE_SCHEMA["required"] == [
+        "decision", "question", "dc", "advantage", "disadvantage",
+        "modifier", "reason", "skill", "ability",
+    ]
     assert "intent_analysis" not in MECHANICS_ONLY_RESPONSE_SCHEMA.get("properties", {})
     prompt = provider.prompts[0]
     assert "PASO ACTIVO VALIDADO" in prompt
