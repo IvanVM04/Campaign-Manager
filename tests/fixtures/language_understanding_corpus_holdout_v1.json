@@ -223,7 +223,7 @@
       "id": "holdout-negated-entry",
       "family": "negation_failure",
       "input": "Decido no entrar en la torre y permanezco fuera.",
-      "critical": false,
+      "critical": true,
       "expected": {
         "category": "action",
         "active_step_index": null,
