@@ -402,7 +402,6 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                       "aliases",
                   ),
         ),
-        ),
         _metadata("update_entity", UpdateEntityOperation,
                   reference_fields=("entity_id",),
                   example={"type": "update_entity", "entity_id": 12,
@@ -548,7 +547,6 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
         ),
         # Event provenance/visibility must be supplied by a trusted workflow;
         # LLM proposals cannot create canonical campaign history.
-        ),
         _metadata("create_event", CreateEventOperation,
                   reference_fields=("session_id",),
                   example={"type": "create_event", "event_id": "mercader_amenazado",
