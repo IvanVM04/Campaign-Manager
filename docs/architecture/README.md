@@ -6,7 +6,7 @@ This index separates active technical contracts from dated architecture proposal
 
 - [Current system state and architecture map — 2026-11-18](current-state-2026-11-18.md): current implementation shape, API/workflow, ownership, migration version, security, observed CI and unimplemented product requirements.
 - [Documentation freshness audit — 2026-11-18](documentation-audit-2026-11-18.md): stale statements, current-vs-historical classification and synchronized index work.
-- [Module catalogue — 2026-11-12](module-catalog-2026-11-12.md): package/module inventory and navigation. Use together with the 2026-11-18 current-state map.
+- [Shared-layer module catalogue — PR #205 snapshot](module-catalog-2026-11-12.md): useful navigation inventory for shared layers, not a current source audit. Verify current paths against source and the 2026-11-18 map.
 - [Change-impact map — 2026-11-12](change-impact-map-2026-11-12.md): cross-layer contracts, consumers and regression-test review.
 - [Capability package dependency matrix](package-dependency-matrix.md): enforceable dependency direction and process for approving new edges.
 - [Migration catalogue](migration-catalog-2026-11-12.md): active migration registry and schema version; the current application reports version 34.
