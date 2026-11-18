@@ -286,31 +286,21 @@ category="mixed" puede tener active_step_index distinto de null. Para
 question, dialogue, report, plan, correction o unknown, active_step_index
 debe ser null, aunque el mensaje mencione una acción, una intención futura o
 una acción citada. No conviertas una pregunta informativa en una acción
-mecánica activa. Un NPC nunca da órdenes en nombre del jugador. Una cita,
-rumor o inferencia no es un hecho confirmado. Si un personaje o fuente
-identificada afirma algo y en la misma oración añade una reserva epistémica
-sobre esa afirmación, conserva la atribución y marca como uncertain la
-proposición reportada; si el modelo separa la reserva en otro step, no pierdas
-la incertidumbre del contenido al que se refiere. No extiendas esa reserva a
-una acción del jugador que aparezca en una oración posterior. No conviertas
-el resultado deseado en resultado ocurrido.
-La negación y la incertidumbre tienen alcance por proposición y por hablante,
-no por frase completa: «no quiero/no voy a», «prefiero no», «me niego a» o
-«decido no» expresan abstención; «no consigo/no puedo abrir» comunica fracaso
-cuando describe un intento; «no sé si lo consigo» expresa incertidumbre sobre
-ese resultado. Una negación dentro de diálogo citado o discurso referido no es
-una decisión del jugador. Pero si aparece una nueva cláusula explícita del
-jugador («pero decido no...», «y prefiero no...»), atribúyela al jugador, no
-al hablante citado; una frase que solo confirma la abstención no es otro
-intento. No dejes que una duda sobre otro personaje/objeto
-cancele un intento positivo distinto. Si el modelo no separa una afirmación
-referida de una acción independiente del jugador dentro del mismo paso, pide
-aclaración: no atribuyas toda la frase al hablante ni actives la acción.
+mecánica activa. Un NPC nunca da órdenes en nombre del jugador. Una cita, rumor o inferencia no es un hecho confirmado. Una reserva
+epistémica sobre una afirmación reportada conserva su atribución e incertidumbre
+aunque el modelo la separe en otro step; no la propagues a acciones posteriores.
+El resultado deseado no es un resultado ocurrido.
+Distingue abstención («no quiero/no voy a», «prefiero no», «me niego a»,
+«decido no»), fracaso («no consigo/no puedo abrir», al describir un intento)
+e incertidumbre del resultado («no sé si lo consigo»). La negación citada o
+reportada no es decisión del jugador; una nueva cláusula explícita suya
+(«pero decido no...») sí se atribuye al jugador. Permanecer fuera solo confirma
+la abstención. Si reporte y acción no se separan en pasos, pide aclaración.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
-ambigüedad pide aclaración. Una petición implícitamente dirigida al DM puede
-ser question si solicita información; una duda comunicada sin petición es
-report. Respeta cambios de tema, hablante y alcance local
-de concordancia. No deduzcas género o identidad por un nombre propio.
+ambigüedad pide aclaración. Una petición implícitamente dirigida al DM es
+question si solicita información; una duda sin petición es report. Respeta
+cambios de tema, hablante y concordancia. No deduzcas género o identidad por
+un nombre propio.
 
 Reglas para clasificar el acto global y el hablante (no te guíes solo por el
 tiempo verbal ni por la presencia de una interrogativa subordinada):
@@ -346,32 +336,29 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   «cuando termine...» con un hipotético «si termina...».
 
 MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
-- actor identifica quién realiza el acto en la ficción, no quién escribe.
-  Un evento físico de un NPC es report (actor=npc); el habla de un NPC es
-  dialogue; hablar a un personaje es dialogue (actor=player); preguntar al
-  DM/narrador es question. Una interrogativa dirigida a un personaje sigue
-  siendo dialogue.
+- actor identifica quién realiza el acto en la ficción, no quién escribe:
+  NPC que habla = dialogue (actor=npc); evento físico de NPC = report;
+  jugador que habla a un personaje = dialogue (actor=player); pregunta al
+  DM/narrador = question. Si habla un NPC, el acto global es dialogue; una
+  interrogativa dirigida a un personaje sigue siendo dialogue.
 - Un predicado lingüístico (decir, preguntar, responder, contar, avisar) es
-  comunicación. No conviertas «Ella responde en voz alta» en acción del jugador;
-  es dialogue de NPC. «Ella entra en la sala» es report de NPC. «Ellas contestan
-  desde el balcón» conserva el grupo. «Le pregunto a Mara por el mapa» es
-  dialogue del jugador; «¿Quién habló?» es question al DM.
-- Distingue hablante, agente del contenido citado y destinatario: en «Mara
-  dice: “Aldric abre la puerta”», Mara es la fuente y Aldric el agente citado.
-  No conviertas una orden de NPC en una acción del jugador.
+  comunicación. Nunca action del jugador para el contenido que solo realiza
+  o cita un NPC. «Ella responde en voz alta» es dialogue de NPC; «Ella entra
+  en la sala» es report; «Ellas contestan desde el balcón» conserva el grupo;
+  «Le pregunto a Mara por el mapa» es dialogue del jugador; «¿Quién habló?»
+  es question al DM.
+- Distingue hablante, agente citado y destinatario: en «Mara dice: “Aldric
+  abre la puerta”», Mara es fuente y Aldric el agente citado.
 
 CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
-- Usa pronombres e historial solo para desambiguar significado cuando exista
-  antecedente único; conserva el grupo en plurales. Si hay varios antecedentes
-  compatibles, pide aclaración. No recuperes nombres como evidencia literal; no copies de ellos nombres
-propios del historial para rellenar el texto actual.
-- En callbacks prioriza el segmento histórico seleccionado que coincida con
-  el tema reabierto. «Hazlo otra vez» repite un intento solo con el antecedente
-  de jugador más reciente, único y pendiente; «continúa/sigue» requiere
-  continuidad inequívoca. No uses una etiqueta histórica de NPC para inferir
-  actor actual: no lo sustituyas por el nombre ni copies de ellos nombres
-  propios como evidencia literal. La evidencia sigue siendo exclusivamente
-  el mensaje actual.
+- Usa historial solo con antecedente único; conserva grupos plurales y pide
+  aclaración si hay varios. No recuperes nombres como evidencia: no copies de
+  ellos nombres propios del historial para rellenar la evidencia actual.
+- En callbacks prioriza el segmento histórico seleccionado. «Hazlo otra vez»
+  requiere el antecedente de jugador más reciente, único y pendiente;
+  «continúa/sigue» exige continuidad inequívoca. Una etiqueta histórica de NPC
+  no determina actor actual: no lo sustituyas por el nombre. La evidencia
+  sigue siendo exclusivamente el mensaje actual.
 
 SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
 - Crea un step separado para cada evento o acto con predicado y función
