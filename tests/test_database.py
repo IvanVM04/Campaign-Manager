@@ -84,3 +84,28 @@ def test_transaction_commits_on_success_and_rolls_back_on_error():
 def test_transaction_rejects_unsupported_modes(mode):
     with pytest.raises(ValueError, match="transaction mode"), transaction(mode):
         pytest.fail("invalid transaction mode must not open a transaction")
+
+
+
+def test_init_db_enables_persistent_wal_and_connection_integrity_pragmas():
+    from database import init_db
+
+    init_db()
+    with get_conn() as conn:
+        assert conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 10_000
+
+
+def test_get_conn_rolls_back_when_connection_body_raises():
+    with pytest.raises(RuntimeError, match="abort connection"):
+        with get_conn() as conn:
+            conn.execute("CREATE TABLE connection_rollback_probe (value TEXT)")
+            raise RuntimeError("abort connection")
+
+    with get_conn() as conn:
+        table = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            ("connection_rollback_probe",),
+        ).fetchone()
+    assert table is None

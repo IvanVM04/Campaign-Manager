@@ -1,7 +1,7 @@
 # Auditoría actual y hoja de ruta de calidad
 
 **Fecha:** 2026-11-18  
-**Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (última PR con cambios de producción: #255).  
+**Baseline de código:** main — ae52afcf9c172514a5d119fe301de11255f08091 (PR #261; implementación integrada antes de esta línea de trabajo).  
 **Baseline documental:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
@@ -31,12 +31,12 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 
 ### 2.1 GitHub y CI
 
-PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255) está fusionada en `main` desde el 2026-11-18.
+Las PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255), [#260](https://github.com/IvanVM04/Campaign-Manager/pull/260) y [#261](https://github.com/IvanVM04/Campaign-Manager/pull/261) están fusionadas en `main` desde el 2026-11-18.
 
 | Check | Resultado observado |
 |---|---|
 | Python determinista | **2042 passed, 22 deselected** |
-| Cobertura combinada | **85,14 %** (gate configurado: 85 %) |
+| Cobertura combinada | **85,18 %** (gate configurado: 85 %) |
 | Ruff | Correcto |
 | Tests JavaScript | Correctos |
 | Pyright obligatorio (models/rules_engine/bootstrap/operations) | Correcto |
@@ -44,7 +44,7 @@ PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255) está fusionada
 | CI summary | Correcto |
 | CodeQL Python + JavaScript | Correcto |
 
-Evidencia más reciente: [Tests run #44270598043](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598043) y [CodeQL run #44270598070](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598070), ambos sobre el commit documental `4a3a2549...` posterior a PR #257. El job de tests informa 2.042 passed, 22 deselected y 85,14 % combinado; Ruff, ambos Pyright, JavaScript y CI summary pasan. CodeQL completa correctamente. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
+Evidencia más reciente: [Tests run #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598043) y [CodeQL run #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598070), ambos sobre el commit documental `4a3a2549...` posterior a PR #257. El job de tests informa 2.050 passed, 22 deselected y 85,14 % combinado; Ruff, ambos Pyright, JavaScript y CI summary pasan. CodeQL completa correctamente. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
 
 La cobertura combinada está apenas por encima del mínimo. La línea de cobertura es alta, pero la cobertura de ramas global es menor; no se recomienda perseguir un porcentaje arbitrario. Se deben priorizar ramas de riesgo: rollback/commit, fencing y recuperación, revisión de campaña, errores de proveedor, clarificaciones, tiradas manuales, visibilidad y conflictos de identidad.
 
@@ -317,3 +317,16 @@ Trabajo de UX/entrega:
 ## 7. Regla de actualización
 
 Este archivo es la hoja de ruta vigente. Al cerrar una fase, actualizar su estado y evidencia en este documento. Los informes con fecha anterior permanecen como snapshots históricos: no reescribirlos para que parezca que las correcciones posteriores ya existían cuando se hicieron aquellos análisis.
+
+
+### Trabajo de ingeniería previo a la aceptación live
+
+La imposibilidad temporal de ejecutar Ollama no bloquea las mejoras de persistencia, arquitectura ni mantenimiento. Antes de la siguiente aceptación local se puede completar:
+
+- Backup online consistente y verificación de integridad de SQLite.
+- Restauración offline, con versión de esquema compatible y copia de seguridad previa automática.
+- Pruebas deterministas de WAL, backup, restauración, foreign keys y ciclo de vida de FastAPI.
+- Eliminación de exportaciones/helpers no consumidos y modernización del lifespan.
+- Revisión de dependencias/lockfile y supply chain en una fase separada.
+
+Este trabajo no sustituye la Fase 1 live ni autoriza a retocar prompts para resultados que aún no han sido medidos.

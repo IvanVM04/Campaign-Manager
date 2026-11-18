@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,27 +16,35 @@ from api.routers.effects import router as effects_router
 from api.routers.integration import router as integration_router
 from api.routers.memory import router as memory_router
 from api.routers.system import router as system_router
-from api.routers.turns import _serialize_mechanics_result
 from api.routers.turns import router as turns_router
 from api.routers.world import router as world_router
 from api.runtime_context import bind_current_runtime
 from bootstrap.campaign_runtime import CampaignRuntimeFactory
-from database import init_db
 from observability import configure_logging
 from observability.middleware import RequestObservabilityMiddleware
-from services.context import ContextBuilder, MemorySearchService
 from services.providers import LLMSettings
-from services.world import WorldService
 
 configure_logging()
+
+DEFAULT_LLM_SETTINGS = LLMSettings.from_env()
+runtime_factory = CampaignRuntimeFactory(llm_settings=DEFAULT_LLM_SETTINGS)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Release process-local campaign runtimes when the API shuts down."""
+    try:
+        yield
+    finally:
+        runtime_factory.shutdown()
+
 
 app = FastAPI(
     title="D&D Campaign Manager",
     version="0.1.0",
+    lifespan=lifespan,
 )
 register_error_handlers(app)
-
-DEFAULT_LLM_SETTINGS = LLMSettings.from_env()
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,37 +57,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-
-
-def create_world_service() -> WorldService:
-    """Create a WorldService and load its persisted WorldState."""
-    init_db()
-    service = WorldService()
-    service.load()
-    return service
-
-
-def create_context_builder(
-    memory_search_service: MemorySearchService,
-) -> ContextBuilder:
-    """Build the shared ContextBuilder for the supplied memory service."""
-    if not isinstance(memory_search_service, MemorySearchService):
-        raise TypeError(
-            "memory_search_service must be a MemorySearchService"
-        )
-
-    return ContextBuilder(
-        memory_search_service=memory_search_service,
-    )
-
-
-runtime_factory = CampaignRuntimeFactory(llm_settings=DEFAULT_LLM_SETTINGS)
-
-
-@app.on_event("shutdown")
-def shutdown_campaign_runtimes() -> None:
-    """Libera el estado en memoria asociado a las campañas."""
-    runtime_factory.shutdown()
 
 
 @app.middleware("http")
@@ -125,7 +105,6 @@ async def bind_campaign_runtime(request: Request, call_next):
 # Registered last so the request context wraps campaign selection and error handling.
 app.add_middleware(RequestObservabilityMiddleware)
 
-
 app.include_router(system_router)
 app.include_router(campaign_router)
 app.include_router(turns_router)
@@ -140,9 +119,6 @@ app.include_router(clock_router)
 
 
 __all__ = [
-    "_serialize_mechanics_result",
     "app",
-    "create_context_builder",
-    "create_world_service",
     "runtime_factory",
 ]

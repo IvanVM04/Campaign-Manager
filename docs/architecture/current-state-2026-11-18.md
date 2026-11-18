@@ -1,6 +1,6 @@
 # Estado actual y mapa de arquitectura — 2026-11-18
 
-**Baseline documental auditado:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
+**Baseline de código auditado:** main — ae52afcf9c172514a5d119fe301de11255f08091 (PR #261 fusionada; baseline previo a esta actualización).  
 **Último baseline de código:** `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255); las PR #256 y #257 actualizaron documentación, no el comportamiento de producción.  
 **Método:** inspección estática del árbol, contratos, routers, migraciones, guías de paquetes, índices y evidencias de CI. No es una certificación de una sesión local de Ollama/SillyTavern.
 
@@ -142,3 +142,11 @@ Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión re
 - [Matriz de dependencias](package-dependency-matrix.md), [catálogo de migraciones](migration-catalog-2026-11-12.md) y [observabilidad](observability-and-diagnostics.md).
 - [Hub documental](../README.md), [README de proyecto](../../README.md) y [guías de paquetes](../../services/).
 
+
+
+## 11. Mantenimiento y ciclo de vida de la aplicación
+
+- FastAPI libera los runtimes de campaña mediante el contrato lifespan, evitando el hook de apagado obsoleto.
+- Los helpers de construcción no utilizados que estaban exportados accidentalmente desde app.py se han retirado. El serializador de mecánicas sigue perteneciendo al router de turnos y ya no se reexporta desde el módulo de composición.
+- Las operaciones de backup/restore son herramientas offline, no endpoints HTTP. No se debe restaurar una base mientras el servidor está activo.
+- La guía operativa se encuentra en [SQLite maintenance and recovery](sqlite-maintenance-and-recovery.md).
