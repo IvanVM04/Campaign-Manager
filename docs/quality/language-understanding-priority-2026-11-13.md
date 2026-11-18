@@ -1,3 +1,5 @@
+> **Historical priority specification — 2026-11-13.** Its P0 priority register predates the modular pipeline, the subsequent semantic/discourse evaluation work and PR #255. It is retained for rationale only; use the [current quality roadmap](quality-roadmap-2026-11-18.md) for present work order.
+
 # P0 — Shared natural-language understanding and intent resolution
 
 **Priority:** P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability  
