@@ -225,6 +225,128 @@ def test_explicit_suspicion_is_uncertain_and_not_actionable():
     assert "explicit_epistemic_uncertainty" in summary.applied_rules
 
 
+@pytest.mark.parametrize(
+    ("source", "first_excerpt", "second_excerpt"),
+    [
+        (
+            "Una exploradora asegura que encontró señales al norte, aunque no recuerda si eran recientes.",
+            "encontró señales al norte",
+            "aunque no recuerda si eran recientes",
+        ),
+        (
+            "Un cartógrafo afirma que la senda termina junto al río, pero ignora si el puente sigue en pie.",
+            "la senda termina junto al río",
+            "pero ignora si el puente sigue en pie",
+        ),
+    ],
+)
+def test_reported_speaker_and_uncertainty_scope_across_split_steps(
+    source, first_excerpt, second_excerpt
+):
+    first = _step(first_excerpt, actor="player", modality="attempted")
+    second = dict(_step(second_excerpt, actor="player", modality="attempted"), index=1)
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "other"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][0]["attributed_to"] in {
+        "Una exploradora",
+        "Un cartógrafo",
+    }
+    assert normalized["steps"][1]["actor"] == "other"
+    assert normalized["steps"][1]["modality"] == "reported"
+    assert normalized["steps"][1]["polarity"] == "uncertain"
+    assert "explicit_reported_clause_uncertainty" in summary.applied_rules
+
+
+def test_reported_uncertainty_does_not_capture_a_later_player_action():
+    source = (
+        "Una exploradora asegura que encontró señales al norte, "
+        "aunque no recuerda si eran recientes. Después intento seguir el rastro."
+    )
+    first = _step("encontró señales al norte", actor="player", modality="attempted")
+    second = dict(
+        _step("aunque no recuerda si eran recientes", actor="player", modality="attempted"),
+        index=1,
+    )
+    third = dict(
+        _step("Después intento seguir el rastro", actor="player", modality="attempted"),
+        index=2,
+    )
+
+    normalized, _ = normalize_intent_surface_payload(
+        _payload(first, second, third, category="action", active=2),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 2
+    assert normalized["steps"][0]["attributed_to"] == "Una exploradora"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][2]["actor"] == "player"
+    assert normalized["steps"][2]["modality"] == "attempted"
+    assert normalized["steps"][2]["polarity"] == "positive"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Decido no entrar en la fortaleza y permanezco fuera.",
+        "He decidido no cruzar el puente y me quedo al exterior.",
+    ],
+)
+def test_explicit_decision_not_to_act_absorbs_abstention_state(source):
+    first = _step(source.split(" y ")[0], modality="attempted", outcome="uncertain")
+    continuation_text = source.split(" y ", 1)[1]
+    second = dict(
+        _step(continuation_text, modality="attempted", outcome="uncertain"),
+        index=1,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][0]["source_excerpt"] == source
+    assert "explicit_decision_not_to_act" in summary.applied_rules
+    assert "explicit_abstention_state_collapsed" in summary.applied_rules
+
+
+def test_explicit_decision_does_not_cancel_a_distinct_later_player_attempt():
+    source = "Decido no entrar en la fortaleza y después intento abrir la puerta."
+    first = _step("Decido no entrar en la fortaleza", modality="attempted")
+    second = dict(
+        _step("después intento abrir la puerta", modality="attempted"),
+        index=1,
+    )
+
+    normalized, _ = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 1
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][1]["modality"] == "attempted"
+    assert normalized["steps"][1]["polarity"] == "positive"
+
+
 def test_explicit_no_era_sino_correction_is_not_a_new_action():
     source = "No era el mapa viejo, sino el pergamino sellado."
     payload = _payload(_step(source), active=0)
