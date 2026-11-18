@@ -587,3 +587,22 @@ def test_negative_polarity_on_an_attempt_is_not_overwritten():
     assert normalized["steps"][0]["polarity"] == "negative"
     assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
     assert "unreported_attempt_outcome" not in summary.applied_rules
+
+
+
+def test_attempt_normalization_does_not_invent_an_active_step_pointer():
+    source = "Intento accionar la palanca de bronce."
+    payload = _payload(
+        _step(source, modality="attempted", outcome="uncertain"),
+        category="action",
+        active=None,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "unreported_attempt_outcome" in summary.applied_rules

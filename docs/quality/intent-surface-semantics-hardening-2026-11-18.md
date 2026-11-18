@@ -70,6 +70,8 @@ operations for that failed action.
   inferred by these normalizers.
 - No model/provider calls are added.
 - Explicit epistemic language is not collapsed into `not_claimed`.
+- The outcome repair does not invent an active-step pointer or grant
+  mechanical authorization when the model left that pointer unset.
 - Explicitly refused attempts are not reclassified as positive attempts.
 - A completed first action is inferred only when a first-person present-tense
   predicate, two ordered literal excerpts and an explicit sequence linker
