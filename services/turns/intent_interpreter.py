@@ -307,7 +307,9 @@ cancele un intento positivo distinto. Si el modelo no separa una afirmación
 referida de una acción independiente del jugador dentro del mismo paso, pide
 aclaración: no atribuyas toda la frase al hablante ni actives la acción.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
-ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
+ambigüedad pide aclaración. Una petición implícitamente dirigida al DM puede
+ser question si solicita información; una duda comunicada sin petición es
+report. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
 
 Reglas para clasificar el acto global y el hablante (no te guíes solo por el
@@ -316,8 +318,9 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   jugador; el paso activo debe tener actor="player" y modality="attempted".
 - category="dialogue" cuando el centro es un acto de comunicación dentro de la
   ficción: el jugador pregunta, dice, cuenta o responde a un personaje, o un
-  personaje habla, susurra, pregunta o responde. Usa actor="npc" cuando el
-  personaje sea quien habla. Una pregunta indirecta dirigida a un personaje
+  personaje habla, susurra, pregunta o responde. Si habla un NPC, el acto
+  global es dialogue; usa actor="npc" cuando el personaje sea quien habla.
+  Nunca action del jugador para el contenido que solo realiza o cita un NPC. Una pregunta indirecta dirigida a un personaje
   sigue siendo dialogue, no question. Ejemplo: «Le consulto a la guardia si
   vio pasar al mensajero» es dialogue y su action_frame.family es
   communication.
@@ -360,7 +363,8 @@ MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
 CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
 - Usa pronombres e historial solo para desambiguar significado cuando exista
   antecedente único; conserva el grupo en plurales. Si hay varios antecedentes
-  compatibles, pide aclaración. No recuperes nombres como evidencia literal.
+  compatibles, pide aclaración. No recuperes nombres como evidencia literal; no copies de ellos nombres
+propios del historial para rellenar el texto actual.
 - En callbacks prioriza el segmento histórico seleccionado que coincida con
   el tema reabierto. «Hazlo otra vez» repite un intento solo con el antecedente
   de jugador más reciente, único y pendiente; «continúa/sigue» requiere
