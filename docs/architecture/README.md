@@ -29,7 +29,8 @@ Prefer these contracts for current implementation work.
 - [Durable narration lifecycle](durable-narration-lifecycle.md): native and external narration completion after consequence commit.
 - [SillyTavern adapter boundary](sillytavern-adapter-boundary-2026-11-12.md): read-only context/transcript adaptation and composition-root ownership.
 - [SillyTavern durable adapter](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete, retry, regeneration and chat isolation.
-- [SQLite transaction ownership](sqlite-transaction-ownership.md): caller-owned transaction and repository connection rules.\n- [SQLite maintenance and recovery](sqlite-maintenance-and-recovery.md): offline integrity checks, WAL-aware backups and guarded restoration.
+- [SQLite transaction ownership](sqlite-transaction-ownership.md): caller-owned transaction and repository connection rules.
+- [SQLite maintenance and recovery](sqlite-maintenance-and-recovery.md): offline integrity checks, WAL-aware backups and guarded restoration.
 - [Campaign state revisions](campaign-state-revisions.md): optimistic revision and mutation-trigger rules.
 - [World applier boundaries](world-applier-boundaries.md): world-operation application ownership and mutation invariants.
 - [API error contract](api-error-contract.md): stable transport error envelope and safe diagnostics.
