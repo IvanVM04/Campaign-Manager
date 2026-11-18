@@ -1,5 +1,8 @@
 # Architecture and modularity audit — 2026-11-12
 
+> **Historical audit (2026-11-12):** findings and priorities below refer to the PR #205 / #216 era and are not the current implementation baseline. Use [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md) and [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md). Do not reuse old PR #215–#219 next-step guidance as current.
+
+
 **Repository:** IvanVM04/Campaign-Manager  
 **Baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged). PRs #198–#202 retired legacy paths and hardened core boundaries; #203 added runtime lifecycle shutdown/invalidation and provider contract hardening; #204 added effect-aware combat, Hit Dice and rests; #205 reorganized tests by observable contract.  
 **Scope:** capability boundaries, durable turn workflow, LLM proposals, SillyTavern integration, snapshot migration and next structural hotspots.

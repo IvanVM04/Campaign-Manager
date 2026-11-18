@@ -1,5 +1,8 @@
 # Modular language-understanding pipeline — P0 architecture decision
 
+> **Implementation decision snapshot (2026-11-14):** the modular pipeline specified here was integrated by subsequent PRs. Use [services/turns README](../../services/turns/README.md), [current architecture map](../architecture/architecture-map-2026-11-18.md) and [quality roadmap](quality-roadmap-2026-11-18.md) for current code and remaining acceptance.
+
+
 **Status:** PR #225 merged at `e59bc47e85edb8efa4d02e5eb9990de0438d3486`. PR #226 remains open in draft on `feat/226-integrated-llm-pipeline-hardening`; its latest fully validated head before this documentation/allowlist update passed 1,826 tests (17 deselected), 85.13% combined coverage, Ruff, both Pyright scopes, JavaScript and CodeQL. Live Ollama and manual SillyTavern acceptance remain separate pending gates.  
 **Priority:** P0 / Priority #1 — blocks additional semantic feature work until the pipeline and prompt-budget contracts are reliable.  
 **Decision date:** 2026-11-14.  

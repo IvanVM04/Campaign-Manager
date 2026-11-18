@@ -1,5 +1,8 @@
 # P0 — Shared natural-language understanding and intent resolution
 
+> **Completed priority snapshot (2026-11-13):** the modular shared language pipeline described here is now implemented through subsequent PRs, including #226 and later discourse/compound-intent work through #255. Use [quality-roadmap-2026-11-18.md](quality-roadmap-2026-11-18.md) for remaining current tasks.
+
+
 **Priority:** P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability  
 **Integrated foundation:** PRs #215–#223 are merged into `main`. Current baseline: `7f4f8b10a072665471370fab4493a338835b875c` (2026-11-14).
 **Next step:** implement [the modular language-understanding pipeline](modular-language-understanding-pipeline-2026-11-14.md). This is the first P0 deliverable and blocks further semantic feature work. After deterministic architecture/regression gates pass, rerun the live Ollama baseline, add #223 held-out coverage and complete SillyTavern acceptance.

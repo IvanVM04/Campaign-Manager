@@ -1,5 +1,8 @@
 # CI quality roadmap
 
+> **Historical quality rollout snapshot:** the coverage and Pyright metrics below refer to earlier CI baselines. For current checks, required gates and the latest recorded code evidence, use [quality-roadmap-2026-11-18.md](quality-roadmap-2026-11-18.md).
+
+
 ## Workflow checks vs merge enforcement
 
 The active default-branch ruleset requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. The aggregate CI summary includes deterministic Python tests, Ruff, repository-wide Pyright and JavaScript tests; CodeQL language analyses are independently required. This supersedes the earlier empty-ruleset finding in older audit snapshots. See [the CI audit](ci-audit-2026-11-11.md).

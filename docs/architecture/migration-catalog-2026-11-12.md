@@ -1,6 +1,7 @@
 # Migration catalogue
 
-**Current schema version:** 34  
+**Verified:** 2026-11-18 against code baseline `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255); documentation-only PRs #256/#257 do not alter the schema.  
+**Current schema version:** 34 (`CURRENT_VERSION = 34`)  
 **Execution registry:** `MIGRATIONS` in `migrations.py`  
 **Historical source:** the numbered `migration_NNN` functions remain in their existing chronological order in `migrations.py`.
 
@@ -60,7 +61,7 @@ Migration 034 adds nullable `conversation_id` columns to `turns` and `turn_resol
 
 ## Future migration checklist
 
-1. Add `migration_034` (or the next sequential version) without editing earlier migration functions.
+1. Add `migration_035` (the next sequential version at this verification baseline) without editing earlier migration functions.
 2. Add one `MigrationDefinition` at the end of `MIGRATIONS` and update `CURRENT_VERSION`.
 3. Test upgrade from a relevant prior schema, old-data preservation, foreign keys and idempotency where appropriate.
 4. Keep fresh-database initialization green and update this catalogue.

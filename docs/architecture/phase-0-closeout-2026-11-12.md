@@ -1,5 +1,8 @@
 # Phase 0 — architecture closeout and hand-off
 
+> **Historical closeout (2026-11-12):** this records the earlier architecture phase and must not be used as the current gameplay/AI priority list. See [current architecture audit](architecture-audit-2026-11-18.md) and [quality roadmap](../quality/quality-roadmap-2026-11-18.md).
+
+
 **Scope:** local, single-player, single-process modular monolith.  
 **Verified baseline:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged, 2026-11-12).
 
