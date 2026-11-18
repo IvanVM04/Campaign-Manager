@@ -729,7 +729,15 @@ def normalize_intent_surface_payload(
                 _FIRST_PERSON_ACTIVE_CLAUSE_RE.match(excerpt) is not None
                 or _FIRST_PERSON_PRESENT_RE.match(excerpt) is not None
             )
-            if follows_independent_linker and begins_player_action:
+            excerpt_starts_player_clause = re.match(
+                r"^\s*(?:y|pero|entonces|después|despues|luego)\s+",
+                excerpt,
+                re.IGNORECASE,
+            ) is not None
+            if (
+                begins_player_action
+                and (follows_independent_linker or excerpt_starts_player_clause)
+            ):
                 continue
             if (
                 start < scope_end
