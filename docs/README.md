@@ -16,7 +16,7 @@ Read these first. They describe the current product target, source-verified impl
 ## Current architecture and package navigation
 
 - [Architecture index](architecture/README.md) — active architecture contracts, package boundaries and historical snapshots.
-- [Shared-layer module catalogue](architecture/module-catalog-2026-11-12.md) — module ownership and test navigation; consult alongside the 2026-11-18 current-state map.
+- [Shared-layer module catalogue — dated PR #205 inventory](architecture/module-catalog-2026-11-12.md) — useful navigation aid for shared layers; individual paths/notes are not a fresh 2026-11-18 audit, so verify against source and the current-state map.
 - [Change-impact map](architecture/change-impact-map-2026-11-12.md) — contracts and tests to review for cross-layer changes.
 - [Capability dependency matrix](architecture/package-dependency-matrix.md) — dependency direction enforced by architecture tests.
 - [Migration catalogue](architecture/migration-catalog-2026-11-12.md) — migration registry and schema version. The current code baseline has `CURRENT_VERSION = 34`.
