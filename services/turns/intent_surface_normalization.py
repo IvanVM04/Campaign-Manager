@@ -711,6 +711,7 @@ def normalize_intent_surface_payload(
         )
         folded_evidence = evidence.casefold()
         reported_indices: list[int] = []
+        reported_excerpt_ends: dict[int, int] = {}
         for index, step in enumerate(steps):
             excerpt = step.get("source_excerpt")
             if not isinstance(excerpt, str) or not excerpt.strip():
@@ -746,6 +747,7 @@ def normalize_intent_surface_payload(
                 and (len(evidence) <= 300 or _fold(speaker) in _fold(excerpt))
             ):
                 reported_indices.append(index)
+                reported_excerpt_ends[index] = end
 
         if reported_indices:
             reported_scope = evidence[body_start:scope_end]
@@ -759,7 +761,11 @@ def normalize_intent_surface_payload(
                 step["attributed_to"] = speaker
                 if scope_is_uncertain:
                     step["polarity"] = "uncertain"
-                _widen_report_excerpt(step, evidence, end)
+                _widen_report_excerpt(
+                    step,
+                    evidence,
+                    reported_excerpt_ends[index],
+                )
             rules.append("explicit_reported_speaker")
             if scope_is_uncertain:
                 rules.append("explicit_reported_clause_uncertainty")
