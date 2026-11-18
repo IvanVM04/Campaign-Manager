@@ -107,7 +107,8 @@ def test_adjudicator_parses_complete_nullable_none_and_clarification():
     )
     clarification_payload = {
         "decision": "clarification",
-        **{**fields, "question": "¿Qué cerradura intentas abrir?"},
+        **fields,
+        "question": "¿Qué cerradura intentas abrir?",
     }
     clarification_decision = MechanicsAdjudicator._mechanics_decision_from_payload(
         clarification_payload
