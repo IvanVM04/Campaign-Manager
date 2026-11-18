@@ -128,6 +128,16 @@ _REPORTED_SPEAKER_RE = re.compile(
     r"\s+que\b",
     re.IGNORECASE,
 )
+_EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
+    r"\b(?:(?:yo\s+)?decid(?:o|í|imos)|he\s+decidido|hemos\s+decidido)"
+    r"\s+no\s+(?P<verb>[\wáéíóúüñ]+?(?:ar|er|ir))\b",
+    re.IGNORECASE,
+)
+_ABSTENTION_STATE_RE = re.compile(
+    r"\b(?:y\s+)?(?:permanezco|me\s+quedo|me\s+mantengo)\s+"
+    r"(?:fuera|afuera|al\s+exterior)\b",
+    re.IGNORECASE,
+)
 
 
 def _fold(value: str) -> str:
@@ -284,10 +294,88 @@ def normalize_intent_surface_payload(
         rules.append("explicit_observation_before_attempt")
 
 
-    # An explicitly refused/negated attempt is resolved and non-actionable.
-    if len(steps) == 1 and (
-        _NEGATED_ATTEMPT_RE.search(evidence)
-        or _ATTEMPT_NEGATES_ACTION_RE.search(evidence)
+    # A first-person decision not to perform an infinitive is an explicit
+    # negation even when the model split its supporting state description into
+    # a second step. Fold only a literal abstention continuation; preserve any
+    # genuinely distinct later player action as a separate step.
+    decision_match = _EXPLICIT_DECISION_NOT_TO_ACT_RE.search(evidence)
+    if decision_match is not None and not normalized.get("relation_claims"):
+        folded_evidence = evidence.casefold()
+        decision_index = None
+        for index, step in enumerate(steps):
+            excerpt = step.get("source_excerpt")
+            if not isinstance(excerpt, str) or not excerpt.strip():
+                continue
+            start = folded_evidence.find(excerpt.casefold())
+            if start < 0:
+                continue
+            end = start + len(excerpt)
+            if start <= decision_match.end() and end >= decision_match.start():
+                decision_index = index
+                break
+        if decision_index is None and len(steps) == 1:
+            decision_index = 0
+
+        if decision_index is not None:
+            decision_step = steps[decision_index]
+            decision_step["actor"] = "player"
+            decision_step["modality"] = "negated"
+            decision_step["polarity"] = "negative"
+            decision_step["reported_outcome"] = "not_claimed"
+            _widen_excerpt(decision_step, evidence)
+            rules.append("explicit_decision_not_to_act")
+
+            continuation_spans = [
+                match.span() for match in _ABSTENTION_STATE_RE.finditer(evidence)
+            ]
+            continuation_indices: set[int] = set()
+            for index, step in enumerate(steps):
+                if index == decision_index:
+                    continue
+                excerpt = step.get("source_excerpt")
+                if not isinstance(excerpt, str) or not excerpt.strip():
+                    continue
+                start = folded_evidence.find(excerpt.casefold())
+                if start < 0:
+                    continue
+                end = start + len(excerpt)
+                if any(start < span_end and end > span_start for span_start, span_end in continuation_spans):
+                    continuation_indices.add(index)
+
+            other_indices = set(range(len(steps))) - {decision_index}
+            if (
+                len(steps) > 1
+                and continuation_indices == other_indices
+                and continuation_spans
+            ):
+                decision_step["index"] = 0
+                steps = [decision_step]
+                normalized["category"] = "action"
+                normalized["active_step_index"] = None
+                rules.append("explicit_abstention_state_collapsed")
+            elif normalized.get("active_step_index") == decision_index:
+                normalized["active_step_index"] = None
+                if any(
+                    step.get("actor") == "player"
+                    and step.get("modality") == "attempted"
+                    and step.get("polarity") == "positive"
+                    for index, step in enumerate(steps)
+                    if index != decision_index
+                ):
+                    normalized["category"] = "mixed"
+            elif len(steps) == 1:
+                normalized["category"] = "action"
+                normalized["active_step_index"] = None
+
+    # Existing refusal constructions remain supported, but must not reprocess
+    # the broader explicit-decision pattern handled above.
+    if (
+        len(steps) == 1
+        and decision_match is None
+        and (
+            _NEGATED_ATTEMPT_RE.search(evidence)
+            or _ATTEMPT_NEGATES_ACTION_RE.search(evidence)
+        )
     ):
         step = steps[0]
         step["actor"] = "player"
@@ -480,20 +568,68 @@ def normalize_intent_surface_payload(
                 rules.append("literal_correction_predicate_repaired")
         rules.append("explicit_surface_correction")
 
-    # Attribute a report only when speaker and reporting predicate are a
-    # literal prefix of current player-authored evidence.
+    # Attribute every step inside one literal reported clause, not just
+    # single-step model responses. A same-sentence epistemic caveat scopes over
+    # the reported proposition even when the model emitted it as a separate
+    # step. A later sentence remains independent.
     speaker_match = _REPORTED_SPEAKER_RE.search(evidence)
-    if len(steps) == 1 and speaker_match is not None:
-        step = steps[0]
+    if speaker_match is not None:
         speaker = speaker_match.group("speaker").strip()
         indefinite = _fold(speaker).startswith(("un ", "una "))
-        step["actor"] = "other" if indefinite else "npc"
-        step["modality"] = "reported"
-        step["attributed_to"] = speaker
-        _widen_excerpt(step, evidence)
-        normalized["category"] = "report"
-        normalized["active_step_index"] = None
-        rules.append("explicit_reported_speaker")
+        body_start = speaker_match.end()
+        sentence_end_match = re.search(r"[.!?](?:[»”\\"']?)(?=\\s|$)", evidence[body_start:])
+        scope_end = (
+            body_start + sentence_end_match.start() + 1
+            if sentence_end_match is not None
+            else len(evidence)
+        )
+        folded_evidence = evidence.casefold()
+        reported_indices: list[int] = []
+        for index, step in enumerate(steps):
+            excerpt = step.get("source_excerpt")
+            if not isinstance(excerpt, str) or not excerpt.strip():
+                continue
+            start = folded_evidence.find(excerpt.casefold())
+            if start < 0:
+                continue
+            end = start + len(excerpt)
+            if start < scope_end and end > body_start and end <= scope_end:
+                reported_indices.append(index)
+
+        if reported_indices:
+            reported_scope = evidence[body_start:scope_end]
+            scope_is_uncertain = (
+                _EPISTEMIC_UNCERTAINTY_RE.search(reported_scope) is not None
+            )
+            for index in reported_indices:
+                step = steps[index]
+                step["actor"] = "other" if indefinite else "npc"
+                step["modality"] = "reported"
+                step["attributed_to"] = speaker
+                if scope_is_uncertain:
+                    step["polarity"] = "uncertain"
+                _widen_excerpt(step, evidence)
+            rules.append("explicit_reported_speaker")
+            if scope_is_uncertain:
+                rules.append("explicit_reported_clause_uncertainty")
+
+            if len(reported_indices) == len(steps):
+                normalized["category"] = "report"
+                normalized["active_step_index"] = None
+            elif normalized.get("category") == "action":
+                normalized["category"] = "mixed"
+                if normalized.get("active_step_index") in reported_indices:
+                    normalized["active_step_index"] = next(
+                        (
+                            index
+                            for index, step in enumerate(steps)
+                            if index not in reported_indices
+                            and step.get("actor") == "player"
+                            and step.get("modality") == "attempted"
+                            and step.get("polarity") == "positive"
+                        ),
+                        None,
+                    )
 
     # Epistemic markers express uncertainty, not positive world knowledge.
     if (
