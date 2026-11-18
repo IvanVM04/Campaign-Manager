@@ -41,7 +41,11 @@ def test_compound_corpus_does_not_duplicate_existing_held_out_inputs():
     for filename in EXISTING_HELD_OUT:
         payload = json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
         for scenario in payload["scenarios"]:
-            utterance = scenario.get("input") or scenario.get("utterance")
+            utterance = (
+                scenario.get("input")
+                or scenario.get("utterance")
+                or scenario.get("player_input")
+            )
             if isinstance(utterance, str):
                 existing_inputs.add(" ".join(utterance.casefold().split()))
 
@@ -160,3 +164,36 @@ def test_compound_report_persists_aggregate_numbers_only():
     assert "SECRET COMPLETION" not in serialized
     assert "untrusted provider supplied text" not in serialized
     assert report["provider_usage_totals"]["prompt_eval_count_total"] == 42
+
+
+
+def test_compound_evaluator_scores_null_active_step_as_a_real_gold_value():
+    scenarios, gold = load_compound_intent_corpus()
+    scenario = next(item for item in scenarios if item["id"] == "compound-intent-05")
+    labels = gold[scenario["id"]]
+    fake = SimpleNamespace(
+        category=SimpleNamespace(value="dialogue"),
+        active_step_index=None,
+        steps=tuple(
+            SimpleNamespace(
+                actor=SimpleNamespace(value="npc"),
+                modality=SimpleNamespace(value="dialogue"),
+                polarity=SimpleNamespace(value="positive"),
+            )
+            for _ in labels
+        ),
+    )
+    ledger = SemanticEvaluationLedger()
+    failures, matched, expected = score_compound_intent_analysis(
+        fake,
+        expected=scenario["expected"],
+        step_gold=labels,
+        family=scenario["family"],
+        ledger=ledger,
+    )
+
+    assert failures == ()
+    assert matched == expected
+    assert ledger.summary()["semantic_slot_quality"][
+        "compound_active_step_index:multi_npc_dialogue"
+    ]["f1"] == 1.0

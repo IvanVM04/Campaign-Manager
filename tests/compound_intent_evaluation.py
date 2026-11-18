@@ -149,7 +149,7 @@ def score_compound_intent_analysis(
         ledger.record_semantic_slots(
             f"compound_{field}:{family}",
             expected_slots=(f"{field}:{wanted!s}",),
-            predicted_slots=(f"{field}:{observed!s}",) if observed is not None else (),
+            predicted_slots=(f"{field}:{observed!s}",),
         )
 
     fields = ("actor", "modality", "polarity")
