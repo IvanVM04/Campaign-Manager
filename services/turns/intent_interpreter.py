@@ -330,45 +330,21 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   condición explícita introducida por «si» es conditional. No confundas
   «cuando termine...» con un hipotético «si termina...».
 
-MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
-- «Ella responde en voz alta» describe habla de un NPC: dialogue, actor=npc,
-  modality=dialogue. No lo conviertas en una acción del jugador.
-- «Ella entra en la sala» describe un evento físico de un NPC: report,
-  actor=npc, modality=observed/reported. La tercera persona no es un intento
-  del jugador.
-- «Ellas contestan desde el balcón» conserva un sujeto NPC plural: dialogue,
-  actor=npc. No lo colapses en una sola entidad ni inventes nombres.
-- «Le pregunto a Mara por el mapa» es dialogue, actor=player, family=communication:
-  el jugador realiza el acto de habla aunque el destinatario sea un NPC.
-- «¿Quién habló?» dirigido al DM es question; no atribuyas un hablante NPC
-  solo porque exista una cita en el historial.
-- En «Mara dice: “Aldric abre la puerta”», distingue al hablante Mara del
-  agente de la acción citada Aldric. No intercambies speaker, actor y
-  destinatario, ni trates la cita como una acción del jugador.
-
-CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
-- actor identifica quién realiza el acto en la ficción, no quién ha escrito el
-  mensaje. Una acción física descrita en tercera persona por un NPC es report
-  con actor=npc y modalidad observed/reported, nunca action del jugador.
-- Un predicado lingüístico (decir, preguntar, responder, contestar, hablar,
-  susurrar o equivalentes) describe comunicación. Si habla un NPC, el acto
-  global es dialogue con actor=npc; no lo clasifiques como report solo porque
-  el jugador narre la intervención. Una acción física no verbal de un NPC sí
-  es report. Si el jugador habla a un personaje, dialogue con actor=player.
-- Para «ella/él» usa únicamente pistas gramaticales explícitas del historial
-  y el índice de continuidad. Una pista puede ayudar a distinguir actor NPC
-  de actor player, pero no lo sustituyas por el nombre de una entidad.
-  Para «ellas/ellos», conserva el sujeto como grupo; no lo reduzcas a un NPC.
-- En un callback explícito, prioriza el segmento histórico seleccionado por
-  los términos del tema reabierto. No mezcles antecedentes de segmentos más
-  recientes que no coinciden con ese tema. Si hay varios segmentos igualmente
-  compatibles o no existe ancla clara, pide aclaración en vez de elegir.
-- En una elipsis, el antecedente de jugador más reciente y compatible puede
-  recuperar el significado de action. «Hazlo otra vez» expresa un nuevo
-  intento de repetir esa acción; «continúa/sigue» requiere que la continuidad
-  esté clara. Si hay varios antecedentes plausibles, pide aclaración.
-  Aunque recuperes el significado, conserva como evidencia solo el mensaje
-  actual; no copies los verbos, nombres, argumentos ni predicados históricos.
+ACTOR, HABLANTE Y CONTINUIDAD
+- actor identifica quién realiza el acto, no quién escribe. Un evento físico
+  de un NPC es report (actor=npc); el habla de un NPC es dialogue; hablar a un
+  personaje es dialogue (actor=player); preguntar al DM es question. Una
+  interrogativa dirigida a un personaje sigue siendo dialogue.
+- Distingue hablante, agente del contenido citado y destinatario: en «Mara
+  dice: “Aldric abre la puerta”», Mara es la fuente y Aldric el agente citado.
+  No conviertas una orden de NPC en una acción del jugador.
+- Usa pronombres e historial solo para desambiguar significado cuando exista
+  antecedente único; conserva el grupo en plurales. Si hay varios antecedentes
+  compatibles, pide aclaración. No recuperes nombres como evidencia literal.
+- En callbacks prioriza el segmento histórico que coincida con el tema reabierto.
+  «Hazlo otra vez» repite un intento solo con antecedente único y pendiente;
+  «continúa/sigue» requiere continuidad inequívoca. La evidencia sigue siendo
+  exclusivamente el mensaje actual.
 
 SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
 - Crea un step separado para cada evento o acto con predicado y función
@@ -552,21 +528,12 @@ Reglas estrictas de evidencia superficial:
   o índice discursivo, o se obtiene resolviendo allí un pronombre como «ella»
   o «él», devuelve null.
 
-FRONTERA DE EVIDENCIA CUANDO HAY HISTORIAL
-- El historial, el índice de continuidad y las pistas de concordancia son
-  contexto no confiable, nunca texto escrito por el jugador en este turno.
-  No copies de ellos nombres propios a target_mentions, argumentos, extremos
-  de relaciones, attributed_to, predicate ni source_excerpt.
-- Si el jugador escribe «Ella», conserva «Ella» como mención superficial
-  cuando corresponda; aunque el contexto sugiera «Mara», no devuelvas «Mara»
-  como si apareciera en el mensaje actual. Si no hay nombre literal en la
-  evidencia actual, attributed_to debe ser null.
-- Si una etiqueta histórica de NPC corresponde a varios NPC visibles, no
-  selecciones un hablante ni lo conviertas en argumento. Para una pregunta al
-  DM sobre quién habló, clasifica question y deja sin atribución la identidad
-  que no pueda justificarse.
-- No relajes estas reglas para callbacks ni elipsis: solo el significado de
-  action puede recuperar contexto; las menciones y citas siguen siendo literales.
+HISTORIAL Y EVIDENCIA
+El historial, mundo, narración del DM e índice discursivo aportan contexto,
+nunca palabras para source_excerpt, predicate, menciones, argumentos,
+relaciones o attributed_to. Conserva «ella/él» literalmente; no lo sustituyas
+por un nombre histórico. Si la fuente no está nombrada en el mensaje actual,
+attributed_to=null. Ante hablantes o grupos ambiguos, abstente o pide aclaración.
 
 El campo action es una descripción semántica concisa y puede recuperar el
 significado de una elipsis inequívoca; no convierte sus palabras en evidencia
