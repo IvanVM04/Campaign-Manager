@@ -296,6 +296,34 @@ def test_unsplit_report_plus_player_action_fails_closed_for_clarification():
     assert "reported_action_not_split_requires_clarification" in summary.applied_rules
 
 
+def test_narrow_step_excerpt_spanning_report_and_action_fails_closed():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    merged_excerpt = (
+        "vio un wyvern al este, aunque no sabe si era real, "
+        "pero yo intento seguir el rastro"
+    )
+    step = _step(merged_excerpt, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    payload = _payload(step, category="action", active=0)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "unknown"
+    assert normalized["active_step_index"] is None
+    assert normalized["requires_clarification"] is True
+    assert "reported_action_not_split_requires_clarification" in summary.applied_rules
+
+
 def test_reported_clause_does_not_absorb_linked_same_sentence_player_attempt():
     source = (
         "Un viajero asegura que vio un wyvern al este, "
