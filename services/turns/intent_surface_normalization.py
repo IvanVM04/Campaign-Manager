@@ -603,9 +603,13 @@ def normalize_intent_surface_payload(
             if start < 0:
                 continue
             end = start + len(excerpt)
-            if start < scope_end and end > body_start and end <= scope_end:
-                if len(evidence) <= 300 or _fold(speaker) in _fold(excerpt):
-                    reported_indices.append(index)
+            if (
+                start < scope_end
+                and end > body_start
+                and end <= scope_end
+                and (len(evidence) <= 300 or _fold(speaker) in _fold(excerpt))
+            ):
+                reported_indices.append(index)
 
         if reported_indices:
             reported_scope = evidence[body_start:scope_end]
