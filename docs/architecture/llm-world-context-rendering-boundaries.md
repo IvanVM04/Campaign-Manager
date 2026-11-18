@@ -7,6 +7,7 @@
 - `ContextBuilder` and `ProposalContextSelector` own deterministic retrieval, graph expansion, relevance ranking and bounded selection.
 - `models/world_context_projection.py` defines the detached, typed projection and diagnostics contract.
 - `LLMWorldContextRenderer` renders either a `TurnContext` or the selected projection into localized, deterministic prompt sections; it does not own retrieval or canonical state.
+- `LLMWorldContextRenderer` renders either a `TurnContext` or the selected projection into localized, deterministic prompt sections; it does not own retrieval or canonical state.
 - `TurnResolutionService` orchestrates context selection and passes the projection inward to `services/llm_world`.
 - `LLMWorldProposalPromptBuilder` renders the single active structured consequence-proposal prompt from typed context, shared `PlayerIntentAnalysis`, trusted resolved references, confirmed mechanics and the operation registry.
 - `LLMWorldExtractor.propose()` coordinates the provider call, response parsing, model-proposable operation gate and one bounded repair.
@@ -19,9 +20,10 @@ There is no active narrative-first extraction prompt or parallel extraction path
 
 - The selector reads a supplied `WorldState`; it does not query SQLite or mutate canonical state.
 - Selected records are deep-copied into a detached `WorldContextProjection`.
-- Direct search results and related entities/relations/events are deterministically ranked. Item instances carry their item definition and relevant owner/location entities; resource balances carry definitions and owners; relations and events carry referenced entities.
+- Direct search results and one-hop related entities/relations/events are deterministically ranked. Item instances carry their item definition and relevant owner/location entities; resource balances carry definitions and owners; relations and events carry referenced entities.
 - The current implementation requires one trusted active-character focus and preserves the current location, mandatory related records and dependency bundles. The broader product requirement for several controlled PJ and manually selected known entities is not yet implemented; see product requirements v0.2.
 - Event visibility is applied before context selection. Secret/GM-only information fails closed and is not projected to the player/model-facing proposal path.
+- Campaign/session summaries and active-character conditions/exhaustion are rendered in their designated blocks. GM-only session notes are excluded, and character-scoped event facts remain restricted to the relevant character knowledge projection.
 - Superseded events may be retained as labelled history; they are not current facts.
 - Resource balances are rendered explicitly; resource definitions alone are not sufficient to represent current state.
 - The selector has its own upper bound. The complete prompt, including static instructions, original player evidence and confirmed mechanics, is checked separately.

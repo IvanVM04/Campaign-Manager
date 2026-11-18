@@ -120,6 +120,12 @@ knowledge scopes across several controlled player characters and a player-
 selected context panel; those capabilities are not implemented by the current
 single-active-character selector.
 
+The product requirements v0.2 also call for a configurable confidence
+threshold and a generalized durable partial-turn checkpoint. The runtime
+supports durable clarification and pending-intent correction, but this broader
+uncertainty policy is still future work.
+
 See [the current product requirements](../../docs/product/product-requirements-2026-11-18.md),
-[the current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md)
+[the current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md),
+[current architecture map](../../docs/architecture/architecture-map-2026-11-18.md)
 and [PR #255 delivery record](../../docs/quality/player-message-comprehension-phase-2026-11-18.md).

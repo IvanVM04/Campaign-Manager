@@ -70,6 +70,29 @@ changes (#255). The current delivery record is [player-message comprehension
 phase — PR #255](../../docs/quality/player-message-comprehension-phase-2026-11-18.md);
 older PR documents remain implementation snapshots, not a list of pending work.
 
+### Current state after PR #255 and product v0.2 boundary
+
+PRs #246–#255 extend the discourse/semantic pipeline with visible NPC speaker
+signals, topic/callback anchoring, conservative reference coalescing,
+explicit-negation handling and per-step compound-intent guidance. PR #255 adds
+14 Spanish-first compound held-out cases with gold by step. See the
+[current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md)
+for the live evaluation work still required.
+
+The runtime already has durable clarification and pending-intent correction
+continuation. A clarification answer edits the stored pending analysis using
+literal evidence and preserves untouched fields. Manual-roll continuation
+reuses the persisted analysis. This does not yet implement the broader
+product-v0.2 requirement for a user-configurable/calibrated confidence
+threshold and a generalized checkpoint that records arbitrary resolved and
+unresolved parts of a compound turn. Do not describe that future feature as
+implemented.
+
+The durable turn contract is documented in
+[turn-resolution-lifecycle.md](../../docs/architecture/turn-resolution-lifecycle.md).
+
+Follow-up hardening and its resumable implementation checkpoint are tracked in [`PR #226 — integrated LLM pipeline hardening`](../../docs/quality/pr-226-integrated-llm-pipeline-hardening.md).
+
 ## Semantic compatibility and corrections
 
 V1 durable analyses remain decodable. V2 adds:
