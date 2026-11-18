@@ -1,8 +1,8 @@
 # Auditoría actual y hoja de ruta de calidad
 
 **Fecha:** 2026-11-18  
-**Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255 fusionada).  
-**Baseline documental:** `main` — `6ca283e08e8a05eea6cced623e9d77cf2f395e25` (PR #256 fusionada).  
+**Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (última PR con cambios de producción: #255).  
+**Baseline documental:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
 ## 1. Resumen ejecutivo
@@ -44,7 +44,7 @@ PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255) está fusionada
 | CI summary | Correcto |
 | CodeQL Python + JavaScript | Correcto |
 
-Evidencia: [Tests #1568](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44262572791) y [CodeQL #738](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44262572789), ambos sobre el SHA indicado. Los 22 tests deseleccionados son de tipo `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
+Evidencia más reciente: [Tests run #44270598043](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598043) y [CodeQL run #44270598070](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598070), ambos sobre el commit documental `4a3a2549...` posterior a PR #257. El job de tests informa 2.042 passed, 22 deselected y 85,14 % combinado; Ruff, ambos Pyright, JavaScript y CI summary pasan. CodeQL completa correctamente. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
 
 La cobertura combinada está apenas por encima del mínimo. La línea de cobertura es alta, pero la cobertura de ramas global es menor; no se recomienda perseguir un porcentaje arbitrario. Se deben priorizar ramas de riesgo: rollback/commit, fencing y recuperación, revisión de campaña, errores de proveedor, clarificaciones, tiradas manuales, visibilidad y conflictos de identidad.
 
