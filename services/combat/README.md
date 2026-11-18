@@ -43,7 +43,7 @@ Combat state is in `models/`, persistence in `repositories/`, and ruleset mechan
 
 ## Remaining combat scope
 
-The recommended order and indicative effort for expanding combat as part of a playable character/adventure slice are tracked in the [engineering readiness and gameplay roadmap](../../docs/architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md).
+The current product target and implementation order for the playable slice are defined by [product requirements v0.2](../../docs/product/product-requirements-2026-11-18.md) and the [current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md). The [2026-11-12 engineering readiness roadmap](../../docs/architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md) is a historical estimate snapshot, not the active backlog.
 
 - [ ] Add class-specific action/resource consumption only after class features
   and resources have typed canonical models.
