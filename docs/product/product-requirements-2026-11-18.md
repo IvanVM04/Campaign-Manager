@@ -297,6 +297,8 @@ La presentación seguirá una jerarquía:
 
 No se usará un tooltip como único lugar para instrucciones obligatorias, advertencias críticas o reglas necesarias para completar una configuración. Cualquier ayuda debe funcionar con ratón, foco/teclado y toque; los elementos esenciales no dependerán del hover. Se investigará y probará la solución concreta con prototipos, en lugar de asumir que todos los campos necesitan el mismo patrón.
 
+**Referencias iniciales de investigación UX (consultadas el 2026-11-18):** [DWP Design System — Hint text](https://design-system.dwp.gov.uk/guidance/hint-text), [GOV.UK Design System — Text input](https://design-system.service.gov.uk/components/text-input/), [Nielsen Norman Group — Tooltip Guidelines](https://www.nngroup.com/articles/tooltip-guidelines/) y [European Commission — Tooltip usage](https://ec.europa.eu/component-library/ec/components/tooltip/usage/). Estas guías coinciden en mantener visible la información esencial, reservar tooltips para ayuda breve complementaria y ofrecer alternativas a hover. Son referencias de partida, no sustituyen pruebas de usabilidad con prototipos del producto.
+
 ### 9.3 Explorador de mundo y entidades
 
 La interfaz dispondrá de una zona de consulta del conocimiento disponible para el jugador. Deberá distinguir, al menos, el conocimiento del jugador como persona del conocimiento individual de cada personaje, y permitir filtrar por campaña, personaje, tipo de entidad y estado de conocimiento.
