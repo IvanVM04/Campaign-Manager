@@ -5,8 +5,8 @@ indexes over searching through dated audit history.
 
 ## Product definition
 
-- [Product requirements baseline (Spanish)](product/product-requirements-2026-11-18.md) — product scope, functional/non-functional requirements, implementation status and release acceptance criteria.
-- [Current quality audit and roadmap (Spanish)](quality/quality-roadmap-2026-11-18.md) — verified CI baseline, current AI-quality risks and ordered improvement phases.
+- [Product requirements and UX baseline v0.2 (Spanish)](product/product-requirements-2026-11-18.md) — product scope, configurable play/control, uncertainty and clarification workflow, interface requirements, world knowledge browser, rules modules, localization, import/export and acceptance criteria.
+- [Current quality audit and roadmap (Spanish)](quality/quality-roadmap-2026-11-18.md) — verified CI baseline, current AI-quality risks, backend-solid criteria and staged first-party UI plan.
 
 ## Shared contracts
 

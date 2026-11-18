@@ -1,8 +1,9 @@
 # Auditoría actual y hoja de ruta de calidad
 
 **Fecha:** 2026-11-18  
-**Baseline:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255 fusionada)  
-**Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern.
+**Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255 fusionada).  
+**Baseline documental:** `main` — `6ca283e08e8a05eea6cced623e9d77cf2f395e25` (PR #256 fusionada).  
+**Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
 ## 1. Resumen ejecutivo
 
@@ -22,7 +23,9 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 2. No hacer tuning amplio de prompts sin un baseline live comparable.
 3. Mantener las fronteras de evidencia, visibilidad, reglas y escritura.
 4. Priorizar la evaluación reproducible de modelo y la aceptación integral.
-5. Después, cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
+5. Cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
+6. Diseñar la interfaz propia cuando los contratos y workflows de backend sean sólidos; SillyTavern seguirá siendo un cliente de integración, pero no el único camino de aceptación del producto.
+7. Tratar el control multi-PJ, la delegación de NPC, las aclaraciones recuperables, la visibilidad configurable y los módulos de reglas como capacidades de dominio que requieren contratos propios antes de construir la UX.
 
 ## 2. Baseline verificado
 
@@ -108,6 +111,40 @@ La aplicación se diseña para uso local y el servidor documentado escucha en lo
 
 **Acción:** no habilitar binding remoto, túneles ni reverse proxy sin diseñar autenticación, autorización por campaña, protección de secretos y revisión de despliegue. Mantener fail-closed en vistas player-safe.
 
+### QF-08 — Control de personajes y delegación NPC configurables (P1)
+
+La especificación v0.2 exige que una persona pueda controlar uno o varios PJ y cambiar ese conjunto durante la partida. También exige que jugador y DM puedan solicitar control de NPC, pero que la transferencia sea aprobada por la autoridad vigente y registrada.
+
+**Riesgo:** una implementación que modele únicamente un personaje activo o que infiera permisos por el texto de la conversación no podrá soportar estas opciones de forma segura.
+
+**Acción:** definir un contrato explícito de control/delegación por entidad, capacidades, duración, solicitante, aprobador, expiración y revocación. Separar personaje en foco de contexto de conjunto de personajes bajo control. Probar peticiones aceptadas, rechazadas, expiradas, revocadas y reiniciadas.
+
+### QF-09 — Las aclaraciones necesitan progreso durable y señales de incertidumbre (P1)
+
+El requisito v0.2 pide un umbral configurable para preguntar ante dudas y conservar lo ya resuelto en turnos con varias partes.
+
+**Riesgo:** tomar la puntuación de confianza declarada por un LLM como una probabilidad fiable o guardar consecuencias del mundo antes de resolver sus dependencias puede generar errores persistentes.
+
+**Acción:** modelar un checkpoint de interpretación con pasos/slots resueltos, evidencia, dependencias y dudas abiertas. Validar/calibrar la señal con holdouts y combinarla con grounding y validaciones deterministas. Los presets de usuario solo ajustan cuándo preguntar; nunca relajan permisos ni validaciones. Al reanudar se recalculan únicamente los pasos dependientes y se conserva el trabajo válido.
+
+### QF-10 — La extensibilidad de reglas exige un formato de módulo seguro (P1/P2)
+
+D&D 5e 2014 sigue siendo el paquete incluido por defecto; la especificación pide importar módulos personalizados. La revisión 2024 y el acceso remoto no son prioritarios.
+
+**Acción:** definir primero el manifiesto y esquema de módulos: IDs y versión, compatibilidad, dependencias, reglas/datos aportados, conflictos y política de activación por campaña. Empezar declarativo y sin ejecución de código arbitrario. Probar importación inválida, dependencia ausente, conflicto y actualización/rollback antes de una biblioteca de módulos.
+
+### QF-11 — La consulta del mundo debe respetar conocimiento y visibilidad a todos los niveles (P1)
+
+La persona usuaria quiere consultar la información que el jugador conoce, abrir fichas de entidades y explorar relaciones/acciones; también desea ajustar por NPC qué datos como HP o CA son visibles.
+
+**Acción:** definir proyecciones de conocimiento por jugador y por personaje, visibilidad por campo/NPC y referencia canónica de entidad en narración. El mismo filtro debe aplicarse a API, búsqueda, paneles, tooltips, compendio y exportaciones player-safe. Una vista previa no debe usar una búsqueda libre que pueda resolver a una entidad oculta o ambigua.
+
+### QF-12 — La interfaz propia necesita comenzar por investigación y contratos, no por pantallas aisladas (P1/P2)
+
+La interfaz deseada es altamente configurable y debe ofrecer los modos Simplificado y Avanzado sin perder opciones. Las explicaciones de configuración deben ser comprensibles y accesibles; no todo debe depender de tooltips.
+
+**Acción:** una vez estables los contratos de lectura/escritura y workflows del backend, comenzar prototipos de navegación, paneles, ayuda contextual y visor del mundo. Probar tareas con ambos modos, ratón, teclado y táctil. Construir la interfaz como cliente de la API, sin duplicar reglas de dominio o acceso a SQLite.
+
 ## 4. Fases recomendadas
 
 Las fases están ordenadas por dependencia. Una fase no se cierra porque el código exista: se cierra con evidencia registrada.
@@ -162,6 +199,9 @@ Regla de trabajo: **un grupo de errores por cambio**. Mantener comparables los c
 Revisar sistemáticamente los invariantes de:
 
 - commit atómico y rollback de escrituras parciales;
+- checkpoint y reanudación de aclaraciones con varios pasos, umbrales configurables y respuestas parciales;
+- control de varios PJ, foco de contexto y delegación aprobada/revocada de NPC;
+- herencia y excepciones de configuración global/campaña/personaje/NPC;
 - revision conflict/stale state y lease fencing;
 - entrega duplicada y secuenciación de versiones;
 - clarificación simple y multi-ronda;
@@ -178,7 +218,7 @@ Cada hallazgo debe contener escenario reproducible, frontera responsable, test m
 
 ### Fase 4 — Aceptación end-to-end en SillyTavern
 
-**Prioridad: P0 para declarar la primera experiencia de uso validada.**
+**Prioridad: P1 como integración soportada; no es el único gate de aceptación del producto.**
 
 Ejecutar y registrar `docs/sillytavern-smoke-test.md` en una instalación real:
 
@@ -193,7 +233,7 @@ Ejecutar y registrar `docs/sillytavern-smoke-test.md` en una instalación real:
 - persistencia de descubrimientos;
 - fallo y recuperación de backend/proveedor.
 
-**Salida:** checklist con backend SHA, extensión SHA, modelo/digest, versión/configuración de Ollama, fecha y resultado por caso. Lo que no se ejecute queda explícitamente pendiente.
+**Salida:** checklist con backend SHA, extensión SHA, modelo/digest, versión/configuración de Ollama, fecha y resultado por caso. Lo que no se ejecute queda explícitamente pendiente. La compatibilidad de SillyTavern se conserva y se prueba cuando se cambie su adaptador, pero la experiencia de producto se validará también desde la futura interfaz propia.
 
 ### Fase 5 — Primer vertical slice jugable
 
@@ -209,7 +249,7 @@ Entregar un recorrido completo y pequeño:
 6. Descansar, recuperar recursos soportados y recibir una recompensa.
 7. Conservar estado, eventos y consecuencias entre turnos/sesiones.
 
-No hace falta implementar toda la 5e 2014 para validar este hito. Sí hace falta que las reglas utilizadas estén correctas, documentadas y probadas.
+No hace falta implementar toda la 5e 2014 para validar este hito. Sí hace falta que las reglas utilizadas estén correctas, documentadas y probadas. El recorrido deberá incluir la elección/cambio de varios PJ, al menos un cambio de delegación NPC y una aclaración que se pause y reanude sin perder los pasos ya resueltos.
 
 ### Fase 6 — Ampliación selectiva
 
@@ -224,21 +264,46 @@ Solo después del vertical slice:
 - misiones, pistas y progresión de aventuras;
 - mejoras de recuperación/contexto cuando se demuestre un cuello de botella.
 
+### Fase 7 — Diseño y entrega progresiva de la interfaz propia
+
+**Prioridad: P1/P2 — iniciar discovery cuando el backend sea sólido; no esperar a que SillyTavern sea la única UX validada.**
+
+Criterios mínimos para empezar el diseño funcional:
+
+- Contratos de API para campañas, personajes, turnos, configuración, mundo y entidades definidos y versionados.
+- Ciclo durable de turnos probado en happy path, aclaración, tirada manual, reintento, regeneración y reinicio.
+- Política de permisos para PJ/NPC definida y aplicada en backend.
+- Proyecciones de conocimiento/visibilidad documentadas y cubiertas con tests.
+- Errores, loading, conflictos y estados pendientes representables mediante contratos API.
+
+Trabajo de UX/entrega:
+
+1. Prototipar el modelo de navegación y personalización de paneles.
+2. Probar los modos Simplificado/Avanzado y jerarquía de ayuda (texto visible, tooltip breve, popover/panel para detalle).
+3. Diseñar visor de mundo, fichas, relaciones, referencias inline en narración y acceso rápido.
+4. Diseñar la configuración de tiradas, visibilidad NPC, idiomas, control PJ/NPC y umbral de aclaración.
+5. Implementar el cliente propio en verticales que consuman la API, sin replicar reglas o autoridad de dominio.
+6. Ejecutar pruebas de tareas y accesibilidad con teclado y pantallas táctiles antes de considerar cerrada cada vista.
+
+**Gate:** el cliente propio no podrá leer secretos por vías distintas al backend ni modificar estado saltándose los contratos. El modo Simplificado no puede eliminar una capacidad ni degradar los límites de seguridad.
+
 ## 5. Qué no priorizar ahora
 
 - Otra reescritura general del prompt.
 - Nueva llamada LLM por cada campo semántico.
 - Vector DB, embeddings o recuperación semántica nueva sin un benchmark que demuestre el límite del ranker actual.
 - Microservicios, colas, múltiples workers o locks distribuidos.
-- UI propia completa antes del ciclo jugable.
+- Implementar una interfaz propia completa antes de tener contratos y workflows de backend sólidos; el diseño/prototipado sí debe comenzar en cuanto se alcancen esos criterios.
+- Hacer que SillyTavern sea la única vía de probar o aceptar el producto.
 - Multijugador, autenticación remota o acceso público como cambio incidental.
+- Importar módulos de reglas con ejecución arbitraria de plugins/código; primero un formato declarativo, validable y versionado.
 - Implementar reglas de D&D 2024 dentro del módulo 2014.
 - Añadir cobertura solo para aumentar un porcentaje global.
 - Declarar que el modelo funciona porque los tests deterministas pasan.
 
 ## 6. Evidencia y documentación de referencia
 
-- [Requisitos de producto](../product/product-requirements-2026-11-18.md).
+- [Requisitos de producto v0.2](../product/product-requirements-2026-11-18.md) — control configurable, incertidumbre, UI propia, conocimiento del mundo, selección explícita de entidades para el contexto, internacionalización y módulos personalizados.
 - [Visión y estado actual](../../README.md).
 - [Auditoría de comprensión de predicados](predicate-understanding-audit-2026-11-17.md).
 - [Hardening semántico](semantic-understanding-hardening-2026-11-17.md).
