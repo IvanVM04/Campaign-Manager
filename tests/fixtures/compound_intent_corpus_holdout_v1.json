@@ -1,0 +1,291 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "description": "Spanish-first compound utterances reserved for live evaluation. Never copy these examples into prompts, schemas or few-shot instructions.",
+  "scenarios": [
+    {
+      "id": "compound-intent-01",
+      "family": "sequential_player_actions",
+      "critical": true,
+      "input": "He recogido la llave y ahora intento abrir la puerta.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-02",
+      "family": "player_dialogue_then_action",
+      "critical": true,
+      "input": "Le pregunto a Mara por la llave y después examino el escritorio.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1501,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-03",
+      "family": "npc_fact_then_player_action",
+      "critical": true,
+      "input": "Mara me entrega la llave y yo intento guardarla en la mochila.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1502,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-04",
+      "family": "npc_dialogue_then_player_action",
+      "critical": true,
+      "input": "Aldric me advierte del peligro y yo intento retroceder hasta la puerta.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1503,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-05",
+      "family": "multi_npc_dialogue",
+      "critical": true,
+      "input": "Mara pregunta por el mapa y Aldric responde que no lo ha visto.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1504,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        },
+        {
+          "id": 1505,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "dialogue",
+        "active_step_index": null,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-06",
+      "family": "multi_npc_mixed_events",
+      "critical": true,
+      "input": "Mara responde desde el balcón mientras Aldric entra en la sala.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1506,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        },
+        {
+          "id": 1507,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": null,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-07",
+      "family": "multi_npc_mixed_events",
+      "critical": false,
+      "input": "El guardia grita una advertencia y Aldric señala la salida.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1508,
+          "name": "El guardia",
+          "entity_type": "npc",
+          "active": true
+        },
+        {
+          "id": 1509,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": null,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-08",
+      "family": "player_dialogue_then_action",
+      "critical": true,
+      "input": "Le digo a Mara que esperaré fuera y luego intento esconderme tras la puerta.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1510,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-09",
+      "family": "three_step_actor_sequence",
+      "critical": true,
+      "input": "El capitán me pregunta por la carta, yo le respondo y después intento sacar el mapa.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1511,
+          "name": "El capitán",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 2,
+        "step_count": 3
+      }
+    },
+    {
+      "id": "compound-intent-10",
+      "family": "negative_then_positive_action",
+      "critical": true,
+      "input": "No abro la puerta; en cambio, intento levantar la reja.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected": {
+        "category": "action",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-11",
+      "family": "conditional_multi_step_plan",
+      "critical": false,
+      "input": "Si Mara me entrega la llave, abriré la puerta y después entraré en la sala.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1512,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "plan",
+        "active_step_index": null,
+        "step_count": 3
+      }
+    },
+    {
+      "id": "compound-intent-12",
+      "family": "observation_dialogue_then_action",
+      "critical": false,
+      "input": "Observo el mapa, le pregunto a Mara por la ruta y luego intento cruzar el puente.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1513,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 2,
+        "step_count": 3
+      }
+    },
+    {
+      "id": "compound-intent-13",
+      "family": "multi_actor_dialogue",
+      "critical": false,
+      "input": "Aldric me pregunta por la puerta y yo le explico que sigue cerrada.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1514,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "dialogue",
+        "active_step_index": null,
+        "step_count": 2
+      }
+    },
+    {
+      "id": "compound-intent-14",
+      "family": "npc_dialogue_then_action",
+      "critical": false,
+      "input": "Mara me avisa de que hay guardias y yo intento entrar por la ventana.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 1515,
+          "name": "Mara",
+          "entity_type": "npc",
+          "active": true
+        }
+      ],
+      "expected": {
+        "category": "mixed",
+        "active_step_index": 1,
+        "step_count": 2
+      }
+    }
+  ]
+}

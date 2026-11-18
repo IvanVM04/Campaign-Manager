@@ -257,3 +257,20 @@ def test_semantic_frame_schema_explains_roles_predicate_boundaries_and_relations
     assert "reported" in modality_description
     assert "negated" in modality_description
 
+
+
+
+def test_normal_intent_prompt_explains_compound_actor_sequences_and_active_step():
+    prompt = " ".join(IntentInterpreter.SYSTEM_PROMPT.casefold().split())
+
+    for required in (
+        "secuencias compuestas, orden y paso activo",
+        "asigna actor, modality y polarity de forma independiente",
+        "conserva el orden en que aparecen los actos",
+        'category="mixed" requiere actos de categorías globales diferentes',
+        "varios steps o varios actores no bastan por sí solos",
+        'modality="negated" y polarity="negative"',
+        "el índice activo apunta a ese paso posterior",
+        "un único acto de communication",
+    ):
+        assert required in prompt

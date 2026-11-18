@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -24,7 +25,10 @@ from models.resolved_conversation_reference import (
 )
 from models.semantic_frames import SemanticObjectKind
 from models.world_state import WorldState
-from services.discourse_context import DiscourseContextBuilder
+from services.discourse_context import (
+    DiscourseContextBuilder,
+    SurfacePronounMention,
+)
 
 from .entity_reference_resolver import EntityReferenceResolver
 
@@ -328,12 +332,21 @@ class ConversationReferenceResolver:
                 }
                 observed_features.discard((None, None))
                 if number == "plural":
-                    # Plural identity is only established by an explicit
-                    # same-turn group co-mention with compatible singular
-                    # agreement for every member.
-                    if (gender, "singular") not in observed_features:
+                    # Plural identity still requires an explicit same-turn
+                    # co-mention. A dative "les" has no grammatical gender, so
+                    # mixed-gender groups are valid only when that full set is
+                    # independently established by the group builder.
+                    if not any(
+                        number_seen == "singular"
+                        and (gender == "unknown" or gender_seen == gender)
+                        for gender_seen, number_seen in observed_features
+                    ):
                         continue
-                elif observed_features and (gender, number) not in observed_features:
+                elif (
+                    gender != "unknown"
+                    and observed_features
+                    and (gender, number) not in observed_features
+                ):
                     # Preserve the established conservative singular fallback:
                     # absence of grammatical cues is not a contradiction.
                     continue
@@ -376,7 +389,11 @@ class ConversationReferenceResolver:
                     evidence.excerpt,
                     evidence.mention,
                 )
-                if grammatical != (gender, "singular"):
+                if (
+                    grammatical is None
+                    or grammatical[1] != "singular"
+                    or (gender != "unknown" and grammatical[0] != gender)
+                ):
                     continue
                 key = (
                     evidence.turn_id,
@@ -481,6 +498,63 @@ class ConversationReferenceResolver:
             return f"¿A cuál te refieres con «{safe}»: {', '.join(candidates)}?"[:300]
         return f"¿A quién o a qué te refieres con «{safe}»?"[:300]
 
+    @staticmethod
+    def _has_explicit_dative_complement(
+        source_excerpt: str,
+        mention: SurfacePronounMention,
+        explicit_recipients: tuple[str, ...],
+    ) -> bool:
+        """Coalesce a clitic only when its clause names the same recipient."""
+        if mention.text.casefold() not in {"le", "les"}:
+            return False
+        following = source_excerpt[mention.end : mention.end + 180]
+        clause = re.split(r"[,;.!?:]", following, maxsplit=1)[0]
+        candidate_keys: set[str] = set()
+        articles = {"el", "la", "los", "las", "un", "una", "unos", "unas"}
+
+        def normalized_complement(value: str) -> str:
+            tokens = EntityReferenceResolver.normalize(value).split()
+            # The accent in tonic "él" is removed by normalization. Preserve
+            # that pronoun before stripping leading articles, or "a él" becomes
+            # indistinguishable from an article-led noun phrase.
+            first_raw_tokens = value.strip().split(maxsplit=1)
+            first_raw_token = (
+                first_raw_tokens[0].strip(".,;:!?¿¡()[]{}\"'")
+                if first_raw_tokens
+                else ""
+            )
+            is_tonic_pronoun = first_raw_token.casefold() == "él"
+            if not is_tonic_pronoun:
+                while tokens and tokens[0] in articles:
+                    tokens.pop(0)
+            return " ".join(tokens)
+
+        for candidate in explicit_recipients:
+            if not isinstance(candidate, str) or not candidate.strip():
+                continue
+            normalized = normalized_complement(candidate)
+            if normalized:
+                candidate_keys.add(normalized)
+
+        # Search every a/al complement rather than treating adverbials such as
+        # "a menudo" or "a veces" as a person reference.
+        for match in re.finditer(r"(?<!\w)(?:al|a)\s+", clause, flags=re.IGNORECASE):
+            raw_recipient = clause[match.end():]
+            normalized_recipient = normalized_complement(raw_recipient)
+            if any(
+                normalized_recipient == candidate
+                or normalized_recipient.startswith(candidate + " ")
+                for candidate in candidate_keys
+            ):
+                return True
+            # A capitalized proper name is explicit even if the campaign does
+            # not currently contain that entity. Common lowercase adverbials
+            # and role descriptions do not take this fallback.
+            raw_first = raw_recipient.lstrip().split(maxsplit=1)
+            if raw_first and raw_first[0][:1].isupper():
+                return True
+        return False
+
     def resolve(
         self,
         visible_world: WorldState,
@@ -533,10 +607,31 @@ class ConversationReferenceResolver:
                 )
             # Current surface pronouns remain discoverable even if the LLM
             # omitted them from target_mentions and action_frame.arguments.
+            surface_mentions = DiscourseContextBuilder.surface_pronoun_mentions(
+                step.source_excerpt
+            )
+            explicit_recipients = [
+                mention for mention, _kind_hint in mentions
+            ]
+            explicit_recipients.extend(
+                surface.text
+                for surface in surface_mentions
+                if surface.text.casefold() not in {"le", "les"}
+            )
+            for entity in self._visible_entities(visible_world):
+                explicit_recipients.append(entity.name)
+                aliases = getattr(entity, "aliases", [])
+                if isinstance(aliases, (list, tuple)):
+                    explicit_recipients.extend(
+                        alias for alias in aliases if isinstance(alias, str)
+                    )
             mentions.extend(
                 (surface.text, SemanticObjectKind.CHARACTER)
-                for surface in DiscourseContextBuilder.surface_pronoun_mentions(
-                    step.source_excerpt
+                for surface in surface_mentions
+                if not self._has_explicit_dative_complement(
+                    step.source_excerpt,
+                    surface,
+                    tuple(explicit_recipients),
                 )
             )
             mentions.extend(

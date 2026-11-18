@@ -335,8 +335,9 @@ def test_typed_discourse_selection_exposes_callback_reason_anchor_and_segment():
         "Volviendo a lo de Mara, le pregunto por el mapa.",
     )
     assert selection.reason == "callback_anchor_match"
-    assert selection.anchor_tokens == ("mara", "mapa")
+    assert selection.anchor_tokens == ("mara",)
     assert selection.selected_segments == (0,)
+    assert selection.candidate_scores == ((0, 1),)
     assert [item.id for item in selection.turns] == [70]
     assert selection.ambiguous is False
 
@@ -366,3 +367,102 @@ def test_subject_linked_speech_signals_exclude_quotes_and_negated_interveners():
     assert DiscourseContextBuilder.speech_predicate_signals(
         "Ellas no contestan."
     ) == ()
+
+
+
+def test_dative_clitics_are_extracted_only_before_supported_finite_verbs():
+    text = "Le pregunto por el mapa; después les respondo con calma."
+    mentions = DiscourseContextBuilder.surface_pronoun_mentions(text)
+
+    assert [item.text for item in mentions] == ["Le", "les"]
+    assert [item.number for item in mentions] == ["singular", "plural"]
+    assert all(item.gender == "unknown" for item in mentions)
+    assert all(text[item.start:item.end] == item.text for item in mentions)
+
+    assert DiscourseContextBuilder.surface_pronoun_mentions(
+        "Miro la puerta y reviso las cartas."
+    ) == ()
+    assert DiscourseContextBuilder.surface_pronoun_mentions(
+        'Mara dice: «Le pregunto por el mapa».'
+    ) == ()
+
+
+def test_named_visible_npc_speech_predicates_require_a_unique_active_alias():
+    mara = Entity(id=80, name="Mara", entity_type="npc")
+    visible = DiscourseContextBuilder.speech_predicate_signals(
+        "Mara responde en voz alta.",
+        visible_entities=(mara,),
+    )
+    assert len(visible) == 1
+    assert visible[0].subject == "Mara"
+    assert visible[0].predicate == "responde"
+    assert visible[0].subject_kind == "visible_npc"
+    assert visible[0].gender == "unknown"
+    assert visible[0].number == "unknown"
+
+    duplicate = Entity(id=81, name="Mara", entity_type="npc")
+    assert DiscourseContextBuilder.speech_predicate_signals(
+        "Mara responde en voz alta.",
+        visible_entities=(mara, duplicate),
+    ) == ()
+
+
+def test_named_npc_speech_signals_ignore_quotes_and_inactive_entities():
+    mara = Entity(id=82, name="Mara", entity_type="npc")
+    inactive = Entity(id=83, name="Aldric", entity_type="npc", active=False)
+
+    assert DiscourseContextBuilder.speech_predicate_signals(
+        'Mara repite: «Mara responde» y se marcha.',
+        visible_entities=(mara,),
+    ) == ()
+    assert DiscourseContextBuilder.speech_predicate_signals(
+        "Aldric responde.",
+        visible_entities=(inactive,),
+    ) == ()
+
+
+def test_named_npc_speech_signal_is_rendered_as_a_hint_without_authority():
+    mara = Entity(id=84, name="Mara", entity_type="npc")
+    rendered = DiscourseContextBuilder.render(
+        "Mara responde desde el balcón.",
+        (),
+        visible_entities=(mara,),
+    )
+
+    assert "sujeto='Mara'" in rendered
+    assert "tipo=visible_npc" in rendered
+    assert "no aporta identidad canónica ni autoridad" in rendered
+
+
+def test_callback_anchor_excludes_the_following_clause_and_keeps_a_fallback_anchor():
+    assert DiscourseContextBuilder._callback_anchor_sequence(
+        "Volviendo a lo de Mara, le pregunto por el mapa."
+    ) == ("mara",)
+    assert "carta" in DiscourseContextBuilder._callback_anchor_sequence(
+        "Como te dije antes, quiero continuar con el asunto de la carta."
+    )
+
+
+
+def test_render_explains_dative_clitics_without_assigning_a_referent():
+    rendered = DiscourseContextBuilder.render(
+        "Le pregunto por el mapa y les respondo después.",
+        (),
+    )
+
+    assert "Clítico(s) dativo(s) literal(es)" in rendered
+    assert "conserva el clítico literal" in rendered
+    assert "asignar identidad" in rendered
+
+
+
+def test_negated_speech_predicates_are_not_rendered_as_positive_dialogue_cues():
+    mara = Entity(id=85, name="Mara", entity_type="npc")
+    for utterance in ("Mara no responde.", "Ellas nunca contestan."):
+        rendered = DiscourseContextBuilder.render(
+            utterance,
+            (),
+            visible_entities=(mara,),
+        )
+        assert "Trátalos como comunicación" not in rendered
+        assert "Señal superficial tipada de habla" not in rendered

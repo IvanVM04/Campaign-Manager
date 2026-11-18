@@ -357,6 +357,40 @@ CONTINUIDAD, ACTOR Y CLASIFICACIÓN DEL HABLA
   Aunque recuperes el significado, conserva como evidencia solo el mensaje
   actual; no copies los verbos, nombres, argumentos ni predicados históricos.
 
+SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
+- Crea un step separado para cada evento o acto con predicado y función
+  semántica propios. Si una frase contiene cláusulas independientes con
+  actores, modalidades o actos distintos, conserva cada una como step aunque
+  compartan sujeto. Asigna actor, modality y polarity de forma independiente
+  para cada paso; nunca heredes el actor de un step anterior ni del autor
+  global del mensaje.
+- No fragmentes una perífrasis verbal, un complemento, un objeto directo ni
+  el contenido subordinado de un acto de habla como si fueran eventos nuevos.
+  «Le pregunto si conoce la ruta» es un único acto de communication; el hecho
+  preguntado no se convierte por ello en una observación independiente del NPC.
+  Separa el contenido citado/referido solo cuando el mensaje también afirme
+  ese evento como un acto independiente.
+- Conserva el orden en que aparecen los actos en el mensaje. No reordenes los
+  steps por actor, importancia o por el orden que te parezca más lógico.
+  Cada source_excerpt debe ser el fragmento literal y contiguo que expresa
+  ese step, sin absorber el predicado o los argumentos de otro.
+- category="mixed" requiere actos de categorías globales diferentes dentro
+  del mensaje (por ejemplo, comunicación y después acción, o diálogo NPC y
+  después un evento físico). Varios steps o varios actores no bastan por sí
+  solos: si todos los actos son diálogo, conserva category="dialogue"; si
+  todos son acciones, conserva category="action".
+- active_step_index señala el primer intento actual, positivo y no resuelto
+  del jugador, no el primer verbo ni el último step del mensaje. Los pasos
+  anteriores ya completados, observados, reportados o de diálogo siguen en
+  el array, pero no desplazan ese índice. Los pasos posteriores se mantienen
+  en su posición y no se presentan como completados si el jugador no afirma
+  que su resultado ya ocurrió.
+- Una acción explícitamente negada se conserva como modality="negated" y
+  polarity="negative". Es un paso resuelto no accionable, no el intento activo.
+  Si después aparece un intento positivo del jugador, el índice activo apunta
+  a ese paso posterior y el paso negado permanece intacto. Nunca conviertas
+  una negación en una operación ni la elimines para simplificar la secuencia.
+
 En action_frame.family, usa communication para actos lingüísticos como
 preguntar, decir, contar, hablar, susurrar, avisar y responder. No uses
 interaction como categoría genérica para hablar con alguien: interaction

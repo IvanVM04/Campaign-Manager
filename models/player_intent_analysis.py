@@ -183,9 +183,19 @@ class PlayerIntentAnalysis:
             IntentModality.CORRECTION,
             IntentModality.DIALOGUE,
         }
+        def is_resolved_before_active(previous: IntentStep) -> bool:
+            # Explicit negation is a resolved non-action, not an unresolved
+            # attempt. It may precede a later positive attempt in the same
+            # utterance without blocking the active-step pointer.
+            if previous.modality is IntentModality.NEGATED:
+                return previous.polarity is IntentPolarity.NEGATIVE
+            return (
+                previous.modality in resolved_modalities
+                and previous.polarity is IntentPolarity.POSITIVE
+            )
+
         if self.active_step_index is not None and any(
-            previous.modality not in resolved_modalities
-            or previous.polarity is not IntentPolarity.POSITIVE
+            not is_resolved_before_active(previous)
             for previous in self.steps[: self.active_step_index]
         ):
             raise ValueError("active step cannot skip an earlier unresolved step")

@@ -31,6 +31,7 @@ class DiscourseSelection[TurnT]:
     anchor_tokens: tuple[str, ...] = ()
     selected_segments: tuple[int, ...] = ()
     ambiguous: bool = False
+    candidate_scores: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +57,7 @@ class SpeechPredicateSignal:
     predicate_end: int
     gender: str
     number: str
+    subject_kind: str = "pronoun"
 
 
 class DiscourseContextBuilder:
@@ -195,60 +197,144 @@ class DiscourseContextBuilder:
 
     @classmethod
     def surface_pronoun_mentions(cls, value: str) -> tuple[SurfacePronounMention, ...]:
-        """Extract explicit third-person subject pronouns independently of model output."""
+        """Extract literal subject pronouns and narrowly recognized dative clitics."""
         if not isinstance(value, str) or not value:
             return ()
         masked = cls._mask_quoted_spans(value)
-        pattern = re.compile(
+        subject_pattern = re.compile(
             r"(?<!\w)(?P<pronoun>ellas|ellos|ella|él|she|he|they)(?!\w)",
             re.IGNORECASE,
         )
-        found = []
-        for match in pattern.finditer(masked):
-            text = value[match.start("pronoun"):match.end("pronoun")]
-            features = cls.pronoun_agreement(text)
-            if features is not None:
+        # "le" is also a feminine article and "les" has other uses. Treat
+        # them as clitics only when immediately followed by a known finite
+        # verb form; never classify "la puerta" as an object reference.
+        clitic_verbs = (
+            "pregunto|pregunta|pregunté|preguntó|preguntan|preguntaba|preguntaron|"
+            "digo|dice|dijo|dije|dicen|decía|"
+            "respondo|responde|respondió|respondí|responden|"
+            "contesto|contesta|contestó|contesté|contestan|"
+            "entrego|entrega|entregó|entregué|entregan|"
+            "ofrezco|ofrece|ofreció|ofrecí|pido|pide|pidió|pedí|"
+            "aviso|avisa|avisó|avisé|muestro|muestra|mostró|mostré|"
+            "doy|da|dio|di|llamo|llama|llamó|llamé|"
+            "saludo|saluda|saludó|saludé|explico|explica|explicó|expliqué|"
+            "cuento|cuenta|contó|conté|escribo|escribe|escribió|escribí"
+        )
+        clitic_pattern = re.compile(
+            r"(?<!\w)(?P<pronoun>les|le)\s+"
+            r"(?P<verb>" + clitic_verbs + r")(?!\w)",
+            re.IGNORECASE,
+        )
+        found: list[SurfacePronounMention] = []
+        seen_spans: set[tuple[int, int]] = set()
+        for pattern in (subject_pattern, clitic_pattern):
+            for match in pattern.finditer(masked):
+                start = match.start("pronoun")
+                end = match.end("pronoun")
+                if (start, end) in seen_spans:
+                    continue
+                text = value[start:end]
+                features = cls.pronoun_agreement(text)
+                if features is None:
+                    continue
+                seen_spans.add((start, end))
                 found.append(
                     SurfacePronounMention(
                         text=text,
-                        start=match.start("pronoun"),
-                        end=match.end("pronoun"),
+                        start=start,
+                        end=end,
                         gender=features[0],
                         number=features[1],
                     )
                 )
+        found.sort(key=lambda item: item.start)
         return tuple(found)
 
     @classmethod
-    def speech_predicate_signals(cls, value: str) -> tuple[SpeechPredicateSignal, ...]:
-        """Detect explicit third-person pronoun subjects directly attached to speech verbs."""
+    def speech_predicate_signals(
+        cls,
+        value: str,
+        *,
+        visible_entities: Iterable[object] = (),
+    ) -> tuple[SpeechPredicateSignal, ...]:
+        """Detect literal speech cues with a pronoun or unique visible NPC subject.
+
+        A named subject is eligible only when its exact alias belongs to one
+        active visible NPC. Quoted spans and ambiguous aliases are ignored.
+        """
         if not isinstance(value, str) or not value:
             return ()
         masked = cls._mask_quoted_spans(value)
         verbs = sorted(cls._SPEECH_VERBS.split("|"), key=len, reverse=True)
-        pattern = re.compile(
+        verb_pattern = "|".join(re.escape(item) for item in verbs)
+        signals: list[SpeechPredicateSignal] = []
+        pronoun_pattern = re.compile(
             r"(?<!\w)(?P<subject>ellas|ellos|ella|él|she|he|they)\s+"
-            r"(?P<predicate>" + "|".join(re.escape(item) for item in verbs) + r")(?!\w)",
+            r"(?P<predicate>" + verb_pattern + r")(?!\w)",
             re.IGNORECASE,
         )
-        signals = []
-        for match in pattern.finditer(masked):
+        pronoun_spans: set[tuple[int, int]] = set()
+        for match in pronoun_pattern.finditer(masked):
             subject = value[match.start("subject"):match.end("subject")]
             predicate = value[match.start("predicate"):match.end("predicate")]
             features = cls.pronoun_agreement(subject)
-            if features is not None:
+            if features is None:
+                continue
+            pronoun_spans.add((match.start("subject"), match.end("subject")))
+            signals.append(
+                SpeechPredicateSignal(
+                    subject=subject,
+                    predicate=predicate,
+                    subject_start=match.start("subject"),
+                    subject_end=match.end("subject"),
+                    predicate_start=match.start("predicate"),
+                    predicate_end=match.end("predicate"),
+                    gender=features[0],
+                    number=features[1],
+                    subject_kind="pronoun",
+                )
+            )
+
+        unique_aliases: dict[str, tuple[object, str] | None] = {}
+        for identity, _name, aliases in cls._visible_npc_specs(visible_entities):
+            for alias in aliases:
+                key = cls.normalize(alias)
+                if not key:
+                    continue
+                existing = unique_aliases.get(key)
+                if key not in unique_aliases:
+                    unique_aliases[key] = (identity, alias)
+                elif existing is not None and existing[0] != identity:
+                    unique_aliases[key] = None
+
+        for entry in unique_aliases.values():
+            if entry is None:
+                continue
+            _identity, alias = entry
+            alias_pattern = re.escape(alias).replace(r"\ ", r"\s+")
+            named_pattern = re.compile(
+                r"(?<!\w)(?P<subject>" + alias_pattern + r")(?!\w)\s+"
+                r"(?P<predicate>" + verb_pattern + r")(?!\w)",
+                re.IGNORECASE,
+            )
+            for match in named_pattern.finditer(masked):
+                span = (match.start("subject"), match.end("subject"))
+                if any(span[0] < end and start < span[1] for start, end in pronoun_spans):
+                    continue
                 signals.append(
                     SpeechPredicateSignal(
-                        subject=subject,
-                        predicate=predicate,
-                        subject_start=match.start("subject"),
-                        subject_end=match.end("subject"),
+                        subject=value[span[0]:span[1]],
+                        predicate=value[match.start("predicate"):match.end("predicate")],
+                        subject_start=span[0],
+                        subject_end=span[1],
                         predicate_start=match.start("predicate"),
                         predicate_end=match.end("predicate"),
-                        gender=features[0],
-                        number=features[1],
+                        gender="unknown",
+                        number="unknown",
+                        subject_kind="visible_npc",
                     )
                 )
+        signals.sort(key=lambda item: (item.subject_start, item.predicate_start))
         return tuple(signals)
 
     @classmethod
@@ -302,10 +388,17 @@ class DiscourseContextBuilder:
             if match is None:
                 continue
             tail = normalized[match.end():]
-            content_tokens = cls._content_tokens(tail)
+            # Keep the callback anchor in its introductory clause. The
+            # action/question after a comma must not steer retrieval toward
+            # another historical segment.
+            anchor_clause = re.split(r"[,;.!?]", tail, maxsplit=1)[0]
+            anchor_source = (
+                anchor_clause if cls._content_tokens(anchor_clause) else tail
+            )
+            content_tokens = cls._content_tokens(anchor_source)
             ordered: list[str] = []
             seen: set[str] = set()
-            for token in re.findall(r"[a-z0-9]+", tail):
+            for token in re.findall(r"[a-z0-9]+", anchor_source):
                 if token in content_tokens and token not in seen:
                     ordered.append(token)
                     seen.add(token)
@@ -449,7 +542,7 @@ class DiscourseContextBuilder:
 
     @classmethod
     def _current_speech_predicates(cls, value: str) -> tuple[str, ...]:
-        """Find lexical speech predicates in current unquoted player evidence."""
+        """Find non-negated lexical speech predicates in current player evidence."""
         normalized = cls.normalize(cls._without_quoted_spans(value))
         verbs = sorted(
             {cls.normalize(item) for item in cls._SPEECH_VERBS.split("|")},
@@ -458,6 +551,13 @@ class DiscourseContextBuilder:
         pattern = r"(?<!\w)(?:" + "|".join(re.escape(item) for item in verbs) + r")(?!\w)"
         found = []
         for match in re.finditer(pattern, normalized):
+            immediate_prefix = normalized[max(0, match.start() - 40):match.start()]
+            if re.search(
+                r"\b(?:no|nunca|jamas|never|not)"
+                r"(?:\s+(?:le|les|lo|la|los|las|se|me|te)){0,2}\s*$",
+                immediate_prefix,
+            ):
+                continue
             if match.group(0) not in found:
                 found.append(match.group(0))
             if len(found) == 2:
@@ -526,6 +626,7 @@ class DiscourseContextBuilder:
                 anchor_tokens,
                 selected,
                 ambiguous=len(selected) > 1,
+                candidate_scores=tuple(sorted(scores.items())),
             )
         if cls.has_topic_shift(current_input):
             return DiscourseSelection((), "current_topic_shift")
@@ -557,6 +658,9 @@ class DiscourseContextBuilder:
             "he": ("masculine", "singular"),
             "she": ("feminine", "singular"),
             "they": ("masculine", "plural"),
+            # Dative clitics encode number but do not identify grammatical gender.
+            "le": ("unknown", "singular"),
+            "les": ("unknown", "plural"),
         }.get(normalized)
 
     @classmethod
@@ -742,22 +846,44 @@ class DiscourseContextBuilder:
                 + ". Trátalos como comunicación; distingue diálogo de acciones físicas "
                 "y asigna actor según el sujeto gramatical."
             )
-        for signal in cls.speech_predicate_signals(current_input)[:2]:
+        for signal in cls.speech_predicate_signals(
+            current_input,
+            visible_entities=visible,
+        )[:3]:
             lines.append(
                 "Señal superficial tipada de habla: sujeto="
                 + repr(signal.subject)
+                + ", tipo="
+                + signal.subject_kind
                 + ", predicado="
                 + repr(signal.predicate)
                 + ", concordancia="
                 + signal.gender
                 + "/"
                 + signal.number
-                + ". Procede del mensaje actual; no aporta identidad canónica."
+                + ". Procede del mensaje actual; no aporta identidad canónica ni autoridad."
             )
 
         pronoun_hint = cls._npc_pronoun_hint(current_input, scoped, visible)
         if pronoun_hint:
             lines.append(pronoun_hint)
+
+        dative_clitics = tuple(
+            mention
+            for mention in cls.surface_pronoun_mentions(current_input)
+            if mention.text.casefold() in {"le", "les"}
+        )
+        if dative_clitics:
+            lines.append(
+                "Clítico(s) dativo(s) literal(es) del mensaje actual: "
+                + ", ".join(
+                    f"«{item.text}» ({item.number})"
+                    for item in dative_clitics
+                )
+                + ". Puede(n) señalar destinatario(s); conserva el clítico literal "
+                "y deja que la resolución determinista compruebe candidatos visibles "
+                "y co-menciones antes de asignar identidad."
+            )
 
         for alias in cls._ambiguous_npc_speaker_aliases(scoped, visible):
             lines.append(
