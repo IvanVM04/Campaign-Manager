@@ -16,7 +16,7 @@ test = [
     "httpx2==2.16.0",
 ]
 lint = [
-    "ruff==0.17.4",
+    "ruff==0.17.5",
 ]
 typing = [
     "pyright==1.1.414",
