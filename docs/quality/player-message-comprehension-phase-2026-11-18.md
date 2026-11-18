@@ -23,7 +23,7 @@ Plural resolution remains stricter than a score winner: les only forms a group f
 
 ### 2. Named NPC speech signals
 
-The typed speech-signal extractor now handles both pronoun subjects and named subjects when the exact label/alias belongs to exactly one active visible NPC.
+The typed speech-signal extractor now handles both pronoun subjects and named subjects when the exact label/alias belongs to exactly one active visible NPC. The Intent prompt also spells out independent per-step actor/modality/polarity assignment, event-order preservation, category selection for multi-step messages, and the resolved-negative-step rule.
 
 It ignores quoted spans, inactive entities and aliases shared by multiple visible NPCs. Named signals are prompt hints only; they carry no canonical ID, do not rewrite the Intent result and do not authorize a world proposal. The player-authored excerpt remains the only source for literal evidence.
 
@@ -43,7 +43,7 @@ This changes no write authorization for the negated step: allows_world_proposal 
 
 Two new fixtures add 14 Spanish-first, multi-step messages and an independent per-step gold sidecar.
 
-The corpus covers sequential player actions, player/NPC dialogue exchanges, multi-NPC events, three-step actor changes, conditional plans and an explicit negative-then-positive sequence. Every case has two or three expected steps. The utterances are new relative to the existing language, semantic-frame, conversation and discourse holdouts.
+The corpus covers sequential player actions, player/NPC dialogue exchanges, multi-NPC events, three-step actor changes, conditional plans and an explicit negative-then-positive sequence. The negative-then-positive case is globally categorized as action because both steps are actions; multiple steps alone do not imply mixed. Every case has two or three expected steps. The utterances are new relative to the existing language, semantic-frame, conversation and discourse holdouts.
 
 The gold sidecar stores only scenario IDs and per-step actor, modality and polarity; it contains no player text, entity IDs or prompt examples. Deterministic tests protect corpus integrity and verify that the utterances are not embedded in the Intent system prompt.
 

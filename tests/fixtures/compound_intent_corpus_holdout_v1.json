@@ -202,7 +202,7 @@
       "recent_turns": [],
       "visible_entities": [],
       "expected": {
-        "category": "mixed",
+        "category": "action",
         "active_step_index": 1,
         "step_count": 2
       }
