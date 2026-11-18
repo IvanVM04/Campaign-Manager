@@ -6,9 +6,10 @@ from contextlib import contextmanager
 
 
 class TurnExecutionLock:
-    """
-    Serializa la ejecución de turnos que pueden modificar
-    el estado compartido de la campaña.
+    """Protect short campaign snapshot, commit and shared-cache critical sections.
+
+    Provider inference and narration must never run while this lock is held.
+    SQLite revisions and durable planning leases fence speculative work.
     """
 
     def __init__(self) -> None:

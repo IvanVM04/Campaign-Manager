@@ -918,8 +918,9 @@ class TurnResolutionService:
         plan: TurnResolutionPlan,
         *,
         conn=None,
+        world_service: WorldService | None = None,
     ) -> TurnResolutionResult:
-        """Apply a previously prepared plan inside the caller's transaction."""
+        """Apply a prepared plan using the supplied isolated world service when present."""
         if isinstance(turn_context, TurnContext):
             context = turn_context
         elif isinstance(turn_context, WorldState):
@@ -948,7 +949,10 @@ class TurnResolutionService:
             )
 
         try:
-            operation_results = self.world_service.apply_turn_operations(
+            application_service = (
+                self.world_service if world_service is None else world_service
+            )
+            operation_results = application_service.apply_turn_operations(
                 plan.world_operations,
                 plan.character_operations,
                 campaign_id=context.campaign.campaign_id,

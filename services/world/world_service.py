@@ -276,11 +276,29 @@ class WorldService:
         )
 
     def get_world(self) -> WorldState:
-        """
-        Devuelve el estado actual del mundo.
-        """
-
+        """Return the campaign's shared in-process world object."""
         return self.world
+
+    def isolated_copy(self, world: WorldState) -> "WorldService":
+        """Create a private service over a detached copy of a campaign snapshot."""
+        if not isinstance(world, WorldState):
+            raise TypeError("world must be a WorldState")
+        isolated = WorldService(
+            repository=self.repository,
+            applier=self.applier,
+            character_applier=self.character_applier,
+            campaign_id=self.campaign_id,
+        )
+        isolated.world = copy.deepcopy(world)
+        return isolated
+
+    def publish_snapshot(self, world: WorldState) -> None:
+        """Publish a committed snapshot while preserving shared object identity."""
+        if not isinstance(world, WorldState):
+            raise TypeError("world must be a WorldState")
+        detached = copy.deepcopy(world)
+        for state_field in fields(WorldState):
+            setattr(self.world, state_field.name, getattr(detached, state_field.name))
 
     @staticmethod
     def _resolve_operation_references(

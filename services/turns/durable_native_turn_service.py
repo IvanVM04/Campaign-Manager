@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import replace
 
 from models.campaign_scope import CampaignScope
@@ -66,6 +67,8 @@ class DurableNativeTurnService:
             resolution_repository=self.resolution_repository,
             context_loader=lambda conn, conversation_id=None: self._context_and_history(conn, conversation_id=conversation_id),
             operation_results_serializer=self._operation_results_json,
+            world_service=world_service,
+            turn_execution_lock=turn_execution_lock,
             error_type=DurableNativeTurnError,
         )
         self.clarification_submission_service = (
@@ -134,29 +137,36 @@ class DurableNativeTurnService:
         return TurnResolutionCodec.operation_results_json(result)
 
     def _context_and_history(self, conn, *, conversation_id: str | None = None):
-        context = self.context_service.get_turn_context(
-            campaign_id=self.scope.campaign_id,
-            conn=conn,
+        # Snapshot capture is a short critical section. Provider inference never
+        # receives the mutable WorldService cache and never holds this lock.
+        lock_scope = (
+            self.turn_execution_lock.acquire()
+            if self.turn_execution_lock is not None
+            else nullcontext()
         )
-        fresh_world = self.world_service.repository.load_world(
-            campaign_id=self.scope.campaign_id,
-            conn=conn,
-        )
-        context = replace(context, world=fresh_world)
-        self.world_service.world = fresh_world
-        session_id = (
-            context.current_session.session_id
-            if context.current_session is not None
-            else None
-        )
-        recent = self.turn_repository.list_recent_turns(
-            session_id=session_id,
-            limit=10,
-            conversation_id=conversation_id,
-            scope=self.scope,
-            conn=conn,
-        )
-        return context, recent
+        with lock_scope:
+            context = self.context_service.get_turn_context(
+                campaign_id=self.scope.campaign_id,
+                conn=conn,
+            )
+            fresh_world = self.world_service.repository.load_world(
+                campaign_id=self.scope.campaign_id,
+                conn=conn,
+            )
+            context = replace(context, world=fresh_world)
+            session_id = (
+                context.current_session.session_id
+                if context.current_session is not None
+                else None
+            )
+            recent = self.turn_repository.list_recent_turns(
+                session_id=session_id,
+                limit=10,
+                conversation_id=conversation_id,
+                scope=self.scope,
+                conn=conn,
+            )
+            return context, recent
 
     def _plan_from_record(self, record: TurnResolutionRecord) -> TurnResolutionPlan:
         return TurnResolutionCodec.plan_from_record(
