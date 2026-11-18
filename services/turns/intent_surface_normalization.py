@@ -795,6 +795,8 @@ def normalize_intent_surface_payload(
                 "quieres hacer?"
             )
             rules.append("reported_action_not_split_requires_clarification")
+            reported_indices.clear()
+            reported_excerpt_ends.clear()
 
         if reported_indices:
             reported_scope = evidence[body_start:reported_scope_end]
