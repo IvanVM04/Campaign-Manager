@@ -449,13 +449,22 @@ def test_context_failure_after_commit_is_recoverable_without_reapplying_operatio
     original_context_and_history = service._context_and_history
     context_calls = {"count": 0}
 
-    def fail_once_after_commit(conn, *, conversation_id=None):
+    def fail_once_after_commit(
+        conn,
+        *,
+        conversation_id=None,
+        detached=True,
+    ):
         context_calls["count"] += 1
-        # Calls 1 and 2 build/validate the plan; call 3 is the context
-        # reload for narration, after the consequences have been committed.
+        # Calls 1 and 2 build/validate the plan; call 3 is the detached
+        # context reload for narration, after consequences have been committed.
         if context_calls["count"] == 3:
             raise RuntimeError("temporary context read failure")
-        return original_context_and_history(conn, conversation_id=conversation_id)
+        return original_context_and_history(
+            conn,
+            conversation_id=conversation_id,
+            detached=detached,
+        )
 
     monkeypatch.setattr(service, "_context_and_history", fail_once_after_commit)
 
@@ -571,7 +580,7 @@ def test_native_turn_planning_releases_lock_and_rejects_a_stale_detached_snapsho
             release_planning.set()
             with pytest.raises(
                 DurableNativeTurnError,
-                match="native turn execution failed",
+                match="campaign state changed while the turn was being prepared",
             ):
                 turn_future.result(timeout=10)
     finally:
