@@ -5,7 +5,6 @@ from contextlib import nullcontext
 from dataclasses import replace
 
 from database import transaction
-
 from models.campaign_scope import CampaignScope
 from models.turn_record import TurnRecord
 from models.turn_resolution_record import TurnResolutionRecord
