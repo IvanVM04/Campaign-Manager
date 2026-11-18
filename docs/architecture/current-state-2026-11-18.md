@@ -1,7 +1,7 @@
 # Estado actual y mapa de arquitectura — 2026-11-18
 
 **Baseline de código auditado:** main — ae52afcf9c172514a5d119fe301de11255f08091 (PR #261 fusionada; baseline previo a esta actualización).  
-**Último baseline de código:** `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255); las PR #256 y #257 actualizaron documentación, no el comportamiento de producción.  
+**Última implementación integrada:** PR #261, que endurece los contratos de allowlist del LLM y aísla snapshots de turno mientras reduce el alcance de los locks.  
 **Método:** inspección estática del árbol, contratos, routers, migraciones, guías de paquetes, índices y evidencias de CI. No es una certificación de una sesión local de Ollama/SillyTavern.
 
 > Este es el mapa vigente a fecha 2026-11-18. Los mapas y auditorías fechados anteriormente son snapshots históricos; explican decisiones y hallazgos de su fecha, pero no deben usarse como fuente actual cuando difieran de este documento o del código.
@@ -114,8 +114,8 @@ En el commit documental `4a3a2549...` (PR #257 fusionada) se observaron:
 
 | Ejecución | Resultado |
 |---|---|
-| [Tests #44270598043](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598043) | Success: 2.042 passed, 22 deselected, 85,14 % de cobertura combinada. Ruff, ambos alcances Pyright, JavaScript y CI summary correctos. |
-| [CodeQL #44270598070](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598070) | Success. |
+| [Tests #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385868) | Success: 2.050 passed, 22 deselected, 85,18 % de cobertura combinada. Ruff, ambos alcances Pyright, JavaScript y CI summary correctos. |
+| [CodeQL #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385883) | Success. |
 
 Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión real de SillyTavern. El baseline de modelo y la aceptación integral del adaptador son gates separados. No se registra aquí como aceptado un benchmark live completo posterior a PR #255.
 

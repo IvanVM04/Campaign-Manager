@@ -35,7 +35,7 @@ Las PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255), [#260](htt
 
 | Check | Resultado observado |
 |---|---|
-| Python determinista | **2042 passed, 22 deselected** |
+| Python determinista | **2.050 passed, 22 deselected** |
 | Cobertura combinada | **85,18 %** (gate configurado: 85 %) |
 | Ruff | Correcto |
 | Tests JavaScript | Correctos |
@@ -44,7 +44,7 @@ Las PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255), [#260](htt
 | CI summary | Correcto |
 | CodeQL Python + JavaScript | Correcto |
 
-Evidencia más reciente: [Tests run #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598043) y [CodeQL run #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44270598070), ambos sobre el commit documental `4a3a2549...` posterior a PR #257. El job de tests informa 2.050 passed, 22 deselected y 85,14 % combinado; Ruff, ambos Pyright, JavaScript y CI summary pasan. CodeQL completa correctamente. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
+Evidencia más reciente: [Tests run #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385868) y [CodeQL run #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385883), ambos sobre el commit ae52afcf9c172514a5d119fe301de11255f08091, posterior a PR #261. El job de tests informa 2.050 passed, 22 deselected y 85,18 % de cobertura combinada; Ruff, ambos alcances Pyright, JavaScript y CI summary pasan. CodeQL completa correctamente. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
 
 La cobertura combinada está apenas por encima del mínimo. La línea de cobertura es alta, pero la cobertura de ramas global es menor; no se recomienda perseguir un porcentaje arbitrario. Se deben priorizar ramas de riesgo: rollback/commit, fencing y recuperación, revisión de campaña, errores de proveedor, clarificaciones, tiradas manuales, visibilidad y conflictos de identidad.
 
@@ -101,7 +101,7 @@ El backend tiene un subconjunto determinista de 5e 2014, no un rules engine comp
 
 ### QF-06 — La cobertura debe dirigirse por riesgo, no por porcentaje (P1)
 
-El gate de 85 % combinado ya está activo y el último run lo ha superado por poco (85,14 %). Añadir tests indiscriminadamente para elevar el número puede generar ruido.
+El gate de 85 % combinado ya está activo y el último run lo ha superado por poco (85,18 %). Añadir tests indiscriminadamente para elevar el número puede generar ruido.
 
 **Acción:** usar el XML de cobertura por paquete/ramas y el mapa de impacto para proteger especialmente estados transaccionales, reintentos, fencing, revisión de campaña, visibilidad, manual rolls y errores del proveedor. No eliminar asserts ni excluir módulos productivos.
 
@@ -153,11 +153,11 @@ Las fases están ordenadas por dependencia. Una fase no se cierra porque el cód
 
 **Estado: completada en el baseline.**
 
-- [x] PR #255 integrada en `main`.
-- [x] 2042 tests deterministas correctos.
+- [x] PRs #255, #260 y #261 integradas en `main`.
+- [x] 2.050 tests deterministas correctos.
 - [x] Ruff, JavaScript y ambos alcances Pyright correctos.
 - [x] CodeQL correcto.
-- [x] Cobertura combinada 85,14 %.
+- [x] Cobertura combinada 85,18 %.
 
 **Salida:** baseline de código estable para planificar la siguiente medición. Esta fase no certifica Ollama/SillyTavern.
 
