@@ -517,11 +517,13 @@ class ConversationReferenceResolver:
             # The accent in tonic "él" is removed by normalization. Preserve
             # that pronoun before stripping leading articles, or "a él" becomes
             # indistinguishable from an article-led noun phrase.
-            first_raw_token = re.match(r"([^\\W_]+)", value.strip(), flags=re.UNICODE)
-            is_tonic_pronoun = (
-                first_raw_token is not None
-                and first_raw_token.group(1).casefold() == "él"
+            first_raw_tokens = value.strip().split(maxsplit=1)
+            first_raw_token = (
+                first_raw_tokens[0].strip(".,;:!?¿¡()[]{}\"'")
+                if first_raw_tokens
+                else ""
             )
+            is_tonic_pronoun = first_raw_token.casefold() == "él"
             if not is_tonic_pronoun:
                 while tokens and tokens[0] in articles:
                     tokens.pop(0)
