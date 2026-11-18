@@ -189,6 +189,18 @@ def _widen_excerpt(step: dict[str, Any], evidence: str) -> None:
         step["source_excerpt"] = excerpt
 
 
+def _widen_report_excerpt(
+    step: dict[str, Any],
+    evidence: str,
+    literal_end: int,
+) -> None:
+    """Include the literal speaker prefix without absorbing later player clauses."""
+    if 0 < literal_end <= 300:
+        excerpt = evidence[:literal_end].strip()
+        if excerpt:
+            step["source_excerpt"] = excerpt
+
+
 def _step_evidence(step: dict[str, Any], evidence: str) -> str:
     """Scope semantic signals to this step when its excerpt is evidence-bound."""
     excerpt = step.get("source_excerpt")
@@ -739,7 +751,7 @@ def normalize_intent_surface_payload(
                 step["attributed_to"] = speaker
                 if scope_is_uncertain:
                     step["polarity"] = "uncertain"
-                _widen_excerpt(step, evidence)
+                _widen_report_excerpt(step, evidence, end)
             rules.append("explicit_reported_speaker")
             if scope_is_uncertain:
                 rules.append("explicit_reported_clause_uncertainty")
