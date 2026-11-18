@@ -43,7 +43,7 @@ The hardening now distinguishes three cases that must not collapse into one sign
 
 The refusal rule is excluded from player dialogue and reported-source constructions. A negative proposition inside quoted speech or a reported claim retains that speaker/modality and does not become a player refusal. Reported uncertainty is scoped to its proposition; a distinct player action can follow it in the same sentence or a later sentence. The attribution evidence span ends with the reported clause rather than absorbing a later action.
 
-The held-out language corpus now contains 34 scenarios. New cases cover preference/refusal, negative dialogue, direct failure, uncertain reports followed by live actions, uncertainty about an attempt's own result, unrelated uncertainty after an attempt, an NPC report followed by a player action in the same sentence, and a refusal followed by a distinct attempt. All eight new cases are critical three-repetition gates; they remain holdout-only and are not copied into the prompt.
+The held-out language corpus now contains 35 scenarios. New cases cover preference/refusal, negative dialogue, direct failure, uncertain reports followed by live actions, uncertainty about an attempt's own result, unrelated uncertainty after an attempt, an NPC report followed by a player action or refusal in the same sentence, and a refusal followed by a distinct attempt. All nine new cases are critical three-repetition gates; they remain holdout-only and are not copied into the prompt.
 
 ## Evidence and safety invariants
 
@@ -61,7 +61,7 @@ The deterministic tests cover:
 
 - multi-step reported claims with same-sentence uncertainty, including an independent player action in the same sentence;
 - non-propagation into a later independent player action;
-- negative decisions with an abstention-state continuation and varied refusal forms;
+- negative decisions with an abstention-state continuation and varied refusal forms, including after an NPC report;
 - preservation of a genuinely distinct later positive attempt, including after a reported uncertain clause;
 - interpreter-level assertions that uncertain reports and negative decisions are not actionable and do not authorize a world proposal.
 
