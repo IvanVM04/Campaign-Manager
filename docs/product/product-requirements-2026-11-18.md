@@ -109,6 +109,7 @@ Los estados de implementación se refieren al código inspeccionado en el baseli
 | FR-WLD-07 | Las menciones de entidades en la narración podrán enlazarse a referencias canónicas y conocidas; la interfaz mostrará una vista previa al pasar el ratón, recibir foco de teclado o activar el elemento en pantallas táctiles. | Pendiente |
 | FR-WLD-08 | El jugador podrá fijar entidades, relaciones, localizaciones o acciones a paneles/listas de acceso rápido para preparar sus siguientes turnos. | Pendiente |
 | FR-WLD-09 | La visibilidad de datos de NPC (por ejemplo, puntos de golpe, CA, condiciones, recursos y estadísticas) será configurable por NPC y por campo, con opciones como visible, oculto, descriptivo o reservado. La política afectará a las proyecciones, no al estado mecánico real. | Pendiente |
+| FR-WLD-10 | El jugador podrá seleccionar y adjuntar al contexto de un turno las entidades visibles que considere relevantes (personajes, NPC, lugares, objetos, relaciones o eventos), sin tener que repetir manualmente su información. Esa selección aporta contexto factual, no evidencia nueva de la intención actual ni autorización para ejecutar acciones. | Pendiente |
 | FR-CHR-01 | El personaje tendrá estado canónico y una proyección legible de su ficha. | Parcial |
 | FR-CHR-02 | Se podrá crear un personaje completo mediante opciones tipadas de especie/raza, clase, trasfondo, características y competencias. | Pendiente |
 | FR-CHR-03 | La progresión de nivel, rasgos de clase y recursos se reflejará en el estado y en las reglas. | Pendiente |
@@ -244,6 +245,7 @@ Una capacidad no se considera terminada por tener un prompt, una clase o un test
 - Un turno con varios pasos y una ambigüedad que se pausa, persiste su progreso y continúa sin repetir los pasos resueltos.
 - Política verificable de tiradas manuales y automáticas.
 - Consulta de los hechos conocidos y fichas de entidades sin filtrar secretos; al menos una política de visibilidad configurable para NPC.
+- Selección explícita de entidades visibles para enriquecer el contexto del siguiente turno, sin convertir ese contexto en una nueva declaración de intención.
 - Dos chats aislados sin contaminación.
 - Cero cambios persistentes críticos falsos y cero filtraciones de secretos en los held-out críticos y las pruebas de operación.
 
@@ -303,7 +305,7 @@ No se usará un tooltip como único lugar para instrucciones obligatorias, adver
 
 La interfaz dispondrá de una zona de consulta del conocimiento disponible para el jugador. Deberá distinguir, al menos, el conocimiento del jugador como persona del conocimiento individual de cada personaje, y permitir filtrar por campaña, personaje, tipo de entidad y estado de conocimiento.
 
-Las fichas de entidad podrán crecer por pestañas o secciones —descripción, datos visibles, relaciones, eventos, localizaciones, acciones y procedencia— sin presentar campos ocultos. La narración generada podrá incluir referencias estructuradas a entidades conocidas. En escritorio, pasar el ratón o recibir foco de teclado mostrará una vista previa; en táctil, un toque/activación abrirá esa vista o la ficha completa. El jugador podrá fijar entidades, relaciones o lugares a un panel de acceso rápido.
+Las fichas de entidad podrán crecer por pestañas o secciones —descripción, datos visibles, relaciones, eventos, localizaciones, acciones y procedencia— sin presentar campos ocultos. La narración generada podrá incluir referencias estructuradas a entidades conocidas. En escritorio, pasar el ratón o recibir foco de teclado mostrará una vista previa; en táctil, un toque/activación abrirá esa vista o la ficha completa. El jugador podrá fijar entidades, relaciones o lugares a un panel de acceso rápido. También podrá seleccionar desde ese panel qué entidades quiere incluir expresamente en el contexto del siguiente turno.
 
 Las referencias inline deben estar ligadas a IDs canónicos que el backend ya haya autorizado para esa proyección. No se resolverán enlaces mediante una búsqueda libre del nombre en la interfaz, porque podría producir coincidencias incorrectas o filtrar entidades no visibles.
 
