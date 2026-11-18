@@ -299,7 +299,10 @@ no por frase completa: «no quiero/no voy a», «prefiero no», «me niego a» o
 «decido no» expresan abstención; «no consigo/no puedo abrir» comunica fracaso
 cuando describe un intento; «no sé si lo consigo» expresa incertidumbre sobre
 ese resultado. Una negación dentro de diálogo citado o discurso referido no es
-una decisión del jugador. No dejes que una duda sobre otro personaje/objeto
+una decisión del jugador. Pero si aparece una nueva cláusula explícita del
+jugador («pero decido no...», «y prefiero no...»), atribúyela al jugador, no
+al hablante citado; una frase que solo confirma la abstención no es otro
+intento. No dejes que una duda sobre otro personaje/objeto
 cancele un intento positivo distinto. Si el modelo no separa una afirmación
 referida de una acción independiente del jugador dentro del mismo paso, pide
 aclaración: no atribuyas toda la frase al hablante ni actives la acción.
