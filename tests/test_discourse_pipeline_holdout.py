@@ -784,3 +784,35 @@ def test_dative_plural_does_not_merge_candidates_from_separate_turns():
     assert result.references == ()
     assert result.clarification_question is not None
     assert result.abstention_reason == "plural_group_not_proven"
+
+
+
+def test_dative_clitic_is_preserved_with_adverbial_a_menudo_or_a_veces():
+    resolver = ConversationReferenceResolver()
+    world = _world([
+        {"id": 1441, "name": "Mara", "entity_type": "npc", "active": True},
+    ])
+    recent_turns = [
+        TurnRecord(
+            id=1441,
+            player_input="Hablo con Mara sobre el mapa.",
+            narrative="",
+        )
+    ]
+
+    for utterance in (
+        "Le pregunto a menudo por el mapa.",
+        "Le pregunto a veces por el mapa.",
+    ):
+        result = resolver.resolve(
+            world,
+            PlayerIntentAnalysis.conservative_legacy(utterance),
+            recent_turns=recent_turns,
+            current_input=utterance,
+        )
+
+        assert len(result.references) == 1
+        assert isinstance(result.references[0], ResolvedConversationReference)
+        assert result.references[0].entity_id == 1441
+        assert result.references[0].mention == "Le"
+        assert result.clarification_question is None

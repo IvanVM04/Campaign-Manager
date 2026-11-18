@@ -502,20 +502,46 @@ class ConversationReferenceResolver:
     def _has_explicit_dative_complement(
         source_excerpt: str,
         mention: SurfacePronounMention,
+        explicit_recipients: tuple[str, ...],
     ) -> bool:
-        """Avoid resolving a clitic again when the same clause names its recipient."""
+        """Coalesce a clitic only when its clause names the same recipient."""
         if mention.text.casefold() not in {"le", "les"}:
             return False
         following = source_excerpt[mention.end : mention.end + 180]
-        clause = re.split(r"[,;.!?]", following, maxsplit=1)[0]
-        return bool(
-            re.match(
-                r"\s+[\wáéíóúüñ]+(?:\s+[\wáéíóúüñ]+){0,4}"
-                r"\s+a(?:l)?\s+[\wáéíóúüñ]",
-                clause,
-                flags=re.IGNORECASE,
-            )
-        )
+        clause = re.split(r"[,;.!?:]", following, maxsplit=1)[0]
+        candidate_keys: set[str] = set()
+        articles = {"el", "la", "los", "las", "un", "una", "unos", "unas"}
+        for candidate in explicit_recipients:
+            if not isinstance(candidate, str) or not candidate.strip():
+                continue
+            tokens = EntityReferenceResolver.normalize(candidate).split()
+            while tokens and tokens[0] in articles:
+                tokens.pop(0)
+            if tokens:
+                candidate_keys.add(" ".join(tokens))
+
+        # Search every a/al complement rather than treating adverbials such as
+        # "a menudo" or "a veces" as a person reference.
+        for match in re.finditer(r"(?<!\w)(?:al|a)\s+", clause, flags=re.IGNORECASE):
+            raw_recipient = clause[match.end():]
+            normalized_recipient = EntityReferenceResolver.normalize(raw_recipient)
+            recipient_tokens = normalized_recipient.split()
+            while recipient_tokens and recipient_tokens[0] in articles:
+                recipient_tokens.pop(0)
+            normalized_recipient = " ".join(recipient_tokens)
+            if any(
+                normalized_recipient == candidate
+                or normalized_recipient.startswith(candidate + " ")
+                for candidate in candidate_keys
+            ):
+                return True
+            # A capitalized proper name is explicit even if the campaign does
+            # not currently contain that entity. Common lowercase adverbials
+            # and role descriptions do not take this fallback.
+            raw_first = raw_recipient.lstrip().split(maxsplit=1)
+            if raw_first and raw_first[0][:1].isupper():
+                return True
+        return False
 
     def resolve(
         self,
@@ -572,12 +598,28 @@ class ConversationReferenceResolver:
             surface_mentions = DiscourseContextBuilder.surface_pronoun_mentions(
                 step.source_excerpt
             )
+            explicit_recipients = [
+                mention for mention, _kind_hint in mentions
+            ]
+            explicit_recipients.extend(
+                surface.text
+                for surface in surface_mentions
+                if surface.text.casefold() not in {"le", "les"}
+            )
+            for entity in self._visible_entities(visible_world):
+                explicit_recipients.append(entity.name)
+                aliases = getattr(entity, "aliases", [])
+                if isinstance(aliases, (list, tuple)):
+                    explicit_recipients.extend(
+                        alias for alias in aliases if isinstance(alias, str)
+                    )
             mentions.extend(
                 (surface.text, SemanticObjectKind.CHARACTER)
                 for surface in surface_mentions
                 if not self._has_explicit_dative_complement(
                     step.source_excerpt,
                     surface,
+                    tuple(explicit_recipients),
                 )
             )
             mentions.extend(
