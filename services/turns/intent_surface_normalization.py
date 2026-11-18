@@ -51,6 +51,24 @@ _EPISTEMIC_UNCERTAINTY_RE = re.compile(
     r"al\s+parecer|rumor)\b",
     re.IGNORECASE,
 )
+_DIRECT_QUESTION_RE = re.compile(r"^\s*¿")
+_PLAYER_DIALOGUE_PREFIX_RE = re.compile(
+    r"^\s*(?:le\s+)?(?:digo|dije|pregunto|pregunté|cuento|conté|"
+    r"respondo|respondí|contesto|contesté|aviso|avisé|susurro|susurré)"
+    r"\s+(?:a|al)\b",
+    re.IGNORECASE,
+)
+_PERCEPTION_PREDICATE_RE = re.compile(
+    r"\b(?:examino|examinar|inspecciono|inspeccioné|inspeccionar|"
+    r"observo|observé|observar|miro|miré|mirar|veo|vi|ver|"
+    r"escucho|escuché|detecto|detecté|detectar)\b",
+    re.IGNORECASE,
+)
+_FOLLOW_UP_ATTEMPT_RE = re.compile(
+    r"\b(?:después|despues|luego|a\s+continuación)\s+"
+    r"(?:intento|trato\s+de|pruebo|procuro)\b",
+    re.IGNORECASE,
+)
 _REPORTED_SPEAKER_RE = re.compile(
     r"^\s*(?P<speaker>"
     r"(?:(?:un|una|el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
@@ -105,6 +123,50 @@ def normalize_intent_surface_payload(
     normalized = dict(intent_payload)
     steps = [dict(step) for step in raw_steps]
     rules: list[str] = []
+
+    # A direct interrogative addressed to the DM is a question, not a player
+    # action. Fictional speech is handled separately by its explicit speaker.
+    if (
+        len(steps) == 1
+        and _DIRECT_QUESTION_RE.search(evidence)
+        and normalized.get("category") not in {"dialogue", "correction"}
+    ):
+        steps[0]["modality"] = "question"
+        normalized["category"] = "question"
+        normalized["active_step_index"] = None
+        _widen_excerpt(steps[0], evidence)
+        rules.append("explicit_direct_question")
+
+    # A first-person speech verb with an explicit in-fiction recipient is
+    # dialogue by the player, even when quoted content is imperative/question.
+    if len(steps) == 1 and _PLAYER_DIALOGUE_PREFIX_RE.search(evidence):
+        steps[0]["actor"] = "player"
+        steps[0]["modality"] = "dialogue"
+        normalized["category"] = "dialogue"
+        normalized["active_step_index"] = None
+        _widen_excerpt(steps[0], evidence)
+        rules.append("explicit_player_dialogue")
+
+    # Preserve an observed/perceptual first step before a later explicit
+    # attempt. Only rewrite two already-separated steps with a literal
+    # perception predicate and a clear sequence marker.
+    if (
+        len(steps) == 2
+        and _PERCEPTION_PREDICATE_RE.search(steps[0].get("source_excerpt", ""))
+        and _FOLLOW_UP_ATTEMPT_RE.search(evidence)
+        and _ATTEMPT_RE.search(steps[1].get("source_excerpt", ""))
+        and not normalized.get("relation_claims")
+    ):
+        steps[0]["actor"] = "player"
+        steps[0]["modality"] = "observed"
+        steps[0]["reported_outcome"] = "not_claimed"
+        steps[1]["actor"] = "player"
+        steps[1]["modality"] = "attempted"
+        steps[1]["polarity"] = "positive"
+        steps[1]["reported_outcome"] = "not_claimed"
+        normalized["category"] = "mixed"
+        normalized["active_step_index"] = 1
+        rules.append("explicit_observation_before_attempt")
 
     # A conditional future is a plan, not an active attempt. Restrict this to
     # one-step utterances so a mixed action/plan sequence remains model-led.

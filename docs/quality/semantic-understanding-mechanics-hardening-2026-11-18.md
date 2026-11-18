@@ -53,6 +53,11 @@ A new small normalizer runs after untrusted-surface sanitization and before
 strict domain decoding. It only applies rules when the utterance contains
 unambiguous local evidence:
 
+- A direct interrogative addressed to the DM is a question, not an actionable
+  player attempt. An explicit first-person speech verb plus a recipient is
+  dialogue even when the quoted content is imperative or interrogative.
+- A two-step sequence preserves an explicitly observed/perceptual first step
+  before a separately expressed later attempt; the second step remains active.
 - A single-step conditional future is a plan with a null active-step pointer.
 - An explicit attempted action followed by a lexical failure clause is marked
   as resolved with \`reported_outcome=failure\`. A two-step model split is

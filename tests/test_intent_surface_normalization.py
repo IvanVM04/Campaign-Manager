@@ -37,6 +37,56 @@ def _payload(*steps, category="action", active=0):
     }
 
 
+def test_explicit_direct_dm_question_cannot_remain_an_active_action():
+    source = "¿Qué señales hay cerca de la puerta oriental?"
+    payload = _payload(_step(source), active=0)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "question"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["modality"] == "question"
+    assert "explicit_direct_question" in summary.applied_rules
+
+
+def test_explicit_player_speech_to_npc_is_dialogue_not_an_action():
+    source = "Le pregunto a la capitana: «¿Quién custodia el archivo?»"
+    payload = _payload(_step(source), active=0)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "dialogue"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "dialogue"
+    assert "explicit_player_dialogue" in summary.applied_rules
+
+
+def test_explicit_observation_before_follow_up_attempt_keeps_step_order():
+    source = "Inspecciono el broche y luego intento abrir el estuche."
+    first = _step("Inspecciono el broche")
+    second = dict(
+        _step("intento abrir el estuche"),
+        index=1,
+    )
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 1
+    assert normalized["steps"][0]["modality"] == "observed"
+    assert normalized["steps"][1]["modality"] == "attempted"
+    assert "explicit_observation_before_attempt" in summary.applied_rules
+
+
 def test_explicit_conditional_future_is_normalized_to_a_plan():
     source = "Si la capitana da su visto bueno, me internaré en las catacumbas."
     payload = _payload(_step("me internaré en las catacumbas"))
