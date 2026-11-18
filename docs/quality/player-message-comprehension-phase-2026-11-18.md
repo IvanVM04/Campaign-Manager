@@ -10,7 +10,7 @@ The implementation is deliberately deterministic where the evidence is explicit 
 
 ### 1. Dative clitics become independent surface mentions
 
-The resolver already discovers third-person subject pronouns independently of the model's emitted targets and frame arguments. It now also detects a narrow, curated set of dative clitics (le / les) when immediately followed by a supported finite speech/interaction verb form.
+The resolver already discovers third-person subject pronouns independently of the model's emitted targets and frame arguments. It now also detects a narrow, curated set of dative clitics (le / les) when immediately followed by a supported finite speech/interaction verb form. If the same clause explicitly names the recipient with an a/al complement, the clitic is coalesced with that explicit reference instead of generating a second resolution.
 
 - The original span and casing are preserved.
 - The clitic is not replaced with a canonical NPC name in player evidence.

@@ -453,3 +453,16 @@ def test_render_explains_dative_clitics_without_assigning_a_referent():
     assert "Clítico(s) dativo(s) literal(es)" in rendered
     assert "conserva el clítico literal" in rendered
     assert "asignar identidad" in rendered
+
+
+
+def test_negated_speech_predicates_are_not_rendered_as_positive_dialogue_cues():
+    mara = Entity(id=85, name="Mara", entity_type="npc")
+    for utterance in ("Mara no responde.", "Ellas nunca contestan."):
+        rendered = DiscourseContextBuilder.render(
+            utterance,
+            (),
+            visible_entities=(mara,),
+        )
+        assert "Trátalos como comunicación" not in rendered
+        assert "Señal superficial tipada de habla" not in rendered

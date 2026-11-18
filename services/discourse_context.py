@@ -542,7 +542,7 @@ class DiscourseContextBuilder:
 
     @classmethod
     def _current_speech_predicates(cls, value: str) -> tuple[str, ...]:
-        """Find lexical speech predicates in current unquoted player evidence."""
+        """Find non-negated lexical speech predicates in current player evidence."""
         normalized = cls.normalize(cls._without_quoted_spans(value))
         verbs = sorted(
             {cls.normalize(item) for item in cls._SPEECH_VERBS.split("|")},
@@ -551,6 +551,13 @@ class DiscourseContextBuilder:
         pattern = r"(?<!\w)(?:" + "|".join(re.escape(item) for item in verbs) + r")(?!\w)"
         found = []
         for match in re.finditer(pattern, normalized):
+            immediate_prefix = normalized[max(0, match.start() - 40):match.start()]
+            if re.search(
+                r"\b(?:no|nunca|jamas|never|not)"
+                r"(?:\s+(?:le|les|lo|la|los|las|se|me|te)){0,2}\s*$",
+                immediate_prefix,
+            ):
+                continue
             if match.group(0) not in found:
                 found.append(match.group(0))
             if len(found) == 2:

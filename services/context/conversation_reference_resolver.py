@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -24,7 +25,10 @@ from models.resolved_conversation_reference import (
 )
 from models.semantic_frames import SemanticObjectKind
 from models.world_state import WorldState
-from services.discourse_context import DiscourseContextBuilder
+from services.discourse_context import (
+    DiscourseContextBuilder,
+    SurfacePronounMention,
+)
 
 from .entity_reference_resolver import EntityReferenceResolver
 
@@ -494,6 +498,25 @@ class ConversationReferenceResolver:
             return f"¿A cuál te refieres con «{safe}»: {', '.join(candidates)}?"[:300]
         return f"¿A quién o a qué te refieres con «{safe}»?"[:300]
 
+    @staticmethod
+    def _has_explicit_dative_complement(
+        source_excerpt: str,
+        mention: SurfacePronounMention,
+    ) -> bool:
+        """Avoid resolving a clitic again when the same clause names its recipient."""
+        if mention.text.casefold() not in {"le", "les"}:
+            return False
+        following = source_excerpt[mention.end : mention.end + 180]
+        clause = re.split(r"[,;.!?]", following, maxsplit=1)[0]
+        return bool(
+            re.match(
+                r"\s+[\wáéíóúüñ]+(?:\s+[\wáéíóúüñ]+){0,4}"
+                r"\s+a(?:l)?\s+[\wáéíóúüñ]",
+                clause,
+                flags=re.IGNORECASE,
+            )
+        )
+
     def resolve(
         self,
         visible_world: WorldState,
@@ -546,10 +569,15 @@ class ConversationReferenceResolver:
                 )
             # Current surface pronouns remain discoverable even if the LLM
             # omitted them from target_mentions and action_frame.arguments.
+            surface_mentions = DiscourseContextBuilder.surface_pronoun_mentions(
+                step.source_excerpt
+            )
             mentions.extend(
                 (surface.text, SemanticObjectKind.CHARACTER)
-                for surface in DiscourseContextBuilder.surface_pronoun_mentions(
-                    step.source_excerpt
+                for surface in surface_mentions
+                if not self._has_explicit_dative_complement(
+                    step.source_excerpt,
+                    surface,
                 )
             )
             mentions.extend(

@@ -720,3 +720,67 @@ def test_resolver_builds_mixed_gender_plural_group_from_dative_les():
     assert isinstance(result.references[0], ResolvedConversationGroupReference)
     assert result.references[0].entity_ids == (1411, 1412)
     assert result.clarification_question is None
+
+
+
+def test_explicit_dative_recipient_does_not_create_a_duplicate_reference():
+    resolver = ConversationReferenceResolver()
+    world = _world([
+        {"id": 1431, "name": "Bram", "entity_type": "npc", "description": "Guardia del puente."},
+        {"id": 1432, "name": "Doran", "entity_type": "npc", "description": "Guardia de la puerta norte."},
+        {"id": 1433, "name": "Mara", "entity_type": "npc", "description": "Cartógrafa."},
+    ])
+    utterance = "Le pregunto al otro guardia."
+    analysis = _analysis(utterance, "otro guardia")
+
+    result = resolver.resolve(
+        world,
+        analysis,
+        recent_turns=[
+            TurnRecord(
+                id=1431,
+                player_input="Hablo con Bram, el guardia del puente.",
+                narrative="",
+            )
+        ],
+        current_input=utterance,
+    )
+
+    assert result.clarification_question is None
+    assert len(result.references) == 1
+    assert isinstance(result.references[0], ResolvedConversationReference)
+    assert result.references[0].entity_id == 1432
+
+
+
+def test_dative_plural_does_not_merge_candidates_from_separate_turns():
+    resolver = ConversationReferenceResolver()
+    world = _world([
+        {"id": 1421, "name": "Mara", "entity_type": "npc", "active": True},
+        {"id": 1422, "name": "Aldric", "entity_type": "npc", "active": True},
+    ])
+    recent_turns = [
+        TurnRecord(
+            id=1421,
+            player_input="La guardia Mara espera junto al balcón.",
+            narrative="",
+        ),
+        TurnRecord(
+            id=1422,
+            player_input="El capitán Aldric vigila la puerta.",
+            narrative="",
+        ),
+    ]
+    utterance = "Les pregunto si vieron la llave."
+    analysis = PlayerIntentAnalysis.conservative_legacy(utterance)
+
+    result = resolver.resolve(
+        world,
+        analysis,
+        recent_turns=recent_turns,
+        current_input=utterance,
+    )
+
+    assert result.references == ()
+    assert result.clarification_question is not None
+    assert result.abstention_reason == "plural_group_not_proven"
