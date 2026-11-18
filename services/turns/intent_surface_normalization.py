@@ -739,7 +739,7 @@ def normalize_intent_surface_payload(
             end = start + len(excerpt)
             if (
                 independent_action_match is not None
-                and start <= body_start
+                and start < reported_scope_end
                 and end > reported_scope_end
             ):
                 collapsed_report_action_indices.append(index)
@@ -773,10 +773,9 @@ def normalize_intent_surface_payload(
                 reported_excerpt_ends[index] = end
 
         if (
-            not reported_indices
-            and collapsed_report_action_indices
+            collapsed_report_action_indices
             and independent_action_match is not None
-            and normalized.get("category") in {"action", "mixed"}
+            and normalized.get("category") in {"action", "mixed", "report"}
         ):
             normalized["category"] = "unknown"
             normalized["active_step_index"] = None
