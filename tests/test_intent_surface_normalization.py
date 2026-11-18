@@ -272,6 +272,40 @@ def test_reported_speaker_and_uncertainty_scope_across_split_steps(
     assert "explicit_reported_clause_uncertainty" in summary.applied_rules
 
 
+def test_reported_clause_does_not_absorb_linked_same_sentence_player_attempt():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real, pero yo intento seguir el rastro."
+    )
+    first = _step("vio un wyvern al este", actor="player", modality="attempted")
+    second = dict(
+        _step("aunque no sabe si era real", actor="player", modality="attempted"),
+        index=1,
+    )
+    third = dict(
+        _step("pero yo intento seguir el rastro", actor="player", modality="attempted"),
+        index=2,
+    )
+
+    normalized, _ = normalize_intent_surface_payload(
+        _payload(first, second, third, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 2
+    assert normalized["steps"][0]["actor"] == "other"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][0]["attributed_to"] == "Un viajero"
+    assert normalized["steps"][1]["actor"] == "other"
+    assert normalized["steps"][1]["polarity"] == "uncertain"
+    assert normalized["steps"][2]["actor"] == "player"
+    assert normalized["steps"][2]["modality"] == "attempted"
+    assert normalized["steps"][2]["polarity"] == "positive"
+    assert "pero yo intento seguir el rastro" in normalized["steps"][2]["source_excerpt"]
+
+
 def test_reported_uncertainty_does_not_capture_a_later_player_action():
     source = (
         "Una exploradora asegura que encontró señales al norte, "
