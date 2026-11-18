@@ -72,7 +72,7 @@ _FOLLOW_UP_ATTEMPT_RE = re.compile(
 _REPORTED_SPEAKER_RE = re.compile(
     r"^\s*(?P<speaker>"
     r"(?:(?:un|una|el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
-    r"|(?:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
+    r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
     r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)"
     r")\s+(?:me\s+)?(?:cuenta|cuentan|contó|contaron|dice|dijo|dicen|"
     r"afirman|afirma|afirmó|asegura|aseguró|relata|relató|comenta|comentó)"
@@ -116,6 +116,17 @@ def normalize_intent_surface_payload(
         or not raw_steps
         or len(raw_steps) > 8
         or any(not isinstance(step, dict) for step in raw_steps)
+    ):
+        return intent_payload, IntentSurfaceNormalizationSummary()
+
+    # Surface rules must never hide a malformed active-step pointer.
+    # Preserve invalid values so PlayerIntentAnalysis remains the authority
+    # that rejects them instead of silently turning them into null.
+    active_step_index = intent_payload.get("active_step_index")
+    if active_step_index is not None and (
+        isinstance(active_step_index, bool)
+        or not isinstance(active_step_index, int)
+        or not 0 <= active_step_index < len(raw_steps)
     ):
         return intent_payload, IntentSurfaceNormalizationSummary()
 

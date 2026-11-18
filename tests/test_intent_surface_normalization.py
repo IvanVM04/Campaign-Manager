@@ -144,6 +144,20 @@ def test_failure_clause_split_from_its_attempt_is_collapsed_safely():
     assert "explicit_attempt_failure_outcome" in summary.applied_rules
 
 
+@pytest.mark.parametrize("active", [7, True, -1, "0"])
+def test_surface_normalization_does_not_hide_invalid_active_step_indices(active):
+    source = "¿Qué ocurre en la biblioteca?"
+    payload = _payload(_step(source), active=active)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized == payload
+    assert summary.applied_rules == ()
+
+
 def test_named_reporter_is_preserved_inside_the_literal_step_excerpt():
     source = "Dorian me comenta que la pasarela quedó reparada al alba."
     payload = _payload(
