@@ -1,3 +1,5 @@
+> **Historical implementation record — migration 022.** This document explains why the durable-resolution envelope was introduced. It predates later lifecycle hardening/extraction into collaborators; use the [active turn pipeline contract](turn-pipeline-compatibility.md), [durable execution boundary](durable-turn-execution-boundary.md) and [current system state](current-state-2026-11-18.md) for present behavior.
+
 # Durable turn-resolution persistence (migration 022)
 
 ## Scope

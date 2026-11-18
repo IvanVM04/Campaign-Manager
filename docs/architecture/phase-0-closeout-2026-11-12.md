@@ -1,3 +1,5 @@
+> **Historical decision record — 2026-11-12.** Its recommendation to defer all standalone UI work was valid for that phase and is superseded by product requirements v0.2: UI design may begin after backend contracts/workflows are solid. See [product requirements](../product/product-requirements-2026-11-18.md) and [current quality roadmap](../quality/quality-roadmap-2026-11-18.md). Structural closeout findings remain historical context.
+
 # Phase 0 — architecture closeout and hand-off
 
 > **Historical closeout (2026-11-12):** this records the earlier architecture phase and must not be used as the current gameplay/AI priority list. See [current architecture audit](architecture-audit-2026-11-18.md) and [quality roadmap](../quality/quality-roadmap-2026-11-18.md).

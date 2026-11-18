@@ -1,3 +1,5 @@
+> **Historical audit — baseline PR #205, superseded as current status on 2026-11-18.** Do not use its PR #215/#216 revalidation paragraphs as current implementation status. Consult [current system state](current-state-2026-11-18.md) and [current quality roadmap](../quality/quality-roadmap-2026-11-18.md).
+
 # Architecture and modularity audit — 2026-11-12
 
 > **Historical audit (2026-11-12):** findings and priorities below refer to the PR #205 / #216 era and are not the current implementation baseline. Use [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md) and [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md). Do not reuse old PR #215–#219 next-step guidance as current.

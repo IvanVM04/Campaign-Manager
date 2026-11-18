@@ -1,3 +1,5 @@
+> **Historical prompt-evaluation protocol snapshot — 2026-11-12.** Its examples and baseline settings predate subsequent role-specific pipeline hardening and the semantic/discourse work through PR #255. The core separation between deterministic contract tests, live Ollama evaluation and SillyTavern acceptance remains valid; use the [current quality roadmap](quality-roadmap-2026-11-18.md) and [current system-state map](../architecture/current-state-2026-11-18.md) for present status.
+
 # Semantic prompt evaluation — deterministic contracts and live Ollama
 
 **Purpose:** evaluate the integrated interpretation/proposal pipeline without confusing deterministic application guarantees with live model quality.

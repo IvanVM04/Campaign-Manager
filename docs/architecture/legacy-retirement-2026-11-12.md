@@ -1,3 +1,5 @@
+> **Historical retirement record — 2026-11-12.** The cleanup facts and migration-029 preservation record remain useful provenance. The numbered “Next architecture work” below was the hand-off at that time, not a current backlog. Consult [current system state](current-state-2026-11-18.md) and [current quality roadmap](../quality/quality-roadmap-2026-11-18.md) for present implementation and priorities.
+
 # Legacy retirement — 2026-11-12
 
 ## Decision

@@ -1,3 +1,5 @@
+> **Historical implementation record — PR #253 baseline.** This file records the taxonomy/normalization work and its then-current model metrics. PR #255 added later discourse and compound-intent changes; the old metrics are not a post-#255 baseline. Use the [current quality roadmap](quality-roadmap-2026-11-18.md) for current priorities.
+
 # Semantic understanding hardening — 2026-11-17
 
 ## Executive summary

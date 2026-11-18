@@ -1,10 +1,9 @@
+> **Dated module inventory — baseline PR #205 (2026-11-12).** This catalogue remains useful for shared-layer navigation, but individual paths, owners and improvement notes may have changed through later PRs. Use the [current system-state map](current-state-2026-11-18.md), the live package guides and source for present ownership. Do not treat the PR #205 baseline as a current audit.
+
 # Shared-layer module catalogue — 2026-11-12
 
-> **Point-in-time catalogue (2026-11-12):** this inventory is retained as a historical PR #205-era snapshot. For current service/package ownership and known gaps, use [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md), the current package guides and source code.
-
-
-**Verified against:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged).  
-**Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
+**Verified against:** main at a14d1568ba852cd545caaf06e9efd48a4f925b03 (PR #205 merged).  
+**Navigation rule:** the [current architecture map](current-state-2026-11-18.md) describes present packages and end-to-end flows. This catalogue preserves the shared-layer inventory from its original baseline; it is a navigation aid, not a proposal to split every file. For the 2026-11-18 package/flow view, use [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md), not this dated inventory.
 
 ## Read this before changing shared layers
 

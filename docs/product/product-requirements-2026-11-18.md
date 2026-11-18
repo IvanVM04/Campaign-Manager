@@ -2,7 +2,8 @@
 
 **Versión:** 0.2 — requisitos ampliados y dirección de UX  
 **Fecha:** 2026-11-18  
-**Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255); último commit documental de `main`: `6ca283e08e8a05eea6cced623e9d77cf2f395e25` (PR #256)  
+**Baseline de código:** `main` — `f4fb3914ebab4579118863796e6f6d4b7183d0cf` (PR #255). **Baseline documental:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
+**Inventario:** 71 requisitos funcionales y 20 no funcionales, con IDs estables.  
 **Estado:** decisiones de producto ampliadas a partir de feedback explícito; las capacidades siguen pendientes salvo donde se indique lo contrario.
 
 > Este documento define qué producto queremos construir y separa los requisitos de las capacidades que el repositorio implementa hoy. Que un requisito aparezca aquí no significa que esté terminado ni que haya superado una prueba con Ollama/SillyTavern.
@@ -265,9 +266,10 @@ Una capacidad no se considera terminada por tener un prompt, una clase o un test
 Este documento se ha contrastado con el estado del repositorio y sus contratos actuales. Los puntos de entrada recomendados son:
 
 - [README del proyecto](../../README.md) — visión, límites y flujos principales.
-- [Mapa de arquitectura](../architecture/architecture-map-2026-11-12.md).
-- [Contrato del pipeline de turnos](../architecture/turn-pipeline-compatibility.md).
-- [Ciclo durable de resolución](../architecture/turn-resolution-lifecycle.md).
+- [Estado actual y mapa de arquitectura](../architecture/current-state-2026-11-18.md).
+- [Contrato activo del pipeline de turnos](../architecture/turn-pipeline-compatibility.md).
+- [Auditoría documental y clasificación de snapshots](../architecture/documentation-audit-2026-11-18.md).
+- [Ciclo durable de resolución](../architecture/turn-resolution-lifecycle.md) — propuesta PR #28 conservada como referencia histórica, no contrato activo.
 - [Guía de modelos y contratos compartidos](../../models/README.md).
 - [Servicios de turnos](../../services/turns/README.md).
 - [Servicios de contexto](../../services/context/README.md).

@@ -1,5 +1,7 @@
 # Campaign writer, lock and cache-coherence audit (F-13)
 
+> **Estado actualizado — 2026-11-18:** la matriz de rutas se revisó contra el código actual. La antigua ruta narrativa-first `POST /integration/turn` fue retirada y devuelve 404; la fila histórica original se reemplaza abajo por su estado actual. Para el mapa global y el baseline de CI, consulte [estado actual del sistema](current-state-2026-11-18.md). Los hallazgos PR #78 que originaron este documento se conservan como contexto histórico.
+
 **Scope:** all tracked FastAPI routes that mutate campaign-owned state, plus routes that lazily initialize it.
 **Deployment assumption:** one application process and one worker. `TurnExecutionLock` is process-local; SQLite transactions and revision triggers protect persistence, but this is not a distributed lock.
 
@@ -35,7 +37,7 @@ PR #78 fixes these boundaries:
 | `POST /entities/{id}/effects`, `PATCH /effects/{id}/status`, `DELETE /effects/{id}` | `PersistentEffectService`; `transaction("IMMEDIATE")` | Route acquires campaign lock | Persistent effects/timers are transactionally persisted and revision-triggered. No `WorldState` cache is maintained for effect rows. |
 | `POST /turn`, `POST /turn/roll`, `POST /turn/clarification` | `DurableNativeTurnService`; short explicit SQLite transactions, with `IMMEDIATE` for claims/commit | Service acquires shared campaign lock | Captures and validates campaign revision; consequences and durable resolution commit atomically. `WorldService` publishes the committed world state and restores its prior state on rollback. |
 | `POST /integration/turn/resolve`, `/roll`, `/clarification`, `/complete` | `DurableNativeTurnService` plus context adapter | Route or durable service acquires shared campaign lock (completion acquires internally) | Same durable revision/commit contract as native turns. |
-| Retired `POST /integration/turn` | No active route, service writer or snapshot reconciliation path | Not applicable | The endpoint returns 404; the current external writer is `POST /integration/turn/resolve` followed by challenge continuation if needed and `POST /integration/turn/complete` for narrative-only persistence. |
+| Removed `POST /integration/turn` | No writer; the route is retired and returns 404 | Not applicable | Do not reintroduce the narrative-first mutation path or snapshot restoration. Use `POST /integration/turn/resolve`, continuation routes and `/complete` above. |
 | `POST /integration/context`, integration state GETs, world/memory/export GETs | Read/context assembly | Route acquires lock where it reads shared in-memory world or multiple related projections | Read-only; lock provides a consistent in-process view. |
 
 ## Revision-trigger coverage
@@ -61,8 +63,3 @@ Any future migration adding a campaign-owned table must decide explicitly whethe
 ## Remaining deployment boundary
 
 The process-local lock does not coordinate multiple Uvicorn workers or multiple backend processes. The supported deployment remains one process/one worker. SQLite transactions and optimistic revisions still protect database integrity, but they do not make the in-memory `WorldService` cache coherent across processes. Multi-worker support requires a separate cache invalidation/distributed coordination design and is not part of F-13.
-
-
-## Current route status note (2026-11-18)
-
-The route matrix above is a historical synchronization audit with its original PR #78 findings retained. The narrative-first `POST /integration/turn` entry has been marked retired. Current SillyTavern writes use only the durable `/resolve`, `/clarification`, `/roll` and `/complete` lifecycle through `DurableNativeTurnService`; `/complete` persists narrative/version and does not apply world consequences. Do not recreate `SillyTavernIntegrationService.process_turn()`, `LegacySillyTavernTurnService` or snapshot reconciliation. See [turn pipeline contract](turn-pipeline-compatibility.md), [durable adapter contract](sillytavern-durable-turn-adapter.md) and [current architecture audit](architecture-audit-2026-11-18.md).

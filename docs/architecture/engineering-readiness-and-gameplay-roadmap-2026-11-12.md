@@ -1,3 +1,5 @@
+> **Historical readiness/estimate snapshot — 2026-11-12.** The numeric readiness estimates, PR #214 baseline and UI deferral statements are point-in-time only. The current implementation status and work order are in [current system state](current-state-2026-11-18.md), [product requirements](../product/product-requirements-2026-11-18.md) and [quality roadmap](../quality/quality-roadmap-2026-11-18.md).
+
 # Engineering readiness and gameplay roadmap — 2026-11-12
 
 > **Historical planning snapshot (2026-11-12):** estimates, PR order and scope here refer to the pre-#255 implementation phase. The current product direction is in [requirements v0.2](../product/product-requirements-2026-11-18.md), while the live quality/engineering order is in [quality-roadmap-2026-11-18.md](../quality/quality-roadmap-2026-11-18.md) and [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md).

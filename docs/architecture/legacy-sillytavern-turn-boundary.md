@@ -7,8 +7,8 @@
 > reconciliation described below have been removed. Migration 029 archives
 > existing non-null snapshot JSON in `turn_snapshot_archive`. Do not treat
 > the recommendations in this historical report as current implementation
-> instructions; see [the current architecture audit](architecture-audit-2026-11-12.md)
-> and [turn pipeline contract](turn-pipeline-compatibility.md).
+> instructions; see [current system state](current-state-2026-11-18.md), [turn pipeline contract](turn-pipeline-compatibility.md)
+> and [documentation audit](documentation-audit-2026-11-18.md).
 
 # Legacy SillyTavern turn boundary
 

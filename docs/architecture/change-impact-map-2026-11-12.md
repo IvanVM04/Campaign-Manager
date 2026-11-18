@@ -83,7 +83,7 @@ Stop and design further if the PR:
 
 When a new capability or public workflow is added, update:
 1. the capability package README;
-2. the architecture map or shared-layer module catalogue;
+2. the current system-state map (for architecture-wide ownership/status) or the dated shared-layer module catalogue (for shared-layer navigation);
 3. this change-impact map when the workflow spans multiple layers;
 4. the dependency matrix and boundary test if a new import edge is introduced;
 5. tests and migration/read API contracts that protect observable behavior.

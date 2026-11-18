@@ -5,13 +5,12 @@ Read this file before making repository changes.
 ## Start here
 
 1. Read [the documentation hub](docs/README.md).
-2. Read the [current architecture map](docs/architecture/architecture-map-2026-11-18.md), [architecture audit](docs/architecture/architecture-audit-2026-11-18.md) and [change-impact map](docs/architecture/change-impact-map-2026-11-18.md).
-3. Read the [product requirements v0.2](docs/product/product-requirements-2026-11-18.md) to understand approved product direction. Requirements describe the target, not necessarily implemented behavior.
-4. Read the [quality roadmap](docs/quality/quality-roadmap-2026-11-18.md) and [current test-suite navigation](docs/quality/test-suite-navigation-2026-11-18.md).
-5. Read [the capability dependency matrix](docs/architecture/package-dependency-matrix.md).
-6. Read the relevant package `README.md` before changing a capability.
+2. Read the [current system state](docs/architecture/current-state-2026-11-18.md), [current architecture map](docs/architecture/architecture-map-2026-11-18.md), [current architecture audit](docs/architecture/architecture-audit-2026-11-18.md) and [current change-impact map](docs/architecture/change-impact-map-2026-11-18.md).
+3. Read the [product requirements v0.2](docs/product/product-requirements-2026-11-18.md) and [current quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
+4. Read the [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [capability dependency matrix](docs/architecture/package-dependency-matrix.md), relevant package `README.md` and active technical contract before changing a capability.
+5. Read the [documentation freshness audit](docs/architecture/documentation-audit-2026-11-18.md) when editing documentation. Dated CI/test audits are historical; use the current quality roadmap and latest workflow evidence for present status.
 
-Dated PR reports and audits are historical snapshots unless explicitly labelled current. The documentation freshness audit (`docs/documentation-audit-2026-11-18.md`) records the current source-of-truth hierarchy and superseded documents. Inspect source and tests before treating any older recommendation as pending.
+Dated audits and PR implementation records are historical snapshots unless explicitly designated as current. Inspect source and current contracts before treating an old recommendation, count or status as pending.
 
 ## Working agreement
 
@@ -24,7 +23,7 @@ Dated PR reports and audits are historical snapshots unless explicitly labelled 
 - Do not add gameplay features while the active objective is CI, architecture, legacy cleanup, prompt quality or test maintenance.
 - Do not claim a live Ollama/SillyTavern smoke test passed unless it was actually run.
 
-The default-branch ruleset `protc1` requires pull requests, review-thread resolution, `CI summary`, and both CodeQL language checks. `CI summary` aggregates Ruff, deterministic tests, scoped and repository-wide Pyright, and JavaScript tests. Consult the [current quality roadmap](docs/quality/quality-roadmap-2026-11-18.md) for the latest verified baseline; the dated 11 Nov CI audit is historical.
+The default-branch ruleset `protc1` requires pull requests, review-thread resolution, `CI summary`, and both CodeQL language checks. `CI summary` aggregates Ruff, deterministic tests, scoped and repository-wide Pyright, and JavaScript tests. See the current CI audit.
 
 ## Environment setup
 
@@ -64,7 +63,7 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - Keep deterministic rules/mechanics, semantic validation, persistence and LLM proposal generation as separate authorities.
 - LLM output is untrusted input. It may propose operations but must never write directly to SQLite or bypass domain validation.
 - Preserve turn idempotency, campaign revision checks, lease fencing, short atomic commit boundaries and narration recovery.
-- The narrative-first `POST /integration/turn` route, `LegacySillyTavernTurnService`, `WorldSnapshotRepository`, `LLMWorldExtractor.extract()` and runtime `turns.snapshot` column are retired. Do not reintroduce them. Migration 029 preserves old non-null snapshot JSON in the inert `turn_snapshot_archive` table. The current durable turn lifecycle is documented in `docs/architecture/turn-resolution-lifecycle.md`.
+- The narrative-first `POST /integration/turn` route, `LegacySillyTavernTurnService`, `WorldSnapshotRepository`, `LLMWorldExtractor.extract()` and runtime `turns.snapshot` column are retired. Do not reintroduce them. Migration 029 preserves old non-null snapshot JSON in the inert `turn_snapshot_archive` table.
 
 ## LLM context and prompt constraints
 
@@ -72,7 +71,8 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - The structured proposal prompt is the only world-consequence proposal path. Keep static instructions separate from typed context data; do not add a parallel narrative-first extraction pipeline.
 - `TurnResolutionService` builds the active structured proposal projection through `ContextBuilder.build_proposal_context()` and passes the typed `models.world_context_projection.WorldContextProjection` to `services/llm_world`.
 - Keep the dependency direction: `services/turns` may orchestrate `services.context`; `services/llm_world` must not import `services.context`.
-- Preserve the active character, current location, related records and dependency bundles. Never solve context overflow by truncating arbitrary campaign facts.
+- The current proposal-context implementation requires one trusted active-character focus and preserves current location, related records and dependency bundles. The product target additionally supports controlling several player characters and selecting further known entities; that broader policy is specified in product requirements v0.2 and must not be represented as already implemented.
+- Never solve context overflow by truncating arbitrary campaign facts.
 - The shared token-budget helper is a conservative one-UTF-8-byte-per-token upper bound, not a model-specific tokenizer. The complete prompt and compact one-repair request are independently bounded.
 - Keep provider output size-limited, repair attempts limited to one, and model output strictly validated.
 
@@ -88,9 +88,8 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 ## Documentation requirements
 
 - Update the relevant package `README.md` when ownership, public exports or dependencies change.
-- Update the current architecture audit, architecture map and change-impact map when a finding is fixed or a new one is confirmed.
-- Keep historical audit documents dated; add a supersession pointer when their status could be mistaken for current, but do not rewrite historical evidence to imply that later fixes existed at the time.
-- Keep product requirements separate from implementation status. A requirement remains pending until code, tests and the owning guide demonstrate it.
+- Update the current architecture audit and architecture map when a finding is fixed or a new one is confirmed.
+- Keep historical audit documents dated and immutable; do not rewrite history to make it appear that a later fix was always present.
 - Record module purpose, consumers, dependency rules, known risks and concrete follow-up work.
 - Link new current documents from [the documentation hub](docs/README.md) and the relevant index.
 

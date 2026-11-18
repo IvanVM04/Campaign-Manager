@@ -1,3 +1,5 @@
+> **Historical snapshot — superseded as the current map on 2026-11-18.** This file records the PR #218-era architecture and quality state. Later implementation work through PR #255 changed language understanding, evaluation and discourse continuity. Use [current system state](current-state-2026-11-18.md), [current product requirements](../product/product-requirements-2026-11-18.md) and [current quality roadmap](../quality/quality-roadmap-2026-11-18.md) for present status. Preserve the old baselines below as history.
+
 # Campaign Manager — architecture map for maintainers and coding agents
 
 > **Superseded snapshot (2026-11-18):** this map describes the 12 Nov repository state. Use [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md) for current package ownership, routes and implementation status, and [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md) for current findings. Preserve this page as historical evidence.

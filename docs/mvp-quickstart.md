@@ -1,6 +1,6 @@
 # Quickstart: jugar la primera aventura de Campaign Manager
 
-Esta guía prepara una campaña local con una aventura inicial breve. La interfaz de juego sigue siendo SillyTavern; todavía no existe una aplicación web independiente.
+Esta guía prepara una campaña local con una aventura inicial breve mediante la integración actual de SillyTavern. A fecha 2026-11-18 todavía no existe una interfaz propia de juego. El producto sí contempla una interfaz de primera parte muy configurable, cuyo diseño comenzará cuando los contratos y workflows esenciales del backend sean sólidos; esta guía seguirá documentando cómo probar el cliente SillyTavern mientras tanto.
 
 > **Alcance de esta guía (2026-11-18):** esta quickstart describe el MVP
 > realmente ejecutable, no todas las capacidades del producto v0.2. El demo

@@ -10,6 +10,12 @@ The durable resolution record is authoritative for in-flight state. Narrative
 and transcript versions are a separate presentation projection and must never
 replay committed consequences.
 
+**Current implementation boundary:** mechanics adjudication and proposal context
+currently use one trusted active-character focus. Product requirements v0.2
+aim to support a set of player-controlled characters and explicit NPC control
+delegation; those permissions/control-set workflows are future capabilities,
+not existing behavior of this package.
+
 ## Package modules
 
 - `dm_service.py` — generates presentation prose from committed evidence.
@@ -56,6 +62,13 @@ remain subject to strict validation. A cleared attribution cannot authorize an
 NPC/other world proposal.
 
 The semantic interpretation is deliberately not split into calls for action extraction, argument roles, relations, attribution or discourse. These are interdependent fields in one response contract. The stage boundaries separate responsibilities, not pieces of one meaning representation.
+
+The modular pipeline was introduced/hardened through PRs #225–#226. Subsequent
+work added discourse/reference evaluation and correction reliability (#246–#250),
+semantic predicate hardening (#253) and the latest compound-intent/discourse
+changes (#255). The current delivery record is [player-message comprehension
+phase — PR #255](../../docs/quality/player-message-comprehension-phase-2026-11-18.md);
+older PR documents remain implementation snapshots, not a list of pending work.
 
 ### Current state after PR #255 and product v0.2 boundary
 

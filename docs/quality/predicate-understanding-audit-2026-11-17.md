@@ -1,3 +1,5 @@
+> **Historical audit — pre-final PR #253/#255 code path.** The measurements and planned next actions below describe the audit's own baseline and must not be treated as metrics for current `main`. PRs #253 and #255 subsequently changed semantic normalization and discourse/compound-intent behavior. Use the [current quality roadmap](quality-roadmap-2026-11-18.md) and rerun the unchanged held-out corpora for a comparable post-change baseline.
+
 # Auditoría de comprensión de predicados y siguiente fase de calidad
 
 **Fecha:** 2026-11-17  

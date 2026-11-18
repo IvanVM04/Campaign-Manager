@@ -43,7 +43,8 @@ The byte-based budget is an upper bound rather than a model-specific token count
 - [x] Resolve canonical names and explicit aliases with accent-insensitive normalization; descriptions and notes remain lower-confidence fallbacks, and ambiguous references return no selected entity IDs.
 - [x] Record resolution status, match kind and candidate count in the detached proposal projection without storing the raw player query.
 - [x] Add conversation-scoped, visibility-filtered deterministic reference resolution with bounded recency and ambiguity abstention (PR #216).
-- [ ] Expand labelled coverage for speaker attribution, correction chains, broader ellipsis and semantic paraphrases; do not claim general coreference.
+- [x] Add a narrow named-NPC speech signal when exactly one visible active NPC is eligible; it remains evidence-only and grants no canonical identity or write authority (PR #255).
+- [ ] Expand labelled coverage for additional speaker-attribution patterns, multi-round correction interactions, broader ellipsis and semantic paraphrases; do not claim general coreference.
 - [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
 - [ ] Consider tokenizer-aware accounting only after a provider exposes a reliable tokenizer contract.
 - [x] Keep rendering independent from transport response formatting.
@@ -89,27 +90,42 @@ coreference: broader ellipsis, correction chains and paraphrases remain open
 and require a labelled evaluation corpus.
 
 
-## Current discourse and compound-intent behavior (PR #246–#255)
+## Current discourse and reference signals (PR #255)
 
-`services.discourse_context.DiscourseContextBuilder` creates a bounded
-same-conversation evidence index used by reference resolution. The
-conversation resolver separates player-authored evidence from narrator prose,
-uses topic/callback and recency signals, considers literal surface cues such
-as Spanish dative clitics/explicit recipients, and keeps NPC-speech signals
-narrowly grounded in explicitly named visible active speakers. Group/plural
-references remain distinct from singular entity identity; ambiguous or
-hidden candidates abstain.
+The discourse/reference path is an application-generated, bounded evidence index;
+it is not canonical world state and does not authorize writes. It uses the current
+utterance and a bounded recent transcript already scoped to the same conversation.
+The PR #255 increment builds on the earlier PR #223/#246–#248 work and adds:
 
-PR #255 further strengthens callback anchor scoping, explicit-negation
-sequencing and compound player messages. The separate 14-case compound-intent
-holdout evaluates ordered steps, actor, modality and polarity per step. These
-are deterministic contracts and evaluation fixtures, not proof of general
-open-domain coreference or perfect live-model accuracy. Re-run the relevant
-live holdouts on the current model before claiming quality acceptance; see the
-[current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md)
-and [current architecture map](../../docs/architecture/architecture-map-2026-11-18.md).
+- narrow Spanish dative-clitic surface cues (`le/les`) for supported speech/
+  interaction verb patterns; literal span/casing is preserved and explicit
+  recipient complements are coalesced rather than emitted as duplicate targets;
+- named-NPC speech signals only when the current visibility/evidence rules identify
+  exactly one eligible visible active NPC; speaker signals are evidence only,
+  not canonical IDs or permission to mutate;
+- callback anchor scoping to the introductory clause rather than unrelated
+  continuation text;
+- explicit-negation sequencing so a negated step can precede a later active
+  attempt without authorizing the negative step as a world proposal;
+- a 14-case compound-intent held-out set with independent per-step gold for
+  order, actor, modality and polarity.
 
-The product requirements v0.2 also request a configurable confidence
-threshold and a generalized durable partial-turn checkpoint. Existing
-clarification and pending-correction continuation are implemented, but that
-broader product-level uncertainty policy is still future work.
+These are bounded cues and evaluated contracts, not general Spanish/English
+coreference or a claim that the live model always interprets discourse correctly.
+Plural-to-individual ambiguity, hidden/uncertain antecedents and insufficient
+evidence must continue to abstain. Some explicit multi-round slot corrections
+are supported by the turn workflow, but broad correction-chain/paraphrase
+coverage remains a labelled-evaluation gap. The product target also calls for
+knowledge scopes across several controlled player characters and a player-
+selected context panel; those capabilities are not implemented by the current
+single-active-character selector.
+
+The product requirements v0.2 also call for a configurable confidence
+threshold and a generalized durable partial-turn checkpoint. The runtime
+supports durable clarification and pending-intent correction, but this broader
+uncertainty policy is still future work.
+
+See [the current product requirements](../../docs/product/product-requirements-2026-11-18.md),
+[the current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md),
+[current architecture map](../../docs/architecture/architecture-map-2026-11-18.md)
+and [PR #255 delivery record](../../docs/quality/player-message-comprehension-phase-2026-11-18.md).

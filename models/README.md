@@ -80,5 +80,4 @@ rules remain authoritative for mutation and mechanics.
 - Add deterministic parser, prompt, codec and lifecycle tests with schema changes.
 - Keep untrusted interpretation distinct from confirmed facts and committed
   consequences.
-- Update the P0 specification and package guides when semantics or bounds
-  change.
+- Update the product requirements, current quality roadmap and affected package guides when semantics or bounds change. The dated language-understanding P0 specification is retained as historical rationale, not the active priority register.
