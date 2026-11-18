@@ -445,7 +445,10 @@ def normalize_intent_surface_payload(
             decision_step["modality"] = "negated"
             decision_step["polarity"] = "negative"
             decision_step["reported_outcome"] = "not_claimed"
-            _widen_excerpt(decision_step, evidence)
+            # Keep a later player decision's evidence separate from an
+            # earlier reported NPC clause.
+            if reported_speaker_prefix is None:
+                _widen_excerpt(decision_step, evidence)
             rules.append("explicit_decision_not_to_act")
             if (
                 _NEGATED_ATTEMPT_RE.search(evidence)
