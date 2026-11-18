@@ -373,7 +373,7 @@ def test_memory_context_does_not_render_inactive_instances_or_relations(clean_wo
         active=False,
     )
 
-    result = _memory_context("retirada")
+    result = _memory_context("retirad")
 
     assert result["item_instances"] == []
     assert result["relations"] == []
