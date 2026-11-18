@@ -493,6 +493,7 @@ def test_interpreter_normalizes_single_observation_before_strict_active_step_val
         "No quiero intentar abrir el cofre.",
         "No voy a intentar abrir el cofre.",
         "Me niego a intentar abrir el cofre.",
+        "Intento no abrir la puerta.",
     ],
 )
 def test_explicitly_negated_attempt_is_not_made_actionable(source):
@@ -566,3 +567,23 @@ def test_interpreter_normalizes_completed_action_before_later_attempt():
     assert analysis.steps[1].modality.value == "attempted"
     assert analysis.steps[1].reported_outcome.value == "not_claimed"
     assert analysis.is_actionable
+
+
+
+def test_negative_polarity_on_an_attempt_is_not_overwritten():
+    source = "Intento evitar abrir la puerta."
+    payload = _payload(
+        _step(source, modality="attempted", outcome="not_claimed"),
+        category="action",
+        active=0,
+    )
+    payload["steps"][0]["polarity"] = "negative"
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "unreported_attempt_outcome" not in summary.applied_rules

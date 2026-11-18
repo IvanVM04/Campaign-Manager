@@ -96,6 +96,11 @@ _NEGATED_ATTEMPT_RE = re.compile(
     r"me\s+niego\s+a\s+intent\w*)\b",
     re.IGNORECASE,
 )
+_ATTEMPT_NEGATES_ACTION_RE = re.compile(
+    r"\b(?:intent\w*|prueb\w*|prob\w*|procur\w*|trat\w*\s+de)"
+    r"\s+no\s+[\wáéíóúüñ]+\b",
+    re.IGNORECASE,
+)
 _EXPLICIT_SUCCESS_RE = re.compile(
     r"\b(?:lo\s+consig\w*|consig\w*\s+(?:abrir|abrirlo|"
     r"desbloquear|desbloquearlo|encender|encenderla|salir|escapar)|"
@@ -265,7 +270,10 @@ def normalize_intent_surface_payload(
 
 
     # An explicitly refused/negated attempt is resolved and non-actionable.
-    if len(steps) == 1 and _NEGATED_ATTEMPT_RE.search(evidence):
+    if len(steps) == 1 and (
+        _NEGATED_ATTEMPT_RE.search(evidence)
+        or _ATTEMPT_NEGATES_ACTION_RE.search(evidence)
+    ):
         step = steps[0]
         step["actor"] = "player"
         step["modality"] = "negated"
@@ -328,19 +336,22 @@ def normalize_intent_surface_payload(
         if (
             step.get("actor") == "player"
             and step.get("modality") == "attempted"
+            and step.get("polarity") == "positive"
             and not _NEGATED_ATTEMPT_RE.search(step_evidence)
+            and not _ATTEMPT_NEGATES_ACTION_RE.search(step_evidence)
         ):
-            step["polarity"] = "positive"
             if explicitly_uncertain:
                 if not explicitly_failed:
                     step["reported_outcome"] = "uncertain"
             elif explicitly_failed and _ATTEMPT_RE.search(step_evidence):
                 step["modality"] = "completed"
+                step["polarity"] = "positive"
                 step["reported_outcome"] = "failure"
                 normalized["active_step_index"] = None
                 rules.append("explicit_attempt_failure_outcome")
             elif explicitly_succeeded and _ATTEMPT_RE.search(step_evidence):
                 step["modality"] = "completed"
+                step["polarity"] = "positive"
                 step["reported_outcome"] = "success"
                 normalized["active_step_index"] = None
                 rules.append("explicit_attempt_success_outcome")
@@ -351,14 +362,6 @@ def normalize_intent_surface_payload(
             ):
                 step["reported_outcome"] = "not_claimed"
                 rules.append("unreported_attempt_outcome")
-            if (
-                not explicitly_failed
-                and not explicitly_succeeded
-                and normalized.get("active_step_index") is None
-                and normalized.get("category") == "action"
-            ):
-                normalized["active_step_index"] = 0
-                rules.append("explicit_attempt_active_step")
 
     # A conditional future is a plan, not an active attempt. Restrict this to
     # one-step utterances so a mixed action/plan sequence remains model-led.
