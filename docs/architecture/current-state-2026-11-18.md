@@ -91,7 +91,7 @@ Dirección de dependencias: routers API → runtime/application services → cap
 
 ## 6. Persistencia, migraciones y concurrencia
 
-- SQLite es la persistencia canónica.
+- SQLite es la persistencia canónica.\n- `database.py` configura claves foráneas y espera de ocupación en cada conexión; el modo WAL persistente se establece durante la inicialización del esquema, no se vuelve a negociar en cada lectura/escritura.\n- `scripts/db_maintenance.py` proporciona comprobación de integridad, backup online mediante `sqlite3.Connection.backup` y restauración offline de backups con versión de esquema compatible. La restauración exige detener el backend, valida integridad y claves foráneas, conserva automáticamente un backup pre-restauración y reemplaza el archivo mediante staging en el mismo directorio.
 - `migrations.py` declara `CURRENT_VERSION = 34`; la migración 034 añade `conversation_id` a turnos y resoluciones y los índices de historial por chat.
 - Las migraciones son forward-only y el registry `MIGRATIONS` es la lista de ejecución.
 - `CampaignRuntime` mantiene `WorldState` en memoria por campaña y la ejecución usa locks de proceso/campaña. Ejecutar con un solo worker; procesos separados tendrían caches y locks independientes.
