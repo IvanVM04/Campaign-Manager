@@ -802,3 +802,94 @@ def test_uncertainty_about_another_entity_does_not_cancel_a_future_plan():
     assert normalized["active_step_index"] is None
     assert normalized["steps"][0]["modality"] == "planned"
     assert "explicit_epistemic_uncertainty" not in summary.applied_rules
+
+
+
+def test_interpreter_keeps_split_reported_uncertainty_non_factual():
+    source = (
+        "Un viajero asegura que vio un wyvern al este, "
+        "aunque no sabe si era real."
+    )
+    first = _step("vio un wyvern al este", modality="attempted", outcome="uncertain")
+    first["action_frame"] = {
+        "predicate": "vio",
+        "family": "other",
+        "arguments": [],
+    }
+    second = dict(
+        _step("aunque no sabe si era real", modality="attempted", outcome="uncertain"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "sabe",
+        "family": "other",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "report"
+    assert analysis.active_step_index is None
+    assert analysis.steps[0].actor.value == "other"
+    assert analysis.steps[0].modality.value == "reported"
+    assert analysis.steps[0].polarity.value == "uncertain"
+    assert analysis.steps[0].attributed_to == "Un viajero"
+    assert not analysis.is_actionable
+    assert not analysis.allows_world_proposal
+
+
+def test_interpreter_keeps_explicit_abstention_non_actionable_when_model_splits_steps():
+    source = "Decido no entrar en la fortaleza y permanezco fuera."
+    first = _step(
+        "Decido no entrar en la fortaleza",
+        modality="attempted",
+        outcome="uncertain",
+    )
+    first["action_frame"] = {
+        "predicate": "entrar",
+        "family": "movement",
+        "arguments": [],
+    }
+    second = dict(
+        _step("permanezco fuera.", modality="attempted", outcome="uncertain"),
+        index=1,
+    )
+    second["action_frame"] = {
+        "predicate": "permanezco",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, category="action", active=1)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "action"
+    assert analysis.active_step_index is None
+    assert len(analysis.steps) == 1
+    assert analysis.steps[0].modality.value == "negated"
+    assert analysis.steps[0].polarity.value == "negative"
+    assert not analysis.is_actionable
+    assert not analysis.allows_world_proposal
