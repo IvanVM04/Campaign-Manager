@@ -3,7 +3,7 @@
 **Repositorio:** IvanVM04/Campaign-Manager  
 **Rama auditada:** main en 4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1 (PR #257 fusionada).  
 **Baseline de código de producción:** f4fb3914ebab4579118863796e6f6d4b7183d0cf (PR #255; PR #256 y #257 fueron documentales).  
-**Alcance:** 508 rutas del árbol Git, de las cuales 118 son archivos documentales/textuales: 4 en raíz, 12 en docs/, 49 en docs/architecture/, 43 en docs/quality/, 1 en docs/product/, 1 en models/ y 8 guías en services/.  
+**Alcance:** el árbol auditado de main contenía 508 rutas y 118 archivos documentales/textuales: 4 en raíz, 12 en docs/, 49 en docs/architecture/, 43 en docs/quality/, 1 en docs/product/, 1 en models/ y 8 guías en services/. Esta rama añade dos documentos actuales —mapa de estado y auditoría documental—, por lo que el inventario final de la rama contiene 510 rutas y 120 archivos documentales/textuales.  
 **Tipo:** auditoría documental/estática. No modifica código de producción ni afirma que se hayan repetido pruebas live con Ollama o una sesión manual de SillyTavern.
 
 ## 1. Resumen ejecutivo
@@ -30,7 +30,7 @@ La jerarquía documental recomendada queda así:
 
 ### 2.1 Inventario y validación
 
-Se obtuvo el árbol Git recursivo de main con truncated=false y se identificaron 118 archivos documentales/textuales. Se contrastaron las afirmaciones de mayor impacto con:
+Se obtuvo el árbol Git recursivo de main con truncated=false y se identificaron 118 archivos documentales/textuales. Después se añadieron en esta rama los dos documentos actuales enumerados en 4.1; por eso las tablas 5.1–5.5 describen los 120 archivos presentes en la rama de auditoría. Se contrastaron las afirmaciones de mayor impacto con:
 
 - migrations.py: CURRENT_VERSION = 34.
 - Routers actuales: campaign, character, clock, combat, dice, effects, integration, memory, system, turns, world y world collections.
@@ -259,12 +259,12 @@ La clasificación distingue **actual** (fuente vigente), **apoyo** (contrato/gu�
 |---|---:|
 | Raíz | 4 |
 | docs/ | 12 |
-| Arquitectura | 49 |
+| Arquitectura | 51 |
 | Calidad | 43 |
 | Producto | 1 |
 | Modelos | 1 |
 | Guías de servicio | 8 |
-| **Total inventariado** | **118** |
+| **Total inventariado en esta rama** | **120** |
 
 ## 6. Reglas para futuros cambios documentales
 
