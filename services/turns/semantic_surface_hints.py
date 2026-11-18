@@ -510,8 +510,8 @@ def _normalize_action_frame(
         if hide_match is not None:
             tail = text[hide_match.end():].strip()
             location_match = re.match(
-                r"^(?P<theme>.+?)\s+(?:bajo|debajo\s+de|detrás\s+de|tras|"
-                r"sobre)\s+(?P<location>.+)$",
+                r"^(?P<theme>.+?)\s+(?P<location>(?:bajo|debajo\s+de|detrás\s+de|tras|"
+                r"sobre)\s+.+)$",
                 tail,
                 re.IGNORECASE,
             )
@@ -725,8 +725,8 @@ def _normalize_action_frame(
                 new_arguments.append(theme)
     elif selected_rule == "action_hide_location":
         location_match = re.match(
-            r"^(?P<theme>.+?)\s+(?:bajo|debajo\s+de|detrás\s+de|tras|"
-            r"sobre)\s+(?P<location>.+)$",
+            r"^(?P<theme>.+?)\s+(?P<location>(?:bajo|debajo\s+de|detrás\s+de|tras|"
+            r"sobre)\s+.+)$",
             tail,
             re.IGNORECASE,
         )

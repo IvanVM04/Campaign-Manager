@@ -32,7 +32,7 @@ _ATTEMPT_RE = re.compile(
 _FAILURE_RE = re.compile(
     r"\b(?:resbal\w*|no\s+alcanz\w*|no\s+gira|no\s+giró|"
     r"sigue\s+(?:cerrad\w*|bloquead\w*)|no\s+(?:lo|la|les|me)\s+"
-    r"(?:consig\w*|logr\w*)|fracasa|fracasó|caigo|caí)\b",
+    r"(?:consig\w*|logr\w*)|no\s+consig\w*|fracasa|fracasó|caigo|caí)\b",
     re.IGNORECASE,
 )
 _EXPLICIT_CORRECTION_RE = re.compile(
@@ -45,7 +45,8 @@ _EXPLICIT_CORRECTION_RE = re.compile(
 _EPISTEMIC_UNCERTAINTY_RE = re.compile(
     r"\b(?:sospech\w*|sospechos\w*|no\s+tengo\s+pruebas|no\s+hay\s+pruebas|"
     r"no\s+dispongo\s+de\s+(?:pruebas|evidencias)|"
-    r"no\s+sabe\s+si|no\s+sabes\s+si|no\s+sabemos\s+si|ignora\s+si|"
+    r"no\s+sabe\s+si|no\s+sabes\s+si|no\s+sabemos\s+si|"
+    r"no\s+sé\s+si|no\s+se\s+si|ignora\s+si|desconoce\s+si|"
     r"no\s+estoy\s+segur\w*|no\s+estamos\s+segur\w*|"
     r"quizá|quizas|tal\s+vez|puede\s+que|es\s+posible\s+que|"
     r"al\s+parecer|rumor)\b",
@@ -69,6 +70,44 @@ _FOLLOW_UP_ATTEMPT_RE = re.compile(
     r"(?:intento|trato\s+de|pruebo|procuro)\b",
     re.IGNORECASE,
 )
+_SEQUENCE_LINKER_RE = re.compile(
+    r"\b(?:y\s+)?(?:después|despues|luego|a\s+continuación)\b",
+    re.IGNORECASE,
+)
+_PLAYER_OBSERVATION_RE = re.compile(
+    r"^\s*(?:(?:yo)\s+)?(?:observo|observé|veo|vi|miro|miré|examino|"
+    r"examiné|inspecciono|inspeccioné|escucho|escuché|oigo|oí|"
+    r"detecto|detecté|noto|noté|percibo|percibí|distingo|distinguí)\b",
+    re.IGNORECASE,
+)
+_FIRST_PERSON_PRESENT_RE = re.compile(
+    r"^\s*(?:(?:yo)\s+)?(?:(?:me|lo|la|le|les|nos)\s+)?"
+    r"(?P<verb>[\wáéíóúüñ]+o)\b",
+    re.IGNORECASE,
+)
+_FIRST_PERSON_FUTURE_RE = re.compile(
+    r"\b[\wáéíóúüñ]+(?:ré|remos)\b",
+    re.IGNORECASE,
+)
+_NEGATED_ATTEMPT_RE = re.compile(
+    r"\b(?:no\s+(?:(?:lo|la|les|me)\s+)?(?:intent\w*|prueb\w*|"
+    r"prob\w*|procur\w*)|decid\w*\s+no\s+intent\w*)\b",
+    re.IGNORECASE,
+)
+_EXPLICIT_SUCCESS_RE = re.compile(
+    r"\b(?:lo\s+consig\w*|consig\w*\s+(?:abrir|abrirlo|"
+    r"desbloquear|desbloquearlo|encender|encenderla|salir|escapar)|"
+    r"logr\w*\s+\w+|se\s+(?:abre|desbloquea|enciende)|"
+    r"queda\s+(?:abiert\w*|desbloquead\w*|encendid\w*)|"
+    r"funciona|con\s+éxito|exitosamente)\b",
+    re.IGNORECASE,
+)
+_CORRECTION_PREDICATE_RE = re.compile(
+    r"\b(?:no\s+(?P<era>era)|no\s+me\s+(?P<referia>refería)|"
+    r"(?P<queria>quería\s+decir)|(?P<quise>quise\s+decir)|"
+    r"(?P<rectifico>rectifico))\b",
+    re.IGNORECASE,
+)
 _REPORTED_SPEAKER_RE = re.compile(
     r"^\s*(?P<speaker>"
     r"(?:(?:un|una|el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
@@ -90,6 +129,41 @@ def _widen_excerpt(step: dict[str, Any], evidence: str) -> None:
     excerpt = evidence.strip()
     if excerpt and len(excerpt) <= 300:
         step["source_excerpt"] = excerpt
+
+
+def _steps_follow_explicit_sequence(
+    evidence: str,
+    first_step: dict[str, Any],
+    second_step: dict[str, Any],
+) -> bool:
+    """Require both step excerpts and their ordering to be literal in the utterance."""
+    first_excerpt = first_step.get("source_excerpt")
+    second_excerpt = second_step.get("source_excerpt")
+    if not isinstance(first_excerpt, str) or not isinstance(second_excerpt, str):
+        return False
+    folded = evidence.casefold()
+    first_folded = first_excerpt.casefold()
+    second_folded = second_excerpt.casefold()
+    first_start = folded.find(first_folded)
+    if first_start < 0:
+        return False
+    first_end = first_start + len(first_folded)
+    second_start = folded.find(second_folded, first_end)
+    if second_start < 0:
+        return False
+    return _SEQUENCE_LINKER_RE.search(evidence[first_end:second_start]) is not None
+
+
+def _correction_predicate(evidence: str) -> str | None:
+    """Return only a literal predicate from an explicit correction construction."""
+    match = _CORRECTION_PREDICATE_RE.search(evidence)
+    if match is None:
+        return None
+    for group in ("era", "referia", "queria", "quise", "rectifico"):
+        value = match.group(group)
+        if value is not None:
+            return value
+    return None
 
 
 def normalize_intent_surface_payload(
@@ -166,10 +240,12 @@ def normalize_intent_surface_payload(
         and _PERCEPTION_PREDICATE_RE.search(steps[0].get("source_excerpt", ""))
         and _FOLLOW_UP_ATTEMPT_RE.search(evidence)
         and _ATTEMPT_RE.search(steps[1].get("source_excerpt", ""))
+        and _steps_follow_explicit_sequence(evidence, steps[0], steps[1])
         and not normalized.get("relation_claims")
     ):
         steps[0]["actor"] = "player"
         steps[0]["modality"] = "observed"
+        steps[0]["polarity"] = "positive"
         steps[0]["reported_outcome"] = "not_claimed"
         steps[1]["actor"] = "player"
         steps[1]["modality"] = "attempted"
@@ -179,6 +255,86 @@ def normalize_intent_surface_payload(
         normalized["active_step_index"] = 1
         rules.append("explicit_observation_before_attempt")
 
+
+    # A first-person perception report is an observation, not an unresolved
+    # mechanical action. The conjugation itself identifies the player as actor.
+    if (
+        len(steps) == 1
+        and _PLAYER_OBSERVATION_RE.search(evidence)
+        and normalized.get("category") not in {"question", "dialogue", "correction"}
+    ):
+        step = steps[0]
+        step["actor"] = "player"
+        step["modality"] = "observed"
+        step["polarity"] = "positive"
+        step["reported_outcome"] = "not_claimed"
+        normalized["category"] = "report"
+        normalized["active_step_index"] = None
+        _widen_excerpt(step, evidence)
+        rules.append("explicit_player_observation")
+
+    # A completed first-person present action followed by a separate attempt
+    # has a resolved first step and a single actionable second step.
+    if (
+        len(steps) == 2
+        and _FIRST_PERSON_PRESENT_RE.search(steps[0].get("source_excerpt", ""))
+        and not _NEGATED_ATTEMPT_RE.search(steps[0].get("source_excerpt", ""))
+        and _FOLLOW_UP_ATTEMPT_RE.search(evidence)
+        and _ATTEMPT_RE.search(steps[1].get("source_excerpt", ""))
+        and _steps_follow_explicit_sequence(evidence, steps[0], steps[1])
+        and not normalized.get("relation_claims")
+        and normalized.get("category") not in {"question", "dialogue", "correction"}
+    ):
+        steps[0]["actor"] = "player"
+        steps[0]["modality"] = "completed"
+        steps[0]["polarity"] = "positive"
+        steps[0]["reported_outcome"] = "success"
+        steps[1]["actor"] = "player"
+        steps[1]["modality"] = "attempted"
+        steps[1]["polarity"] = "positive"
+        steps[1]["reported_outcome"] = "not_claimed"
+        normalized["category"] = "mixed"
+        normalized["active_step_index"] = 1
+        rules.append("explicit_completed_action_before_attempt")
+
+    # An active attempt cannot carry an inferred outcome. Explicit epistemic
+    # uncertainty and literal success/failure evidence remain distinguishable.
+    if len(steps) == 1 and normalized.get("category") in {"action", "mixed"}:
+        step = steps[0]
+        step_evidence = evidence
+        explicitly_uncertain = _EPISTEMIC_UNCERTAINTY_RE.search(step_evidence)
+        explicitly_failed = _FAILURE_RE.search(step_evidence)
+        explicitly_succeeded = _EXPLICIT_SUCCESS_RE.search(step_evidence)
+        if (
+            step.get("actor") == "player"
+            and step.get("modality") == "attempted"
+            and not _NEGATED_ATTEMPT_RE.search(step_evidence)
+        ):
+            step["polarity"] = "positive"
+            if explicitly_uncertain:
+                if not explicitly_failed:
+                    step["reported_outcome"] = "uncertain"
+            elif explicitly_succeeded and _ATTEMPT_RE.search(step_evidence):
+                step["modality"] = "completed"
+                step["reported_outcome"] = "success"
+                normalized["active_step_index"] = None
+                rules.append("explicit_attempt_success_outcome")
+            elif (
+                not explicitly_failed
+                and not explicitly_succeeded
+                and step.get("reported_outcome") != "not_claimed"
+            ):
+                step["reported_outcome"] = "not_claimed"
+                rules.append("unreported_attempt_outcome")
+            if (
+                not explicitly_failed
+                and not explicitly_succeeded
+                and normalized.get("active_step_index") is None
+                and normalized.get("category") == "action"
+            ):
+                normalized["active_step_index"] = 0
+                rules.append("explicit_attempt_active_step")
+
     # A conditional future is a plan, not an active attempt. Restrict this to
     # one-step utterances so a mixed action/plan sequence remains model-led.
     if (
@@ -187,12 +343,41 @@ def normalize_intent_surface_payload(
         and normalized.get("category") not in {"question", "dialogue", "correction"}
     ):
         step = steps[0]
+        step["actor"] = "player"
         step["modality"] = "conditional"
+        step["polarity"] = "positive"
         step["reported_outcome"] = "not_claimed"
         _widen_excerpt(step, evidence)
         normalized["category"] = "plan"
         normalized["active_step_index"] = None
         rules.append("explicit_conditional_future")
+
+
+    # First-person affirmative futures are plans unless an explicit si clause
+    # made them conditional above. Negative/uncertain futures are not promoted.
+    if (
+        len(steps) == 1
+        and _FIRST_PERSON_FUTURE_RE.search(evidence)
+        and not _CONDITIONAL_FUTURE_RE.search(evidence)
+        and not re.search(
+            r"\bno\s+(?:(?:me|te|lo|la|le|les|nos|os)\s+)?"
+            r"[\wáéíóúüñ]+(?:ré|remos)\b",
+            evidence,
+            re.IGNORECASE,
+        )
+        and _EPISTEMIC_UNCERTAINTY_RE.search(evidence) is None
+        and normalized.get("category") not in {"question", "dialogue", "correction"}
+        and _REPORTED_SPEAKER_RE.search(evidence) is None
+    ):
+        step = steps[0]
+        step["actor"] = "player"
+        step["modality"] = "planned"
+        step["polarity"] = "positive"
+        step["reported_outcome"] = "not_claimed"
+        _widen_excerpt(step, evidence)
+        normalized["category"] = "plan"
+        normalized["active_step_index"] = None
+        rules.append("explicit_first_person_future_plan")
 
     # A failed result clause following an explicit attempt resolves that
     # attempt. Collapse a two-step split only when step two is clearly the
@@ -233,6 +418,21 @@ def normalize_intent_surface_payload(
         _widen_excerpt(step, evidence)
         normalized["category"] = "correction"
         normalized["active_step_index"] = None
+        correction_predicate = _correction_predicate(evidence)
+        action_frame = step.get("action_frame")
+        if correction_predicate is not None and isinstance(action_frame, dict):
+            current_predicate = action_frame.get("predicate")
+            excerpt = step.get("source_excerpt", "")
+            if (
+                not isinstance(current_predicate, str)
+                or _fold(current_predicate) not in _fold(evidence)
+                or not isinstance(excerpt, str)
+                or _fold(current_predicate) not in _fold(excerpt)
+            ):
+                corrected_frame = dict(action_frame)
+                corrected_frame["predicate"] = correction_predicate
+                step["action_frame"] = corrected_frame
+                rules.append("literal_correction_predicate_repaired")
         rules.append("explicit_surface_correction")
 
     # Attribute a report only when speaker and reporting predicate are a
