@@ -28,7 +28,7 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 
 ### 2.1 GitHub y CI
 
-PR #255 está fusionada en `main`.
+PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255) está fusionada en `main` desde el 2026-11-18.
 
 | Check | Resultado observado |
 |---|---|
@@ -41,7 +41,7 @@ PR #255 está fusionada en `main`.
 | CI summary | Correcto |
 | CodeQL Python + JavaScript | Correcto |
 
-Evidencia: ejecución Tests #1568 y CodeQL #738 sobre el SHA indicado. Los 22 tests deseleccionados son de tipo `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
+Evidencia: [Tests #1568](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44262572791) y [CodeQL #738](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44262572789), ambos sobre el SHA indicado. Los 22 tests deseleccionados son de tipo `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
 
 La cobertura combinada está apenas por encima del mínimo. La línea de cobertura es alta, pero la cobertura de ramas global es menor; no se recomienda perseguir un porcentaje arbitrario. Se deben priorizar ramas de riesgo: rollback/commit, fencing y recuperación, revisión de campaña, errores de proveedor, clarificaciones, tiradas manuales, visibilidad y conflictos de identidad.
 
