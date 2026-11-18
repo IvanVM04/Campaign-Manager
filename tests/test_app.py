@@ -862,21 +862,3 @@ def test_application_shutdown_clears_cached_campaign_runtimes(monkeypatch):
         pass
     assert calls == ["shutdown"]
 
-
-
-def test_app_lifespan_shuts_down_campaign_runtimes(monkeypatch):
-    from fastapi.testclient import TestClient
-
-    import app
-
-    shutdown_calls = []
-    monkeypatch.setattr(
-        app.runtime_factory,
-        "shutdown",
-        lambda: shutdown_calls.append("shutdown"),
-    )
-
-    with TestClient(app.app):
-        pass
-
-    assert shutdown_calls == ["shutdown"]

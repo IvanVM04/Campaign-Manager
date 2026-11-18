@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-11-18  
 **Baseline de código:** main — ae52afcf9c172514a5d119fe301de11255f08091 (PR #261; implementación integrada antes de esta línea de trabajo).  
-**Baseline documental:** `main` — `4a3a2549bb0bb1bc38ec0e6f456ac6d5ccef24d1` (PR #257 fusionada).  
+**Baseline documental:** `main` — `ae52afcf9c172514a5d119fe301de11255f08091` (estado consolidado tras PR #259 y los cambios de #260/#261).  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
 ## 1. Resumen ejecutivo
