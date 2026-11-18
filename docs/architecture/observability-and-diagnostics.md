@@ -1,6 +1,6 @@
 # Observability and diagnostics
 
-**Scope:** local, single-player, single-process runtime.  
+**Scope:** local, single-human-player, single-process runtime. A campaign may eventually contain several player characters under the approved product requirements; this document concerns process/logging scope, not character-control policy.  
 **Introduced:** PR #208.  
 **Purpose:** make failures and slow operations diagnosable without changing
 business behavior, exposing internals to the player or requiring a live
