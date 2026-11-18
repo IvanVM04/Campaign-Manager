@@ -30,7 +30,9 @@ _ATTEMPT_RE = re.compile(
     re.IGNORECASE,
 )
 _FAILURE_RE = re.compile(
-    r"\b(?:resbal\w*|no\s+alcanz\w*|no\s+gira|no\s+giró|"
+    r"\b(?:resbal\w*|no\s+alcanz\w*|no\s+logr\w*|"
+    r"no\s+pued\w*\s+(?:abrir|entrar|cruzar|subir|bajar|alcanzar)|"
+    r"me\s+resulta\s+imposible|no\s+gira|no\s+giró|"
     r"sigue\s+(?:cerrad\w*|bloquead\w*)|no\s+(?:lo|la|les|me)\s+"
     r"(?:consig\w*|logr\w*)|no\s+consig\w*|no\s+funcion\w*|"
     r"no\s+se\s+(?:abre|desbloquea|enciende)|fracasa|fracasó|caigo|caí)\b",
@@ -52,6 +54,7 @@ _EPISTEMIC_UNCERTAINTY_RE = re.compile(
     r"nadie\s+sabe\s+si|no\s+sé\s+si|no\s+se\s+si|"
     r"ignora\s+si|desconoce\s+si|duda\s+(?:de\s+que|si)|"
     r"no\s+estoy\s+segur\w*|no\s+estamos\s+segur\w*|"
+    r"no\s+está\s+segur\w*|no\s+están\s+segur\w*|"
     r"quizá|quizas|tal\s+vez|puede\s+que|es\s+posible\s+que|"
     r"al\s+parecer|rumor)\b",
     re.IGNORECASE,
@@ -159,6 +162,13 @@ _ATTEMPT_OUTCOME_UNCERTAINTY_RE = re.compile(
     r"pued\w*|podr\w*|lleg\w*\s+a)|"
     r"(?:de\s+)?(?:poder\s+)?(?:conseguirlo|lograrlo|abrirlo))"
     r"\b",
+    re.IGNORECASE,
+)
+_IMPLICIT_ATTEMPT_FAILURE_RE = re.compile(
+    r"\b(?:no\s+(?:consig\w*|logr\w*|pued\w*)\s+"
+    r"(?:abrir|entrar|cruzar|subir|bajar|alcanzar|forzar|activar|"
+    r"desbloquear)|me\s+resulta\s+imposible\s+"
+    r"(?:abrir|entrar|cruzar|subir|bajar|alcanzar))\b",
     re.IGNORECASE,
 )
 
@@ -542,7 +552,10 @@ def normalize_intent_surface_payload(
             if explicitly_uncertain:
                 if not explicitly_failed:
                     step["reported_outcome"] = "uncertain"
-            elif explicitly_failed and _ATTEMPT_RE.search(step_evidence):
+            elif explicitly_failed and (
+                _ATTEMPT_RE.search(step_evidence)
+                or _IMPLICIT_ATTEMPT_FAILURE_RE.search(step_evidence)
+            ):
                 step["modality"] = "completed"
                 step["polarity"] = "positive"
                 step["reported_outcome"] = "failure"
