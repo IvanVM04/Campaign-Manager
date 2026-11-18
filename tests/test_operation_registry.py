@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from operations.world_operations import WorldOperation
 from services.llm_world.llm_extraction_errors import LLMExtractionError
 from services.llm_world.llm_world_response_parser import LLMWorldResponseParser
 from services.llm_world.operation_parser import OperationParser
@@ -9,8 +10,6 @@ from services.llm_world.operation_registry import (
     DEFAULT_OPERATION_REGISTRY,
     _metadata,
 )
-from operations.world_operations import WorldOperation
-
 
 def test_registry_and_parser_share_the_same_operation_classes():
     parser = OperationParser()

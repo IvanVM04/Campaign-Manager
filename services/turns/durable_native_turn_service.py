@@ -193,17 +193,16 @@ class DurableNativeTurnService:
             if self.turn_execution_lock is not None
             else nullcontext()
         )
-        with lock:
-            with transaction("DEFERRED") as conn:
-                context, recent = self._context_and_history(
-                    conn,
-                    conversation_id=conversation_id,
-                    detached=True,
-                )
-                revision = self.revision_repository.get_revision(
-                    self.scope.campaign_id,
-                    conn=conn,
-                )
+        with lock, transaction("DEFERRED") as conn:
+            context, recent = self._context_and_history(
+                conn,
+                conversation_id=conversation_id,
+                detached=True,
+            )
+            revision = self.revision_repository.get_revision(
+                self.scope.campaign_id,
+                conn=conn,
+            )
         return context, recent, revision
 
     def _plan_from_record(self, record: TurnResolutionRecord) -> TurnResolutionPlan:

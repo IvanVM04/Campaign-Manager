@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from datetime import UTC, datetime
 
 from database import transaction
@@ -333,11 +334,10 @@ class DurableTurnNarrationService:
                 if self.turn_execution_lock is not None
                 else nullcontext()
             )
-            with lock:
-                with transaction("DEFERRED") as conn:
-                    context, recent = self.context_loader(
-                        conn, conversation_id=record.conversation_id
-                    )
+            with lock, transaction("DEFERRED") as conn:
+                context, recent = self.context_loader(
+                    conn, conversation_id=record.conversation_id
+                )
         mechanics_result = TurnResolutionCodec.mechanics_from_json(record.mechanics_json)
         resolved_player_input = self._resolved_player_input(record)
         committed_resolution = json.dumps(

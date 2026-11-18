@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from contextlib import nullcontext
 import logging
 import secrets
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 
 from database import transaction
@@ -276,14 +276,13 @@ class DurableTurnExecutionService:
                 if self.turn_execution_lock is not None
                 else nullcontext()
             )
-            with lock:
-                with transaction("DEFERRED") as conn:
-                    context, recent = self.context_loader(
-                        conn, conversation_id=conversation_id
-                    )
-                    revision = self.revision_repository.get_revision(
-                        self.scope.campaign_id, conn=conn
-                    )
+            with lock, transaction("DEFERRED") as conn:
+                context, recent = self.context_loader(
+                    conn, conversation_id=conversation_id
+                )
+                revision = self.revision_repository.get_revision(
+                    self.scope.campaign_id, conn=conn
+                )
         session_id = (
             context.current_session.session_id
             if context.current_session is not None
