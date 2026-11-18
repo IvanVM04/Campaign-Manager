@@ -464,17 +464,14 @@ def normalize_intent_surface_payload(
                     and step.get("polarity") == "positive"
                 ]
                 active_index = normalized.get("active_step_index")
-                if active_index == decision_index:
-                    normalized["active_step_index"] = (
-                        distinct_attempt_indices[0]
-                        if distinct_attempt_indices
-                        else None
+                if active_index == decision_index or (
+                    isinstance(active_index, int)
+                    and (
+                        active_index >= len(steps)
+                        or steps[active_index].get("actor") != "player"
+                        or steps[active_index].get("modality") != "attempted"
+                        or steps[active_index].get("polarity") != "positive"
                     )
-                elif isinstance(active_index, int) and (
-                    active_index >= len(steps)
-                    or steps[active_index].get("actor") != "player"
-                    or steps[active_index].get("modality") != "attempted"
-                    or steps[active_index].get("polarity") != "positive"
                 ):
                     normalized["active_step_index"] = (
                         distinct_attempt_indices[0]
