@@ -511,24 +511,34 @@ class ConversationReferenceResolver:
         clause = re.split(r"[,;.!?:]", following, maxsplit=1)[0]
         candidate_keys: set[str] = set()
         articles = {"el", "la", "los", "las", "un", "una", "unos", "unas"}
+
+        def normalized_complement(value: str) -> str:
+            tokens = EntityReferenceResolver.normalize(value).split()
+            # The accent in tonic "él" is removed by normalization. Preserve
+            # that pronoun before stripping leading articles, or "a él" becomes
+            # indistinguishable from an article-led noun phrase.
+            first_raw_token = re.match(r"([^\\W_]+)", value.strip(), flags=re.UNICODE)
+            is_tonic_pronoun = (
+                first_raw_token is not None
+                and first_raw_token.group(1).casefold() == "él"
+            )
+            if not is_tonic_pronoun:
+                while tokens and tokens[0] in articles:
+                    tokens.pop(0)
+            return " ".join(tokens)
+
         for candidate in explicit_recipients:
             if not isinstance(candidate, str) or not candidate.strip():
                 continue
-            tokens = EntityReferenceResolver.normalize(candidate).split()
-            while tokens and tokens[0] in articles:
-                tokens.pop(0)
-            if tokens:
-                candidate_keys.add(" ".join(tokens))
+            normalized = normalized_complement(candidate)
+            if normalized:
+                candidate_keys.add(normalized)
 
         # Search every a/al complement rather than treating adverbials such as
         # "a menudo" or "a veces" as a person reference.
         for match in re.finditer(r"(?<!\w)(?:al|a)\s+", clause, flags=re.IGNORECASE):
             raw_recipient = clause[match.end():]
-            normalized_recipient = EntityReferenceResolver.normalize(raw_recipient)
-            recipient_tokens = normalized_recipient.split()
-            while recipient_tokens and recipient_tokens[0] in articles:
-                recipient_tokens.pop(0)
-            normalized_recipient = " ".join(recipient_tokens)
+            normalized_recipient = normalized_complement(raw_recipient)
             if any(
                 normalized_recipient == candidate
                 or normalized_recipient.startswith(candidate + " ")
