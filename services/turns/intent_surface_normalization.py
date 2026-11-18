@@ -32,7 +32,8 @@ _ATTEMPT_RE = re.compile(
 _FAILURE_RE = re.compile(
     r"\b(?:resbal\w*|no\s+alcanz\w*|no\s+gira|no\s+giró|"
     r"sigue\s+(?:cerrad\w*|bloquead\w*)|no\s+(?:lo|la|les|me)\s+"
-    r"(?:consig\w*|logr\w*)|no\s+consig\w*|fracasa|fracasó|caigo|caí)\b",
+    r"(?:consig\w*|logr\w*)|no\s+consig\w*|no\s+funcion\w*|"
+    r"no\s+se\s+(?:abre|desbloquea|enciende)|fracasa|fracasó|caigo|caí)\b",
     re.IGNORECASE,
 )
 _EXPLICIT_CORRECTION_RE = re.compile(
@@ -82,7 +83,9 @@ _PLAYER_OBSERVATION_RE = re.compile(
 )
 _FIRST_PERSON_PRESENT_RE = re.compile(
     r"^\s*(?:(?:yo)\s+)?(?:(?:me|lo|la|le|les|nos)\s+)?"
-    r"(?P<verb>[\wáéíóúüñ]+o)\b",
+    r"(?:abro|cierro|desbloqueo|recojo|tomo|cojo|guardo|saco|coloco|"
+    r"entrego|recibo|enciendo|apago|rompo|muevo|levanto|agarro|cruzo|"
+    r"activo|desato|sujeto)\b",
     re.IGNORECASE,
 )
 _FIRST_PERSON_FUTURE_RE = re.compile(

@@ -606,3 +606,38 @@ def test_attempt_normalization_does_not_invent_an_active_step_pointer():
     assert normalized["active_step_index"] is None
     assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
     assert "unreported_attempt_outcome" in summary.applied_rules
+
+
+
+def test_non_action_first_person_present_is_not_inferred_as_a_completed_step():
+    source = "Me llamo Dorian y luego intento abrir la puerta."
+    first = _step("Me llamo Dorian")
+    second = dict(
+        _step("intento abrir la puerta"),
+        index=1,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert normalized["active_step_index"] == 0
+    assert "explicit_completed_action_before_attempt" not in summary.applied_rules
+
+
+def test_negative_result_cannot_be_mistaken_for_explicit_success():
+    source = "Intento encender la antorcha, pero no funciona."
+    payload = _payload(_step(source, modality="attempted", outcome="uncertain"))
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["steps"][0]["modality"] == "completed"
+    assert normalized["steps"][0]["reported_outcome"] == "failure"
+    assert normalized["active_step_index"] is None
+    assert "explicit_attempt_success_outcome" not in summary.applied_rules
