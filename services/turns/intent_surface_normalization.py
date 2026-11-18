@@ -90,8 +90,10 @@ _FIRST_PERSON_FUTURE_RE = re.compile(
     re.IGNORECASE,
 )
 _NEGATED_ATTEMPT_RE = re.compile(
-    r"\b(?:no\s+(?:(?:lo|la|les|me)\s+)?(?:intent\w*|prueb\w*|"
-    r"prob\w*|procur\w*)|decid\w*\s+no\s+intent\w*)\b",
+    r"\b(?:no\s+(?:(?:quiero|quisiera|pienso|pretendo|voy\s+a)\s+)?"
+    r"(?:(?:lo|la|les|me)\s+)?(?:intent\w*|prueb\w*|prob\w*|procur\w*)|"
+    r"(?:decid\w*|quiero|quisiera|pienso|pretendo)\s+no\s+intent\w*|"
+    r"me\s+niego\s+a\s+intent\w*)\b",
     re.IGNORECASE,
 )
 _EXPLICIT_SUCCESS_RE = re.compile(
@@ -151,7 +153,13 @@ def _steps_follow_explicit_sequence(
     second_start = folded.find(second_folded, first_end)
     if second_start < 0:
         return False
-    return _SEQUENCE_LINKER_RE.search(evidence[first_end:second_start]) is not None
+    second_excerpt_start = second_excerpt.lstrip()
+    connector_in_second = _SEQUENCE_LINKER_RE.match(second_excerpt_start) is not None
+    connector_in_gap = _SEQUENCE_LINKER_RE.search(
+        evidence[first_end:second_start]
+    ) is not None
+    connector_in_first = _SEQUENCE_LINKER_RE.search(first_excerpt) is not None
+    return connector_in_gap or connector_in_second or connector_in_first
 
 
 def _correction_predicate(evidence: str) -> str | None:
@@ -256,6 +264,18 @@ def normalize_intent_surface_payload(
         rules.append("explicit_observation_before_attempt")
 
 
+    # An explicitly refused/negated attempt is resolved and non-actionable.
+    if len(steps) == 1 and _NEGATED_ATTEMPT_RE.search(evidence):
+        step = steps[0]
+        step["actor"] = "player"
+        step["modality"] = "negated"
+        step["polarity"] = "negative"
+        step["reported_outcome"] = "not_claimed"
+        normalized["category"] = "action"
+        normalized["active_step_index"] = None
+        _widen_excerpt(step, evidence)
+        rules.append("explicit_negated_attempt")
+
     # A first-person perception report is an observation, not an unresolved
     # mechanical action. The conjugation itself identifies the player as actor.
     if (
@@ -314,6 +334,11 @@ def normalize_intent_surface_payload(
             if explicitly_uncertain:
                 if not explicitly_failed:
                     step["reported_outcome"] = "uncertain"
+            elif explicitly_failed and _ATTEMPT_RE.search(step_evidence):
+                step["modality"] = "completed"
+                step["reported_outcome"] = "failure"
+                normalized["active_step_index"] = None
+                rules.append("explicit_attempt_failure_outcome")
             elif explicitly_succeeded and _ATTEMPT_RE.search(step_evidence):
                 step["modality"] = "completed"
                 step["reported_outcome"] = "success"
@@ -425,6 +450,7 @@ def normalize_intent_surface_payload(
             excerpt = step.get("source_excerpt", "")
             if (
                 not isinstance(current_predicate, str)
+                or _fold(current_predicate) != _fold(correction_predicate)
                 or _fold(current_predicate) not in _fold(evidence)
                 or not isinstance(excerpt, str)
                 or _fold(current_predicate) not in _fold(excerpt)

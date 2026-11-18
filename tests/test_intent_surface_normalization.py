@@ -387,6 +387,11 @@ def test_single_first_person_observation_is_reported_not_actionable(source):
             "Recojo la cuerda",
             "intento alcanzar el balcón",
         ),
+        (
+            "Abro la ventana y luego intento salir al tejado.",
+            "Abro la ventana",
+            "luego intento salir al tejado",
+        ),
     ],
 )
 def test_completed_first_person_action_precedes_a_later_active_attempt(
@@ -411,11 +416,12 @@ def test_completed_first_person_action_precedes_a_later_active_attempt(
     assert "explicit_completed_action_before_attempt" in summary.applied_rules
 
 
-def test_explicit_object_correction_repairs_only_an_ungrounded_predicate():
+@pytest.mark.parametrize("old_predicate", ["abrir", "llave"])
+def test_explicit_object_correction_repairs_only_a_noncanonical_predicate(old_predicate):
     source = "No era la llave de hierro, sino la llave de cobre."
     step = _step(source, modality="attempted", outcome="uncertain")
     step["action_frame"] = {
-        "predicate": "abrir",
+        "predicate": old_predicate,
         "family": "interaction",
         "arguments": [],
     }
@@ -478,3 +484,85 @@ def test_interpreter_normalizes_single_observation_before_strict_active_step_val
     assert analysis.steps[0].actor.value == "player"
     assert analysis.steps[0].modality.value == "observed"
     assert analysis.steps[0].reported_outcome.value == "not_claimed"
+
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "No quiero intentar abrir el cofre.",
+        "No voy a intentar abrir el cofre.",
+        "Me niego a intentar abrir el cofre.",
+    ],
+)
+def test_explicitly_negated_attempt_is_not_made_actionable(source):
+    payload = _payload(_step(source, modality="attempted", outcome="uncertain"))
+    normalized, summary = normalize_intent_surface_payload(payload, evidence_text=source)
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_negated_attempt" in summary.applied_rules
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Intento abrir la puerta, pero no consigo mover el cerrojo.",
+        "Intento encender la antorcha, pero no lo consigo.",
+    ],
+)
+def test_explicit_failure_without_but_is_still_a_resolved_failure(source):
+    payload = _payload(_step(source, modality="attempted", outcome="uncertain"))
+    normalized, summary = normalize_intent_surface_payload(payload, evidence_text=source)
+
+    assert normalized["steps"][0]["modality"] == "completed"
+    assert normalized["steps"][0]["reported_outcome"] == "failure"
+    assert normalized["active_step_index"] is None
+    assert "explicit_attempt_failure_outcome" in summary.applied_rules
+
+
+def test_interpreter_normalizes_completed_action_before_later_attempt():
+    source = "Abro la ventana y luego intento salir al tejado."
+    first = _step("Abro la ventana")
+    first["action"] = "abrir la ventana"
+    first["action_frame"] = {
+        "predicate": "Abro",
+        "family": "state_change",
+        "arguments": [],
+    }
+    second = dict(
+        _step("luego intento salir al tejado"),
+        index=1,
+    )
+    second["action"] = "intentar salir al tejado"
+    second["action_frame"] = {
+        "predicate": "intento",
+        "family": "movement",
+        "arguments": [],
+    }
+    provider = FakeLLMProvider(
+        response=json.dumps(
+            {"intent_analysis": _payload(first, second, category="action", active=0)},
+            ensure_ascii=False,
+        )
+    )
+    context = TurnContext(
+        campaign=CampaignState(campaign_id=1, name="Test"),
+        current_session=None,
+        active_character=CharacterState(entity_id=20),
+        world=WorldState(),
+    )
+
+    analysis = IntentInterpreter(provider).interpret(context, source)
+
+    assert analysis.category.value == "mixed"
+    assert analysis.active_step_index == 1
+    assert analysis.steps[0].modality.value == "completed"
+    assert analysis.steps[0].reported_outcome.value == "success"
+    assert analysis.steps[1].modality.value == "attempted"
+    assert analysis.steps[1].reported_outcome.value == "not_claimed"
+    assert analysis.is_actionable
