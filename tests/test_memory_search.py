@@ -4,6 +4,8 @@ import pytest
 import app
 from models.entity import Entity
 from models.event import Event
+from models.item import ItemInstance
+from models.relation import Relation
 
 
 @pytest.fixture
@@ -301,3 +303,79 @@ def test_memory_search_finds_resource_balance_by_owner_and_notes(
     assert saved_balance["owner_id"] == 42
     assert saved_balance["amount"] == 150
     assert saved_balance["notes"] == "Reserva de oro del gremio"
+
+def test_memory_search_ignores_inactive_item_instances(clean_world):
+    inactive = ItemInstance(
+        id=301,
+        item_id=30,
+        instance_number=1,
+        owner_id=42,
+        condition="oxidada",
+        notes="reliquia retirada del inventario",
+        active=False,
+    )
+    active = ItemInstance(
+        id=302,
+        item_id=30,
+        instance_number=2,
+        owner_id=42,
+        condition="intacta",
+        notes="reliquia disponible",
+        active=True,
+    )
+    clean_world.item_instances[inactive.id] = inactive
+    clean_world.item_instances[active.id] = active
+
+    result = _search_memory("reliquia")
+
+    assert [item["id"] for item in result["item_instances"]] == [302]
+
+
+def test_memory_search_ignores_inactive_relations(clean_world):
+    inactive = Relation(
+        id="inactive-truce",
+        subject_id=1,
+        relation_type="pacto antiguo",
+        target_id=2,
+        active=False,
+        metadata={"notes": "pacto retirado"},
+    )
+    active = Relation(
+        id="active-truce",
+        subject_id=1,
+        relation_type="pacto vigente",
+        target_id=2,
+        active=True,
+        metadata={"notes": "pacto actual"},
+    )
+    clean_world.relations[inactive.id] = inactive
+    clean_world.relations[active.id] = active
+
+    result = _search_memory("pacto")
+
+    assert [relation["id"] for relation in result["relations"]] == ["active-truce"]
+
+
+def test_memory_context_does_not_render_inactive_instances_or_relations(clean_world):
+    clean_world.item_instances[401] = ItemInstance(
+        id=401,
+        item_id=40,
+        instance_number=1,
+        owner_id=42,
+        notes="reliquia retirada",
+        active=False,
+    )
+    clean_world.relations["retired-oath"] = Relation(
+        id="retired-oath",
+        subject_id=1,
+        relation_type="juramento retirado",
+        target_id=2,
+        active=False,
+    )
+
+    result = _memory_context("retirada")
+
+    assert result["item_instances"] == []
+    assert result["relations"] == []
+    assert "reliquia retirada" not in result["context"]
+    assert "juramento retirado" not in result["context"]

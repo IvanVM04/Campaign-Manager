@@ -22,6 +22,7 @@ Apply validated typed world operations to in-memory campaign state, coordinate p
 - Search includes resolved display names as well as the collection's own fields.
 - Projections remain frozen and detached from mutable domain state.
 - Player-facing reads must use `WorldVisibilityPolicy`; secret events are filtered before search and pagination so neither their fields nor their existence count is exposed.
+- LLM-proposed events are always public, model-inferred evidence. The `secret` constructor field remains available to trusted application/domain workflows, but is excluded from the model proposal schema and stripped if an LLM sends it anyway.
 - The current policy intentionally has no unauthenticated GM bypass. A future GM projection must be protected by a verified principal and campaign-scoped GM authorization, not by a query parameter or caller-controlled role header.
 
 ## Dependency rules

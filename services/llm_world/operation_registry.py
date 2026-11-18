@@ -90,16 +90,24 @@ class OperationMetadata:
     model_proposable: bool
     reference_fields: tuple[str, ...]
     example: Mapping[str, Any]
+    model_hidden_fields: tuple[str, ...] = ()
 
     @property
     def dataclass_fields(self) -> tuple[Any, ...]:
+        """All constructor fields, including fields reserved for trusted callers."""
         return tuple(fields(self.operation_class))
+
+    @property
+    def model_fields(self) -> tuple[Any, ...]:
+        """Fields the model is allowed to propose for this operation."""
+        hidden = set(self.model_hidden_fields)
+        return tuple(field for field in self.dataclass_fields if field.name not in hidden)
 
     @property
     def required_fields(self) -> tuple[str, ...]:
         return tuple(
             field.name
-            for field in self.dataclass_fields
+            for field in self.model_fields
             if field.default is MISSING and field.default_factory is MISSING
         )
 
@@ -111,7 +119,7 @@ class OperationMetadata:
                 "description": "Tipo exacto de operación.",
             }
         }
-        for field in self.dataclass_fields:
+        for field in self.model_fields:
             schema = _annotation_schema(hints.get(field.name, Any))
             schema["description"] = _FIELD_DESCRIPTIONS.get(
                 field.name, f"Valor de {field.name}."
@@ -208,6 +216,7 @@ def _metadata(
     reference_fields: tuple[str, ...] = (),
     example: dict[str, Any],
     model_proposable: bool,
+    model_hidden_fields: tuple[str, ...] = (),
 ) -> OperationMetadata:
     if model_proposable and issubclass(operation_class, CharacterOperation):
         raise ValueError(
@@ -220,6 +229,22 @@ def _metadata(
             f"Unknown reference fields for {name}: "
             + ", ".join(sorted(unknown_references))
         )
+    unknown_model_hidden = set(model_hidden_fields) - declared_fields
+    if unknown_model_hidden:
+        raise ValueError(
+            f"Unknown model-hidden fields for {name}: "
+            + ", ".join(sorted(unknown_model_hidden))
+        )
+    required_model_hidden = {
+        field.name
+        for field in fields(operation_class)
+        if field.default is MISSING and field.default_factory is MISSING
+    } & set(model_hidden_fields)
+    if required_model_hidden:
+        raise ValueError(
+            f"Required fields cannot be hidden from model proposals for {name}: "
+            + ", ".join(sorted(required_model_hidden))
+        )
     return OperationMetadata(
         name=name,
         operation_class=operation_class,
@@ -227,6 +252,7 @@ def _metadata(
         model_proposable=model_proposable,
         reference_fields=reference_fields,
         example=MappingProxyType(dict(example)),
+        model_hidden_fields=tuple(sorted(set(model_hidden_fields))),
     )
 
 
@@ -301,12 +327,12 @@ class OperationMetadataRegistry:
             hints = get_type_hints(metadata.operation_class)
             required = [
                 f"{field.name}:{_compact_type_label(hints.get(field.name, Any))}"
-                for field in metadata.dataclass_fields
+                for field in metadata.model_fields
                 if field.name in metadata.required_fields
             ]
             optional = [
                 f"{field.name}:{_compact_type_label(hints.get(field.name, Any))}"
-                for field in metadata.dataclass_fields
+                for field in metadata.model_fields
                 if field.name not in metadata.required_fields
             ]
             description = metadata.description.split(". ", maxsplit=1)[0]
@@ -326,7 +352,7 @@ class OperationMetadataRegistry:
             for field_name in noted_fields:
                 if any(
                     field.name == field_name
-                    for field in metadata.dataclass_fields
+                    for field in metadata.model_fields
                 ):
                     field_notes[field_name] = _FIELD_DESCRIPTIONS[field_name]
 
@@ -409,7 +435,8 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                   reference_fields=("session_id",),
                   example={"type": "create_event", "event_id": "mercader_amenazado",
                            "event_type": "social", "title": "El mercader fue amenazado"},
-                  model_proposable=True),
+                  model_proposable=True,
+                  model_hidden_fields=("secret",)),
         _metadata("change_character_hp", ChangeCharacterHpOperation,
                   reference_fields=("entity_id",),
                   example={"type": "change_character_hp", "entity_id": 12, "amount": -4},

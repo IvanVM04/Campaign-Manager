@@ -121,3 +121,19 @@ def test_event_provenance_is_not_a_model_configurable_operation_field():
     assert "epistemic_status" not in properties
     assert "provenance_source" not in properties
     assert "visibility_scope" not in properties
+
+
+def test_event_secret_is_a_trusted_only_constructor_field():
+    metadata = DEFAULT_OPERATION_REGISTRY.get("create_event")
+    assert metadata is not None
+
+    # Domain/application workflows retain the field, but proposal schemas do not.
+    assert "secret" in {field.name for field in metadata.dataclass_fields}
+    assert "secret" not in {field.name for field in metadata.model_fields}
+    assert "secret" not in metadata.json_schema()["properties"]
+
+    prompt_contract = json.loads(
+        DEFAULT_OPERATION_REGISTRY.render_prompt_contract(("create_event",))
+    )
+    assert "secret" not in prompt_contract["operations"]["create_event"]["optional"]
+    assert "secret" not in prompt_contract["field_notes"]
