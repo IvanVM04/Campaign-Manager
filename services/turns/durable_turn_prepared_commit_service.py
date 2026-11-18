@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import UTC, datetime
 
 from database import transaction
@@ -28,6 +29,7 @@ class DurableTurnPreparedCommitService:
         resolution_repository,
         context_loader,
         operation_results_serializer,
+        turn_execution_lock=None,
         error_type=RuntimeError,
     ) -> None:
         self.scope = scope
@@ -36,6 +38,7 @@ class DurableTurnPreparedCommitService:
         self.resolution_repository = resolution_repository
         self.context_loader = context_loader
         self.operation_results_serializer = operation_results_serializer
+        self.turn_execution_lock = turn_execution_lock
         self.error_type = error_type
 
     def commit_prepared_plan(
@@ -51,7 +54,14 @@ class DurableTurnPreparedCommitService:
         conversation_id: str | None = None,
     ):
         """Apply a prepared plan only if its campaign snapshot is still current."""
-        with transaction("IMMEDIATE") as conn:
+        lock = (
+            self.turn_execution_lock.acquire()
+            if self.turn_execution_lock is not None
+            else nullcontext()
+        )
+        # Acquire the in-process cache lock before SQLite's writer lock. This
+        # preserves a single lock ordering across API writers and turn commits.
+        with lock, transaction("IMMEDIATE") as conn:
             current_revision = self.revision_repository.get_revision(
                 self.scope.campaign_id,
                 conn=conn,

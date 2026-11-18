@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from datetime import UTC, datetime
 
 from database import transaction
@@ -25,6 +26,7 @@ class DurableTurnNarrationService:
         resolution_repository,
         turn_execution_lock=None,
         context_loader,
+        snapshot_loader=None,
         error_type=RuntimeError,
     ) -> None:
         self.scope = scope
@@ -33,6 +35,7 @@ class DurableTurnNarrationService:
         self.resolution_repository = resolution_repository
         self.turn_execution_lock = turn_execution_lock
         self.context_loader = context_loader
+        self.snapshot_loader = snapshot_loader
         self.error_type = error_type
 
     def complete_external_narration(
@@ -321,8 +324,20 @@ class DurableTurnNarrationService:
         if record.lifecycle_state != "narration_pending":
             raise self.error_type("resolution is not awaiting narration")
 
-        with transaction("DEFERRED") as conn:
-            context, recent = self.context_loader(conn)
+        if self.snapshot_loader is not None:
+            context, recent, _revision = self.snapshot_loader(
+                conversation_id=record.conversation_id
+            )
+        else:
+            lock = (
+                self.turn_execution_lock.acquire()
+                if self.turn_execution_lock is not None
+                else nullcontext()
+            )
+            with lock, transaction("DEFERRED") as conn:
+                context, recent = self.context_loader(
+                    conn, conversation_id=record.conversation_id
+                )
         mechanics_result = TurnResolutionCodec.mechanics_from_json(record.mechanics_json)
         resolved_player_input = self._resolved_player_input(record)
         committed_resolution = json.dumps(
@@ -341,7 +356,12 @@ class DurableTurnNarrationService:
         if not narrative:
             raise self.error_type("DMService returned an empty narrative")
 
-        with transaction("IMMEDIATE") as conn:
+        lock = (
+            self.turn_execution_lock.acquire()
+            if self.turn_execution_lock is not None
+            else nullcontext()
+        )
+        with lock, transaction("IMMEDIATE") as conn:
             turn = self.turn_repository.save_turn(
                 TurnRecord(
                     session_id=record.session_id,

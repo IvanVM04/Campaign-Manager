@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import secrets
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 
 from database import transaction
@@ -60,6 +61,7 @@ class DurableTurnExecutionService:
         narration_service: DurableTurnNarrationService,
         context_loader,
         turn_execution_lock=None,
+        snapshot_loader=None,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -71,6 +73,7 @@ class DurableTurnExecutionService:
         self.narration_service = narration_service
         self.context_loader = context_loader
         self.turn_execution_lock = turn_execution_lock
+        self.snapshot_loader = snapshot_loader
         self.error_type = error_type
 
     def _serialize_operations(self, plan: TurnResolutionPlan) -> str:
@@ -145,14 +148,11 @@ class DurableTurnExecutionService:
     ):
         if dice_mode not in {"automatic", "manual"}:
             raise DurableNativeTurnError("dice_mode must be automatic or manual")
-        if self.turn_execution_lock is None:
-            return self._play_turn_locked(
-                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
-            )
-        with self.turn_execution_lock.acquire():
-            return self._play_turn_locked(
-                player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
-            )
+        # Snapshot/commit boundaries own their short locks. Never serialize
+        # provider planning or narration behind the campaign cache lock.
+        return self._play_turn_locked(
+            player_input, idempotency_key=idempotency_key, dice_mode=dice_mode
+        )
 
     def prepare_external_turn(
         self,
@@ -250,10 +250,7 @@ class DurableTurnExecutionService:
                 )
             return result
 
-        if self.turn_execution_lock is None:
-            return prepare()
-        with self.turn_execution_lock.acquire():
-            return prepare()
+        return prepare()
 
     def _play_turn_locked(
         self,
@@ -269,17 +266,23 @@ class DurableTurnExecutionService:
         if not normalized:
             raise DurableNativeTurnError("player_input must not be empty")
 
-        with transaction("DEFERRED") as conn:
-            if conversation_id is None:
-                context, recent = self.context_loader(conn)
-            else:
-                context, recent = self.context_loader(
-                    conn,
-                    conversation_id=conversation_id,
-                )
-            revision = self.revision_repository.get_revision(
-                self.scope.campaign_id, conn=conn
+        if self.snapshot_loader is not None:
+            context, recent, revision = self.snapshot_loader(
+                conversation_id=conversation_id
             )
+        else:
+            lock = (
+                self.turn_execution_lock.acquire()
+                if self.turn_execution_lock is not None
+                else nullcontext()
+            )
+            with lock, transaction("DEFERRED") as conn:
+                context, recent = self.context_loader(
+                    conn, conversation_id=conversation_id
+                )
+                revision = self.revision_repository.get_revision(
+                    self.scope.campaign_id, conn=conn
+                )
         session_id = (
             context.current_session.session_id
             if context.current_session is not None

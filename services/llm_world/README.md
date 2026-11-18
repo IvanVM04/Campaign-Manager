@@ -15,7 +15,7 @@ world application boundary.
 - `llm_world_proposal_prompt_builder.py` — builds the proposal prompt from typed world context, the shared intent analysis and trusted resolved references.
 - `llm_world_proposal_validator.py` — validates response size and performs at most one compact, separately budgeted repair.
 - `llm_world_response_parser.py` — decodes provider output and applies the model-proposable operation trust gate.
-- `operation_registry.py` — immutable typed catalogue of parser-supported operations, model-proposable/internal trust classification and generated JSON schemas.
+- `operation_registry.py` — immutable typed catalogue of parser-supported operations, explicit per-operation model-field allowlists, internal trust classification and generated JSON schemas.
 - `operation_parser.py` — structural parser; existence, campaign scope, permission and mutation checks remain in `WorldService` / `WorldApplier`.
 
 ## Active proposal pipeline
@@ -71,3 +71,14 @@ closed rather than arbitrarily truncating mandatory campaign facts.
 - Character-state operations remain excluded from the model-proposable allowlist.
 - Keep world mutation in the world application boundary.
 - Do not reintroduce a narrative-first extractor or an independent prompt contract.
+
+
+## Model proposal field boundary
+
+Every model-proposable operation declares `model_allowed_fields` explicitly.
+The proposal JSON Schema and prompt contract are generated only from that
+allowlist; adding a dataclass constructor field does not expose it to the model.
+The response parser strips constructor fields outside the allowlist while
+preserving unknown keys for structural rejection. Trusted application/domain
+callers retain the complete constructor surface. Do not replace this boundary
+with a denylist of known-sensitive fields.

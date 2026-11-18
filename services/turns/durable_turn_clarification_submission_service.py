@@ -138,11 +138,9 @@ class DurableTurnClarificationSubmissionService:
                 ) from exc
 
             try:
-                with transaction("DEFERRED") as conn:
-                    context, recent = service._context_and_history(conn, conversation_id=record.conversation_id)
-                    revision = service.revision_repository.get_revision(
-                        service.scope.campaign_id, conn=conn
-                    )
+                context, recent, revision = service._capture_turn_snapshot(
+                    conversation_id=record.conversation_id
+                )
                 if (
                     revision != record.context_revision
                     or revision != pending.get("context_revision")
@@ -379,10 +377,7 @@ class DurableTurnClarificationSubmissionService:
                     "clarification resolution failed"
                 ) from exc
 
-        if service.turn_execution_lock is None:
-            return submit()
-        with service.turn_execution_lock.acquire():
-            return submit()
+        return submit()
 
     def _resume_prepared_clarification(
         self,
@@ -391,11 +386,9 @@ class DurableTurnClarificationSubmissionService:
         defer_narration: bool,
     ):
         service = self.turn_service
-        with transaction("DEFERRED") as conn:
-            context, recent = service._context_and_history(conn)
-            revision = service.revision_repository.get_revision(
-                service.scope.campaign_id, conn=conn
-            )
+        context, recent, revision = service._capture_turn_snapshot(
+            conversation_id=record.conversation_id
+        )
         if revision != record.context_revision:
             with transaction("IMMEDIATE") as conn:
                 service.resolution_repository.transition(
