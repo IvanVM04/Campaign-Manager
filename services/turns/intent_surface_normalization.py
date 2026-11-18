@@ -91,7 +91,8 @@ _FIRST_PERSON_PRESENT_RE = re.compile(
     r"^\s*(?:(?:yo)\s+)?(?:(?:me|lo|la|le|les|nos)\s+)?"
     r"(?:abro|cierro|desbloqueo|recojo|tomo|cojo|guardo|saco|coloco|"
     r"entrego|recibo|enciendo|apago|rompo|muevo|levanto|agarro|cruzo|"
-    r"activo|desato|sujeto)\b",
+    r"activo|desato|sujeto|trep\w*|escalo|camino|corro|entro|salgo|"
+    r"subo|bajo|salto|nado|viajo|me\s+acerco|me\s+dirijo|me\s+muevo)\b",
     re.IGNORECASE,
 )
 _FIRST_PERSON_ACTIVE_CLAUSE_RE = re.compile(
@@ -207,7 +208,10 @@ def _widen_report_excerpt(
 ) -> None:
     """Include the literal speaker prefix without absorbing later player clauses."""
     if 0 < literal_end <= 300:
-        excerpt = evidence[:literal_end].strip()
+        end = literal_end
+        if end < len(evidence) and evidence[end] in ".!?":
+            end += 1
+        excerpt = evidence[:end].strip()
         if excerpt:
             step["source_excerpt"] = excerpt
 
@@ -424,6 +428,11 @@ def normalize_intent_surface_payload(
             decision_step["reported_outcome"] = "not_claimed"
             _widen_excerpt(decision_step, evidence)
             rules.append("explicit_decision_not_to_act")
+            if (
+                _NEGATED_ATTEMPT_RE.search(evidence)
+                or _ATTEMPT_NEGATES_ACTION_RE.search(evidence)
+            ):
+                rules.append("explicit_negated_attempt")
 
             verb_end = decision_match.end("verb")
             continuation_spans = [
@@ -807,6 +816,7 @@ def normalize_intent_surface_payload(
             rules.append("explicit_reported_speaker")
             if scope_is_uncertain:
                 rules.append("explicit_reported_clause_uncertainty")
+                rules.append("explicit_epistemic_uncertainty")
 
             if len(reported_indices) == len(steps):
                 normalized["category"] = "report"
@@ -827,14 +837,27 @@ def normalize_intent_surface_payload(
                     )
 
     # Epistemic markers express uncertainty, not positive world knowledge.
+    step_evidence = (
+        _step_evidence(steps[0], evidence)
+        if len(steps) == 1
+        else ""
+    )
+    has_explicit_player_action_surface = (
+        len(steps) == 1
+        and (
+            _ATTEMPT_RE.search(step_evidence) is not None
+            or _FIRST_PERSON_PRESENT_RE.search(step_evidence) is not None
+        )
+    )
     if (
         len(steps) == 1
-        and _EPISTEMIC_UNCERTAINTY_RE.search(_step_evidence(steps[0], evidence))
+        and not normalized.get("requires_clarification")
+        and _EPISTEMIC_UNCERTAINTY_RE.search(step_evidence)
         and not (
             steps[0].get("actor") == "player"
             and steps[0].get("modality") == "attempted"
             and steps[0].get("polarity") == "positive"
-            and normalized.get("category") in {"action", "mixed"}
+            and has_explicit_player_action_surface
         )
     ):
         step = steps[0]
