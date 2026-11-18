@@ -23,8 +23,8 @@ def test_normal_intent_prompt_separates_dialogue_question_and_report():
     assert 'actor="npc"' in normal or "el actor del paso es" in normal
     assert "actor identifica quién realiza el acto en la ficción" in normal
     assert "nunca action del jugador" in normal
-    assert "la guardia cruza el puente" in normal
-    assert "le consulto a la guardia" in normal
+    assert "un predicado lingüístico" in normal
+    assert "si habla un npc, el acto global es dialogue" in normal
     assert "matriz de decisión para el actor primario" in normal
     assert "ella responde en voz alta" in normal
     assert "ella entra en la sala" in normal
