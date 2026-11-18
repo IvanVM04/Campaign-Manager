@@ -96,10 +96,16 @@ class LLMWorldResponseParser:
                 else None
             )
             if metadata is not None:
-                # Keep the model surface narrower than the trusted domain
-                # constructor. Fields such as CreateEventOperation.secret
-                # remain available to trusted workflows, never to the LLM.
-                for field_name in metadata.model_hidden_fields:
+                # Constructor fields are trusted by default, not model-visible.
+                # Remove every domain field omitted from the explicit allowlist;
+                # unknown keys remain so OperationParser can reject malformed output.
+                allowed_fields = set(metadata.model_allowed_fields or ())
+                trusted_only_fields = {
+                    field.name
+                    for field in metadata.dataclass_fields
+                    if field.name not in allowed_fields
+                }
+                for field_name in trusted_only_fields:
                     normalized.pop(field_name, None)
             if operation_type == "create_event":
                 # Provenance and visibility are application-owned policy.

@@ -5,7 +5,11 @@ import pytest
 from services.llm_world.llm_extraction_errors import LLMExtractionError
 from services.llm_world.llm_world_response_parser import LLMWorldResponseParser
 from services.llm_world.operation_parser import OperationParser
-from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
+from services.llm_world.operation_registry import (
+    DEFAULT_OPERATION_REGISTRY,
+    _metadata,
+)
+from operations.world_operations import WorldOperation
 
 
 def test_registry_and_parser_share_the_same_operation_classes():
@@ -123,12 +127,12 @@ def test_event_provenance_is_not_a_model_configurable_operation_field():
     assert "visibility_scope" not in properties
 
 
-def test_event_secret_is_a_trusted_only_constructor_field():
+def test_event_secret_is_trusted_only_and_model_allowlist_is_explicit():
     metadata = DEFAULT_OPERATION_REGISTRY.get("create_event")
     assert metadata is not None
 
-    # Domain/application workflows retain the field, but proposal schemas do not.
     assert "secret" in {field.name for field in metadata.dataclass_fields}
+    assert "secret" not in metadata.model_allowed_fields
     assert "secret" not in {field.name for field in metadata.model_fields}
     assert "secret" not in metadata.json_schema()["properties"]
 
@@ -137,3 +141,42 @@ def test_event_secret_is_a_trusted_only_constructor_field():
     )
     assert "secret" not in prompt_contract["operations"]["create_event"]["optional"]
     assert "secret" not in prompt_contract["field_notes"]
+
+
+def test_every_model_proposable_operation_declares_an_explicit_field_allowlist():
+    for metadata in DEFAULT_OPERATION_REGISTRY.operations:
+        if metadata.model_proposable:
+            assert metadata.model_allowed_fields is not None
+            assert metadata.model_fields
+            assert set(metadata.model_allowed_fields) == {
+                field.name for field in metadata.model_fields
+            }
+        else:
+            assert metadata.model_fields == ()
+
+
+def test_new_constructor_fields_are_not_implicitly_exposed_to_the_model():
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class FutureOperation(WorldOperation):
+        title: str
+        future_internal_field: str = ""
+
+    with pytest.raises(ValueError, match="must declare model_allowed_fields"):
+        _metadata(
+            "future_operation",
+            FutureOperation,
+            example={"type": "future_operation", "title": "Known fact"},
+            model_proposable=True,
+        )
+
+    metadata = _metadata(
+        "future_operation",
+        FutureOperation,
+        example={"type": "future_operation", "title": "Known fact"},
+        model_proposable=True,
+        model_allowed_fields=("title",),
+    )
+    assert [field.name for field in metadata.model_fields] == ["title"]
+    assert "future_internal_field" not in metadata.json_schema()["properties"]
