@@ -114,7 +114,7 @@ Las fases están ordenadas por dependencia. Una fase no se cierra porque el cód
 
 ### Fase 0 — Baseline de repositorio y CI
 
-<badge>Completada en el baseline</badge>
+**Estado: completada en el baseline.**
 
 - [x] PR #255 integrada en `main`.
 - [x] 2042 tests deterministas correctos.
