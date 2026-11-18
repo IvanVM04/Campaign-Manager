@@ -94,6 +94,11 @@ _FIRST_PERSON_PRESENT_RE = re.compile(
     r"activo|desato|sujeto)\b",
     re.IGNORECASE,
 )
+_FIRST_PERSON_ACTIVE_CLAUSE_RE = re.compile(
+    r"^\s*(?:(?:y|pero|entonces|después|despues|luego)\s+)?"
+    r"(?:(?:yo)\s+)?(?:intento|trato\s+de|pruebo|procuro)\b",
+    re.IGNORECASE,
+)
 _FIRST_PERSON_FUTURE_RE = re.compile(
     r"\b[\wáéíóúüñ]+(?:ré|remos)\b",
     re.IGNORECASE,
@@ -702,6 +707,18 @@ def normalize_intent_surface_payload(
             if start < 0:
                 continue
             end = start + len(excerpt)
+            preceding_report_text = evidence[body_start:start]
+            follows_independent_linker = re.search(
+                r"\b(?:y|pero|entonces|después|despues|luego)\s*$",
+                preceding_report_text,
+                re.IGNORECASE,
+            ) is not None
+            begins_player_action = (
+                _FIRST_PERSON_ACTIVE_CLAUSE_RE.match(excerpt) is not None
+                or _FIRST_PERSON_PRESENT_RE.match(excerpt) is not None
+            )
+            if follows_independent_linker and begins_player_action:
+                continue
             if (
                 start < scope_end
                 and end > body_start
