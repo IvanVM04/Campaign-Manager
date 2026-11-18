@@ -303,8 +303,7 @@ Trabajo de UX/entrega:
 
 ## 6. Evidencia y documentación de referencia
 
-- [Requisitos de producto v0.2](../product/product-requirements-2026-11-18.md) — control configurable, incertidumbre, UI propia, conocimiento del mundo, internacionalización y módulos personalizados.
-- [Requisitos de producto v0.2](../product/product-requirements-2026-11-18.md) — control configurable, incertidumbre, UI propia, conocimiento del mundo, internacionalización y módulos personalizados.
+- [Requisitos de producto v0.2](../product/product-requirements-2026-11-18.md) — control configurable, incertidumbre, UI propia, conocimiento del mundo, selección explícita de entidades para el contexto, internacionalización y módulos personalizados.
 - [Visión y estado actual](../../README.md).
 - [Auditoría de comprensión de predicados](predicate-understanding-audit-2026-11-17.md).
 - [Hardening semántico](semantic-understanding-hardening-2026-11-17.md).
