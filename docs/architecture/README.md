@@ -1,53 +1,73 @@
 # Architecture documentation index
 
-## Current baseline
+This index separates active technical contracts from dated architecture proposals and audits. For current product intent and status, start with [product requirements v0.2](../product/product-requirements-2026-11-18.md), [current system state](current-state-2026-11-18.md) and [documentation audit](documentation-audit-2026-11-18.md).
 
-- [Observability and diagnostics](observability-and-diagnostics.md): local logging configuration, correlation IDs, safe structured fields and the boundary with future player activity history.
+## Current architecture baseline
 
-- [Shared-layer module catalogue — 2026-11-12](module-catalog-2026-11-12.md): API, models, operations, persistence, rules engine, shared entrypoints and test navigation.
-- [Phase 0 closeout — 2026-11-12](phase-0-closeout-2026-11-12.md): integrated structural changes, remaining acceptance gates and product hand-off.
-- [Engineering readiness and gameplay roadmap — 2026-11-12](engineering-readiness-and-gameplay-roadmap-2026-11-12.md): post-#205 readiness assessment, module expansion priorities and indicative hour ranges.
-- [Change-impact map — 2026-11-12](change-impact-map-2026-11-12.md): cross-layer consumer, transaction and regression-test review matrix.
+- [Current system state and architecture map — 2026-11-18](current-state-2026-11-18.md): current implementation shape, API/workflow, ownership, migration version, security, observed CI and unimplemented product requirements.
+- [Documentation freshness audit — 2026-11-18](documentation-audit-2026-11-18.md): stale statements, current-vs-historical classification and synchronized index work.
+- [Module catalogue — 2026-11-12](module-catalog-2026-11-12.md): package/module inventory and navigation. Use together with the 2026-11-18 current-state map.
+- [Change-impact map — 2026-11-12](change-impact-map-2026-11-12.md): cross-layer contracts, consumers and regression-test review.
+- [Capability package dependency matrix](package-dependency-matrix.md): enforceable dependency direction and process for approving new edges.
+- [Migration catalogue](migration-catalog-2026-11-12.md): active migration registry and schema version; the current application reports version 34.
+- [Observability and diagnostics](observability-and-diagnostics.md): local structured logging, correlation IDs, safe fields and telemetry boundary.
+- [Writer/lock/cache-coherence audit](writer-lock-cache-audit.md): current single-process synchronization assumptions and route-to-writer matrix. Historical PR #78 fixes are retained as provenance.
 
-- [Architecture map — 2026-11-12](architecture-map-2026-11-12.md): package/module ownership, execution paths, protected compatibility surfaces and improvement register.
-- [Current architecture audit — 2026-11-12](architecture-audit-2026-11-12.md): latest source-verified architecture findings and refactoring priorities.
-- [Combat attack-profile boundary](combat-attack-profile-boundary.md): player/NPC profile selection, rules derivation and atomic persistence contracts.
-- [Combat and character-state audit — 2026-11-12](combat-character-state-audit-2026-11-12.md): canonical HP, persistent effects, movement/reaction projections, Hit Dice and rest transaction contracts.
-- [Durable turn execution boundary](durable-turn-execution-boundary.md): request idempotency, planning leases, prepared commit hand-off and typed failures.
+## Active application and lifecycle contracts
 
-- [Entity reference resolution — 2026-11-12](../quality/entity-reference-resolution-2026-11-12.md): typed aliases, deterministic identity matching and ambiguity abstention.
-- [Documentation hub](../README.md): current engineering, quality and package navigation for maintainers and coding agents.
-- [CI and quality-gate audit — 2026-11-11](../quality/ci-audit-2026-11-11.md): actual workflow checks, required status checks and observed CI results.
-- [Current test-suite navigation — 2026-11-12](../quality/test-suite-navigation-2026-11-12.md): durable native/SillyTavern, context, adapter and effects regression-test contracts.
-- [Prompt evaluation — 2026-11-12](../quality/prompt-evaluation-2026-11-12.md): deterministic contracts, opt-in live Ollama probes and local acceptance boundaries.
-- [Test-suite audit — 2026-11-11](../quality/test-suite-audit-2026-11-11.md): suite structure, protected contracts and reorganization plan.
-- [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured player-intent prompt.
-- [LLM context rendering boundary](llm-world-context-rendering-boundaries.md): typed projection ownership and context-budget gap.
-- [SillyTavern adapter boundary — 2026-11-12](sillytavern-adapter-boundary-2026-11-12.md): active read-only adapter and composition-root ownership.
-- [Legacy retirement — 2026-11-12](legacy-retirement-2026-11-12.md): retired turn paths and snapshot data archive.
+Prefer these contracts for current implementation work.
 
-- [Capability-package dependency matrix](package-dependency-matrix.md): enforceable dependency direction for the eight service packages and the process for approving new cross-package edges.
+- [Turn pipeline compatibility](turn-pipeline-compatibility.md): the one supported native and external durable turn contract; the narrative-first endpoint is retired.
+- [Durable turn execution boundary](durable-turn-execution-boundary.md): execution collaborator ownership, sequencing and typed failures.
+- [Durable challenge state](durable-challenge-state-boundary.md): client-safe read projection of pending challenge state.
+- [Durable clarification submission](durable-clarification-submission.md): clarification validation, continuation, idempotency and recovery.
+- [Durable manual-roll submission](durable-manual-roll-submission.md): manual dice challenge submission and replay semantics.
+- [Durable prepared-challenge commit](durable-prepared-challenge-commit.md): shared atomic commit boundary for native turns, clarification and manual rolls.
+- [Durable narration lifecycle](durable-narration-lifecycle.md): native and external narration completion after consequence commit.
+- [SillyTavern adapter boundary](sillytavern-adapter-boundary-2026-11-12.md): read-only context/transcript adaptation and composition-root ownership.
+- [SillyTavern durable adapter](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete, retry, regeneration and chat isolation.
+- [SQLite transaction ownership](sqlite-transaction-ownership.md): caller-owned transaction and repository connection rules.
+- [Campaign state revisions](campaign-state-revisions.md): optimistic revision and mutation-trigger rules.
+- [World applier boundaries](world-applier-boundaries.md): world-operation application ownership and mutation invariants.
+- [API error contract](api-error-contract.md): stable transport error envelope and safe diagnostics.
+- [LLM proposal prompt boundary](llm-world-proposal-prompt-boundary.md): active structured consequence proposal.
+- [LLM world-context rendering boundary](llm-world-context-rendering-boundaries.md): active typed, detached, bounded projection and current context safety constraints.
+- [Combat attack-profile boundary](combat-attack-profile-boundary.md): trusted player/NPC attack profile selection and deterministic rules derivation.
+- [Combat/character-state audit](combat-character-state-audit-2026-11-12.md): canonical HP/effects/rest ownership for the implemented vertical slice.
+- [D&D 5e 2014 rules-engine foundation](dnd5e-2014-rules-engine.md): actual implemented deterministic subset and rule-source boundaries.
 
-- [Architecture and modularity audit — 2026-11-12](architecture-audit-2026-11-12.md): current package inventory, single turn pipeline, snapshot archival and ordered refactoring roadmap.
-- [Architecture, maintainability and product-readiness audit — 2026-11-06](architecture-audit-2026-11-06.md): previous detailed audit. Retained as a dated snapshot; several migration-status statements were superseded by subsequent changes.
-- [Turn pipeline contract](turn-pipeline-compatibility.md): the single supported durable native/SillyTavern flow.
-- [Durable SillyTavern adapter contract](sillytavern-durable-turn-adapter.md): external turn identity, resolve/complete and retry semantics.
-- [Writer, lock and cache audit](writer-lock-cache-audit.md): current single-process synchronization assumptions and mutation ownership.
-- [SQLite transaction ownership](sqlite-transaction-ownership.md): transaction and shared-connection contract.
-- [Migration catalogue](migration-catalog-2026-11-12.md): ordered schema history, explicit runner registry and upgrade checklist.
-- [Turn-resolution lifecycle](turn-resolution-lifecycle.md): durable state transitions and commit boundaries.
-- [MVP quickstart](../mvp-quickstart.md) and [manual SillyTavern smoke test](../sillytavern-smoke-test.md): operational setup and manual acceptance.
+**Historical lifecycle design:** [turn-resolution-lifecycle.md](turn-resolution-lifecycle.md) is the original PR #28 design proposal. It is intentionally retained, marked superseded and must not be used as the active contract.
 
-## Historical snapshots
+## Historical architecture decisions and audits
 
-The following documents are retained as decision and audit history. Their findings describe the repository at their recorded baseline and must not be treated as current without checking the 2026-11-12 architecture audit and legacy-retirement record.
+These documents are point-in-time reports. Their original conclusions, PR recommendations, counts and implementation status should be read against their recorded dates/baselines. The 2026-11-18 current-state map supersedes their general “current status”.
 
-- [Current architecture snapshot — 2026-11-05](current-architecture-2026-11-05.md)
-- [Comprehensive architecture audit — 2026-11-05](comprehensive-architecture-audit-2026-11-05.md)
-- [Audit and refactor plan — 2026-11-05](audit-and-refactor-plan-2026-11-05.md)
-- [Engineering audit — 2026-11-03](engineering-audit-2026-11-03.md)
-- [Functional audit — 2026-11-03](functional-audit-2026-11-03.md)
-- [Architecture decisions — 2026-11-03](architecture-decisions-2026-11-03.md)
-- [Roadmap — 2026-11-03](roadmap-2026-11-03.md)
+- [Architecture audit — 2026-11-12](architecture-audit-2026-11-12.md) and [architecture map — 2026-11-12](architecture-map-2026-11-12.md): snapshots around PRs #205–#218.
+- [Phase 0 closeout — 2026-11-12](phase-0-closeout-2026-11-12.md) and [engineering readiness/gameplay roadmap — 2026-11-12](engineering-readiness-and-gameplay-roadmap-2026-11-12.md): prior structural closure and indicative planning estimates.
+- [Architecture audit — 2026-11-11](architecture-audit-2026-11-11.md).
+- [Architecture/maintainability audit — 2026-11-06](architecture-audit-2026-11-06.md).
+- [Comprehensive architecture audit — 2026-11-05](comprehensive-architecture-audit-2026-11-05.md), [audit and refactor plan — 2026-11-05](audit-and-refactor-plan-2026-11-05.md), and [architecture snapshot — 2026-11-05](current-architecture-2026-11-05.md).
+- [Engineering audit — 2026-11-03](engineering-audit-2026-11-03.md), [functional audit — 2026-11-03](functional-audit-2026-11-03.md), [domain boundaries — 2026-11-03](domain-boundaries-2026-11-03.md), [architecture decisions — 2026-11-03](architecture-decisions-2026-11-03.md), and [roadmap — 2026-11-03](roadmap-2026-11-03.md).
 
-Historical audit findings may have been fixed, superseded or invalidated by subsequent module moves. Preserve those files, but track current work in the latest audit and in focused implementation PRs.
+## Legacy retirement and historical migration records
+
+- [Legacy retirement — 2026-11-12](legacy-retirement-2026-11-12.md) records removal of the parallel narrative-first mutation path and migration 029 snapshot archive.
+- [Legacy cleanup inventory — 2026-11-06](legacy-cleanup-2026-11-06.md) records retired flat shims and preserved history.
+- [Legacy extraction-boundary audit](legacy-extraction-boundary-audit-2026-11-12.md), [legacy prompt decomposition](legacy-prompt-decomposition-2026-11-12.md), [legacy SillyTavern retirement audit](legacy-sillytavern-retirement-audit-2026-11-11.md) and [legacy SillyTavern turn boundary](legacy-sillytavern-turn-boundary.md) are historical documents with explicit supersession notices.
+
+## Older implementation boundaries
+
+These focused documents explain individual fixes and contracts that remain relevant where linked by the current-state map or package guides:
+
+- [Context rendering boundary](context-rendering-boundaries.md) — historical generic renderer snapshot, superseded by the active context package and proposal-context contracts.
+- [Durable turn-resolution persistence](durable-turn-resolution-persistence.md) — migration 022 introduction and persistence rationale.
+- [Durable challenge-state](durable-challenge-state-boundary.md), [clarification submission](durable-clarification-submission.md), [manual-roll submission](durable-manual-roll-submission.md), [prepared commit](durable-prepared-challenge-commit.md) and [narration lifecycle](durable-narration-lifecycle.md) — extracted collaborators of the implemented workflow.
+- [Combat consistency audit](../combat-consistency-audit.md), [armor](../armor-rules.md), [weapon domain](../weapon-domain.md), [combat attack](../combat-attack.md), [movement](../combat-movement.md), [opportunity attacks](../combat-opportunity-attacks.md), [death saves](../death-saving-throws.md), [persistent effects](../persistent-effects.md) and [campaign clock](../campaign-clock.md).
+
+## Index maintenance
+
+- Keep the 2026-11-18 current-state map as the only architecture-wide current snapshot until a newer source-verified map replaces it.
+- Link new active technical contracts here and from the documentation hub.
+- Do not put dated PR implementation notes in the current baseline section.
+- Preserve historical baselines; add a supersession notice rather than rewriting their original state.
+- Product requirements define the target; implementation claims must be checked against code and current tests.
