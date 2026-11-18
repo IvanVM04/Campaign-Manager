@@ -1,8 +1,9 @@
 # Package dependency matrix
 
 This document records allowed dependency direction for the modular monolith.
-It complements the [architecture map](architecture-map-2026-11-12.md) and
-is enforced by the architecture-boundary tests.
+It complements the [current system-state map](current-state-2026-11-18.md) and
+is enforced by the architecture-boundary tests. The 2026-11-12 package map is
+retained as a dated snapshot, not the current architecture index.
 
 ## Dependency direction
 
