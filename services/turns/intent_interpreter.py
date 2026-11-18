@@ -287,8 +287,13 @@ question, dialogue, report, plan, correction o unknown, active_step_index
 debe ser null, aunque el mensaje mencione una acción, una intención futura o
 una acción citada. No conviertas una pregunta informativa en una acción
 mecánica activa. Un NPC nunca da órdenes en nombre del jugador. Una cita,
-rumor o inferencia no es un hecho confirmado. No conviertas el resultado
-deseado en resultado ocurrido.
+rumor o inferencia no es un hecho confirmado. Si un personaje o fuente
+identificada afirma algo y en la misma oración añade una reserva epistémica
+sobre esa afirmación, conserva la atribución y marca como uncertain la
+proposición reportada; si el modelo separa la reserva en otro step, no pierdas
+la incertidumbre del contenido al que se refiere. No extiendas esa reserva a
+una acción del jugador que aparezca en una oración posterior. No conviertas
+el resultado deseado en resultado ocurrido.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
 ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
@@ -400,9 +405,14 @@ SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
   que su resultado ya ocurrió.
 - Una acción explícitamente negada se conserva como modality="negated" y
   polarity="negative". Es un paso resuelto no accionable, no el intento activo.
-  Si después aparece un intento positivo del jugador, el índice activo apunta
-  a ese paso posterior y el paso negado permanece intacto. Nunca conviertas
-  una negación en una operación ni la elimines para simplificar la secuencia.
+  Una decisión en primera persona de no realizar un infinitivo (por ejemplo,
+  «decido no cruzar la galería») es una negación explícita aunque no aparezca
+  el verbo «intentar». Una frase posterior que solo confirma la abstención
+  (por ejemplo, permanecer fuera o quedarse al otro lado) no es un nuevo
+  intento ni una operación independiente. Si después aparece un intento
+  positivo y distinto del jugador, el índice activo apunta a ese paso posterior
+  y el paso negado permanece intacto. Nunca conviertas una negación en una
+  operación ni la elimines para simplificar la secuencia.
 
 En action_frame.family, usa communication para actos lingüísticos como
 preguntar, decir, contar, hablar, susurrar, avisar y responder. No uses
