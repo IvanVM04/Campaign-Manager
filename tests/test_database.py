@@ -98,13 +98,20 @@ def test_init_db_enables_persistent_wal_and_connection_integrity_pragmas():
 
 
 def test_get_conn_rolls_back_when_connection_body_raises():
+    with get_conn() as conn:
+        conn.execute(
+            "CREATE TABLE connection_rollback_probe (value TEXT NOT NULL)"
+        )
+
     with pytest.raises(RuntimeError, match="abort connection"), get_conn() as conn:
-        conn.execute("CREATE TABLE connection_rollback_probe (value TEXT)")
+        conn.execute(
+            "INSERT INTO connection_rollback_probe (value) VALUES (?)",
+            ("must roll back",),
+        )
         raise RuntimeError("abort connection")
 
     with get_conn() as conn:
-        table = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-            ("connection_rollback_probe",),
-        ).fetchone()
-    assert table is None
+        count = conn.execute(
+            "SELECT COUNT(*) FROM connection_rollback_probe"
+        ).fetchone()[0]
+    assert count == 0
