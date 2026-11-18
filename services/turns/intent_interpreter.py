@@ -35,6 +35,7 @@ from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
     INTENT_CORRECTION_RESPONSE_SCHEMA,
 )
+from .intent_surface_normalization import normalize_intent_surface_payload
 from .semantic_surface_hints import (
     normalize_semantic_surface,
     normalize_untrusted_intent_payload,
@@ -551,6 +552,32 @@ para otros campos. No asignes IDs, permisos, visibilidad, procedencia, tiradas
 ni consecuencias. Los kind_hint y relation claims son pistas lingüísticas no
 confiables, nunca hechos ni autorización de escritura. Si falta evidencia,
 omite la mención o abstente; no completes huecos con detalles plausibles.
+RESOLUCIÓN DE CASOS DISCURSIVOS DIFÍCILES
+- «Si la guardia me deja pasar, entraré en la sala» es plan, modalidad
+  conditional y active_step_index=null. La cláusula futura no es un intento
+  actual; incluye la condición en source_excerpt.
+- «Intento forzar la puerta, pero la cerradura no cede» describe un intento
+  cuyo resultado el jugador ya comunica como fallido: reported_outcome=failure,
+  paso resuelto y active_step_index=null. No lo conviertas en una tirada nueva.
+  En cambio, «No fuerzo la puerta» es negated, no failure.
+- «Me parece sospechoso que el barón oculte algo; no dispongo de evidencias»
+  es report con polarity=uncertain, nunca una afirmación positiva confirmada.
+- «Un guardabosques comenta que halló huellas, pero ignora si eran de un lobo»
+  es report atribuido a un actor other, modality=reported y polarity=uncertain.
+  Si el hablante está nombrado («Dorian me comenta que...»), usa actor=npc y
+  attributed_to=Dorian. El source_excerpt debe incluir también al hablante.
+- «No era el mapa viejo, sino el pergamino sellado» es correction,
+  modality=correction y active_step_index=null; la rectificación no es un
+  nuevo intento.
+- «Examino el sello y después intento abrir el cofre» contiene dos pasos:
+  el primero observed/perception, el segundo attempted/player; category=mixed
+  y active_step_index=1. No conviertas la observación en el intento activo.
+- «¿Está abierta la puerta?» dirigido al DM es question; «Pregunto a Mara si
+  está abierta» es dialogue. La forma interrogativa subordinada no cambia
+  quién es el destinatario del acto de habla.
+En todos los ejemplos, predicate, mentions y source_excerpt siguen siendo
+literales del mensaje actual. No completes los ejemplos con palabras del historial.
+
 El esquema JSON es el contrato estructural."""
 
     CORRECTION_SYSTEM_PROMPT = COMMON_LLM_TRUST_CONTRACT + """Eres el adjudicador de una corrección semántica pendiente.
@@ -1179,6 +1206,19 @@ El esquema JSON es el contrato estructural."""
                 player_input=player_input,
                 evidence_text=evidence,
             )
+            intent_payload, intent_surface_summary = normalize_intent_surface_payload(
+                intent_payload,
+                evidence_text=evidence,
+            )
+            if intent_surface_summary.applied_rules:
+                logger.info(
+                    "llm.intent.surface_normalization_applied",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "rule_ids": list(intent_surface_summary.applied_rules),
+                    },
+                )
             if (
                 surface_sanitization.dropped_ungrounded_target_mentions
                 or surface_sanitization.dropped_ungrounded_action_arguments

@@ -447,6 +447,20 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
             return configured
         return common_timeout
 
+    def role_think(role: str, configured: bool | None) -> bool | None:
+        # Explicit role settings win; otherwise REAL_LLM_THINK applies to all
+        # roles just as it does in the single-provider holdout tests.
+        env_name = f"CAMPAIGN_MANAGER_LLM_{role.upper()}_THINK"
+        common_value = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_THINK")
+        if env_name in os.environ or common_value is None:
+            return configured
+        normalized = common_value.strip().casefold()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError("CAMPAIGN_MANAGER_REAL_LLM_THINK must be true or false")
+
     settings = replace(
         settings,
         base_url=os.getenv(
@@ -477,6 +491,9 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
             "extraction",
             settings.extraction_timeout_seconds,
         ),
+        intent_think=role_think("intent", settings.intent_think),
+        mechanics_think=role_think("mechanics", settings.mechanics_think),
+        extraction_think=role_think("extraction", settings.extraction_think),
     )
     usage_events = []
     providers = {
@@ -536,9 +553,65 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
         "Si alcanzo la cornisa, entro en la torre."
     )
 
+    def record_provider_diagnostics() -> None:
+        role_summaries = {}
+        for role, provider in providers.items():
+            events = [
+                event for event in usage_events
+                if event.get("provider_role") == role
+            ]
+            role_summaries[role] = {
+                "calls": len(events),
+                "failed_requests": sum(
+                    event.get("request_status") == "failed" for event in events
+                ),
+                "duration_ms_total": round(
+                    sum(float(event.get("duration_ms", 0)) for event in events), 3
+                ),
+                "prompt_bytes_total": sum(
+                    int(event.get("prompt_bytes", 0)) for event in events
+                ),
+                "prompt_tokens_total": sum(
+                    int(event.get("prompt_eval_count", 0)) for event in events
+                ),
+                "completion_tokens_total": sum(
+                    int(event.get("eval_count", 0)) for event in events
+                ),
+            }
+            record_property(f"integrated_{role}_model", provider.model)
+            record_property(
+                f"integrated_{role}_model_digest",
+                model_digests.get(role) or "unavailable",
+            )
+            record_property(f"integrated_{role}_timeout_seconds", provider.timeout)
+            record_property(
+                f"integrated_{role}_think",
+                "server_default" if provider.think is None else str(provider.think).lower(),
+            )
+        record_property(
+            "integrated_ollama_version",
+            ollama_version or "unavailable",
+        )
+        record_property(
+            "integrated_provider_usage",
+            json.dumps(role_summaries, sort_keys=True, separators=(",", ":")),
+        )
+
     started = perf_counter()
-    plan = service.prepare_turn(context, source, manual_rolls=(1,))
+    try:
+        plan = service.prepare_turn(context, source, manual_rolls=(1,))
+    except Exception as exc:
+        elapsed_ms = (perf_counter() - started) * 1000
+        record_property("integrated_prepare_outcome", "failed")
+        record_property("integrated_failure_stage", "prepare_turn")
+        record_property("integrated_failure_type", type(exc).__name__)
+        record_property("integrated_elapsed_ms", round(elapsed_ms, 3))
+        record_provider_diagnostics()
+        raise
     elapsed_ms = (perf_counter() - started) * 1000
+    record_property("integrated_prepare_outcome", "completed")
+    record_property("integrated_elapsed_ms", round(elapsed_ms, 3))
+    record_provider_diagnostics()
 
     assert plan.intent_analysis is not None
     assert plan.intent_analysis.active_step_index == 0
@@ -560,8 +633,6 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
     assert plan.world_operations == ()
     assert plan.ordered_operations == ()
 
-    record_property("integrated_ollama_version", ollama_version or "unavailable")
-    record_property("integrated_elapsed_ms", round(elapsed_ms, 3))
     record_property("integrated_intent_model", providers["intent"].model)
     record_property("integrated_mechanics_model", providers["mechanics"].model)
     record_property("integrated_extraction_model", providers["extraction"].model)
@@ -580,11 +651,6 @@ def test_real_ollama_integrated_pipeline_does_not_advance_failed_compound_action
         ]
         assert role_events, f"no Ollama usage telemetry captured for {role}"
         assert all(event.get("prompt_bytes", 0) > 0 for event in role_events)
-        record_property(
-            f"integrated_{role}_model_digest",
-            model_digests[role] or "unavailable",
-        )
-        record_property(f"integrated_{role}_timeout_seconds", providers[role].timeout)
         record_property(f"integrated_{role}_provider_calls", len(role_events))
         for field in (
             "prompt_bytes",
