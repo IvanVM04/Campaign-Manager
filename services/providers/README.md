@@ -49,7 +49,7 @@ Define the external LLM boundary: provider contract, Ollama transport adapter, r
 - [x] The fake provider contract is covered for fixed/prompt-selected results, injected errors and call/prompt tracking (`tests/test_llm_provider.py`).
 - [x] Safe Ollama metrics, failed-request diagnostics, callback isolation, optional server-version/model-digest lookup are covered by `tests/test_ollama_provider.py`; role labels are covered by `tests/test_llm_settings.py`.
 - [x] The JSON-lines allowlist preserves only bounded telemetry fields needed to diagnose integrated intent/mechanics/proposal stages (`tests/test_observability_logging.py`).
-- [ ] Run live Ollama acceptance with the configured local model. Unit tests do not prove model availability, model quality, latency or compatibility with local hardware.
+- [ ] Complete and record the reproducible post-PR #255 live Ollama holdouts and provider acceptance with the configured local model/digest. Targeted real_llm probes and a passing deterministic provider suite do not replace this comparable model-quality baseline or prove compatibility with all local hardware.
 - [x] Structured JSON Schema generation uses separate intent-only, pending-correction and mechanics-only response contracts. The former combined intent/mechanics schema remains for temporary compatibility callers; streaming/cancellation remain deferred.
 
 Ollama error normalization and timeout handling were strengthened in PR #203. Keep deterministic provider tests in CI and live model checks opt-in.
