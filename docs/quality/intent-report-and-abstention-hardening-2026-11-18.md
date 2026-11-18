@@ -31,7 +31,7 @@ A directly linked, literal abstention-state continuation (such as remaining or s
 
 A genuinely distinct later positive attempt is preserved in order and can remain the active step. The normalizer does not cancel a later action merely because an earlier decision was negative.
 
-Negative steps remain non-actionable: they cannot become active attempts or independently authorize world proposals.
+Negative steps remain non-actionable: they cannot become active attempts or independently authorize world proposals. An epistemically uncertain reported step is also resolved as a speech act for sequence ordering, so it does not block a distinct later positive player attempt; the uncertain report itself remains ineligible to authorize a proposal.
 
 ## Evidence and safety invariants
 
