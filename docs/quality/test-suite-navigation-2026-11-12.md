@@ -1,3 +1,5 @@
+> **Historical test navigation snapshot — baseline after PR #208.** Its suite counts, coverage values and “next gate” statements are point-in-time only and predate PRs #250, #253 and #255. Use the [current quality roadmap](quality-roadmap-2026-11-18.md), [PR #255 delivery record](player-message-comprehension-phase-2026-11-18.md) and live repository tree for present status.
+
 # Test-suite navigation — 2026-11-12
 
 **Baseline:** `main` after PR #208, commit `96b0232395de670d4ef4c4fa658eae88dd8f3c34`.  
