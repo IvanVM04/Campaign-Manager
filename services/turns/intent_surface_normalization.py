@@ -110,7 +110,7 @@ _INDEPENDENT_PLAYER_ACTION_AFTER_REPORT_RE = re.compile(
     r"no\s+pienso|no\s+pretendo|abro|cierro|desbloqueo|recojo|tomo|cojo|"
     r"guardo|saco|coloco|entrego|recibo|enciendo|apago|rompo|muevo|"
     r"levanto|agarro|cruzo|activo|desato|sujeto|me\s+acerco|"
-    r"me\s+dirijo|me\s+muevo)\b"
+    r"me\s+dirijo|me\s+muevo)\b",
     re.IGNORECASE,
 )
 _FIRST_PERSON_FUTURE_RE = re.compile(
