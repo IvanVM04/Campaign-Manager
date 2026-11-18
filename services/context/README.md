@@ -89,13 +89,27 @@ coreference: broader ellipsis, correction chains and paraphrases remain open
 and require a labelled evaluation corpus.
 
 
-## Advanced discourse signals (PR #223)
+## Current discourse and compound-intent behavior (PR #246–#255)
 
-`services.discourse_context.DiscourseContextBuilder` produces a bounded index from the current utterance
-and the last twelve turns already scoped to the current chat. It recognizes
-explicit topic changes and callbacks, marks likely elliptical/deictic input,
-extracts only explicitly labelled quotations from visible active NPCs, and
-reports grammatical agreement only when a local article/apposition is literal
-evidence. It never infers gender from proper names, creates group identities,
-or grants write authority. Entity and typed-world references share the same
-topic-scoped history. Ambiguous or plural-to-individual references abstain.
+`services.discourse_context.DiscourseContextBuilder` creates a bounded
+same-conversation evidence index used by reference resolution. The
+conversation resolver separates player-authored evidence from narrator prose,
+uses topic/callback and recency signals, considers literal surface cues such
+as Spanish dative clitics/explicit recipients, and keeps NPC-speech signals
+narrowly grounded in explicitly named visible active speakers. Group/plural
+references remain distinct from singular entity identity; ambiguous or
+hidden candidates abstain.
+
+PR #255 further strengthens callback anchor scoping, explicit-negation
+sequencing and compound player messages. The separate 14-case compound-intent
+holdout evaluates ordered steps, actor, modality and polarity per step. These
+are deterministic contracts and evaluation fixtures, not proof of general
+open-domain coreference or perfect live-model accuracy. Re-run the relevant
+live holdouts on the current model before claiming quality acceptance; see the
+[current quality roadmap](../../docs/quality/quality-roadmap-2026-11-18.md)
+and [current architecture map](../../docs/architecture/architecture-map-2026-11-18.md).
+
+The product requirements v0.2 also request a configurable confidence
+threshold and a generalized durable partial-turn checkpoint. Existing
+clarification and pending-correction continuation are implemented, but that
+broader product-level uncertainty policy is still future work.

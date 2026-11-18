@@ -1,5 +1,8 @@
 # Engineering readiness and gameplay roadmap — 2026-11-12
 
+> **Historical planning snapshot (2026-11-12):** estimates, PR order and scope here refer to the pre-#255 implementation phase. The current product direction is in [requirements v0.2](../product/product-requirements-2026-11-18.md), while the live quality/engineering order is in [quality-roadmap-2026-11-18.md](../quality/quality-roadmap-2026-11-18.md) and [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md).
+
+
 **Repository:** IvanVM04/Campaign-Manager  
 **Verified baseline:** `main` at `746f40b4e715741a43e5a0a19ae069236c19b7d1` (PR #214 merged).  
 **Product scope:** local, single-player, single-process modular monolith.  

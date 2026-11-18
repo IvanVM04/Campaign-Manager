@@ -1,5 +1,8 @@
 # Architecture and modularity audit — 2026-11-11
 
+> **Historical architecture audit (2026-11-11):** this report is retained for its original findings and evidence. It is not the current implementation baseline; use [architecture-audit-2026-11-18.md](architecture-audit-2026-11-18.md), [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md) and [quality roadmap](../quality/quality-roadmap-2026-11-18.md) for current status.
+
+
 **Repository:** IvanVM04/Campaign-Manager  
 **Initial audit baseline:** `main` at `bbcb7a0fda401c4d82d6ecff5119d6a0ec5eaec4` (after PR #169).  
 **Latest revalidated baseline:** `main` at `a0e2c70bedd8f3e45f40d4c4f39d4fee13f8d4eb` (PR #189; 2026-11-11 21:26 UTC).  

@@ -1,5 +1,8 @@
 # Shared-layer module catalogue — 2026-11-12
 
+> **Point-in-time catalogue (2026-11-12):** this inventory is retained as a historical PR #205-era snapshot. For current service/package ownership and known gaps, use [architecture-map-2026-11-18.md](architecture-map-2026-11-18.md), the current package guides and source code.
+
+
 **Verified against:** `main` at `a14d1568ba852cd545caaf06e9efd48a4f925b03` (PR #205 merged).  
 **Navigation rule:** the global [architecture map](architecture-map-2026-11-12.md) describes capability packages and end-to-end flows. This catalogue covers the shared layers, public transport surfaces, persistence and validation hotspots. It is intentionally a navigation and improvement register, not a proposal to split every file.
 

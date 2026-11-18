@@ -2,6 +2,16 @@
 
 Esta guía prepara una campaña local con una aventura inicial breve. La interfaz de juego sigue siendo SillyTavern; todavía no existe una aplicación web independiente.
 
+> **Alcance de esta guía (2026-11-18):** esta quickstart describe el MVP
+> realmente ejecutable, no todas las capacidades del producto v0.2. El demo
+> crea un único personaje activo y la API actual usa un único puntero de
+> personaje activo por campaña. El control simultáneo configurable de varios
+> PJ, la delegación aprobada de NPC, la interfaz propia Simplificada/Avanzada,
+> la localización completa, los módulos de reglas personalizados y el
+> import/export de campañas completas todavía no están implementados. La
+> exportación `GET /export` actual es una proyección player-safe de datos/memoria,
+> no un paquete de backup portable.
+
 ## 1. Requisitos
 
 - Python 3.12 o superior.

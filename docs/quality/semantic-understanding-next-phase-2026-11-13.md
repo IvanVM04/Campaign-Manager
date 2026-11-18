@@ -1,5 +1,8 @@
 # Semantic-understanding next phase — delivery status and remaining roadmap
 
+> **Historical next-phase plan (2026-11-13):** this document records the priorities before the modular pipeline and later PRs #246–#255. Use [quality-roadmap-2026-11-18.md](quality-roadmap-2026-11-18.md) for the current live-evaluation and product work order.
+
+
 **Status (2026-11-14):** PRs #219–#223 are merged into `main`. A focused real-Ollama run exposed a pre-provider prompt-budget rejection in the combined adjudicator. The immediate P0 response is the modular language-understanding pipeline; see the [architecture decision](modular-language-understanding-pipeline-2026-11-14.md) and [independent audit](language-understanding-audit-2026-11-14.md).
 **Priority:** P0 / Priority #1 — modular language-understanding pipeline and prompt-budget reliability; live evaluation and SillyTavern acceptance follow after this refactor.  
 **Baseline:** `main` after PR #223, `7f4f8b10a072665471370fab4493a338835b875c` (2026-11-14).
