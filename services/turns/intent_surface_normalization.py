@@ -584,7 +584,7 @@ def normalize_intent_surface_payload(
         speaker = speaker_match.group("speaker").strip()
         indefinite = _fold(speaker).startswith(("un ", "una "))
         body_start = speaker_match.end()
-        sentence_end_match = re.search(r"[.!?](?=\\s|$)", evidence[body_start:])
+        sentence_end_match = re.search(r"[.!?](?=\s|$)", evidence[body_start:])
         scope_end = (
             body_start + sentence_end_match.start() + 1
             if sentence_end_match is not None
