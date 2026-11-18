@@ -43,7 +43,8 @@ The byte-based budget is an upper bound rather than a model-specific token count
 - [x] Resolve canonical names and explicit aliases with accent-insensitive normalization; descriptions and notes remain lower-confidence fallbacks, and ambiguous references return no selected entity IDs.
 - [x] Record resolution status, match kind and candidate count in the detached proposal projection without storing the raw player query.
 - [x] Add conversation-scoped, visibility-filtered deterministic reference resolution with bounded recency and ambiguity abstention (PR #216).
-- [ ] Expand labelled coverage for speaker attribution, correction chains, broader ellipsis and semantic paraphrases; do not claim general coreference.
+- [x] Add a narrow named-NPC speech signal when exactly one visible active NPC is eligible; it remains evidence-only and grants no canonical identity or write authority (PR #255).
+- [ ] Expand labelled coverage for additional speaker-attribution patterns, multi-round correction interactions, broader ellipsis and semantic paraphrases; do not claim general coreference.
 - [ ] Revisit source freshness/campaign-revision assumptions only if a context projection is cached or persisted; the current selector builds a detached projection from the supplied state.
 - [ ] Consider tokenizer-aware accounting only after a provider exposes a reliable tokenizer contract.
 - [x] Keep rendering independent from transport response formatting.
@@ -112,7 +113,9 @@ The PR #255 increment builds on the earlier PR #223/#246–#248 work and adds:
 These are bounded cues and evaluated contracts, not general Spanish/English
 coreference or a claim that the live model always interprets discourse correctly.
 Plural-to-individual ambiguity, hidden/uncertain antecedents and insufficient
-evidence must continue to abstain. The current product target also calls for
+evidence must continue to abstain. Some explicit multi-round slot corrections
+are supported by the turn workflow, but broad correction-chain/paraphrase
+coverage remains a labelled-evaluation gap. The product target also calls for
 knowledge scopes across several controlled player characters and a player-
 selected context panel; those capabilities are not implemented by the current
 single-active-character selector.
