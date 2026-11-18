@@ -189,6 +189,13 @@ class PlayerIntentAnalysis:
             # utterance without blocking the active-step pointer.
             if previous.modality is IntentModality.NEGATED:
                 return previous.polarity is IntentPolarity.NEGATIVE
+            # An uncertain report is epistemically unresolved as a fact, but
+            # it is a resolved speech act and must not block a later action.
+            if (
+                previous.modality is IntentModality.REPORTED
+                and previous.polarity is IntentPolarity.UNCERTAIN
+            ):
+                return True
             return (
                 previous.modality in resolved_modalities
                 and previous.polarity is IntentPolarity.POSITIVE
