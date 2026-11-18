@@ -46,8 +46,11 @@ _EXPLICIT_CORRECTION_RE = re.compile(
 _EPISTEMIC_UNCERTAINTY_RE = re.compile(
     r"\b(?:sospech\w*|sospechos\w*|no\s+tengo\s+pruebas|no\s+hay\s+pruebas|"
     r"no\s+dispongo\s+de\s+(?:pruebas|evidencias)|"
-    r"no\s+sabe\s+si|no\s+sabes\s+si|no\s+sabemos\s+si|no\s+recuerda\s+si|"
-    r"no\s+sé\s+si|no\s+se\s+si|ignora\s+si|desconoce\s+si|"
+    r"no\s+sabe\s+si|no\s+sabes\s+si|no\s+sabemos\s+si|"
+    r"no\s+recuerda\s+si|no\s+está\s+claro\s+si|"
+    r"no\s+queda\s+claro\s+si|no\s+se\s+sabe\s+si|"
+    r"nadie\s+sabe\s+si|no\s+sé\s+si|no\s+se\s+si|"
+    r"ignora\s+si|desconoce\s+si|duda\s+(?:de\s+que|si)|"
     r"no\s+estoy\s+segur\w*|no\s+estamos\s+segur\w*|"
     r"quizá|quizas|tal\s+vez|puede\s+que|es\s+posible\s+que|"
     r"al\s+parecer|rumor)\b",
@@ -120,22 +123,42 @@ _CORRECTION_PREDICATE_RE = re.compile(
 )
 _REPORTED_SPEAKER_RE = re.compile(
     r"^\s*(?P<speaker>"
-    r"(?:(?:un|una|el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
+    r"(?:(?:un|una|el|la|mi|mis|nuestro|nuestra|nuestros|nuestras)\s+"
+    r"[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
     r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
     r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)"
     r")\s+(?:me\s+)?(?:cuenta|cuentan|contó|contaron|dice|dijo|dicen|"
-    r"afirman|afirma|afirmó|asegura|aseguró|relata|relató|comenta|comentó)"
+    r"afirman|afirma|afirmó|asegura|aseguró|asevera|aseveró|relata|relató|"
+    r"comenta|comentó|explica|explicó|advierte|advirtió|indica|indicó|"
+    r"revela|reveló|informa|informó|sostiene|sostuvo|confirma|confirmó)"
     r"\s+que\b",
     re.IGNORECASE,
 )
 _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
-    r"\b(?:(?:yo\s+)?decid(?:o|í|imos)|he\s+decidido|hemos\s+decidido)"
-    r"\s+no\s+(?P<verb>[\wáéíóúüñ]+?(?:ar|er|ir))\b",
+    r"(?:^\s*|[.;]\s*|\b(?:y|pero|entonces|después|despues|luego)\s+)"
+    r"(?:(?:(?:yo\s+)?(?:decid(?:o|í|imos)|he\s+decidido|"
+    r"hemos\s+decidido|prefiero|preferiría|opto\s+por)\s+no)|"
+    r"(?:no\s+(?:quiero|voy\s+a|pienso|pretendo))|"
+    r"(?:me\s+niego\s+a|me\s+abstengo\s+de|desisto\s+de|"
+    r"renuncio\s+a)|"
+    r"(?:cancelo\s+(?:el|mi)\s+intento\s+de|"
+    r"abandono\s+la\s+idea\s+de))"
+    r"\s+(?P<verb>[\wáéíóúüñ]+?(?:ar|er|ir))\b",
     re.IGNORECASE,
 )
 _ABSTENTION_STATE_RE = re.compile(
-    r"\b(?:y\s+)?(?:permanezco|me\s+quedo|me\s+mantengo)\s+"
-    r"(?:fuera|afuera|al\s+exterior)\b[.,;]?",
+    r"\b(?:y\s+)?(?:permanezco|me\s+quedo|me\s+mantengo|sigo)\s+"
+    r"(?:fuera|afuera|al\s+exterior|en\s+el\s+exterior|"
+    r"al\s+otro\s+lado|en\s+esta\s+orilla)\b[.,;]?",
+    re.IGNORECASE,
+)
+_ATTEMPT_OUTCOME_UNCERTAINTY_RE = re.compile(
+    r"\b(?:no\s+(?:sé|se|estoy\s+segur[oa]|tengo\s+claro)|"
+    r"ignoro|desconozco)\s+"
+    r"(?:si\s+(?:(?:lo|la)\s+)?(?:consig\w*|logr\w*|"
+    r"pued\w*|podr\w*|lleg\w*\s+a)|"
+    r"(?:de\s+)?(?:poder\s+)?(?:conseguirlo|lograrlo|abrirlo))"
+    r"\b",
     re.IGNORECASE,
 )
 
@@ -161,6 +184,36 @@ def _step_evidence(step: dict[str, Any], evidence: str) -> str:
     ):
         return excerpt
     return evidence
+
+
+def _attempt_outcome_evidence(
+    step: dict[str, Any],
+    evidence: str,
+) -> str:
+    """Include only a directly attached, explicit uncertainty about attempt result."""
+    excerpt = step.get("source_excerpt")
+    if (
+        not isinstance(excerpt, str)
+        or not excerpt.strip()
+        or _fold(excerpt) not in _fold(evidence)
+    ):
+        return evidence
+    start = _fold(evidence).find(_fold(excerpt))
+    end = start + len(excerpt)
+    tail = evidence[end:]
+    if _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(excerpt) is not None:
+        return excerpt
+    marker = _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(tail[:180])
+    if marker is None:
+        return excerpt
+    connector = tail[:marker.start()]
+    if re.fullmatch(
+        r"[\s,.;:—-]*(?:(?:pero|aunque|y|aun así|aún así)\s*)?",
+        connector,
+        re.IGNORECASE,
+    ) is None:
+        return excerpt
+    return evidence[start : end + marker.end()]
 
 
 def _steps_follow_explicit_sequence(
@@ -299,7 +352,15 @@ def normalize_intent_surface_payload(
     # a second step. Fold only a literal abstention continuation; preserve any
     # genuinely distinct later player action as a separate step.
     decision_match = _EXPLICIT_DECISION_NOT_TO_ACT_RE.search(evidence)
-    if decision_match is not None and not normalized.get("relation_claims"):
+    decision_is_dialogue_or_report = (
+        _PLAYER_DIALOGUE_PREFIX_RE.search(evidence) is not None
+        or _REPORTED_SPEAKER_RE.search(evidence) is not None
+    )
+    if (
+        decision_match is not None
+        and not decision_is_dialogue_or_report
+        and not normalized.get("relation_claims")
+    ):
         folded_evidence = evidence.casefold()
         decision_index = None
         for index, step in enumerate(steps):
@@ -310,7 +371,8 @@ def normalize_intent_surface_payload(
             if start < 0:
                 continue
             end = start + len(excerpt)
-            if start <= decision_match.end() and end >= decision_match.start():
+            verb_start, _ = decision_match.span("verb")
+            if start <= verb_start < end:
                 decision_index = index
                 break
         if decision_index is None and len(steps) == 1:
@@ -325,8 +387,17 @@ def normalize_intent_surface_payload(
             _widen_excerpt(decision_step, evidence)
             rules.append("explicit_decision_not_to_act")
 
+            verb_end = decision_match.end("verb")
             continuation_spans = [
-                match.span() for match in _ABSTENTION_STATE_RE.finditer(evidence)
+                match.span()
+                for match in _ABSTENTION_STATE_RE.finditer(evidence)
+                if match.start() >= verb_end
+                and len(evidence[verb_end : match.start()]) <= 120
+                and not re.search(
+                    r"[.!?;]|\b(?:después|despues|luego|sin embargo)\b",
+                    evidence[verb_end : match.start()],
+                    re.IGNORECASE,
+                )
             ]
             continuation_indices: set[int] = set()
             for index, step in enumerate(steps):
@@ -365,7 +436,19 @@ def normalize_intent_surface_payload(
                     and step.get("modality") == "attempted"
                     and step.get("polarity") == "positive"
                 ]
-                if normalized.get("active_step_index") == decision_index:
+                active_index = normalized.get("active_step_index")
+                if active_index == decision_index:
+                    normalized["active_step_index"] = (
+                        distinct_attempt_indices[0]
+                        if distinct_attempt_indices
+                        else None
+                    )
+                elif isinstance(active_index, int) and (
+                    active_index >= len(steps)
+                    or steps[active_index].get("actor") != "player"
+                    or steps[active_index].get("modality") != "attempted"
+                    or steps[active_index].get("polarity") != "positive"
+                ):
                     normalized["active_step_index"] = (
                         distinct_attempt_indices[0]
                         if distinct_attempt_indices
@@ -443,7 +526,10 @@ def normalize_intent_surface_payload(
     if len(steps) == 1 and normalized.get("category") in {"action", "mixed"}:
         step = steps[0]
         step_evidence = _step_evidence(step, evidence)
-        explicitly_uncertain = _EPISTEMIC_UNCERTAINTY_RE.search(step_evidence)
+        attempt_evidence = _attempt_outcome_evidence(step, evidence)
+        explicitly_uncertain = _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(
+            attempt_evidence
+        )
         explicitly_failed = _FAILURE_RE.search(step_evidence)
         explicitly_succeeded = _EXPLICIT_SUCCESS_RE.search(step_evidence)
         if (
@@ -650,6 +736,12 @@ def normalize_intent_surface_payload(
     if (
         len(steps) == 1
         and _EPISTEMIC_UNCERTAINTY_RE.search(_step_evidence(steps[0], evidence))
+        and not (
+            steps[0].get("actor") == "player"
+            and steps[0].get("modality") == "attempted"
+            and steps[0].get("polarity") == "positive"
+            and normalized.get("category") in {"action", "mixed"}
+        )
     ):
         step = steps[0]
         step["polarity"] = "uncertain"
