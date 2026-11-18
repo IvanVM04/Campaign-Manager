@@ -5,12 +5,12 @@ Read this file before making repository changes.
 ## Start here
 
 1. Read [the documentation hub](docs/README.md).
-2. Read [the current architecture map](docs/architecture/architecture-map-2026-11-12.md), [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [change-impact map](docs/architecture/change-impact-map-2026-11-12.md) and [the current architecture audit](docs/architecture/architecture-audit-2026-11-12.md).
-3. Read [the capability dependency matrix](docs/architecture/package-dependency-matrix.md).
-4. Read the relevant package `README.md` before changing a capability.
-5. Read [the CI audit](docs/quality/ci-audit-2026-11-11.md) and [test-suite audit](docs/quality/test-suite-audit-2026-11-11.md) before changing quality gates or tests.
+2. Read the [current system state and architecture map](docs/architecture/current-state-2026-11-18.md), [product requirements v0.2](docs/product/product-requirements-2026-11-18.md) and [current quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
+3. Read the [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md), [change-impact map](docs/architecture/change-impact-map-2026-11-12.md) and [capability dependency matrix](docs/architecture/package-dependency-matrix.md).
+4. Read the relevant package `README.md` and active technical contract before changing a capability.
+5. Read the current [documentation freshness audit](docs/architecture/documentation-audit-2026-11-18.md) when editing documentation. The dated CI/test audits remain historical; use the current quality roadmap and latest workflow evidence for present status.
 
-Dated audits are historical snapshots. Use the newest current audit and inspect source before treating an old recommendation as pending.
+Dated audits and PR implementation records are historical snapshots unless explicitly designated as current. Inspect source and current contracts before treating an old recommendation, count or status as pending.
 
 ## Working agreement
 
@@ -71,7 +71,8 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - The structured proposal prompt is the only world-consequence proposal path. Keep static instructions separate from typed context data; do not add a parallel narrative-first extraction pipeline.
 - `TurnResolutionService` builds the active structured proposal projection through `ContextBuilder.build_proposal_context()` and passes the typed `models.world_context_projection.WorldContextProjection` to `services/llm_world`.
 - Keep the dependency direction: `services/turns` may orchestrate `services.context`; `services/llm_world` must not import `services.context`.
-- Preserve the active character, current location, related records and dependency bundles. Never solve context overflow by truncating arbitrary campaign facts.
+- The current proposal-context implementation requires one trusted active-character focus and preserves current location, related records and dependency bundles. The product target additionally supports controlling several player characters and selecting further known entities; that broader policy is specified in product requirements v0.2 and must not be represented as already implemented.
+- Never solve context overflow by truncating arbitrary campaign facts.
 - The shared token-budget helper is a conservative one-UTF-8-byte-per-token upper bound, not a model-specific tokenizer. The complete prompt and compact one-repair request are independently bounded.
 - Keep provider output size-limited, repair attempts limited to one, and model output strictly validated.
 
