@@ -300,7 +300,9 @@ no por frase completa: «no quiero/no voy a», «prefiero no», «me niego a» o
 cuando describe un intento; «no sé si lo consigo» expresa incertidumbre sobre
 ese resultado. Una negación dentro de diálogo citado o discurso referido no es
 una decisión del jugador. No dejes que una duda sobre otro personaje/objeto
-cancele un intento positivo distinto.
+cancele un intento positivo distinto. Si el modelo no separa una afirmación
+referida de una acción independiente del jugador dentro del mismo paso, pide
+aclaración: no atribuyas toda la frase al hablante ni actives la acción.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
 ambigüedad pide aclaración. Respeta cambios de tema, hablante y alcance local
 de concordancia. No deduzcas género o identidad por un nombre propio.
