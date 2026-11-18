@@ -214,10 +214,15 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                         "in-fiction speech by the player or an NPC, including replies, "
                         "answers narrated in third person and indirect questions to a "
                         "character; question is a direct or implicit "
-                        "request to the DM/narrator; report is an observed/recounted event, "
-                        "especially a non-speech NPC action; plan is future/conditional. "
-                        "Use the grammatical actor, not the person who sent the message. "
-                        "Only action/mixed may have a non-null active_step_index. "
+                        "request to the DM/narrator; report includes an explicit first-person "
+                        "perception (actor=player, modality=observed) or a recounted event, "
+                        "especially a non-speech NPC action; plan distinguishes affirmative "
+                        "first-person future (planned) from an explicit si conditional "
+                        "(conditional). mixed includes a sequence with materially different "
+                        "step modalities, such as completed then attempted actions, even when "
+                        "both steps are player actions. Use the grammatical actor, not the "
+                        "person who sent the message. Only action/mixed may have a non-null "
+                        "active_step_index. "
                         "Examples: 'Ella responde' is NPC dialogue; 'Ella entra' is an "
                         "NPC report; 'Le pregunto a Mara' is player dialogue; a question "
                         "to the DM about who spoke is question, not attributed NPC speech."
@@ -282,6 +287,14 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             },
                             "modality": {
                                 "type": "string",
+                                "description": (
+                                    "attempted is a current player attempt; completed means "
+                                    "the player explicitly reports the act as completed; observed "
+                                    "is a literal perception/report; planned is an affirmative "
+                                    "first-person future; conditional requires an explicit "
+                                    "hypothetical condition; reported is attributed/recounted "
+                                    "evidence. Do not infer a resolved result from present tense."
+                                ),
                                 "enum": [
                                     "attempted", "completed", "observed", "planned",
                                     "conditional", "question", "dialogue", "reported",
@@ -294,6 +307,13 @@ INTENT_MECHANICS_RESPONSE_SCHEMA = {
                             },
                             "reported_outcome": {
                                 "type": "string",
+                                "description": (
+                                    "Outcome claimed by the player, not the model's confidence. "
+                                    "Use not_claimed when an attempted action has no stated "
+                                    "result; uncertain only when the player explicitly expresses "
+                                    "epistemic uncertainty about the result. Use success/failure/"
+                                    "partial only when that result is literally reported."
+                                ),
                                 "enum": [
                                     "success", "failure", "partial",
                                     "not_claimed", "uncertain",

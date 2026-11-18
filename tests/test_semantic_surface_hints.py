@@ -211,7 +211,7 @@ def test_hide_location_template_repairs_roles_without_guessing_a_family():
     assert _arguments(normalized) == {
         SemanticArgumentRole.THEME: ("la moneda", "item_instance"),
         SemanticArgumentRole.LOCATION: (
-            "la alfombra del dormitorio",
+            "bajo la alfombra del dormitorio",
             "location",
         ),
     }
@@ -653,3 +653,22 @@ def test_non_literal_predicate_is_not_sanitized_or_reconstructed():
             normalized,
             source_text=source,
         )
+
+
+
+@pytest.mark.parametrize(
+    "preposition",
+    ["bajo", "debajo de", "detrás de", "tras", "sobre"],
+)
+def test_hide_location_keeps_the_full_spatial_preposition(preposition):
+    source = f"Escondo la moneda {preposition} la alfombra del dormitorio."
+    normalized, summary = normalize_semantic_surface(_analysis(source, "Escondo"))
+    assert _arguments(normalized)[SemanticArgumentRole.THEME] == (
+        "la moneda",
+        "item_instance",
+    )
+    assert _arguments(normalized)[SemanticArgumentRole.LOCATION] == (
+        f"{preposition} la alfombra del dormitorio",
+        "location",
+    )
+    assert summary.action_rules_applied == ("action_hide_location",)

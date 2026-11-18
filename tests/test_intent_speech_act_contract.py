@@ -21,11 +21,10 @@ def test_normal_intent_prompt_separates_dialogue_question_and_report():
     assert "report" in normal
     assert "actor" in normal and "npc" in normal
     assert 'actor="npc"' in normal or "el actor del paso es" in normal
-    assert "una acción de npc no es un intento del jugador" in normal or (
-        "el actor del paso es" in normal
-    )
-    assert "la guardia cruza el puente" in normal
-    assert "le consulto a la guardia" in normal
+    assert "actor identifica quién realiza el acto en la ficción" in normal
+    assert "nunca action del jugador" in normal
+    assert "un predicado lingüístico" in normal
+    assert "si habla un npc, el acto global es dialogue" in normal
     assert "matriz de decisión para el actor primario" in normal
     assert "ella responde en voz alta" in normal
     assert "ella entra en la sala" in normal
@@ -267,8 +266,10 @@ def test_normal_intent_prompt_explains_compound_actor_sequences_and_active_step(
         "secuencias compuestas, orden y paso activo",
         "asigna actor, modality y polarity de forma independiente",
         "conserva el orden en que aparecen los actos",
-        'category="mixed" requiere actos de categorías globales diferentes',
-        "varios steps o varios actores no bastan por sí solos",
+        'category="mixed" se usa cuando el mensaje combina actos o fases semánticas diferentes en una secuencia',
+        "aunque ambos pasos sean acciones del jugador",
+        'conserva category="action"',
+        'conserva category="dialogue"',
         'modality="negated" y polarity="negative"',
         "el índice activo apunta a ese paso posterior",
         "un único acto de communication",

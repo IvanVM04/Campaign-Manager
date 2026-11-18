@@ -127,6 +127,15 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     assert corpus["schema_version"] == 1
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 24
+    scenario_filter = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID")
+    scenarios = corpus["scenarios"]
+    if scenario_filter:
+        scenarios = [item for item in scenarios if item["id"] == scenario_filter]
+        if len(scenarios) != 1:
+            raise ValueError(
+                "CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID must match one language "
+                "understanding holdout scenario"
+            )
 
     usage_events: list[dict[str, Any]] = []
     interpreter = _make_interpreter(usage_events)
@@ -138,7 +147,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     provider_calls = 0
     started = perf_counter()
 
-    for scenario in corpus["scenarios"]:
+    for scenario in scenarios:
         repetitions = 3 if scenario["critical"] else 1
         for repetition in range(repetitions):
             case_started = perf_counter()
@@ -167,7 +176,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
                     f"{scenario['id']} repetition={repetition + 1}: "
                     + "; ".join(failures)
                 )
-                if scenario["critical"]:
+                if scenario["critical"] or scenario_filter:
                     critical_failures.append(description)
                 else:
                     observational_failures.append(description)
@@ -216,7 +225,8 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
         "semantic_holdout_intent_hardware",
         os.getenv("CAMPAIGN_MANAGER_REAL_LLM_HARDWARE") or "unspecified",
     )
-    record_property("semantic_holdout_intent_cases", len(corpus["scenarios"]))
+    record_property("semantic_holdout_intent_cases", len(scenarios))
+    record_property("semantic_holdout_intent_scenario_filter", scenario_filter or "all")
     record_property("semantic_holdout_intent_provider_calls", provider_calls)
     record_property("semantic_holdout_intent_total_seconds", round(total_seconds, 3))
     record_property(

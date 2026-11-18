@@ -272,7 +272,11 @@ el orden de los pasos: index es exactamente la posición 0-based del elemento
 en ese array (primer paso 0, segundo 1, etc.). Nunca empieces en 1 ni alteres
 el orden del array para hacer coincidir índices. Conserva dependencias entre
 pasos y señala el primer intento positivo del jugador cuyo resultado no está
-declarado. No dividas una acción compuesta ni inventes pasos.
+declarado. Un paso attempted del jugador cuyo texto no declara un resultado
+debe usar reported_outcome="not_claimed"; reserva "uncertain" para incertidumbre
+epistémica expresada literalmente por el jugador. No declares éxito o fracaso
+a partir del mero presente narrativo de un intento. No dividas una acción
+compuesta ni inventes pasos.
 
 Distingue intento actual de pregunta, plan, hipótesis, deseo, negación,
 cancelación, diálogo citado, discurso referido, observación y reporte. Decide
@@ -310,13 +314,16 @@ tiempo verbal ni por la presencia de una interrogativa subordinada):
   aclarar algo; si solo comunica una duda sin pedir respuesta, es report.
   Ejemplo: «¿Hay huellas detrás del biombo?» es question.
 - category="report" cuando el jugador comunica un hecho, observación o evento
-  ya ocurrido, especialmente una acción física de un NPC. En ese caso el actor
-  del paso es el agente real (por ejemplo, npc), y la modalidad es observed o
-  reported; no lo conviertas en action del jugador por estar el verbo en
-  presente. Ejemplo: «La guardia cruza el puente» es report, actor="npc".
+  ya ocurrido. Una percepción explícita en primera persona («Observo las
+  huellas», «Veo una luz») es report con actor="player", modality="observed"
+  y active_step_index=null. Una acción física de un NPC es report con el NPC
+  como actor y modalidad observed/reported; no la conviertas en action del
+  jugador por estar el verbo en presente.
 - category="plan" para una intención futura o condicional, no para un intento
-  actual. Usa mixed solo cuando el mensaje contenga actos distintos que
-  realmente pertenezcan a categorías diferentes.
+  actual. Un futuro afirmativo en primera persona («Al amanecer viajaré»,
+  «Cuando termine la patrulla, hablaré con el capitán») es planned; una
+  condición explícita introducida por «si» es conditional. No confundas
+  «cuando termine...» con un hipotético «si termina...».
 
 MATRIZ DE DECISIÓN PARA EL ACTOR PRIMARIO
 - «Ella responde en voz alta» describe habla de un NPC: dialogue, actor=npc,
@@ -375,11 +382,16 @@ SECUENCIAS COMPUESTAS, ORDEN Y PASO ACTIVO
   steps por actor, importancia o por el orden que te parezca más lógico.
   Cada source_excerpt debe ser el fragmento literal y contiguo que expresa
   ese step, sin absorber el predicado o los argumentos de otro.
-- category="mixed" requiere actos de categorías globales diferentes dentro
-  del mensaje (por ejemplo, comunicación y después acción, o diálogo NPC y
-  después un evento físico). Varios steps o varios actores no bastan por sí
-  solos: si todos los actos son diálogo, conserva category="dialogue"; si
-  todos son acciones, conserva category="action".
+- category="mixed" se usa cuando el mensaje combina actos o fases semánticas
+  diferentes en una secuencia: por ejemplo, observación y después intento, o
+  una acción afirmada como completada y después un nuevo intento. Esto puede
+  ocurrir aunque ambos pasos sean acciones del jugador. Si todos los pasos
+  son intentos homogéneos, conserva category="action"; si todos son diálogo,
+  conserva category="dialogue".
+- En una secuencia «Abro la ventana y luego intento salir», el primer paso es
+  completed/success porque el jugador afirma que abrió la ventana; el segundo
+  es attempted/not_claimed y active_step_index apunta al segundo. Aplica el
+  mismo criterio a «Recojo la cuerda y después intento alcanzar el balcón».
 - active_step_index señala el primer intento actual, positivo y no resuelto
   del jugador, no el primer verbo ni el último step del mensaje. Los pasos
   anteriores ya completados, observados, reportados o de diálogo siguen en
