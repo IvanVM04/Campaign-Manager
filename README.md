@@ -14,7 +14,7 @@ The application should own the campaign state and the turn-resolution workflow. 
 
 ### Table authority
 
-* **Player authority:** the player decides their player character's intentions, actions, dialogue and choices.
+* **Player authority:** the human player decides the intentions, actions, dialogue and choices of the one or more player characters they currently control.
 * **Dungeon Master authority:** the AI DM controls the world, environment, events, and NPCs that have not explicitly been delegated to a player.
 * **Rules authority:** the rules engine resolves mechanical outcomes. The DM may adjudicate circumstances and call for appropriate checks, but generated narration must not override a mechanical result.
 * **Application authority:** the application validates and persists state changes. An LLM must never write directly to the database or bypass domain validation.
@@ -53,7 +53,7 @@ Not every action requires a roll. The DM should use the rules and the fictional 
 
 **Not in the initial scope:** a virtual tabletop, tactical map editor, token movement, fog of war or real-time tabletop collaboration. These may be considered as a distant future extension after the core game experience is reliable.
 
-The application is **single-player by design**: one person plays and manages their own campaigns, potentially maintaining several separate campaigns in the same installation. Multiplayer, shared tables, accounts and campaign membership are not part of the product scope. Remote access or hosted deployment is not part of the initial release and would require a separate security review.
+The application is **single-human-player by design**: one person plays and manages campaigns, and may control one or several player characters within a campaign. This does not mean one protagonist per campaign. Multiplayer, shared tables, accounts and campaign membership are not part of the initial scope. Remote access or hosted deployment is not part of the initial release and would require a separate security review.
 
 ### Architectural direction
 
@@ -73,7 +73,7 @@ This is the target architecture, not a description of completed modules. Existin
 
 ## Product requirements and quality plan
 
-The current product scope, functional and non-functional requirements, implementation status and release gates are documented in the [product requirements baseline](docs/product/product-requirements-2026-11-18.md). The current audit and ordered improvement phases are in the [quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
+The current product scope, functional and non-functional requirements, implementation status and release gates are documented in the [product requirements v0.2](docs/product/product-requirements-2026-11-18.md). The current audit and ordered improvement phases are in the [quality roadmap](docs/quality/quality-roadmap-2026-11-18.md).
 
 ---
 
@@ -119,7 +119,7 @@ The native `POST /turn` route uses the same durable coordinator and application 
 
 The rules engine currently supports a deterministic subset of D&D 5e 2014: d20 checks/saves, initiative, attacks, damage, conditions, selected movement and weapon/encounter flows. It is not a complete character builder, spellcasting system or full 5e rules implementation.
 
-For the current baseline, package ownership and ordered roadmap, start with the [architecture audit — 2026-11-12](docs/architecture/architecture-audit-2026-11-12.md), [architecture map](docs/architecture/architecture-map-2026-11-12.md), [shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md) and [change-impact map](docs/architecture/change-impact-map-2026-11-12.md), all indexed from the [documentation hub](docs/README.md). The 2026-11-06, 2026-11-05 and 2026-11-03 audits are retained as dated snapshots. Active contracts remain documented in the [turn pipeline contract](docs/architecture/turn-pipeline-compatibility.md), [writer/lock/cache audit](docs/architecture/writer-lock-cache-audit.md), and [SillyTavern smoke test](docs/sillytavern-smoke-test.md).
+For the source-verified state of the current repository, start with the [current system state and architecture map — 2026-11-18](docs/architecture/current-state-2026-11-18.md), the [documentation audit — 2026-11-18](docs/architecture/documentation-audit-2026-11-18.md), the [module catalogue](docs/architecture/module-catalog-2026-11-12.md) and the [change-impact map](docs/architecture/change-impact-map-2026-11-12.md). Older audits and maps are retained as dated snapshots, not current instructions. Active contracts are indexed from the [documentation hub](docs/README.md).
 
 ---
 
@@ -134,12 +134,12 @@ The application services are organized into eight implemented capability package
 | [characters](services/characters/README.md) | Character creation and state use cases |
 | [combat](services/combat/README.md) | Combat application workflows; mechanics stay in the rules engine |
 | [context](services/context/README.md) | Context expansion, ranking, selection and rendering |
-| [llm_world](services/llm_world/README.md) | World extraction prompts, parsing and proposal validation |
+| [llm_world](services/llm_world/README.md) | Structured world-consequence proposal pipeline, parsing and validation |
 | [providers](services/providers/README.md) | LLM provider contracts, adapters and settings |
 | [turns](services/turns/README.md) | Durable turn lifecycle, mechanics orchestration and narration |
 | [world](services/world/README.md) | Validated world-operation application and serialization |
 
-All eight capability packages contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. The external SillyTavern adapter is isolated under `integrations/adapters/silly_tavern`; it owns active context and transcript-state reads only. `bootstrap/campaign_runtime.py` owns composition. The narrative-first mutation route, legacy extraction API, snapshot repository and runtime snapshot column have been retired. Existing snapshot JSON is preserved in the inert `turn_snapshot_archive` table by migration 029. See the [current architecture audit](docs/architecture/architecture-audit-2026-11-12.md), [architecture map](docs/architecture/architecture-map-2026-11-12.md) and [module catalogue](docs/architecture/module-catalog-2026-11-12.md). New code should use canonical package paths. Do not restore flat service shims or retired mutation paths.
+All eight capability packages contain implementation modules: campaign, characters, combat, context, llm_world, providers, turns and world. The external SillyTavern adapter is isolated under `integrations/adapters/silly_tavern`; it owns context/history and external transcript-state reads, while state-changing requests delegate to the durable turn coordinator. `bootstrap/campaign_runtime.py` owns composition. The narrative-first mutation route, legacy extraction API, snapshot repository and runtime snapshot column have been retired. Existing snapshot JSON is preserved in the inert `turn_snapshot_archive` table by migration 029. See the [current system state](docs/architecture/current-state-2026-11-18.md), the [module catalogue](docs/architecture/module-catalog-2026-11-12.md) and the [change-impact map](docs/architecture/change-impact-map-2026-11-12.md). New code should use canonical package paths. Do not restore flat service shims or retired mutation paths.
 
 ## Turn Processing
 
@@ -233,7 +233,7 @@ X-Campaign-Id: 2
 
 The selected campaign is resolved to a dedicated `CampaignRuntime`, which owns its in-memory world, services and turn-execution lock. Requests without the header are rejected; the API never silently falls back to campaign 1. The SillyTavern extension exposes a **Campaign ID** setting and sends the header with every backend request.
 
-**Local security boundary:** `X-Campaign-Id` selects one of the local user's campaigns; it is not an authentication credential. This is intentional for the single-player, local-first application. The server is configured to bind to `127.0.0.1`, so it is not exposed to other machines by the documented default commands. Do not change the bind address to `0.0.0.0` or expose the API through a reverse proxy/tunnel without adding an explicit authentication mechanism and reviewing campaign access. Remote access is a separate future scope.
+**Local security boundary:** `X-Campaign-Id` selects one of the local user's campaigns; it is not an authentication credential. This is intentional for the single-human-player, local-first application (which may contain several player characters and campaigns). The server is configured to bind to `127.0.0.1`, so it is not exposed to other machines by the documented default commands. Do not change the bind address to `0.0.0.0` or expose the API through a reverse proxy/tunnel without adding an explicit authentication mechanism and reviewing campaign access. Remote access is a separate future scope.
 
 All current world, memory and export read endpoints return player-safe projections: events marked `secret=true` are omitted from `/world`, `/world/events`, `/memory/search`, `/memory/context` and `/export`. There is not yet an authenticated GM read API. Do not add a query parameter or caller-controlled header to opt into secret data; a future GM view must be gated by a verified identity and a per-campaign GM permission.
 
@@ -291,7 +291,7 @@ GET  /integration/turn/{external_turn_id}
 GET  /integration/turn/{external_turn_id}/clarification
 GET  /integration/turn/{external_turn_id}/manual-roll
 POST /integration/turn/complete
-
+```
 
 ### World
 
@@ -318,7 +318,7 @@ http://127.0.0.1:8765/docs
 * Python 3.12+
 * Ollama
 * A compatible local LLM model
-* SillyTavern (for the integration workflow)
+* SillyTavern (for the current integration/conversation workflow; a first-party UI is a product goal once backend contracts and workflows are solid)
 
 The backend itself uses:
 
@@ -460,7 +460,7 @@ The settings are validated at startup. Invalid URLs, empty model names, non-posi
 
 ## SillyTavern Integration
 
-The current extension resolves and commits consequences before it asks SillyTavern to generate prose. It then persists the narrative against the same external turn identity. Campaign Manager remains the authority for persistent campaign state and supported mechanics; SillyTavern remains the narrative interface.
+The current extension resolves and commits consequences before it asks SillyTavern to generate prose. It then persists the narrative against the same external turn identity. Campaign Manager remains the authority for persistent campaign state and supported mechanics; SillyTavern is the current external conversation interface, not the only planned product client. A first-party UI is planned after the backend's core contracts and workflows are solid.
 
 See [the smoke-test checklist](docs/sillytavern-smoke-test.md) for manual acceptance scenarios covering duplicate delivery, swipes, clarification, manual rolls, restart recovery and persistent world continuity. Use a disposable campaign for this test.
 ---
@@ -530,15 +530,16 @@ The current workflows provide:
 
 The real-LLM tests are intentionally excluded from deterministic CI because they require a running Ollama service and compatible model. CodeQL runs as a separate workflow.
 
-**Merge protection:** the active default-branch ruleset requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. The aggregate check blocks merges when Ruff, deterministic tests, scoped/repository-wide Pyright or JavaScript tests fail. Inspect the complete PR checks before merging. See the [CI audit](docs/quality/ci-audit-2026-11-11.md).
+**Merge protection:** the active default-branch ruleset requires `CI summary`, `Analyze (python)` and `Analyze (javascript-typescript)`. The aggregate check blocks merges when Ruff, deterministic tests, scoped/repository-wide Pyright or JavaScript tests fail. Inspect the complete PR checks before merging. The [CI audit from 2026-11-11](docs/quality/ci-audit-2026-11-11.md) is a historical workflow/ruleset snapshot; see current CI evidence in the [system-state map](docs/architecture/current-state-2026-11-18.md).
 
 ---
 
 ## Engineering documentation
 
 - [Documentation hub for maintainers and agents](docs/README.md)
-- [Current architecture and modularity audit](docs/architecture/architecture-audit-2026-11-12.md)
-- [Architecture map](docs/architecture/architecture-map-2026-11-12.md)
+- [Current system state and architecture map — 2026-11-18](docs/architecture/current-state-2026-11-18.md)
+- [Documentation freshness audit — 2026-11-18](docs/architecture/documentation-audit-2026-11-18.md)
+- [Previous architecture audit — 2026-11-12 (historical snapshot)](docs/architecture/architecture-audit-2026-11-12.md)
 - [Shared-layer module catalogue](docs/architecture/module-catalog-2026-11-12.md)
 - [Cross-layer change-impact map](docs/architecture/change-impact-map-2026-11-12.md)
 - [Capability dependency matrix](docs/architecture/package-dependency-matrix.md)
@@ -691,24 +692,24 @@ Validated areas include:
 * end-to-end `context → turn → context` behaviour;
 * automated CI testing and Ruff linting.
 
-The current implementation is focused on **reliable campaign state management and integration correctness**. The AI Dungeon Master workflow, comprehensive D&D 5e 2014 rules engine, full character progression and combat system described in the product vision are future development work, not completed features.
+The current implementation is focused on **reliable campaign state management, structured interpretation/proposals and durable integration workflows**. It is still not a complete D&D 5e 2014 rules engine, complete character builder, full combat/spellcasting system or first-party UI. The current source-verified boundaries and product gaps are recorded in the [system-state map](docs/architecture/current-state-2026-11-18.md) and [product requirements v0.2](docs/product/product-requirements-2026-11-18.md).
 
-This checkpoint is intended as a stable baseline for the next development pass. If subsequent changes introduce regressions, the state-management, persistence and integration layers can be re-audited from this baseline.
+The latest main CI after PR #257 passed 2,042 deterministic tests, deselected 22 `real_llm` cases and reported 85.14% combined line/branch coverage; CodeQL passed. This verifies repository checks, not a full current live-model benchmark or end-to-end SillyTavern acceptance.
 
 ---
 
 ## Roadmap
 
-The roadmap follows the product vision and prioritizes correctness before breadth:
+The roadmap follows the current product requirements and prioritizes measured quality, playable capability and backend readiness:
 
-1. **Architecture and reliability:** audit the existing code, fix transaction/state consistency, define domain boundaries, introduce explicit transaction management and test critical failure paths.
-2. **AI DM turn pipeline:** define typed turn states and contracts for intent interpretation, context planning, adjudication, consequence validation, persistence and narration. Preserve the existing SillyTavern integration during migration.
-3. **D&D 5e 2014 rules foundation:** implement and test dice, ability modifiers, proficiency, skills, saving throws and advantage/disadvantage against verified rules references.
-4. **Playable character model:** build character creation, class/background/species data, equipment, features and level progression in controlled increments.
-5. **Exploration and social play:** scenes, NPCs, knowledge boundaries, checks, dialogue and persistent consequences.
-6. **Combat and spellcasting:** encounters, initiative, actions, attacks, damage, conditions, rests and spellcasting.
-7. **Standalone application experience:** web interface for campaigns, sessions, character sheets, world management and the AI DM.
-8. **Distant future:** virtual tabletop capabilities and, separately, a D&D 5e 2024 ruleset.
+1. **AI quality and integration evidence:** rerun current semantic/predicate/discourse/compound-intent holdouts against the PR #255 code, then record local Ollama and SillyTavern acceptance separately.
+2. **Backend reliability and first playable slice:** close transaction/recovery gaps and connect characters, exploration, social interaction, rules, combat, inventory, rests and persistence in a small complete loop.
+3. **Configurable character/NPC control:** support several controlled PJ and auditable, explicitly approved NPC delegation.
+4. **Rules foundation and safe extensibility:** complete the selected D&D 2014 rules subset, then define/import/validate declarative custom rules modules. Do not execute arbitrary module code.
+5. **World knowledge and clarification UX:** expose discovered facts, references and relationships safely; support selected entities as additional context and durable partial-turn clarification.
+6. **First-party UI discovery and delivery:** start design/prototypes when backend APIs, permissions, durable turns and knowledge projections are solid; build the UI as an API client with Simplified/Advanced modes, accessible field help and customizable panels. SillyTavern remains a supported integration.
+7. **Localization and portability:** separate UI/campaign/player-interaction languages; add campaign import/export packages with validation and safe restore.
+8. **Distant future:** D&D 2024, remote access, multiplayer or VTT only through separate scope and security/architecture decisions.
 
 The roadmap is a target, not a claim that these capabilities are already implemented. Each rules feature must have an explicit supported-scope statement and deterministic tests.
 
