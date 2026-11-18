@@ -105,10 +105,12 @@ _INDEPENDENT_PLAYER_ACTION_AFTER_REPORT_RE = re.compile(
     r"(?:y|pero|entonces))\s+(?:(?:yo)\s+)?"
     r"(?:intento|trato\s+de|pruebo|procuro|decido|he\s+decidido|"
     r"prefiero|opto\s+por|no\s+quiero|no\s+voy\s+a|me\s+niego\s+a|"
-    r"me\s+abstengo\s+de|abro|cierro|desbloqueo|recojo|tomo|cojo|"
+    r"me\s+abstengo\s+de|desisto\s+de|renuncio\s+a|"
+    r"cancelo\s+(?:el|mi)\s+intento\s+de|abandono\s+la\s+idea\s+de|"
+    r"no\s+pienso|no\s+pretendo|abro|cierro|desbloqueo|recojo|tomo|cojo|"
     r"guardo|saco|coloco|entrego|recibo|enciendo|apago|rompo|muevo|"
     r"levanto|agarro|cruzo|activo|desato|sujeto|me\s+acerco|"
-    r"me\s+dirijo|me\s+muevo)\b",
+    r"me\s+dirijo|me\s+muevo)\b"
     re.IGNORECASE,
 )
 _FIRST_PERSON_FUTURE_RE = re.compile(
@@ -394,9 +396,26 @@ def normalize_intent_surface_payload(
     # a second step. Fold only a literal abstention continuation; preserve any
     # genuinely distinct later player action as a separate step.
     decision_match = _EXPLICIT_DECISION_NOT_TO_ACT_RE.search(evidence)
+    reported_speaker_prefix = _REPORTED_SPEAKER_RE.search(evidence)
+    decision_starts_independent_clause = (
+        decision_match is not None
+        and re.match(
+            r"^\s*(?:y|pero|entonces|después|despues|luego)\s+"
+            r"(?:(?:yo)\s+)?(?:decid(?:o|í|imos)|he\s+decidido|"
+            r"hemos\s+decidido|prefiero|preferiría|opto\s+por|"
+            r"no\s+quiero|no\s+voy\s+a|no\s+pienso|no\s+pretendo|"
+            r"me\s+niego\s+a|me\s+abstengo\s+de|desisto\s+de|"
+            r"renuncio\s+a)",
+            decision_match.group(0),
+            re.IGNORECASE,
+        ) is not None
+    )
     decision_is_dialogue_or_report = (
         _PLAYER_DIALOGUE_PREFIX_RE.search(evidence) is not None
-        or _REPORTED_SPEAKER_RE.search(evidence) is not None
+        or (
+            reported_speaker_prefix is not None
+            and not decision_starts_independent_clause
+        )
     )
     if (
         decision_match is not None
@@ -463,46 +482,61 @@ def normalize_intent_surface_payload(
                 ):
                     continuation_indices.add(index)
 
-            other_indices = set(range(len(steps))) - {decision_index}
-            if (
-                len(steps) > 1
-                and continuation_indices == other_indices
-                and continuation_spans
+            previous_active_index = normalized.get("active_step_index")
+            if continuation_indices and continuation_spans:
+                # Remove only literal state-confirmation steps, even when the
+                # same utterance also contains a separate NPC report or action.
+                retained_steps: list[dict[str, Any]] = []
+                old_to_new_index: dict[int, int] = {}
+                for old_index, step in enumerate(steps):
+                    if old_index in continuation_indices:
+                        continue
+                    new_index = len(retained_steps)
+                    step["index"] = new_index
+                    retained_steps.append(step)
+                    old_to_new_index[old_index] = new_index
+                steps = retained_steps
+                decision_index = old_to_new_index[decision_index]
+                if (
+                    isinstance(previous_active_index, int)
+                    and previous_active_index in old_to_new_index
+                ):
+                    normalized["active_step_index"] = old_to_new_index[
+                        previous_active_index
+                    ]
+                else:
+                    normalized["active_step_index"] = None
+                rules.append("explicit_abstention_state_collapsed")
+            distinct_attempt_indices = [
+                index
+                for index, step in enumerate(steps)
+                if index != decision_index
+                and step.get("actor") == "player"
+                and step.get("modality") == "attempted"
+                and step.get("polarity") == "positive"
+            ]
+            active_index = normalized.get("active_step_index")
+            if active_index == decision_index or (
+                isinstance(active_index, int)
+                and (
+                    active_index >= len(steps)
+                    or steps[active_index].get("actor") != "player"
+                    or steps[active_index].get("modality") != "attempted"
+                    or steps[active_index].get("polarity") != "positive"
+                )
             ):
-                decision_step["index"] = 0
-                steps = [decision_step]
+                normalized["active_step_index"] = (
+                    distinct_attempt_indices[0]
+                    if distinct_attempt_indices
+                    else None
+                )
+            if distinct_attempt_indices:
+                normalized["category"] = "mixed"
+            elif len(steps) == 1:
                 normalized["category"] = "action"
                 normalized["active_step_index"] = None
-                rules.append("explicit_abstention_state_collapsed")
-            else:
-                distinct_attempt_indices = [
-                    index
-                    for index, step in enumerate(steps)
-                    if index != decision_index
-                    and step.get("actor") == "player"
-                    and step.get("modality") == "attempted"
-                    and step.get("polarity") == "positive"
-                ]
-                active_index = normalized.get("active_step_index")
-                if active_index == decision_index or (
-                    isinstance(active_index, int)
-                    and (
-                        active_index >= len(steps)
-                        or steps[active_index].get("actor") != "player"
-                        or steps[active_index].get("modality") != "attempted"
-                        or steps[active_index].get("polarity") != "positive"
-                    )
-                ):
-                    normalized["active_step_index"] = (
-                        distinct_attempt_indices[0]
-                        if distinct_attempt_indices
-                        else None
-                    )
-                if distinct_attempt_indices:
-                    normalized["category"] = "mixed"
-                elif len(steps) == 1:
-                    normalized["category"] = "action"
-                    normalized["active_step_index"] = None
+            elif len(steps) > 1:
+                normalized["category"] = "mixed"
 
     # Existing refusal constructions remain supported, but must not reprocess
     # the broader explicit-decision pattern handled above.
@@ -761,6 +795,7 @@ def normalize_intent_surface_payload(
             begins_player_action = (
                 _FIRST_PERSON_ACTIVE_CLAUSE_RE.match(excerpt) is not None
                 or _FIRST_PERSON_PRESENT_RE.match(excerpt) is not None
+                or _EXPLICIT_DECISION_NOT_TO_ACT_RE.match(excerpt) is not None
             )
             excerpt_starts_player_clause = re.match(
                 r"^\s*(?:y|pero|entonces|después|despues|luego)\s+",
@@ -823,20 +858,20 @@ def normalize_intent_surface_payload(
             if len(reported_indices) == len(steps):
                 normalized["category"] = "report"
                 normalized["active_step_index"] = None
-            elif normalized.get("category") == "action":
+            elif normalized.get("category") in {"action", "mixed"}:
                 normalized["category"] = "mixed"
-                if normalized.get("active_step_index") in reported_indices:
-                    normalized["active_step_index"] = next(
-                        (
-                            index
-                            for index, step in enumerate(steps)
-                            if index not in reported_indices
-                            and step.get("actor") == "player"
-                            and step.get("modality") == "attempted"
-                            and step.get("polarity") == "positive"
-                        ),
-                        None,
-                    )
+            if normalized.get("active_step_index") in reported_indices:
+                normalized["active_step_index"] = next(
+                    (
+                        index
+                        for index, step in enumerate(steps)
+                        if index not in reported_indices
+                        and step.get("actor") == "player"
+                        and step.get("modality") == "attempted"
+                        and step.get("polarity") == "positive"
+                    ),
+                    None,
+                )
 
     # Epistemic markers express uncertainty, not positive world knowledge.
     step_evidence = (
