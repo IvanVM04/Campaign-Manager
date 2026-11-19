@@ -118,7 +118,9 @@ def test_normal_intent_prompt_covers_callbacks_ellipsis_actor_and_evidence_bound
 def test_explicit_positive_npc_speech_report_is_normalized_to_dialogue_without_rewriting_evidence():
     from models.player_intent_analysis import PlayerIntentAnalysis, UtteranceCategory
     from models.semantic_frames import SemanticActionFamily
-    from services.turns.intent_normalization_pipeline import _normalize_explicit_npc_speech_report
+    from services.turns.intent_normalization_pipeline import (
+        _normalize_explicit_npc_speech_report,
+    )
 
     utterance = "Ellas contestan en voz alta."
     analysis = PlayerIntentAnalysis.from_payload(
