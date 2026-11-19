@@ -21,6 +21,9 @@ lint = [
 typing = [
     "pyright==1.1.414",
 ]
+nlp-pilot = [
+    "stanza==1.15.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
