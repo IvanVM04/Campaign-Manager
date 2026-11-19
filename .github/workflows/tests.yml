@@ -74,7 +74,6 @@ jobs:
 
       - name: Run Ruff
         run: |
-          ruff check --fix --diff services/turns/intent_normalization_pipeline.py || true
           ruff check .
 
   pyright-rules-engine:

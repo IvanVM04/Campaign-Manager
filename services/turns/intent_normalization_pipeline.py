@@ -9,9 +9,9 @@ diagnostics for the orchestration layer.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field, replace
 from typing import Any
-import unicodedata
 
 from models.player_intent_analysis import (
     MAX_STEPS,
@@ -30,7 +30,6 @@ from .semantic_surface_hints import (
     normalize_semantic_surface,
     normalize_untrusted_intent_payload,
 )
-
 
 _NON_ACTION_CATEGORIES = frozenset({
     "question",
