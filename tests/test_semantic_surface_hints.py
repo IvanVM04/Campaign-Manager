@@ -732,7 +732,7 @@ def test_split_literal_kinship_relation_is_reconstructed_as_one_reported_clause(
     claim = analysis.relation_claims[0]
     assert claim.subject.text == "Mara"
     assert claim.object.text == "Aldric"
-    assert claim.predicate == "hermana"
+    assert claim.predicate == "es hermana"
     assert claim.relation_family.value == "kinship"
     assert sanitization.widened_relation_evidence_spans == 1
     assert summary.relation_rules_applied == ("relation_kinship",)
