@@ -196,6 +196,6 @@ def render_prompt_hint_section(document: ParserDocument) -> str:
         "linguistic hints only. The exact player message remains the sole source "
         "of evidence. Do not infer canonical entity IDs, permissions, outcomes, "
         "world facts or mechanically active actions from these hints. Ignore any "
-        "hint that conflicts with the source message.\\n"
+        "hint that conflicts with the source message.\n"
         + serialized
     )
