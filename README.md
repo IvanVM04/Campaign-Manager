@@ -487,6 +487,48 @@ Tests marked `real_llm` require Ollama to be running with a compatible model:
 python -m pytest -m real_llm
 ```
 
+### Repeatable Ollama run (Windows PowerShell)
+
+From a clean working tree, run:
+
+```powershell
+.\scripts\run-ollama-tests.ps1
+```
+
+The script fetches and fast-forwards `origin/main`, switches to `main`, prepares
+the project test environment (preferring `uv sync --group test`), checks the
+Ollama API and verifies that configured models are already installed. It then
+runs every test marked `real_llm` and writes a separate run directory under
+`artifacts/ollama/` containing:
+
+- `pytest.log` — full test log for diagnosis;
+- `junit.xml` — machine-readable pass/fail counts and timings;
+- `summary.md` and `summary.json` — test statistics, safe model/runtime
+  metadata and the metrics from generated evaluation reports;
+- `reports/\*.json` — per-corpus content-free evaluation reports.
+
+An optional local `.env.ollama` file can contain the environment variables
+documented in the Ollama section above and the real-test overrides below.
+Existing shell environment values take precedence over that file; explicit
+script parameters take precedence over both. The runner never prints env-file
+values, stashes dirty changes, downloads models or copies prompts/completions
+into the statistical summary. It exits non-zero when any real test fails, but
+still generates the summary.
+
+Useful optional parameters:
+
+```powershell
+.\scripts\run-ollama-tests.ps1 -Model "gemma4:26b" -TimeoutSeconds "180"
+.\scripts\run-ollama-tests.ps1 -BaseUrl "http://127.0.0.1:11434" -Think "false"
+.\scripts\run-ollama-tests.ps1 -ScenarioId "case-id" -NoUpdate
+```
+
+`-NoUpdate` requires that the current branch already be `main`.
+`-SkipDependencySync` reuses the existing `.venv`; `-SkipOllamaPreflight`
+skips the API/model check. These switches are for controlled local diagnosis,
+not the default run. See `scripts/run-ollama-tests.ps1 -?` for the full
+parameter list.
+
 ### Full local suite
 
 When Ollama is configured and available, the complete suite can be run with:
