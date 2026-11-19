@@ -12,7 +12,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-import unicodedata
 
 from models.player_intent_analysis import (
     MAX_STEPS,
@@ -136,6 +135,8 @@ def _normalize_ungrounded_step_attributions(
         return None
 
     def normalize(value: str) -> str:
+        import unicodedata
+
         return unicodedata.normalize("NFKC", value).casefold()
 
     normalized_evidence = normalize(evidence_text)
