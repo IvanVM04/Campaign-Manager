@@ -89,6 +89,19 @@ def test_resolves_pronoun_to_unique_visible_entity_with_auditable_evidence():
     assert reference.evidence[0].source.value == "player_input"
     assert reference.evidence[0].speaker.value == "player"
     assert reference.evidence[0].mention == "Mara"
+    assert reference.evidence[0].start_offset is not None
+    assert reference.evidence[0].end_offset is not None
+    assert (
+        reference.evidence[0].excerpt[
+            reference.evidence[0].start_offset:reference.evidence[0].end_offset
+        ]
+        == "Mara"
+    )
+    assert len(result.ranking_diagnostics) == 1
+    ranking = result.ranking_diagnostics[0]
+    assert ranking.status.value == "resolved"
+    assert ranking.selected_candidate is not None
+    assert ranking.selected_candidate.entity_id == 1
 
 
 def test_same_turn_competing_referents_abstain_and_return_ranked_candidates():

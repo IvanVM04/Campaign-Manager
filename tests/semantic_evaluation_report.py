@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -106,11 +107,19 @@ def write_live_evaluation_report(
     path: str | Path | None = None,
 ) -> str | None:
     """Write the report when a path is supplied or configured by environment."""
-    configured_path = (
-        str(path)
-        if path is not None
-        else os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH")
-    )
+    if path is not None:
+        configured_path = str(path)
+    else:
+        report_dir = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_DIR")
+        if report_dir and report_dir.strip():
+            safe_name = re.sub(
+                r"[^a-zA-Z0-9_.-]+",
+                "-",
+                str(report.get("evaluation", "evaluation")).strip(),
+            ).strip("-.") or "evaluation"
+            configured_path = str(Path(report_dir).expanduser() / f"{safe_name}.json")
+        else:
+            configured_path = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH")
     if not configured_path or not configured_path.strip():
         return None
     target = Path(configured_path).expanduser()

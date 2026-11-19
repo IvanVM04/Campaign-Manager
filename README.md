@@ -487,6 +487,80 @@ Tests marked `real_llm` require Ollama to be running with a compatible model:
 python -m pytest -m real_llm
 ```
 
+By default, the direct real-test probes use:
+
+- `CAMPAIGN_MANAGER_REAL_LLM_BASE_URL`: `http://localhost:11434`
+- `CAMPAIGN_MANAGER_REAL_LLM_MODEL`: `gemma4:26b`
+- `CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT`: `120` seconds
+- `CAMPAIGN_MANAGER_REAL_LLM_THINK`: optional `true` / `false`
+
+The integrated intent/mechanics/extraction tests also read
+`CAMPAIGN_MANAGER_OLLAMA_BASE_URL`, `CAMPAIGN_MANAGER_OLLAMA_THINK`,
+and the role-specific `CAMPAIGN_MANAGER_LLM_{INTENT,MECHANICS,EXTRACTION}_MODEL`,
+`..._TIMEOUT_SECONDS` and `..._THINK` variables. Role-specific values take
+precedence over common real-test defaults. The PowerShell runner also
+propagates the common model and timeout to roles that do not have explicit
+role-specific settings. Optional single-case filters are
+`CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` and
+`CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID`.
+
+For local use, put only your own settings in an untracked `.env.ollama` file.
+The PowerShell runner reads it without displaying its values; environment
+variables already defined in the shell take precedence.
+
+The runner's default local benchmark profile matches the latest recorded run:
+`gemma4:12b-it-q4_K_M`, a 300-second request timeout, and `think=false`.
+The endpoint defaults to `http://localhost:11434`. These are runner defaults,
+not changes to the application's general provider defaults; explicit shell
+variables, `.env.ollama` values and script parameters can override them.
+
+### Repeatable Ollama run (Windows PowerShell)
+
+From a clean working tree, run:
+
+```powershell
+.\scripts\run-ollama-tests.ps1
+```
+
+The script fetches and fast-forwards `origin/main`, switches to `main`, prepares
+the project test environment (preferring `uv sync --group test --no-lock`), checks the
+Ollama API and verifies that configured models are already installed. It then
+runs every test marked `real_llm` and writes a separate run directory under
+`artifacts/ollama/` containing:
+
+- `pytest.log` — full test log for diagnosis;
+- `junit.xml` — machine-readable pass/fail counts and timings;
+- `summary.md` and `summary.json` — test statistics, safe model/runtime
+  metadata and the metrics from generated evaluation reports;
+- `reports/\*.json` — per-corpus content-free evaluation reports.
+
+An optional local `.env.ollama` file can contain the environment variables
+documented in the environment-variable block above.
+Existing shell environment values take precedence over that file; explicit
+script parameters take precedence over both. The runner never prints env-file
+values, stashes dirty changes, downloads models or copies prompts/completions
+into the statistical summary. It exits non-zero when any real test fails, but
+still generates the summary.
+
+Useful optional parameters (a scenario filter must be paired with its matching
+`-Evaluation` to avoid applying one corpus ID to unrelated holdouts):
+
+```powershell
+.\scripts\run-ollama-tests.ps1 -Model "gemma4:12b-it-q4_K_M" -TimeoutSeconds "300"
+.\scripts\run-ollama-tests.ps1 -BaseUrl "http://127.0.0.1:11434" -Think "false"
+.\scripts\run-ollama-tests.ps1 -Evaluation "language" -ScenarioId "case-id" -NoUpdate
+.\scripts\run-ollama-tests.ps1 -Evaluation "compound-intent" -CompoundScenarioId "case-id"
+```
+
+`-NoUpdate` requires that the current branch already be `main`.
+`-SkipDependencySync` reuses the existing `.venv`; `-SkipOllamaPreflight`
+skips the API/model check. `-Evaluation` can narrow a diagnostic run to
+`language`, `semantic-frames`, `discourse` or `compound-intent`; the default
+`all` run executes the complete `real_llm` marker and clears inherited
+one-off scenario filters. These switches are for controlled local diagnosis,
+not the default run. See `scripts/run-ollama-tests.ps1 -?` for the full
+parameter list.
+
 ### Full local suite
 
 When Ollama is configured and available, the complete suite can be run with:

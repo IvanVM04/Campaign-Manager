@@ -6,7 +6,9 @@ Retrieve, expand, rank, select and render campaign context for application and L
 ## Modules (migrated into this package)
 - memory_search_service.py — deterministic retrieval and active-character-scoped player export.
 - entity_reference_resolver.py — explicit name/alias/role matching with ambiguity abstention.
-- conversation_reference_resolver.py — ranks visible discourse candidates from typed, speaker-separated player-input/narration evidence, semantic-kind compatibility and recency; returns evidence and abstains when the margin is insufficient.
+- conversation_reference_evidence.py — extracts a bounded immutable evidence bundle with literal mentions, step origins, turn IDs, source offsets, player/narrator/NPC speaker provenance and callback selection diagnostics.
+- conversation_reference_ranker.py — applies semantic-kind, recency and source signals, then exposes a typed score/margin decision and conservative same-turn plural-group builder.
+- conversation_reference_resolver.py — orchestrates explicit-name lookup, mention extraction, evidence ranking, typed abstention and canonical visible-ID production. It remains the only component in this group that returns resolved references.
 - context_builder.py — orchestration facade.
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
