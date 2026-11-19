@@ -9,6 +9,7 @@ diagnostics for the orchestration layer.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -18,6 +19,7 @@ from models.player_intent_analysis import (
     IntentActor,
     IntentModality,
     IntentPolarity,
+    PlayerReportedOutcome,
     PlayerIntentAnalysis,
     UtteranceCategory,
 )
@@ -112,6 +114,152 @@ def _normalize_non_action_active_step(
     normalized = dict(intent_payload)
     normalized["active_step_index"] = None
     return normalized, category, active_step_index
+
+
+_PLAYER_DIALOGUE_PREFIX_RE = re.compile(
+    r"^\s*(?:le\s+)?(?:digo|dije|pregunto|pregunté|cuento|conté|"
+    r"respondo|respondí|contesto|contesté|aviso|avisé|susurro|susurré)"
+    r"\s+(?:a|al)\b",
+    re.IGNORECASE,
+)
+_FOLLOW_UP_PLAYER_ACTION_RE = re.compile(
+    r"\b(?:y\s+)?(?:después|despues|luego|a\s+continuación)\s+"
+    r"(?:intento|trato\s+de|pruebo|procuro|examino|examiné|"
+    r"inspecciono|inspeccioné|observo|observé|miro|miré|"
+    r"entro|salgo|abro|cierro|recojo|tomo|cruzo|subo|bajo)\b",
+    re.IGNORECASE,
+)
+_UNVERIFIED_NAMED_SPEAKER_RE = re.compile(
+    r"^\s*(?P<speaker>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
+    r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)\s+"
+    r"(?P<predicate>dice|dijo|susurra|susurró|pregunta|preguntó|"
+    r"responde|respondió|contesta|contestó|murmura|murmuró|"
+    r"grita|gritó|añade|añadió|comenta|comentó)\s*[:,]\s*"
+    r"[«“\u201c\"].+?[»”\u201d\"]",
+    re.IGNORECASE,
+)
+
+
+def _normalize_compound_player_dialogue_then_action(
+    intent_payload: Any,
+    evidence_text: str,
+) -> tuple[dict[str, Any], bool] | None:
+    """Keep an explicit player-to-NPC utterance before a later player action.
+
+    This is a narrow two-step repair: both excerpts must be literal and ordered,
+    the first clause must be explicit in-fiction speech, and the second must
+    follow a written sequence marker plus an explicit player action verb.
+    """
+    if not isinstance(intent_payload, dict) or not isinstance(evidence_text, str):
+        return None
+    raw_steps = intent_payload.get("steps")
+    if (
+        not isinstance(raw_steps, list)
+        or len(raw_steps) != 2
+        or any(not isinstance(step, dict) for step in raw_steps)
+        or intent_payload.get("relation_claims")
+    ):
+        return None
+    first, second = (dict(step) for step in raw_steps)
+    first_excerpt = first.get("source_excerpt")
+    second_excerpt = second.get("source_excerpt")
+    if (
+        not isinstance(first_excerpt, str)
+        or not isinstance(second_excerpt, str)
+        or not first_excerpt.strip()
+        or not second_excerpt.strip()
+    ):
+        return None
+
+    def fold(value: str) -> str:
+        return unicodedata.normalize("NFKC", value).casefold()
+
+    folded_evidence = fold(evidence_text)
+    first_folded = fold(first_excerpt)
+    second_folded = fold(second_excerpt)
+    first_start = folded_evidence.find(first_folded)
+    if first_start < 0 or first_start > 2:
+        return None
+    first_end = first_start + len(first_folded)
+    second_start = folded_evidence.find(second_folded, first_end)
+    if second_start < first_end:
+        return None
+    if not _PLAYER_DIALOGUE_PREFIX_RE.match(first_excerpt):
+        return None
+    if not _FOLLOW_UP_PLAYER_ACTION_RE.search(evidence_text[first_end:]):
+        return None
+    if not all(
+        fold(excerpt) in folded_evidence
+        for excerpt in (first_excerpt, second_excerpt)
+    ):
+        return None
+
+    first.update({
+        "index": 0,
+        "actor": "player",
+        "modality": "dialogue",
+        "polarity": "positive",
+        "reported_outcome": "not_claimed",
+    })
+    second.update({
+        "index": 1,
+        "actor": "player",
+        "modality": "attempted",
+        "polarity": "positive",
+        "reported_outcome": "not_claimed",
+    })
+    normalized = dict(intent_payload)
+    normalized["steps"] = [first, second]
+    normalized["category"] = "mixed"
+    normalized["active_step_index"] = 1
+    return normalized, True
+
+
+def _normalize_unverified_named_speaker_dialogue(
+    analysis: PlayerIntentAnalysis,
+    evidence_text: str,
+) -> PlayerIntentAnalysis | None:
+    """Classify a literal named quoted speaker without asserting canonical identity.
+
+    Names in player prose are not looked up or promoted to known NPC IDs. A
+    unique syntactic speech construction is sufficient to keep the utterance
+    as dialogue and to prevent quoted commands from becoming player intent.
+    """
+    if (
+        not isinstance(evidence_text, str)
+        or len(analysis.steps) > 2
+        or analysis.category in {UtteranceCategory.QUESTION, UtteranceCategory.CORRECTION}
+    ):
+        return None
+    match = _UNVERIFIED_NAMED_SPEAKER_RE.match(evidence_text.strip())
+    if match is None:
+        return None
+    steps = list(analysis.steps)
+    if not steps or not all(
+        step.source_excerpt.strip()
+        and fold_text(step.source_excerpt) in fold_text(evidence_text)
+        for step in steps
+    ):
+        return None
+    first = replace(
+        steps[0],
+        source_excerpt=evidence_text.strip(),
+        actor=IntentActor.OTHER,
+        modality=IntentModality.DIALOGUE,
+        polarity=IntentPolarity.POSITIVE,
+        reported_outcome=PlayerReportedOutcome.NOT_CLAIMED,
+    )
+    steps[0] = first
+    return replace(
+        analysis,
+        category=UtteranceCategory.DIALOGUE,
+        steps=tuple(steps),
+        active_step_index=None,
+    )
+
+
+def fold_text(value: str) -> str:
+    return unicodedata.normalize("NFKC", value).casefold()
 
 
 def _normalize_ungrounded_step_attributions(
@@ -229,6 +377,8 @@ class IntentNormalizationDiagnostics:
     discarded_active_step_index: int | None = None
     explicit_npc_speech_normalized: bool = False
     npc_speech_signal_count: int = 0
+    compound_dialogue_action_normalized: bool = False
+    unverified_named_speaker_dialogue_normalized: bool = False
     semantic_action_rules: tuple[str, ...] = ()
     semantic_relation_rules: tuple[str, ...] = ()
 
@@ -285,6 +435,14 @@ class IntentNormalizationPipeline:
             evidence_text=evidence_text,
         )
 
+        compound_dialogue_action_normalized = False
+        compound_normalization = _normalize_compound_player_dialogue_then_action(
+            intent_payload,
+            evidence_text,
+        )
+        if compound_normalization is not None:
+            intent_payload, compound_dialogue_action_normalized = compound_normalization
+
         cleared_attribution_indices: tuple[int, ...] = ()
         attribution_normalization = _normalize_ungrounded_step_attributions(
             intent_payload,
@@ -319,6 +477,13 @@ class IntentNormalizationPipeline:
             )
             analysis = speech_normalization
 
+        named_speaker_normalization = _normalize_unverified_named_speaker_dialogue(
+            analysis,
+            evidence_text,
+        )
+        if named_speaker_normalization is not None:
+            analysis = named_speaker_normalization
+
         analysis, semantic_surface_summary = normalize_semantic_surface(analysis)
 
         diagnostics = IntentNormalizationDiagnostics(
@@ -330,6 +495,10 @@ class IntentNormalizationPipeline:
             discarded_active_step_index=discarded_active_step_index,
             explicit_npc_speech_normalized=speech_normalization is not None,
             npc_speech_signal_count=speech_signal_count,
+            compound_dialogue_action_normalized=compound_dialogue_action_normalized,
+            unverified_named_speaker_dialogue_normalized=(
+                named_speaker_normalization is not None
+            ),
             semantic_action_rules=semantic_surface_summary.action_rules_applied,
             semantic_relation_rules=semantic_surface_summary.relation_rules_applied,
         )
