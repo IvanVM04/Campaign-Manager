@@ -5,6 +5,7 @@ This index separates active technical contracts from dated architecture proposal
 ## Current architecture baseline
 
 - [Current system state and architecture map — 2026-11-18](current-state-2026-11-18.md): current implementation shape, API/workflow, ownership, migration version, security, observed CI and unimplemented product requirements.
+- [Project-wide audit — 2026-11-19](project-audit-2026-11-19.md): latest reconciled main SHA, integrated PRs #267–#269, CI metrics, product requirements progress, risks and next steps.
 - [Current architecture map](architecture-map-2026-11-18.md): package ownership, pipelines, persistence, API surfaces and implementation gaps.
 - [Current architecture audit](architecture-audit-2026-11-18.md): source-verified design, risks and ordered engineering priorities.
 - [Current change-impact map](change-impact-map-2026-11-18.md): cross-package dependencies, affected contracts and regression-test surfaces.
