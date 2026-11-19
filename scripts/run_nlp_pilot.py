@@ -38,9 +38,16 @@ CORPORA = {
 
 
 def _load_scenarios(split: str) -> list[tuple[str, dict[str, Any]]]:
+    if split not in {"development", "holdout", "both"}:
+        raise ValueError("split must be development, holdout or both")
+    selected_splits = (
+        {"development", "held_out"}
+        if split == "both"
+        else {"held_out" if split == "holdout" else split}
+    )
     scenarios: list[tuple[str, dict[str, Any]]] = []
     for selected_split, filename in CORPORA.items():
-        if split not in {"both", selected_split, "holdout" if selected_split == "held_out" else selected_split}:
+        if selected_split not in selected_splits:
             continue
         payload = json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
         if not isinstance(payload.get("scenarios"), list):
@@ -71,7 +78,8 @@ def run(
     limit_per_split: int | None,
     adapter: Any | None = None,
 ) -> dict[str, Any]:
-    adapter = adapter or StanzaParserAdapter(model_dir=model_dir)
+    if adapter is None:
+        adapter = StanzaParserAdapter(model_dir=model_dir)
     selected = _load_scenarios(split)
     if limit_per_split is not None:
         counters: Counter[str] = Counter()
@@ -104,7 +112,7 @@ def run(
             continue
         expected = expected_utterance_probes(scenario)
         lexical = lexical_utterance_probes(text)
-        parsed_probes = {"negation": False, "conditional": False}
+        parsed_probes = None
         case_cpu_started = process_time()
         try:
             document = adapter.parse(text)
@@ -147,11 +155,15 @@ def run(
             ),
         },
         "parser": {
-            "adapter": "stanza",
+            "adapter": getattr(adapter, "adapter_name", "stanza"),
             "language": adapter.language,
             "model_package": adapter.model_package,
             "library_version": adapter.library_version,
-            "processors": StanzaParserAdapter.DEFAULT_PROCESSORS,
+            "processors": getattr(
+                adapter,
+                "processors",
+                StanzaParserAdapter.DEFAULT_PROCESSORS,
+            ),
             "device": "cpu",
             "model_directory_bytes": model_bytes,
             "model_directory_megabytes": (
