@@ -281,11 +281,13 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     scenario,
                     ledger=ledger,
                 )
-            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed cases
-                matched, total = 0, 1
-                failures = [f"provider/decoder error: {type(exc).__name__}: {exc}"]
-                # A rejected response still counts as a missing expected predicate.
-                score_semantic_frame_scenario(None, scenario, ledger=ledger)
+            except Exception as exc:  # noqa: BLE001 - failed calls remain scored misses
+                matched, total, failures = score_semantic_frame_scenario(
+                    None,
+                    scenario,
+                    ledger=ledger,
+                )
+                failures.append(f"provider_or_decoder_error:{type(exc).__name__}")
             elapsed = perf_counter() - case_started
             provider_calls += 1
             ledger.record_case(
@@ -293,6 +295,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                 expected_slots=total,
                 matched_slots=matched,
                 elapsed_seconds=elapsed,
+                case_passed=not failures,
             )
             if failures:
                 description = (
