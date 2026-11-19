@@ -9,10 +9,12 @@ from __future__ import annotations
 import json
 import os
 from collections import Counter
+from pathlib import Path
 from time import perf_counter
 
 import pytest
 
+from services.nlp_pilot.probes import nearest_rank_percentile
 from services.nlp_pilot.stanza_adapter import StanzaParserAdapter
 from services.turns.intent_interpreter import IntentInterpreter
 from tests.intent_analysis_evaluation import (
@@ -21,7 +23,6 @@ from tests.intent_analysis_evaluation import (
 )
 from tests.nlp_pilot_support import ParserHintingProvider
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
-from services.nlp_pilot.probes import nearest_rank_percentile
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
@@ -97,6 +98,7 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
             )
 
     model_only_usage: list[dict] = []
+    hinted_usage: list[dict] = []
     model_only_interpreter = _make_interpreter(model_only_usage)
     base_provider = model_only_interpreter.provider
     hint_provider = ParserHintingProvider(base_provider)
