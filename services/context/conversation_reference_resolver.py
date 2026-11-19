@@ -20,7 +20,6 @@ from models.player_intent_analysis import (
     PlayerIntentAnalysis,
 )
 from models.resolved_conversation_reference import (
-    ResolvedConversationGroupMember,
     ResolvedConversationGroupReference,
     ResolvedConversationReference,
     ResolvedConversationReferenceResult,
@@ -86,14 +85,6 @@ class ConversationReferenceResolver:
         IntentModality.CONDITIONAL,
         IntentModality.NEGATED,
     })
-    _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
-        SemanticObjectKind.CHARACTER: frozenset({"npc", "character", "person", "humanoid", "player"}),
-        SemanticObjectKind.CREATURE: frozenset({"creature", "monster", "beast", "animal"}),
-        SemanticObjectKind.LOCATION: frozenset({"location", "place", "room", "building", "area"}),
-        SemanticObjectKind.FACTION: frozenset({"faction", "guild", "organization", "group"}),
-        SemanticObjectKind.RESOURCE: frozenset({"resource", "currency", "consumable"}),
-    }
-
     MIN_RESOLUTION_SCORE = 35
     MIN_RESOLUTION_MARGIN = 12
     MAX_HISTORY_TURNS = DiscourseContextBuilder.MAX_HISTORY_TURNS
@@ -250,6 +241,164 @@ class ConversationReferenceResolver:
             if role_terms & set(self._tokens(evidence)):
                 matches.append(entity_id)
         return tuple(matches)
+
+    def _extract_step_mentions(
+        self,
+        step,
+        relation_claims,
+        visible_world: WorldState,
+    ) -> tuple[
+        tuple[ConversationReferenceMention, ...],
+        set[str],
+        dict[str, set[SemanticObjectKind]],
+    ]:
+        """Extract and merge literal current-step mentions with provenance."""
+        specs: list[
+            tuple[
+                str,
+                SemanticObjectKind,
+                DiscourseMentionOrigin,
+                int | None,
+                int | None,
+            ]
+        ] = [
+            (
+                mention,
+                SemanticObjectKind.UNKNOWN,
+                DiscourseMentionOrigin.TARGET_MENTION,
+                None,
+                None,
+            )
+            for mention in step.target_mentions
+        ]
+        if step.attributed_to is not None:
+            specs.append((
+                step.attributed_to,
+                SemanticObjectKind.CHARACTER,
+                DiscourseMentionOrigin.ATTRIBUTION,
+                None,
+                None,
+            ))
+        if step.action_frame is not None:
+            specs.extend(
+                (
+                    argument.mention.text,
+                    argument.mention.kind_hint,
+                    DiscourseMentionOrigin.ACTION_ARGUMENT,
+                    None,
+                    None,
+                )
+                for argument in step.action_frame.arguments
+            )
+
+        surface_mentions = DiscourseContextBuilder.surface_pronoun_mentions(
+            step.source_excerpt
+        )
+        explicit_recipients = [item[0] for item in specs]
+        explicit_recipients.extend(
+            surface.text
+            for surface in surface_mentions
+            if surface.text.casefold() not in {"le", "les"}
+        )
+        for entity in self._visible_entities(visible_world):
+            explicit_recipients.append(entity.name)
+            aliases = getattr(entity, "aliases", [])
+            if isinstance(aliases, (list, tuple)):
+                explicit_recipients.extend(
+                    alias for alias in aliases if isinstance(alias, str)
+                )
+
+        specs.extend(
+            (
+                surface.text,
+                SemanticObjectKind.CHARACTER,
+                DiscourseMentionOrigin.SURFACE_PRONOUN,
+                surface.start,
+                surface.end,
+            )
+            for surface in surface_mentions
+            if not self._has_explicit_dative_complement(
+                step.source_excerpt,
+                surface,
+                tuple(explicit_recipients),
+            )
+        )
+        specs.extend(
+            (
+                mention.text,
+                mention.kind_hint,
+                DiscourseMentionOrigin.RELATION_ENDPOINT,
+                None,
+                None,
+            )
+            for claim in relation_claims
+            if claim.step_index == step.index
+            for mention in (
+                claim.subject,
+                claim.object,
+                *((claim.attributed_to,) if claim.attributed_to is not None else ()),
+            )
+        )
+
+        merged: dict[str, dict[str, object]] = {}
+        conflicting_kinds: set[str] = set()
+        conflicting_kind_values: dict[str, set[SemanticObjectKind]] = {}
+        for text, kind_hint, origin, start_offset, end_offset in specs:
+            mention_key = self.entity_resolver.normalize(text)
+            if not mention_key:
+                continue
+            existing = merged.get(mention_key)
+            if existing is None:
+                merged[mention_key] = {
+                    "text": text,
+                    "kind_hint": kind_hint,
+                    "origins": [origin],
+                    "start_offset": start_offset,
+                    "end_offset": end_offset,
+                }
+                continue
+
+            origins = existing["origins"]
+            assert isinstance(origins, list)
+            origins.append(origin)
+            if existing["start_offset"] is None and start_offset is not None:
+                existing["start_offset"] = start_offset
+                existing["end_offset"] = end_offset
+
+            existing_kind = existing["kind_hint"]
+            assert isinstance(existing_kind, SemanticObjectKind)
+            if existing_kind is SemanticObjectKind.UNKNOWN:
+                if mention_key in conflicting_kinds:
+                    if kind_hint is not SemanticObjectKind.UNKNOWN:
+                        conflicting_kind_values.setdefault(
+                            mention_key,
+                            set(),
+                        ).add(kind_hint)
+                else:
+                    existing["kind_hint"] = kind_hint
+            elif (
+                kind_hint is not SemanticObjectKind.UNKNOWN
+                and kind_hint is not existing_kind
+            ):
+                existing["kind_hint"] = SemanticObjectKind.UNKNOWN
+                conflicting_kinds.add(mention_key)
+                conflicting_kind_values.setdefault(
+                    mention_key,
+                    {existing_kind, kind_hint},
+                ).update({existing_kind, kind_hint})
+
+        typed_mentions = tuple(
+            ConversationReferenceMention(
+                text=str(item["text"]),
+                step_index=step.index,
+                kind_hint=item["kind_hint"],
+                origins=tuple(dict.fromkeys(item["origins"])),
+                start_offset=item["start_offset"],
+                end_offset=item["end_offset"],
+            )
+            for item in merged.values()
+        )
+        return typed_mentions, conflicting_kinds, conflicting_kind_values
 
     @staticmethod
     def _candidate_names(candidates: tuple[DiscourseCandidate, ...]) -> tuple[str, ...]:
