@@ -12,8 +12,8 @@ from models.discourse_evidence import (
 )
 from models.entity import Entity
 from models.world_state import WorldState
-from services.discourse_context import DiscourseContextBuilder
 from .entity_reference_resolver import EntityReferenceResolver
+from services.discourse_context import DiscourseContextBuilder
 
 
 class ConversationReferenceEvidenceExtractor:
@@ -173,6 +173,12 @@ class ConversationReferenceEvidenceExtractor:
             for text, source, speaker, speaker_entity_id in parts:
                 for entity in visible_entities:
                     entity_id = entity.id
+                    if (
+                        isinstance(entity_id, bool)
+                        or not isinstance(entity_id, int)
+                        or entity_id < 1
+                    ):
+                        continue
                     if speaker is DiscourseSpeaker.NPC and entity_id != speaker_entity_id:
                         continue
                     found = self.mentions_in_part(
