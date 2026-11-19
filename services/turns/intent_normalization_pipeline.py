@@ -10,7 +10,7 @@ diagnostics for the orchestration layer.
 from __future__ import annotations
 
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from models.player_intent_analysis import (
@@ -221,7 +221,9 @@ class IntentNormalizationDiagnostics:
     """Content-free results from each deterministic normalization stage."""
 
     canonicalized_step_indices: tuple[int, ...] = ()
-    surface_sanitization: SurfaceNormalizationSummary = SurfaceNormalizationSummary()
+    surface_sanitization: SurfaceNormalizationSummary = field(
+        default_factory=SurfaceNormalizationSummary
+    )
     intent_surface_rules: tuple[str, ...] = ()
     cleared_attribution_indices: tuple[int, ...] = ()
     non_action_category: str | None = None
