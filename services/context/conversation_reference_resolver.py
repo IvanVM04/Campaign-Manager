@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import ClassVar
 
 from models.discourse_evidence import (
+    ConversationReferenceMention,
     DiscourseCandidate,
+    DiscourseCandidateRanking,
     DiscourseEvidence,
+    DiscourseMentionOrigin,
     DiscourseSource,
     DiscourseSpeaker,
 )
@@ -30,6 +32,8 @@ from services.discourse_context import (
     SurfacePronounMention,
 )
 
+from .conversation_reference_evidence import ConversationReferenceEvidenceExtractor
+from .conversation_reference_ranker import ConversationReferenceCandidateRanker
 from .entity_reference_resolver import EntityReferenceResolver
 
 
@@ -39,6 +43,7 @@ class ConversationReferenceResolution:
     clarification_question: str | None = None
     candidates: tuple[DiscourseCandidate, ...] = ()
     abstention_reason: str | None = None
+    ranking_diagnostics: tuple[DiscourseCandidateRanking, ...] = ()
 
 
 class ConversationReferenceResolver:
@@ -97,6 +102,10 @@ class ConversationReferenceResolver:
         if entity_resolver is not None and not isinstance(entity_resolver, EntityReferenceResolver):
             raise TypeError("entity_resolver must be an EntityReferenceResolver or None")
         self.entity_resolver = entity_resolver or EntityReferenceResolver()
+        self.evidence_extractor = ConversationReferenceEvidenceExtractor(
+            self.entity_resolver
+        )
+        self.candidate_ranker = ConversationReferenceCandidateRanker()
 
     @classmethod
     def _tokens(cls, value: str) -> tuple[str, ...]:
@@ -116,77 +125,18 @@ class ConversationReferenceResolver:
 
     @staticmethod
     def _turn_parts(turn, world: WorldState | None = None):
-        if isinstance(turn, dict):
-            player_input = turn.get("player_input", "")
-            narrative = turn.get("narrative", "")
-            turn_id = turn.get("id")
-        else:
-            player_input = getattr(turn, "player_input", "")
-            narrative = getattr(turn, "narrative", "")
-            turn_id = getattr(turn, "id", None)
-        valid_id = (
-            turn_id
-            if isinstance(turn_id, int) and not isinstance(turn_id, bool) and turn_id > 0
-            else None
-        )
-        parts = []
-        if isinstance(player_input, str) and player_input.strip():
-            parts.append((
-                player_input[:1200],
-                DiscourseSource.PLAYER_INPUT,
-                DiscourseSpeaker.PLAYER,
-                None,
-            ))
-        if isinstance(narrative, str) and narrative.strip():
-            parts.append((
-                narrative[:1200],
-                DiscourseSource.NARRATIVE,
-                DiscourseSpeaker.NARRATOR,
-                None,
-            ))
-            if world is not None:
-                for attributed in DiscourseContextBuilder.extract_npc_utterances(
-                    narrative,
-                    valid_id,
-                    ConversationReferenceResolver._visible_entities(world),
-                ):
-                    parts.append((
-                        attributed.excerpt,
-                        DiscourseSource.NARRATIVE,
-                        DiscourseSpeaker.NPC,
-                        attributed.speaker_entity_id,
-                    ))
-        return tuple(parts), valid_id
+        return ConversationReferenceEvidenceExtractor.turn_parts(turn, world)
 
     @staticmethod
     def _visible_entities(world: WorldState) -> tuple[Entity, ...]:
-        visible: list[Entity] = []
-        for entity in world.entities.values():
-            if not isinstance(entity, Entity) or not entity.active:
-                continue
-            entity_id = entity.id
-            if (
-                isinstance(entity_id, bool)
-                or not isinstance(entity_id, int)
-                or entity_id < 1
-                or not entity.name.strip()
-                or len(entity.name) > 120
-            ):
-                continue
-            visible.append(entity)
-        return tuple(visible)
+        return ConversationReferenceEvidenceExtractor.visible_entities(world)
 
-    def _kind_compatible(self, entity, kind_hint: SemanticObjectKind) -> bool | None:
-        expected = self._KIND_TYPES.get(kind_hint)
-        if expected is None or kind_hint is SemanticObjectKind.UNKNOWN:
-            return None
-        entity_type = EntityReferenceResolver.normalize(
-            getattr(entity, "entity_type", "")
-        )
-        type_tokens = set(entity_type.split())
-        if not type_tokens:
-            return None
-        return bool(type_tokens & expected)
+    def _kind_compatible(
+        self,
+        entity: Entity,
+        kind_hint: SemanticObjectKind,
+    ) -> bool | None:
+        return self.candidate_ranker.kind_compatible(entity, kind_hint)
 
     def _mentions_in_part(
         self,
@@ -199,33 +149,15 @@ class ConversationReferenceResolver:
         recency_rank: int,
         speaker_entity_id: int | None = None,
     ) -> tuple[DiscourseEvidence, ...]:
-        normalized = " " + self.entity_resolver.normalize(text) + " "
-        mentions = []
-        aliases = [getattr(entity, "name", ""), *(getattr(entity, "aliases", []) or [])]
-        seen = set()
-        for alias in aliases:
-            if not isinstance(alias, str) or not alias.strip() or len(alias) > 120:
-                continue
-            normalized_alias = self.entity_resolver.normalize(alias)
-            marker = " " + normalized_alias + " "
-            if not normalized_alias or marker not in normalized:
-                continue
-            key = normalized_alias
-            if key in seen:
-                continue
-            seen.add(key)
-            mentions.append(
-                DiscourseEvidence(
-                    turn_id=turn_id,
-                    source=source,
-                    speaker=speaker,
-                    mention=alias[:120],
-                    excerpt=text,
-                    recency_rank=recency_rank,
-                    speaker_entity_id=speaker_entity_id,
-                )
-            )
-        return tuple(mentions)
+        return self.evidence_extractor.mentions_in_part(
+            entity,
+            text,
+            turn_id=turn_id,
+            source=source,
+            speaker=speaker,
+            recency_rank=recency_rank,
+            speaker_entity_id=speaker_entity_id,
+        )
 
     def _history_evidence(
         self,
@@ -234,31 +166,15 @@ class ConversationReferenceResolver:
         *,
         current_input: str,
     ) -> dict[int, tuple[DiscourseEvidence, ...]]:
-        evidence: dict[int, list[DiscourseEvidence]] = {}
-        turns = DiscourseContextBuilder.select_history(
+        bundle = self.evidence_extractor.extract(
+            world,
             recent_turns,
-            current_input,
-        ).turns[-self.MAX_HISTORY_TURNS :]
-        visible_entities = self._visible_entities(world)
-        for recency_rank, turn in enumerate(reversed(turns), start=1):
-            parts, turn_id = self._turn_parts(turn, world)
-            for text, source, speaker, speaker_entity_id in parts:
-                for entity in visible_entities:
-                    entity_id = entity.id
-                    if speaker is DiscourseSpeaker.NPC and entity_id != speaker_entity_id:
-                        continue
-                    mentions = self._mentions_in_part(
-                        entity,
-                        text,
-                        turn_id=turn_id,
-                        source=source,
-                        speaker=speaker,
-                        recency_rank=recency_rank,
-                        speaker_entity_id=speaker_entity_id,
-                    )
-                    if mentions and isinstance(entity_id, int) and not isinstance(entity_id, bool):
-                        evidence.setdefault(entity_id, []).extend(mentions)
-        return {entity_id: tuple(items) for entity_id, items in evidence.items()}
+            current_input=current_input,
+        )
+        return {
+            item.entity_id: item.evidence
+            for item in bundle.entity_evidence
+        }
 
     def _candidate_score(
         self,
@@ -267,32 +183,11 @@ class ConversationReferenceResolver:
         kind_hint: SemanticObjectKind,
         entity,
     ) -> tuple[int, tuple[str, ...]]:
-        score = 0
-        signals = []
-        best_rank = min(item.recency_rank for item in evidence)
-        score += max(15, 70 - (best_rank - 1) * 12)
-        signals.append("recency")
-        if any(item.source is DiscourseSource.PLAYER_INPUT for item in evidence):
-            score += 22
-            signals.append("player_authored_focus")
-        elif any(item.speaker is DiscourseSpeaker.NPC for item in evidence):
-            score += 24
-            signals.append("explicit_npc_speaker")
-        else:
-            score += 8
-            signals.append("narrator_context")
-        distinct_turns = {item.turn_id for item in evidence if item.turn_id is not None}
-        repeat_bonus = min(15, max(0, len(distinct_turns) - 1) * 5)
-        if repeat_bonus:
-            score += repeat_bonus
-            signals.append("topic_continuity")
-        kind_match = self._kind_compatible(entity, kind_hint)
-        if kind_match is True:
-            score += 24
-            signals.append("semantic_kind_match")
-        elif kind_match is False:
-            signals.append("semantic_kind_mismatch")
-        return min(1000, score), tuple(signals)
+        return self.candidate_ranker.candidate_score(
+            evidence,
+            kind_hint=kind_hint,
+            entity=entity,
+        )
 
     def _rank_candidates(
         self,
@@ -303,68 +198,17 @@ class ConversationReferenceResolver:
         mention: str,
         current_input: str,
     ) -> tuple[DiscourseCandidate, ...]:
-        history = self._history_evidence(
+        bundle = self.evidence_extractor.extract(
             world,
             recent_turns,
             current_input=current_input,
         )
-        pronoun_features = DiscourseContextBuilder.pronoun_agreement(mention)
-        candidates = []
-        for entity in self._visible_entities(world):
-            entity_id = entity.id
-            if not isinstance(entity_id, int) or isinstance(entity_id, bool):
-                continue
-            evidence = history.get(entity_id, ())
-            if not evidence:
-                continue
-            if self._kind_compatible(entity, kind_hint) is False:
-                continue
-            if pronoun_features is not None:
-                gender, number = pronoun_features
-                observed_features = {
-                    DiscourseContextBuilder.grammatical_features(item.excerpt, alias)
-                    for item in evidence
-                    for alias in (
-                        getattr(entity, "name", ""),
-                        *(getattr(entity, "aliases", []) or []),
-                    )
-                    if isinstance(alias, str) and alias.strip()
-                }
-                observed_features.discard((None, None))
-                if number == "plural":
-                    # Plural identity still requires an explicit same-turn
-                    # co-mention. A dative "les" has no grammatical gender, so
-                    # mixed-gender groups are valid only when that full set is
-                    # independently established by the group builder.
-                    if not any(
-                        number_seen == "singular"
-                        and (gender == "unknown" or gender_seen == gender)
-                        for gender_seen, number_seen in observed_features
-                    ):
-                        continue
-                elif (
-                    gender != "unknown"
-                    and observed_features
-                    and (gender, number) not in observed_features
-                ):
-                    # Preserve the established conservative singular fallback:
-                    # absence of grammatical cues is not a contradiction.
-                    continue
-            score, signals = self._candidate_score(
-                evidence,
-                kind_hint=kind_hint,
-                entity=entity,
-            )
-            candidates.append(
-                DiscourseCandidate(
-                    entity_id=entity_id,
-                    entity_name=entity.name,
-                    score=score,
-                    evidence=evidence,
-                    signals=signals,
-                )
-            )
-        return tuple(sorted(candidates, key=lambda item: (-item.score, item.entity_id)))
+        return self.candidate_ranker.rank(
+            bundle,
+            world,
+            kind_hint=kind_hint,
+            mention=mention,
+        ).candidates
 
     @classmethod
     def _group_reference_from_candidates(
@@ -372,77 +216,9 @@ class ConversationReferenceResolver:
         mention: str,
         ranked: tuple[DiscourseCandidate, ...],
     ) -> tuple[ResolvedConversationGroupReference | None, str | None]:
-        """Build a group only from co-mentioned members with matching grammar."""
-        features = DiscourseContextBuilder.pronoun_agreement(mention)
-        if features is None or features[1] != "plural":
-            return None, "plural_group_not_proven"
-        gender = features[0]
-        buckets: dict[
-            tuple[int, DiscourseSource, DiscourseSpeaker, str, int],
-            dict[int, tuple[DiscourseCandidate, DiscourseEvidence]],
-        ] = {}
-        for candidate in ranked:
-            for evidence in candidate.evidence:
-                if evidence.turn_id is None:
-                    continue
-                grammatical = DiscourseContextBuilder.grammatical_features(
-                    evidence.excerpt,
-                    evidence.mention,
-                )
-                if (
-                    grammatical is None
-                    or grammatical[1] != "singular"
-                    or (gender != "unknown" and grammatical[0] != gender)
-                ):
-                    continue
-                key = (
-                    evidence.turn_id,
-                    evidence.source,
-                    evidence.speaker,
-                    evidence.excerpt,
-                    evidence.recency_rank,
-                )
-                buckets.setdefault(key, {})[candidate.entity_id] = (candidate, evidence)
-
-        eligible = [
-            (key, members)
-            for key, members in buckets.items()
-            if 2 <= len(members) <= 8
-        ]
-        if not eligible:
-            return None, "plural_group_not_proven"
-        most_recent_rank = min(key[4] for key, _members in eligible)
-        most_recent = [
-            (key, members)
-            for key, members in eligible
-            if key[4] == most_recent_rank
-        ]
-        # Distinct co-mentions at the same recency are not a unique antecedent.
-        if len(most_recent) != 1:
-            return None, "plural_group_ambiguous"
-        key, selected_members = most_recent[0]
-        members = tuple(
-            ResolvedConversationGroupMember(
-                entity_id=candidate.entity_id,
-                entity_name=candidate.entity_name,
-                evidence=(evidence,),
-                confidence_score=candidate.score,
-                resolution_signals=tuple(dict.fromkeys(
-                    (*candidate.signals, "plural_group_co_mention", "explicit_grammatical_agreement")
-                )),
-            )
-            for candidate, evidence in sorted(
-                selected_members.values(),
-                key=lambda pair: pair[0].entity_id,
-            )
-        )
-        return (
-            ResolvedConversationGroupReference(
-                mention=mention,
-                members=members,
-                antecedent_turn_id=key[0],
-            ),
-            None,
+        return ConversationReferenceCandidateRanker.group_reference_from_candidates(
+            mention,
+            ranked,
         )
 
     def _other_role_candidates(
