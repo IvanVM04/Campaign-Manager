@@ -99,7 +99,7 @@ def test_stanza_adapter_rejects_invalid_or_fuzzy_source_offsets():
     )
     adapter = StanzaParserAdapter(pipeline=lambda _text: parsed)
 
-    with pytest.raises(NlpPilotContractError, match="invalid source offset"):
+    with pytest.raises(NlpPilotContractError, match="invalid or overlapping source offset"):
         adapter.parse("Abro")
 
 
@@ -330,7 +330,7 @@ def test_probe_ledger_does_not_retain_scenario_text_or_unannotated_gold():
     rendered = json.dumps(ledger.summary())
 
     assert "held_out:action_attempt" in rendered
-    assert "unmeasured_cases" in rendered
+    assert "unmeasured_gold_cases" in rendered
     assert "PLAYER SECRET TEXT" not in rendered
     assert "conditional" in rendered
 
