@@ -70,7 +70,7 @@ class StanzaParserAdapter:
                 kwargs["model_dir"] = str(Path(model_dir).expanduser())
             try:
                 self._pipeline = stanza.Pipeline(**kwargs)
-            except Exception as exc:  # noqa: BLE001 - model setup errors are optional
+            except Exception as exc:
                 raise NlpPilotDependencyError(
                     "Stanza models are missing or could not be loaded; download them explicitly first"
                 ) from exc
@@ -105,7 +105,7 @@ class StanzaParserAdapter:
         started = perf_counter()
         try:
             parsed = self._pipeline(text)
-        except Exception as exc:  # noqa: BLE001 - do not expose raw text in error
+        except Exception as exc:
             raise NlpPilotDependencyError("Stanza failed to parse the message") from exc
 
         raw_sentences = getattr(parsed, "sentences", None)
