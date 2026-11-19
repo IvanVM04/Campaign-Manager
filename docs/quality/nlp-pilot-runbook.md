@@ -4,7 +4,9 @@ Desde la raíz del repositorio:
 
     .\scripts\run-ollama-tests.ps1
 
-Este runner se centra en validaciones que GitHub Actions no puede realizar en tu equipo: prepara el entorno Python con los grupos `test` y `nlp-pilot`, comprueba/prepara los modelos españoles Stanza, ejecuta el benchmark NLP offline y lanza la suite `real_llm` contra tu instancia local de Ollama. No repite pytest determinista, cobertura, Ruff, Pyright ni tests JavaScript: esos gates siguen siendo responsabilidad de CI en GitHub.
+Este runner se centra en validaciones que GitHub Actions no puede realizar en tu equipo: prepara el entorno Python, comprueba/prepara los modelos españoles Stanza, ejecuta el benchmark NLP offline y lanza la suite `real_llm` contra tu instancia local de Ollama. No repite pytest determinista, cobertura, Ruff, Pyright ni tests JavaScript: esos gates siguen siendo responsabilidad de CI en GitHub.
+
+La preparación de Python sigue el contrato de `AGENTS.md` y CI: instala las dependencias de ejecución desde `requirements.txt` y los grupos PEP 735 `test` y `nlp-pilot`. La ruta `uv` usa `--no-install-project`; el repositorio se ejecuta desde su raíz y no necesita una instalación editable (`pip install -e .`).
 
 Para incluir también las llamadas Ollama adicionales del A/B Intent frente a Intent + Stanza:
 
