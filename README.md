@@ -498,7 +498,9 @@ The integrated intent/mechanics/extraction tests also read
 `CAMPAIGN_MANAGER_OLLAMA_BASE_URL`, `CAMPAIGN_MANAGER_OLLAMA_THINK`,
 and the role-specific `CAMPAIGN_MANAGER_LLM_{INTENT,MECHANICS,EXTRACTION}_MODEL`,
 `..._TIMEOUT_SECONDS` and `..._THINK` variables. Role-specific values take
-precedence over common real-test defaults. Optional single-case filters are
+precedence over common real-test defaults. The PowerShell runner also
+propagates the common model and timeout to roles that do not have explicit
+role-specific settings. Optional single-case filters are
 `CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` and
 `CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID`.
 
