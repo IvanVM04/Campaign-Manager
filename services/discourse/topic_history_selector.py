@@ -22,7 +22,8 @@ class DiscourseTopicHistorySelector(DiscourseText):
         "on another topic", "by the way", "meanwhile", "elsewhere",
     )
     _REACTIVATION_MARKERS = (
-        "volviendo a", "retomando", "retomo lo de", "regresando a", "volvamos a",
+        "volviendo a", "volviendo al", "retomando", "retomo lo de",
+        "regresando a", "regresando al", "volvamos a", "volvamos al",
         "como te dije antes", "como deciamos", "sobre lo anterior",
         "respecto a lo anterior", "back to", "returning to", "as i said before",
     )
