@@ -8,6 +8,7 @@ This index separates active technical contracts from dated architecture proposal
 - [Current architecture map](architecture-map-2026-11-18.md): package ownership, pipelines, persistence, API surfaces and implementation gaps.
 - [Current architecture audit](architecture-audit-2026-11-18.md): source-verified design, risks and ordered engineering priorities.
 - [Current change-impact map](change-impact-map-2026-11-18.md): cross-package dependencies, affected contracts and regression-test surfaces.
+- [Player-language understanding architecture — 2026-11-19](player-language-understanding-architecture-2026-11-19.md): active design for Intent normalization, discourse selection, surface references, canonical resolution, evaluator requirements and PR sequence.
 - [Documentation freshness audit — 2026-11-18](documentation-audit-2026-11-18.md): stale statements, current-vs-historical classification and synchronized index work.
 - [Shared-layer module catalogue — PR #205 snapshot](module-catalog-2026-11-12.md): useful navigation inventory for shared layers, not a current source audit. Verify current paths against source and the 2026-11-18 map.
 - [Change-impact map — 2026-11-12](change-impact-map-2026-11-12.md): cross-layer contracts, consumers and regression-test review.
@@ -70,7 +71,7 @@ These focused documents explain individual fixes and contracts that remain relev
 
 ## Index maintenance
 
-- Keep the 2026-11-18 current-state map as the only architecture-wide current snapshot until a newer source-verified map replaces it.
+- Keep the current-state map as the architecture-wide implementation snapshot. The player-language understanding design is an active capability contract; do not treat its target roadmap as code that already exists.
 - Link new active technical contracts here and from the documentation hub.
 - Do not put dated PR implementation notes in the current baseline section.
 - Preserve historical baselines; add a supersession notice rather than rewriting their original state.
