@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,8 +16,6 @@ from time import perf_counter, process_time
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from services.nlp_pilot.probes import (
     NlpPilotProbeLedger,
