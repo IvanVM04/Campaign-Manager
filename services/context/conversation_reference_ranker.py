@@ -128,6 +128,10 @@ class ConversationReferenceCandidateRanker:
             self.MIN_RESOLUTION_MARGIN if minimum_margin is None else minimum_margin
         )
         candidates: list[DiscourseCandidate] = []
+        evidence_by_entity = {
+            item.entity_id: item.evidence
+            for item in bundle.entity_evidence
+        }
         pronoun_features = DiscourseContextBuilder.pronoun_agreement(mention)
 
         for entity in world.entities.values():
@@ -140,7 +144,7 @@ class ConversationReferenceCandidateRanker:
                 or entity_id < 1
             ):
                 continue
-            evidence = bundle.evidence_for(entity_id)
+            evidence = evidence_by_entity.get(entity_id, ())
             if not evidence:
                 continue
             if self.kind_compatible(entity, kind_hint) is False:
