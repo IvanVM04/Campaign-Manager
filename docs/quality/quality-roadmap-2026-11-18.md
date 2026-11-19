@@ -22,7 +22,7 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 1. Mantener la arquitectura modular actual.
 2. No hacer tuning amplio de prompts sin un baseline live comparable.
 3. Mantener las fronteras de evidencia, visibilidad, reglas y escritura.
-4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#272 estén integradas.
+4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#273 estén integradas.
 5. Mantener CI determinista, Ruff, Pyright y validaciones contractuales como gates obligatorios de cada PR; diferir la ejecución live no autoriza a integrar cambios sin validación estática/determinista.
 6. Cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
 7. Diseñar la interfaz propia cuando los contratos y workflows de backend sean sólidos; SillyTavern seguirá siendo un cliente de integración, pero no el único camino de aceptación del producto.
@@ -35,14 +35,14 @@ El usuario ha decidido retrasar la próxima ejecución completa de los holdouts 
 1. PR #267: frontera de normalización de Intent (integrada en `main`).
 2. PR #268: separación de responsabilidades discursivas y extracción superficial (integrada en `main`).
 3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales (integrada en `main`).
-4. PR #270: scorer de evaluación completo con falsos positivos para pasos/slots extra (siguiente trabajo).
-5. PR #271: piloto offline de NLP opcional, usando #270 para comparar; no implica añadir Stanza/spaCy a producción.
-6. PR #272: política de incertidumbre calibrable y checkpoints durables dependientes.
-7. PR #273: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
+4. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra (siguiente trabajo).
+5. PR #272: piloto offline de NLP opcional, usando #270 para comparar; no implica añadir Stanza/spaCy a producción.
+6. PR #273: política de incertidumbre calibrable y checkpoints durables dependientes.
+7. PR #274: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
 
 La referencia normativa es [Player-language understanding architecture — 2026-11-19](../architecture/player-language-understanding-architecture-2026-11-19.md) y la reconciliación global más reciente es [project-audit-2026-11-19](../architecture/project-audit-2026-11-19.md). Los informes históricos de calidad y las puntuaciones anteriores a #266 no deben extrapolarse a la arquitectura posterior.
 
-La demora afecta a la ejecución **live** completa, no a la validación de código: cada PR continúa necesitando CI determinista, lint, tipos y pruebas de contrato aplicables. No se ejecutará Ollama como prueba de aceptación hasta el gate #273 salvo que exista una necesidad diagnóstica puntual aprobada y claramente separada del benchmark completo.
+La demora afecta a la ejecución **live** completa, no a la validación de código: cada PR continúa necesitando CI determinista, lint, tipos y pruebas de contrato aplicables. No se ejecutará Ollama como prueba de aceptación hasta el gate #274 salvo que exista una necesidad diagnóstica puntual aprobada y claramente separada del benchmark completo.
 
 ## 2. Baseline verificado
 
@@ -180,7 +180,7 @@ Las fases están ordenadas por dependencia. Una fase no se cierra porque el cód
 
 ### Fase 1 — Reproducibilidad y baseline de IA
 
-**Prioridad: P0 — bloqueada hasta cerrar las fases estructurales #267–#272.**
+**Prioridad: P0 — bloqueada hasta cerrar las fases estructurales #267–#273.**
 
 1. Ejecutar semantic/predicate holdout, discourse pipeline, compound intent, mechanics y operation quality contra la misma revisión.
 2. Registrar commit, modelo/digest por rol, versión de Ollama, parámetros, `think`, timeout, contexto, hardware, repeticiones, número de llamadas y latencias.
