@@ -61,6 +61,9 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - Respect [the package dependency matrix](docs/architecture/package-dependency-matrix.md). Update the matrix and architecture tests in the same PR when a new service dependency is justified.
 - Import from canonical capability packages. Do not restore flat compatibility shims or old exports.
 - Keep deterministic rules/mechanics, semantic validation, persistence and LLM proposal generation as separate authorities.
+- Preserve the single coherent, versioned player-intent response. Do not split related action/frame/relation fields across independent model calls.
+- Keep intent normalization, discourse selection/surface extraction and canonical conversation-reference resolution as separate typed stages; read `docs/architecture/player-language-understanding-architecture-2026-11-19.md` before changing their contracts.
+- Current player text is the only source for current-turn literal evidence. History and narration may help bounded reference resolution but must never be promoted into the current player's evidence.
 - LLM output is untrusted input. It may propose operations but must never write directly to SQLite or bypass domain validation.
 - Preserve turn idempotency, campaign revision checks, lease fencing, short atomic commit boundaries and narration recovery.
 - The narrative-first `POST /integration/turn` route, `LegacySillyTavernTurnService`, `WorldSnapshotRepository`, `LLMWorldExtractor.extract()` and runtime `turns.snapshot` column are retired. Do not reintroduce them. Migration 029 preserves old non-null snapshot JSON in the inert `turn_snapshot_archive` table.
