@@ -7,6 +7,8 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from services.nlp_pilot.contracts import ParserDocument, ParserSentence, ParserWord
+
 
 class NlpPilotDependencyError(RuntimeError):
     """Raised when an optional parser dependency or model is unavailable."""
@@ -88,14 +90,8 @@ class StanzaParserAdapter:
                 parsed.append((key.strip(), value.strip()))
         return tuple(sorted(parsed))
 
-    def parse(self, text: str):
+    def parse(self, text: str) -> ParserDocument:
         """Parse one current-message string and return validated source spans."""
-        from services.nlp_pilot.contracts import (
-            ParserDocument,
-            ParserSentence,
-            ParserWord,
-        )
-
         if not isinstance(text, str):
             raise TypeError("text must be a string")
         if not text.strip():
