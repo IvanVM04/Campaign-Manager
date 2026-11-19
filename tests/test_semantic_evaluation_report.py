@@ -40,6 +40,7 @@ def test_report_writer_keeps_legacy_path_when_report_directory_is_absent(tmp_pat
 
 
 def test_live_report_drops_untrusted_provider_strings_and_invalid_metadata(tmp_path, monkeypatch):
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
     class Provider:
         model = "gemma4:12b"
         timeout = 120
