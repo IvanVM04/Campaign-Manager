@@ -90,8 +90,8 @@ def test_action_predicate_surface_is_scored_independently_of_frame_family():
         ledger=ledger,
     )
 
-    assert matched == 2
-    assert total == 3
+    assert matched == 3
+    assert total == 4
     assert any(item.startswith("action_frame.family[0]") for item in failures)
     assert any(item.startswith("action_frame:") for item in failures)
     report = ledger.summary()
@@ -119,8 +119,8 @@ def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_val
         ledger=ledger,
     )
 
-    assert matched == 2  # frame existence and family pass; the predicate does not
-    assert total == 3
+    assert matched == 3  # frame/count and family pass; the predicate does not
+    assert total == 4
     assert any(item.startswith("action_frame.predicate[0]:") for item in failures)
     metrics = ledger.summary()["semantic_slot_quality"][
         "action_frame_predicate_surface"
