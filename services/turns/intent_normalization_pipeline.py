@@ -132,11 +132,10 @@ _FOLLOW_UP_PLAYER_ACTION_RE = re.compile(
 _UNVERIFIED_NAMED_SPEAKER_RE = re.compile(
     r"^\s*(?P<speaker>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
     r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)\s+"
-    r"(?P<predicate>dice|dijo|susurra|susurró|pregunta|preguntó|"
+    r"(?i:(?P<predicate>dice|dijo|susurra|susurró|pregunta|preguntó|"
     r"responde|respondió|contesta|contestó|murmura|murmuró|"
-    r"grita|gritó|añade|añadió|comenta|comentó)\s*[:,]\s*"
+    r"grita|gritó|añade|añadió|comenta|comentó))\s*[:,]\s*"
     r"[«“\u201c\"].+?[»”\u201d\"]",
-    re.IGNORECASE,
 )
 
 
@@ -187,6 +186,14 @@ def _normalize_compound_player_dialogue_then_action(
     if not _PLAYER_DIALOGUE_PREFIX_RE.match(first_excerpt):
         return None
     if not _FOLLOW_UP_PLAYER_ACTION_RE.search(evidence_text[first_end:]):
+        return None
+    if not re.search(
+        r"\b(?:intento|trato\s+de|pruebo|procuro|examino|examiné|"
+        r"inspecciono|inspeccioné|observo|observé|miro|miré|"
+        r"entro|salgo|abro|cierro|recojo|tomo|cruzo|subo|bajo)\b",
+        second_excerpt,
+        re.IGNORECASE,
+    ):
         return None
     if not all(
         fold(excerpt) in folded_evidence
