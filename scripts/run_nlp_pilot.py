@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from services.nlp_pilot.contracts import ParserDocument
 from services.nlp_pilot.probes import (
     NlpPilotProbeLedger,
     expected_utterance_probes,
