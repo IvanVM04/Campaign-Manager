@@ -32,6 +32,8 @@ class DiscourseEvidence:
     excerpt: str
     recency_rank: int
     speaker_entity_id: int | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
 
     def __post_init__(self) -> None:
         if self.turn_id is not None and (
@@ -64,6 +66,20 @@ class DiscourseEvidence:
             raise ValueError("speaker_entity_id is only valid for NPC discourse evidence")
         if not _contains_literal(self.excerpt, self.mention):
             raise ValueError("mention must occur in its evidence excerpt")
+        if (self.start_offset is None) != (self.end_offset is None):
+            raise ValueError("evidence offsets must both be present or both be None")
+        if self.start_offset is not None and (
+            isinstance(self.start_offset, bool)
+            or not isinstance(self.start_offset, int)
+            or isinstance(self.end_offset, bool)
+            or not isinstance(self.end_offset, int)
+            or self.start_offset < 0
+            or self.end_offset <= self.start_offset
+            or self.end_offset > len(self.excerpt)
+            or self.excerpt[self.start_offset:self.end_offset].casefold()
+            != self.mention.casefold()
+        ):
+            raise ValueError("evidence offsets must identify the literal mention")
 
 
 @dataclass(frozen=True, slots=True)
