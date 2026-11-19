@@ -64,8 +64,14 @@ def _directory_size_bytes(path: Path) -> int | None:
     return total
 
 
-def run(*, split: str, model_dir: Path, limit_per_split: int | None) -> dict[str, Any]:
-    adapter = StanzaParserAdapter(model_dir=model_dir)
+def run(
+    *,
+    split: str,
+    model_dir: Path,
+    limit_per_split: int | None,
+    adapter: Any | None = None,
+) -> dict[str, Any]:
+    adapter = adapter or StanzaParserAdapter(model_dir=model_dir)
     selected = _load_scenarios(split)
     if limit_per_split is not None:
         counters: Counter[str] = Counter()
@@ -144,7 +150,7 @@ def run(*, split: str, model_dir: Path, limit_per_split: int | None) -> dict[str
             "adapter": "stanza",
             "language": adapter.language,
             "model_package": adapter.model_package,
-            "library_version": adapter._library_version,
+            "library_version": adapter.library_version,
             "processors": StanzaParserAdapter.DEFAULT_PROCESSORS,
             "device": "cpu",
             "model_directory_bytes": model_bytes,
