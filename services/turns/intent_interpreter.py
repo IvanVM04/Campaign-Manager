@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import unicodedata
 from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import Any
