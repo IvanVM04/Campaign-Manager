@@ -18,6 +18,7 @@ from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
 from services.turns.intent_interpreter import IntentInterpreter
+from tests.live_llm_config import thinking_for_role
 
 pytestmark = pytest.mark.real_llm
 
@@ -39,6 +40,7 @@ def make_extractor() -> LLMWorldExtractor:
             OllamaProvider.DEFAULT_BASE_URL,
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+        think=thinking_for_role("extraction"),
     )
     return LLMWorldExtractor(
         provider=provider,
@@ -233,6 +235,7 @@ def make_interpreter() -> IntentInterpreter:
             OllamaProvider.DEFAULT_BASE_URL,
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+        think=thinking_for_role("intent"),
     )
     return IntentInterpreter(provider=provider)
 
