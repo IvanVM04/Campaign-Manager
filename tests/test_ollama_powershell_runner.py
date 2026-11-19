@@ -31,7 +31,7 @@ def test_runner_installs_all_python_groups_and_runs_the_ci_gates():
     assert '"models", "rules_engine", "bootstrap", "operations"' in source
     assert '"--outputjson"' in source
     assert '"run", "test:js"' in source
-    assert "coverage", "report" in source
+    assert '@("-m", "coverage", "report")' in source
 
 
 def test_runner_integrates_stanza_download_offline_and_guarded_ab():
@@ -86,3 +86,10 @@ def test_runner_scopes_single_scenario_filters_to_the_matching_suite():
     assert "compound_intent_understanding_holdout" in source
     assert "Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID" in source
     assert "Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID" in source
+
+
+def test_runner_does_not_shadow_automatic_powershell_args_variable():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert "[string[]]$Args" not in source
+    assert "& $Exe @CommandArgs" in source
+    assert "$ollamaPytestArgs" in source

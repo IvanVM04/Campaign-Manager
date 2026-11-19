@@ -106,7 +106,7 @@ function Get-Tool([string]$Name) {
     return $null
 }
 
-function Invoke-CommandStage([string]$Name, [string]$Exe, [string[]]$Args, [string]$LogName, [string]$Details = "") {
+function Invoke-CommandStage([string]$Name, [string]$Exe, [string[]]$CommandArgs, [string]$LogName, [string]$Details = "") {
     $path = Join-Path $script:LogDir $LogName
     $watch = [Diagnostics.Stopwatch]::StartNew()
     $code = 1
@@ -114,7 +114,7 @@ function Invoke-CommandStage([string]$Name, [string]$Exe, [string[]]$Args, [stri
         Push-Location $script:RepoRoot
         try {
             $global:LASTEXITCODE = 0
-            & $Exe @Args 2>&1 | Tee-Object -FilePath $path | Out-Host
+            & $Exe @CommandArgs 2>&1 | Tee-Object -FilePath $path | Out-Host
             $code = $LASTEXITCODE
         }
         finally { Pop-Location }
@@ -413,15 +413,15 @@ $abReport = Join-Path $reportDir "nlp-pilot-ab.json"
 if ($SkipOllamaTests) { Add-Stage "Ollama real_llm tests" "skipped" 0 $null "" "SkipOllamaTests." | Out-Null }
 elseif (-not $ollamaReady) { Add-Stage "Ollama real_llm tests" "skipped" 0 $null "" "Ollama preflight failed." | Out-Null }
 elseif ($python) {
-    $args = @("-m", "pytest", "-m", "real_llm and not nlp_pilot", "-v", "--durations=25", "--junitxml", $ollamaJUnit)
+    $ollamaPytestArgs = @("-m", "pytest", "-m", "real_llm and not nlp_pilot", "-v", "--durations=25", "--junitxml", $ollamaJUnit)
     $keywords = @{
         "language" = "held_out_language_understanding_corpus_v1"
         "semantic-frames" = "held_out_semantic_frame_corpus_v1"
         "discourse" = "held_out_discourse_intent_and_resolution_corpus"
         "compound-intent" = "compound_intent_understanding_holdout"
     }
-    if ($Evaluation -ne "all") { $args += @("-k", $keywords[$Evaluation]) }
-    Invoke-CommandStage "Ollama real_llm test suite" $python $args "30-ollama.log" | Out-Null
+    if ($Evaluation -ne "all") { $ollamaPytestArgs += @("-k", $keywords[$Evaluation]) }
+    Invoke-CommandStage "Ollama real_llm test suite" $python $ollamaPytestArgs "30-ollama.log" | Out-Null
 }
 else { Add-Stage "Ollama real_llm tests" "failed" 0 1 "" "Python unavailable." | Out-Null }
 
