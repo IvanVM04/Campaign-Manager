@@ -4,9 +4,9 @@
 **Última implementación integrada:** PR #261, que endurece los contratos de allowlist del LLM y aísla snapshots de turno mientras reduce el alcance de los locks.  
 **Método:** inspección estática del árbol, contratos, routers, migraciones, guías de paquetes, índices y evidencias de CI. No es una certificación de una sesión local de Ollama/SillyTavern.
 
-> **Actualización de fuente de verdad — 2026-11-19:** el `main` vigente ya incluye PR #266 en `5988ed161a9023d9a2bf86912c82f74092a53e96`. La ejecución de CI asociada al SHA final de #266 registró 2.148 tests deterministas pasados, 22 `real_llm` excluidos y 85,31 % de cobertura combinada ([workflow run #44417534718](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44417534718)). Esto reemplaza los conteos históricos de #255/#261 cuando se hable del estado actual; no certifica calidad live de Ollama ni una sesión SillyTavern. La nueva arquitectura NLU y el gate de pruebas live se describen en [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). PR #267 está en desarrollo y aún no forma parte de `main`.
+> **Nota histórica:** esta actualización intermedia se escribió cuando #266 era el último baseline integrado. Fue supersedida por la reconciliación vigente del 19-11 que aparece a continuación.
 
-> Este es el mapa de implementación verificado originalmente el 2026-11-18; la actualización superior añade la revisión de main del 2026-11-19. Los mapas y auditorías fechados anteriormente son snapshots históricos; explican decisiones y hallazgos de su fecha, pero no deben usarse como fuente actual cuando difieran de este documento o del código.
+> **Reconciliación verificada — 2026-11-19:** `main` está en `8276450babba6611a172e601d0c76b83ae8e449e`, con PRs #267, #268 y #269 integradas. En ese SHA: 2.188 tests Python pasaron, 22 `real_llm` se excluyeron deliberadamente, cobertura combinada 85,23 % (88,8 % líneas; 75,9 % ramas); Ruff, Pyright, JavaScript y CodeQL pasaron. Esto no certifica Ollama live ni la aceptación manual de SillyTavern. Véase [auditoría global del 19-11](project-audit-2026-11-19.md).
 
 ## 1. Resumen ejecutivo
 
@@ -114,14 +114,16 @@ La guía de migraciones es [migration-catalog-2026-11-12.md](migration-catalog-2
 
 ## 8. CI y verificación observada
 
-En el commit documental `4a3a2549...` (PR #257 fusionada) se observaron:
+La tabla siguiente conserva el resultado histórico del 18-11. Para el baseline actual, véase la reconciliación superior y [la auditoría global del 19-11](project-audit-2026-11-19.md).
+
+**Baseline histórico:** en el commit documental `4a3a2549...` (PR #257 fusionada) se observaron:
 
 | Ejecución | Resultado |
 |---|---|
 | [Tests #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385868) | Success: 2.050 passed, 22 deselected, 85,18 % de cobertura combinada. Ruff, ambos alcances Pyright, JavaScript y CI summary correctos. |
 | [CodeQL #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385883) | Success. |
 
-Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión real de SillyTavern. El baseline de modelo y la aceptación integral del adaptador son gates separados. No se registra aquí como aceptado un benchmark live completo posterior a PR #255.
+Este resultado pertenece al baseline histórico del 18-11. Para el resultado vigente sobre #269, usa la reconciliación del inicio de este documento y la [auditoría global del 19-11](project-audit-2026-11-19.md). Los tests `real_llm` y la aceptación manual de SillyTavern siguen siendo gates separados.
 
 ## 9. Límites de arquitectura que deben preservarse
 

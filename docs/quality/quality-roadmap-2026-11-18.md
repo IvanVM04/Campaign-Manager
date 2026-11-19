@@ -1,7 +1,7 @@
 # Auditoría actual y hoja de ruta de calidad
 
-**Fecha:** 2026-11-18 (actualización de decisiones: 2026-11-19)  
-**Baseline de código histórico de este snapshot:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado anterior a la fase NLU:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). **Main al iniciar PR #269:** `5cd3631787be21c3dcf81abb1354eed16b4a17d0` (PRs #267 y #268 integradas).  
+**Fecha:** 2026-11-18; reconciliación de estado: 2026-11-19  
+**Snapshot original:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado anterior a NLU:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). **Último main verificado:** `8276450babba6611a172e601d0c76b83ae8e449e` (PR #269 integrada).  
 **Baseline documental de este snapshot:** `ae52afcf9c172514a5d119fe301de11255f08091`; los cambios de arquitectura NLU del 2026-11-19 se enlazan como fuente activa separada.  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
@@ -22,7 +22,7 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 1. Mantener la arquitectura modular actual.
 2. No hacer tuning amplio de prompts sin un baseline live comparable.
 3. Mantener las fronteras de evidencia, visibilidad, reglas y escritura.
-4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#272 estén integradas.
+4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#273 estén integradas.
 5. Mantener CI determinista, Ruff, Pyright y validaciones contractuales como gates obligatorios de cada PR; diferir la ejecución live no autoriza a integrar cambios sin validación estática/determinista.
 6. Cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
 7. Diseñar la interfaz propia cuando los contratos y workflows de backend sean sólidos; SillyTavern seguirá siendo un cliente de integración, pero no el único camino de aceptación del producto.
@@ -34,15 +34,15 @@ El usuario ha decidido retrasar la próxima ejecución completa de los holdouts 
 
 1. PR #267: frontera de normalización de Intent (integrada en `main`).
 2. PR #268: separación de responsabilidades discursivas y extracción superficial (integrada en `main`).
-3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales (en curso).
-4. PR #270: piloto offline de NLP (decisión basada en resultados; no implica añadir Stanza/spaCy a producción).
-5. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra.
-6. PR #272: política de incertidumbre calibrable y checkpoints durables dependientes.
-7. PR #273: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
+3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales (integrada en `main`).
+4. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra (siguiente trabajo).
+5. PR #272: piloto offline de NLP opcional, usando #271 para comparar; no implica añadir Stanza/spaCy a producción.
+6. PR #273: política de incertidumbre calibrable y checkpoints durables dependientes.
+7. PR #274: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
 
-La referencia normativa es [Player-language understanding architecture — 2026-11-19](../architecture/player-language-understanding-architecture-2026-11-19.md). Los informes históricos de calidad y las puntuaciones obtenidas antes de PR #266 no deben extrapolarse a la arquitectura posterior.
+La referencia normativa es [Player-language understanding architecture — 2026-11-19](../architecture/player-language-understanding-architecture-2026-11-19.md) y la reconciliación global más reciente es [project-audit-2026-11-19](../architecture/project-audit-2026-11-19.md). Los informes históricos de calidad y las puntuaciones anteriores a #266 no deben extrapolarse a la arquitectura posterior.
 
-La demora afecta a la ejecución **live** completa, no a la validación de código: cada PR continúa necesitando CI determinista, lint, tipos y pruebas de contrato aplicables. No se ejecutará Ollama como prueba de aceptación hasta el gate #273 salvo que exista una necesidad diagnóstica puntual aprobada y claramente separada del benchmark completo.
+La demora afecta a la ejecución **live** completa, no a la validación de código: cada PR continúa necesitando CI determinista, lint, tipos y pruebas de contrato aplicables. No se ejecutará Ollama como prueba de aceptación hasta el gate #274 salvo que exista una necesidad diagnóstica puntual aprobada y claramente separada del benchmark completo.
 
 ## 2. Baseline verificado
 
@@ -52,8 +52,8 @@ Las PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255), [#260](htt
 
 | Check | Resultado observado |
 |---|---|
-| Python determinista | **2.050 passed, 22 deselected** |
-| Cobertura combinada | **85,18 %** (gate configurado: 85 %) |
+| Python determinista — main `8276450` | **2.188 passed, 22 deselected** |
+| Cobertura combinada | **85,23 %** (88,8 % líneas; 75,9 % ramas; gate configurado: 85 %) |
 | Ruff | Correcto |
 | Tests JavaScript | Correctos |
 | Pyright obligatorio (models/rules_engine/bootstrap/operations) | Correcto |
@@ -61,7 +61,7 @@ Las PR [#255](https://github.com/IvanVM04/Campaign-Manager/pull/255), [#260](htt
 | CI summary | Correcto |
 | CodeQL Python + JavaScript | Correcto |
 
-Evidencia más reciente: [Tests run #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385868) y [CodeQL run #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385883), ambos sobre el commit ae52afcf9c172514a5d119fe301de11255f08091, posterior a PR #261. El job de tests informa 2.050 passed, 22 deselected y 85,18 % de cobertura combinada; Ruff, ambos alcances Pyright, JavaScript y CI summary pasan. CodeQL completa correctamente. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
+Evidencia actual: [Tests run #44546831896](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44546831896) y [CodeQL run #44546832517](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44546832517), sobre `8276450babba6611a172e601d0c76b83ae8e449e`. El job Python informa 2.188 passed, 22 deselected y 85,23 % combinado; líneas 88,8 % y ramas 75,9 %. Ruff, ambos alcances Pyright, JavaScript y CodeQL pasan. Los 22 tests deseleccionados son `real_llm`: CI no inicia Ollama ni certifica la calidad del modelo. Tampoco certifica una sesión real de SillyTavern.
 
 La cobertura combinada está apenas por encima del mínimo. La línea de cobertura es alta, pero la cobertura de ramas global es menor; no se recomienda perseguir un porcentaje arbitrario. Se deben priorizar ramas de riesgo: rollback/commit, fencing y recuperación, revisión de campaña, errores de proveedor, clarificaciones, tiradas manuales, visibilidad y conflictos de identidad.
 
@@ -118,7 +118,7 @@ El backend tiene un subconjunto determinista de 5e 2014, no un rules engine comp
 
 ### QF-06 — La cobertura debe dirigirse por riesgo, no por porcentaje (P1)
 
-El gate de 85 % combinado ya está activo y el último run lo ha superado por poco (85,18 %). Añadir tests indiscriminadamente para elevar el número puede generar ruido.
+El gate de 85 % combinado ya está activo y el último run vigente sobre `main` lo supera por poco (85,23 %); la cobertura de ramas es 75,9 %. Añadir tests indiscriminadamente para elevar el número puede generar ruido. Priorizar ramas de alto riesgo.
 
 **Acción:** usar el XML de cobertura por paquete/ramas y el mapa de impacto para proteger especialmente estados transaccionales, reintentos, fencing, revisión de campaña, visibilidad, manual rolls y errores del proveedor. No eliminar asserts ni excluir módulos productivos.
 
@@ -168,19 +168,19 @@ Las fases están ordenadas por dependencia. Una fase no se cierra porque el cód
 
 ### Fase 0 — Baseline de repositorio y CI
 
-**Estado: completada en el baseline.**
+**Estado: completada y reconciliada sobre main `8276450` (2026-11-19).**
 
-- [x] PRs #255, #260 y #261 integradas en `main`.
-- [x] 2.050 tests deterministas correctos.
+- [x] PRs #267, #268 y #269 integradas en `main` (las PRs anteriores #255, #260 y #261 forman parte del historial).
+- [x] 2.188 tests deterministas correctos; 22 `real_llm` excluidos de CI.
 - [x] Ruff, JavaScript y ambos alcances Pyright correctos.
 - [x] CodeQL correcto.
-- [x] Cobertura combinada 85,18 %.
+- [x] Cobertura combinada 85,23 % (88,8 % líneas; 75,9 % ramas).
 
 **Salida:** baseline de código estable para planificar la siguiente medición. Esta fase no certifica Ollama/SillyTavern.
 
 ### Fase 1 — Reproducibilidad y baseline de IA
 
-**Prioridad: P0 — bloqueada hasta cerrar las fases estructurales #267–#272.**
+**Prioridad: P0 — bloqueada hasta cerrar las fases estructurales #267–#273.**
 
 1. Ejecutar semantic/predicate holdout, discourse pipeline, compound intent, mechanics y operation quality contra la misma revisión.
 2. Registrar commit, modelo/digest por rol, versión de Ollama, parámetros, `think`, timeout, contexto, hardware, repeticiones, número de llamadas y latencias.

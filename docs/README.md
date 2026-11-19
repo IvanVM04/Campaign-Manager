@@ -2,16 +2,17 @@
 
 This is the navigation entry point for maintainers, coding agents and product work. The repository contains both current source-of-truth documents and dated implementation/audit snapshots. **A date-stamped PR record is not automatically current guidance.**
 
-## Current source of truth — 2026-11-18
+## Current source of truth — 2026-11-19
 
 Read these first. They describe the current product target, source-verified implementation state and active quality priorities.
 
 - [Product requirements v0.2](product/product-requirements-2026-11-18.md) — product direction, confirmed design decisions, functional/non-functional requirements, desired UI, acceptance gates and proposed ideas clearly separated from approved requirements.
-- [Current system state and architecture map](architecture/current-state-2026-11-18.md) — source-verified implementation state, current turn workflow, package ownership, persistence/schema version, security boundary, verified CI and explicit product gaps.
+- [Current system state and architecture map](architecture/current-state-2026-11-18.md) — architecture snapshot dated 18 Nov with a 19 Nov reconciliation note.
+- [Project-wide audit — 19 Nov](architecture/project-audit-2026-11-19.md) — latest source-verified baseline at `8276450`, PR #267–#269 delivery, CI metrics and updated roadmap.
 - [Current architecture map](architecture/architecture-map-2026-11-18.md), [architecture audit](architecture/architecture-audit-2026-11-18.md) and [change-impact map](architecture/change-impact-map-2026-11-18.md) — complementary package/flow map, source-verified technical risks and regression surfaces.
 - [Player-language understanding architecture — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — active NLU/discourse/reference boundaries, normalization-stage order, evidence/authority invariants and structural PR roadmap.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
-- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — current quality/AI risks, verified CI baseline, live acceptance gates and sequenced priorities.
+- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — quality/AI risks, corrected evaluator-first sequence and live acceptance gates.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.
@@ -67,6 +68,8 @@ These documents describe current production boundaries. Prefer them over histori
 **Note:** [turn-resolution-lifecycle.md](architecture/turn-resolution-lifecycle.md) is retained as the original PR #28 proposal. It is historical, not the active implementation contract.
 
 ## Current AI understanding and quality evidence
+
+The latest project-wide baseline and reconciled milestone status are recorded in [the 2026-11-19 project audit](architecture/project-audit-2026-11-19.md). PR #269 is integrated; it is no longer in progress.
 
 - [Current quality roadmap](quality/quality-roadmap-2026-11-18.md) — authoritative priority order after PR #266; the full live model benchmark is deliberately gated behind the architecture milestones.
 - [Player-language understanding architecture](architecture/player-language-understanding-architecture-2026-11-19.md) — the contract source for the NLU structural work.
