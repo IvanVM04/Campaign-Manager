@@ -14,6 +14,7 @@ from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import OllamaProvider
 from services.turns.mechanics_adjudicator import MechanicsAdjudicator
+from tests.live_llm_config import thinking_for_role
 
 pytestmark = pytest.mark.real_llm
 
@@ -26,6 +27,7 @@ def _provider() -> OllamaProvider:
             OllamaProvider.DEFAULT_BASE_URL,
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+        think=thinking_for_role("mechanics"),
     )
 
 
