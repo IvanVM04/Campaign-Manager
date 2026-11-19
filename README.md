@@ -515,7 +515,7 @@ From a clean working tree, run:
 ```
 
 The script fetches and fast-forwards `origin/main`, switches to `main`, prepares
-the project test environment (preferring `uv sync --group test`), checks the
+the project test environment (preferring `uv sync --group test --no-lock`), checks the
 Ollama API and verifies that configured models are already installed. It then
 runs every test marked `real_llm` and writes a separate run directory under
 `artifacts/ollama/` containing:
@@ -527,7 +527,7 @@ runs every test marked `real_llm` and writes a separate run directory under
 - `reports/\*.json` — per-corpus content-free evaluation reports.
 
 An optional local `.env.ollama` file can contain the environment variables
-documented in the Ollama section above and the real-test overrides below.
+documented in the environment-variable block above.
 Existing shell environment values take precedence over that file; explicit
 script parameters take precedence over both. The runner never prints env-file
 values, stashes dirty changes, downloads models or copies prompts/completions
