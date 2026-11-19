@@ -312,7 +312,7 @@ def test_probe_ledger_does_not_retain_scenario_text_or_unannotated_gold():
 
     assert "held_out:action_attempt" in rendered
     assert "unmeasured_cases" in rendered
-    assert "utterance" not in rendered
+    assert "PLAYER SECRET TEXT" not in rendered
     assert "conditional" in rendered
 
 
@@ -434,3 +434,31 @@ def test_offline_runner_emits_only_aggregate_metadata(tmp_path):
     assert report["privacy"]["utterances_persisted"] is False
 
 
+
+
+
+def test_optional_stanza_dependency_is_not_loaded_until_adapter_creation(monkeypatch):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        if name == "stanza":
+            raise ImportError("simulated optional dependency absence")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    with pytest.raises(Exception, match="pip install --group nlp-pilot"):
+        StanzaParserAdapter()
+
+
+def test_default_project_dependencies_do_not_include_stanza():
+    import tomllib
+    from pathlib import Path
+
+    pyproject = tomllib.loads(
+        (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    assert "stanza" not in pyproject["project"]["dependencies"]
+    assert pyproject["dependency-groups"]["nlp-pilot"] == ["stanza==1.15.1"]
