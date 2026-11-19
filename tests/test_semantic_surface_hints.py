@@ -694,6 +694,11 @@ def test_split_literal_kinship_relation_is_reconstructed_as_one_reported_clause(
                 "reported_outcome": "not_claimed",
                 "target_mentions": [],
                 "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Mara",
+                    "family": "other",
+                    "arguments": [],
+                },
             },
             {
                 "index": 1,
@@ -705,6 +710,11 @@ def test_split_literal_kinship_relation_is_reconstructed_as_one_reported_clause(
                 "reported_outcome": "not_claimed",
                 "target_mentions": [],
                 "attributed_to": None,
+                "action_frame": {
+                    "predicate": "es hermana",
+                    "family": "interaction",
+                    "arguments": [],
+                },
             },
         ],
         "active_step_index": 0,
