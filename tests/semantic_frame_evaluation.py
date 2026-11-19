@@ -196,7 +196,9 @@ def _expected_argument_signature(argument: dict[str, Any]) -> str:
 
 def _frame_signature(frame: Any, index: int, *, expected: dict[str, Any]) -> str:
     """Project an observed frame onto fields which have independent gold."""
-    values = [f"frame:{index}", f"family={_label(getattr(frame, 'family', None))}"]
+    values = [f"frame:{index}"]
+    if "family" in expected:
+        values.append(f"family={_label(getattr(frame, 'family', None))}")
     if "predicate" in expected:
         values.append(f"predicate={getattr(frame, 'predicate', None)}")
     if "arguments" in expected:
@@ -209,7 +211,9 @@ def _frame_signature(frame: Any, index: int, *, expected: dict[str, Any]) -> str
 
 
 def _expected_frame_signature(frame: dict[str, Any], index: int) -> str:
-    values = [f"frame:{index}", f"family={frame['family']}"]
+    values = [f"frame:{index}"]
+    if "family" in frame:
+        values.append(f"family={frame['family']}")
     if "predicate" in frame:
         values.append(f"predicate={frame['predicate']}")
     if "arguments" in frame:
@@ -370,20 +374,27 @@ def score_semantic_frame_scenario(
         if Counter(expected_frame_signatures) != Counter(predicted_frame_signatures):
             failures.append("action_frame: one or more frames have wrong semantics")
 
-        expected_families = tuple(
-            f"frame:{index}|family|{frame['family']}"
+        family_gold = tuple(
+            (index, frame)
             for index, frame in enumerate(expected_frames)
+            if "family" in frame
         )
-        predicted_families = tuple(
-            f"frame:{index}|family|{_label(frame.family)}"
-            for index, frame in enumerate(comparable_frames)
-        )
-        _record_slots(
-            ledger,
-            f"action_frame_family:{family}",
-            expected_families,
-            predicted_families,
-        )
+        if family_gold:
+            expected_families = tuple(
+                f"frame:{index}|family|{frame['family']}"
+                for index, frame in family_gold
+            )
+            predicted_families = tuple(
+                f"frame:{index}|family|{_label(comparable_frames[index].family)}"
+                for index, _frame in family_gold
+                if index < len(comparable_frames)
+            )
+            _record_slots(
+                ledger,
+                f"action_frame_family:{family}",
+                expected_families,
+                predicted_families,
+            )
 
         expected_arguments: list[str] = []
         predicted_arguments: list[str] = []
@@ -410,17 +421,18 @@ def score_semantic_frame_scenario(
 
         for index, expected_frame in enumerate(expected_frames):
             actual = comparable_frames[index] if index < len(comparable_frames) else None
-            total += 1
-            observed_family = (
-                _value(getattr(actual, "family", None)) if actual is not None else None
-            )
-            if actual is not None and observed_family == expected_frame["family"]:
-                matched += 1
-            else:
-                failures.append(
-                    f"action_frame.family[{index}]: expected={expected_frame['family']!r} "
-                    f"observed={observed_family!r}"
+            if "family" in expected_frame:
+                total += 1
+                observed_family = (
+                    _value(getattr(actual, "family", None)) if actual is not None else None
                 )
+                if actual is not None and observed_family == expected_frame["family"]:
+                    matched += 1
+                else:
+                    failures.append(
+                        f"action_frame.family[{index}]: expected={expected_frame['family']!r} "
+                        f"observed={observed_family!r}"
+                    )
 
             expected_predicate = expected_frame.get("predicate")
             if expected_predicate is not None:
