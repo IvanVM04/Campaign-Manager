@@ -12,8 +12,9 @@ from models.discourse_evidence import (
 )
 from models.entity import Entity
 from models.world_state import WorldState
-from .entity_reference_resolver import EntityReferenceResolver
 from services.discourse_context import DiscourseContextBuilder
+
+from .entity_reference_resolver import EntityReferenceResolver
 
 
 class ConversationReferenceEvidenceExtractor:
