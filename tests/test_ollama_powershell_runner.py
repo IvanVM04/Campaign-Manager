@@ -32,6 +32,13 @@ def test_ollama_runner_synchronizes_shared_endpoint_and_think_defaults():
     assert "Mirror one configured value only when the other is not explicit." in source
 
 
+def test_ollama_runner_propagates_common_model_and_timeout_to_unset_roles():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert 'foreach ($role in @("INTENT", "MECHANICS", "EXTRACTION", "NARRATIVE"))' in source
+    assert 'CAMPAIGN_MANAGER_LLM_$($role)_MODEL' in source
+    assert 'CAMPAIGN_MANAGER_LLM_$($role)_TIMEOUT_SECONDS' in source
+
+
 def test_ollama_runner_executes_real_llm_tests_and_keeps_machine_readable_results():
     source = RUNNER.read_text(encoding="utf-8")
     assert '"-m", "real_llm"' in source
