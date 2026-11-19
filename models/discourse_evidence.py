@@ -7,6 +7,8 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
+from models.semantic_frames import SemanticObjectKind
+
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 
@@ -154,7 +156,7 @@ class ConversationReferenceMention:
 
     text: str
     step_index: int
-    kind_hint: object
+    kind_hint: SemanticObjectKind
     origins: tuple[DiscourseMentionOrigin, ...]
     start_offset: int | None = None
     end_offset: int | None = None
@@ -167,6 +169,8 @@ class ConversationReferenceMention:
             or self.step_index < 0
         ):
             raise ValueError("step_index must be a non-negative integer")
+        if not isinstance(self.kind_hint, SemanticObjectKind):
+            raise TypeError("kind_hint must be a SemanticObjectKind")
         if not isinstance(self.origins, tuple) or not self.origins:
             raise ValueError("origins must be a non-empty tuple")
         if any(not isinstance(item, DiscourseMentionOrigin) for item in self.origins):
