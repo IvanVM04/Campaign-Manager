@@ -9,10 +9,9 @@ diagnostics for the orchestration layer.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field, replace
 from typing import Any
-
-import unicodedata
 
 from models.player_intent_analysis import (
     MAX_STEPS,
