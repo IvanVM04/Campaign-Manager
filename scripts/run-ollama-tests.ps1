@@ -222,8 +222,35 @@ if (-not [string]::IsNullOrWhiteSpace($Think)) {
 }
 Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_HARDWARE" -Value $HardwareLabel
 
-Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL" -Value "http://localhost:11434"
-Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_OLLAMA_BASE_URL" -Value $env:CAMPAIGN_MANAGER_REAL_LLM_BASE_URL
+# The direct probes and role-based pipeline use different names for the same
+# defaults. Mirror one configured value only when the other is not explicit.
+if (
+    [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_REAL_LLM_BASE_URL) -and
+    -not [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_OLLAMA_BASE_URL)
+) {
+    Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL" -Value $env:CAMPAIGN_MANAGER_OLLAMA_BASE_URL
+}
+if (
+    [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_OLLAMA_BASE_URL) -and
+    -not [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_REAL_LLM_BASE_URL)
+) {
+    Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_OLLAMA_BASE_URL" -Value $env:CAMPAIGN_MANAGER_REAL_LLM_BASE_URL
+}
+if (
+    [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_REAL_LLM_THINK) -and
+    -not [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_OLLAMA_THINK)
+) {
+    Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_THINK" -Value $env:CAMPAIGN_MANAGER_OLLAMA_THINK
+}
+if (
+    [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_OLLAMA_THINK) -and
+    -not [string]::IsNullOrWhiteSpace($env:CAMPAIGN_MANAGER_REAL_LLM_THINK)
+) {
+    Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_OLLAMA_THINK" -Value $env:CAMPAIGN_MANAGER_REAL_LLM_THINK
+}
+
+Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_OLLAMA_BASE_URL" -Value "http://localhost:11434"
+Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL" -Value $env:CAMPAIGN_MANAGER_OLLAMA_BASE_URL
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_MODEL" -Value "gemma4:26b"
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT" -Value "120"
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_GIT_COMMIT" -Value $commit
