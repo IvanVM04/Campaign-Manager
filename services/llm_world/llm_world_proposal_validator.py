@@ -189,7 +189,13 @@ class LLMWorldProposalValidator:
         if not callable(renderer):
             return ""
         try:
-            rendered = json.loads(renderer(operation_types))
+            rendered_contract = renderer(operation_types)
+        except (TypeError, ValueError):
+            return ""
+        if not isinstance(rendered_contract, str):
+            return ""
+        try:
+            rendered = json.loads(rendered_contract)
         except (TypeError, ValueError, json.JSONDecodeError):
             return ""
         operations = rendered.get("operations") if isinstance(rendered, dict) else None
