@@ -1,13 +1,20 @@
-"""Small, provider-agnostic metrics ledger for semantic-understanding evaluations."""
+"""Provider-agnostic ledger for semantic-understanding evaluation metrics."""
 
 from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
+from math import ceil
 
 
 class SemanticEvaluationLedger:
-    """Collect comparable case, slot, discourse, operation and latency metrics."""
+    """Collect case, slot, discourse, operation and latency metrics.
+
+    Metric schema v1 explicitly publishes gold/predicted denominators. Empty
+    denominators remain unmeasured (None); they are never reported as 100%.
+    """
+
+    METRIC_SCHEMA_VERSION = 1
 
     def __init__(self) -> None:
         self._families: dict[str, dict[str, float]] = defaultdict(
@@ -19,6 +26,7 @@ class SemanticEvaluationLedger:
                 "latency_seconds": 0.0,
             }
         )
+        self._latencies: dict[str, list[float]] = defaultdict(list)
         self._entity_tp = 0
         self._entity_fp = 0
         self._entity_fn = 0
@@ -42,19 +50,42 @@ class SemanticEvaluationLedger:
         expected_slots: int,
         matched_slots: int,
         elapsed_seconds: float,
+        case_passed: bool | None = None,
     ) -> None:
-        if not family.strip():
+        """Record one case; callers can fail exact-case accuracy on extra FPs.
+
+        `matched_slots` is bounded by the gold denominator and therefore
+        measures recall. A scorer may set `case_passed=False` when it detects
+        unsupported extra predictions even if all gold slots were present.
+        """
+        if not isinstance(family, str) or not family.strip():
             raise ValueError("family must not be empty")
-        if expected_slots < 0 or not 0 <= matched_slots <= expected_slots:
+        if (
+            isinstance(expected_slots, bool)
+            or not isinstance(expected_slots, int)
+            or expected_slots < 0
+            or isinstance(matched_slots, bool)
+            or not isinstance(matched_slots, int)
+            or not 0 <= matched_slots <= expected_slots
+        ):
             raise ValueError("slot counts are inconsistent")
-        if elapsed_seconds < 0:
-            raise ValueError("elapsed_seconds must not be negative")
+        if (
+            isinstance(elapsed_seconds, bool)
+            or not isinstance(elapsed_seconds, (int, float))
+            or elapsed_seconds < 0
+        ):
+            raise ValueError("elapsed_seconds must be a non-negative number")
+        if case_passed is not None and not isinstance(case_passed, bool):
+            raise TypeError("case_passed must be a boolean or None")
+
         values = self._families[family]
         values["cases"] += 1
-        values["passed_cases"] += int(matched_slots == expected_slots)
+        passed = matched_slots == expected_slots if case_passed is None else case_passed
+        values["passed_cases"] += int(passed)
         values["expected_slots"] += expected_slots
         values["matched_slots"] += matched_slots
-        values["latency_seconds"] += elapsed_seconds
+        values["latency_seconds"] += float(elapsed_seconds)
+        self._latencies[family].append(float(elapsed_seconds))
 
     def record_semantic_slots(
         self,
@@ -63,18 +94,23 @@ class SemanticEvaluationLedger:
         expected_slots: Iterable[str],
         predicted_slots: Iterable[str],
     ) -> None:
-        """Measure semantic-slot precision/recall, including unsupported extras.
+        """Measure slot precision/recall with multiset matching.
 
-        Counter-based matching preserves multiplicity: a model cannot receive
-        full precision by returning every expected role plus duplicate or
-        invented arguments/relations.
+        Duplicates and unsupported extras are false positives; omitted gold
+        slots are false negatives. Signatures should be stable, text-free
+        structural labels rather than utterances or raw model completions.
         """
         if not isinstance(family, str) or not family.strip():
             raise ValueError("family must not be empty")
-        expected = Counter(expected_slots)
-        predicted = Counter(predicted_slots)
-        if any(not isinstance(item, str) or not item.strip() for item in (*expected, *predicted)):
+        expected_values = tuple(expected_slots)
+        predicted_values = tuple(predicted_slots)
+        if any(
+            not isinstance(item, str) or not item.strip()
+            for item in (*expected_values, *predicted_values)
+        ):
             raise ValueError("semantic slot signatures must be non-empty strings")
+        expected = Counter(expected_values)
+        predicted = Counter(predicted_values)
         matched = expected & predicted
         values = self._semantic_slots[family]
         values["true_positive"] += sum(matched.values())
@@ -165,38 +201,56 @@ class SemanticEvaluationLedger:
         return None if denominator == 0 else round(numerator / denominator, 4)
 
     @staticmethod
-    def _f1(true_positive: int, false_positive: int, false_negative: int) -> float | None:
-        # F1 is unmeasured only when there are no expected positives. When
-        # expected items exist but none are predicted, the measured F1 is 0.
+    def _f1(
+        true_positive: int,
+        false_positive: int,
+        false_negative: int,
+    ) -> float | None:
+        # No gold positives means that F1 is unmeasured, not a fabricated 1.0.
         if true_positive + false_negative == 0:
             return None
         denominator = 2 * true_positive + false_positive + false_negative
         return round((2 * true_positive) / denominator, 4)
 
+    @staticmethod
+    def _percentile(values: list[float], percentile: float) -> float | None:
+        """Return a nearest-rank percentile in seconds."""
+        if not values:
+            return None
+        ordered = sorted(values)
+        rank = max(1, ceil(percentile * len(ordered)))
+        return round(ordered[rank - 1], 3)
+
     def summary(self) -> dict[str, object]:
         families: dict[str, dict[str, object]] = {}
         for name, values in sorted(self._families.items()):
-            cases = values["cases"]
-            slots = values["expected_slots"]
+            cases = int(values["cases"])
+            slots = int(values["expected_slots"])
+            latencies = self._latencies[name]
+            passed_cases = int(values["passed_cases"])
             families[name] = {
-                "cases": int(cases),
-                "case_accuracy": self._ratio(values["passed_cases"], cases),
-                "expected_slots": int(slots),
+                "cases": cases,
+                "passed_cases": passed_cases,
+                "failed_cases": cases - passed_cases,
+                "case_accuracy": self._ratio(passed_cases, cases),
+                "case_denominator": cases,
+                "expected_slots": slots,
+                "matched_slots": int(values["matched_slots"]),
                 "slot_recall": self._ratio(values["matched_slots"], slots),
                 "mean_latency_seconds": (
-                    round(values["latency_seconds"] / cases, 3)
-                    if cases
-                    else None
+                    round(values["latency_seconds"] / cases, 3) if cases else None
                 ),
+                "latency_p50_seconds": self._percentile(latencies, 0.50),
+                "latency_p95_seconds": self._percentile(latencies, 0.95),
+                "latency_sample_count": len(latencies),
             }
+
         semantic_slot_quality: dict[str, dict[str, float | int | None]] = {}
         overall_tp = overall_fp = overall_fn = 0
         for family, values in sorted(self._semantic_slots.items()):
-            tp, fp, fn = (
-                values["true_positive"],
-                values["false_positive"],
-                values["false_negative"],
-            )
+            tp = values["true_positive"]
+            fp = values["false_positive"]
+            fn = values["false_negative"]
             precision = self._ratio(tp, tp + fp)
             recall = self._ratio(tp, tp + fn)
             f1 = self._f1(tp, fp, fn)
@@ -204,6 +258,9 @@ class SemanticEvaluationLedger:
                 "true_positive": tp,
                 "false_positive": fp,
                 "false_negative": fn,
+                "gold_slots": tp + fn,
+                "predicted_slots": tp + fp,
+                "matched_slots": tp,
                 "precision": precision,
                 "recall": recall,
                 "f1": f1,
@@ -211,15 +268,19 @@ class SemanticEvaluationLedger:
             overall_tp += tp
             overall_fp += fp
             overall_fn += fn
+
         overall_precision = self._ratio(overall_tp, overall_tp + overall_fp)
         overall_recall = self._ratio(overall_tp, overall_tp + overall_fn)
         overall_f1 = self._f1(overall_tp, overall_fp, overall_fn)
         return {
+            "metric_schema_version": self.METRIC_SCHEMA_VERSION,
             "families": families,
             "semantic_slot_quality": semantic_slot_quality,
             "semantic_slot_precision": overall_precision,
             "semantic_slot_recall": overall_recall,
             "semantic_slot_f1": overall_f1,
+            "semantic_slot_gold_denominator": overall_tp + overall_fn,
+            "semantic_slot_prediction_denominator": overall_tp + overall_fp,
             "entity_link_precision": self._ratio(
                 self._entity_tp, self._entity_tp + self._entity_fp
             ),
@@ -228,9 +289,7 @@ class SemanticEvaluationLedger:
             ),
             "correct_abstentions": self._correct_abstentions,
             "incorrect_abstentions": self._incorrect_abstentions,
-            "context_recall": self._ratio(
-                self._context_hits, self._context_expected
-            ),
+            "context_recall": self._ratio(self._context_hits, self._context_expected),
             "operation_precision": self._ratio(
                 self._operation_tp, self._operation_tp + self._operation_fp
             ),
@@ -243,25 +302,31 @@ class SemanticEvaluationLedger:
 
     def render(self) -> str:
         report = self.summary()
-        lines = ["Semantic-understanding evaluation:"]
+        lines = [f"Semantic-understanding evaluation (metric schema v{self.METRIC_SCHEMA_VERSION}):"]
         for family, values in report["families"].items():
             lines.append(
                 f"- {family}: cases={values['cases']}, "
+                f"passed={values['passed_cases']}, failed={values['failed_cases']}, "
                 f"case_accuracy={values['case_accuracy']}, "
+                f"expected_slots={values['expected_slots']}, "
                 f"slot_recall={values['slot_recall']}, "
-                f"mean_latency_seconds={values['mean_latency_seconds']}"
+                f"latency_p50_seconds={values['latency_p50_seconds']}, "
+                f"latency_p95_seconds={values['latency_p95_seconds']}"
             )
         for family, values in report["semantic_slot_quality"].items():
             lines.append(
-                f"- semantic_slots[{family}]: "
+                f"- semantic_slots[{family}]: tp={values['true_positive']}, "
+                f"fp={values['false_positive']}, fn={values['false_negative']}, "
+                f"gold={values['gold_slots']}, predicted={values['predicted_slots']}, "
                 f"precision={values['precision']}, recall={values['recall']}, "
-                f"f1={values['f1']}, fp={values['false_positive']}, "
-                f"fn={values['false_negative']}"
+                f"f1={values['f1']}"
             )
         for name in (
             "semantic_slot_precision",
             "semantic_slot_recall",
             "semantic_slot_f1",
+            "semantic_slot_gold_denominator",
+            "semantic_slot_prediction_denominator",
             "entity_link_precision",
             "entity_link_recall",
             "correct_abstentions",

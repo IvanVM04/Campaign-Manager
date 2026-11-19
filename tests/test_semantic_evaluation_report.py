@@ -2,7 +2,11 @@
 
 import json
 
-from tests.semantic_evaluation_report import write_live_evaluation_report
+from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
+from tests.semantic_evaluation_report import (
+    build_live_evaluation_report,
+    write_live_evaluation_report,
+)
 
 
 def test_report_writer_prefers_unique_report_directory_over_legacy_path(tmp_path, monkeypatch):
@@ -32,3 +36,62 @@ def test_report_writer_keeps_legacy_path_when_report_directory_is_absent(tmp_pat
 
     assert written == str(legacy_path)
     assert legacy_path.is_file()
+
+
+
+def test_live_report_drops_untrusted_provider_strings_and_invalid_metadata(tmp_path, monkeypatch):
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    class Provider:
+        model = "gemma4:12b"
+        timeout = 120
+        think = False
+
+        def get_model_digest(self):
+            return "sha256:deadbeef"
+
+        def get_server_version(self):
+            return "0.40.16"
+
+    monkeypatch.setenv("CAMPAIGN_MANAGER_GIT_COMMIT", "not-a-valid-sha PLAYER SECRET")
+    monkeypatch.setenv("CAMPAIGN_MANAGER_REAL_LLM_HARDWARE", "GPU label with private text")
+    ledger = SemanticEvaluationLedger()
+    report = build_live_evaluation_report(
+        evaluation_name="safe_eval",
+        corpus_name="holdout_v1.json",
+        provider=Provider(),
+        ledger=ledger,
+        scenario_count=1,
+        provider_calls=1,
+        elapsed_seconds=0.5,
+        scenario_filter="../private prompt",
+        usage_events=[{
+            "provider_role": "intent\\nSECRET",
+            "provider_model": "gemma4:12b",
+            "response_model": "private completion text",
+            "request_status": "completed",
+            "done_reason": "private completion",
+            "prompt": "PLAYER PRIVATE TEXT",
+            "completion": "SECRET COMPLETION",
+            "duration_ms": 100,
+            "prompt_eval_count": 20,
+        }],
+    )
+
+    assert report["metadata"]["git_commit"] is None
+    assert report["metadata"]["hardware_label"] is None
+    assert report["metadata"]["scenario_filter"] is None
+    assert report["provider_usage"] == [{
+        "provider_model": "gemma4:12b",
+        "request_status": "completed",
+        "duration_ms": 100,
+        "prompt_eval_count": 20,
+    }]
+
+    target = tmp_path / "safe.json"
+    write_live_evaluation_report(report, path=target)
+    serialized = target.read_text(encoding="utf-8")
+    assert "PLAYER PRIVATE TEXT" not in serialized
+    assert "SECRET COMPLETION" not in serialized
+    assert "private completion text" not in serialized
+    assert "private prompt" not in serialized
+    assert report["metric_schema_version"] == 1

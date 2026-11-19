@@ -19,12 +19,19 @@ from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.providers import OllamaProvider
 from services.turns.intent_interpreter import IntentInterpreter
+from tests.intent_analysis_evaluation import (
+    load_language_step_count_gold,
+    score_intent_analysis,
+)
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
 )
-from tests.semantic_frame_evaluation import score_semantic_frame_scenario
+from tests.semantic_frame_evaluation import (
+    load_semantic_frame_presence_gold,
+    score_semantic_frame_scenario,
+)
 
 pytestmark = pytest.mark.real_llm
 
@@ -69,55 +76,6 @@ def _make_context() -> TurnContext:
     )
 
 
-def _value(value):
-    return value.value if hasattr(value, "value") else value
-
-
-def _score_object(actual, expected: dict[str, object]) -> tuple[int, int, list[str]]:
-    matched = 0
-    failures = []
-    for field, wanted in expected.items():
-        observed = None if actual is None else _value(getattr(actual, field, None))
-        if observed == wanted:
-            matched += 1
-        else:
-            failures.append(f"{field}: expected={wanted!r} observed={observed!r}")
-    return matched, len(expected), failures
-
-
-def _score_language_scenario(analysis, expected: dict) -> tuple[int, int, list[str]]:
-    matched = 0
-    total = 0
-    failures: list[str] = []
-    for field in ("category", "active_step_index", "requires_clarification"):
-        observed = _value(getattr(analysis, field))
-        wanted = expected[field]
-        total += 1
-        if observed == wanted:
-            matched += 1
-        else:
-            failures.append(f"{field}: expected={wanted!r} observed={observed!r}")
-
-    steps = analysis.steps
-    step_expectations = (
-        ("step", analysis.active_step_index if analysis.active_step_index is not None else 0),
-        ("first_step", 0),
-        ("later_step", 1),
-    )
-    for key, index in step_expectations:
-        if key not in expected:
-            continue
-        wanted_fields = expected[key]
-        actual = steps[index] if index < len(steps) else None
-        score, count, errors = _score_object(actual, wanted_fields)
-        matched += score
-        total += count
-        failures.extend(
-            f"{key}[{index}].{error}" for error in errors
-        )
-    return matched, total, failures
-
-
 def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_property):
     corpus = json.loads(
         (FIXTURES / "language_understanding_corpus_holdout_v1.json").read_text(
@@ -127,6 +85,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     assert corpus["schema_version"] == 1
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 24
+    expected_step_counts = load_language_step_count_gold(corpus)
     scenario_filter = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID")
     scenarios = corpus["scenarios"]
     if scenario_filter:
@@ -151,26 +110,30 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
         repetitions = 3 if scenario["critical"] else 1
         for repetition in range(repetitions):
             case_started = perf_counter()
+            analysis = None
+            provider_error: str | None = None
             try:
                 analysis = interpreter.interpret(
                     context,
                     scenario["input"],
                 )
-                matched, total, failures = _score_language_scenario(
-                    analysis,
-                    scenario["expected"],
-                )
-            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed evaluation cases
-                matched, total = 0, 3 + len(scenario["expected"].get("step", {}))
-                failures = [f"provider/decoder error: {type(exc).__name__}: {exc}"]
+            except Exception as exc:  # noqa: BLE001 - failed calls remain scored misses
+                provider_error = type(exc).__name__
+
             elapsed = perf_counter() - case_started
-            provider_calls += 1
-            ledger.record_case(
-                scenario["family"],
-                expected_slots=total,
-                matched_slots=matched,
+            _matched, _total, scored_failures = score_intent_analysis(
+                analysis,
+                expected=scenario["expected"],
+                expected_step_count=expected_step_counts[scenario["id"]],
+                family=scenario["family"],
+                ledger=ledger,
                 elapsed_seconds=elapsed,
             )
+            failures = list(scored_failures)
+            if provider_error is not None:
+                failures.append(f"provider_or_decoder_error:{provider_error}")
+            provider_calls += 1
+
             if failures:
                 description = (
                     f"{scenario['id']} repetition={repetition + 1}: "
@@ -182,48 +145,46 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
                     observational_failures.append(description)
 
     total_seconds = perf_counter() - started
+    report = build_live_evaluation_report(
+        evaluation_name="language_intent_holdout",
+        corpus_name="language_understanding_corpus_holdout_v1.json",
+        provider=provider,
+        ledger=ledger,
+        scenario_count=len(scenarios),
+        provider_calls=provider_calls,
+        elapsed_seconds=total_seconds,
+        usage_events=usage_events,
+        scenario_filter=scenario_filter,
+    )
+    report_path = write_live_evaluation_report(report)
     ledger.emit(record_property, prefix="semantic_holdout_intent")
-    usage_summary = {
-        "calls": len(usage_events),
-        "failed_requests": sum(
-            event.get("request_status") == "failed" for event in usage_events
-        ),
-        "duration_ms_total": round(
-            sum(float(event.get("duration_ms", 0)) for event in usage_events), 3
-        ),
-        "prompt_bytes_total": sum(
-            int(event.get("prompt_bytes", 0)) for event in usage_events
-        ),
-        "prompt_tokens_total": sum(
-            int(event.get("prompt_eval_count", 0)) for event in usage_events
-        ),
-        "completion_tokens_total": sum(
-            int(event.get("eval_count", 0)) for event in usage_events
-        ),
-    }
-    record_property("semantic_holdout_intent_model", provider.model)
+    metadata = report["metadata"]
+    record_property("semantic_holdout_intent_model", metadata["model"])
     record_property(
         "semantic_holdout_intent_model_digest",
-        provider.get_model_digest() or "unavailable",
+        metadata["model_digest"] or "unavailable",
     )
     record_property(
         "semantic_holdout_intent_ollama_version",
-        provider.get_server_version() or "unavailable",
+        metadata["ollama_version"] or "unavailable",
     )
-    record_property("semantic_holdout_intent_timeout_seconds", provider.timeout)
+    record_property(
+        "semantic_holdout_intent_timeout_seconds",
+        metadata["timeout_seconds"]
+        if metadata["timeout_seconds"] is not None
+        else "unavailable",
+    )
     record_property(
         "semantic_holdout_intent_think",
-        "server_default" if provider.think is None else str(provider.think).lower(),
+        "server_default" if metadata["think"] is None else str(metadata["think"]).lower(),
     )
     record_property(
         "semantic_holdout_intent_git_commit",
-        os.getenv("GITHUB_SHA")
-        or os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
-        or "unavailable",
+        metadata["git_commit"] or "unavailable",
     )
     record_property(
         "semantic_holdout_intent_hardware",
-        os.getenv("CAMPAIGN_MANAGER_REAL_LLM_HARDWARE") or "unspecified",
+        metadata["hardware_label"] or "unspecified",
     )
     record_property("semantic_holdout_intent_cases", len(scenarios))
     record_property("semantic_holdout_intent_scenario_filter", scenario_filter or "all")
@@ -239,20 +200,16 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
     )
     record_property(
         "semantic_holdout_intent_provider_error_case_count",
-        sum(
-            "provider/decoder error:" in item
-            for item in critical_failures + observational_failures
-        ),
+        sum("provider_or_decoder_error:" in item for item in critical_failures + observational_failures),
     )
     record_property(
-        "semantic_holdout_intent_provider_usage",
-        json.dumps(usage_summary, sort_keys=True, separators=(",", ":")),
+        "semantic_holdout_intent_json_report",
+        report_path or "not_configured",
     )
     print(ledger.render())
     if observational_failures:
-        print("Non-critical held-out mismatches:\n" + "\n".join(observational_failures))
-    assert not critical_failures, "\n".join(critical_failures) + "\n" + ledger.render()
-
+        print("Non-critical held-out mismatches:\\n" + "\\n".join(observational_failures))
+    assert not critical_failures, "\\n".join(critical_failures) + "\\n" + ledger.render()
 
 def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     """Score action/relation surface predicates independently from other slots."""
@@ -264,6 +221,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     assert corpus["schema_version"] == 1
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 18
+    presence_gold = load_semantic_frame_presence_gold(corpus)
     predicate_gold = json.loads(
         (FIXTURES / "semantic_frame_predicate_gold_v1.json").read_text(
             encoding="utf-8"
@@ -322,16 +280,24 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     scenario["input"],
                 )
                 assert analysis.schema_version == 2
+                presence = presence_gold[scenario["id"]]
                 matched, total, failures = score_semantic_frame_scenario(
                     analysis,
                     scenario,
+                    expected_action_frame_count=presence["expected_action_frame_count"],
+                    expected_relation_count=presence["expected_relation_count"],
                     ledger=ledger,
                 )
-            except Exception as exc:  # noqa: BLE001 - provider/decoder failures are failed cases
-                matched, total = 0, 1
-                failures = [f"provider/decoder error: {type(exc).__name__}: {exc}"]
-                # A rejected response still counts as a missing expected predicate.
-                score_semantic_frame_scenario(None, scenario, ledger=ledger)
+            except Exception as exc:  # noqa: BLE001 - failed calls remain scored misses
+                presence = presence_gold[scenario["id"]]
+                matched, total, failures = score_semantic_frame_scenario(
+                    None,
+                    scenario,
+                    expected_action_frame_count=presence["expected_action_frame_count"],
+                    expected_relation_count=presence["expected_relation_count"],
+                    ledger=ledger,
+                )
+                failures.append(f"provider_or_decoder_error:{type(exc).__name__}")
             elapsed = perf_counter() - case_started
             provider_calls += 1
             ledger.record_case(
@@ -339,6 +305,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                 expected_slots=total,
                 matched_slots=matched,
                 elapsed_seconds=elapsed,
+                case_passed=not failures,
             )
             if failures:
                 description = (

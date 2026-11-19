@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "split": "held_out_annotations",
+  "source_corpus": "language_understanding_corpus_holdout_v1.json",
+  "description": "Exact ordered-step count gold keyed by immutable holdout IDs. Contains no utterances and is evaluation-only; never copy into prompts.",
+  "scenarios": [
+    {
+      "id": "holdout-attempt-lever",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-attempt-climb",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-attempt-pickpocket",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-attempt-light",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-question-door",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-question-map",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-question-owner",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-plan-dawn",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-plan-if",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-plan-after",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-observation-tracks",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-observation-lantern",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-npc-report",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-negated-pickup",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-negated-entry",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-failed-climb",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-failed-lock",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-correction-location",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-correction-person",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-correction-object",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-compound-observe-act",
+      "step_count": 2
+    },
+    {
+      "id": "holdout-compound-success-act",
+      "step_count": 2
+    },
+    {
+      "id": "holdout-compound-two-actions",
+      "step_count": 2
+    },
+    {
+      "id": "holdout-uncertain-suspicion",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-uncertain-rumour",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-player-dialogue",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-negated-preference",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-negative-dialogue",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-failed-direct",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-uncertain-report-follow-up-action",
+      "step_count": 2
+    },
+    {
+      "id": "holdout-attempt-result-uncertain",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-unrelated-uncertainty-after-attempt",
+      "step_count": 1
+    },
+    {
+      "id": "holdout-reported-npc-then-action",
+      "step_count": 2
+    },
+    {
+      "id": "holdout-refusal-then-distinct-action",
+      "step_count": 2
+    },
+    {
+      "id": "holdout-reported-npc-then-player-refusal",
+      "step_count": 2
+    }
+  ]
+}

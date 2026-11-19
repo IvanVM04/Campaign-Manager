@@ -14,11 +14,54 @@ from tests.semantic_frame_evaluation import score_semantic_frame_scenario
 from tests.test_real_llm_semantic_holdout import _optional_bool_environment_variable
 
 
-def _frame(predicate: str, family: str = "transfer"):
+def _argument(role: str, mention: str, kind_hint: str = "item_instance"):
+    return SimpleNamespace(
+        role=SimpleNamespace(value=role),
+        mention=SimpleNamespace(
+            text=mention,
+            kind_hint=SimpleNamespace(value=kind_hint),
+        ),
+    )
+
+
+def _frame(
+    predicate: str,
+    family: str = "transfer",
+    arguments=(),
+):
     return SimpleNamespace(
         predicate=predicate,
         family=SimpleNamespace(value=family),
-        arguments=(),
+        arguments=tuple(arguments),
+    )
+
+
+def _claim(
+    *,
+    subject="Mara",
+    object_="la guardia",
+    predicate="trabaja",
+    relation_family="employment",
+    polarity="positive",
+    modality="completed",
+    attributed_to=None,
+    temporal_expression=None,
+    step_index=0,
+):
+    return SimpleNamespace(
+        subject=SimpleNamespace(text=subject),
+        object=SimpleNamespace(text=object_),
+        predicate=predicate,
+        relation_family=SimpleNamespace(value=relation_family),
+        polarity=SimpleNamespace(value=polarity),
+        modality=SimpleNamespace(value=modality),
+        attributed_to=(
+            None
+            if attributed_to is None
+            else SimpleNamespace(text=attributed_to)
+        ),
+        temporal_expression=temporal_expression,
+        step_index=step_index,
     )
 
 
@@ -42,13 +85,15 @@ def test_action_predicate_surface_is_scored_independently_of_frame_family():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(frames=(_frame("Entrego", "other"),)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
         ledger=ledger,
     )
 
-    assert matched == 2
-    assert total == 3
-    assert len(failures) == 1
-    assert failures[0].startswith("action_frame.family:")
+    assert matched == 3
+    assert total == 4
+    assert any(item.startswith("action_frame.family[0]") for item in failures)
+    assert any(item.startswith("action_frame:") for item in failures)
     report = ledger.summary()
     family = report["families"]["predicate_surface:action_frame_predicate_surface"]
     quality = report["semantic_slot_quality"]["action_frame_predicate_surface"]
@@ -69,12 +114,14 @@ def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_val
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(frames=(_frame("entregar"),)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
         ledger=ledger,
     )
 
-    assert matched == 2  # frame existence and family pass; the predicate does not
-    assert total == 3
-    assert any(item.startswith("action_frame.predicate:") for item in failures)
+    assert matched == 3  # frame/count and family pass; the predicate does not
+    assert total == 4
+    assert any(item.startswith("action_frame.predicate[0]:") for item in failures)
     metrics = ledger.summary()["semantic_slot_quality"][
         "action_frame_predicate_surface"
     ]
@@ -84,16 +131,11 @@ def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_val
 
 
 def test_relation_predicate_surface_is_independent_of_relation_direction():
-    claim = SimpleNamespace(
-        subject=SimpleNamespace(text="la guardia"),
-        object=SimpleNamespace(text="Mara"),
+    claim = _claim(
+        subject="la guardia",
+        object_="Mara",
         predicate="trabaja",
-        relation_family=SimpleNamespace(value="membership"),
-        polarity=SimpleNamespace(value="positive"),
-        modality=SimpleNamespace(value="completed"),
-        source_excerpt="Bram pertenece al gremio de cartógrafos.",
-        attributed_to=None,
-        temporal_expression=None,
+        relation_family="membership",
     )
     scenario = {
         "id": "relation-predicate-01",
@@ -109,12 +151,14 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(claims=(claim,)),
         scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
         ledger=ledger,
     )
 
-    assert matched == 2  # predicate and polarity match despite reversed direction
-    assert total == 4
-    assert any(item.startswith("relation direction:") for item in failures)
+    assert matched == 4  # frame/count, relation count, predicate and polarity match
+    assert total == 6
+    assert any(item.startswith("relation direction[0]:") for item in failures)
     assert not any(item.startswith("relation.predicate:") for item in failures)
     assert not any(item.startswith("relation.polarity:") for item in failures)
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
@@ -133,7 +177,13 @@ def test_missing_action_predicate_is_a_false_negative():
         },
     }
     ledger = SemanticEvaluationLedger()
-    score_semantic_frame_scenario(None, scenario, ledger=ledger)
+    score_semantic_frame_scenario(
+        None,
+        scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
+        ledger=ledger,
+    )
 
     metrics = ledger.summary()["semantic_slot_quality"]["action_frame_predicate_surface"]
     assert metrics["true_positive"] == 0
@@ -220,16 +270,11 @@ def test_live_holdout_think_setting_rejects_invalid_values(monkeypatch):
         _optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK")
 
 def test_relation_predicate_surface_survives_a_missing_leading_article():
-    claim = SimpleNamespace(
-        subject=SimpleNamespace(text="anillo de plata"),
-        object=SimpleNamespace(text="Aldric"),
+    claim = _claim(
+        subject="anillo de plata",
+        object_="Aldric",
         predicate="pertenece",
-        relation_family=SimpleNamespace(value="ownership"),
-        polarity=SimpleNamespace(value="positive"),
-        modality=SimpleNamespace(value="completed"),
-        source_excerpt="El anillo de plata pertenece a Aldric.",
-        attributed_to=None,
-        temporal_expression=None,
+        relation_family="ownership",
     )
     scenario = {
         "id": "relation-predicate-article-01",
@@ -246,11 +291,13 @@ def test_relation_predicate_surface_survives_a_missing_leading_article():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(claims=(claim,)),
         scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
         ledger=ledger,
     )
 
-    assert matched == 5
-    assert total == 5
+    assert matched == 7
+    assert total == 7
     assert failures == []
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
     assert metrics["precision"] == 1.0
@@ -259,24 +306,12 @@ def test_relation_predicate_surface_survives_a_missing_leading_article():
 
 
 def test_action_arguments_are_scored_even_when_frame_family_is_wrong():
-    frame = SimpleNamespace(
-        predicate="Entrego",
-        family=SimpleNamespace(value="interaction"),
+    frame = _frame(
+        "Entrego",
+        "interaction",
         arguments=(
-            SimpleNamespace(
-                role=SimpleNamespace(value="theme"),
-                mention=SimpleNamespace(
-                    text="el pergamino",
-                    kind_hint=SimpleNamespace(value="item_instance"),
-                ),
-            ),
-            SimpleNamespace(
-                role=SimpleNamespace(value="recipient"),
-                mention=SimpleNamespace(
-                    text="Mara",
-                    kind_hint=SimpleNamespace(value="character"),
-                ),
-            ),
+            _argument("theme", "el pergamino"),
+            _argument("recipient", "Mara", "character"),
         ),
     )
     scenario = {
@@ -301,10 +336,153 @@ def test_action_arguments_are_scored_even_when_frame_family_is_wrong():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(frames=(frame,)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
     )
 
-    assert matched == 4
-    assert total == 5
-    assert len(failures) == 1
-    assert failures[0].startswith("action_frame.family:")
+    assert matched == 5
+    assert total == 6
+    assert any(item.startswith("action_frame.family[0]") for item in failures)
+    assert any(item.startswith("action_frame:") for item in failures)
 
+
+
+
+def test_extra_action_frame_is_counted_as_false_positive():
+    scenario = {
+        "id": "action-extra-frame",
+        "family": "frame_extras",
+        "expected_action_frame": {
+            "predicate": "Entrego",
+            "family": "transfer",
+            "arguments": [],
+        },
+    }
+    ledger = SemanticEvaluationLedger()
+    _matched, _total, failures = score_semantic_frame_scenario(
+        _analysis(frames=(
+            _frame("Entrego", "transfer"),
+            _frame("Abro", "interaction"),
+        )),
+        scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
+        ledger=ledger,
+    )
+
+    assert any(item.startswith("action_frame.count:") for item in failures)
+    presence = ledger.summary()["semantic_slot_quality"]["action_frame_presence:frame_extras"]
+    assert presence["true_positive"] == 1
+    assert presence["false_positive"] == 1
+    assert presence["false_negative"] == 0
+
+
+def test_duplicate_and_extra_action_arguments_are_false_positives():
+    expected_argument = {
+        "role": "theme",
+        "mention": "la llave",
+        "kind_hint": "item_instance",
+    }
+    scenario = {
+        "id": "action-extra-arguments",
+        "family": "argument_extras",
+        "expected_action_frame": {
+            "predicate": "Entrego",
+            "family": "transfer",
+            "arguments": [expected_argument],
+        },
+    }
+    ledger = SemanticEvaluationLedger()
+    frame = _frame(
+        "Entrego",
+        "transfer",
+        arguments=(
+            _argument("theme", "la llave"),
+            _argument("theme", "la llave"),
+            _argument("recipient", "Mara", "character"),
+        ),
+    )
+    _matched, _total, failures = score_semantic_frame_scenario(
+        _analysis(frames=(frame,)),
+        scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
+        ledger=ledger,
+    )
+
+    assert any(item.startswith("action_frame.arguments:") for item in failures)
+    arguments = ledger.summary()["semantic_slot_quality"]["action_arguments:argument_extras"]
+    assert arguments["true_positive"] == 1
+    assert arguments["false_positive"] == 2
+    assert arguments["false_negative"] == 0
+
+
+def test_extra_relation_claim_is_counted_as_false_positive():
+    scenario = {
+        "id": "relation-extra-claim",
+        "family": "relation_extras",
+        "expected_relation": {
+            "subject": "Mara",
+            "object": "la guardia",
+            "predicate": "trabaja",
+            "relation_family": "employment",
+            "polarity": "positive",
+            "modality": "completed",
+            "attributed_to": None,
+            "temporal_expression": None,
+            "step_index": 0,
+        },
+    }
+    ledger = SemanticEvaluationLedger()
+    _matched, _total, failures = score_semantic_frame_scenario(
+        _analysis(claims=(
+            _claim(),
+            _claim(subject="Mara", object_="el gremio", predicate="pertenece", relation_family="membership"),
+        )),
+        scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
+        ledger=ledger,
+    )
+
+    assert any(item.startswith("relation.count:") for item in failures)
+    presence = ledger.summary()["semantic_slot_quality"]["relation_presence:relation_extras"]
+    assert presence["true_positive"] == 1
+    assert presence["false_positive"] == 1
+    assert presence["false_negative"] == 0
+
+
+def test_relation_attribution_and_temporal_fields_are_scored_from_gold():
+    scenario = {
+        "id": "relation-attribution-temporal",
+        "family": "relation_details",
+        "expected_relation": {
+            "subject": "Mara",
+            "object": "la guardia",
+            "predicate": "trabaja",
+            "relation_family": "employment",
+            "polarity": "positive",
+            "modality": "reported",
+            "attributed_to": "Bram",
+            "temporal_expression": "desde ayer",
+            "step_index": 0,
+        },
+    }
+    ledger = SemanticEvaluationLedger()
+    claim = _claim(
+        modality="reported",
+        attributed_to="Bram",
+        temporal_expression="desde ayer",
+    )
+    matched, total, failures = score_semantic_frame_scenario(
+        _analysis(claims=(claim,)),
+        scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
+        ledger=ledger,
+    )
+
+    assert matched == total
+    assert failures == []
+    assert ledger.summary()["semantic_slot_quality"]["relation_attributed_to:relation_details"]["f1"] == 1.0
+    assert ledger.summary()["semantic_slot_quality"]["relation_temporal_expression:relation_details"]["f1"] == 1.0
