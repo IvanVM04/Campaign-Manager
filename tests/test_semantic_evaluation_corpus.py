@@ -169,3 +169,37 @@ def test_semantic_frame_predicate_gold_sidecar_covers_immutable_holdout():
 
     assert action_count == 10
     assert relation_count == 10
+
+
+
+def test_semantic_frame_presence_gold_declares_negative_controls_without_text():
+    """Explicit zero counts are gold, while absent detailed fields stay unmeasured."""
+    from tests.semantic_frame_evaluation import load_semantic_frame_presence_gold
+
+    corpus = _read("semantic_frame_corpus_holdout_v1.json")
+    annotations = _read("semantic_frame_presence_gold_v1.json")
+    counts = load_semantic_frame_presence_gold(corpus)
+
+    assert annotations["schema_version"] == 1
+    assert annotations["split"] == "held_out_annotations"
+    assert annotations["source_corpus"] == "semantic_frame_corpus_holdout_v1.json"
+    assert len(counts) == 20
+    assert all(
+        set(item) == {
+            "id", "expected_action_frame_count", "expected_relation_count"
+        }
+        for item in annotations["scenarios"]
+    )
+    assert all("input" not in item and "utterance" not in item for item in annotations["scenarios"])
+
+    for scenario in corpus["scenarios"]:
+        expected = counts[scenario["id"]]
+        assert expected["expected_action_frame_count"] == int(
+            "expected_action_frame" in scenario
+        )
+        assert expected["expected_relation_count"] == int(
+            "expected_relation" in scenario
+        )
+
+    assert sum(item["expected_action_frame_count"] for item in counts.values()) == 10
+    assert sum(item["expected_relation_count"] for item in counts.values()) == 10
