@@ -162,7 +162,9 @@ def test_explicit_positive_npc_speech_report_is_normalized_to_dialogue_without_r
 
 def test_explicit_npc_speech_normalization_does_not_rewrite_negation_or_quotes():
     from models.player_intent_analysis import PlayerIntentAnalysis
-    from services.turns.intent_normalization_pipeline import _normalize_explicit_npc_speech_report
+    from services.turns.intent_normalization_pipeline import (
+        _normalize_explicit_npc_speech_report,
+    )
 
     for utterance in (
         "Ellas no contestan.",
