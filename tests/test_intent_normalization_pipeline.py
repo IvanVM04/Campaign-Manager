@@ -171,8 +171,9 @@ def test_pipeline_classifies_an_unverified_named_quoted_speaker_as_dialogue():
 
     assert result.analysis.category.value == "dialogue"
     assert result.analysis.active_step_index is None
-    assert result.analysis.steps[0].actor.value == "other"
+    assert result.analysis.steps[0].actor.value == "npc"
     assert result.analysis.steps[0].modality.value == "dialogue"
+    assert result.analysis.steps[0].attributed_to == "Mara"
     assert result.analysis.steps[0].action_frame.family.value == "communication"
     assert result.diagnostics.unverified_named_speaker_dialogue_normalized is True
 
