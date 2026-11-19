@@ -255,6 +255,12 @@ Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_MODEL" -Value "gemma4:26b
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT" -Value "120"
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_GIT_COMMIT" -Value $commit
 
+# Apply common model and timeout to every role only when no role override exists.
+foreach ($role in @("INTENT", "MECHANICS", "EXTRACTION", "NARRATIVE")) {
+    Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_LLM_$($role)_MODEL" -Value $env:CAMPAIGN_MANAGER_REAL_LLM_MODEL
+    Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_LLM_$($role)_TIMEOUT_SECONDS" -Value $env:CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT
+}
+
 if (-not [string]::IsNullOrWhiteSpace($ScenarioId)) {
     Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID" -Value $ScenarioId
 }
