@@ -7,7 +7,7 @@
 **Database schema:** version 34 (`CURRENT_VERSION = 34`).  
 **Purpose:** current source-linked navigation for maintainers. Product requirements describe the target; this map describes the code that exists at the verified code baseline.
 
-> **Actualización — 2026-11-19:** el baseline de código integrado ahora es `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). La ejecución CI de ese SHA registró 2.148 tests deterministas pasados, 22 pruebas `real_llm` excluidas y 85,31 % de cobertura combinada ([run #44417534718](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44417534718)). La secuencia de refactorización del lenguaje queda definida por el documento activo [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). La extracción de normalización de PR #267 está en una rama y no se representa como ya integrada en `main`.
+> **Actualización — 2026-11-19:** las PR #267 (normalización de Intent) y #268 (colaboradores discursivos) ya están integradas en `main`. El baseline de esta siguiente fase estructural es `5cd3631787be21c3dcf81abb1354eed16b4a17d0`. La siguiente entrega planificada es PR #269 (contratos de evidencia, ranking y abstención para referencias conversacionales); no se representa como integrada hasta completar sus gates de CI. La secuencia y los criterios de aceptación están definidos en [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md).
 
 > Read [product requirements](../product/product-requirements-2026-11-18.md) for approved product direction and [the quality roadmap](../quality/quality-roadmap-2026-11-18.md) for ordered validation work. The new UI, multi-character control, NPC delegation, custom rules imports, configurable confidence threshold and full campaign import/export are requirements, not current implementation claims.
 
@@ -168,9 +168,8 @@ The current code still uses one structured Intent interpretation and a determini
 
 The longer-term structural sequence is:
 - #267: explicit normalization boundary and typed diagnostics (integrated);
-- #268: decompose discourse topic/history selection, surface mention extraction, speaker signals and rendering (this PR);
-- #268: decompose discourse topic/history selection, surface mention extraction, speech signals and rendering;
-- #269: formalize conversation-reference evidence and candidate/abstention contracts;
+- #268: decompose discourse topic/history selection, surface mention extraction, speaker signals and rendering (integrated);
+- #269: formalize conversation-reference evidence, mention provenance and candidate/abstention contracts (current PR);
 - #270: optional offline NLP-library pilot and dependency decision;
 - #271: complete evaluation metrics, including missing/extra step/slot accounting;
 - #272: calibrated uncertainty and durable dependent-slot checkpoints;
