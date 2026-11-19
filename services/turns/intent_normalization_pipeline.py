@@ -185,7 +185,10 @@ def _normalize_compound_player_dialogue_then_action(
         return None
     if not _PLAYER_DIALOGUE_PREFIX_RE.match(first_excerpt):
         return None
-    if not _FOLLOW_UP_PLAYER_ACTION_RE.search(evidence_text[first_end:]):
+    sequence_and_second_step = (
+        evidence_text[first_end:second_start] + " " + second_excerpt
+    )
+    if not _FOLLOW_UP_PLAYER_ACTION_RE.search(sequence_and_second_step):
         return None
     if not re.search(
         r"\b(?:intento|trato\s+de|pruebo|procuro|examino|examiné|"
