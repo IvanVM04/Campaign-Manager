@@ -15,8 +15,6 @@ from pathlib import Path
 from time import perf_counter, process_time
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-
 from services.nlp_pilot.probes import (
     NlpPilotProbeLedger,
     expected_utterance_probes,
@@ -27,6 +25,7 @@ from services.nlp_pilot.probes import (
 from services.nlp_pilot.stanza_adapter import StanzaParserAdapter
 
 
+ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures"
 CORPORA = {
     "development": "language_understanding_corpus_v1.json",
