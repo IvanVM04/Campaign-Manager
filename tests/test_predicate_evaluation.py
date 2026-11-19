@@ -152,7 +152,7 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
 
     assert matched == 4  # frame/count, relation count, predicate and polarity match
     assert total == 6
-    assert any(item.startswith("relation direction:") for item in failures)
+    assert any(item.startswith("relation direction[0]:") for item in failures)
     assert not any(item.startswith("relation.predicate:") for item in failures)
     assert not any(item.startswith("relation.polarity:") for item in failures)
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
