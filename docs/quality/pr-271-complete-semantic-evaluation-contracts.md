@@ -1,6 +1,6 @@
 # PR #271 — complete semantic evaluation contracts
 
-**Status:** active implementation; resumable checkpoint.  
+**Status:** active implementation; resumable checkpoint. PR [#271](https://github.com/IvanVM04/Campaign-Manager/pull/271) is open as draft.  
 **Branch:** `quality/semantic-evaluation-contracts-pr271`  
 **Base:** `main` at `c11e0541b855bcde24a8d86616d9e384a3ebda8c` (PR #270 merged).  
 **Scope:** evaluation/tests/fixtures/documentation only; no production prompt, model schema, resolver, mechanics or world-write changes planned.
@@ -37,40 +37,42 @@ Make semantic evaluation reliable enough to compare prompt/model/parser changes 
 - [x] Confirm no existing PR/branch for this #271 task.
 - [x] Create `quality/semantic-evaluation-contracts-pr271` from the exact main SHA above.
 - [x] Add this durable checkpoint before implementation.
+- [x] Open draft PR #271 and keep all work on its existing branch.
 
 ### WP1 — Gap inventory and scoring design
 - [x] Inspect language, compound-intent and semantic-frame gold contracts.
 - [x] Identify missing exact step-count checks in the general language holdout.
 - [x] Identify extra/duplicate frame, argument and relation false-positive gaps.
-- [ ] Define canonical slot signatures and matching semantics for arguments and relations.
-- [ ] Decide whether every absence is explicitly gold or remains unmeasured; never assume unannotated fields are empty.
+- [x] Define canonical slot signatures and multiset matching semantics for arguments and relations.
+- [x] Add explicit frame/relation presence-count gold for all 20 semantic-frame holdout cases; zero counts are explicit negative controls, while missing detailed annotations remain unmeasured.
 
 ### WP2 — Shared scoring contracts
-- [ ] Add a reusable scorer for ordered Intent steps and global category/active-step/clarification fields.
-- [ ] Make exact step count mandatory where the corpus gold defines it.
-- [ ] Score actor, modality, polarity, reported outcome and attribution only where gold exists.
-- [ ] Score semantic frame count/family/predicate/arguments using multiset matching.
-- [ ] Score relation claim count/direction/predicate/family/polarity/modality/attribution/temporal fields using multiset matching.
-- [ ] Ensure extra and duplicate predictions become FP, missing gold becomes FN.
-- [ ] Keep unknown/unannotated fields unmeasured rather than treating them as correct.
+- [x] Add a reusable scorer for ordered Intent steps and global category/active-step/clarification fields.
+- [x] Make exact step count mandatory for all 35 general-language holdout cases using a text-free sidecar.
+- [x] Score actor, modality, polarity, reported outcome and attribution only where gold exists.
+- [x] Score semantic frame count/family/predicate/arguments using explicit counts and multiset matching.
+- [x] Score relation claim count/direction/predicate/family/polarity/modality/attribution/temporal fields using explicit counts and field-level gold.
+- [x] Ensure extra and duplicate predictions become FP, missing gold becomes FN.
+- [x] Keep unknown/unannotated fields unmeasured rather than treating them as correct.
 
 ### WP3 — Stable metric/report schema
-- [ ] Define a versioned metric schema with per-family TP/FP/FN, precision, recall and F1.
-- [ ] Publish exact-case accuracy and step-count accuracy separately from slot metrics.
-- [ ] Publish per-field/per-family denominators, including zero/unmeasured denominators.
-- [ ] Add latency P50/P95 if reliable observations are available in the current harness; otherwise document as deferred.
-- [ ] Preserve content-free report allowlists and reject sensitive provider strings.
+- [x] Define metric schema v1 with per-family TP/FP/FN, precision, recall and F1.
+- [x] Publish exact-case accuracy and step-count accuracy separately from slot metrics.
+- [x] Publish gold/prediction denominators, including zero/unmeasured values.
+- [x] Add latency P50/P95 (nearest-rank) and sample counts.
+- [x] Harden JSON reports to retain only bounded identifiers, fixed enums and non-negative numeric telemetry; reject untrusted provider strings.
 
 ### WP4 — Offline tests and corpus integrity
-- [ ] Add fake-analysis tests for missing, extra, duplicate, swapped, direction-inverted and wrong-attribution outputs.
-- [ ] Add zero-denominator and missing-analysis tests.
-- [ ] Prove held-out fixtures remain immutable and gold sidecars stay text-free.
-- [ ] Prove evaluation-only gold is not embedded in the Intent prompt.
-- [ ] Keep existing compound scorer behavior and add parity tests.
+- [x] Add fake-analysis tests for missing/extra steps, duplicate/extra arguments, extra frames/claims, direction inversion, wrong family, attribution and temporal fields.
+- [x] Add zero-denominator, missing-analysis and latency-percentile tests.
+- [x] Prove step-count and frame-presence gold sidecars are text-free and cover their immutable holdouts.
+- [x] Prove evaluation-only gold is not embedded in the Intent prompt.
+- [x] Preserve compound scorer behavior and make exact-case accuracy fail on extra-step predictions.
 
 ### WP5 — Live harness integration and documentation
-- [ ] Integrate shared scoring into existing real-LLM harnesses without requiring Ollama during CI.
-- [ ] Ensure provider errors are scored as misses and not silently omitted.
+- [x] Integrate shared scoring into the general Intent and semantic-frame real-LLM harnesses without requiring Ollama during CI.
+- [x] Ensure provider errors are scored as misses and not silently omitted.
+- [x] Write a content-free language holdout JSON report through the existing report directory/path configuration.
 - [ ] Update PR record, architecture roadmap and quality roadmap with exact metric definitions and commands.
 - [ ] Run focused offline tests, Ruff, Pyright and full deterministic CI.
 - [ ] Confirm no production files or prompts changed.
@@ -88,8 +90,8 @@ Make semantic evaluation reliable enough to compare prompt/model/parser changes 
 ## Resumption notes
 
 Update this section after each implementation batch:
-- Last completed work package:
-- Last commit:
-- Files changed:
-- Tests run and results:
-- Known blockers / next exact action:
+- Last completed work package: WP0–WP4 complete; WP5 partially complete. WP6 pending.
+- Last commit: `d6f498af7e87ffc3e00f3d2f56adb17e64c03809`.
+- Files changed: checkpoint, two text-free gold sidecars, Intent scorer, semantic-frame scorer, metric ledger, safe report builder, compound scorer, live harnesses and offline tests.
+- Tests run and results: no full run has yet completed on the current head. An earlier lint run found two RUF059 unused-variable errors in the Intent harness; fixed in `992c438`. Subsequent runs were cancelled by newer pushes. Current CI run on this checkpoint SHA `d6f498a` is in progress: Tests [44557775808](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44557775808), CodeQL [44557775805](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44557775805).
+- Known blockers / next exact action: wait for current CI. Inspect failure logs, fix any Ruff/Pyright/Python test regressions, update this checkpoint to the new head, then add evaluator/roadmap documentation and complete final diff review. Do not run Ollama live as part of deterministic CI.
