@@ -309,6 +309,9 @@ def _collapse_split_attempt_outcome(
         len(steps) != 2
         or len(evidence) > 300
         or normalized.get("relation_claims")
+        # Reported speech and its epistemic caveat are handled by the
+        # speaker-scoping rule below; they are not player-attempt outcomes.
+        or _REPORTED_SPEAKER_RE.search(evidence) is not None
     ):
         return steps
     first, second = steps
