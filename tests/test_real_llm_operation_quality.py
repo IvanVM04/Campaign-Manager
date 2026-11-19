@@ -15,11 +15,12 @@ from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
 from services.turns.intent_interpreter import IntentInterpreter
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
+from tests.live_llm_config import thinking_for_role
 
 pytestmark = pytest.mark.real_llm
 
 
-def _provider() -> OllamaProvider:
+def _provider(role: str = "intent") -> OllamaProvider:
     return OllamaProvider(
         model=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b"),
         base_url=os.getenv(
@@ -27,6 +28,7 @@ def _provider() -> OllamaProvider:
             OllamaProvider.DEFAULT_BASE_URL,
         ),
         timeout=float(os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT", "120")),
+        think=thinking_for_role(role),
     )
 
 
@@ -49,8 +51,8 @@ def _operation_signature(operation) -> str:
 
 def test_real_ollama_operation_quality_and_critical_negative_controls(record_property):
     model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL", "gemma4:26b")
-    interpreter = IntentInterpreter(provider=_provider())
-    extractor_provider = _provider()
+    interpreter = IntentInterpreter(provider=_provider("intent"))
+    extractor_provider = _provider("extraction")
     extractor = LLMWorldExtractor(
         provider=extractor_provider,
         operation_parser=OperationParser(),
