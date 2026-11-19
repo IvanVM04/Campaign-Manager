@@ -23,6 +23,15 @@ def test_ollama_runner_never_discards_work_or_downloads_models():
     assert "ollama pull <modelo>" in source
 
 
+def test_ollama_runner_synchronizes_shared_endpoint_and_think_defaults():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL" in source
+    assert "CAMPAIGN_MANAGER_OLLAMA_BASE_URL" in source
+    assert "CAMPAIGN_MANAGER_REAL_LLM_THINK" in source
+    assert "CAMPAIGN_MANAGER_OLLAMA_THINK" in source
+    assert "Mirror one configured value only when the other is not explicit." in source
+
+
 def test_ollama_runner_executes_real_llm_tests_and_keeps_machine_readable_results():
     source = RUNNER.read_text(encoding="utf-8")
     assert '"-m", "real_llm"' in source
