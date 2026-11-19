@@ -517,3 +517,29 @@ def test_stanza_adapter_rejects_offsets_that_do_not_match_token_text():
 
     with pytest.raises(NlpPilotContractError, match="does not exactly match"):
         adapter.parse("Abro")
+
+
+
+def test_offline_runner_counts_parser_errors_without_scoring_negative_cues(tmp_path):
+    class FailingAdapter:
+        adapter_name = "fake"
+        language = "es"
+        model_package = "fake"
+        library_version = "0.0-test"
+
+        def parse(self, _text):
+            raise RuntimeError("parser unavailable")
+
+    report = run_offline_pilot(
+        split="holdout",
+        model_dir=tmp_path,
+        limit_per_split=1,
+        adapter=FailingAdapter(),
+    )
+    family = report["probe_metrics"]["families"]["held_out:action_attempt"]
+
+    assert report["corpora"]["successful_parses"] == 0
+    assert report["corpora"]["failed_parses"] == 1
+    assert report["parse_error_types"] == {"RuntimeError": 1}
+    assert family["stanza"]["negation"]["sample_count"] == 0
+    assert family["parser_unavailable_cases"]["negation"] == 1
