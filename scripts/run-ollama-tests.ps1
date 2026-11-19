@@ -271,7 +271,7 @@ if (-not $SkipDependencySync) {
     if ($uv) {
         Push-Location $script:RepoRoot
         try {
-            & uv sync --group test
+            & uv sync --group test --no-lock
             if ($LASTEXITCODE -ne 0) {
                 throw "uv sync --group test failed with exit code $LASTEXITCODE"
             }
@@ -323,6 +323,11 @@ $junitPath = Join-Path $runDirectory "junit.xml"
 $logPath = Join-Path $runDirectory "pytest.log"
 $summaryScript = Join-Path $script:RepoRoot "scripts/ollama_test_report.py"
 
+$pythonVersionCheck = & $python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)"
+if ($LASTEXITCODE -ne 0) {
+    throw "Campaign-Manager requires Python 3.12 or newer."
+}
+
 Write-Host ""
 Write-Host "Modelo común: $env:CAMPAIGN_MANAGER_REAL_LLM_MODEL"
 Write-Host "Endpoint: $baseUrlValue"
@@ -367,7 +372,7 @@ else {
 }
 
 if ($pytestExitCode -ne 0) {
-    Write-Error "Los tests reales de Ollama han fallado (exit code $pytestExitCode). El log y el reporte se han conservado en $runDirectory."
+    Write-Host "ERROR: Los tests reales de Ollama han fallado (exit code $pytestExitCode). El log y el reporte se han conservado en $runDirectory."
     exit $pytestExitCode
 }
 if ($reportExitCode -ne 0) {
