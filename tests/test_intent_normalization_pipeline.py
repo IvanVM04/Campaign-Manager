@@ -237,3 +237,26 @@ def test_pipeline_keeps_explicit_player_dialogue_before_follow_up_investigation(
     assert result.analysis.steps[1].modality.value == "attempted"
     assert result.analysis.active_step_index == 1
     assert result.diagnostics.compound_dialogue_action_normalized is True
+
+def test_compound_normalizer_does_not_turn_a_following_npc_reply_into_player_action():
+    from services.turns.intent_normalization_pipeline import (
+        _normalize_compound_player_dialogue_then_action,
+    )
+
+    source = (
+        "Le pregunto a Mara por la llave y después el guardia me responde."
+    )
+    payload = {
+        "schema_version": 2,
+        "category": "mixed",
+        "steps": [
+            {"index": 0, "source_excerpt": "Le pregunto a Mara por la llave"},
+            {"index": 1, "source_excerpt": "el guardia me responde"},
+        ],
+        "relation_claims": [],
+    }
+
+    assert (
+        _normalize_compound_player_dialogue_then_action(payload, source)
+        is None
+    )
