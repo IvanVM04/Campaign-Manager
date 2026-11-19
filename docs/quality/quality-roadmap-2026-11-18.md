@@ -1,7 +1,7 @@
 # Auditoría actual y hoja de ruta de calidad
 
 **Fecha:** 2026-11-18 (actualización de decisiones: 2026-11-19)  
-**Baseline de código histórico de este snapshot:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado actual:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266).  
+**Baseline de código histórico de este snapshot:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado anterior a la fase NLU:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). **Main actual al iniciar PR #268:** `709a6ecbbaa95a46fccac128bae219ac19955c9f` (PR #267 integrada).  
 **Baseline documental de este snapshot:** `ae52afcf9c172514a5d119fe301de11255f08091`; los cambios de arquitectura NLU del 2026-11-19 se enlazan como fuente activa separada.  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
@@ -32,8 +32,8 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 
 El usuario ha decidido retrasar la próxima ejecución completa de los holdouts live y la sesión de aceptación SillyTavern hasta que estén integradas las mejoras estructurales. El orden activo pasa a ser:
 
-1. PR #267: frontera de normalización de Intent (en curso).
-2. PR #268: separación de responsabilidades discursivas y extracción superficial.
+1. PR #267: frontera de normalización de Intent (integrada en `main`).
+2. PR #268: separación de responsabilidades discursivas y extracción superficial (en curso).
 3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales.
 4. PR #270: piloto offline de NLP (decisión basada en resultados; no implica añadir Stanza/spaCy a producción).
 5. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra.

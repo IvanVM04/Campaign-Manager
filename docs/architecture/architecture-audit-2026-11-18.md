@@ -151,3 +151,15 @@ Follow-up findings:
 - Regex is acceptable for narrowly scoped literal cues with negative tests, but not as a replacement for general morphology, syntax or coreference.
 
 The implementation order and acceptance rules are normative in [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). Do not run the next full live-model suite until the architecture and evaluator milestones are integrated. Continue to require deterministic CI and report any omitted live/manual checks explicitly.
+
+
+### Resolution update — PR #268 (2026-11-19)
+
+The `DiscourseContextBuilder` responsibility cluster has now been separated
+behind its existing public facade. Topic/history selection, surface mention
+extraction, speaker signals and rendering are owned by independent collaborators
+in `services/discourse/`. This is an ownership/dependency refactor: topic
+markers, callback matching, pronoun/clitic offsets, NPC visibility and alias
+ambiguity rules, quote handling, history bounds and rendered output semantics
+remain covered by the unchanged facade regression suite. The collaborators do
+not resolve canonical identity or authorize writes.

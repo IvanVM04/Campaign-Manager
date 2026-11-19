@@ -226,3 +226,16 @@ steps are documented in
 [Player-language understanding architecture — 2026-11-19](../../docs/architecture/player-language-understanding-architecture-2026-11-19.md).
 The full live Ollama/SillyTavern acceptance run is deferred until the listed
 structural milestones are integrated; deterministic CI remains mandatory.
+
+
+### Discourse collaborators (PR #268)
+
+`DiscourseContextBuilder` remains the stable facade consumed by intent
+interpretation and reference resolution. Its implementation is decomposed into
+`services/discourse/topic_history_selector.py`,
+`surface_mention_extractor.py`, `speaker_signal_extractor.py` and
+`renderer.py`, with immutable records in `contracts.py`. The split preserves
+the existing bounded twelve-turn selection, quote masking, literal source
+offsets, NPC visibility/alias checks, ambiguity abstention and byte-bounded
+rendered hints. These collaborators do not resolve canonical IDs or authorize
+world changes.

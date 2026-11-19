@@ -492,7 +492,7 @@ The PR order is dependency-driven. Each PR should be substantial and focused, wi
 | PR | Objective | Main architectural output | Depends on |
 |---|---|---|---|
 | #267 | Establish the intent-normalization boundary | `IntentNormalizationPipeline`, typed diagnostics, deterministic boundary tests and this architecture decision | Existing #266 baseline |
-| #268 | Decompose discourse responsibilities | Topic/history selector, surface mention extractor, speaker signal extractor and renderer behind the existing facade | #267 |
+| #268 | Decompose discourse responsibilities | Topic/history selector, surface mention extractor, speaker signal extractor and renderer behind the existing facade | #267 (integrated) |
 | #269 | Formalize conversation-reference evidence | Typed extraction bundle, candidate ranking/abstention contracts, clearer provenance and bounded group rules | #268 |
 | #270 | Run NLP-library pilot | Offline adapter spike, comparative report, Spanish corpus coverage/latency and dependency decision; production adoption is optional | #268–#269 |
 | #271 | Complete semantic evaluation contracts | Full per-step gold, extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
@@ -588,3 +588,24 @@ Before PR creation:
 - 2026-11-19: formalized the staged architecture and deferred the next full Ollama/SillyTavern validation cycle until the structural and evaluator milestones are integrated.
 - 2026-11-19: extracted the first deterministic normalization boundary in PR #267 while preserving one structured Intent call and the existing versioned semantic contract.
 - Historical work: PRs #255, #263, #265 and #266 strengthened discourse continuity, semantic frames, compound actions, polarity/attribution and action gating. Their implementation records remain historical delivery evidence; they do not replace the architecture and acceptance gates in this document.
+
+
+### PR #268 delivery note — discourse ownership split
+
+PR #268 extracts four typed collaborators behind the existing
+`DiscourseContextBuilder` facade:
+
+- `DiscourseTopicHistorySelector` owns topic segmentation, explicit shifts,
+  callback anchors, candidate scores, tie/abstention diagnostics and the
+  twelve-turn history bound.
+- `SurfaceMentionExtractor` owns literal pronoun/dative-clitic spans and
+  local grammatical agreement features.
+- `SpeakerSignalExtractor` owns speech-predicate cues, visible/active NPC
+  alias eligibility, quote attribution and ambiguity-safe speaker hints.
+- `DiscourseContextRenderer` composes those outputs into the existing bounded
+  prompt hints; it has no authority to create evidence or canonical identity.
+
+Immutable records live in `services/discourse/contracts.py`, and the
+facade's existing import path and methods remain available to current callers.
+No regex vocabulary, prompt instruction, model schema, resolver score,
+visibility rule, mechanics gate or write authority is changed by this split.
