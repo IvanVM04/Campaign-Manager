@@ -306,7 +306,9 @@ def score_semantic_frame_scenario(
     total = 0
     failures: list[str] = []
     scenario_id = scenario["id"]
-    family = scenario["family"]
+    family = scenario.get("family", "unclassified")
+    if not isinstance(family, str) or not family.strip():
+        raise ValueError("scenario family must be a non-empty string when supplied")
     steps = () if analysis is None else tuple(getattr(analysis, "steps", ()))
     frames = [
         step.action_frame
