@@ -191,6 +191,32 @@ class ConversationReferenceCandidateRanker:
             candidates,
             key=lambda item: (-item.score, item.entity_id),
         ))
+        return self.evaluate(
+            mention,
+            ranked,
+            minimum_score=score_floor,
+            minimum_margin=margin_floor,
+        )
+
+    def evaluate(
+        self,
+        mention: str,
+        candidates: tuple[DiscourseCandidate, ...],
+        *,
+        minimum_score: int | None = None,
+        minimum_margin: int | None = None,
+    ) -> DiscourseCandidateRanking:
+        """Apply the single score/margin contract to any deterministic candidate set."""
+        score_floor = (
+            self.MIN_RESOLUTION_SCORE if minimum_score is None else minimum_score
+        )
+        margin_floor = (
+            self.MIN_RESOLUTION_MARGIN if minimum_margin is None else minimum_margin
+        )
+        ranked = tuple(sorted(
+            candidates,
+            key=lambda item: (-item.score, item.entity_id),
+        ))
         if not ranked:
             status = CandidateRankingStatus.NO_CANDIDATES
         elif ranked[0].score < score_floor:
