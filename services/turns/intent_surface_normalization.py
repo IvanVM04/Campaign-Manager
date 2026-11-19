@@ -334,16 +334,27 @@ def _collapse_split_attempt_outcome(
         return steps
 
     connective = evidence[first_end:second_start]
-    if re.fullmatch(
+    connective_is_only_linker = re.fullmatch(
         r"[\s,;:—-]*(?:(?:pero|aunque|y|aun así|aún así)\s*)?",
         connective,
         re.IGNORECASE,
-    ) is None:
+    ) is not None
+    # A short failure phrase may itself be separated into the connector gap
+    # (e.g. "pero no gira") while the model puts only "el cofre sigue cerrado"
+    # in step two. Permit that only when the gap is itself explicit result text.
+    connector_contains_result = (
+        _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(connective) is not None
+        or _FAILURE_RE.search(connective) is not None
+    )
+    if not connective_is_only_linker and not connector_contains_result:
         return steps
 
     trailing_evidence = evidence[first_end:second_end]
     uncertainty = _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(trailing_evidence)
     failure = _FAILURE_RE.search(trailing_evidence)
+    if uncertainty is None and failure is None:
+        uncertainty = _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(connective)
+        failure = _FAILURE_RE.search(connective)
     if uncertainty is None and failure is None:
         return steps
     if uncertainty is not None and failure is not None:
@@ -960,6 +971,28 @@ def normalize_intent_surface_payload(
             if scope_is_uncertain:
                 rules.append("explicit_reported_clause_uncertainty")
                 rules.append("explicit_epistemic_uncertainty")
+
+            if (
+                scope_is_uncertain
+                and len(reported_indices) == len(steps)
+                and len(steps) > 1
+                and len(evidence) <= 300
+            ):
+                # A reported proposition plus its epistemic caveat is one
+                # attributed claim, not two independent world events.
+                retained = dict(steps[reported_indices[0]])
+                retained["index"] = 0
+                retained["source_excerpt"] = evidence[:scope_end].strip()
+                retained["actor"] = "other" if indefinite else "npc"
+                retained["modality"] = "reported"
+                retained["polarity"] = "uncertain"
+                retained["attributed_to"] = speaker
+                steps = [retained]
+                normalized["steps"] = steps
+                normalized["category"] = "report"
+                normalized["active_step_index"] = None
+                reported_indices = [0]
+                rules.append("reported_uncertainty_steps_collapsed")
 
             if len(reported_indices) == len(steps):
                 normalized["category"] = "report"
