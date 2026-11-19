@@ -12,8 +12,10 @@ class ParserHintingProvider(LLMProvider):
     """Append transient parser hints to an inner provider; never used in prod."""
 
     def __init__(self, inner: LLMProvider) -> None:
-        if not isinstance(inner, LLMProvider):
-            raise TypeError("inner must implement LLMProvider")
+        if not callable(getattr(inner, "generate", None)) or not callable(
+            getattr(inner, "generate_structured", None)
+        ):
+            raise TypeError("inner must expose generate and generate_structured")
         self.inner = inner
         self._hint_section = ""
 
