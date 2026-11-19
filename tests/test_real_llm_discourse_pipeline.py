@@ -747,9 +747,15 @@ def test_real_ollama_meets_held_out_discourse_intent_and_resolution_corpus(
     print(ledger.render())
     if observational_failures:
         print("Non-critical mismatches:\n" + "\n".join(observational_failures))
+    report_dir = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_DIR")
     report_path = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH")
-    if report_path:
+    if report_dir and report_dir.strip():
+        report_file = Path(report_dir).expanduser() / "discourse-holdout.json"
+    elif report_path:
         report_file = Path(report_path)
+    else:
+        report_file = None
+    if report_file is not None:
         report_file.parent.mkdir(parents=True, exist_ok=True)
         think_value = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_THINK")
         report = build_live_discourse_report(
