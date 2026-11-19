@@ -71,6 +71,10 @@ class StanzaParserAdapter:
                 ) from exc
             self._library_version = str(getattr(stanza, "__version__", "unknown"))
 
+    @property
+    def library_version(self) -> str:
+        return self._library_version
+
     @staticmethod
     def _features(raw: Any) -> tuple[tuple[str, str], ...]:
         if raw is None or raw == "":
