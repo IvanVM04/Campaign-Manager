@@ -1,3 +1,21 @@
+## Ejecución integrada desde PowerShell
+
+El flujo recomendado ya no requiere ejecutar a mano los pasos de este runbook. Desde la raíz del repositorio:
+
+    .\scripts\run-ollama-tests.ps1
+
+El runner actualiza main con fast-forward, prepara .venv con los grupos test/lint/typing/nlp-pilot, ejecuta los gates locales equivalentes a CI (pytest determinista + cobertura combinada, Ruff, ambos checks Pyright y JavaScript), prepara los modelos españoles Stanza si faltan, ejecuta el benchmark offline development + held-out y lanza la suite real_llm de Ollama. No ejecuta ollama pull ni sobrescribe trabajo local.
+
+Para incluir también las llamadas Ollama adicionales del A/B Intent frente a Intent + Stanza:
+
+    .\scripts\run-ollama-tests.ps1 -RunNlpAb
+
+Este A/B es opt-in porque hace llamadas adicionales al modelo; el runner activa el guard CAMPAIGN_MANAGER_NLP_PILOT_LIVE solo durante esa fase y restaura las variables de entorno al terminar. Para omitir por completo la descarga de modelos Stanza usa -SkipNlpModelDownload; si los modelos no están instalados, la fase se marcará como fallida.
+
+Cada ejecución crea artifacts/quality-runs/<fecha>-<commit>/ con summary.md, summary.json, logs por fase, JUnit XML, coverage.xml, informes Ollama y JSON NLP. El script devuelve código 0 solo cuando todas las fases solicitadas terminan correctamente. Para ejecuciones rápidas se pueden omitir fases con -SkipLocalChecks, -SkipOllamaTests o -SkipNlpPilot; por defecto se ejecuta el flujo completo (salvo el A/B adicional).
+
+Requisitos locales: Git, Python 3.12+, Node.js 20+ y npm. Ollama debe estar iniciado y los modelos configurados en .env.ollama deben estar instalados previamente. Stanza se descarga automáticamente solo si el piloto está habilitado y faltan sus modelos; la descarga queda registrada como una fase propia.
+
 # PR #272 — NLP pilot runbook
 
 Este documento describe la ejecución reproducible del experimento opcional. No se importa desde el runtime de producción, no inicia descargas en startup y no hace llamadas a Ollama durante la evaluación offline.
