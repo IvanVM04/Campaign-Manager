@@ -1034,6 +1034,7 @@ El esquema JSON es el contrato estructural."""
                 surface_sanitization.dropped_ungrounded_target_mentions
                 or surface_sanitization.dropped_ungrounded_action_arguments
                 or surface_sanitization.dropped_ungrounded_relation_claims
+                or surface_sanitization.dropped_ungrounded_action_predicates
                 or surface_sanitization.widened_relation_evidence_spans
             ):
                 logger.warning(
@@ -1049,6 +1050,9 @@ El esquema JSON es el contrato estructural."""
                         ),
                         "dropped_relation_claims": (
                             surface_sanitization.dropped_ungrounded_relation_claims
+                        ),
+                        "dropped_action_predicates": (
+                            surface_sanitization.dropped_ungrounded_action_predicates
                         ),
                         "widened_relation_evidence_spans": (
                             surface_sanitization.widened_relation_evidence_spans
