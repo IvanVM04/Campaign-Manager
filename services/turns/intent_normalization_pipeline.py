@@ -252,10 +252,11 @@ def _normalize_unverified_named_speaker_dialogue(
     first = replace(
         steps[0],
         source_excerpt=evidence_text.strip(),
-        actor=IntentActor.OTHER,
+        actor=IntentActor.NPC,
         modality=IntentModality.DIALOGUE,
         polarity=IntentPolarity.POSITIVE,
         reported_outcome=PlayerReportedOutcome.NOT_CLAIMED,
+        attributed_to=match.group("speaker").strip(),
     )
     steps[0] = first
     return replace(
