@@ -234,6 +234,7 @@ def _normalize_unverified_named_speaker_dialogue(
     """
     if (
         not isinstance(evidence_text, str)
+        or len(evidence_text) > 300
         or len(analysis.steps) > 2
         or analysis.category in {UtteranceCategory.QUESTION, UtteranceCategory.CORRECTION}
     ):
