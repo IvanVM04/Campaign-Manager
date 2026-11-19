@@ -24,7 +24,6 @@ def main() -> int:
         parser.error(
             "Stanza is optional. Install it first with: pip install --group nlp-pilot"
         )
-        raise exc
 
     model_dir = args.model_dir.expanduser().resolve()
     model_dir.mkdir(parents=True, exist_ok=True)
