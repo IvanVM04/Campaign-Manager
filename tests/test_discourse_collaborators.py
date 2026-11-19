@@ -71,15 +71,24 @@ def test_topic_selector_recognizes_contracted_spanish_callback_markers():
         Turn(2, "Cambio de tema, entro en la torre."),
     )
 
-    for utterance, anchor in (
-        ("Regresando al molino, ¿qué vimos?", ("molino",)),
-        ("Volvamos al faro, ¿qué ocurrió?", ("faro",)),
-    ):
-        selected = selector.select_history(history, utterance)
-        assert selected.reason == "callback_anchor_unmatched"
-        assert selected.anchor_tokens == anchor
-        assert selected.ambiguous is True
-        assert selected.turns == history
+    matched = selector.select_history(
+        history,
+        "Regresando al molino, ¿qué vimos?",
+    )
+    assert matched.reason == "callback_anchor_match"
+    assert matched.anchor_tokens == ("molino",)
+    assert matched.turns == (history[0],)
+    assert matched.selected_segments == (0,)
+    assert matched.ambiguous is False
+
+    unmatched = selector.select_history(
+        history,
+        "Volvamos al faro, ¿qué ocurrió?",
+    )
+    assert unmatched.reason == "callback_anchor_unmatched"
+    assert unmatched.anchor_tokens == ("faro",)
+    assert unmatched.ambiguous is True
+    assert unmatched.turns == history
 
 
 def test_surface_extractor_returns_literal_offsets_without_resolving_identity():
