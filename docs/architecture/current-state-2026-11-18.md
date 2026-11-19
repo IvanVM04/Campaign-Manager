@@ -4,7 +4,9 @@
 **Última implementación integrada:** PR #261, que endurece los contratos de allowlist del LLM y aísla snapshots de turno mientras reduce el alcance de los locks.  
 **Método:** inspección estática del árbol, contratos, routers, migraciones, guías de paquetes, índices y evidencias de CI. No es una certificación de una sesión local de Ollama/SillyTavern.
 
-> Este es el mapa vigente a fecha 2026-11-18. Los mapas y auditorías fechados anteriormente son snapshots históricos; explican decisiones y hallazgos de su fecha, pero no deben usarse como fuente actual cuando difieran de este documento o del código.
+> **Actualización de fuente de verdad — 2026-11-19:** el `main` vigente ya incluye PR #266 en `5988ed161a9023d9a2bf86912c82f74092a53e96`. La ejecución de CI asociada al SHA final de #266 registró 2.148 tests deterministas pasados, 22 `real_llm` excluidos y 85,31 % de cobertura combinada ([workflow run #44417534718](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44417534718)). Esto reemplaza los conteos históricos de #255/#261 cuando se hable del estado actual; no certifica calidad live de Ollama ni una sesión SillyTavern. La nueva arquitectura NLU y el gate de pruebas live se describen en [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). PR #267 está en desarrollo y aún no forma parte de `main`.
+
+> Este es el mapa de implementación verificado originalmente el 2026-11-18; la actualización superior añade la revisión de main del 2026-11-19. Los mapas y auditorías fechados anteriormente son snapshots históricos; explican decisiones y hallazgos de su fecha, pero no deben usarse como fuente actual cuando difieran de este documento o del código.
 
 ## 1. Resumen ejecutivo
 
@@ -72,7 +74,7 @@ Las clarificaciones y tiradas manuales continúan la misma resolución durable. 
 - Las correcciones pendientes editan slots de una interpretación persistida con evidencia literal de la última respuesta y preservan campos no modificados.
 - Los 14 escenarios adicionales de intención compuesta introducidos alrededor de PR #255 permiten evaluar orden/actor/modalidad/polaridad por paso; la evaluación live del holdout actual debe ejecutarse y registrarse. Los contratos deterministas no certifican la calidad general del modelo.
 
-Referencias de comportamiento: [guía de turn services](../../services/turns/README.md), [guía de context services](../../services/context/README.md), [modelos compartidos](../../models/README.md) y [fase de comprensión de mensajes de jugador — PR #255](../quality/player-message-comprehension-phase-2026-11-18.md).
+Referencias de comportamiento: [guía de turn services](../../services/turns/README.md), [guía de context services](../../services/context/README.md), [modelos compartidos](../../models/README.md), [fase de comprensión de mensajes de jugador — PR #255](../quality/player-message-comprehension-phase-2026-11-18.md) y la nueva [arquitectura de comprensión del lenguaje](player-language-understanding-architecture-2026-11-19.md).
 
 ## 5. Paquetes y propiedad
 
