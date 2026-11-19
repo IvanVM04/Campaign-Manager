@@ -118,7 +118,7 @@ El backend tiene un subconjunto determinista de 5e 2014, no un rules engine comp
 
 ### QF-06 — La cobertura debe dirigirse por riesgo, no por porcentaje (P1)
 
-El gate de 85 % combinado ya está activo y el último run lo ha superado por poco (85,18 %). Añadir tests indiscriminadamente para elevar el número puede generar ruido.
+El gate de 85 % combinado ya está activo y el último run vigente sobre `main` lo supera por poco (85,23 %); la cobertura de ramas es 75,9 %. Añadir tests indiscriminadamente para elevar el número puede generar ruido. Priorizar ramas de alto riesgo.
 
 **Acción:** usar el XML de cobertura por paquete/ramas y el mapa de impacto para proteger especialmente estados transaccionales, reintentos, fencing, revisión de campaña, visibilidad, manual rolls y errores del proveedor. No eliminar asserts ni excluir módulos productivos.
 
@@ -168,13 +168,13 @@ Las fases están ordenadas por dependencia. Una fase no se cierra porque el cód
 
 ### Fase 0 — Baseline de repositorio y CI
 
-**Estado: completada en el baseline.**
+**Estado: completada y reconciliada sobre main `8276450` (2026-11-19).**
 
-- [x] PRs #255, #260 y #261 integradas en `main`.
-- [x] 2.050 tests deterministas correctos.
+- [x] PRs #267, #268 y #269 integradas en `main` (las PRs anteriores #255, #260 y #261 forman parte del historial).
+- [x] 2.188 tests deterministas correctos; 22 `real_llm` excluidos de CI.
 - [x] Ruff, JavaScript y ambos alcances Pyright correctos.
 - [x] CodeQL correcto.
-- [x] Cobertura combinada 85,18 %.
+- [x] Cobertura combinada 85,23 % (88,8 % líneas; 75,9 % ramas).
 
 **Salida:** baseline de código estable para planificar la siguiente medición. Esta fase no certifica Ollama/SillyTavern.
 
