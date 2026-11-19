@@ -254,7 +254,7 @@ if (-not $SkipOllamaPreflight) {
 }
 
 # Ensure each run has an independent, non-overwriting result directory.
-$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmssfff"
 $shortCommit = $commit.Substring(0, [Math]::Min(8, $commit.Length))
 $resultsPath = Join-Path $script:RepoRoot $ResultsRoot
 $runDirectory = Join-Path $resultsPath "$timestamp-$shortCommit"
