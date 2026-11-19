@@ -121,7 +121,7 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
     provider_calls = 0
     started = perf_counter()
 
-    for scenario in scenarios:
+    for scenario_index, scenario in enumerate(scenarios):
         try:
             parse_started = perf_counter()
             parsed_document = parser.parse(scenario["input"])
@@ -139,7 +139,7 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
                 ("model_plus_stanza_hints", hinted_interpreter, hinted_ledger, hinted_usage),
             )
             # Alternate call order to reduce systematic warm-up/order bias.
-            if (len(parser_latencies) + repetition) % 2:
+            if (scenario_index + repetition) % 2:
                 variants = tuple(reversed(variants))
             for variant_name, interpreter, ledger, usage in variants:
                 passed, error_type = _score_variant(
