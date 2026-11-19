@@ -22,16 +22,21 @@ def test_runner_never_discards_work_or_downloads_ollama_models():
     assert "ollama pull" not in source
 
 
-def test_runner_installs_all_python_groups_and_runs_the_ci_gates():
+def test_runner_installs_only_local_evaluation_groups_and_skips_ci_gates():
     source = RUNNER.read_text(encoding="utf-8")
-    for group in ("test", "lint", "typing", "nlp-pilot"):
-        assert f'"{group}"' in source
-    assert '"not real_llm"' in source
-    assert '"check", "."' in source
-    assert '"models", "rules_engine", "bootstrap", "operations"' in source
-    assert '"--outputjson"' in source
-    assert '"run", "test:js"' in source
-    assert '@("-m", "coverage", "report")' in source
+    assert '"test"' in source
+    assert '"nlp-pilot"' in source
+    assert '"--group", "lint"' not in source
+    assert '"--group", "typing"' not in source
+    assert '"not real_llm"' not in source
+    assert 'Invoke-CommandStage "Ruff"' not in source
+    assert 'Invoke-CommandStage "Pyright' not in source
+    assert 'npm run test:js' not in source.casefold()
+    assert 'coverage report' not in source.casefold()
+    assert 'scripts/ci/coverage_summary.py' not in source
+    assert 'SkipLocalChecks' not in source
+    assert 'real_llm and not nlp_pilot' in source
+    assert 'scripts.run_nlp_pilot' in source
 
 
 def test_runner_integrates_stanza_download_offline_and_guarded_ab():
@@ -60,8 +65,9 @@ def test_runner_writes_unique_machine_readable_and_human_reports():
     assert "summary.md" in source
     assert "summary.json" in source
     assert "run-manifest.json" in source
-    assert "coverage.xml" in source
-    assert "junit.xml" in source
+    assert "coverage.xml" not in source
+    assert "ollama.junit.xml" in source
+    assert "nlp-ab.junit.xml" in source
 
 
 def test_runner_keeps_local_configuration_and_role_overrides():
