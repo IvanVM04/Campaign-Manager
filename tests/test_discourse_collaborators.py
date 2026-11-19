@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 
-from services.discourse.contracts import DiscourseSelection, SpeechPredicateSignal, SurfacePronounMention
+from services.discourse.contracts import (
+    DiscourseSelection,
+    SpeechPredicateSignal,
+    SurfacePronounMention,
+)
 from services.discourse.renderer import DiscourseContextRenderer
 from services.discourse.speaker_signal_extractor import SpeakerSignalExtractor
 from services.discourse.surface_mention_extractor import SurfaceMentionExtractor
