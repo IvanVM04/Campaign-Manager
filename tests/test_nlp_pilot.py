@@ -40,8 +40,13 @@ def _word(
     )
 
 
-def _token(start: int, end: int, *words):
-    return SimpleNamespace(start_char=start, end_char=end, words=list(words))
+def _token(start: int, end: int, surface: str, *words):
+    return SimpleNamespace(
+        start_char=start,
+        end_char=end,
+        text=surface,
+        words=list(words),
+    )
 
 
 def _document(*tokens):
@@ -52,12 +57,12 @@ def _document(*tokens):
 
 def test_stanza_adapter_maps_offsets_and_dependency_heads_without_source_text():
     parsed = _document(
-        _token(0, 5, _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0)),
-        _token(6, 9,
+        _token(0, 4, "Abro", _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0)),
+        _token(5, 8, "del",
             _word(identifier=2, lemma="de", upos="ADP", dependency="case", head=4),
             _word(identifier=3, lemma="el", upos="DET", dependency="det", head=4),
         ),
-        _token(10, 15, _word(identifier=4, lemma="puerta", upos="NOUN", dependency="obj", head=1, feats="Gender=Fem|Number=Sing")),
+        _token(9, 15, "puerta", _word(identifier=4, lemma="puerta", upos="NOUN", dependency="obj", head=1, feats="Gender=Fem|Number=Sing")),
     )
     adapter = StanzaParserAdapter(pipeline=lambda _text: parsed)
 
@@ -81,7 +86,7 @@ def test_stanza_adapter_maps_offsets_and_dependency_heads_without_source_text():
 
 def test_stanza_adapter_rejects_invalid_or_fuzzy_source_offsets():
     parsed = _document(
-        _token(-1, 3, _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0))
+        _token(-1, 3, "Abo", _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0))
     )
     adapter = StanzaParserAdapter(pipeline=lambda _text: parsed)
 
@@ -91,7 +96,7 @@ def test_stanza_adapter_rejects_invalid_or_fuzzy_source_offsets():
 
 def test_stanza_adapter_rejects_dependency_heads_outside_sentence():
     parsed = _document(
-        _token(0, 4, _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=9))
+        _token(0, 4, "Abro", _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=9))
     )
     adapter = StanzaParserAdapter(pipeline=lambda _text: parsed)
 
@@ -101,8 +106,8 @@ def test_stanza_adapter_rejects_dependency_heads_outside_sentence():
 
 def test_stanza_adapter_rejects_duplicate_word_ids():
     parsed = _document(
-        _token(0, 4, _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0)),
-        _token(5, 9, _word(identifier=1, lemma="puerta", upos="NOUN", dependency="obj", head=1)),
+        _token(0, 4, "Abro", _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0)),
+        _token(5, 11, "puerta", _word(identifier=1, lemma="puerta", upos="NOUN", dependency="obj", head=1)),
     )
     adapter = StanzaParserAdapter(pipeline=lambda _text: parsed)
 
