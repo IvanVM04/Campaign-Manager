@@ -41,8 +41,25 @@ def test_topic_selector_keeps_unanchored_callbacks_ambiguous():
         Turn(1, "Miro el molino."),
         Turn(2, "Cambio de tema, entro en la torre."),
     )
-    selected = selector.select_history(history, "Volviendo a lo anterior, continúa.")
+
+    selected = selector.select_history(
+        history,
+        "Volviendo a lo anterior, ¿qué pasó?",
+    )
     assert selected.reason == "callback_without_anchor"
+    assert selected.ambiguous is True
+    assert selected.turns == history
+
+
+def test_topic_selector_reports_unmatched_callback_anchor_without_guessing():
+    selector = DiscourseTopicHistorySelector()
+    history = (
+        Turn(1, "Miro el molino."),
+        Turn(2, "Cambio de tema, entro en la torre."),
+    )
+
+    selected = selector.select_history(history, "Volviendo al dragón, ¿qué ocurrió?")
+    assert selected.reason == "callback_anchor_unmatched"
     assert selected.ambiguous is True
     assert selected.turns == history
 
