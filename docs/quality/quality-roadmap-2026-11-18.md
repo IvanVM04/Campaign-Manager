@@ -36,7 +36,7 @@ El usuario ha decidido retrasar la próxima ejecución completa de los holdouts 
 2. PR #268: separación de responsabilidades discursivas y extracción superficial (integrada en `main`).
 3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales (integrada en `main`).
 4. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra (siguiente trabajo).
-5. PR #272: piloto offline de NLP opcional, usando #270 para comparar; no implica añadir Stanza/spaCy a producción.
+5. PR #272: piloto offline de NLP opcional, usando #271 para comparar; no implica añadir Stanza/spaCy a producción.
 6. PR #273: política de incertidumbre calibrable y checkpoints durables dependientes.
 7. PR #274: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
 
