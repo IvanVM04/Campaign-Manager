@@ -579,14 +579,14 @@ def score_semantic_frame_scenario(
                 wanted = _expected_relation_field_value(expected_relation, field)
                 observed = _relation_field_value(actual, field) if actual is not None else None
                 expected_signature = f"claim:{index}|{field}|{_label(wanted)}"
-                predicted_signatures = (
-                    (
+                if actual is not None:
+                    predicted_signature = (
                         f"claim:{index}|{field}|"
                         f"{_label(_relation_field_value(actual, field))}"
-                    ,)
-                    if actual is not None
-                    else ()
-                )
+                    )
+                    predicted_signatures = (predicted_signature,)
+                else:
+                    predicted_signatures = ()
                 _record_slots(
                     ledger,
                     f"relation_{field}:{family}",
