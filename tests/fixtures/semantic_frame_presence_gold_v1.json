@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "split": "held_out_annotations",
+  "source_corpus": "semantic_frame_corpus_holdout_v1.json",
+  "description": "Explicit action-frame and relation-claim count gold keyed by immutable held-out IDs. Contains no utterance text. Zero counts are explicit negative controls, not inferred from missing annotations.",
+  "scenarios": [
+    {
+      "id": "holdout-transfer-scroll",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-transfer-ring",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-item-definition-vs-instance",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-item-use-instrument",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-movement-path",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-movement-companion",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-combat-patient-tool",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-containment",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-hide-location",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-perception-target",
+      "expected_action_frame_count": 1,
+      "expected_relation_count": 0
+    },
+    {
+      "id": "holdout-relation-employment",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-membership",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-allegiance",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-protection",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-friendship",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-hostility",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-part-of",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-negative",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-reported",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    },
+    {
+      "id": "holdout-relation-temporal",
+      "expected_action_frame_count": 0,
+      "expected_relation_count": 1
+    }
+  ]
+}
