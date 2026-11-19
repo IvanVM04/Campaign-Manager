@@ -25,6 +25,7 @@ class StanzaParserAdapter:
     explicitly download the selected models before constructing it.
     """
 
+    ADAPTER_NAME = "stanza"
     DEFAULT_PROCESSORS = "tokenize,mwt,pos,lemma,depparse"
     MAX_TEXT_CHARS = 20_000
     MAX_SENTENCES = 32
@@ -44,6 +45,8 @@ class StanzaParserAdapter:
             raise ValueError("model_package must be a non-empty string")
         self.language = language.strip()
         self.model_package = model_package.strip()
+        self.processors = self.DEFAULT_PROCESSORS
+        self.adapter_name = self.ADAPTER_NAME
         self._pipeline = pipeline
         self._library_version = "injected"
 
@@ -113,6 +116,7 @@ class StanzaParserAdapter:
 
         sentences: list[ParserSentence] = []
         total_words = 0
+        previous_token_end = 0
         for sentence_index, raw_sentence in enumerate(raw_sentences):
             raw_tokens = getattr(raw_sentence, "tokens", None)
             if not isinstance(raw_tokens, Sequence):
@@ -129,9 +133,15 @@ class StanzaParserAdapter:
                     or not isinstance(start, int)
                     or isinstance(end, bool)
                     or not isinstance(end, int)
-                    or not 0 <= start < end <= len(text)
+                    or not previous_token_end <= start < end <= len(text)
                 ):
-                    raise NlpPilotContractError("Stanza returned an invalid source offset")
+                    raise NlpPilotContractError("Stanza returned an invalid or overlapping source offset")
+                token_text = getattr(token, "text", None)
+                if not isinstance(token_text, str) or text[start:end] != token_text:
+                    raise NlpPilotContractError(
+                        "Stanza source offset does not exactly match its token surface"
+                    )
+                previous_token_end = end
                 raw_words = getattr(token, "words", None)
                 if not isinstance(raw_words, Sequence) or not raw_words:
                     raise NlpPilotContractError("Stanza token must contain at least one word")
@@ -196,7 +206,7 @@ class StanzaParserAdapter:
             )
 
         return ParserDocument(
-            adapter_name="stanza",
+            adapter_name=self.ADAPTER_NAME,
             language=self.language,
             model_package=self.model_package,
             library_version=self._library_version,
