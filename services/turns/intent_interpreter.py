@@ -21,10 +21,7 @@ from services.discourse_context import DiscourseContextBuilder
 from services.llm_prompt_contracts import COMMON_LLM_TRUST_CONTRACT
 from services.providers import LLMProvider
 
-from .intent_normalization_pipeline import (
-    IntentNormalizationPipeline,
-    _normalize_explicit_npc_speech_report,
-)
+from .intent_normalization_pipeline import IntentNormalizationPipeline
 from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
     INTENT_CORRECTION_RESPONSE_SCHEMA,
