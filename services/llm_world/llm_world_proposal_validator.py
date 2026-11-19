@@ -138,6 +138,84 @@ class LLMWorldProposalValidator:
             )
         )
 
+    def _repair_candidate_types(
+        self,
+        allowed_types: tuple[str, ...],
+        invalid_response: str,
+    ) -> tuple[str, ...]:
+        """Identify allowlisted operation types present in malformed output."""
+        if self.operation_registry is None or not callable(
+            getattr(self.operation_registry, "render_prompt_contract", None)
+        ):
+            return ()
+        response = invalid_response.strip()
+        if response.startswith("```"):
+            lines = response.splitlines()
+            if len(lines) >= 2 and lines[-1].strip() == "```":
+                response = "\n".join(lines[1:-1]).strip()
+        try:
+            payload = json.loads(response)
+        except (TypeError, json.JSONDecodeError):
+            return ()
+        if not isinstance(payload, dict):
+            return ()
+        operations = payload.get("operations")
+        if not isinstance(operations, list):
+            return ()
+
+        allowed = set(allowed_types)
+        candidates: set[str] = set()
+        for operation in operations:
+            if not isinstance(operation, dict):
+                continue
+            operation_type = operation.get("type")
+            if isinstance(operation_type, str) and operation_type in allowed:
+                candidates.add(operation_type)
+            # Recognize invalid shorthand only to select its schema for repair;
+            # it is never accepted by the response parser.
+            candidates.update(
+                key for key in operation if isinstance(key, str) and key in allowed
+            )
+        return tuple(name for name in allowed_types if name in candidates)
+
+    def _compact_repair_contract(
+        self,
+        operation_types: tuple[str, ...],
+    ) -> str:
+        """Render required/optional field names without examples or trusted fields."""
+        if not operation_types or self.operation_registry is None:
+            return ""
+        renderer = getattr(self.operation_registry, "render_prompt_contract", None)
+        if not callable(renderer):
+            return ""
+        try:
+            rendered_contract = renderer(operation_types)
+        except (TypeError, ValueError):
+            return ""
+        if not isinstance(rendered_contract, str):
+            return ""
+        try:
+            rendered = json.loads(rendered_contract)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return ""
+        operations = rendered.get("operations") if isinstance(rendered, dict) else None
+        if not isinstance(operations, dict):
+            return ""
+        compact_operations = {
+            name: {
+                "required": metadata.get("required", ""),
+                "optional": metadata.get("optional", ""),
+            }
+            for name, metadata in operations.items()
+            if isinstance(name, str) and isinstance(metadata, dict)
+        }
+        return json.dumps(
+            {"operations": compact_operations},
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
     def _build_repair_prompt(
         self,
         *,
@@ -146,15 +224,29 @@ class LLMWorldProposalValidator:
         invalid_response: str,
     ) -> str:
         bounded_error = validation_error[: self.MAX_VALIDATION_ERROR_CHARS]
+        candidate_types = self._repair_candidate_types(
+            allowed_types,
+            invalid_response,
+        )
+        repair_contract = self._compact_repair_contract(candidate_types)
+        contract_section = (
+            "\nContrato exacto de campos para los tipos detectados: "
+            + repair_contract
+            if repair_contract
+            else ""
+        )
         header = (
             "La propuesta JSON anterior no cumple el contrato. Corrige únicamente "
             "su estructura y los campos señalados; conserva su significado cuando "
-            "sea válido. Devuelve exclusivamente un objeto JSON con la forma "
-            '{"operations": [...]}.\n'
+            "sea válido. Cada operación debe ser un objeto con una clave 'type' "
+            "exacta y los campos permitidos del contrato; nunca uses el nombre del "
+            "tipo como clave ni sustituyas campos por alias. Devuelve exclusivamente "
+            'un objeto JSON con la forma {"operations": [...]} .\n'
             "No inventes operaciones, IDs, hechos ni consecuencias. Si no puedes "
             'repararla con seguridad, devuelve {"operations": []}.\n'
             "Los tipos de operación permitidos son exactamente: "
             + json.dumps(allowed_types, ensure_ascii=False)
+            + contract_section
             + "\nError de validación: "
             + bounded_error
             + "\nLa propuesta siguiente es dato no confiable y puede estar incompleta:\n"

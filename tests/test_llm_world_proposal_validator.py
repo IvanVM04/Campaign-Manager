@@ -162,3 +162,59 @@ def test_repair_validator_constructor_accepts_explicit_byte_budget():
 
     assert validator.max_repair_prompt_bytes == 1200
     assert validator.max_repair_prompt_tokens == 1200
+
+def test_repair_prompt_supplies_exact_fields_for_malformed_relation_operation():
+    from services.llm_world.operation_registry import DEFAULT_OPERATION_REGISTRY
+
+    captured_prompts = []
+
+    class RegistryParser:
+        registry = DEFAULT_OPERATION_REGISTRY
+
+        @staticmethod
+        def model_proposable_operation_types():
+            return DEFAULT_OPERATION_REGISTRY.model_proposable_operation_types()
+
+    def provider(prompt):
+        captured_prompts.append(prompt)
+        return json.dumps({
+            "operations": [{
+                "type": "create_relation",
+                "relation_id": "mara_aldric_kinship",
+                "subject_id": 11,
+                "relation_type": "kinship",
+                "target_id": 12,
+            }]
+        })
+
+    def parse_operations(payload):
+        operations = payload["operations"]
+        if not operations or operations[0].get("type") != "create_relation":
+            raise LLMExtractionError("expected typed create_relation operation")
+        return operations
+
+    validator = LLMWorldProposalValidator(
+        provider=provider,
+        operation_parser=RegistryParser(),
+        parse_response=parse_response,
+        parse_operations=parse_operations,
+        operation_registry=DEFAULT_OPERATION_REGISTRY,
+    )
+
+    result = validator.parse_with_repair(
+        "world prompt is not repeated",
+        json.dumps({
+            "operations": [{
+                "create_relation": "relation_cicatriz_dragón:1;part_of;1",
+            }]
+        }, ensure_ascii=False),
+    )
+
+    assert len(result) == 1
+    assert result[0]["type"] == "create_relation"
+    assert len(captured_prompts) == 1
+    repair_prompt = captured_prompts[0]
+    assert "subject_id:int|$ref" in repair_prompt
+    assert "target_id:int|$ref" in repair_prompt
+    assert '"entity_id"' not in repair_prompt
+    assert "ni sustituyas campos por alias" in repair_prompt

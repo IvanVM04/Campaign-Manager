@@ -539,3 +539,16 @@ def test_proposal_prompt_renders_plural_group_as_distinct_members_not_a_single_e
     assert "mantener los miembros como entidades distintas" in prompt
     assert "no las colapses en un miembro" in prompt
     assert "Un grupo no es un objetivo mecánico singular" in prompt
+
+def test_proposal_prompt_distinguishes_stable_npc_creation_from_new_facts():
+    prompt = LLMWorldProposalPromptBuilder.build_prompt(
+        "Conozco al tabernero Aldric y me muestra una cicatriz.",
+        make_context(),
+    )
+
+    assert "HECHOS ESTABLES SOBRE NPC" in prompt
+    assert "una sola create_entity de tipo npc" in prompt
+    assert "update_entity con el ID existente" in prompt
+    assert "description o notes" in prompt
+    assert "No lo representes como create_relation ni create_event" in prompt
+    assert "nunca dupliques una entidad conocida" in prompt
