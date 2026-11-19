@@ -118,7 +118,7 @@ def test_real_ollama_meets_held_out_language_understanding_corpus_v1(record_prop
                 provider_error = type(exc).__name__
 
             elapsed = perf_counter() - case_started
-            matched, total, scored_failures = score_intent_analysis(
+            _matched, _total, scored_failures = score_intent_analysis(
                 analysis,
                 expected=scenario["expected"],
                 expected_step_count=expected_step_counts[scenario["id"]],
