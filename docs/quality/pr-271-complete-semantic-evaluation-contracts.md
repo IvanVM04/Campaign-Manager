@@ -1,97 +1,82 @@
 # PR #271 — complete semantic evaluation contracts
 
-**Status:** active implementation; resumable checkpoint. PR [#271](https://github.com/IvanVM04/Campaign-Manager/pull/271) is open as draft.  
-**Branch:** `quality/semantic-evaluation-contracts-pr271`  
-**Base:** `main` at `c11e0541b855bcde24a8d86616d9e384a3ebda8c` (PR #270 merged).  
-**Scope:** evaluation/tests/fixtures/documentation only; no production prompt, model schema, resolver, mechanics or world-write changes planned.
+**Status:** completed; merged on 2026-11-19.  
+**Merged into:** main at 9de344d4d36fdfc325c91f34075553d6076f2fc0.  
+**PR head:** a669d194462cced1ab2994a96ce60f25a4250b8.  
+**Original base:** c11e0541b855bcde24a8d86616d9e384a3ebda8c.  
+**Follow-on:** PR #272 owns the optional offline NLP pilot and the documentation reconciliation that was not completed before #271 merged.
 
-> Resume rule: before creating another branch or PR for #271, inspect this file and the existing branch/PR. If this branch exists, continue from its latest head and only complete unchecked work. Do not reset, recreate or overwrite already-implemented work.
+## Final verification
 
-## Objective
+Final deterministic CI succeeded on the exact PR head a669d19:
 
-Make semantic evaluation reliable enough to compare prompt/model/parser changes without optimistic scoring. A response must be penalized for omitted and extra steps, arguments, frames and relation claims. Scoring must publish explicit TP/FP/FN denominators and independent per-family metrics. A missing gold annotation is not a passing field.
+- **2,204 passed**, **22 deselected** (real_llm).
+- Combined coverage: **85.23%**, above the configured 85% floor.
+- Ruff: success.
+- Pyright required scope (models rules_engine bootstrap operations): success.
+- Repository-wide Pyright baseline: success.
+- JavaScript tests: success.
+- CodeQL Python and JavaScript: success.
+- CI summary: success.
 
-## Verified gaps on the base commit
+Evidence:
+- [Tests run #44559085820](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44559085820)
+- [CodeQL run #44559085674](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44559085674)
 
-- `tests/test_real_llm_semantic_holdout.py::_score_language_scenario` checks category/active-step/clarification and only explicitly named `step`, `first_step`, and `later_step` fields. It does not enforce exact step count, so extra steps can pass.
-- `tests/semantic_frame_evaluation.py::score_semantic_frame_scenario` checks that at least one expected frame/claim/argument exists. It does not fully penalize extra frames, extra arguments, extra relation claims or duplicate semantic slots.
-- `tests/compound_intent_evaluation.py::score_compound_intent_analysis` already checks exact step count and per-step actor/modality/polarity; preserve this behavior and extend coverage only where independent gold exists.
-- Predicate surface scoring exists separately through `semantic_frame_predicate_gold_v1.json`; integrate it into the same versioned metric contract without merging prompt/holdout data.
-- `SemanticEvaluationLedger.record_semantic_slots` already uses multiset TP/FP/FN, but the live scorers do not consistently submit complete predicted and expected slot sets.
+Deterministic commands from .github/workflows/tests.yml:
 
-## Non-negotiable constraints
+    python -m pytest -m "not real_llm" --cov --cov-report=term-missing --cov-report=xml
+    ruff check .
+    pyright models rules_engine bootstrap operations
+    pyright --outputjson
+    npm run test:js
+    python -m coverage report
 
-1. Do not change utterance text or expected values in existing held-out corpus files to make tests pass.
-2. Do not copy held-out utterances or gold labels into prompts, few-shot examples or production code.
-3. Keep corpus text and entity IDs out of persisted reports. Reports may contain only fixed metric names, counts, ratios, scenario IDs where already allowed by test output policy, model/runtime metadata and allowlisted numeric usage.
-4. Missing provider/decoder output is a scored miss for every gold dimension, not a skipped case.
-5. Extra predictions and duplicates count as false positives; missing predictions count as false negatives.
-6. Precision/recall/F1 with zero denominator must be `null` (not a fabricated 100%). For a family with gold but no predictions, recall/F1 are 0.
-7. Preserve the current single LLM call and production contracts. This PR changes evaluation, not model behaviour.
-8. Preserve backwards-compatible report consumers where possible; version new metric structures explicitly.
+The final run did not execute Ollama or SillyTavern. The 22 excluded tests are intentionally marked real_llm; CI passing validates deterministic contracts and code quality, not semantic quality of a particular model.
 
-## Work packages
+## Delivered scope
 
-### WP0 — Branch, specification and resumability
-- [x] Verify PR #270 merged and read current main.
-- [x] Confirm no existing PR/branch for this #271 task.
-- [x] Create `quality/semantic-evaluation-contracts-pr271` from the exact main SHA above.
-- [x] Add this durable checkpoint before implementation.
-- [x] Open draft PR #271 and keep all work on its existing branch.
+- Text-free exact step-count sidecar for all 35 general language holdout scenarios.
+- Text-free explicit action-frame/relation presence sidecar for all 20 semantic-frame holdout scenarios (10 frame positives, 10 relation positives; zero counts are explicit negative controls).
+- Ordered Intent scorer for category, active step, clarification, exact step count, and independently golded per-step fields.
+- Semantic-frame scorer for exact frame/claim cardinality, family, predicate, role/mention arguments, directed relations, polarity, modality, attribution, temporal expression and step index where gold exists.
+- Extra and duplicate predictions counted as FP; omissions counted as FN.
+- Unannotated fields remain unmeasured; they are not silently treated as correct or as negative gold.
+- Metric schema v1 with case accuracy, TP/FP/FN, gold/prediction denominators, precision/recall/F1 and nearest-rank latency P50/P95.
+- Content-free live evaluation reports with bounded allowlists for provider metadata.
+- General Intent and semantic-frame live harnesses call the shared scorers; provider failures remain scored misses.
 
-### WP1 — Gap inventory and scoring design
-- [x] Inspect language, compound-intent and semantic-frame gold contracts.
-- [x] Identify missing exact step-count checks in the general language holdout.
-- [x] Identify extra/duplicate frame, argument and relation false-positive gaps.
-- [x] Define canonical slot signatures and multiset matching semantics for arguments and relations.
-- [x] Add explicit frame/relation presence-count gold for all 20 semantic-frame holdout cases; zero counts are explicit negative controls, while missing detailed annotations remain unmeasured.
+## Integrity / scope audit
 
-### WP2 — Shared scoring contracts
-- [x] Add a reusable scorer for ordered Intent steps and global category/active-step/clarification fields.
-- [x] Make exact step count mandatory for all 35 general-language holdout cases using a text-free sidecar.
-- [x] Score actor, modality, polarity, reported outcome and attribution only where gold exists.
-- [x] Score semantic frame count/family/predicate/arguments using explicit counts and multiset matching.
-- [x] Score relation claim count/direction/predicate/family/polarity/modality/attribution/temporal fields using explicit counts and field-level gold.
-- [x] Ensure extra and duplicate predictions become FP, missing gold becomes FN.
-- [x] Keep unknown/unannotated fields unmeasured rather than treating them as correct.
+The PR changed only these areas: documentation, evaluation helpers, offline tests and two text-free gold sidecars. The changed-file list contained no production prompt/runtime packages and no original held-out utterance corpus files. The original held-out language and semantic-frame corpus inputs were not edited to make the evaluator pass.
 
-### WP3 — Stable metric/report schema
-- [x] Define metric schema v1 with per-family TP/FP/FN, precision, recall and F1.
-- [x] Publish exact-case accuracy and step-count accuracy separately from slot metrics.
-- [x] Publish gold/prediction denominators, including zero/unmeasured values.
-- [x] Add latency P50/P95 (nearest-rank) and sample counts.
-- [x] Harden JSON reports to retain only bounded identifiers, fixed enums and non-negative numeric telemetry; reject untrusted provider strings.
+The two new sidecars contain only scenario IDs and gold annotations/cardinalities; they do not copy utterance text. No held-out text/gold was embedded in production prompts or few-shot examples.
 
-### WP4 — Offline tests and corpus integrity
-- [x] Add fake-analysis tests for missing/extra steps, duplicate/extra arguments, extra frames/claims, direction inversion, wrong family, attribution and temporal fields.
-- [x] Add zero-denominator, missing-analysis and latency-percentile tests.
-- [x] Prove step-count and frame-presence gold sidecars are text-free and cover their immutable holdouts.
-- [x] Prove evaluation-only gold is not embedded in the Intent prompt.
-- [x] Preserve compound scorer behavior and make exact-case accuracy fail on extra-step predictions.
+## Metric contract
 
-### WP5 — Live harness integration and documentation
-- [x] Integrate shared scoring into the general Intent and semantic-frame real-LLM harnesses without requiring Ollama during CI.
-- [x] Ensure provider errors are scored as misses and not silently omitted.
-- [x] Write a content-free language holdout JSON report through the existing report directory/path configuration.
-- [ ] Update PR record, architecture roadmap and quality roadmap with exact metric definitions and commands.
-- [ ] Run focused offline tests, Ruff, Pyright and full deterministic CI.
-- [ ] Confirm no production files or prompts changed.
+- metric_schema_version = 1.
+- Per-family case accuracy is reported separately from slot recall.
+- Slot metrics expose TP/FP/FN, gold and predicted denominators, precision, recall and F1.
+- Zero-denominator precision/recall/F1 is null, not a fabricated 100%.
+- Extra predictions and duplicates are false positives; missing gold slots are false negatives.
+- Latency percentiles use nearest-rank P50/P95 and publish sample counts.
+- Reports exclude player utterances, prompt/completion content and arbitrary provider strings.
 
-### WP6 — Review and completion
-- [ ] Inspect final diff for fixture/prompt leakage and accidental denominator changes.
-- [ ] Verify branch and CI state.
-- [ ] Open/update the #271 PR and leave this checkpoint current.
+## Work package closure
 
-## Decisions log
+- [x] WP0 — branch/checkpoint and PR created.
+- [x] WP1 — gap inventory and explicit count/slot gold.
+- [x] WP2 — shared ordered Intent and semantic-frame scorers.
+- [x] WP3 — versioned metrics and safe report allowlist.
+- [x] WP4 — offline regression tests and corpus integrity.
+- [x] WP5 — live harness integration and provider failures scored as misses.
+- [x] WP6 — final diff review, CI verification and merge.
 
-- 2026-11-19: #270 was merged; implementation begins from main SHA `c11e0541b855bcde24a8d86616d9e384a3ebda8c`.
-- 2026-11-19: PR #271 is the evaluation-contract milestone. PR #272 remains the optional NLP pilot, #273 uncertainty/checkpoints, and #274 live acceptance.
+The roadmap/ADR reconciliation was left incomplete at merge time. It is being completed as a documentation carry-over in PR #272:
+- [x] Update the architecture ADR to mark #271 integrated and #272 active.
+- [x] Update the current quality roadmap and record the final CI evidence.
+- [x] Add a #271 closure record and verify changed files did not include original holdouts.
 
-## Resumption notes
+## Resume guidance
 
-Update this section after each implementation batch:
-- Last completed work package: WP0–WP4 complete; WP5 partially complete. WP6 pending.
-- Last commit: `d6f498af7e87ffc3e00f3d2f56adb17e64c03809`.
-- Files changed: checkpoint, two text-free gold sidecars, Intent scorer, semantic-frame scorer, metric ledger, safe report builder, compound scorer, live harnesses and offline tests.
-- Tests run and results: no full run has yet completed on the current head. An earlier lint run found two RUF059 unused-variable errors in the Intent harness; fixed in `992c438`. Subsequent runs were cancelled by newer pushes. Current CI run on this checkpoint SHA `d6f498a` is in progress: Tests [44557775808](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44557775808), CodeQL [44557775805](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44557775805).
-- Known blockers / next exact action: wait for current CI. Inspect failure logs, fix any Ruff/Pyright/Python test regressions, update this checkpoint to the new head, then add evaluator/roadmap documentation and complete final diff review. Do not run Ollama live as part of deterministic CI.
+#271 is historical and must not be recreated. Continue optional NLP work in the existing #272 branch/PR, starting from its latest head and its checkpoint docs/quality/pr-272-optional-offline-nlp-pilot.md.

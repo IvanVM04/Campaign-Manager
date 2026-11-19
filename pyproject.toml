@@ -21,12 +21,16 @@ lint = [
 typing = [
     "pyright==1.1.414",
 ]
+nlp-pilot = [
+    "stanza==1.15.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 junit_family = "legacy"
 markers = [
     "real_llm: tests that require a running Ollama instance",
+    "nlp_pilot: optional parser-pilot tests; live A/B tests also require explicit opt-in",
 ]
 
 [tool.coverage.run]

@@ -1,7 +1,7 @@
 # Auditoría actual y hoja de ruta de calidad
 
 **Fecha:** 2026-11-18; reconciliación de estado: 2026-11-19  
-**Snapshot original:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado anterior a NLU:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). **Último main verificado:** `8276450babba6611a172e601d0c76b83ae8e449e` (PR #269 integrada).  
+**Snapshot original:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado anterior a NLU:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). **Último main verificado:** `9de344d4d36fdfc325c91f34075553d6076f2fc0` (PR #271 integrada).  
 **Baseline documental de este snapshot:** `ae52afcf9c172514a5d119fe301de11255f08091`; los cambios de arquitectura NLU del 2026-11-19 se enlazan como fuente activa separada.  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
@@ -22,7 +22,7 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 1. Mantener la arquitectura modular actual.
 2. No hacer tuning amplio de prompts sin un baseline live comparable.
 3. Mantener las fronteras de evidencia, visibilidad, reglas y escritura.
-4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#273 estén integradas.
+4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. PR #271 ya está integrada; el siguiente trabajo activo es el piloto NLP opcional de #272. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#273 estén integradas.
 5. Mantener CI determinista, Ruff, Pyright y validaciones contractuales como gates obligatorios de cada PR; diferir la ejecución live no autoriza a integrar cambios sin validación estática/determinista.
 6. Cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
 7. Diseñar la interfaz propia cuando los contratos y workflows de backend sean sólidos; SillyTavern seguirá siendo un cliente de integración, pero no el único camino de aceptación del producto.
@@ -35,14 +35,25 @@ El usuario ha decidido retrasar la próxima ejecución completa de los holdouts 
 1. PR #267: frontera de normalización de Intent (integrada en `main`).
 2. PR #268: separación de responsabilidades discursivas y extracción superficial (integrada en `main`).
 3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales (integrada en `main`).
-4. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra (siguiente trabajo).
-5. PR #272: piloto offline de NLP opcional, usando #271 para comparar; no implica añadir Stanza/spaCy a producción.
+4. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra (**integrada en main**).
+5. PR #272: piloto offline de NLP opcional, usando #271 para comparar (**activa en borrador**); no implica añadir Stanza/spaCy a producción.
 6. PR #273: política de incertidumbre calibrable y checkpoints durables dependientes.
 7. PR #274: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
 
 La referencia normativa es [Player-language understanding architecture — 2026-11-19](../architecture/player-language-understanding-architecture-2026-11-19.md) y la reconciliación global más reciente es [project-audit-2026-11-19](../architecture/project-audit-2026-11-19.md). Los informes históricos de calidad y las puntuaciones anteriores a #266 no deben extrapolarse a la arquitectura posterior.
 
 La demora afecta a la ejecución **live** completa, no a la validación de código: cada PR continúa necesitando CI determinista, lint, tipos y pruebas de contrato aplicables. No se ejecutará Ollama como prueba de aceptación hasta el gate #274 salvo que exista una necesidad diagnóstica puntual aprobada y claramente separada del benchmark completo.
+
+
+### 1.2 Cierre de evaluación y piloto NLP — 2026-11-19
+
+PR [#271](https://github.com/IvanVM04/Campaign-Manager/pull/271) está fusionada en `main` como `9de344d4d36fdfc325c91f34075553d6076f2fc0`. Su CI final sobre `a669d194462cced1ab2994a96ce60f25a4250b8` pasó con **2.204 tests deterministas, 22 tests `real_llm` excluidos y 85,23 % de cobertura**. Ruff, ambos alcances Pyright, JavaScript, CodeQL y CI summary también pasaron. Evidencia: [Tests #44559085820](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44559085820) y [CodeQL #44559085674](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44559085674).
+
+El cambio #271 solo alteró evaluadores, métricas, pruebas, documentación y dos sidecars text-free. Los corpus de utterances held-out originales y los prompts de producción no cambiaron. El detalle contractual está en [Player-language understanding architecture](../architecture/player-language-understanding-architecture-2026-11-19.md) y en el [registro de cierre #271](pr-271-closure-record.md) y su [checkpoint histórico](pr-271-complete-semantic-evaluation-contracts.md).
+
+**Siguiente hito activo: PR #272**, rama `quality/offline-nlp-pilot-pr272`, actualmente draft. Prueba Stanza como dependencia opcional, CPU-only, sin integración en el runtime de producción. Sus salidas son hints no autoritativos; no asignan IDs, permisos, outcomes ni operaciones. El runner offline compara únicamente cues con gold suficiente (negación/condicional) frente a una línea base léxica y mide cobertura/latencia/footprint. El A/B con Ollama es opt-in y permanece fuera de CI determinista. Consulta el [checkpoint #272](pr-272-optional-offline-nlp-pilot.md) y el [runbook del piloto](nlp-pilot-runbook.md).
+
+La promoción de una librería NLP a dependencias de producción requiere una mejora semántica medible, coste de CPU/memoria/packaging asumible, compatibilidad offline y revisión de licencia por separado para librería y modelo.
 
 ## 2. Baseline verificado
 
