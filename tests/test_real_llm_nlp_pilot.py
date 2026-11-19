@@ -21,7 +21,7 @@ from tests.intent_analysis_evaluation import (
 )
 from tests.nlp_pilot_support import ParserHintingProvider
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
-from tests.nlp_pilot.probes import nearest_rank_percentile
+from services.nlp_pilot.probes import nearest_rank_percentile
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
