@@ -21,7 +21,14 @@ def _read_json(path: Path | None) -> dict[str, Any] | None:
 
 
 def _number(value: Any) -> float | None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        try:
+            value = float(value.strip())
+        except ValueError:
+            return None
+    if not isinstance(value, (int, float)):
         return None
     return float(value) if math.isfinite(value) else None
 

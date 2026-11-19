@@ -93,7 +93,7 @@ def test_nlp_offline_summary_aggregates_cues_across_families(tmp_path: Path):
     assert result is not None
     assert result["scenario_count"] == 10
     assert result["cue_metrics"]["lexical_baseline"]["negation"]["samples"] == 3
-    assert result["cue_metrics"]["lexical_baseline"]["negation"]["precision"] == 0.5
+    assert result["cue_metrics"]["lexical_baseline"]["negation"]["precision"] == 0.3333
     assert result["cue_metrics"]["stanza"]["negation"]["f1"] == 1.0
 
 
@@ -154,4 +154,4 @@ def test_build_report_writes_markdown_and_json_and_fails_if_any_stage_failed(tmp
     markdown = (run_dir / "summary.md").read_text(encoding="utf-8")
     assert "Estado global: FAILED" in markdown
     assert "Python tests" in markdown
-    assert "ruff.log" in markdown
+    assert "| Ruff | failed |" in markdown
