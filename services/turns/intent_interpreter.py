@@ -23,7 +23,7 @@ from services.providers import LLMProvider
 
 from .intent_normalization_pipeline import (
     IntentNormalizationPipeline,
-    _normalize_explicit_npc_speech_report as _normalize_explicit_npc_speech_report,
+    _normalize_explicit_npc_speech_report,
 )
 from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
