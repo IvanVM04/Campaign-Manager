@@ -237,5 +237,5 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
     record_property("nlp_pilot_hint_variant_passes", hinted_passes)
     record_property("nlp_pilot_parser_successes", parse_successes)
     record_property("nlp_pilot_elapsed_seconds", round(elapsed, 3))
-    record_property("nlp_pilot_report", report_path or "not_configured")
-    print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+    record_property("nlp_pilot_report_written", report_path is not None)
+    print("NLP pilot A/B complete; sanitized aggregate metrics recorded.")
