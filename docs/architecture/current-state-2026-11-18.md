@@ -6,7 +6,7 @@
 
 > **Actualización de fuente de verdad — 2026-11-19:** el `main` vigente ya incluye PR #266 en `5988ed161a9023d9a2bf86912c82f74092a53e96`. La ejecución de CI asociada al SHA final de #266 registró 2.148 tests deterministas pasados, 22 `real_llm` excluidos y 85,31 % de cobertura combinada ([workflow run #44417534718](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44417534718)). Esto reemplaza los conteos históricos de #255/#261 cuando se hable del estado actual; no certifica calidad live de Ollama ni una sesión SillyTavern. La nueva arquitectura NLU y el gate de pruebas live se describen en [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). PR #267 está en desarrollo y aún no forma parte de `main`.
 
-> Este es el mapa de implementación verificado originalmente el 2026-11-18; la actualización superior añade la revisión de main del 2026-11-19. Los mapas y auditorías fechados anteriormente son snapshots históricos; explican decisiones y hallazgos de su fecha, pero no deben usarse como fuente actual cuando difieran de este documento o del código.
+> **Reconciliación verificada — 2026-11-19:** `main` está en `8276450babba6611a172e601d0c76b83ae8e449e`, con PRs #267, #268 y #269 integradas. En ese SHA: 2.188 tests Python pasaron, 22 `real_llm` se excluyeron deliberadamente, cobertura combinada 85,23 % (88,8 % líneas; 75,9 % ramas); Ruff, Pyright, JavaScript y CodeQL pasaron. Esto no certifica Ollama live ni la aceptación manual de SillyTavern. Véase [auditoría global del 19-11](project-audit-2026-11-19.md).
 
 ## 1. Resumen ejecutivo
 
