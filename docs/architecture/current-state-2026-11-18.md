@@ -114,14 +114,14 @@ La guía de migraciones es [migration-catalog-2026-11-12.md](migration-catalog-2
 
 ## 8. CI y verificación observada
 
-En el commit documental `4a3a2549...` (PR #257 fusionada) se observaron:
+Como referencia histórica, en el commit documental `4a3a2549...` (PR #257 fusionada) se observaron:
 
 | Ejecución | Resultado |
 |---|---|
 | [Tests #44330385868](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385868) | Success: 2.050 passed, 22 deselected, 85,18 % de cobertura combinada. Ruff, ambos alcances Pyright, JavaScript y CI summary correctos. |
 | [CodeQL #44330385883](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44330385883) | Success. |
 
-Los 22 tests excluidos son `real_llm`. Esta CI no prueba Ollama ni la sesión real de SillyTavern. El baseline de modelo y la aceptación integral del adaptador son gates separados. No se registra aquí como aceptado un benchmark live completo posterior a PR #255.
+Este resultado pertenece al baseline histórico del 18-11. Para el resultado vigente sobre #269, usa la reconciliación del inicio de este documento y la [auditoría global del 19-11](project-audit-2026-11-19.md). Los tests `real_llm` y la aceptación manual de SillyTavern siguen siendo gates separados.
 
 ## 9. Límites de arquitectura que deben preservarse
 
