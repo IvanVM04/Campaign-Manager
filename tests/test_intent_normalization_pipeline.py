@@ -150,3 +150,89 @@ def test_normalization_diagnostics_are_content_free():
     assert source not in diagnostic_text
     assert "puerta" not in diagnostic_text
     assert result.diagnostics.canonicalized_step_indices == (6,)
+
+def test_pipeline_classifies_an_unverified_named_quoted_speaker_as_dialogue():
+    source = "Mara susurra: «cambiando de tema» y después se ríe."
+    payload = _payload(
+        source=source,
+        category="report",
+        actor="npc",
+        modality="reported",
+        active_step_index=None,
+    )
+    payload["steps"][0]["action_frame"]["predicate"] = "susurra"
+    payload["steps"][0]["action_frame"]["family"] = "interaction"
+
+    result = IntentNormalizationPipeline().normalize(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    assert result.analysis.category.value == "dialogue"
+    assert result.analysis.active_step_index is None
+    assert result.analysis.steps[0].actor.value == "other"
+    assert result.analysis.steps[0].modality.value == "dialogue"
+    assert result.analysis.steps[0].action_frame.family.value == "communication"
+    assert result.diagnostics.unverified_named_speaker_dialogue_normalized is True
+
+
+def test_pipeline_keeps_explicit_player_dialogue_before_follow_up_investigation():
+    source = "Le pregunto a Mara por la llave y después examino el escritorio."
+    payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [
+            {
+                "index": 0,
+                "source_excerpt": "Le pregunto a Mara por la llave",
+                "actor": "other",
+                "action": "preguntar a Mara por la llave",
+                "modality": "reported",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["Mara", "la llave"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "pregunto",
+                    "family": "communication",
+                    "arguments": [],
+                },
+            },
+            {
+                "index": 1,
+                "source_excerpt": "después examino el escritorio",
+                "actor": "other",
+                "action": "examinar el escritorio",
+                "modality": "observed",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["el escritorio"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "examino",
+                    "family": "perception",
+                    "arguments": [],
+                },
+            },
+        ],
+        "active_step_index": 0,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+
+    result = IntentNormalizationPipeline().normalize(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    assert result.analysis.category.value == "mixed"
+    assert len(result.analysis.steps) == 2
+    assert result.analysis.steps[0].actor.value == "player"
+    assert result.analysis.steps[0].modality.value == "dialogue"
+    assert result.analysis.steps[1].actor.value == "player"
+    assert result.analysis.steps[1].modality.value == "attempted"
+    assert result.analysis.active_step_index == 1
+    assert result.diagnostics.compound_dialogue_action_normalized is True
