@@ -4,8 +4,6 @@ This is the navigation entry point for maintainers, coding agents and product wo
 
 ## Current source of truth — 2026-11-19
 
-- [Project-wide audit — 2026-11-19](architecture/project-audit-2026-11-19.md) — reconciled architecture, NLU, CI, product progress, risks and effort estimates against main `8276450`.
-
 Read these first. They describe the current product target, source-verified implementation state and active quality priorities.
 
 - [Product requirements v0.2](product/product-requirements-2026-11-18.md) — product direction, confirmed design decisions, functional/non-functional requirements, desired UI, acceptance gates and proposed ideas clearly separated from approved requirements.
