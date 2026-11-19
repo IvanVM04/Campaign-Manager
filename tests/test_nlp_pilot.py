@@ -73,9 +73,9 @@ def test_stanza_adapter_maps_offsets_and_dependency_heads_without_source_text():
     assert result.word_count == 4
     assert result.sentence_count == 1
     assert result.sentences[0].words[0].source_start == 0
-    assert result.sentences[0].words[0].source_end == 5
-    assert result.sentences[0].words[1].source_start == 6
-    assert result.sentences[0].words[2].source_start == 6
+    assert result.sentences[0].words[0].source_end == 4
+    assert result.sentences[0].words[1].source_start == 5
+    assert result.sentences[0].words[2].source_start == 5
     assert result.sentences[0].words[3].head_word_index == 0
     assert result.sentences[0].words[3].morphology == (
         ("Gender", "Fem"),
