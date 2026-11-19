@@ -88,7 +88,6 @@ def test_runner_scopes_single_scenario_filters_to_the_matching_suite():
     assert "Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID" in source
 
 
-
 def test_git_wrapper_treats_native_stderr_as_diagnostic_and_checks_exit_code():
     source = RUNNER.read_text(encoding="utf-8")
     start = source.index("function Invoke-Git(")
