@@ -284,8 +284,8 @@ def render_markdown(report: dict[str, Any]) -> str:
             "", "### Cobertura Python", "",
             f"- Líneas: **{_fmt(coverage.get('line_percent'), '%')}**",
             f"- Branches: **{_fmt(coverage.get('branch_percent'), '%')}**",
-            f"- Combinada (gate 85%): **{_fmt(coverage.get('combined_percent'), '%')}** "
-            f"({'PASS' if coverage.get('gate_passed') else 'FAIL'})", "",
+            (f"- Combinada (gate 85%): **{_fmt(coverage.get('combined_percent'), '%')}** "
+             f"({'PASS' if coverage.get('gate_passed') else 'FAIL'})"), "",
             "| Paquete | Líneas | Branches | Combinada |",
             "|---|---:|---:|---:|",
         ])
@@ -322,10 +322,10 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"| Cobertura de parseo | {_fmt(offline.get('parse_coverage'))} |",
             f"| Modelo | {offline.get('model_package', 'n/a')} / {offline.get('library_version', 'n/a')} |",
             f"| Tamaño | {_fmt(offline.get('model_directory_megabytes'), ' MB')} |",
-            f"| Wall P50 / P95 | {_fmt(offline.get('wall_latency_p50_ms'), ' ms')} / "
-            f"{_fmt(offline.get('wall_latency_p95_ms'), ' ms')} |",
-            f"| CPU P50 / P95 | {_fmt(offline.get('cpu_latency_p50_ms'), ' ms')} / "
-            f"{_fmt(offline.get('cpu_latency_p95_ms'), ' ms')} |",
+            (f"| Wall P50 / P95 | {_fmt(offline.get('wall_latency_p50_ms'), ' ms')} / "
+             f"{_fmt(offline.get('wall_latency_p95_ms'), ' ms')} |"),
+            (f"| CPU P50 / P95 | {_fmt(offline.get('cpu_latency_p50_ms'), ' ms')} / "
+             f"{_fmt(offline.get('cpu_latency_p95_ms'), ' ms')} |"),
             "", "### Probes de negación y condicional", "",
             "| Señal | Variante | Muestras | Precisión | Recall | F1 |",
             "|---|---|---:|---:|---:|---:|",
