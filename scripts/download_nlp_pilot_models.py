@@ -20,7 +20,7 @@ def main() -> int:
 
     try:
         import stanza
-    except ImportError as exc:
+    except ImportError:
         parser.error(
             "Stanza is optional. Install it first with: pip install --group nlp-pilot"
         )
