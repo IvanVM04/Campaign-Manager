@@ -48,16 +48,17 @@ def _score_variant(
         provider.inner if isinstance(provider, ParserHintingProvider) else provider
     )
     original_callback = getattr(inner_provider, "metrics_callback", None)
-    if hasattr(inner_provider, "metrics_callback"):
-        inner_provider.metrics_callback = usage_events.append
+    has_metrics_callback = hasattr(inner_provider, "metrics_callback")
+    if has_metrics_callback:
+        setattr(inner_provider, "metrics_callback", usage_events.append)
     try:
         try:
             analysis = interpreter.interpret(_make_context(), scenario["input"])
         except Exception as exc:  # noqa: BLE001 - provider errors remain scored misses
             error_type = type(exc).__name__
     finally:
-        if hasattr(inner_provider, "metrics_callback"):
-            inner_provider.metrics_callback = original_callback
+        if has_metrics_callback:
+            setattr(inner_provider, "metrics_callback", original_callback)
     elapsed = perf_counter() - started
     _matched, _total, failures = score_intent_analysis(
         analysis,
@@ -132,31 +133,34 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
 
         hint_provider.set_parser_hints(parsed_document)
         repetitions = 3 if scenario["critical"] else 1
-        for _repetition in range(repetitions):
-            model_ok, model_error = _score_variant(
-                model_only_interpreter,
-                scenario,
-                step_gold[scenario["id"]],
-                scenario["family"],
-                model_only_ledger,
-                model_only_usage,
+        for repetition in range(repetitions):
+            variants = (
+                ("model_only", model_only_interpreter, model_only_ledger, model_only_usage),
+                ("model_plus_stanza_hints", hinted_interpreter, hinted_ledger, hinted_usage),
             )
-            hinted_ok, hinted_error = _score_variant(
-                hinted_interpreter,
-                scenario,
-                step_gold[scenario["id"]],
-                scenario["family"],
-                hinted_ledger,
-                hinted_usage,
-            )
-            provider_calls += 2
-            model_only_passes += int(model_ok)
-            hinted_passes += int(hinted_ok)
-            if model_error is not None:
-                model_only_errors[model_error] += 1
-            if hinted_error is not None:
-                hinted_errors[hinted_error] += 1
-            prompt_hint_bytes.append(hint_provider.hint_bytes)
+            # Alternate call order to reduce systematic warm-up/order bias.
+            if (len(parser_latencies) + repetition) % 2:
+                variants = tuple(reversed(variants))
+            for variant_name, interpreter, ledger, usage in variants:
+                passed, error_type = _score_variant(
+                    interpreter,
+                    scenario,
+                    step_gold[scenario["id"]],
+                    scenario["family"],
+                    ledger,
+                    usage,
+                )
+                provider_calls += 1
+                if variant_name == "model_only":
+                    model_only_passes += int(passed)
+                    if error_type is not None:
+                        model_only_errors[error_type] += 1
+                else:
+                    hinted_passes += int(passed)
+                    if error_type is not None:
+                        hinted_errors[error_type] += 1
+                if variant_name == "model_plus_stanza_hints":
+                    prompt_hint_bytes.append(hint_provider.hint_bytes)
 
     elapsed = perf_counter() - started
     report = build_live_evaluation_report(
