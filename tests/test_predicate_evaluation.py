@@ -11,7 +11,7 @@ from tests.semantic_evaluation_report import (
     write_live_evaluation_report,
 )
 from tests.semantic_frame_evaluation import score_semantic_frame_scenario
-from tests.test_real_llm_semantic_holdout import _optional_bool_environment_variable
+from tests.live_llm_config import optional_bool_environment_variable
 
 
 def _argument(role: str, mention: str, kind_hint: str = "item_instance"):
@@ -246,19 +246,19 @@ def test_live_evaluation_report_contains_reproducibility_and_omits_free_text(
 
 def test_live_holdout_think_setting_defaults_to_ollama_model_behavior(monkeypatch):
     monkeypatch.delenv("CAMPAIGN_MANAGER_REAL_LLM_THINK", raising=False)
-    assert _optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK") is None
+    assert optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK") is None
 
 
 @pytest.mark.parametrize("value", ["false", "False", "0", "no", "off"])
 def test_live_holdout_think_setting_can_disable_reasoning(monkeypatch, value):
     monkeypatch.setenv("CAMPAIGN_MANAGER_REAL_LLM_THINK", value)
-    assert _optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK") is False
+    assert optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK") is False
 
 
 @pytest.mark.parametrize("value", ["true", "True", "1", "yes", "on"])
 def test_live_holdout_think_setting_can_enable_reasoning(monkeypatch, value):
     monkeypatch.setenv("CAMPAIGN_MANAGER_REAL_LLM_THINK", value)
-    assert _optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK") is True
+    assert optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK") is True
 
 
 def test_live_holdout_think_setting_rejects_invalid_values(monkeypatch):
@@ -267,7 +267,7 @@ def test_live_holdout_think_setting_rejects_invalid_values(monkeypatch):
         ValueError,
         match="CAMPAIGN_MANAGER_REAL_LLM_THINK must be a boolean",
     ):
-        _optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK")
+        optional_bool_environment_variable("CAMPAIGN_MANAGER_REAL_LLM_THINK")
 
 def test_relation_predicate_surface_survives_a_missing_leading_article():
     claim = _claim(
