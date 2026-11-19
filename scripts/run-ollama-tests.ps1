@@ -300,7 +300,7 @@ else {
     $uv = Get-Command uv -ErrorAction SilentlyContinue
     if ($uv) {
         $uvExe = if ($uv.Path) { $uv.Path } else { $uv.Source }
-        Invoke-CommandStage "Sync Python groups (test/nlp-pilot)" $uvExe @("sync", "--group", "test", "--group", "nlp-pilot", "--no-lock") "00-dependencies.log" | Out-Null
+        Invoke-CommandStage "Sync Python groups (test/nlp-pilot)" $uvExe @("sync", "--no-install-project", "--group", "test", "--group", "nlp-pilot", "--no-lock") "00-dependencies.log" | Out-Null
     }
     else {
         $systemPython = Get-Command python -ErrorAction SilentlyContinue
@@ -311,7 +311,10 @@ else {
             $venvPython = Get-Python
             if ($venvPython) {
                 Invoke-CommandStage "Upgrade pip" $venvPython @("-m", "pip", "install", "--upgrade", "pip") "00-pip.log" | Out-Null
-                Invoke-CommandStage "Install project package" $venvPython @("-m", "pip", "install", "-e", ".") "00-project.log" | Out-Null
+                # The repository is executed from its root; it is not an editable
+                # installable Python package. Match CI/AGENTS.md: install runtime
+                # requirements and PEP 735 development groups separately.
+                Invoke-CommandStage "Install application requirements" $venvPython @("-m", "pip", "install", "-r", "requirements.txt") "00-requirements.log" | Out-Null
                 Invoke-CommandStage "Install test/nlp-pilot groups" $venvPython @("-m", "pip", "install", "--group", "test", "--group", "nlp-pilot") "00-groups.log" | Out-Null
             }
         }
