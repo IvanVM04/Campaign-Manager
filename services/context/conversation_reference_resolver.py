@@ -252,7 +252,7 @@ class ConversationReferenceResolver:
         set[str],
         dict[str, set[SemanticObjectKind]],
     ]:
-        """Extract and merge literal current-step mentions with provenance."""
+        """Extract current-step mentions while retaining all backend-observed origins."""
         specs: list[
             tuple[
                 str,
@@ -340,33 +340,40 @@ class ConversationReferenceResolver:
             )
         )
 
-        merged: dict[str, dict[str, object]] = {}
+        # The tuple layout is fixed and typed; only the origin accumulator mutates.
+        merged: dict[
+            str,
+            tuple[
+                str,
+                SemanticObjectKind,
+                list[DiscourseMentionOrigin],
+                int | None,
+                int | None,
+            ],
+        ] = {}
         conflicting_kinds: set[str] = set()
         conflicting_kind_values: dict[str, set[SemanticObjectKind]] = {}
+
         for text, kind_hint, origin, start_offset, end_offset in specs:
             mention_key = self.entity_resolver.normalize(text)
             if not mention_key:
                 continue
             existing = merged.get(mention_key)
             if existing is None:
-                merged[mention_key] = {
-                    "text": text,
-                    "kind_hint": kind_hint,
-                    "origins": [origin],
-                    "start_offset": start_offset,
-                    "end_offset": end_offset,
-                }
+                merged[mention_key] = (
+                    text,
+                    kind_hint,
+                    [origin],
+                    start_offset,
+                    end_offset,
+                )
                 continue
 
-            origins = existing["origins"]
-            assert isinstance(origins, list)
+            existing_text, existing_kind, origins, existing_start, existing_end = existing
             origins.append(origin)
-            if existing["start_offset"] is None and start_offset is not None:
-                existing["start_offset"] = start_offset
-                existing["end_offset"] = end_offset
+            if existing_start is None and start_offset is not None:
+                existing_start, existing_end = start_offset, end_offset
 
-            existing_kind = existing["kind_hint"]
-            assert isinstance(existing_kind, SemanticObjectKind)
             if existing_kind is SemanticObjectKind.UNKNOWN:
                 if mention_key in conflicting_kinds:
                     if kind_hint is not SemanticObjectKind.UNKNOWN:
@@ -375,28 +382,42 @@ class ConversationReferenceResolver:
                             set(),
                         ).add(kind_hint)
                 else:
-                    existing["kind_hint"] = kind_hint
+                    existing_kind = kind_hint
             elif (
                 kind_hint is not SemanticObjectKind.UNKNOWN
                 and kind_hint is not existing_kind
             ):
-                existing["kind_hint"] = SemanticObjectKind.UNKNOWN
-                conflicting_kinds.add(mention_key)
                 conflicting_kind_values.setdefault(
                     mention_key,
                     {existing_kind, kind_hint},
                 ).update({existing_kind, kind_hint})
+                existing_kind = SemanticObjectKind.UNKNOWN
+                conflicting_kinds.add(mention_key)
+
+            merged[mention_key] = (
+                existing_text,
+                existing_kind,
+                origins,
+                existing_start,
+                existing_end,
+            )
 
         typed_mentions = tuple(
             ConversationReferenceMention(
-                text=str(item["text"]),
+                text=text,
                 step_index=step.index,
-                kind_hint=item["kind_hint"],
-                origins=tuple(dict.fromkeys(item["origins"])),
-                start_offset=item["start_offset"],
-                end_offset=item["end_offset"],
+                kind_hint=kind_hint,
+                origins=tuple(dict.fromkeys(origins)),
+                start_offset=start_offset,
+                end_offset=end_offset,
             )
-            for item in merged.values()
+            for (
+                text,
+                kind_hint,
+                origins,
+                start_offset,
+                end_offset,
+            ) in merged.values()
         )
         return typed_mentions, conflicting_kinds, conflicting_kind_values
 
