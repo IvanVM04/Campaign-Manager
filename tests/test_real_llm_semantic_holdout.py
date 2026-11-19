@@ -28,7 +28,10 @@ from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
 )
-from tests.semantic_frame_evaluation import score_semantic_frame_scenario
+from tests.semantic_frame_evaluation import (
+    load_semantic_frame_presence_gold,
+    score_semantic_frame_scenario,
+)
 
 pytestmark = pytest.mark.real_llm
 
@@ -218,6 +221,7 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
     assert corpus["schema_version"] == 1
     assert corpus["split"] == "held_out"
     assert len(corpus["scenarios"]) >= 18
+    presence_gold = load_semantic_frame_presence_gold(corpus)
     predicate_gold = json.loads(
         (FIXTURES / "semantic_frame_predicate_gold_v1.json").read_text(
             encoding="utf-8"
@@ -276,15 +280,21 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     scenario["input"],
                 )
                 assert analysis.schema_version == 2
+                presence = presence_gold[scenario["id"]]
                 matched, total, failures = score_semantic_frame_scenario(
                     analysis,
                     scenario,
+                    expected_action_frame_count=presence["expected_action_frame_count"],
+                    expected_relation_count=presence["expected_relation_count"],
                     ledger=ledger,
                 )
             except Exception as exc:  # noqa: BLE001 - failed calls remain scored misses
+                presence = presence_gold[scenario["id"]]
                 matched, total, failures = score_semantic_frame_scenario(
                     None,
                     scenario,
+                    expected_action_frame_count=presence["expected_action_frame_count"],
+                    expected_relation_count=presence["expected_relation_count"],
                     ledger=ledger,
                 )
                 failures.append(f"provider_or_decoder_error:{type(exc).__name__}")
