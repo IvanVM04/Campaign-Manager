@@ -150,7 +150,10 @@ class NlpPilotProbeLedger:
                 },
             }
         )
-        self._unmeasured: dict[str, dict[str, int]] = defaultdict(
+        self._unmeasured_gold: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"negation": 0, "conditional": 0}
+        )
+        self._parser_unavailable: dict[str, dict[str, int]] = defaultdict(
             lambda: {"negation": 0, "conditional": 0}
         )
 
@@ -160,7 +163,7 @@ class NlpPilotProbeLedger:
         family: str,
         expected: dict[str, bool | None],
         lexical: dict[str, bool],
-        parser: dict[str, bool],
+        parser: dict[str, bool] | None,
     ) -> None:
         if not isinstance(family, str) or not family.strip():
             family = "unclassified"
@@ -168,14 +171,17 @@ class NlpPilotProbeLedger:
         for probe in ("negation", "conditional"):
             wanted = expected.get(probe)
             if wanted is None:
-                self._unmeasured[family][probe] += 1
+                self._unmeasured_gold[family][probe] += 1
                 continue
             variants["lexical_baseline"][probe].record(
                 wanted, lexical[probe]
             )
-            variants["stanza"][probe].record(
-                wanted, parser[probe]
-            )
+            if parser is None:
+                self._parser_unavailable[family][probe] += 1
+            else:
+                variants["stanza"][probe].record(
+                    wanted, parser[probe]
+                )
 
     def summary(self) -> dict[str, Any]:
         families: dict[str, Any] = {}
@@ -187,7 +193,12 @@ class NlpPilotProbeLedger:
                 }
                 for variant, probes in variants.items()
             }
-            families[family]["unmeasured_cases"] = dict(self._unmeasured[family])
+            families[family]["unmeasured_gold_cases"] = dict(
+                self._unmeasured_gold[family]
+            )
+            families[family]["parser_unavailable_cases"] = dict(
+                self._parser_unavailable[family]
+            )
         return {
             "probe_schema_version": 1,
             "granularity": "utterance-level cue presence; not step-level semantic accuracy",
