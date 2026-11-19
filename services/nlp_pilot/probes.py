@@ -164,15 +164,16 @@ class NlpPilotProbeLedger:
     ) -> None:
         if not isinstance(family, str) or not family.strip():
             family = "unclassified"
+        variants = self._counts[family]
         for probe in ("negation", "conditional"):
             wanted = expected.get(probe)
             if wanted is None:
                 self._unmeasured[family][probe] += 1
                 continue
-            self._counts[family]["lexical_baseline"][probe].record(
+            variants["lexical_baseline"][probe].record(
                 wanted, lexical[probe]
             )
-            self._counts[family]["stanza"][probe].record(
+            variants["stanza"][probe].record(
                 wanted, parser[probe]
             )
 
