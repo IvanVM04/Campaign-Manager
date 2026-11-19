@@ -263,13 +263,21 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
         repetitions = 3 if scenario["critical"] else 1
         for repetition in range(repetitions):
             case_started = perf_counter()
+            analysis = None
+            provider_error: str | None = None
             try:
                 analysis = interpreter.interpret(
                     context,
                     scenario["input"],
                 )
-                assert analysis.schema_version == 2
-                presence = presence_gold[scenario["id"]]
+                if getattr(analysis, "schema_version", None) != 2:
+                    provider_error = "UnsupportedIntentSchema"
+                    analysis = None
+            except Exception as exc:  # noqa: BLE001 - failed calls remain scored misses
+                provider_error = type(exc).__name__
+
+            presence = presence_gold[scenario["id"]]
+            try:
                 matched, total, failures = score_semantic_frame_scenario(
                     analysis,
                     scenario,
@@ -277,16 +285,13 @@ def test_real_ollama_meets_held_out_semantic_frame_corpus_v1(record_property):
                     expected_relation_count=presence["expected_relation_count"],
                     ledger=ledger,
                 )
-            except Exception as exc:  # noqa: BLE001 - failed calls remain scored misses
-                presence = presence_gold[scenario["id"]]
-                matched, total, failures = score_semantic_frame_scenario(
-                    None,
-                    scenario,
-                    expected_action_frame_count=presence["expected_action_frame_count"],
-                    expected_relation_count=presence["expected_relation_count"],
-                    ledger=ledger,
-                )
-                failures.append(f"provider_or_decoder_error:{type(exc).__name__}")
+            except Exception as exc:  # noqa: BLE001 - report scorer defects without masking them
+                # Do not invoke the scorer again here: the same malformed gold or
+                # evaluator defect could otherwise raise twice and hide its origin.
+                matched, total = 0, 1
+                failures = [f"evaluation_error:{type(exc).__name__}"]
+            if provider_error is not None:
+                failures.append(f"provider_or_decoder_error:{provider_error}")
             elapsed = perf_counter() - case_started
             provider_calls += 1
             ledger.record_case(
