@@ -56,8 +56,32 @@ function Add-Stage([string]$Name, [string]$Status, [double]$Seconds = 0, [Nullab
 }
 
 function Invoke-Git([string[]]$Arguments) {
-    & git -C $script:RepoRoot @Arguments 2>&1 | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed with exit code $LASTEXITCODE" }
+    # Git writes normal fetch/pull progress to stderr. Do not let that diagnostic
+    # stream become a terminating PowerShell error under the script's Stop policy.
+    $savedErrorActionPreference = $ErrorActionPreference
+    $gitOutput = @()
+    $gitExitCode = 1
+    try {
+        $ErrorActionPreference = "Continue"
+        $gitOutput = @(& git -C $script:RepoRoot @Arguments 2>&1)
+        $gitExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorActionPreference
+    }
+
+    foreach ($line in $gitOutput) {
+        if ($line -is [System.Management.Automation.ErrorRecord]) {
+            Write-Host $line.ToString()
+        }
+        else {
+            Write-Host ([string]$line)
+        }
+    }
+
+    if ($gitExitCode -ne 0) {
+        throw "git $($Arguments -join ' ') failed with exit code $gitExitCode"
+    }
 }
 
 function Set-EnvDefault([string]$Name, [AllowEmptyString()][string]$Value) {
