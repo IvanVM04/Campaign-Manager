@@ -71,7 +71,7 @@ def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
     assert summary["pytest"]["failed_tests"] == ["tests.live::test_failed"]
     assert summary["pytest"]["safe_properties"] == {
         "language_understanding_model": "gemma4:26b",
-        "language_understanding_provider_calls": "12",
+        "language_understanding_provider_calls": 12,
     }
 
     serialized = (output / "summary.json").read_text(encoding="utf-8")
@@ -115,6 +115,9 @@ def test_summary_keeps_only_allowlisted_semantic_family_metrics_from_junit(tmp_p
     <properties>
       <property name="semantic_holdout_intent_action_attempt_case_accuracy" value="0.8333"/>
       <property name="semantic_holdout_intent_action_attempt_slot_recall" value="0.75"/>
+      <property name="semantic_holdout_intent_action_frame_semantic_slots_precision" value="0.91"/>
+      <property name="semantic_holdout_intent_action_frame_semantic_slots_f1" value="0.88"/>
+      <property name="semantic_holdout_intent_action_attempt_mean_latency_seconds" value="1.25"/>
       <property name="semantic_holdout_intent_entity_link_precision" value="0.9"/>
       <property name="semantic_holdout_intent_prompt_observations" value="PRIVATE_TEXT"/>
       <property name="semantic_holdout_intent_provider_usage" value='{"calls":3,"prompt_tokens_total":120,"unsafe":"PRIVATE_TEXT"}'/>
@@ -130,6 +133,9 @@ def test_summary_keeps_only_allowlisted_semantic_family_metrics_from_junit(tmp_p
     properties = summary["pytest"]["safe_properties"]
     assert properties["semantic_holdout_intent_action_attempt_case_accuracy"] == 0.8333
     assert properties["semantic_holdout_intent_action_attempt_slot_recall"] == 0.75
+    assert properties["semantic_holdout_intent_action_frame_semantic_slots_precision"] == 0.91
+    assert properties["semantic_holdout_intent_action_frame_semantic_slots_f1"] == 0.88
+    assert properties["semantic_holdout_intent_action_attempt_mean_latency_seconds"] == 1.25
     assert properties["semantic_holdout_intent_entity_link_precision"] == 0.9
     assert properties["semantic_holdout_intent_provider_usage"] == {
         "calls": 3,

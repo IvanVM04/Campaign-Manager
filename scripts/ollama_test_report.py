@@ -41,6 +41,40 @@ _SAFE_USAGE_FIELDS = {
     "prompt_eval_duration_ms",
     "eval_duration_ms",
 }
+_SAFE_NUMERIC_PROPERTY_SUFFIXES = (
+    "_timeout_seconds",
+    "_provider_calls",
+    "_total_seconds",
+    "_elapsed_seconds",
+    "_critical_failure_count",
+    "_observational_failure_count",
+    "_provider_error_case_count",
+    "_cases",
+    "_scenarios",
+    "_case_accuracy",
+    "_passed_cases",
+    "_expected_slots",
+    "_slot_recall",
+    "_mean_latency_seconds",
+    "_semantic_slot_precision",
+    "_semantic_slot_recall",
+    "_semantic_slot_f1",
+    "_semantic_slots_true_positive",
+    "_semantic_slots_false_positive",
+    "_semantic_slots_false_negative",
+    "_semantic_slots_precision",
+    "_semantic_slots_recall",
+    "_semantic_slots_f1",
+    "_entity_link_precision",
+    "_entity_link_recall",
+    "_correct_abstentions",
+    "_incorrect_abstentions",
+    "_context_recall",
+    "_operation_precision",
+    "_operation_recall",
+    "_critical_false_persistent_changes",
+    "_secret_leaks",
+)
 _SAFE_PROPERTY_SUFFIXES = (
     "_model",
     "_model_digest",
@@ -58,9 +92,17 @@ _SAFE_PROPERTY_SUFFIXES = (
     "_passed_cases",
     "_expected_slots",
     "_slot_recall",
+    "_mean_latency_seconds",
     "_semantic_slot_precision",
     "_semantic_slot_recall",
     "_semantic_slot_f1",
+    "_semantic_slots_true_positive",
+    "_semantic_slots_false_positive",
+    "_semantic_slots_false_negative",
+    "_semantic_slots_precision",
+    "_semantic_slots_recall",
+    "_semantic_slots_f1",
+    "_provider_error_case_count",
     "_entity_link_precision",
     "_entity_link_recall",
     "_correct_abstentions",
@@ -174,7 +216,23 @@ def _junit_summary(path: Path) -> dict[str, Any]:
             if usage_value is not _UNSAFE:
                 safe_properties[name] = usage_value
             continue
-        value = _safe_scalar(raw_value)
+        if name.endswith("_think") and raw_value.casefold() in {"true", "false"}:
+            safe_properties[name] = raw_value.casefold() == "true"
+            continue
+        if name.endswith(_SAFE_NUMERIC_PROPERTY_SUFFIXES):
+            normalized = raw_value.strip()
+            try:
+                value = (
+                    int(normalized)
+                    if normalized.lstrip("+-").isdigit()
+                    else float(normalized)
+                )
+            except ValueError:
+                value = _safe_scalar(raw_value)
+            if isinstance(value, float) and not math.isfinite(value):
+                value = None
+        else:
+            value = _safe_scalar(raw_value)
         if value is not None:
             safe_properties[name] = value
 
