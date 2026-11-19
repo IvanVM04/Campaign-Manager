@@ -217,4 +217,4 @@ def test_repair_prompt_supplies_exact_fields_for_malformed_relation_operation():
     assert "subject_id:int|$ref" in repair_prompt
     assert "target_id:int|$ref" in repair_prompt
     assert '"entity_id"' not in repair_prompt
-    assert "no sustituyas campos por alias" in repair_prompt
+    assert "ni sustituyas campos por alias" in repair_prompt
