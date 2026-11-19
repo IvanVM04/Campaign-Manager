@@ -655,6 +655,8 @@ already been run or that the full #274 acceptance gate has passed.
 
 ### PR #271 delivery and verification — 2026-11-19
 
+See also the concise [PR #271 closure record](../quality/pr-271-closure-record.md) and the updated [resumable checkpoint](../quality/pr-271-complete-semantic-evaluation-contracts.md).
+
 PR [#271](https://github.com/IvanVM04/Campaign-Manager/pull/271) merged as `9de344d4d36fdfc325c91f34075553d6076f2fc0`. Final deterministic CI passed on its head `a669d194462cced1ab2994a96ce60f25a4250b8`:
 - 2,204 passed / 22 `real_llm` deselected;
 - combined coverage 85.23% (85.0% configured floor);
