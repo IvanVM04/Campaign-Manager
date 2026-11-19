@@ -39,6 +39,7 @@ Each package guide documents current code ownership and package-specific contrac
 | Structured world proposals | [services/llm_world](../services/llm_world/README.md) |
 | LLM providers | [services/providers](../services/providers/README.md) |
 | Durable turns | [services/turns](../services/turns/README.md) |
+| Discourse understanding | [services/discourse](../services/discourse/README.md) |
 | World application | [services/world](../services/world/README.md) |
 | Shared models/contracts | [models](../models/README.md) |
 

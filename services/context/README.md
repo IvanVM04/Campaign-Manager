@@ -11,6 +11,8 @@ Retrieve, expand, rank, select and render campaign context for application and L
 - context_expander.py — expands candidates.
 - context_ranker.py — relevance ranking.
 - context_renderer.py — ranked character-budget rendering for narrative context.
+
+Discourse hints are supplied through the stable `services.discourse_context.DiscourseContextBuilder` facade. Its topic/history selection, surface mention extraction, speaker signals and prompt rendering are implemented by focused collaborators in `services/discourse/`; this package consumes the facade and does not own those linguistic stages.
 - proposal_context_selector.py — intent-ranked record selection with dependency-aware bundles and a conservative UTF-8 byte upper bound.
 
 The LLM-specific world-context projection is a shared typed model in `models/world_context_projection.py`; its LLM renderer remains in `services/llm_world`. The active proposal flow is orchestrated here without introducing a `context` -> `llm_world` dependency.

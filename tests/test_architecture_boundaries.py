@@ -204,3 +204,62 @@ def test_external_silly_tavern_adapters_do_not_import_transport_or_composition()
         "External integration adapters must not depend on API or bootstrap:\\n"
         + "\\n".join(violations)
     )
+
+
+# Discourse collaborators are intentionally decomposed behind a stable facade.
+DISCOURSE_COMPONENTS = {
+    "contracts.py": set(),
+    "text.py": set(),
+    "topic_history_selector.py": {
+        "services.discourse.contracts",
+        "services.discourse.text",
+    },
+    "surface_mention_extractor.py": {
+        "services.discourse.contracts",
+        "services.discourse.text",
+    },
+    "speaker_signal_extractor.py": {
+        "services.discourse.contracts",
+        "services.discourse.surface_mention_extractor",
+    },
+    "renderer.py": {
+        "services.discourse.topic_history_selector",
+        "services.discourse.surface_mention_extractor",
+        "services.discourse.speaker_signal_extractor",
+    },
+}
+
+
+def test_discourse_collaborators_follow_the_declared_dependency_direction():
+    package = ROOT / "services" / "discourse"
+    violations = []
+    for filename, allowed in DISCOURSE_COMPONENTS.items():
+        path = package / filename
+        imports = _absolute_module_imports(path.read_text(encoding="utf-8"))
+        discourse_imports = {
+            imported for imported in imports
+            if imported.startswith("services.discourse.")
+        }
+        unexpected = sorted(discourse_imports - allowed)
+        if unexpected:
+            violations.append(
+                f"{path.relative_to(ROOT)} imports unexpected discourse modules: "
+                + ", ".join(unexpected)
+            )
+    assert not violations, (
+        "Discourse collaborator dependency direction was violated:\\n"
+        + "\\n".join(violations)
+    )
+
+
+def test_discourse_collaborators_do_not_import_the_public_facade():
+    package = ROOT / "services" / "discourse"
+    offenders = [
+        path.name
+        for path in sorted(package.glob("*.py"))
+        if "services.discourse_context" in path.read_text(encoding="utf-8")
+    ]
+    assert not offenders, (
+        "Discourse collaborators must not import their public facade: "
+        + ", ".join(offenders)
+    )

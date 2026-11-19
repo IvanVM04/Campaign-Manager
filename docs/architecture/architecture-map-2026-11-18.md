@@ -167,7 +167,8 @@ The product requirements v0.2 includes future requirements for multi-PJ simultan
 The current code still uses one structured Intent interpretation and a deterministic chain of sanitization/normalization. PR #267 extracts the latter behind `IntentNormalizationPipeline` while preserving the public `IntentInterpreter` orchestration role. This branch-level implementation is described in [the active player-language architecture contract](player-language-understanding-architecture-2026-11-19.md).
 
 The longer-term structural sequence is:
-- #267: explicit normalization boundary and typed diagnostics;
+- #267: explicit normalization boundary and typed diagnostics (integrated);
+- #268: decompose discourse topic/history selection, surface mention extraction, speaker signals and rendering (this PR);
 - #268: decompose discourse topic/history selection, surface mention extraction, speech signals and rendering;
 - #269: formalize conversation-reference evidence and candidate/abstention contracts;
 - #270: optional offline NLP-library pilot and dependency decision;
