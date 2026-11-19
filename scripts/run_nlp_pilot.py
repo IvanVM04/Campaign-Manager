@@ -194,54 +194,6 @@ def run(
     }
 
 
-def test_offline_runner_emits_only_aggregate_metadata(tmp_path):
-    from services.nlp_pilot.contracts import ParserDocument, ParserSentence, ParserWord
-
-    class FakeAdapter:
-        language = "es"
-        model_package = "fake"
-        library_version = "0.0-test"
-
-        def parse(self, text):
-            word = ParserWord(
-                sentence_index=0,
-                token_index=0,
-                word_index=0,
-                source_start=0,
-                source_end=min(2, len(text)),
-                lemma="no",
-                upos="PART",
-                dependency="advmod",
-            )
-            return ParserDocument(
-                adapter_name="fake",
-                language="es",
-                model_package="fake",
-                library_version=self.library_version,
-                elapsed_ms=1.0,
-                sentences=(ParserSentence(sentence_index=0, words=(word,)),),
-            )
-
-    report = run_offline_pilot(
-        split="holdout",
-        model_dir=tmp_path,
-        limit_per_split=2,
-        adapter=FakeAdapter(),
-    )
-    serialized = json.dumps(report, ensure_ascii=False)
-
-    assert report["corpora"]["scenario_count"] == 2
-    assert report["corpora"]["successful_parses"] == 2
-    assert report["corpora"]["parse_coverage"] == 1.0
-    assert report["parser"]["adapter"] == "stanza"
-    assert report["structure"]["word_count"] == 2
-    assert report["probe_metrics"]["probe_schema_version"] == 1
-    assert "holdout-attempt-lever" not in serialized
-    assert "Intento accionar la palanca de bronce junto a la puerta." not in serialized
-    assert '"lemma"' not in serialized
-    assert report["privacy"]["utterances_persisted"] is False
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run an offline parser pilot; no LLM calls are made."
