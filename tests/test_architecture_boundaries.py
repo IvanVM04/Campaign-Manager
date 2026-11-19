@@ -140,6 +140,15 @@ def _absolute_module_imports(source: str) -> set[str]:
             imports.add(node.module)
     return imports
 
+def _context_module_imports(source: str) -> set[str]:
+    """Resolve one-dot imports from services.context to canonical module names."""
+    imports = _absolute_module_imports(source)
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
+            imports.add(f"services.context.{node.module}")
+    return imports
+
 
 def test_capability_packages_respect_dependency_matrix():
     violations = []
@@ -272,13 +281,13 @@ def test_conversation_reference_evidence_and_ranking_have_single_owners():
     ranker_path = package / "conversation_reference_ranker.py"
     resolver_path = package / "conversation_reference_resolver.py"
 
-    evidence_imports = _absolute_module_imports(
+    evidence_imports = _context_module_imports(
         evidence_path.read_text(encoding="utf-8")
     )
-    ranker_imports = _absolute_module_imports(
+    ranker_imports = _context_module_imports(
         ranker_path.read_text(encoding="utf-8")
     )
-    resolver_imports = _absolute_module_imports(
+    resolver_imports = _context_module_imports(
         resolver_path.read_text(encoding="utf-8")
     )
 

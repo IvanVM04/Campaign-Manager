@@ -54,8 +54,26 @@ _SAFE_PROPERTY_SUFFIXES = (
     "_observational_failure_count",
     "_cases",
     "_scenarios",
+    "_case_accuracy",
+    "_passed_cases",
+    "_expected_slots",
+    "_slot_recall",
+    "_semantic_slot_precision",
+    "_semantic_slot_recall",
+    "_semantic_slot_f1",
+    "_entity_link_precision",
+    "_entity_link_recall",
+    "_correct_abstentions",
+    "_incorrect_abstentions",
+    "_context_recall",
+    "_operation_precision",
+    "_operation_recall",
+    "_critical_false_persistent_changes",
+    "_secret_leaks",
+    "_scenario_filter",
     "_hardware",
     "_git_commit",
+    "_provider_usage",
 )
 
 
@@ -104,7 +122,20 @@ def _junit_summary(path: Path) -> dict[str, Any]:
             "safe_properties": {},
         }
 
-    root = ET.parse(path).getroot()
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError):
+        return {
+            "junit_available": False,
+            "junit_error": "missing_or_invalid",
+            "tests": 0,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "duration_seconds": 0.0,
+            "failed_tests": [],
+            "safe_properties": {},
+        }
     testcases = list(root.iter("testcase"))
     failed_tests: list[str] = []
     skipped = failures = errors = 0
@@ -129,12 +160,21 @@ def _junit_summary(path: Path) -> dict[str, Any]:
             name = case.attrib.get("name", "unknown")
             failed_tests.append(f"{classname}::{name}" if classname else name)
 
-    safe_properties: dict[str, str | int | float | bool] = {}
+    safe_properties: dict[str, Any] = {}
     for prop in root.iter("property"):
         name = prop.attrib.get("name", "")
         if not name or not name.endswith(_SAFE_PROPERTY_SUFFIXES):
             continue
-        value = _safe_scalar(prop.attrib.get("value"))
+        raw_value = prop.attrib.get("value", "")
+        if name.endswith("_provider_usage"):
+            try:
+                usage_value = _safe_numeric_tree(json.loads(raw_value))
+            except json.JSONDecodeError:
+                continue
+            if usage_value is not _UNSAFE:
+                safe_properties[name] = usage_value
+            continue
+        value = _safe_scalar(raw_value)
         if value is not None:
             safe_properties[name] = value
 

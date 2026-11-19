@@ -103,3 +103,50 @@ def test_summary_is_created_when_pytest_did_not_produce_junit(tmp_path):
     assert summary["pytest"]["tests"] == 0
     markdown = (tmp_path / "run" / "summary.md").read_text(encoding="utf-8")
     assert "JUnit XML was not produced" in markdown
+
+
+
+def test_summary_keeps_only_allowlisted_semantic_family_metrics_from_junit(tmp_path):
+    junit = tmp_path / "metrics.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        """<testsuites>
+  <testsuite>
+    <properties>
+      <property name="semantic_holdout_intent_action_attempt_case_accuracy" value="0.8333"/>
+      <property name="semantic_holdout_intent_action_attempt_slot_recall" value="0.75"/>
+      <property name="semantic_holdout_intent_entity_link_precision" value="0.9"/>
+      <property name="semantic_holdout_intent_prompt_observations" value="PRIVATE_TEXT"/>
+      <property name="semantic_holdout_intent_provider_usage" value='{"calls":3,"prompt_tokens_total":120,"unsafe":"PRIVATE_TEXT"}'/>
+    </properties>
+    <testcase classname="tests.live" name="test_ok" time="1.0"/>
+  </testsuite>
+</testsuites>
+""",
+        encoding="utf-8",
+    )
+
+    summary = build_summary(junit_xml=junit, output_dir=output)
+    properties = summary["pytest"]["safe_properties"]
+    assert properties["semantic_holdout_intent_action_attempt_case_accuracy"] == 0.8333
+    assert properties["semantic_holdout_intent_action_attempt_slot_recall"] == 0.75
+    assert properties["semantic_holdout_intent_entity_link_precision"] == 0.9
+    assert properties["semantic_holdout_intent_provider_usage"] == {
+        "calls": 3,
+        "prompt_tokens_total": 120,
+    }
+    assert "semantic_holdout_intent_prompt_observations" not in properties
+
+
+def test_summary_survives_malformed_or_truncated_junit_xml(tmp_path):
+    junit = tmp_path / "broken.xml"
+    output = tmp_path / "run"
+    junit.write_text("<testsuites><testsuite>", encoding="utf-8")
+
+    summary = build_summary(junit_xml=junit, output_dir=output)
+
+    assert summary["status"] == "not_run"
+    assert summary["pytest"]["junit_available"] is False
+    assert summary["pytest"]["junit_error"] == "missing_or_invalid"
+    assert (output / "summary.md").is_file()
+    assert (output / "summary.json").is_file()

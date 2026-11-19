@@ -22,6 +22,8 @@ param(
     [string]$HardwareLabel,
     [string]$ScenarioId,
     [string]$CompoundScenarioId,
+    [ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent")]
+    [string]$Evaluation = "all",
     [string]$ResultsRoot = "artifacts/ollama",
     [switch]$NoUpdate,
     [switch]$SkipDependencySync,
@@ -251,8 +253,10 @@ if (
 
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_OLLAMA_BASE_URL" -Value "http://localhost:11434"
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_BASE_URL" -Value $env:CAMPAIGN_MANAGER_OLLAMA_BASE_URL
-Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_MODEL" -Value "gemma4:26b"
-Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT" -Value "120"
+Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_MODEL" -Value "gemma4:12b-it-q4_K_M"
+Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT" -Value "300"
+Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_OLLAMA_THINK" -Value "false"
+Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_REAL_LLM_THINK" -Value $env:CAMPAIGN_MANAGER_OLLAMA_THINK
 Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_GIT_COMMIT" -Value $commit
 
 # Apply common model and timeout to every role only when no role override exists.
@@ -261,10 +265,21 @@ foreach ($role in @("INTENT", "MECHANICS", "EXTRACTION", "NARRATIVE")) {
     Set-ProcessEnvDefault -Name "CAMPAIGN_MANAGER_LLM_$($role)_TIMEOUT_SECONDS" -Value $env:CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT
 }
 
+# Scenario filters are one-run inputs. Clear inherited/env-file filters first
+# so a previous targeted probe cannot silently narrow a full benchmark.
+Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID -ErrorAction SilentlyContinue
+Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID -ErrorAction SilentlyContinue
+
 if (-not [string]::IsNullOrWhiteSpace($ScenarioId)) {
+    if ($Evaluation -notin @("language", "semantic-frames", "discourse")) {
+        throw "-ScenarioId requires -Evaluation language, semantic-frames or discourse."
+    }
     Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID" -Value $ScenarioId
 }
 if (-not [string]::IsNullOrWhiteSpace($CompoundScenarioId)) {
+    if ($Evaluation -ne "compound-intent") {
+        throw "-CompoundScenarioId requires -Evaluation compound-intent."
+    }
     Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID" -Value $CompoundScenarioId
 }
 
@@ -378,6 +393,15 @@ try {
         "--durations=25",
         "--junitxml", $junitPath
     )
+    $evaluationKeywords = @{
+        "language" = "held_out_language_understanding_corpus_v1"
+        "semantic-frames" = "held_out_semantic_frame_corpus_v1"
+        "discourse" = "held_out_discourse_intent_and_resolution_corpus"
+        "compound-intent" = "compound_intent_understanding_holdout"
+    }
+    if ($Evaluation -ne "all") {
+        $pytestArguments += @("-k", $evaluationKeywords[$Evaluation])
+    }
     & $python @pytestArguments 2>&1 | Tee-Object -FilePath $logPath
     $pytestExitCode = $LASTEXITCODE
 }

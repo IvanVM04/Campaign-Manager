@@ -46,3 +46,23 @@ def test_ollama_runner_executes_real_llm_tests_and_keeps_machine_readable_result
     assert "scripts/ollama_test_report.py" in source
     assert "CAMPAIGN_MANAGER_REAL_LLM_REPORT_DIR" in source
     assert "artifacts/ollama" in source
+
+
+
+def test_ollama_runner_uses_the_latest_recorded_local_model_profile():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert '"gemma4:12b-it-q4_K_M"' in source
+    assert '"300"' in source
+    assert 'CAMPAIGN_MANAGER_OLLAMA_THINK" -Value "false"' in source
+    assert 'CAMPAIGN_MANAGER_REAL_LLM_THINK" -Value $env:CAMPAIGN_MANAGER_OLLAMA_THINK' in source
+
+
+def test_ollama_runner_scopes_scenario_filters_to_one_matching_holdout():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent")' in source
+    assert 'held_out_language_understanding_corpus_v1' in source
+    assert 'held_out_semantic_frame_corpus_v1' in source
+    assert 'held_out_discourse_intent_and_resolution_corpus' in source
+    assert 'compound_intent_understanding_holdout' in source
+    assert 'Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID' in source
+    assert 'Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID' in source

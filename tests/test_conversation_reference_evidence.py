@@ -77,6 +77,23 @@ def test_evidence_extractor_preserves_player_provenance_offsets_and_visibility()
     assert bundle.evidence_for(2) == ()
 
 
+def test_evidence_offsets_do_not_point_inside_a_longer_word():
+    entity = Entity(id=3, name="Art", entity_type="npc")
+    excerpt = "A cart blocks the road before ART arrives."
+    bundle = ConversationReferenceEvidenceExtractor().extract(
+        WorldState(entities={3: entity}),
+        [_turn(23, excerpt)],
+        current_input="¿Dónde está?",
+    )
+
+    evidence = bundle.evidence_for(3)
+    assert len(evidence) == 1
+    span = evidence[0]
+    assert span.start_offset is not None
+    assert span.end_offset is not None
+    assert excerpt[span.start_offset:span.end_offset] == "ART"
+
+
 def test_evidence_extractor_keeps_narrator_and_explicit_npc_speech_separate():
     mara = Entity(id=1, name="Mara", entity_type="npc")
     world = WorldState(entities={1: mara})
