@@ -85,6 +85,8 @@ def test_action_predicate_surface_is_scored_independently_of_frame_family():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(frames=(_frame("Entrego", "other"),)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
         ledger=ledger,
     )
 
@@ -112,6 +114,8 @@ def test_action_predicate_inflection_mismatch_is_reported_even_when_frame_is_val
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(frames=(_frame("entregar"),)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
         ledger=ledger,
     )
 
@@ -147,6 +151,8 @@ def test_relation_predicate_surface_is_independent_of_relation_direction():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(claims=(claim,)),
         scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
         ledger=ledger,
     )
 
@@ -171,7 +177,13 @@ def test_missing_action_predicate_is_a_false_negative():
         },
     }
     ledger = SemanticEvaluationLedger()
-    score_semantic_frame_scenario(None, scenario, ledger=ledger)
+    score_semantic_frame_scenario(
+        None,
+        scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
+        ledger=ledger,
+    )
 
     metrics = ledger.summary()["semantic_slot_quality"]["action_frame_predicate_surface"]
     assert metrics["true_positive"] == 0
@@ -279,11 +291,13 @@ def test_relation_predicate_surface_survives_a_missing_leading_article():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(claims=(claim,)),
         scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
         ledger=ledger,
     )
 
-    assert matched == 8
-    assert total == 8
+    assert matched == 7
+    assert total == 7
     assert failures == []
     metrics = ledger.summary()["semantic_slot_quality"]["relation_predicate_surface"]
     assert metrics["precision"] == 1.0
@@ -322,6 +336,8 @@ def test_action_arguments_are_scored_even_when_frame_family_is_wrong():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(frames=(frame,)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
     )
 
     assert matched == 5
@@ -349,6 +365,8 @@ def test_extra_action_frame_is_counted_as_false_positive():
             _frame("Abro", "interaction"),
         )),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
         ledger=ledger,
     )
 
@@ -387,6 +405,8 @@ def test_duplicate_and_extra_action_arguments_are_false_positives():
     _matched, _total, failures = score_semantic_frame_scenario(
         _analysis(frames=(frame,)),
         scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
         ledger=ledger,
     )
 
@@ -420,6 +440,8 @@ def test_extra_relation_claim_is_counted_as_false_positive():
             _claim(subject="Mara", object_="el gremio", predicate="pertenece", relation_family="membership"),
         )),
         scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
         ledger=ledger,
     )
 
@@ -455,6 +477,8 @@ def test_relation_attribution_and_temporal_fields_are_scored_from_gold():
     matched, total, failures = score_semantic_frame_scenario(
         _analysis(claims=(claim,)),
         scenario,
+        expected_action_frame_count=0,
+        expected_relation_count=1,
         ledger=ledger,
     )
 
