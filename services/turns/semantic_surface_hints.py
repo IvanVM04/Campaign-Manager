@@ -329,6 +329,7 @@ class SurfaceNormalizationSummary:
     dropped_ungrounded_target_mentions: int = 0
     dropped_ungrounded_action_arguments: int = 0
     dropped_ungrounded_relation_claims: int = 0
+    dropped_ungrounded_action_predicates: int = 0
     widened_relation_evidence_spans: int = 0
     action_rules_applied: tuple[str, ...] = ()
     relation_rules_applied: tuple[str, ...] = ()
@@ -934,23 +935,74 @@ def normalize_untrusted_intent_payload(
 
     widened = 0
     steps = [dict(step) if isinstance(step, dict) else step for step in raw_steps]
-    if len(steps) == 1 and isinstance(steps[0], dict):
+    full_input = player_input.strip()
+    relation_surface = (
+        _parse_relation_surface(full_input)
+        if len(full_input) <= 300
+        else None
+    )
+    if relation_surface is not None and len(steps) in {1, 2}:
+        excerpts = [
+            step.get("source_excerpt")
+            for step in steps
+            if isinstance(step, dict)
+        ]
+        fragments_are_literal = (
+            len(excerpts) == len(steps)
+            and all(
+                isinstance(excerpt, str)
+                and excerpt.strip()
+                and _is_literal(full_input, excerpt)
+                for excerpt in excerpts
+            )
+        )
+        relation_parts = (
+            relation_surface.subject,
+            relation_surface.predicate,
+            relation_surface.object,
+        )
+        fragments_cover_relation = fragments_are_literal and all(
+            any(_is_literal(excerpt, part) for excerpt in excerpts)
+            for part in relation_parts
+        )
+        predicate_indices = [
+            index
+            for index, excerpt in enumerate(excerpts)
+            if _is_literal(excerpt, relation_surface.predicate)
+        ]
+        if fragments_cover_relation and predicate_indices:
+            # A single unambiguous relation clause can be fragmented into
+            # subject/predicate steps by the model. Keep one typed proposition,
+            # not synthetic sub-events.
+            selected_index = predicate_indices[0]
+            retained = dict(steps[selected_index])
+            retained["index"] = 0
+            retained["source_excerpt"] = full_input
+            if retained.get("modality") in {"attempted", "observed", "unknown"}:
+                retained["modality"] = "reported"
+            normalized["category"] = "report"
+            normalized["active_step_index"] = None
+            steps = [retained]
+            normalized["steps"] = steps
+            widened = int(excerpts[selected_index] != full_input)
+    elif len(steps) == 1 and isinstance(steps[0], dict):
         step = steps[0]
         excerpt = step.get("source_excerpt")
         if (
             isinstance(excerpt, str)
             and _is_literal(player_input, excerpt)
-            and len(player_input.strip()) <= 300
-            and _parse_relation_surface(player_input.strip()) is not None
+            and len(full_input) <= 300
+            and relation_surface is not None
         ):
-            full_input = player_input.strip()
             if full_input != excerpt:
                 step["source_excerpt"] = full_input
                 widened = 1
 
     dropped_targets = 0
     dropped_arguments = 0
-    for step in steps:
+    dropped_predicates = 0
+    active_step_index = normalized.get("active_step_index")
+    for index, step in enumerate(steps):
         if not isinstance(step, dict):
             continue
         excerpt = step.get("source_excerpt")
@@ -969,6 +1021,30 @@ def normalize_untrusted_intent_payload(
             step["target_mentions"] = kept_targets
 
         frame = step.get("action_frame")
+        if isinstance(frame, dict):
+            predicate = frame.get("predicate")
+            passive_third_party_step = (
+                index != active_step_index
+                and step.get("actor") in {"other", "npc", "unknown"}
+                and step.get("modality") in {
+                    "reported", "dialogue", "observed", "question",
+                }
+            )
+            if (
+                passive_third_party_step
+                and isinstance(predicate, str)
+                and predicate.strip()
+                and not (
+                    _is_literal(evidence_text, predicate)
+                    and _is_literal(excerpt, predicate)
+                )
+            ):
+                # Optional frame predicates are never allowed to invent an
+                # action for a quoted/reported third party. Preserve the report
+                # while dropping only this ungrounded semantic enrichment.
+                step.pop("action_frame", None)
+                dropped_predicates += 1
+                frame = None
         if isinstance(frame, dict):
             arguments = frame.get("arguments")
             if isinstance(arguments, list):
@@ -1040,6 +1116,7 @@ def normalize_untrusted_intent_payload(
         dropped_ungrounded_target_mentions=dropped_targets,
         dropped_ungrounded_action_arguments=dropped_arguments,
         dropped_ungrounded_relation_claims=dropped_relations,
+        dropped_ungrounded_action_predicates=dropped_predicates,
         widened_relation_evidence_spans=widened,
     )
 
