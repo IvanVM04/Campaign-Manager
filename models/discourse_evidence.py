@@ -301,6 +301,12 @@ class DiscourseCandidateRanking:
         candidate_ids = tuple(item.entity_id for item in self.candidates)
         if len(set(candidate_ids)) != len(candidate_ids):
             raise ValueError("candidate ranking must contain unique entity IDs")
+        expected_order = tuple(sorted(
+            self.candidates,
+            key=lambda item: (-item.score, item.entity_id),
+        ))
+        if self.candidates != expected_order:
+            raise ValueError("candidate ranking must be sorted by score then entity ID")
         if (
             isinstance(self.minimum_score, bool)
             or not isinstance(self.minimum_score, int)
@@ -342,10 +348,8 @@ class DiscourseCandidateRanking:
 
     @property
     def margin(self) -> int | None:
-        if not self.candidates:
+        if len(self.candidates) < 2:
             return None
-        if len(self.candidates) == 1:
-            return self.candidates[0].score
         return self.candidates[0].score - self.candidates[1].score
 
     @property
