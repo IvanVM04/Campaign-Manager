@@ -8,7 +8,7 @@ Read these first. They describe the current product target, source-verified impl
 
 - [Product requirements v0.2](product/product-requirements-2026-11-18.md) — product direction, confirmed design decisions, functional/non-functional requirements, desired UI, acceptance gates and proposed ideas clearly separated from approved requirements.
 - [Current system state and architecture map](architecture/current-state-2026-11-18.md) — architecture snapshot dated 18 Nov with a 19 Nov reconciliation note.
-- [Project-wide audit — 19 Nov](architecture/project-audit-2026-11-19.md) — latest source-verified baseline at `8276450`, PR #267–#269 delivery, CI metrics and updated roadmap.
+- [Project-wide audit — 19 Nov](architecture/project-audit-2026-11-19.md) — latest source-verified baseline at `a4a29f3`, PR #267–#280 delivery, CI metrics and updated roadmap.
 - [Current architecture map](architecture/architecture-map-2026-11-18.md), [architecture audit](architecture/architecture-audit-2026-11-18.md) and [change-impact map](architecture/change-impact-map-2026-11-18.md) — complementary package/flow map, source-verified technical risks and regression surfaces.
 - [Player-language understanding architecture — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — active NLU/discourse/reference boundaries, normalization-stage order, evidence/authority invariants and structural PR roadmap.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
@@ -72,6 +72,7 @@ These documents describe current production boundaries. Prefer them over histori
 The latest project-wide baseline and reconciled milestone status are recorded in [the 2026-11-19 project audit](architecture/project-audit-2026-11-19.md). PR #269 is integrated; it is no longer in progress.
 
 - [Current quality roadmap](quality/quality-roadmap-2026-11-18.md) — authoritative priority order after PR #266; the full live model benchmark is deliberately gated behind the architecture milestones.
+- [Live Ollama evaluation — 2026-11-20](quality/live-ollama-evaluation-2026-11-20.md) — diagnostic run with Gemma 4 12B Q4_K_M after PRs #279/#280: 11/22 live tests passed, domain F1 85,24–98,67 %, compound-step modality 54,0 %, callback 3/12 and a report-commit provenance mismatch. This is not a SillyTavern acceptance result; use it as the latest observed failure inventory until a clean, reproducible rerun is available.
 - [Player-language understanding architecture](architecture/player-language-understanding-architecture-2026-11-19.md) — the contract source for the NLU structural work.
 - [Player-message comprehension phase — PR #255](quality/player-message-comprehension-phase-2026-11-18.md) — current delivery record: dative clitics, named-NPC speech signals, callback anchor scoping, negated step sequencing and 14 compound-intent holdout scenarios.
 - [Predicate-understanding audit](quality/predicate-understanding-audit-2026-11-17.md) — dated audit which motivated predicate-specific scoring; its historical scores are not a current post-PR255 baseline.
@@ -79,7 +80,7 @@ The latest project-wide baseline and reconciled milestone status are recorded in
 - [Semantic-understanding hardening](quality/semantic-understanding-hardening-2026-11-17.md) — dated PR #253 semantic taxonomy/normalization record.
 - [Prompt evaluation protocol](quality/prompt-evaluation-2026-11-12.md) — opt-in local Ollama evaluation protocol and safe reporting rules.
 - [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — suite grouping snapshot after PR #208; counts and baselines are historical.
-- [CI audit](quality/ci-audit-2026-11-11.md) — workflow/ruleset investigation from 2026-11-11; use current workflow evidence linked from the current system-state map for latest results.
+- [CI audit](quality/ci-audit-2026-11-11.md) — workflow/ruleset investigation from 2026-11-11; use current workflow evidence linked from the current-system-state map for latest results.
 
 ## Operational and rules references
 
@@ -98,7 +99,7 @@ These are intentionally retained because they explain why the architecture and s
 - [Architecture map — 2026-11-12](architecture/architecture-map-2026-11-12.md) — PR #218-era map; superseded as current map.
 - [Phase 0 closeout — 2026-11-12](architecture/phase-0-closeout-2026-11-12.md) — structural hand-off decision from that date.
 - [Engineering readiness/gameplay roadmap — 2026-11-12](architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md) — dated planning estimates, not current completion percentages.
-- [Architecture audit — 2026-11-11](architecture/architecture-audit-2026-11-11.md), [2026-11-06](architecture/architecture-audit-2026-11-06.md), [2026-11-05](architecture/comprehensive-architecture-audit-2026-11-05.md), [2026-11-03](architecture/engineering-audit-2026-11-03.md), and [functional audit — 2026-11-03](architecture/functional-audit-2026-11-03.md).
+- [Architecture audit — 2026-11-11](architecture/architecture-audit-2026-11-11.md), [2026-11-06](architecture/architecture-audit-2026-11-06.md), [2026-11-05](architecture/comprehensive-architecture-audit-2026-11-05.md), [engineering audit — 2026-11-03](architecture/engineering-audit-2026-11-03.md), and [functional audit — 2026-11-03](architecture/functional-audit-2026-11-03.md).
 - [Architecture decisions — 2026-11-03](architecture/architecture-decisions-2026-11-03.md) and [domain boundaries — 2026-11-03](architecture/domain-boundaries-2026-11-03.md).
 - [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) and [legacy cleanup inventory](architecture/legacy-cleanup-2026-11-06.md) — historical record of retired code and preserved data.
 
