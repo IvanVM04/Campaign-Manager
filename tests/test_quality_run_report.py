@@ -118,12 +118,18 @@ def test_nlp_ab_summary_exposes_metrics_not_prompts(tmp_path: Path):
         },
         "parser": {"attempted_parses": 4, "successful_parses": 4, "latency_p50_ms": 10},
         "private_prompt": "PLAYER SECRET TEXT",
+        "metadata": {
+            "model": "local-model", "provider_calls": 8,
+            "elapsed_seconds": 42.5, "ollama_version": "0.14.0",
+        },
     }), encoding="utf-8")
     result = nlp_ab_summary(source)
     assert result is not None
     assert result["model_only"]["case_accuracy"] == 0.75
     assert result["model_plus_stanza_hints"]["semantic_slot_f1"] == 0.8471
     assert "private_prompt" not in json.dumps(result)
+    assert result["metadata"]["provider_calls"] == 8
+    assert result["metadata"]["model"] == "local-model"
 
 
 def test_build_report_writes_markdown_and_json_and_fails_if_any_stage_failed(tmp_path: Path):

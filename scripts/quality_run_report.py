@@ -202,6 +202,16 @@ def nlp_ab_summary(path: Path | None) -> dict[str, Any] | None:
     if not isinstance(comparison, dict):
         return {"available": True, "comparison_available": False}
     result: dict[str, Any] = {"available": True, "comparison_available": True}
+    metadata = report.get("metadata") if isinstance(report.get("metadata"), dict) else {}
+    result["metadata"] = {
+        key: metadata[key]
+        for key in (
+            "model", "model_digest", "ollama_version", "timeout_seconds",
+            "think", "scenario_count", "provider_calls", "elapsed_seconds",
+            "hardware_label",
+        )
+        if key in metadata
+    }
     for variant in ("model_only", "model_plus_stanza_hints"):
         payload = comparison.get(variant)
         if not isinstance(payload, dict):
@@ -349,6 +359,25 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"| {_fmt(values.get('semantic_slot_precision'))} "
                 f"| {_fmt(values.get('semantic_slot_recall'))} "
                 f"| {_fmt(values.get('semantic_slot_f1'))} |"
+            )
+        ab_metadata = ab.get("metadata", {})
+        if ab_metadata:
+            lines.append(
+                "\\nModelo A/B: "
+                f"{ab_metadata.get('model', 'n/a')}; "
+                f"llamadas: {ab_metadata.get('provider_calls', 'n/a')}; "
+                f"duración: {_fmt(ab_metadata.get('elapsed_seconds'), ' s')}; "
+                f"Ollama: {ab_metadata.get('ollama_version', 'n/a')}."
+            )
+        parser_metrics = ab.get("parser", {})
+        if parser_metrics:
+            lines.append(
+                "\\nParser A/B: "
+                f"{parser_metrics.get('successful_parses', 'n/a')}/"
+                f"{parser_metrics.get('attempted_parses', 'n/a')} parseos; "
+                f"P50/P95 {_fmt(parser_metrics.get('latency_p50_ms'), ' ms')} / "
+                f"{_fmt(parser_metrics.get('latency_p95_ms'), ' ms')}; "
+                f"hint medio {_fmt(parser_metrics.get('prompt_hint_bytes_mean'), ' bytes')}."
             )
     if report.get("artifacts"):
         lines.extend(["", "## 6. Artefactos", ""])

@@ -179,6 +179,46 @@ jobs:
       - name: Run JavaScript tests
         run: npm run test:js
 
+  test-powershell:
+    name: PowerShell runner syntax and report tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install focused Python test dependency
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest==9.2.0
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $scriptPath = Join-Path $env:GITHUB_WORKSPACE "scripts/run-ollama-tests.ps1"
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            $scriptPath,
+            [ref]$tokens,
+            [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          Write-Host "PowerShell syntax validation passed."
+
+      - name: Run orchestrator and report contract tests
+        shell: pwsh
+        run: |
+          python -m pytest tests/test_ollama_powershell_runner.py tests/test_quality_run_report.py -q
   ci-summary:
     name: CI summary
     if: always()
@@ -188,6 +228,7 @@ jobs:
       - pyright-rules-engine
       - pyright-baseline
       - test-js
+      - test-powershell
     runs-on: ubuntu-latest
 
     steps:
@@ -198,6 +239,7 @@ jobs:
           PYRIGHT_REQUIRED_RESULT: ${{ needs.pyright-rules-engine.result }}
           PYRIGHT_BASELINE_RESULT: ${{ needs.pyright-baseline.result }}
           JS_RESULT: ${{ needs.test-js.result }}
+          POWERSHELL_RESULT: ${{ needs.test-powershell.result }}
         run: |
           {
             echo "## CI check summary"
@@ -209,13 +251,15 @@ jobs:
             echo "| Required Pyright scope | $PYRIGHT_REQUIRED_RESULT |"
             echo "| Repository-wide Pyright | $PYRIGHT_BASELINE_RESULT |"
             echo "| JavaScript tests | $JS_RESULT |"
+            echo "| PowerShell runner validation | $POWERSHELL_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$TEST_RESULT" != "success" ] ||
              [ "$LINT_RESULT" != "success" ] ||
              [ "$PYRIGHT_REQUIRED_RESULT" != "success" ] ||
              [ "$PYRIGHT_BASELINE_RESULT" != "success" ] ||
-             [ "$JS_RESULT" != "success" ]; then
+             [ "$JS_RESULT" != "success" ] ||
+             [ "$POWERSHELL_RESULT" != "success" ]; then
             echo "One or more CI jobs did not succeed."
             exit 1
           fi
