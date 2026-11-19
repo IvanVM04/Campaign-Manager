@@ -102,9 +102,13 @@ class StanzaParserAdapter:
         if len(text) > self.MAX_TEXT_CHARS:
             raise ValueError(f"text must not exceed {self.MAX_TEXT_CHARS} characters")
 
+        pipeline = self._pipeline
+        if pipeline is None:
+            raise NlpPilotDependencyError("Stanza pipeline is not configured")
+
         started = perf_counter()
         try:
-            parsed = self._pipeline(text)
+            parsed = pipeline(text)
         except Exception as exc:
             raise NlpPilotDependencyError("Stanza failed to parse the message") from exc
 
