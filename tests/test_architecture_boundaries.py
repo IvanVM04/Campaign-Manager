@@ -263,3 +263,37 @@ def test_discourse_collaborators_do_not_import_the_public_facade():
         "Discourse collaborators must not import their public facade: "
         + ", ".join(offenders)
     )
+
+
+# Conversation-reference collaborators have explicit one-way dependencies.
+def test_conversation_reference_evidence_and_ranking_have_single_owners():
+    package = ROOT / "services" / "context"
+    evidence_path = package / "conversation_reference_evidence.py"
+    ranker_path = package / "conversation_reference_ranker.py"
+    resolver_path = package / "conversation_reference_resolver.py"
+
+    evidence_imports = _absolute_module_imports(
+        evidence_path.read_text(encoding="utf-8")
+    )
+    ranker_imports = _absolute_module_imports(
+        ranker_path.read_text(encoding="utf-8")
+    )
+    resolver_imports = _absolute_module_imports(
+        resolver_path.read_text(encoding="utf-8")
+    )
+
+    assert "services.context.conversation_reference_resolver" not in evidence_imports
+    assert "services.context.conversation_reference_ranker" not in evidence_imports
+    assert "services.context.conversation_reference_resolver" not in ranker_imports
+    assert "services.context.conversation_reference_evidence" not in ranker_imports
+    assert "services.context.conversation_reference_evidence" in resolver_imports
+    assert "services.context.conversation_reference_ranker" in resolver_imports
+
+    model_imports = _absolute_module_imports(
+        (ROOT / "models" / "discourse_evidence.py").read_text(encoding="utf-8")
+    )
+    assert not {
+        imported
+        for imported in model_imports
+        if imported == "services" or imported.startswith("services.")
+    }
