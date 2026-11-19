@@ -525,7 +525,8 @@ def test_partial_action_frame_gold_does_not_require_an_unlabelled_family():
         ledger=ledger,
     )
 
-    assert matched == total == 4
+    # The total includes frame presence, predicate, two arguments, and the explicit zero-relation count.
+    assert matched == total == 5
     assert failures == []
     assert "action_frame_family:unclassified" not in ledger.summary().get(
         "semantic_slot_quality", {}
