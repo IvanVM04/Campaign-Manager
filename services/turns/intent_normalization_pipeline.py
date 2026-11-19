@@ -13,7 +13,15 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
-from models.player_intent_analysis import PlayerIntentAnalysis
+from models.player_intent_analysis import (
+    MAX_STEPS,
+    IntentActor,
+    IntentModality,
+    IntentPolarity,
+    PlayerIntentAnalysis,
+    UtteranceCategory,
+)
+from models.semantic_frames import SemanticActionFamily
 from services.discourse_context import DiscourseContextBuilder
 
 from .intent_surface_normalization import normalize_intent_surface_payload
