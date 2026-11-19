@@ -14,8 +14,8 @@ from services.llm_world import LLMWorldExtractor
 from services.llm_world.operation_parser import OperationParser
 from services.providers import OllamaProvider
 from services.turns.intent_interpreter import IntentInterpreter
-from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 from tests.live_llm_config import thinking_for_role
+from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 pytestmark = pytest.mark.real_llm
 
