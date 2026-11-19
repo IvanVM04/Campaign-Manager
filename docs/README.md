@@ -8,7 +8,7 @@ Read these first. They describe the current product target, source-verified impl
 
 - [Product requirements v0.2](product/product-requirements-2026-11-18.md) — product direction, confirmed design decisions, functional/non-functional requirements, desired UI, acceptance gates and proposed ideas clearly separated from approved requirements.
 - [Current system state and architecture map](architecture/current-state-2026-11-18.md) — architecture snapshot dated 18 Nov with a 19 Nov reconciliation note.
-- [Project-wide audit — 19 Nov](architecture/project-audit-2026-11-19.md) — latest source-verified baseline at `a4a29f3`, PR #267–#280 delivery, CI metrics and updated roadmap.
+- [Project-wide audit — 19 Nov](architecture/project-audit-2026-11-19.md) — latest source-verified baseline at `8276450`, PR #267–#269 delivery, CI metrics and updated roadmap.
 - [Current architecture map](architecture/architecture-map-2026-11-18.md), [architecture audit](architecture/architecture-audit-2026-11-18.md) and [change-impact map](architecture/change-impact-map-2026-11-18.md) — complementary package/flow map, source-verified technical risks and regression surfaces.
 - [Player-language understanding architecture — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — active NLU/discourse/reference boundaries, normalization-stage order, evidence/authority invariants and structural PR roadmap.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
