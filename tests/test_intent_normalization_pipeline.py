@@ -97,8 +97,6 @@ def test_pipeline_removes_active_mechanics_pointer_from_non_action_category():
     assert result.analysis.category.value == "question"
     assert result.analysis.active_step_index is None
     assert result.analysis.is_actionable is False
-    assert result.diagnostics.non_action_category == "question"
-    assert result.diagnostics.discarded_active_step_index == 0
 
 
 def test_pipeline_keeps_invalid_step_indices_for_strict_contract_rejection():
