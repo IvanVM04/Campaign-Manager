@@ -60,10 +60,10 @@ Los 22 casos excluidos son pruebas marcadas `real_llm`; no son fallos de CI. La 
 | #267 — frontera de normalización de Intent | Integrado | Pipeline tipado, orden explícito y diagnósticos sin texto sensible |
 | #268 — colaboradores de discurso | Integrado | Selector de topic/history, extractor de menciones, señales de hablante y renderer |
 | #269 — evidencia y ranking de referencias | Integrado | Bundle tipado, procedencia, ranking estable, márgenes y abstención |
-| #270 — evaluación semántica completa | Pendiente | Debe contar pasos/campos omitidos y extra, con denominadores explícitos |
-| #271 — piloto NLP offline | Pendiente / opcional | Solo si el evaluador fiable identifica un hueco que justifique el coste |
-| #272 — incertidumbre y checkpoints | Pendiente | Requiere datos fiables para calibrar señales y diseñar reanudación durable |
-| #273 — benchmark y aceptación integral | Pendiente | Ollama fijado, holdouts repetidos y smoke test real de SillyTavern |
+| #271 — evaluación semántica completa | Pendiente | Debe contar pasos/campos omitidos y extra, con denominadores explícitos |
+| #272 — piloto NLP offline | Pendiente / opcional | Solo si el evaluador fiable identifica un hueco que justifique el coste |
+| #273 — incertidumbre y checkpoints | Pendiente | Requiere datos fiables para calibrar señales y diseñar reanudación durable |
+| #274 — benchmark y aceptación integral | Pendiente | Ollama fijado, holdouts repetidos y smoke test real de SillyTavern |
 
 Por número de hitos, se han completado **3 de 7 (43 %)**. Es una métrica de entregables del roadmap NLU, no un porcentaje de comprensión del lenguaje ni del proyecto completo.
 
@@ -128,7 +128,7 @@ La auditoría NLU detecta que el scorer general no exige consistentemente el nú
 
 **Riesgo:** confundir una arquitectura más clara con una mejora demostrada de comprensión.
 
-**Acción:** preparar el corpus, el runner y los criterios; ejecutar el gate completo solamente después de #270–#272.
+**Acción:** preparar el corpus, el runner y los criterios; ejecutar el gate completo solamente después de #271–#273.
 
 ### P0/P1 — No se ha acreditado el recorrido completo de SillyTavern
 
@@ -150,7 +150,7 @@ La infraestructura durable y las barreras de seguridad están más avanzadas que
 
 ### P1 — Fuentes documentales desincronizadas
 
-El roadmap y algunos mapas aún reflejan el estado de #266/#268 o dicen que #269 está en curso.
+Al iniciar la auditoría, el roadmap y varios mapas todavía reflejaban #266/#268 o indicaban que #269 estaba en curso; esta PR alinea sus estados con el main verificado.
 
 **Acción:** declarar un único baseline actual, dejar los informes antiguos como históricos y enlazar desde `docs/README.md` esta auditoría, el mapa actual y la hoja de ruta vigente.
 
@@ -180,12 +180,12 @@ La extracción de colaboradores debe justificarse por ownership y contratos, no 
 
 Se cambia el orden de los dos siguientes hitos: **el evaluador debe preceder al piloto NLP**. La arquitectura establece expresamente que la evaluación debe corregirse antes de tunear; el piloto necesita un scorer fiable para producir una comparación útil.
 
-1. **#270 — Completar evaluación semántica.** Gold independiente por paso/campo, exactitud de número de pasos, extras como falsos positivos, TP/FP/FN, métricas por familia y esquema estable de resultados.
+1. **#271 — Completar evaluación semántica.** Gold independiente por paso/campo, exactitud de número de pasos, extras como falsos positivos, TP/FP/FN, métricas por familia y esquema estable de resultados.
 2. **#272 — Piloto NLP offline, opcional.** Comparar baseline, parser, modelo y modelo+señales con el scorer ya corregido. Medir español, elipsis, clíticos, citas, negación, condicionales, nombres, vocabulario fantástico, latencia, CPU, empaquetado y licencia. No adoptar dependencia de producción si el beneficio neto no es claro.
 3. **#273 — Incertidumbre y checkpoints.** Calibrar con resultados de evaluación; guardar pasos/slots resueltos, evidencia, dependencias y dudas; reanudar sin repetir consecuencias.
 4. **#274 — Aceptación integral.** Benchmark Ollama con configuración fijada, críticos ×3, cero falsos cambios persistentes críticos, cero filtraciones y checklist manual SillyTavern.
 
-Después del gate #273: corregir las familias de error observadas, auditar rutas críticas de workflows y entregar un vertical slice jugable. La UI propia se puede investigar/prototipar cuando los contratos estén suficientemente estables, sin bloquearla hasta que esté implementada toda la 5e.
+Después del gate #274: corregir las familias de error observadas, auditar rutas críticas de workflows y entregar un vertical slice jugable. La UI propia se puede investigar/prototipar cuando los contratos estén suficientemente estables, sin bloquearla hasta que esté implementada toda la 5e.
 
 ## 7. Estimación de esfuerzo restante
 
@@ -194,9 +194,9 @@ Estimaciones de ingeniería para una persona, en horas de trabajo efectivo. Son 
 | Trabajo | Estimación | Dependencia |
 |---|---:|---|
 | #271 — Evaluador completo | 16–28 h | Ya se puede iniciar |
-| #272 — Piloto NLP opcional | 8–16 h | Después de #270; se puede omitir |
-| #273 — Incertidumbre/checkpoints | 24–40 h | #270; diseño de #271 si aporta evidencia |
-| #274 — Preparar/analizar aceptación integral | 10–18 h | #270–#272 |
+| #272 — Piloto NLP opcional | 8–16 h | Después de #271; se puede omitir |
+| #273 — Incertidumbre/checkpoints | 24–40 h | #271; diseño de #272 si aporta evidencia |
+| #274 — Preparar/analizar aceptación integral | 10–18 h | #271–#273 |
 | **Total con piloto** | **58–102 h** | Más correcciones según resultados live |
 | **Total sin piloto** | **50–86 h** | Si no se demuestra necesidad del parser |
 | Vertical slice jugable posterior | 60–100 h | Gate NLU/integración cerrado |
@@ -206,10 +206,10 @@ El trabajo de producto más amplio (UI propia, reglas completas, import/export, 
 ## 8. Próximos pasos concretos
 
 1. Integrar esta reconciliación documental sin tocar código productivo.
-2. Implementar #270: hacer que el evaluador penalice omisiones y extras con gold independiente.
-3. Decidir #271 usando evidencia; cancelarlo o mantenerlo pequeño si no hay una carencia lingüística demostrada.
-4. Diseñar #272 a partir de métricas fiables y mantener invariantes de permisos/commit.
-5. Preparar #273 con configuración reproducible y aceptación manual.
+2. Implementar #271: hacer que el evaluador penalice omisiones y extras con gold independiente.
+3. Decidir #272 usando evidencia; cancelarlo o mantenerlo pequeño si no hay una carencia lingüística demostrada.
+4. Diseñar #273 a partir de métricas fiables y mantener invariantes de permisos/commit.
+5. Preparar #274 con configuración reproducible y aceptación manual.
 6. Congelar tuning general de prompts hasta disponer de resultados desglosados.
 7. Al cerrar NLU, cambiar el centro de gravedad a workflows de juego completos y producto.
 
