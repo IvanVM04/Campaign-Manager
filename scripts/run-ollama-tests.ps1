@@ -1,11 +1,13 @@
 <#
 .SYNOPSIS
-    Runs the full local quality, Ollama and optional NLP-pilot workflow.
+    Runs local Stanza and real-Ollama evaluations and writes consolidated reports.
 .DESCRIPTION
-    Safely updates main, prepares a private Python environment, runs deterministic
-    CI gates, installs/downloads Stanza when needed, runs the offline NLP benchmark,
-    executes real Ollama tests and optionally the guarded Intent-versus-Stanza A/B.
-    Each run gets unique logs, JUnit, coverage, JSON and Markdown reports under
+    Safely updates main, prepares only the Python dependencies needed for local
+    evaluation, runs the offline NLP benchmark, executes real Ollama tests and
+    optionally the guarded Intent-versus-Stanza A/B.
+    CI-owned deterministic tests, coverage, lint, typing and JavaScript checks are
+    intentionally left to GitHub Actions and are not repeated by this script.
+    Each run gets unique logs, JUnit, JSON and Markdown reports under
     artifacts/quality-runs. It never stashes, resets, cleans or overwrites user
     work and never downloads Ollama models. Stanza downloads are explicit.
 #>
@@ -27,7 +29,6 @@ param(
     [string]$NlpModelDirectory,
     [string]$ResultsRoot = "artifacts/quality-runs",
     [switch]$RunNlpAb,
-    [switch]$SkipLocalChecks,
     [switch]$SkipOllamaTests,
     [switch]$SkipNlpPilot,
     [switch]$SkipNlpModelDownload,
@@ -122,14 +123,6 @@ function Get-Python {
     return $null
 }
 
-function Get-Tool([string]$Name) {
-    $candidate = Join-Path $script:RepoRoot (".venv/Scripts/" + $Name + ".exe")
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
-    $command = Get-Command $Name -ErrorAction SilentlyContinue
-    if ($command) { if ($command.Path) { return $command.Path }; return $command.Source }
-    return $null
-}
-
 function Invoke-CommandStage([string]$Name, [string]$Exe, [string[]]$CommandArgs, [string]$LogName, [string]$Details = "") {
     $path = Join-Path $script:LogDir $LogName
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -211,7 +204,7 @@ $dirty = & git -C $script:RepoRoot status --porcelain
 if ($LASTEXITCODE -ne 0) { throw "Could not inspect Git working tree." }
 if ($dirty) { throw "Working tree is not clean. Commit/save local changes first; no files or branches were changed." }
 
-Write-Section "1/6  Repository and configuration"
+Write-Section "1/5  Repository and configuration"
 if (-not $NoUpdate) {
     Invoke-Git @("fetch", "origin", "main")
     & git -C $script:RepoRoot show-ref --verify --quiet refs/heads/main
@@ -299,7 +292,7 @@ $nlpDir = Join-Path $script:RunDir "nlp"
 New-Item -ItemType Directory -Force -Path $script:LogDir, $reportDir, $nlpDir | Out-Null
 Write-Host ("Results: " + $script:RunDir) -ForegroundColor Cyan
 
-Write-Section "2/6  Python environment"
+Write-Section "2/5  Python environment"
 if ($SkipDependencySync) {
     Add-Stage "Dependency synchronization" "skipped" 0 $null "" "Using existing environment by request." | Out-Null
 }
@@ -307,7 +300,7 @@ else {
     $uv = Get-Command uv -ErrorAction SilentlyContinue
     if ($uv) {
         $uvExe = if ($uv.Path) { $uv.Path } else { $uv.Source }
-        Invoke-CommandStage "Sync Python groups (test/lint/typing/nlp-pilot)" $uvExe @("sync", "--group", "test", "--group", "lint", "--group", "typing", "--group", "nlp-pilot", "--no-lock") "00-dependencies.log" | Out-Null
+        Invoke-CommandStage "Sync Python groups (test/nlp-pilot)" $uvExe @("sync", "--group", "test", "--group", "nlp-pilot", "--no-lock") "00-dependencies.log" | Out-Null
     }
     else {
         $systemPython = Get-Command python -ErrorAction SilentlyContinue
@@ -319,7 +312,7 @@ else {
             if ($venvPython) {
                 Invoke-CommandStage "Upgrade pip" $venvPython @("-m", "pip", "install", "--upgrade", "pip") "00-pip.log" | Out-Null
                 Invoke-CommandStage "Install project package" $venvPython @("-m", "pip", "install", "-e", ".") "00-project.log" | Out-Null
-                Invoke-CommandStage "Install test/lint/typing/nlp-pilot groups" $venvPython @("-m", "pip", "install", "--group", "test", "--group", "lint", "--group", "typing", "--group", "nlp-pilot") "00-groups.log" | Out-Null
+                Invoke-CommandStage "Install test/nlp-pilot groups" $venvPython @("-m", "pip", "install", "--group", "test", "--group", "nlp-pilot") "00-groups.log" | Out-Null
             }
         }
     }
@@ -328,59 +321,7 @@ else {
 $python = Get-Python
 if ($python) { Invoke-CommandStage "Python 3.12+ preflight" $python @("-c", "import sys; print(sys.version.split()[0]); raise SystemExit(0 if sys.version_info >= (3, 12) else 1)") "00-python-version.log" | Out-Null }
 else { Add-Stage "Python interpreter preflight" "failed" 0 1 "" "No Python interpreter found." | Out-Null }
-$ruff = Get-Tool "ruff"
-$pyright = Get-Tool "pyright"
-$npm = Get-Tool "npm"
-$node = Get-Tool "node"
-
-Write-Section "3/6  Local CI quality gates"
-$localJUnit = Join-Path $script:LogDir "deterministic.junit.xml"
-$coverageXml = Join-Path $script:RunDir "coverage.xml"
-$env:COVERAGE_FILE = Join-Path $script:RunDir ".coverage"
-if ($SkipLocalChecks) {
-    foreach ($name in @("Deterministic Python tests", "Coverage summary", "Coverage gate", "Ruff", "Pyright required scope", "Pyright repository baseline", "Node version", "JavaScript tests")) { Add-Stage $name "skipped" 0 $null "" "SkipLocalChecks." | Out-Null }
-}
-elseif ($python) {
-    Invoke-CommandStage "Deterministic Python tests + coverage" $python @("-m", "pytest", "-m", "not real_llm", "--cov", "--cov-report=term-missing", ("--cov-report=xml:" + $coverageXml), "--junitxml", $localJUnit) "10-python.log" | Out-Null
-    if (Test-Path -LiteralPath $coverageXml) { Invoke-CommandStage "Coverage package breakdown" $python @("scripts/ci/coverage_summary.py", $coverageXml) "11-coverage-summary.log" | Out-Null }
-    else { Add-Stage "Coverage package breakdown" "skipped" 0 $null "" "coverage.xml not produced." | Out-Null }
-    Invoke-CommandStage "Enforce combined 85% coverage" $python @("-m", "coverage", "report") "12-coverage-gate.log" | Out-Null
-    if ($ruff) { Invoke-CommandStage "Ruff" $ruff @("check", ".") "13-ruff.log" | Out-Null }
-    else { Add-Stage "Ruff" "failed" 0 1 "" "Ruff executable missing after dependency sync." | Out-Null }
-
-    if ($pyright) {
-        Invoke-CommandStage "Pyright required package scope" $pyright @("models", "rules_engine", "bootstrap", "operations") "14-pyright-required.log" | Out-Null
-        $baseline = Invoke-CommandStage "Pyright repository-wide baseline" $pyright @("--outputjson") "15-pyright.json"
-        try {
-            $diagnostics = Get-Content -LiteralPath (Join-Path $script:LogDir "15-pyright.json") -Raw | ConvertFrom-Json
-            $errors = [int]$diagnostics.errorCount
-            $warnings = [int]$diagnostics.warningCount
-            $information = [int]$diagnostics.informationCount
-            $baseline.Status = if ($errors -gt 0 -or $baseline.ExitCode -gt 1) { "failed" } else { "success" }
-            $baseline.details = "Errors: $errors | Warnings: $warnings | Information: $information"
-        }
-        catch { $baseline.Status = "failed"; $baseline.details = "Could not parse Pyright JSON output; inspect log." }
-    }
-    else {
-        Add-Stage "Pyright required package scope" "failed" 0 1 "" "Pyright executable missing." | Out-Null
-        Add-Stage "Pyright repository-wide baseline" "failed" 0 1 "" "Pyright executable missing." | Out-Null
-    }
-    if ($node -and $npm) {
-        $nodeStage = Invoke-CommandStage "Node 20+ preflight" $node @("--version") "16-node.log"
-        $nodeText = Get-Content -LiteralPath (Join-Path $script:LogDir "16-node.log") -Raw
-        if ($nodeText -match 'v?(\d+)\.' -and [int]$Matches[1] -lt 20) { $nodeStage.Status = "failed"; $nodeStage.ExitCode = 1; $nodeStage.details = "CI uses Node 20+." }
-        Invoke-CommandStage "JavaScript integration tests" $npm @("run", "test:js") "17-javascript.log" | Out-Null
-    }
-    else {
-        Add-Stage "Node 20+ preflight" "failed" 0 1 "" "node and npm are required for the CI-equivalent JavaScript job." | Out-Null
-        Add-Stage "JavaScript integration tests" "skipped" 0 $null "" "Node/npm unavailable." | Out-Null
-    }
-}
-else {
-    foreach ($name in @("Deterministic Python tests", "Coverage summary", "Coverage gate", "Ruff", "Pyright required scope", "Pyright repository baseline", "Node version", "JavaScript tests")) { Add-Stage $name "skipped" 0 $null "" "Python unavailable." | Out-Null }
-}
-
-Write-Section "4/6  Stanza offline pilot"
+Write-Section "3/5  Stanza offline pilot"
 $offlineReport = Join-Path $nlpDir "offline.json"
 $stanzaReady = $false
 if ($SkipNlpPilot) {
@@ -411,7 +352,7 @@ elseif (-not $SkipNlpPilot) {
     Add-Stage "Offline NLP benchmark" "skipped" 0 $null "" "Stanza models are not available." | Out-Null
 }
 
-Write-Section "5/6  Ollama real tests and A/B"
+Write-Section "4/5  Ollama real tests and A/B"
 $runOllama = (-not $SkipOllamaTests) -or $RunNlpAb
 $ollamaReady = $true
 $base = $env:CAMPAIGN_MANAGER_REAL_LLM_BASE_URL.TrimEnd("/")
@@ -473,7 +414,7 @@ if ((-not $SkipOllamaTests) -and $python) {
 }
 else { Add-Stage "Ollama aggregate report" "skipped" 0 $null "" "Main Ollama suite not run." | Out-Null }
 
-Write-Section "6/6  Consolidated report"
+Write-Section "5/5  Consolidated report"
 $manifest = Join-Path $script:RunDir "run-manifest.json"
 $finished = Get-Date
 Write-Manifest $manifest $commit $startedAt $finished
@@ -484,8 +425,6 @@ if (-not $python) {
 }
 $reportScript = Join-Path $script:RepoRoot "scripts/quality_run_report.py"
 $reportArgs = @($reportScript, "--run-dir", $script:RunDir, "--manifest", $manifest, "--commit", $commit)
-if (Test-Path -LiteralPath $localJUnit) { $reportArgs += @("--local-junit", $localJUnit) }
-if (Test-Path -LiteralPath $coverageXml) { $reportArgs += @("--coverage-xml", $coverageXml) }
 if (Test-Path -LiteralPath $ollamaJUnit) { $reportArgs += @("--ollama-junit", $ollamaJUnit) }
 $ollamaSummary = Join-Path $ollamaDir "summary.json"
 if (Test-Path -LiteralPath $ollamaSummary) { $reportArgs += @("--ollama-summary", $ollamaSummary) }
