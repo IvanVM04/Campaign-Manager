@@ -2,7 +2,7 @@
 
 **Status:** active architecture decision record and implementation plan  
 **Verified code baseline:** `main` at `8276450babba6611a172e601d0c76b83ae8e449e` (PR #269 integrated; verified 2026-11-19).  
-**Status:** PRs #267–#269 integrated; #270 evaluator work is next.  
+**Delivery status:** PRs #267–#269 integrated; #271 evaluator work is next. PR #270 is the documentation audit.  
 **Previous work branch:** `architecture/intent-normalization-boundary-pr267` (historical)  
 **Date:** 2026-11-19
 
@@ -498,7 +498,7 @@ The PR order is dependency-driven. Each PR should be substantial and focused, wi
 | #271 | Complete semantic evaluation contracts | Full per-step gold, exact step-count and extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
 | #272 | Run optional NLP-library pilot | Offline adapter spike and comparison using the corrected scorer; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #271 |
 | #273 | Introduce calibrated uncertainty/checkpoints | Evidence-quality features, calibrated abstention policy and durable dependent-slot checkpoints; no self-reported confidence shortcut | #271–#272 |
-| #274 | Perform the consolidated live-model and client acceptance cycle | Pinned Ollama/model benchmark, repeated critical holdouts and manual SillyTavern workflow acceptance | #267–#272 |
+| #274 | Perform the consolidated live-model and client acceptance cycle | Pinned Ollama/model benchmark, repeated critical holdouts and manual SillyTavern workflow acceptance | #267–#273 |
 
 PR #267 deliberately starts by making the existing normalization sequence explicit. It does not rewrite the semantic grammar or claim live improvement.
 
