@@ -942,20 +942,21 @@ def normalize_untrusted_intent_payload(
         else None
     )
     if relation_surface is not None and len(steps) in {1, 2}:
-        excerpts = [
-            step.get("source_excerpt")
-            for step in steps
-            if isinstance(step, dict)
-        ]
-        fragments_are_literal = (
-            len(excerpts) == len(steps)
-            and all(
-                isinstance(excerpt, str)
-                and excerpt.strip()
-                and _is_literal(full_input, excerpt)
-                for excerpt in excerpts
-            )
-        )
+        excerpts: list[str] = []
+        fragments_are_literal = True
+        for step in steps:
+            if not isinstance(step, dict):
+                fragments_are_literal = False
+                break
+            excerpt = step.get("source_excerpt")
+            if (
+                not isinstance(excerpt, str)
+                or not excerpt.strip()
+                or not _is_literal(full_input, excerpt)
+            ):
+                fragments_are_literal = False
+                break
+            excerpts.append(excerpt)
         relation_parts = (
             relation_surface.subject,
             relation_surface.predicate,
@@ -993,10 +994,10 @@ def normalize_untrusted_intent_payload(
             and _is_literal(player_input, excerpt)
             and len(full_input) <= 300
             and relation_surface is not None
+            and full_input != excerpt
         ):
-            if full_input != excerpt:
-                step["source_excerpt"] = full_input
-                widened = 1
+            step["source_excerpt"] = full_input
+            widened = 1
 
     dropped_targets = 0
     dropped_arguments = 0
