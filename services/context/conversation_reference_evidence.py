@@ -18,7 +18,6 @@ from models.world_state import WorldState
 from services.context.entity_reference_resolver import EntityReferenceResolver
 from services.discourse_context import DiscourseContextBuilder
 
-
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 

@@ -66,3 +66,16 @@ def test_ollama_runner_scopes_scenario_filters_to_one_matching_holdout():
     assert 'compound_intent_understanding_holdout' in source
     assert 'Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID' in source
     assert 'Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID' in source
+
+
+
+def test_explicit_common_parameters_override_role_environment_defaults():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert 'if (-not [string]::IsNullOrWhiteSpace($Model)) {' in source
+    assert '$roleParameters = @{' in source
+    assert 'Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_LLM_$($role)_MODEL" -Value $Model' in source
+    assert 'if (-not [string]::IsNullOrWhiteSpace($TimeoutSeconds)) {' in source
+    assert 'Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_LLM_$($role)_TIMEOUT_SECONDS" -Value $TimeoutSeconds' in source
+    assert 'if (-not [string]::IsNullOrWhiteSpace($Think)) {' in source
+    assert 'Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_LLM_$($role)_THINK" -Value $Think' in source
+    assert 'if ([string]::IsNullOrWhiteSpace($roleParameters[$role])) {' in source

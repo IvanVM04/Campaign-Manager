@@ -224,6 +224,32 @@ if (-not [string]::IsNullOrWhiteSpace($Think)) {
 }
 Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_REAL_LLM_HARDWARE" -Value $HardwareLabel
 
+# An explicit common parameter is an override for every role, except when a
+# more specific role parameter was supplied in the same invocation.
+if (-not [string]::IsNullOrWhiteSpace($Model)) {
+    $roleParameters = @{
+        "INTENT" = $IntentModel
+        "EXTRACTION" = $ExtractionModel
+        "MECHANICS" = $MechanicsModel
+        "NARRATIVE" = $NarrativeModel
+    }
+    foreach ($role in @("INTENT", "EXTRACTION", "MECHANICS", "NARRATIVE")) {
+        if ([string]::IsNullOrWhiteSpace($roleParameters[$role])) {
+            Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_LLM_$($role)_MODEL" -Value $Model
+        }
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($TimeoutSeconds)) {
+    foreach ($role in @("INTENT", "EXTRACTION", "MECHANICS", "NARRATIVE")) {
+        Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_LLM_$($role)_TIMEOUT_SECONDS" -Value $TimeoutSeconds
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($Think)) {
+    foreach ($role in @("INTENT", "EXTRACTION", "MECHANICS", "NARRATIVE")) {
+        Set-ProcessEnvOverride -Name "CAMPAIGN_MANAGER_LLM_$($role)_THINK" -Value $Think
+    }
+}
+
 # The direct probes and role-based pipeline use different names for the same
 # defaults. Mirror one configured value only when the other is not explicit.
 if (
