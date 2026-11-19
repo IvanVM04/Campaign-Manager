@@ -487,6 +487,25 @@ Tests marked `real_llm` require Ollama to be running with a compatible model:
 python -m pytest -m real_llm
 ```
 
+By default, the direct real-test probes use:
+
+- `CAMPAIGN_MANAGER_REAL_LLM_BASE_URL`: `http://localhost:11434`
+- `CAMPAIGN_MANAGER_REAL_LLM_MODEL`: `gemma4:26b`
+- `CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT`: `120` seconds
+- `CAMPAIGN_MANAGER_REAL_LLM_THINK`: optional `true` / `false`
+
+The integrated intent/mechanics/extraction tests also read
+`CAMPAIGN_MANAGER_OLLAMA_BASE_URL`, `CAMPAIGN_MANAGER_OLLAMA_THINK`,
+and the role-specific `CAMPAIGN_MANAGER_LLM_{INTENT,MECHANICS,EXTRACTION}_MODEL`,
+`..._TIMEOUT_SECONDS` and `..._THINK` variables. Role-specific values take
+precedence over common real-test defaults. Optional single-case filters are
+`CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID` and
+`CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID`.
+
+For local use, put only your own settings in an untracked `.env.ollama` file.
+The PowerShell runner reads it without displaying its values; environment
+variables already defined in the shell take precedence.
+
 ### Repeatable Ollama run (Windows PowerShell)
 
 From a clean working tree, run:
