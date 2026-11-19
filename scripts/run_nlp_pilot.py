@@ -16,16 +16,6 @@ from pathlib import Path
 from time import perf_counter, process_time
 from typing import Any
 
-from services.nlp_pilot.probes import (
-    NlpPilotProbeLedger,
-    expected_utterance_probes,
-    lexical_utterance_probes,
-    nearest_rank_percentile,
-    parser_utterance_probes,
-)
-from services.nlp_pilot.stanza_adapter import StanzaParserAdapter
-
-
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures"
 CORPORA = {
@@ -75,6 +65,15 @@ def run(
     limit_per_split: int | None,
     adapter: Any | None = None,
 ) -> dict[str, Any]:
+    from services.nlp_pilot.probes import (
+        NlpPilotProbeLedger,
+        expected_utterance_probes,
+        lexical_utterance_probes,
+        nearest_rank_percentile,
+        parser_utterance_probes,
+    )
+    from services.nlp_pilot.stanza_adapter import StanzaParserAdapter
+
     if adapter is None:
         adapter = StanzaParserAdapter(model_dir=model_dir)
     selected = _load_scenarios(split)
