@@ -194,6 +194,12 @@ _IMPLICIT_ATTEMPT_FAILURE_RE = re.compile(
     r"(?:abrir|entrar|cruzar|subir|bajar|alcanzar))\b",
     re.IGNORECASE,
 )
+_REPORTED_CLAIM_IDENTITY_UNCERTAINTY_RE = re.compile(
+    r"\b(?:no\s+(?:sé|se|sabe|saben|sabemos|recuerda|recuerdan)|"
+    r"ignora|desconoce|duda)\s+si\s+"
+    r"(?:era|es|fue)\s+(?:real|ciert\w*|verdad)\b",
+    re.IGNORECASE,
+)
 
 
 def _fold(value: str) -> str:
@@ -984,6 +990,9 @@ def normalize_intent_surface_payload(
                 and len(reported_indices) == len(steps)
                 and len(steps) > 1
                 and len(evidence) <= 300
+                and _REPORTED_CLAIM_IDENTITY_UNCERTAINTY_RE.search(
+                    reported_scope
+                ) is not None
             ):
                 # A reported proposition plus its epistemic caveat is one
                 # attributed claim, not two independent world events.
