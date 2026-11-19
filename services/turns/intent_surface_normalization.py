@@ -82,9 +82,13 @@ _SEQUENCE_LINKER_RE = re.compile(
     re.IGNORECASE,
 )
 _PLAYER_OBSERVATION_RE = re.compile(
-    r"^\s*(?:(?:yo)\s+)?(?:observo|observé|veo|vi|miro|miré|examino|"
-    r"examiné|inspecciono|inspeccioné|escucho|escuché|oigo|oí|"
-    r"detecto|detecté|noto|noté|percibo|percibí|distingo|distinguí)\b",
+    r"^\s*(?:(?:yo)\s+)?(?:observo|observé|veo|vi|miro|miré|escucho|"
+    r"escuché|oigo|oí|detecto|detecté|noto|noté|percibo|percibí|"
+    r"distingo|distinguí)\b",
+    re.IGNORECASE,
+)
+_PLAYER_INVESTIGATION_ATTEMPT_RE = re.compile(
+    r"^\s*(?:(?:yo)\s+)?(?:examino|examiné|inspecciono|inspeccioné)\b",
     re.IGNORECASE,
 )
 _FIRST_PERSON_PRESENT_RE = re.compile(
@@ -287,6 +291,75 @@ def _steps_follow_explicit_sequence(
     ) is not None
     connector_in_first = _SEQUENCE_LINKER_RE.search(first_excerpt) is not None
     return connector_in_gap or connector_in_second or connector_in_first
+
+
+def _collapse_split_attempt_outcome(
+    steps: list[dict[str, Any]],
+    evidence: str,
+    normalized: dict[str, Any],
+    rules: list[str],
+) -> list[dict[str, Any]]:
+    """Join a directly attached result clause split by the model into step two.
+
+    Only a two-step, literal, contiguous player attempt followed by a single
+    uncertainty/failure continuation is collapsed. Independent later actions,
+    relation claims, reordered excerpts and additional steps remain untouched.
+    """
+    if len(steps) != 2 or normalized.get("relation_claims"):
+        return steps
+    first, second = steps
+    if (
+        first.get("actor") != "player"
+        or first.get("modality") != "attempted"
+        or first.get("polarity") != "positive"
+        or not isinstance(first.get("source_excerpt"), str)
+        or not isinstance(second.get("source_excerpt"), str)
+    ):
+        return steps
+
+    first_excerpt = first["source_excerpt"].strip()
+    second_excerpt = second["source_excerpt"].strip()
+    folded = _fold(evidence)
+    first_folded = _fold(first_excerpt)
+    second_folded = _fold(second_excerpt)
+    first_start = folded.find(first_folded)
+    if first_start < 0 or not first_folded:
+        return steps
+    first_end = first_start + len(first_folded)
+    second_start = folded.find(second_folded, first_end)
+    if second_start < first_end or not second_folded:
+        return steps
+    second_end = second_start + len(second_folded)
+    if re.search(r"\w", evidence[second_end:]):
+        return steps
+
+    connective = evidence[first_end:second_start]
+    if re.fullmatch(
+        r"[\s,;:—-]*(?:(?:pero|aunque|y|aun así|aún así)\s*)?",
+        connective,
+        re.IGNORECASE,
+    ) is None:
+        return steps
+
+    trailing_evidence = evidence[first_end:second_end]
+    uncertainty = _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(trailing_evidence)
+    failure = _FAILURE_RE.search(trailing_evidence)
+    if uncertainty is None and failure is None:
+        return steps
+    if uncertainty is not None and failure is not None:
+        return steps
+
+    first["source_excerpt"] = evidence.strip()
+    steps = [first]
+    normalized["steps"] = steps
+    normalized["category"] = "action"
+    normalized["active_step_index"] = 0
+    rules.append(
+        "split_attempt_uncertainty_collapsed"
+        if uncertainty is not None
+        else "split_attempt_failure_collapsed"
+    )
+    return steps
 
 
 def _correction_predicate(evidence: str) -> str | None:
@@ -561,11 +634,30 @@ def normalize_intent_surface_payload(
         _widen_excerpt(step, evidence)
         rules.append("explicit_negated_attempt")
 
+    # Investigation verbs such as "examino" and "inspecciono" represent an
+    # intentional player attempt; reserve passive report normalization for
+    # observe/see/hear constructions.
+    if (
+        len(steps) == 1
+        and _PLAYER_INVESTIGATION_ATTEMPT_RE.search(evidence)
+        and normalized.get("category") not in {"question", "dialogue", "correction"}
+    ):
+        step = steps[0]
+        step["actor"] = "player"
+        step["modality"] = "attempted"
+        step["polarity"] = "positive"
+        step["reported_outcome"] = "not_claimed"
+        normalized["category"] = "action"
+        normalized["active_step_index"] = 0
+        _widen_excerpt(step, evidence)
+        rules.append("explicit_player_investigation_attempt")
+
     # A first-person perception report is an observation, not an unresolved
     # mechanical action. The conjugation itself identifies the player as actor.
     if (
         len(steps) == 1
         and _PLAYER_OBSERVATION_RE.search(evidence)
+        and not _PLAYER_INVESTIGATION_ATTEMPT_RE.search(evidence)
         and normalized.get("category") not in {"question", "dialogue", "correction"}
     ):
         step = steps[0]
@@ -601,6 +693,17 @@ def normalize_intent_surface_payload(
         normalized["category"] = "mixed"
         normalized["active_step_index"] = 1
         rules.append("explicit_completed_action_before_attempt")
+
+    # Some models split "Intento X, pero no sé si lo consigo" or a clearly
+    # failed result into two steps. Collapse only a directly attached,
+    # literal result clause; never merge an independent later action.
+    if normalized.get("category") in {"action", "mixed"}:
+        steps = _collapse_split_attempt_outcome(
+            steps,
+            evidence,
+            normalized,
+            rules,
+        )
 
     # An active attempt cannot carry an inferred outcome. Explicit epistemic
     # uncertainty and literal success/failure evidence remain distinguishable.
