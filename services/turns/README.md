@@ -155,6 +155,7 @@ silently truncated to fit a prompt.
 
 ## Test and evaluation map
 
+- `tests/test_intent_normalization_pipeline.py` protects the deterministic provider-payload boundary, step-index canonicalization, category gating, evidence rejection and safe diagnostics.
 - `tests/test_semantic_frames.py` protects v2 frames, relations, evidence and durable recovery.
 - `tests/test_player_intent_analysis.py` protects the v1 compatibility contract.
 - `tests/test_modular_language_pipeline.py` protects independent schemas, prompt separation, conditional mechanics calls and shared-analysis hand-off.
