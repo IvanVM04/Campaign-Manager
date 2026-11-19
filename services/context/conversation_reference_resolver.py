@@ -509,6 +509,7 @@ class ConversationReferenceResolver:
             else len(analysis.steps) - 1
         )
         references: list[ResolvedConversationReferenceResult] = []
+        ranking_diagnostics: list[DiscourseCandidateRanking] = []
         seen: set[tuple[str, tuple[int, ...]]] = set()
 
         for step in analysis.steps[: last_step + 1]:
@@ -517,102 +518,24 @@ class ConversationReferenceResolver:
             # clarification; polarity/modality write rules remain downstream.
             if step.modality not in self._ELIGIBLE_MODALITIES:
                 continue
-            mentions: list[tuple[str, SemanticObjectKind]] = [
-                (mention, SemanticObjectKind.UNKNOWN)
-                for mention in step.target_mentions
-            ]
-            if step.attributed_to is not None:
-                mentions.append(
-                    (step.attributed_to, SemanticObjectKind.CHARACTER)
-                )
-            if step.action_frame is not None:
-                mentions.extend(
-                    (argument.mention.text, argument.mention.kind_hint)
-                    for argument in step.action_frame.arguments
-                )
-            # Current surface pronouns remain discoverable even if the LLM
-            # omitted them from target_mentions and action_frame.arguments.
-            surface_mentions = DiscourseContextBuilder.surface_pronoun_mentions(
-                step.source_excerpt
-            )
-            explicit_recipients = [
-                mention for mention, _kind_hint in mentions
-            ]
-            explicit_recipients.extend(
-                surface.text
-                for surface in surface_mentions
-                if surface.text.casefold() not in {"le", "les"}
-            )
-            for entity in self._visible_entities(visible_world):
-                explicit_recipients.append(entity.name)
-                aliases = getattr(entity, "aliases", [])
-                if isinstance(aliases, (list, tuple)):
-                    explicit_recipients.extend(
-                        alias for alias in aliases if isinstance(alias, str)
-                    )
-            mentions.extend(
-                (surface.text, SemanticObjectKind.CHARACTER)
-                for surface in surface_mentions
-                if not self._has_explicit_dative_complement(
-                    step.source_excerpt,
-                    surface,
-                    tuple(explicit_recipients),
+            typed_mentions, _conflicting_kinds, conflicting_kind_values = (
+                self._extract_step_mentions(
+                    step,
+                    analysis.relation_claims,
+                    visible_world,
                 )
             )
-            mentions.extend(
-                (mention.text, mention.kind_hint)
-                for claim in analysis.relation_claims
-                # Relation endpoints remain useful referents even when the
-                # relation is negated, uncertain, planned or questioned.
-                if claim.step_index == step.index
-                for mention in (
-                    claim.subject,
-                    claim.object,
-                    *((claim.attributed_to,) if claim.attributed_to is not None else ()),
-                )
+            evidence_bundle = self.evidence_extractor.extract(
+                visible_world,
+                recent_turns,
+                current_input=current_input or step.source_excerpt,
+                mentions=typed_mentions,
             )
 
-            # A v1-style flat target and its v2 semantic argument may describe
-            # the same surface mention. Merge those records before resolution so
-            # an untyped compatibility mention cannot trigger premature ambiguity.
-            merged_mentions: dict[str, tuple[str, SemanticObjectKind]] = {}
-            conflicting_kinds: set[str] = set()
-            conflicting_kind_values: dict[str, set[SemanticObjectKind]] = {}
-            for mention, kind_hint in mentions:
+            for mention_record in evidence_bundle.mentions:
+                mention = mention_record.text
                 mention_key = self.entity_resolver.normalize(mention)
-                if not mention_key:
-                    continue
-                existing = merged_mentions.get(mention_key)
-                if existing is None:
-                    merged_mentions[mention_key] = (mention, kind_hint)
-                    continue
-                existing_kind = existing[1]
-                if existing_kind is SemanticObjectKind.UNKNOWN:
-                    if mention_key in conflicting_kinds:
-                        if kind_hint is not SemanticObjectKind.UNKNOWN:
-                            conflicting_kind_values.setdefault(
-                                mention_key,
-                                set(),
-                            ).add(kind_hint)
-                    else:
-                        merged_mentions[mention_key] = (existing[0], kind_hint)
-                elif (
-                    kind_hint is not SemanticObjectKind.UNKNOWN
-                    and kind_hint is not existing_kind
-                ):
-                    # Contradictory typed roles must not be resolved by choosing
-                    # whichever interpretation happened to appear first.
-                    merged_mentions[mention_key] = (
-                        existing[0],
-                        SemanticObjectKind.UNKNOWN,
-                    )
-                    conflicting_kinds.add(mention_key)
-                    conflicting_kind_values.setdefault(
-                        mention_key,
-                        {existing_kind, kind_hint},
-                    ).update({existing_kind, kind_hint})
-
-            for mention_key, (mention, kind_hint) in merged_mentions.items():
+                kind_hint = mention_record.kind_hint
                 non_entity_kinds = {
                     SemanticObjectKind.ITEM_DEFINITION,
                     SemanticObjectKind.ITEM_INSTANCE,
