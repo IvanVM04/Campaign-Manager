@@ -17,6 +17,7 @@ from services.nlp_pilot.probes import (
 )
 from services.nlp_pilot.stanza_adapter import NlpPilotContractError, StanzaParserAdapter
 from tests.nlp_pilot_support import ParserHintingProvider
+from scripts.run_nlp_pilot import run as run_offline_pilot
 
 
 def _word(
@@ -380,3 +381,6 @@ def test_parser_hint_provider_can_clear_hints_without_changing_prompt():
 
     assert wrapper.generate_structured("unchanged", schema={}) == "unchanged"
     assert wrapper.hint_bytes == 0
+
+
+
