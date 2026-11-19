@@ -2,7 +2,10 @@
 
 import pytest
 
-from tests.live_llm_config import optional_bool_environment_variable, thinking_for_role
+from tests.live_llm_config import (
+    optional_bool_environment_variable,
+    thinking_for_role,
+)
 
 
 @pytest.mark.parametrize(
