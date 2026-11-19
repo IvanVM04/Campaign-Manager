@@ -400,7 +400,7 @@ Prefer a parser or model feature over expanding hand-maintained morphology indef
 
 ## 7. Evaluation architecture (fix before tuning)
 
-The evaluation system is part of the language architecture. A weak scorer can make the model appear better than it is and lead to harmful rules. Therefore #270 (evaluation contract) precedes #271 (optional NLP pilot); do not compare parser/model variants with incomplete scoring.
+The evaluation system is part of the language architecture. A weak scorer can make the model appear better than it is and lead to harmful rules. Therefore #271 (evaluation contract) precedes #272 (optional NLP pilot); do not compare parser/model variants with incomplete scoring.
 
 ### 7.1 Required scoring dimensions
 
@@ -495,16 +495,16 @@ The PR order is dependency-driven. Each PR should be substantial and focused, wi
 | #267 | Establish the intent-normalization boundary | `IntentNormalizationPipeline`, typed diagnostics, deterministic boundary tests and this architecture decision | Existing #266 baseline |
 | #268 | Decompose discourse responsibilities | Topic/history selector, surface mention extractor, speaker signal extractor and renderer behind the existing facade | #267 (integrated) |
 | #269 | Formalize conversation-reference evidence | Typed extraction bundle, candidate ranking/abstention contracts, clearer provenance and bounded group rules | #268 |
-| #270 | Complete semantic evaluation contracts | Full per-step gold, exact step-count and extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
-| #271 | Run optional NLP-library pilot | Offline adapter spike and comparison using the corrected scorer; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #270 |
-| #272 | Introduce calibrated uncertainty/checkpoints | Evidence-quality features, calibrated abstention policy and durable dependent-slot checkpoints; no self-reported confidence shortcut | #271 |
-| #273 | Perform the consolidated live-model and client acceptance cycle | Pinned Ollama/model benchmark, repeated critical holdouts and manual SillyTavern workflow acceptance | #267–#272 |
+| #271 | Complete semantic evaluation contracts | Full per-step gold, exact step-count and extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
+| #272 | Run optional NLP-library pilot | Offline adapter spike and comparison using the corrected scorer; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #270 |
+| #273 | Introduce calibrated uncertainty/checkpoints | Evidence-quality features, calibrated abstention policy and durable dependent-slot checkpoints; no self-reported confidence shortcut | #271 |
+| #274 | Perform the consolidated live-model and client acceptance cycle | Pinned Ollama/model benchmark, repeated critical holdouts and manual SillyTavern workflow acceptance | #267–#272 |
 
 PR #267 deliberately starts by making the existing normalization sequence explicit. It does not rewrite the semantic grammar or claim live improvement.
 
 ## 10. Acceptance gates before the next full live run
 
-The full Ollama holdout suite is deferred until PRs #267–#272 have been integrated and their deterministic contracts are stable.
+The full Ollama holdout suite is deferred until PRs #267–#273 have been integrated and their deterministic contracts are stable.
 
 Required before that live run:
 
