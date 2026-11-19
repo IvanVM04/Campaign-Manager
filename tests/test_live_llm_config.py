@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.live_llm_config import thinking_for_role
+from tests.live_llm_config import optional_bool_environment_variable, thinking_for_role
 
 
 @pytest.mark.parametrize(
@@ -52,3 +52,27 @@ def test_invalid_thinking_setting_is_rejected(monkeypatch):
 def test_unknown_provider_role_is_rejected():
     with pytest.raises(ValueError, match="unsupported Ollama provider role"):
         thinking_for_role("unknown")
+
+
+
+def test_optional_bool_environment_variable_returns_none_when_unset(monkeypatch):
+    monkeypatch.delenv("SAMPLE_BOOLEAN", raising=False)
+    assert optional_bool_environment_variable("SAMPLE_BOOLEAN") is None
+
+
+@pytest.mark.parametrize("value", ["false", "False", "0", "no", "off"])
+def test_optional_bool_environment_variable_parses_false_values(monkeypatch, value):
+    monkeypatch.setenv("SAMPLE_BOOLEAN", value)
+    assert optional_bool_environment_variable("SAMPLE_BOOLEAN") is False
+
+
+@pytest.mark.parametrize("value", ["true", "True", "1", "yes", "on"])
+def test_optional_bool_environment_variable_parses_true_values(monkeypatch, value):
+    monkeypatch.setenv("SAMPLE_BOOLEAN", value)
+    assert optional_bool_environment_variable("SAMPLE_BOOLEAN") is True
+
+
+def test_optional_bool_environment_variable_rejects_invalid_values(monkeypatch):
+    monkeypatch.setenv("SAMPLE_BOOLEAN", "sometimes")
+    with pytest.raises(ValueError, match="SAMPLE_BOOLEAN must be a boolean"):
+        optional_bool_environment_variable("SAMPLE_BOOLEAN")
