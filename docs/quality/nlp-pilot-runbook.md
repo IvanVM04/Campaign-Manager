@@ -1,20 +1,20 @@
 ## Ejecución integrada desde PowerShell
 
-El flujo recomendado ya no requiere ejecutar a mano los pasos de este runbook. Desde la raíz del repositorio:
+Desde la raíz del repositorio:
 
     .\scripts\run-ollama-tests.ps1
 
-El runner actualiza main con fast-forward, prepara .venv con los grupos test/lint/typing/nlp-pilot, ejecuta los gates locales equivalentes a CI (pytest determinista + cobertura combinada, Ruff, ambos checks Pyright y JavaScript), prepara los modelos españoles Stanza si faltan, ejecuta el benchmark offline development + held-out y lanza la suite real_llm de Ollama. No ejecuta ollama pull ni sobrescribe trabajo local.
+Este runner se centra en validaciones que GitHub Actions no puede realizar en tu equipo: prepara el entorno Python con los grupos `test` y `nlp-pilot`, comprueba/prepara los modelos españoles Stanza, ejecuta el benchmark NLP offline y lanza la suite `real_llm` contra tu instancia local de Ollama. No repite pytest determinista, cobertura, Ruff, Pyright ni tests JavaScript: esos gates siguen siendo responsabilidad de CI en GitHub.
 
 Para incluir también las llamadas Ollama adicionales del A/B Intent frente a Intent + Stanza:
 
     .\scripts\run-ollama-tests.ps1 -RunNlpAb
 
-Este A/B es opt-in porque hace llamadas adicionales al modelo; el runner activa el guard CAMPAIGN_MANAGER_NLP_PILOT_LIVE solo durante esa fase y restaura las variables de entorno al terminar. Para omitir por completo la descarga de modelos Stanza usa -SkipNlpModelDownload; si los modelos no están instalados, la fase se marcará como fallida.
+Este A/B es opt-in porque hace llamadas adicionales al modelo; el runner activa el guard `CAMPAIGN_MANAGER_NLP_PILOT_LIVE` solo durante esa fase y restaura las variables de entorno al terminar. Para omitir por completo la descarga de modelos Stanza usa `-SkipNlpModelDownload`; si los modelos no están instalados, la fase se marcará como fallida.
 
-Cada ejecución crea artifacts/quality-runs/<fecha>-<commit>/ con summary.md, summary.json, logs por fase, JUnit XML, coverage.xml, informes Ollama y JSON NLP. El script devuelve código 0 solo cuando todas las fases solicitadas terminan correctamente. Para ejecuciones rápidas se pueden omitir fases con -SkipLocalChecks, -SkipOllamaTests o -SkipNlpPilot; por defecto se ejecuta el flujo completo (salvo el A/B adicional).
+Cada ejecución crea `artifacts/quality-runs/<fecha>-<commit>/` con `summary.md`, `summary.json`, logs por fase, JUnit de las pruebas Ollama, informes Ollama y JSON NLP. El script devuelve código 0 solo cuando todas las fases locales solicitadas terminan correctamente. Puedes omitir fases con `-SkipOllamaTests` o `-SkipNlpPilot`; por defecto se ejecuta el flujo local completo (salvo el A/B adicional).
 
-Requisitos locales: Git, Python 3.12+, Node.js 20+ y npm. Ollama debe estar iniciado y los modelos configurados en .env.ollama deben estar instalados previamente. Stanza se descarga automáticamente solo si el piloto está habilitado y faltan sus modelos; la descarga queda registrada como una fase propia.
+Requisitos locales: Git, Python 3.12+ y Ollama iniciado con los modelos configurados en `.env.ollama` ya instalados. No hace falta Node.js ni npm para este runner. Stanza se descarga automáticamente solo si el piloto está habilitado y faltan sus modelos; la descarga queda registrada como una fase propia.
 
 # PR #272 — NLP pilot runbook
 
