@@ -15,7 +15,11 @@ from services.nlp_pilot.probes import (
     lexical_utterance_probes,
     parser_utterance_probes,
 )
-from services.nlp_pilot.stanza_adapter import NlpPilotContractError, StanzaParserAdapter
+from services.nlp_pilot.stanza_adapter import (
+    NlpPilotContractError,
+    NlpPilotDependencyError,
+    StanzaParserAdapter,
+)
 from tests.nlp_pilot_support import ParserHintingProvider
 from scripts.run_nlp_pilot import run as run_offline_pilot
 
@@ -211,7 +215,7 @@ def test_prompt_hint_section_contains_structure_but_not_utterance_copy():
     assert "canonical entity IDs" in section
 
 
-def test_prompt_hint_section_is_bounded():
+def test_prompt_hint_section_truncates_deterministically_to_safe_byte_limit():
     words = tuple(
         ParserWord(
             sentence_index=0,
@@ -235,8 +239,13 @@ def test_prompt_hint_section_is_bounded():
         sentences=(ParserSentence(sentence_index=0, words=words),),
     )
 
-    with pytest.raises(ValueError, match="safe prompt byte limit"):
-        render_prompt_hint_section(result)
+    section = render_prompt_hint_section(result)
+    payload = json.loads(section.splitlines()[-1])
+    encoded = section.split("=== OPTIONAL NLP PARSER HINTS (UNTRUSTED) ===", 1)[1]
+
+    assert payload["truncated"] is True
+    assert sum(len(item["words"]) for item in payload["sentences"]) < 256
+    assert len(encoded.encode("utf-8")) <= 12_000
 
 
 def test_gold_probe_extraction_only_scores_annotated_fields():
@@ -453,7 +462,7 @@ def test_optional_stanza_dependency_is_not_loaded_until_adapter_creation(monkeyp
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", guarded_import)
-    with pytest.raises(Exception, match="pip install --group nlp-pilot"):
+    with pytest.raises(NlpPilotDependencyError, match="pip install --group nlp-pilot"):
         StanzaParserAdapter()
 
 
@@ -467,3 +476,32 @@ def test_default_project_dependencies_do_not_include_stanza():
 
     assert "stanza" not in pyproject["project"]["dependencies"]
     assert pyproject["dependency-groups"]["nlp-pilot"] == ["stanza==1.15.1"]
+
+
+
+def test_parser_failure_is_unavailable_not_a_false_negative():
+    ledger = NlpPilotProbeLedger()
+    ledger.record(
+        family="development:conditional",
+        expected={"negation": True, "conditional": True},
+        lexical={"negation": True, "conditional": True},
+        parser=None,
+    )
+
+    family = ledger.summary()["families"]["development:conditional"]
+    assert family["lexical_baseline"]["negation"]["true_positive"] == 1
+    assert family["stanza"]["negation"]["sample_count"] == 0
+    assert family["parser_unavailable_cases"]["negation"] == 1
+    assert family["unmeasured_gold_cases"]["negation"] == 0
+
+
+def test_parser_document_rejects_non_finite_latency():
+    with pytest.raises(ValueError, match="non-negative number"):
+        ParserDocument(
+            adapter_name="stanza",
+            language="es",
+            model_package="default",
+            library_version="1.15.1",
+            elapsed_ms=float("nan"),
+            sentences=(),
+        )
