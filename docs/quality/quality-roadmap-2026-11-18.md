@@ -1,15 +1,15 @@
 # Auditoría actual y hoja de ruta de calidad
 
-**Fecha:** 2026-11-18  
-**Baseline de código:** main — ae52afcf9c172514a5d119fe301de11255f08091 (PR #261; implementación integrada antes de esta línea de trabajo).  
-**Baseline documental:** `main` — `ae52afcf9c172514a5d119fe301de11255f08091` (estado consolidado tras PR #259 y los cambios de #260/#261).  
+**Fecha:** 2026-11-18 (actualización de decisiones: 2026-11-19)  
+**Baseline de código histórico de este snapshot:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado actual:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266).  
+**Baseline documental de este snapshot:** `ae52afcf9c172514a5d119fe301de11255f08091`; los cambios de arquitectura NLU del 2026-11-19 se enlazan como fuente activa separada.  
 **Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
 
 ## 1. Resumen ejecutivo
 
-La recomendación es **no abrir otra fase de refactorización arquitectónica amplia**. La aplicación ya tiene un monolito modular razonablemente separado: campañas, personajes, combate, contexto, proveedores, interpretación/propuesta LLM, turnos durables y aplicación del mundo. Hay una composición central y límites explícitos para reglas, persistencia y autoridad.
+La recomendación sigue siendo **no reescribir ni fragmentar el monolito modular**, pero se aprueba una fase acotada de refactorización interna en el pipeline de comprensión del lenguaje antes de abrir otra ronda de pruebas live. El objetivo es separar contratos y responsabilidades que hoy conviven en módulos grandes, sin cambiar el dominio durable ni multiplicar las llamadas al LLM.
 
-El principal riesgo de producto ahora no es la forma de los paquetes: es la diferencia entre:
+El principal riesgo de producto sigue siendo la diferencia entre:
 
 - que el backend acepte/valide correctamente una estructura;
 - que el modelo interprete correctamente un mensaje real;
@@ -22,10 +22,27 @@ La estrategia debe ser **medir → localizar errores → corregir una familia �
 1. Mantener la arquitectura modular actual.
 2. No hacer tuning amplio de prompts sin un baseline live comparable.
 3. Mantener las fronteras de evidencia, visibilidad, reglas y escritura.
-4. Priorizar la evaluación reproducible de modelo y la aceptación integral.
-5. Cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
-6. Diseñar la interfaz propia cuando los contratos y workflows de backend sean sólidos; SillyTavern seguirá siendo un cliente de integración, pero no el único camino de aceptación del producto.
-7. Tratar el control multi-PJ, la delegación de NPC, las aclaraciones recuperables, la visibilidad configurable y los módulos de reglas como capacidades de dominio que requieren contratos propios antes de construir la UX.
+4. Priorizar primero la arquitectura NLU, los contratos tipados y la corrección del evaluador. La próxima ejecución completa de Ollama se difiere hasta que PRs #267–#272 estén integradas.
+5. Mantener CI determinista, Ruff, Pyright y validaciones contractuales como gates obligatorios de cada PR; diferir la ejecución live no autoriza a integrar cambios sin validación estática/determinista.
+6. Cerrar los riesgos de fiabilidad de los caminos críticos y completar un vertical slice jugable.
+7. Diseñar la interfaz propia cuando los contratos y workflows de backend sean sólidos; SillyTavern seguirá siendo un cliente de integración, pero no el único camino de aceptación del producto.
+8. Tratar el control multi-PJ, la delegación de NPC, las aclaraciones recuperables, la visibilidad configurable y los módulos de reglas como capacidades de dominio que requieren contratos propios antes de construir la UX.
+
+## 1.1 Decisión de secuenciación — 2026-11-19
+
+El usuario ha decidido retrasar la próxima ejecución completa de los holdouts live y la sesión de aceptación SillyTavern hasta que estén integradas las mejoras estructurales. El orden activo pasa a ser:
+
+1. PR #267: frontera de normalización de Intent (en curso).
+2. PR #268: separación de responsabilidades discursivas y extracción superficial.
+3. PR #269: contratos de evidencia, candidatos y abstención para referencias conversacionales.
+4. PR #270: piloto offline de NLP (decisión basada en resultados; no implica añadir Stanza/spaCy a producción).
+5. PR #271: scorer de evaluación completo con falsos positivos para pasos/slots extra.
+6. PR #272: política de incertidumbre calibrable y checkpoints durables dependientes.
+7. PR #273: benchmark live integral y aceptación de SillyTavern con modelo/configuración fijados.
+
+La referencia normativa es [Player-language understanding architecture — 2026-11-19](../architecture/player-language-understanding-architecture-2026-11-19.md). Los informes históricos de calidad y las puntuaciones obtenidas antes de PR #266 no deben extrapolarse a la arquitectura posterior.
+
+La demora afecta a la ejecución **live** completa, no a la validación de código: cada PR continúa necesitando CI determinista, lint, tipos y pruebas de contrato aplicables. No se ejecutará Ollama como prueba de aceptación hasta el gate #273 salvo que exista una necesidad diagnóstica puntual aprobada y claramente separada del benchmark completo.
 
 ## 2. Baseline verificado
 
@@ -163,7 +180,7 @@ Las fases están ordenadas por dependencia. Una fase no se cierra porque el cód
 
 ### Fase 1 — Reproducibilidad y baseline de IA
 
-**Prioridad: P0 — siguiente trabajo técnico.**
+**Prioridad: P0 — bloqueada hasta cerrar las fases estructurales #267–#272.**
 
 1. Ejecutar semantic/predicate holdout, discourse pipeline, compound intent, mechanics y operation quality contra la misma revisión.
 2. Registrar commit, modelo/digest por rol, versión de Ollama, parámetros, `think`, timeout, contexto, hardware, repeticiones, número de llamadas y latencias.
