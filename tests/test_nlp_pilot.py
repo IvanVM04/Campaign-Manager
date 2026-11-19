@@ -7,7 +7,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.nlp_pilot.contracts import ParserDocument, ParserSentence, ParserWord, render_prompt_hint_section
+from scripts.run_nlp_pilot import run as run_offline_pilot
+from services.nlp_pilot.contracts import (
+    ParserDocument,
+    ParserSentence,
+    ParserWord,
+    render_prompt_hint_section,
+)
 from services.nlp_pilot.probes import (
     BinaryProbeCounts,
     NlpPilotProbeLedger,
@@ -21,7 +27,6 @@ from services.nlp_pilot.stanza_adapter import (
     StanzaParserAdapter,
 )
 from tests.nlp_pilot_support import ParserHintingProvider
-from scripts.run_nlp_pilot import run as run_offline_pilot
 
 
 def _word(
