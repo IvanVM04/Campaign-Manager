@@ -609,3 +609,36 @@ Immutable records live in `services/discourse/contracts.py`, and the
 facade's existing import path and methods remain available to current callers.
 No regex vocabulary, prompt instruction, model schema, resolver score,
 visibility rule, mechanics gate or write authority is changed by this split.
+
+
+### PR #269 delivery note — conversation-reference evidence boundary
+
+PR #269 extracts the conversation resolver's evidence and ranking policies
+behind two deterministic collaborators:
+
+- `ConversationReferenceEvidenceExtractor` produces a bounded immutable
+  `DiscourseEvidenceBundle`. Current-step mentions retain extraction origin,
+  semantic kind hint and available source offsets; antecedent occurrences retain
+  turn ID, player/narrator/NPC speaker, source and literal offsets. Only entities
+  in the caller-supplied active/visible world projection can receive evidence.
+- `ConversationReferenceCandidateRanker` owns semantic-kind filtering, evidence
+  scoring, stable ordering, the existing minimum score/margin thresholds and a
+  typed decision (`resolved`, `no_candidates`, `below_minimum_score` or
+  `ambiguous_margin`). Same-turn plural groups remain capped at 2–8 members
+  and require co-mention with matching source and speaker provenance.
+- `ConversationReferenceResolver` remains the orchestration facade and the
+  only component in this path that emits canonical resolved references. Its
+  result now exposes ranking diagnostics without granting write authority.
+
+The PR preserves the existing score weights and threshold values; it makes the
+inputs, provenance and final abstention decision inspectable. The typed bundle
+is ephemeral application output, not persisted campaign state. It does not add
+general coreference, prompt-side identity claims, a new provider call, or a
+bypass around entity visibility, mechanics validation or write authorization.
+
+The same PR adds `scripts/run-ollama-tests.ps1` for repeatable Windows local
+validation. It refuses dirty worktrees, fast-forwards `main`, supports local
+`.env.ollama` configuration, checks Ollama/model availability, executes the
+existing `real_llm` marker and writes JUnit plus content-free Markdown/JSON
+statistics. This is a convenience runner, not evidence that Ollama tests have
+already been run or that the full #273 acceptance gate has passed.
