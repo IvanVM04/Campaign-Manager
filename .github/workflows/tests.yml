@@ -72,6 +72,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install --group lint
 
+      - name: Diagnose Ruff import ordering
+        run: |
+          ruff check --fix --diff services/turns/intent_normalization_pipeline.py || true
+
       - name: Run Ruff
         run: |
           ruff check .
