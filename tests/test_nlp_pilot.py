@@ -404,6 +404,7 @@ def test_offline_runner_emits_only_aggregate_metadata(tmp_path):
     from services.nlp_pilot.contracts import ParserDocument, ParserSentence, ParserWord
 
     class FakeAdapter:
+        adapter_name = "fake"
         language = "es"
         model_package = "fake"
         library_version = "0.0-test"
@@ -439,7 +440,7 @@ def test_offline_runner_emits_only_aggregate_metadata(tmp_path):
     assert report["corpora"]["scenario_count"] == 2
     assert report["corpora"]["successful_parses"] == 2
     assert report["corpora"]["parse_coverage"] == 1.0
-    assert report["parser"]["adapter"] == "stanza"
+    assert report["parser"]["adapter"] == "fake"
     assert report["structure"]["word_count"] == 2
     assert report["probe_metrics"]["probe_schema_version"] == 1
     assert "holdout-attempt-lever" not in serialized
@@ -505,3 +506,14 @@ def test_parser_document_rejects_non_finite_latency():
             elapsed_ms=float("nan"),
             sentences=(),
         )
+
+
+
+def test_stanza_adapter_rejects_offsets_that_do_not_match_token_text():
+    parsed = _document(
+        _token(0, 4, "Abre", _word(identifier=1, lemma="abrir", upos="VERB", dependency="root", head=0))
+    )
+    adapter = StanzaParserAdapter(pipeline=lambda _text: parsed)
+
+    with pytest.raises(NlpPilotContractError, match="does not exactly match"):
+        adapter.parse("Abro")
