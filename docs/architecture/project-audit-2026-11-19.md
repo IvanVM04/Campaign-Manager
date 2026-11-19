@@ -181,9 +181,9 @@ La extracción de colaboradores debe justificarse por ownership y contratos, no 
 Se cambia el orden de los dos siguientes hitos: **el evaluador debe preceder al piloto NLP**. La arquitectura establece expresamente que la evaluación debe corregirse antes de tunear; el piloto necesita un scorer fiable para producir una comparación útil.
 
 1. **#270 — Completar evaluación semántica.** Gold independiente por paso/campo, exactitud de número de pasos, extras como falsos positivos, TP/FP/FN, métricas por familia y esquema estable de resultados.
-2. **#271 — Piloto NLP offline, opcional.** Comparar baseline, parser, modelo y modelo+señales con el scorer ya corregido. Medir español, elipsis, clíticos, citas, negación, condicionales, nombres, vocabulario fantástico, latencia, CPU, empaquetado y licencia. No adoptar dependencia de producción si el beneficio neto no es claro.
-3. **#272 — Incertidumbre y checkpoints.** Calibrar con resultados de evaluación; guardar pasos/slots resueltos, evidencia, dependencias y dudas; reanudar sin repetir consecuencias.
-4. **#273 — Aceptación integral.** Benchmark Ollama con configuración fijada, críticos ×3, cero falsos cambios persistentes críticos, cero filtraciones y checklist manual SillyTavern.
+2. **#272 — Piloto NLP offline, opcional.** Comparar baseline, parser, modelo y modelo+señales con el scorer ya corregido. Medir español, elipsis, clíticos, citas, negación, condicionales, nombres, vocabulario fantástico, latencia, CPU, empaquetado y licencia. No adoptar dependencia de producción si el beneficio neto no es claro.
+3. **#273 — Incertidumbre y checkpoints.** Calibrar con resultados de evaluación; guardar pasos/slots resueltos, evidencia, dependencias y dudas; reanudar sin repetir consecuencias.
+4. **#274 — Aceptación integral.** Benchmark Ollama con configuración fijada, críticos ×3, cero falsos cambios persistentes críticos, cero filtraciones y checklist manual SillyTavern.
 
 Después del gate #273: corregir las familias de error observadas, auditar rutas críticas de workflows y entregar un vertical slice jugable. La UI propia se puede investigar/prototipar cuando los contratos estén suficientemente estables, sin bloquearla hasta que esté implementada toda la 5e.
 
@@ -193,10 +193,10 @@ Estimaciones de ingeniería para una persona, en horas de trabajo efectivo. Son 
 
 | Trabajo | Estimación | Dependencia |
 |---|---:|---|
-| #270 — Evaluador completo | 16–28 h | Ya se puede iniciar |
-| #271 — Piloto NLP opcional | 8–16 h | Después de #270; se puede omitir |
-| #272 — Incertidumbre/checkpoints | 24–40 h | #270; diseño de #271 si aporta evidencia |
-| #273 — Preparar/analizar aceptación integral | 10–18 h | #270–#272 |
+| #271 — Evaluador completo | 16–28 h | Ya se puede iniciar |
+| #272 — Piloto NLP opcional | 8–16 h | Después de #270; se puede omitir |
+| #273 — Incertidumbre/checkpoints | 24–40 h | #270; diseño de #271 si aporta evidencia |
+| #274 — Preparar/analizar aceptación integral | 10–18 h | #270–#272 |
 | **Total con piloto** | **58–102 h** | Más correcciones según resultados live |
 | **Total sin piloto** | **50–86 h** | Si no se demuestra necesidad del parser |
 | Vertical slice jugable posterior | 60–100 h | Gate NLU/integración cerrado |
