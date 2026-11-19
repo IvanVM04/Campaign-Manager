@@ -305,7 +305,11 @@ def _collapse_split_attempt_outcome(
     uncertainty/failure continuation is collapsed. Independent later actions,
     relation claims, reordered excerpts and additional steps remain untouched.
     """
-    if len(steps) != 2 or normalized.get("relation_claims"):
+    if (
+        len(steps) != 2
+        or len(evidence) > 300
+        or normalized.get("relation_claims")
+    ):
         return steps
     first, second = steps
     if (
