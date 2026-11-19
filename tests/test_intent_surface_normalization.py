@@ -1355,3 +1355,87 @@ def test_interpreter_keeps_explicit_abstention_non_actionable_when_model_splits_
     assert analysis.steps[0].polarity.value == "negative"
     assert not analysis.is_actionable
     assert not analysis.allows_world_proposal
+
+def test_explicit_examining_clue_is_an_active_investigation_attempt():
+    source = "Examino las huellas de barro que hay junto a la ventana."
+    payload = _payload(_step(source, modality="observed", outcome="not_claimed"),
+                       category="report", active=None)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert normalized["steps"][0]["actor"] == "player"
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert normalized["steps"][0]["reported_outcome"] == "not_claimed"
+    assert "explicit_player_investigation_attempt" in summary.applied_rules
+
+
+def test_split_uncertain_attempt_result_is_collapsed_without_losing_active_step():
+    source = "Intento abrir el cofre, pero no sé si lo consigo."
+    first = _step("Intento abrir el cofre")
+    second = dict(_step("no sé si lo consigo", actor="other", modality="reported"), index=1)
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="mixed", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["source_excerpt"] == source
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert normalized["steps"][0]["reported_outcome"] == "uncertain"
+    assert "split_attempt_uncertainty_collapsed" in summary.applied_rules
+
+
+def test_split_failed_attempt_result_collapses_to_one_resolved_failure():
+    source = "Pruebo la llave en la cerradura, pero no gira y el cofre sigue cerrado."
+    first = _step("Pruebo la llave en la cerradura")
+    second = dict(_step("el cofre sigue cerrado", actor="other", modality="reported"), index=1)
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="mixed", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] is None
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["source_excerpt"] == source
+    assert normalized["steps"][0]["modality"] == "completed"
+    assert normalized["steps"][0]["reported_outcome"] == "failure"
+    assert "split_attempt_failure_collapsed" in summary.applied_rules
+
+
+def test_reported_uncertainty_split_by_model_remains_one_attributed_claim():
+    source = "Un viajero asegura que vio un wyvern al este, aunque no sabe si era real."
+    first = _step(
+        "vio un wyvern al este",
+        actor="other",
+        modality="reported",
+        outcome="not_claimed",
+    )
+    second = dict(
+        _step("no sabe si era real", actor="other", modality="reported"),
+        index=1,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="report", active=None),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["source_excerpt"] == source
+    assert normalized["steps"][0]["actor"] == "other"
+    assert normalized["steps"][0]["modality"] == "reported"
+    assert normalized["steps"][0]["polarity"] == "uncertain"
+    assert normalized["steps"][0]["attributed_to"] == "Un viajero"
+    assert "reported_uncertainty_steps_collapsed" in summary.applied_rules
