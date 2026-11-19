@@ -98,8 +98,10 @@ def test_resolves_pronoun_to_unique_visible_entity_with_auditable_evidence():
         == "Mara"
     )
     assert len(result.ranking_diagnostics) == 1
-    assert result.ranking_diagnostics[0].status.value == "resolved"
-    assert result.ranking_diagnostics[0].selected_candidate.entity_id == 1
+    ranking = result.ranking_diagnostics[0]
+    assert ranking.status.value == "resolved"
+    assert ranking.selected_candidate is not None
+    assert ranking.selected_candidate.entity_id == 1
 
 
 def test_same_turn_competing_referents_abstain_and_return_ranked_candidates():
