@@ -496,8 +496,8 @@ The PR order is dependency-driven. Each PR should be substantial and focused, wi
 | #268 | Decompose discourse responsibilities | Topic/history selector, surface mention extractor, speaker signal extractor and renderer behind the existing facade | #267 (integrated) |
 | #269 | Formalize conversation-reference evidence | Typed extraction bundle, candidate ranking/abstention contracts, clearer provenance and bounded group rules | #268 |
 | #271 | Complete semantic evaluation contracts | Full per-step gold, exact step-count and extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
-| #272 | Run optional NLP-library pilot | Offline adapter spike and comparison using the corrected scorer; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #270 |
-| #273 | Introduce calibrated uncertainty/checkpoints | Evidence-quality features, calibrated abstention policy and durable dependent-slot checkpoints; no self-reported confidence shortcut | #271 |
+| #272 | Run optional NLP-library pilot | Offline adapter spike and comparison using the corrected scorer; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #271 |
+| #273 | Introduce calibrated uncertainty/checkpoints | Evidence-quality features, calibrated abstention policy and durable dependent-slot checkpoints; no self-reported confidence shortcut | #271–#272 |
 | #274 | Perform the consolidated live-model and client acceptance cycle | Pinned Ollama/model benchmark, repeated critical holdouts and manual SillyTavern workflow acceptance | #267–#272 |
 
 PR #267 deliberately starts by making the existing normalization sequence explicit. It does not rewrite the semantic grammar or claim live improvement.
@@ -642,4 +642,4 @@ validation. It refuses dirty worktrees, fast-forwards `main`, supports local
 `.env.ollama` configuration, checks Ollama/model availability, executes the
 existing `real_llm` marker and writes JUnit plus content-free Markdown/JSON
 statistics. This is a convenience runner, not evidence that Ollama tests have
-already been run or that the full #273 acceptance gate has passed.
+already been run or that the full #274 acceptance gate has passed.
