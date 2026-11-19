@@ -2,23 +2,6 @@
 
 from __future__ import annotations
 
-from models.discourse_evidence import (
-    CandidateRankingStatus,
-    DiscourseCandidate,
-    DiscourseCandidateRanking,
-    DiscourseEvidence,
-    DiscourseEvidenceBundle,
-    DiscourseSource,
-    DiscourseSpeaker,
-)
-from models.entity import Entity
-from models.resolved_conversation_reference import (
-    ResolvedConversationGroupMember,
-    ResolvedConversationGroupReference,
-)
-from models.semantic_frames import SemanticObjectKind
-from models.world_state import WorldState
-from services.discourse_context import DiscourseContextBuilder
 from typing import ClassVar
 
 from models.discourse_evidence import (
