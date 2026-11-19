@@ -26,6 +26,12 @@ def test_runner_installs_only_local_evaluation_groups_and_skips_ci_gates():
     source = RUNNER.read_text(encoding="utf-8")
     assert '"test"' in source
     assert '"nlp-pilot"' in source
+    # Keep environment setup aligned with AGENTS.md and CI. The repository
+    # root is not installed as an editable package by the local runner.
+    assert '"--no-install-project"' in source
+    assert '"-r", "requirements.txt"' in source
+    assert 'pip", "install", "-e", "."' not in source
+    assert 'Install project package' not in source
     assert '"--group", "lint"' not in source
     assert '"--group", "typing"' not in source
     assert '"not real_llm"' not in source
