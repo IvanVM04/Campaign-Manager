@@ -88,6 +88,25 @@ def test_runner_scopes_single_scenario_filters_to_the_matching_suite():
     assert "Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID" in source
 
 
+def test_git_wrapper_treats_native_stderr_as_diagnostic_and_checks_exit_code():
+    source = RUNNER.read_text(encoding="utf-8")
+    start = source.index("function Invoke-Git(")
+    end = source.index("\nfunction Set-EnvDefault", start)
+    wrapper = source[start:end]
+
+    # Git emits fetch progress on stderr even when the operation succeeds.
+    # The script uses ErrorActionPreference=Stop, so the wrapper must locally
+    # relax it, capture output, restore it, and rely on LASTEXITCODE for failure.
+    assert '$savedErrorActionPreference = $ErrorActionPreference' in wrapper
+    assert '$ErrorActionPreference = "Continue"' in wrapper
+    assert '$gitOutput = @(& git -C $script:RepoRoot @Arguments 2>&1)' in wrapper
+    assert '$gitExitCode = $LASTEXITCODE' in wrapper
+    assert '$ErrorActionPreference = $savedErrorActionPreference' in wrapper
+    assert 'Write-Host $line.ToString()' in wrapper
+    assert 'if ($gitExitCode -ne 0)' in wrapper
+    assert '| Out-Host' not in wrapper
+
+
 def test_runner_does_not_shadow_automatic_powershell_args_variable():
     source = RUNNER.read_text(encoding="utf-8")
     assert "[string[]]$Args" not in source
