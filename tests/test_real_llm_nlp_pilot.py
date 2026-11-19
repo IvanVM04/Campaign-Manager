@@ -11,6 +11,7 @@ import os
 from collections import Counter
 from pathlib import Path
 from time import perf_counter
+from typing import Any, cast
 
 import pytest
 
@@ -50,8 +51,9 @@ def _score_variant(
     )
     original_callback = getattr(inner_provider, "metrics_callback", None)
     has_metrics_callback = hasattr(inner_provider, "metrics_callback")
+    mutable_provider = cast(Any, inner_provider)
     if has_metrics_callback:
-        setattr(inner_provider, "metrics_callback", usage_events.append)
+        mutable_provider.metrics_callback = usage_events.append
     try:
         try:
             analysis = interpreter.interpret(_make_context(), scenario["input"])
@@ -59,7 +61,7 @@ def _score_variant(
             error_type = type(exc).__name__
     finally:
         if has_metrics_callback:
-            setattr(inner_provider, "metrics_callback", original_callback)
+            mutable_provider.metrics_callback = original_callback
     elapsed = perf_counter() - started
     _matched, _total, failures = score_intent_analysis(
         analysis,
