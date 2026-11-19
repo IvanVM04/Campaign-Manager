@@ -183,6 +183,7 @@ def score_compound_intent_analysis(
         expected_slots=expected_slots,
         matched_slots=matched_slots,
         elapsed_seconds=elapsed_seconds,
+        case_passed=not failures,
     )
     return tuple(failures), matched_slots, expected_slots
 
