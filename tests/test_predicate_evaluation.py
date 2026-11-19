@@ -5,13 +5,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.live_llm_config import optional_bool_environment_variable
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
 )
 from tests.semantic_frame_evaluation import score_semantic_frame_scenario
-from tests.live_llm_config import optional_bool_environment_variable
 
 
 def _argument(role: str, mention: str, kind_hint: str = "item_instance"):
