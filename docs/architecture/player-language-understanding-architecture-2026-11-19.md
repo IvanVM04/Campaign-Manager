@@ -1,8 +1,8 @@
 # Player language understanding — architecture and hardening plan
 
 **Status:** active architecture decision record and implementation plan  
-**Verified code baseline:** `main` at `8276450babba6611a172e601d0c76b83ae8e449e` (PR #269 integrated; verified 2026-11-19).  
-**Delivery status:** PRs #267–#269 integrated; #271 evaluator work is next. PR #270 is the documentation audit.  
+**Verified code baseline:** `main` at `9de344d4d36fdfc325c91f34075553d6076f2fc0` (PR #271 merged; verified 2026-11-19).  
+**Delivery status:** PRs #267–#269 and #271 integrated; PR #272 optional NLP pilot is active in draft. PR #270 documentation audit is integrated.  
 **Previous work branch:** `architecture/intent-normalization-boundary-pr267` (historical)  
 **Date:** 2026-11-19
 
@@ -400,7 +400,7 @@ Prefer a parser or model feature over expanding hand-maintained morphology indef
 
 ## 7. Evaluation architecture (fix before tuning)
 
-The evaluation system is part of the language architecture. A weak scorer can make the model appear better than it is and lead to harmful rules. Therefore #271 (evaluation contract) precedes #272 (optional NLP pilot); do not compare parser/model variants with incomplete scoring.
+The evaluation system is part of the language architecture. A weak scorer can make the model appear better than it is and lead to harmful rules. PR #271 has now integrated the missing/extra-step and semantic-slot scoring contracts; PR #272 is the optional NLP pilot using that corrected scorer. Do not compare parser/model variants with incomplete scoring.
 
 ### 7.1 Required scoring dimensions
 
@@ -420,11 +420,19 @@ For each scenario, the scorer must compare the complete result against independe
 
 For a field with no gold, the evaluator should not imply that the field is correct. It should still measure grounded extra predictions where the contract defines enough structure to do so.
 
-### 7.2 Known evaluator gap from the 2026-11-19 audit
+### 7.2 Evaluator contract — integrated by PR #271
 
-The general language holdout scorer currently checks selected fields of the first/later step but does not consistently enforce exact step count or account for all extra semantic claims. The compound sidecar has independent per-step actor/modality/polarity gold, but does not yet cover full predicates, frame families, role-labelled arguments, outcomes and attribution. Predicate/frame scoring exists in separate evaluation paths and must be consolidated or cross-referenced with explicit denominator definitions.
+PR #271 completed the contract gap identified in the 2026-11-19 audit. The merged implementation adds:
+- a text-free exact step-count gold sidecar for all 35 general language holdout scenarios;
+- a text-free presence-count sidecar for all 20 semantic-frame holdout scenarios (10 expected frames and 10 expected relations, with explicit zero-count controls);
+- ordered Intent scoring for category, active-step, clarification, exact step count and independently golded per-step actor/modality/polarity/outcome/attribution;
+- frame/argument/relation scoring with exact cardinality, multiset TP/FP/FN and field-level comparison for available predicate, direction, family, polarity, modality, attribution and temporal gold;
+- metric schema v1 with per-family case accuracy, slot denominators, TP/FP/FN, precision/recall/F1, and nearest-rank latency P50/P95;
+- report allowlists that reject arbitrary provider strings and exclude utterance text/raw completion content.
 
-This is a tooling weakness, not evidence that the language model passed. It must be fixed before using full live results to guide prompt/rule tuning.
+A missing annotation remains unmeasured; it is not treated as a negative or a pass. A parse/provider failure remains a miss for every gold dimension. Original held-out utterance files were not modified by #271.
+
+Final deterministic verification on PR #271 head `a669d194462cced1ab2994a96ce60f25a4250b8`: 2,204 passed, 22 `real_llm` tests deselected, 85.23% combined coverage; Ruff, both Pyright scopes, JavaScript, CodeQL and CI summary succeeded. This validates the evaluator code/contracts, not actual Ollama semantic quality. Full live evaluation remains deferred to #274.
 
 ### 7.3 Metric definitions
 
@@ -455,7 +463,7 @@ Do not collapse all of these into one score. Zero critical false writes and zero
 
 ## 8. NLP library decision
 
-No Stanza/spaCy dependency is introduced by PR #267.
+No Stanza/spaCy dependency is introduced into production by PR #267. PR #272 adds Stanza only to the opt-in `nlp-pilot` dependency group for an offline experiment; it is not imported by the production turn pipeline and is not promoted to runtime.
 
 The candidate architecture for a future NLP adapter is:
 
@@ -495,8 +503,8 @@ The PR order is dependency-driven. Each PR should be substantial and focused, wi
 | #267 | Establish the intent-normalization boundary | `IntentNormalizationPipeline`, typed diagnostics, deterministic boundary tests and this architecture decision | Existing #266 baseline |
 | #268 | Decompose discourse responsibilities | Topic/history selector, surface mention extractor, speaker signal extractor and renderer behind the existing facade | #267 (integrated) |
 | #269 | Formalize conversation-reference evidence | Typed extraction bundle, candidate ranking/abstention contracts, clearer provenance and bounded group rules | #268 |
-| #271 | Complete semantic evaluation contracts | Full per-step gold, exact step-count and extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
-| #272 | Run optional NLP-library pilot | Offline adapter spike and comparison using the corrected scorer; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #271 |
+| #271 | Complete semantic evaluation contracts — **integrated** | Full per-step gold, exact step-count and extra-step/extra-slot FP counting, frame/argument/relation/attribution scoring and stable metric schema | #267–#269 |
+| #272 | Run optional NLP-library pilot — **active draft** | Offline Stanza adapter/benchmark and opt-in model-plus-hint comparison using #271; decide from measured Spanish-corpus quality, latency, CPU, packaging and licensing whether any production dependency is justified | #271 |
 | #273 | Introduce calibrated uncertainty/checkpoints | Evidence-quality features, calibrated abstention policy and durable dependent-slot checkpoints; no self-reported confidence shortcut | #271–#272 |
 | #274 | Perform the consolidated live-model and client acceptance cycle | Pinned Ollama/model benchmark, repeated critical holdouts and manual SillyTavern workflow acceptance | #267–#273 |
 
@@ -643,3 +651,21 @@ validation. It refuses dirty worktrees, fast-forwards `main`, supports local
 existing `real_llm` marker and writes JUnit plus content-free Markdown/JSON
 statistics. This is a convenience runner, not evidence that Ollama tests have
 already been run or that the full #274 acceptance gate has passed.
+
+
+### PR #271 delivery and verification — 2026-11-19
+
+PR [#271](https://github.com/IvanVM04/Campaign-Manager/pull/271) merged as `9de344d4d36fdfc325c91f34075553d6076f2fc0`. Final deterministic CI passed on its head `a669d194462cced1ab2994a96ce60f25a4250b8`:
+- 2,204 passed / 22 `real_llm` deselected;
+- combined coverage 85.23% (85.0% configured floor);
+- Ruff, required package-scope Pyright, repository-wide Pyright, JavaScript, CodeQL and CI summary all succeeded.
+
+Canonical CI runs: [Tests #44559085820](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44559085820) and [CodeQL #44559085674](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44559085674).
+
+CI deterministic command: `python -m pytest -m "not real_llm" --cov --cov-report=term-missing --cov-report=xml`; CI also runs `ruff check .`, `pyright models rules_engine bootstrap operations`, repository-wide Pyright baseline, `npm run test:js` and `python -m coverage report`.
+
+The opt-in live evaluation entry points are `tests/test_real_llm_semantic_holdout.py` and `tests/test_real_llm_compound_intent.py`; these were not run as part of the final deterministic verification and do not constitute an Ollama/SillyTavern acceptance result.
+
+### PR #272 decision — optional Stanza pilot
+
+PR #272 measures Stanza as an optional CPU-only adapter. Parser spans/lemmas/POS/dependencies remain untrusted hints tied to the current player message. The pilot does not change the production Intent prompt, schema, call count, normalization rules, entity resolution, mechanics or world writes. Stanza is not added to default runtime dependencies, and model downloads are explicit. A later production-dependency proposal requires measured net benefit and separate approval.
