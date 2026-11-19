@@ -80,7 +80,7 @@ The latest project-wide baseline and reconciled milestone status are recorded in
 - [Semantic-understanding hardening](quality/semantic-understanding-hardening-2026-11-17.md) — dated PR #253 semantic taxonomy/normalization record.
 - [Prompt evaluation protocol](quality/prompt-evaluation-2026-11-12.md) — opt-in local Ollama evaluation protocol and safe reporting rules.
 - [Test-suite navigation](quality/test-suite-navigation-2026-11-12.md) — suite grouping snapshot after PR #208; counts and baselines are historical.
-- [CI audit](quality/ci-audit-2026-11-11.md) — workflow/ruleset investigation from 2026-11-11; use current workflow evidence linked from the current-system-state map for latest results.
+- [CI audit](quality/ci-audit-2026-11-11.md) — workflow/ruleset investigation from 2026-11-11; use current workflow evidence linked from the current system-state map for latest results.
 
 ## Operational and rules references
 
@@ -99,7 +99,7 @@ These are intentionally retained because they explain why the architecture and s
 - [Architecture map — 2026-11-12](architecture/architecture-map-2026-11-12.md) — PR #218-era map; superseded as current map.
 - [Phase 0 closeout — 2026-11-12](architecture/phase-0-closeout-2026-11-12.md) — structural hand-off decision from that date.
 - [Engineering readiness/gameplay roadmap — 2026-11-12](architecture/engineering-readiness-and-gameplay-roadmap-2026-11-12.md) — dated planning estimates, not current completion percentages.
-- [Architecture audit — 2026-11-11](architecture/architecture-audit-2026-11-11.md), [2026-11-06](architecture/architecture-audit-2026-11-06.md), [2026-11-05](architecture/comprehensive-architecture-audit-2026-11-05.md), [engineering audit — 2026-11-03](architecture/engineering-audit-2026-11-03.md), and [functional audit — 2026-11-03](architecture/functional-audit-2026-11-03.md).
+- [Architecture audit — 2026-11-11](architecture/architecture-audit-2026-11-11.md), [2026-11-06](architecture/architecture-audit-2026-11-06.md), [2026-11-05](architecture/comprehensive-architecture-audit-2026-11-05.md), [2026-11-03](architecture/engineering-audit-2026-11-03.md), and [functional audit — 2026-11-03](architecture/functional-audit-2026-11-03.md).
 - [Architecture decisions — 2026-11-03](architecture/architecture-decisions-2026-11-03.md) and [domain boundaries — 2026-11-03](architecture/domain-boundaries-2026-11-03.md).
 - [Legacy retirement record](architecture/legacy-retirement-2026-11-12.md) and [legacy cleanup inventory](architecture/legacy-cleanup-2026-11-06.md) — historical record of retired code and preserved data.
 
