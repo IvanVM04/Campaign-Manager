@@ -85,8 +85,8 @@ class ConversationReferenceResolver:
         IntentModality.CONDITIONAL,
         IntentModality.NEGATED,
     })
-    MIN_RESOLUTION_SCORE = 35
-    MIN_RESOLUTION_MARGIN = 12
+    MIN_RESOLUTION_SCORE = ConversationReferenceCandidateRanker.MIN_RESOLUTION_SCORE
+    MIN_RESOLUTION_MARGIN = ConversationReferenceCandidateRanker.MIN_RESOLUTION_MARGIN
     MAX_HISTORY_TURNS = DiscourseContextBuilder.MAX_HISTORY_TURNS
 
     def __init__(self, entity_resolver: EntityReferenceResolver | None = None) -> None:
