@@ -60,8 +60,7 @@ def test_live_report_drops_untrusted_provider_strings_and_invalid_metadata(tmp_p
         elapsed_seconds=0.5,
         scenario_filter="../private prompt",
         usage_events=[{
-            "provider_role": "intent
-SECRET",
+            "provider_role": "intent\\nSECRET",
             "provider_model": "gemma4:12b",
             "response_model": "private completion text",
             "request_status": "completed",
