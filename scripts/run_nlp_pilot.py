@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,7 +48,7 @@ def _load_scenarios(split: str) -> list[tuple[str, dict[str, Any]]]:
             continue
         payload = json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
         if not isinstance(payload.get("scenarios"), list):
-            raise ValueError(f"{filename} does not contain a scenarios array")
+            raise TypeError(f"{filename} does not contain a scenarios array")
         if selected_split == "held_out" and payload.get("split") != "held_out":
             raise ValueError("held-out corpus split marker is invalid")
         scenarios.extend((selected_split, item) for item in payload["scenarios"])
