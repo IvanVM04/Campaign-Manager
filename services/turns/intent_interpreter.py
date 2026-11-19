@@ -3,10 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-import unicodedata
 from dataclasses import dataclass, replace
 from time import perf_counter
-from typing import Any
 
 from models.intent_validation_diagnostics import IntentAnalysisValidationError
 from models.pending_intent_correction import (
@@ -15,15 +13,7 @@ from models.pending_intent_correction import (
     apply_pending_intent_corrections,
     build_pending_correction_candidates,
 )
-from models.player_intent_analysis import (
-    MAX_STEPS,
-    IntentActor,
-    IntentModality,
-    IntentPolarity,
-    PlayerIntentAnalysis,
-    UtteranceCategory,
-)
-from models.semantic_frames import SemanticActionFamily
+from models.player_intent_analysis import PlayerIntentAnalysis
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.context import ContextBuilder
@@ -31,201 +21,13 @@ from services.discourse_context import DiscourseContextBuilder
 from services.llm_prompt_contracts import COMMON_LLM_TRUST_CONTRACT
 from services.providers import LLMProvider
 
+from .intent_normalization_pipeline import IntentNormalizationPipeline
 from .intent_response_schema import (
     INTENT_ANALYSIS_RESPONSE_SCHEMA,
     INTENT_CORRECTION_RESPONSE_SCHEMA,
 )
-from .intent_surface_normalization import normalize_intent_surface_payload
-from .semantic_surface_hints import (
-    normalize_semantic_surface,
-    normalize_untrusted_intent_payload,
-)
 
 logger = logging.getLogger(__name__)
-
-_NON_ACTION_CATEGORIES = frozenset({
-    "question",
-    "dialogue",
-    "report",
-    "plan",
-    "correction",
-    "unknown",
-})
-
-
-def _normalize_step_indices(
-    intent_payload: Any,
-) -> tuple[dict[str, Any], tuple[int, ...]] | None:
-    """Canonicalize integer step indexes to the ordered array positions.
-
-    The JSON array is the authoritative sequence. Each step's index is only
-    its zero-based position in that array; model-supplied integer indexes are
-    redundant metadata and may be safely canonicalized. Malformed step
-    objects and non-integer indexes are left to the strict domain validator.
-    """
-    if not isinstance(intent_payload, dict):
-        return None
-    steps = intent_payload.get("steps")
-    if (
-        not isinstance(steps, list)
-        or not steps
-        or len(steps) > MAX_STEPS
-    ):
-        return None
-
-    reported_indices: list[int] = []
-    normalized_steps: list[dict[str, Any]] = []
-    for step in steps:
-        if not isinstance(step, dict):
-            return None
-        index = step.get("index")
-        if isinstance(index, bool) or not isinstance(index, int):
-            return None
-        reported_indices.append(index)
-        normalized_steps.append(dict(step))
-
-    expected_indices = tuple(range(len(steps)))
-    if tuple(reported_indices) == expected_indices:
-        return None
-
-    for position, step in enumerate(normalized_steps):
-        step["index"] = position
-
-    normalized = dict(intent_payload)
-    normalized["steps"] = normalized_steps
-    return normalized, tuple(reported_indices)
-
-
-def _normalize_non_action_active_step(
-    intent_payload: Any,
-) -> tuple[dict[str, Any], str, int] | None:
-    """Clear a valid active-step pointer when the utterance category forbids one.
-
-    This is a conservative provider-boundary normalization: it removes
-    mechanical authorization but never changes the category, step content,
-    evidence, modality or outcome. Invalid indices and unknown categories are
-    left untouched for the domain validator to reject.
-    """
-    if not isinstance(intent_payload, dict):
-        return None
-    category = intent_payload.get("category")
-    active_step_index = intent_payload.get("active_step_index")
-    steps = intent_payload.get("steps")
-    if (
-        not isinstance(category, str)
-        or category not in _NON_ACTION_CATEGORIES
-        or isinstance(active_step_index, bool)
-        or not isinstance(active_step_index, int)
-        or not isinstance(steps, list)
-        or not 0 <= active_step_index < len(steps)
-    ):
-        return None
-
-    normalized = dict(intent_payload)
-    normalized["active_step_index"] = None
-    return normalized, category, active_step_index
-
-
-def _normalize_ungrounded_step_attributions(
-    intent_payload: Any,
-    evidence_text: str,
-) -> tuple[dict[str, Any], tuple[int, ...]] | None:
-    """Clear step attributions not literally grounded in current player evidence.
-
-    History and discourse context may help interpret a reference, but they are
-    not words written by the player. An unsupported attribution is removed
-    rather than allowed to invalidate an otherwise usable interpretation or
-    authorize a non-player world proposal. Malformed values remain strict.
-    """
-    if not isinstance(intent_payload, dict) or not isinstance(evidence_text, str):
-        return None
-    steps = intent_payload.get("steps")
-    if not isinstance(steps, list) or len(steps) > MAX_STEPS:
-        return None
-    if any(not isinstance(step, dict) for step in steps):
-        return None
-
-    def normalize(value: str) -> str:
-        return unicodedata.normalize("NFKC", value).casefold()
-
-    normalized_evidence = normalize(evidence_text)
-    schema_version = intent_payload.get("schema_version")
-    normalized_steps = [dict(step) for step in steps]
-    cleared_indices: list[int] = []
-
-    for index, step in enumerate(steps):
-        attribution = step.get("attributed_to")
-        if (
-            attribution is None
-            or not isinstance(attribution, str)
-            or not attribution.strip()
-        ):
-            continue
-
-        normalized_attribution = normalize(attribution)
-        grounded = normalized_attribution in normalized_evidence
-        if schema_version == 2:
-            excerpt = step.get("source_excerpt")
-            if not isinstance(excerpt, str):
-                continue
-            grounded = grounded and normalized_attribution in normalize(excerpt)
-
-        if not grounded:
-            normalized_steps[index]["attributed_to"] = None
-            cleared_indices.append(index)
-
-    if not cleared_indices:
-        return None
-
-    normalized = dict(intent_payload)
-    normalized["steps"] = normalized_steps
-    return normalized, tuple(cleared_indices)
-
-
-def _normalize_explicit_npc_speech_report(
-    analysis: PlayerIntentAnalysis,
-) -> PlayerIntentAnalysis | None:
-    """Correct only a positive NPC speech event misclassified as a generic report.
-
-    It requires one NPC step and a literal, unquoted third-person subject
-    directly attached to a known speech predicate. Evidence, mentions, identity
-    and authorization are left untouched.
-    """
-    if (
-        analysis.category is not UtteranceCategory.REPORT
-        or len(analysis.steps) != 1
-        or analysis.active_step_index is not None
-    ):
-        return None
-    step = analysis.steps[0]
-    if (
-        step.actor is not IntentActor.NPC
-        or step.modality not in {IntentModality.OBSERVED, IntentModality.REPORTED}
-        or step.polarity is not IntentPolarity.POSITIVE
-        or not DiscourseContextBuilder.speech_predicate_signals(step.source_excerpt)
-    ):
-        return None
-    action_frame = step.action_frame
-    if (
-        action_frame is not None
-        and action_frame.family is not SemanticActionFamily.COMMUNICATION
-    ):
-        action_frame = replace(
-            action_frame,
-            family=SemanticActionFamily.COMMUNICATION,
-        )
-    corrected_step = replace(
-        step,
-        modality=IntentModality.DIALOGUE,
-        action_frame=action_frame,
-    )
-    return replace(
-        analysis,
-        category=UtteranceCategory.DIALOGUE,
-        steps=(corrected_step,),
-        active_step_index=None,
-    )
-
 
 class IntentInterpreterError(RuntimeError):
     """Raised when semantic intent cannot be interpreted or validated safely."""
@@ -652,6 +454,7 @@ El esquema JSON es el contrato estructural."""
         *,
         max_prompt_bytes: int = 24000,
         max_context_bytes: int = 4096,
+        normalization_pipeline: IntentNormalizationPipeline | None = None,
     ) -> None:
         if not isinstance(provider, LLMProvider):
             raise TypeError("provider must be an LLMProvider")
@@ -671,6 +474,13 @@ El esquema JSON es el contrato estructural."""
         self.context_builder = context_builder or ContextBuilder()
         self.max_prompt_bytes = max_prompt_bytes
         self.max_context_bytes = max_context_bytes
+        if normalization_pipeline is not None and not isinstance(
+            normalization_pipeline, IntentNormalizationPipeline
+        ):
+            raise TypeError(
+                "normalization_pipeline must be an IntentNormalizationPipeline or None"
+            )
+        self.normalization_pipeline = normalization_pipeline or IntentNormalizationPipeline()
 
     @staticmethod
     def _compact_text(value: str, max_bytes: int) -> str:
@@ -1190,38 +1000,36 @@ El esquema JSON es el contrato estructural."""
                 raise ValueError("intent response has missing or unexpected fields")
             validation_stage = "intent_analysis_validation"
             intent_payload = payload["intent_analysis"]
-            step_normalization = _normalize_step_indices(intent_payload)
-            if step_normalization is not None:
-                intent_payload, reported_step_indices = step_normalization
+            normalization_result = self.normalization_pipeline.normalize(
+                intent_payload,
+                player_input=player_input,
+                evidence_text=evidence,
+            )
+            analysis = normalization_result.analysis
+            diagnostics = normalization_result.diagnostics
+
+            if diagnostics.canonicalized_step_indices:
                 logger.warning(
                     "llm.intent.step_indices_canonicalized",
                     extra={
                         "provider_role": "intent",
                         "provider_model": getattr(self.provider, "model", None),
-                        "step_count": len(reported_step_indices),
-                        "reported_indices": list(reported_step_indices),
-                        "normalized_indices": list(range(len(reported_step_indices))),
+                        "step_count": len(diagnostics.canonicalized_step_indices),
+                        "reported_indices": list(diagnostics.canonicalized_step_indices),
+                        "normalized_indices": list(range(len(diagnostics.canonicalized_step_indices))),
                         "normalization": "steps_array_position",
                     },
                 )
-            intent_payload, surface_sanitization = normalize_untrusted_intent_payload(
-                intent_payload,
-                player_input=player_input,
-                evidence_text=evidence,
-            )
-            intent_payload, intent_surface_summary = normalize_intent_surface_payload(
-                intent_payload,
-                evidence_text=evidence,
-            )
-            if intent_surface_summary.applied_rules:
+            if diagnostics.intent_surface_rules:
                 logger.info(
                     "llm.intent.surface_normalization_applied",
                     extra={
                         "provider_role": "intent",
                         "provider_model": getattr(self.provider, "model", None),
-                        "rule_ids": list(intent_surface_summary.applied_rules),
+                        "rule_ids": list(diagnostics.intent_surface_rules),
                     },
                 )
+            surface_sanitization = diagnostics.surface_sanitization
             if (
                 surface_sanitization.dropped_ungrounded_target_mentions
                 or surface_sanitization.dropped_ungrounded_action_arguments
@@ -1247,69 +1055,47 @@ El esquema JSON es el contrato estructural."""
                         ),
                     },
                 )
-            attribution_normalization = _normalize_ungrounded_step_attributions(
-                intent_payload,
-                evidence,
-            )
-            if attribution_normalization is not None:
-                intent_payload, cleared_attribution_indices = attribution_normalization
+            if diagnostics.cleared_attribution_indices:
                 logger.warning(
                     "llm.intent.ungrounded_attributions_cleared",
                     extra={
                         "provider_role": "intent",
                         "provider_model": getattr(self.provider, "model", None),
-                        "step_indices": list(cleared_attribution_indices),
+                        "step_indices": list(diagnostics.cleared_attribution_indices),
                         "normalization": "attributed_to_null",
                     },
                 )
-            normalization = _normalize_non_action_active_step(intent_payload)
-            if normalization is not None:
-                intent_payload, normalized_category, discarded_active_step = (
-                    normalization
-                )
+            if diagnostics.non_action_category is not None:
                 logger.warning(
                     "llm.intent.non_action_active_step_cleared",
                     extra={
                         "provider_role": "intent",
                         "provider_model": getattr(self.provider, "model", None),
-                        "category": normalized_category,
-                        "discarded_active_step_index": discarded_active_step,
+                        "category": diagnostics.non_action_category,
+                        "discarded_active_step_index": diagnostics.discarded_active_step_index,
                         "normalization": "active_step_index_null",
                     },
                 )
-            analysis = PlayerIntentAnalysis.from_payload(
-                intent_payload,
-                source_text=player_input,
-                evidence_text=evidence,
-            )
-            speech_normalization = _normalize_explicit_npc_speech_report(analysis)
-            if speech_normalization is not None:
-                signal_count = len(
-                    DiscourseContextBuilder.speech_predicate_signals(
-                        analysis.steps[0].source_excerpt
-                    )
-                )
-                analysis = speech_normalization
+            if diagnostics.explicit_npc_speech_normalized:
                 logger.warning(
                     "llm.intent.explicit_npc_speech_normalized",
                     extra={
                         "provider_role": "intent",
                         "provider_model": getattr(self.provider, "model", None),
                         "normalization": "report_to_dialogue",
-                        "surface_signal_count": signal_count,
+                        "surface_signal_count": diagnostics.npc_speech_signal_count,
                     },
                 )
-            analysis, surface_rules = normalize_semantic_surface(analysis)
-            if surface_rules.action_rules_applied or surface_rules.relation_rules_applied:
+            if diagnostics.semantic_action_rules or diagnostics.semantic_relation_rules:
                 logger.info(
                     "llm.intent.semantic_surface_rules_applied",
                     extra={
                         "provider_role": "intent",
                         "provider_model": getattr(self.provider, "model", None),
-                        "action_rule_ids": list(surface_rules.action_rules_applied),
-                        "relation_rule_ids": list(surface_rules.relation_rules_applied),
-                        "action_rule_count": len(surface_rules.action_rules_applied),
-                        "relation_rule_count": len(surface_rules.relation_rules_applied),
+                        "action_rule_ids": list(diagnostics.semantic_action_rules),
+                        "relation_rule_ids": list(diagnostics.semantic_relation_rules),
+                        "action_rule_count": len(diagnostics.semantic_action_rules),
+                        "relation_rule_count": len(diagnostics.semantic_relation_rules),
                     },
                 )
             corrections: tuple[PendingIntentCorrection, ...] = ()

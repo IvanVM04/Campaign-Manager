@@ -21,7 +21,8 @@ not existing behavior of this package.
 - `dm_service.py` — generates presentation prose from committed evidence.
 - `turn_execution_lock.py` — canonical process-local lock for short cache snapshot, read-projection and commit critical sections; it must not be held during provider planning or narration.
 - `turn_resolution_codec.py` — canonical JSON codec for durable resolution records.
-- `intent_interpreter.py` — one coherent, evidence-bound `PlayerIntentAnalysis` v2 response; action steps, frames, relations, discourse and attribution remain one semantic unit.
+- `intent_interpreter.py` — prompt/provider orchestration and pending-correction interaction for one coherent, evidence-bound `PlayerIntentAnalysis` response; action steps, frames, relations, discourse and attribution remain one semantic unit.
+- `intent_normalization_pipeline.py` — deterministic provider-payload normalization, strict versioned model decoding and content-free stage diagnostics. It does not call the provider, resolve canonical IDs or authorize writes.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
@@ -154,6 +155,7 @@ silently truncated to fit a prompt.
 
 ## Test and evaluation map
 
+- `tests/test_intent_normalization_pipeline.py` protects the deterministic provider-payload boundary, step-index canonicalization, category gating, evidence rejection and safe diagnostics.
 - `tests/test_semantic_frames.py` protects v2 frames, relations, evidence and durable recovery.
 - `tests/test_player_intent_analysis.py` protects the v1 compatibility contract.
 - `tests/test_modular_language_pipeline.py` protects independent schemas, prompt separation, conditional mechanics calls and shared-analysis hand-off.
@@ -193,3 +195,34 @@ and publishes the cache changes. A stale snapshot is rejected rather than
 merged. Clarification and manual-roll continuation use the same snapshot and
 commit boundaries. Keep the lock-before-SQLite ordering consistent for every
 writer to avoid lock inversion.
+
+
+### Deterministic Intent normalization boundary (PR #267)
+
+`IntentInterpreter` now delegates the provider payload normalization to
+`IntentNormalizationPipeline`. The pipeline exposes a typed
+`IntentNormalizationResult` (`PlayerIntentAnalysis` plus
+`IntentNormalizationDiagnostics`) and keeps the existing normalization order
+explicit:
+
+1. canonicalize redundant step array indexes without reordering;
+2. sanitize ungrounded optional surface fields;
+3. apply bounded, literal player-text normalization;
+4. clear attribution that is not grounded in current player text;
+5. clear a contradictory active-step pointer for non-action categories;
+6. decode the strict v1/v2 semantic contract;
+7. apply the narrow explicit NPC speech correction;
+8. apply typed semantic surface hints.
+
+The interpreter owns provider lifecycle, correction requests, log events and
+workflow orchestration. The pipeline owns deterministic transformation and
+returns safe diagnostics; it never logs raw text, prompt/completion content,
+secrets or canonical identifiers. The direct model decoder remains strict.
+No prompt, provider schema, model-call count, mechanics gate, resolver policy
+or world mutation authority is changed by this extraction.
+
+The current architectural target and the next discourse/reference/evaluation
+steps are documented in
+[Player-language understanding architecture — 2026-11-19](../../docs/architecture/player-language-understanding-architecture-2026-11-19.md).
+The full live Ollama/SillyTavern acceptance run is deferred until the listed
+structural milestones are integrated; deterministic CI remains mandatory.

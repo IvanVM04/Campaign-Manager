@@ -136,3 +136,18 @@ Remote access, multiplayer, D&D 2024, VTT/tactical maps, distributed infrastruct
 - [World visibility/read models](../../services/world/README.md)
 - [Migration catalogue](migration-catalog-2026-11-12.md)
 - [Manual SillyTavern smoke test](../sillytavern-smoke-test.md)
+
+
+## 8. NLU structural findings confirmed on 2026-11-19
+
+The implementation has a single coherent semantic contract and deterministic authority boundaries, but the orchestration and linguistic stages have accumulated distinct responsibilities in oversized modules. The key architectural risk is not a missing LLM call; it is the coupling between payload normalization, discourse cues, independent surface mention extraction, candidate scoring and evaluation.
+
+PR #267 extracts normalization into a dedicated `IntentNormalizationPipeline` with a typed result and safe diagnostics. This preserves the existing order of normalization and strict `PlayerIntentAnalysis` decoding; it is not a semantic rewrite.
+
+Follow-up findings:
+- `DiscourseContextBuilder` currently combines topic selection, surface extraction, speech attribution hints and prompt rendering. Extract cohesive collaborators behind the facade.
+- `ConversationReferenceResolver` already uses independent pronoun/dative-clitic extraction for a bounded subset. Expand this contract rather than inaccurately describing it as wholly model-dependent.
+- The general language holdout evaluator does not consistently penalize extra steps or extra semantic claims; improve the scorer before using a full live run to guide tuning.
+- Regex is acceptable for narrowly scoped literal cues with negative tests, but not as a replacement for general morphology, syntax or coreference.
+
+The implementation order and acceptance rules are normative in [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). Do not run the next full live-model suite until the architecture and evaluator milestones are integrated. Continue to require deterministic CI and report any omitted live/manual checks explicitly.

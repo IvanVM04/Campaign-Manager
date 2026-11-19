@@ -7,6 +7,8 @@
 **Database schema:** version 34 (`CURRENT_VERSION = 34`).  
 **Purpose:** current source-linked navigation for maintainers. Product requirements describe the target; this map describes the code that exists at the verified code baseline.
 
+> **Actualización — 2026-11-19:** el baseline de código integrado ahora es `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). La ejecución CI de ese SHA registró 2.148 tests deterministas pasados, 22 pruebas `real_llm` excluidas y 85,31 % de cobertura combinada ([run #44417534718](https://github.com/IvanVM04/Campaign-Manager/actions/runs/44417534718)). La secuencia de refactorización del lenguaje queda definida por el documento activo [player-language-understanding-architecture-2026-11-19.md](player-language-understanding-architecture-2026-11-19.md). La extracción de normalización de PR #267 está en una rama y no se representa como ya integrada en `main`.
+
 > Read [product requirements](../product/product-requirements-2026-11-18.md) for approved product direction and [the quality roadmap](../quality/quality-roadmap-2026-11-18.md) for ordered validation work. The new UI, multi-character control, NPC delegation, custom rules imports, configurable confidence threshold and full campaign import/export are requirements, not current implementation claims.
 
 ## 1. System shape
@@ -158,3 +160,19 @@ The product requirements v0.2 includes future requirements for multi-PJ simultan
 - [Turn pipeline contract](turn-pipeline-compatibility.md)
 - [Durable SillyTavern adapter](sillytavern-durable-turn-adapter.md)
 - [Manual SillyTavern smoke test](../sillytavern-smoke-test.md)
+
+
+## 9. Player-language architecture update (2026-11-19)
+
+The current code still uses one structured Intent interpretation and a deterministic chain of sanitization/normalization. PR #267 extracts the latter behind `IntentNormalizationPipeline` while preserving the public `IntentInterpreter` orchestration role. This branch-level implementation is described in [the active player-language architecture contract](player-language-understanding-architecture-2026-11-19.md).
+
+The longer-term structural sequence is:
+- #267: explicit normalization boundary and typed diagnostics;
+- #268: decompose discourse topic/history selection, surface mention extraction, speech signals and rendering;
+- #269: formalize conversation-reference evidence and candidate/abstention contracts;
+- #270: optional offline NLP-library pilot and dependency decision;
+- #271: complete evaluation metrics, including missing/extra step/slot accounting;
+- #272: calibrated uncertainty and durable dependent-slot checkpoints;
+- #273: consolidated full Ollama and SillyTavern acceptance.
+
+Do not read the later roadmap entries as implemented capabilities. The full live test cycle is deferred until the structural/evaluator stages are integrated; deterministic CI remains required for every PR.

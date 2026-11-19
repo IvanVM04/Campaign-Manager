@@ -9,6 +9,7 @@ Read these first. They describe the current product target, source-verified impl
 - [Product requirements v0.2](product/product-requirements-2026-11-18.md) — product direction, confirmed design decisions, functional/non-functional requirements, desired UI, acceptance gates and proposed ideas clearly separated from approved requirements.
 - [Current system state and architecture map](architecture/current-state-2026-11-18.md) — source-verified implementation state, current turn workflow, package ownership, persistence/schema version, security boundary, verified CI and explicit product gaps.
 - [Current architecture map](architecture/architecture-map-2026-11-18.md), [architecture audit](architecture/architecture-audit-2026-11-18.md) and [change-impact map](architecture/change-impact-map-2026-11-18.md) — complementary package/flow map, source-verified technical risks and regression surfaces.
+- [Player-language understanding architecture — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — active NLU/discourse/reference boundaries, normalization-stage order, evidence/authority invariants and structural PR roadmap.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
 - [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — current quality/AI risks, verified CI baseline, live acceptance gates and sequenced priorities.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
@@ -66,7 +67,8 @@ These documents describe current production boundaries. Prefer them over histori
 
 ## Current AI understanding and quality evidence
 
-- [Current quality roadmap](quality/quality-roadmap-2026-11-18.md) — authoritative priority order after PR #255.
+- [Current quality roadmap](quality/quality-roadmap-2026-11-18.md) — authoritative priority order after PR #266; the full live model benchmark is deliberately gated behind the architecture milestones.
+- [Player-language understanding architecture](architecture/player-language-understanding-architecture-2026-11-19.md) — the contract source for the NLU structural work.
 - [Player-message comprehension phase — PR #255](quality/player-message-comprehension-phase-2026-11-18.md) — current delivery record: dative clitics, named-NPC speech signals, callback anchor scoping, negated step sequencing and 14 compound-intent holdout scenarios.
 - [Predicate-understanding audit](quality/predicate-understanding-audit-2026-11-17.md) — dated audit which motivated predicate-specific scoring; its historical scores are not a current post-PR255 baseline.
 - [Discourse-understanding evaluation](quality/discourse-understanding-evaluation-2026-11-17.md) — dated evaluation snapshot before PR #255.
