@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import os
 from collections import Counter
-from pathlib import Path
 from time import perf_counter
 
 import pytest
@@ -22,6 +21,7 @@ from tests.intent_analysis_evaluation import (
 )
 from tests.nlp_pilot_support import ParserHintingProvider
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
+from tests.nlp_pilot.probes import nearest_rank_percentile
 from tests.semantic_evaluation_report import (
     build_live_evaluation_report,
     write_live_evaluation_report,
@@ -38,14 +38,26 @@ def _score_variant(
     expected_step_count: int,
     family: str,
     ledger: SemanticEvaluationLedger,
+    usage_events: list[dict],
 ) -> tuple[bool, str | None]:
     started = perf_counter()
     analysis = None
     error_type: str | None = None
+    provider = interpreter.provider
+    inner_provider = (
+        provider.inner if isinstance(provider, ParserHintingProvider) else provider
+    )
+    original_callback = getattr(inner_provider, "metrics_callback", None)
+    if hasattr(inner_provider, "metrics_callback"):
+        inner_provider.metrics_callback = usage_events.append
     try:
-        analysis = interpreter.interpret(_make_context(), scenario["input"])
-    except Exception as exc:  # noqa: BLE001 - provider errors remain scored misses
-        error_type = type(exc).__name__
+        try:
+            analysis = interpreter.interpret(_make_context(), scenario["input"])
+        except Exception as exc:  # noqa: BLE001 - provider errors remain scored misses
+            error_type = type(exc).__name__
+    finally:
+        if hasattr(inner_provider, "metrics_callback"):
+            inner_provider.metrics_callback = original_callback
     elapsed = perf_counter() - started
     _matched, _total, failures = score_intent_analysis(
         analysis,
@@ -84,7 +96,6 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
             )
 
     model_only_usage: list[dict] = []
-    hinted_usage: list[dict] = []
     model_only_interpreter = _make_interpreter(model_only_usage)
     base_provider = model_only_interpreter.provider
     hint_provider = ParserHintingProvider(base_provider)
@@ -128,6 +139,7 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
                 step_gold[scenario["id"]],
                 scenario["family"],
                 model_only_ledger,
+                model_only_usage,
             )
             hinted_ok, hinted_error = _score_variant(
                 hinted_interpreter,
@@ -135,6 +147,7 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
                 step_gold[scenario["id"]],
                 scenario["family"],
                 hinted_ledger,
+                hinted_usage,
             )
             provider_calls += 2
             model_only_passes += int(model_ok)
@@ -187,14 +200,8 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
         "successful_parses": parse_successes,
         "failed_parses": len(scenarios) - parse_successes,
         "parse_error_types": dict(sorted(parser_errors.items())),
-        "latency_p50_ms": (
-            sorted(parser_latencies)[max(0, (len(parser_latencies) + 1) // 2 - 1)]
-            if parser_latencies else None
-        ),
-        "latency_p95_ms": (
-            sorted(parser_latencies)[max(0, int(0.95 * len(parser_latencies) + 0.999999) - 1)]
-            if parser_latencies else None
-        ),
+        "latency_p50_ms": nearest_rank_percentile(parser_latencies, 0.50),
+        "latency_p95_ms": nearest_rank_percentile(parser_latencies, 0.95),
         "prompt_hint_bytes_mean": (
             round(sum(prompt_hint_bytes) / len(prompt_hint_bytes), 1)
             if prompt_hint_bytes else 0
@@ -208,6 +215,7 @@ def test_real_ollama_compares_intent_with_and_without_stanza_hints(record_proper
         "held_out_text_persisted": False,
         "raw_parser_output_persisted": False,
         "no_quality_improvement_assumed": True,
+        "generation_settings_shared": True,
     }
     report_path = write_live_evaluation_report(
         report,
