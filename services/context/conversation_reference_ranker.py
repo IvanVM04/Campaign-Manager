@@ -19,6 +19,8 @@ from models.resolved_conversation_reference import (
 from models.semantic_frames import SemanticObjectKind
 from models.world_state import WorldState
 from services.discourse_context import DiscourseContextBuilder
+from typing import ClassVar
+
 from .entity_reference_resolver import EntityReferenceResolver
 
 
@@ -28,7 +30,7 @@ class ConversationReferenceCandidateRanker:
     MIN_RESOLUTION_SCORE = 35
     MIN_RESOLUTION_MARGIN = 12
     MAX_GROUP_MEMBERS = 8
-    _KIND_TYPES = {
+    _KIND_TYPES: ClassVar[dict[SemanticObjectKind, frozenset[str]]] = {
         SemanticObjectKind.CHARACTER: frozenset({
             "npc", "character", "person", "humanoid", "player",
         }),
