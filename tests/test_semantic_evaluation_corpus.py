@@ -203,3 +203,47 @@ def test_semantic_frame_presence_gold_declares_negative_controls_without_text():
 
     assert sum(item["expected_action_frame_count"] for item in counts.values()) == 10
     assert sum(item["expected_relation_count"] for item in counts.values()) == 10
+
+
+def test_every_held_out_semantic_frame_annotation_is_scorable_without_llm_output():
+    from tests.semantic_frame_evaluation import (
+        load_semantic_frame_presence_gold,
+        score_semantic_frame_scenario,
+    )
+
+    corpus = _read("semantic_frame_corpus_holdout_v1.json")
+    presence_gold = load_semantic_frame_presence_gold(corpus)
+    predicate_gold = _read("semantic_frame_predicate_gold_v1.json")
+    predicate_by_id = {item["id"]: item for item in predicate_gold["scenarios"]}
+    assert set(predicate_by_id) == {item["id"] for item in corpus["scenarios"]}
+
+    partially_labelled_frames = 0
+    for source in corpus["scenarios"]:
+        scenario = dict(source)
+        annotations = predicate_by_id[scenario["id"]]
+        if "action_frame_predicate" in annotations:
+            frame = dict(scenario["expected_action_frame"])
+            frame["predicate"] = annotations["action_frame_predicate"]
+            scenario["expected_action_frame"] = frame
+        if "relation_predicate" in annotations:
+            relation = dict(scenario["expected_relation"])
+            relation["predicate"] = annotations["relation_predicate"]
+            scenario["expected_relation"] = relation
+        expected_frame = scenario.get("expected_action_frame")
+        if isinstance(expected_frame, dict) and "family" not in expected_frame:
+            partially_labelled_frames += 1
+
+        matched, total, failures = score_semantic_frame_scenario(
+            None,
+            scenario,
+            expected_action_frame_count=presence_gold[scenario["id"]][
+                "expected_action_frame_count"
+            ],
+            expected_relation_count=presence_gold[scenario["id"]][
+                "expected_relation_count"
+            ],
+        )
+        assert 0 <= matched <= total
+        assert isinstance(failures, list)
+
+    assert partially_labelled_frames >= 1

@@ -486,3 +486,48 @@ def test_relation_attribution_and_temporal_fields_are_scored_from_gold():
     assert failures == []
     assert ledger.summary()["semantic_slot_quality"]["relation_attributed_to:relation_details"]["f1"] == 1.0
     assert ledger.summary()["semantic_slot_quality"]["relation_temporal_expression:relation_details"]["f1"] == 1.0
+
+
+def test_partial_action_frame_gold_does_not_require_an_unlabelled_family():
+    scenario = {
+        "id": "partial-frame-gold-without-family",
+        "expected_action_frame": {
+            "predicate": "Escondo",
+            "arguments": [
+                {
+                    "role": "theme",
+                    "mention": "la moneda",
+                    "kind_hint": "item_instance",
+                },
+                {
+                    "role": "location",
+                    "mention": "bajo la alfombra",
+                    "kind_hint": "location",
+                },
+            ],
+        },
+    }
+    frame = _frame(
+        "Escondo",
+        "creation",
+        arguments=(
+            _argument("theme", "la moneda"),
+            _argument("location", "bajo la alfombra", "location"),
+        ),
+    )
+    ledger = SemanticEvaluationLedger()
+
+    matched, total, failures = score_semantic_frame_scenario(
+        _analysis(frames=(frame,)),
+        scenario,
+        expected_action_frame_count=1,
+        expected_relation_count=0,
+        ledger=ledger,
+    )
+
+    # The total includes frame presence, predicate, two arguments, and the explicit zero-relation count.
+    assert matched == total == 5
+    assert failures == []
+    assert "action_frame_family:unclassified" not in ledger.summary().get(
+        "semantic_slot_quality", {}
+    )
