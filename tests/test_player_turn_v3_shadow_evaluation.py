@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import json
 
+from services.context import ContextBuilder
+from services.providers import FakeLLMProvider
+from services.turns.intent_interpreter import IntentInterpreter
+from tests.player_turn_interpretation_v3_shadow import (
+    PlayerTurnInterpretationV3ShadowRunner,
+)
 from tests.player_turn_v3_shadow_evaluation import (
     load_v3_shadow_corpus,
     score_shadow_comparison,
@@ -12,12 +18,6 @@ from tests.test_player_turn_v3_shadow import (
     _context,
     _v2_response,
     _v3_response,
-)
-from services.providers import FakeLLMProvider
-from services.context import ContextBuilder
-from services.turns.intent_interpreter import IntentInterpreter
-from tests.player_turn_interpretation_v3_shadow import (
-    PlayerTurnInterpretationV3ShadowRunner,
 )
 
 
