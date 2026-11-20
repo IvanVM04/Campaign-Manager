@@ -1557,7 +1557,7 @@ def test_explicit_desire_to_continue_a_topic_is_a_plan_not_an_action():
     assert normalized["active_step_index"] is None
     assert step["actor"] == "player"
     assert step["modality"] == "planned"
-    assert step["action_frame"] is None
+    assert step.get("action_frame") is None
     assert "explicit_continuation_desire_is_plan" in summary.applied_rules
 
 
@@ -1621,3 +1621,43 @@ def test_failed_attempt_result_only_relation_noise_is_removed_when_collapsed():
     assert steps[0]["reported_outcome"] == "failure"
     assert normalized["relation_claims"] == []
     assert "split_attempt_failure_collapsed" in rules
+
+
+def test_negated_player_attack_is_not_reclassified_as_an_npc_event():
+    source = "No ataco al guardia."
+    normalized, _summary = normalize_intent_surface_payload(
+        _payload(
+            _step(
+                source,
+                actor="player",
+                modality="negated",
+                polarity="negative",
+            ),
+            category="action",
+            active=None,
+        ),
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "action"
+    assert step["actor"] == "player"
+    assert step["modality"] == "negated"
+    assert step["polarity"] == "negative"
+
+
+def test_future_player_speech_is_not_reclassified_as_npc_dialogue():
+    source = "Mañana pregunto al capitán."
+    normalized, _summary = normalize_intent_surface_payload(
+        _payload(
+            _step(source, actor="player", modality="planned"),
+            category="plan",
+            active=None,
+        ),
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "plan"
+    assert step["actor"] == "player"
+    assert step["modality"] == "planned"
