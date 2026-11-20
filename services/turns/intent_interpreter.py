@@ -672,22 +672,27 @@ El esquema JSON es el contrato estructural."""
                     active_npc_entities.append(entity)
 
             discourse_speaker_ids: set[int] = set()
+            explicit_npc_quote_lines: list[str] = []
             for turn in scoped_turns:
                 player_turn_text, npc_narrative, turn_id = (
                     DiscourseContextBuilder._turn_fields(turn)
                 )
 
-                # An explicit NPC label before quoted narrator speech is
-                # valid speaker evidence, but names inside the quotation are
-                # not. The extractor enforces that boundary and unique identity.
-                discourse_speaker_ids.update(
-                    utterance.speaker_entity_id
-                    for utterance in DiscourseContextBuilder.extract_npc_utterances(
-                        npc_narrative,
-                        turn_id,
-                        active_npc_entities,
-                    )
+                # Extract once from the exact selected transcript and keep
+                # these high-value quote lines. The prompt renderer also
+                # derives quote hints, but its general hint budget must not
+                # silently discard an explicitly attributed NPC speaker.
+                npc_utterances = DiscourseContextBuilder.extract_npc_utterances(
+                    npc_narrative,
+                    turn_id,
+                    active_npc_entities,
                 )
+                for utterance in npc_utterances:
+                    discourse_speaker_ids.add(utterance.speaker_entity_id)
+                    explicit_npc_quote_lines.append(
+                        f"NPC {utterance.speaker_name} (turno {utterance.turn_id}): "
+                        f"«{utterance.utterance[:100]}»"
+                    )
 
                 # A name/alias stated by the player in the already selected
                 # history is also enough to keep that NPC available as a
@@ -756,12 +761,25 @@ El esquema JSON es el contrato estructural."""
                 self._format_recent_turns(scoped_turns),
                 min(1800, self.max_context_bytes // 2),
             )
+            rendered_discourse = DiscourseContextBuilder.render(
+                player_input,
+                scoped_turns,
+                visible_entities=visible_entities,
+            )
+            # Preserve explicitly attributed NPC quotes at the start of the
+            # bounded discourse section. A long list of secondary grammatical
+            # hints must not crowd the speaker evidence out of the prompt.
+            missing_quote_lines = [
+                line
+                for line in dict.fromkeys(explicit_npc_quote_lines)
+                if line not in rendered_discourse
+            ]
+            if missing_quote_lines:
+                rendered_discourse = "\\n".join(
+                    [*missing_quote_lines, rendered_discourse]
+                )
             discourse = self._compact_text(
-                DiscourseContextBuilder.render(
-                    player_input,
-                    scoped_turns,
-                    visible_entities=visible_entities,
-                ),
+                rendered_discourse,
                 min(1000, self.max_context_bytes // 4),
             )
         else:
