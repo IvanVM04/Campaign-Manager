@@ -518,6 +518,9 @@ def _collapse_split_attempt_outcome(
         return steps
 
     first["source_excerpt"] = evidence.strip()
+    first["reported_outcome"] = (
+        "failure" if failure is not None else "uncertain"
+    )
     steps = [first]
     normalized["steps"] = steps
     if result_only_claims:
