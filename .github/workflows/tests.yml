@@ -33,8 +33,23 @@ jobs:
           pip install --group test
 
       - name: Run deterministic tests with coverage
+        shell: bash
         run: |
-          python -m pytest -m "not real_llm" --cov --cov-report=term-missing --cov-report=xml
+          set +e
+          python -m pytest -m "not real_llm" --cov --cov-report=term-missing --cov-report=xml --junitxml=pytest-results.xml 2>&1 | tee pytest-output.log
+          pytest_status=${PIPESTATUS[0]}
+          exit "$pytest_status"
+
+      - name: Upload deterministic test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-test-diagnostics
+          path: |
+            pytest-output.log
+            pytest-results.xml
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Publish package coverage summary
         if: always()
