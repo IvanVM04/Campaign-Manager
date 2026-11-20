@@ -990,38 +990,14 @@ class GameplayActionCandidate:
             raise ValueError("eligible actions require the eligible reason")
         if self.eligibility is not GameplayActionEligibility.ELIGIBLE and self.reason is GameplayActionReason.ELIGIBLE:
             raise ValueError("non-eligible actions require a non-eligible reason")
-        if self.eligibility is GameplayActionEligibility.BLOCKED_BY_DEPENDENCY:
-            if not self.dependency_event_ids or self.unlock_condition is GameplayUnlockCondition.NONE:
-                raise ValueError("dependency-blocked actions require dependencies and an unlock condition")
+        if (
+            self.eligibility is GameplayActionEligibility.BLOCKED_BY_DEPENDENCY
+            and (
+                not self.dependency_event_ids
+                or self.unlock_condition is GameplayUnlockCondition.NONE
+            )
+        ):
+            raise ValueError("dependency-blocked actions require dependencies and an unlock condition")
         if self.workflow is GameplayWorkflow.CLARIFICATION and self.eligibility is not GameplayActionEligibility.REQUIRES_CLARIFICATION:
             raise ValueError("clarification workflow requires clarification eligibility")
 
-
-__all__ = [
-    "ActionPhase",
-    "ClarificationCandidate",
-    "ClarificationKind",
-    "DiscourseLink",
-    "DiscourseLinkType",
-    "EpistemicStatus",
-    "EventFrame",
-    "EvidenceSpan",
-    "FactTemporalScope",
-    "GameplayActionCandidate",
-    "GameplayActionEligibility",
-    "GameplayActionReason",
-    "GameplayProcessingState",
-    "GameplayResolvedReference",
-    "GameplayResolvedReferenceKind",
-    "GameplayUnlockCondition",
-    "GameplayWorkflow",
-    "RelationDirection",
-    "SCHEMA_VERSION",
-    "SpeakerRole",
-    "TurnInterpretationV3",
-    "TurnInterpretationV3ValidationError",
-    "UtteranceAct",
-    "UtteranceForce",
-    "WorldFactCandidate",
-    "WorldFactKind",
-]
