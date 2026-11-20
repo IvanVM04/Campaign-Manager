@@ -25,6 +25,7 @@ from models.player_turn_interpretation_v3 import (
     WorldFactKind,
 )
 from models.relation import Relation
+from models.resolved_conversation_reference import ResolvedConversationReference
 from models.semantic_frames import SemanticActionFamily, SemanticPolarity
 from models.world_state import WorldState
 from operations.turn_operations import TurnOperation
@@ -116,10 +117,8 @@ def evaluate_world_fact(
     interpretation: TurnInterpretationV3,
     world: WorldState,
     *,
-    subject_entity_id: int | None,
-    subject_visibility_verified: bool,
-    object_entity_id: int | None = None,
-    object_visibility_verified: bool = False,
+    subject_reference: ResolvedConversationReference | None,
+    object_reference: ResolvedConversationReference | None = None,
 ) -> FactDecision:
     """Evaluate one candidate and produce at most one deterministic operation.
 
@@ -135,10 +134,6 @@ def evaluate_world_fact(
         raise TypeError("interpretation must be a TurnInterpretationV3")
     if not isinstance(world, WorldState):
         raise TypeError("world must be a WorldState")
-    if not isinstance(subject_visibility_verified, bool) or not isinstance(
-        object_visibility_verified, bool
-    ):
-        raise TypeError("visibility attestations must be booleans")
     if candidate not in interpretation.world_facts:
         return _decision(
             candidate, FactDecisionStatus.REJECTED,
@@ -191,28 +186,17 @@ def evaluate_world_fact(
             FactDecisionReason.NON_PERMANENT_TEMPORAL_SCOPE,
         )
 
-    if subject_entity_id is None:
+    if subject_reference is None:
         return _decision(
             candidate, FactDecisionStatus.NEEDS_CLARIFICATION,
             FactDecisionReason.SUBJECT_UNRESOLVED,
         )
-    subject = _trusted_entity(
-        world, subject_entity_id, candidate.subject.text,
-        subject_visibility_verified,
-    )
+    subject = _trusted_entity(world, subject_reference, candidate.subject.text)
     if subject is None:
-        reason = (
-            FactDecisionReason.VISIBILITY_UNVERIFIED
-            if not subject_visibility_verified
-            else FactDecisionReason.INVALID_REFERENCE
+        return _decision(
+            candidate, FactDecisionStatus.REJECTED,
+            FactDecisionReason.REFERENCE_MISMATCH,
         )
-        if (
-            isinstance(subject_entity_id, int)
-            and not isinstance(subject_entity_id, bool)
-            and subject_entity_id in world.entities
-        ):
-            reason = FactDecisionReason.REFERENCE_MISMATCH
-        return _decision(candidate, FactDecisionStatus.REJECTED, reason)
 
     if candidate.fact_kind is WorldFactKind.ENTITY_ATTRIBUTE:
         if candidate.object is not None or candidate.value_surface is None:
@@ -230,7 +214,7 @@ def evaluate_world_fact(
                 FactDecisionReason.ALREADY_PRESENT,
             )
         operation = UpdateEntityOperation(
-            entity_id=subject_entity_id,
+            entity_id=subject_reference.entity_id,
             notes=f"{subject.notes.rstrip()}\n{note}".strip(),
         )
         return _decision(
@@ -247,29 +231,18 @@ def evaluate_world_fact(
             candidate, FactDecisionStatus.REJECTED,
             FactDecisionReason.INVALID_REFERENCE,
         )
-    if object_entity_id is None:
+    if object_reference is None:
         return _decision(
             candidate, FactDecisionStatus.NEEDS_CLARIFICATION,
             FactDecisionReason.OBJECT_UNRESOLVED,
         )
-    target = _trusted_entity(
-        world, object_entity_id, candidate.object.text,
-        object_visibility_verified,
-    )
+    target = _trusted_entity(world, object_reference, candidate.object.text)
     if target is None:
-        reason = (
-            FactDecisionReason.VISIBILITY_UNVERIFIED
-            if not object_visibility_verified
-            else FactDecisionReason.INVALID_REFERENCE
+        return _decision(
+            candidate, FactDecisionStatus.REJECTED,
+            FactDecisionReason.REFERENCE_MISMATCH,
         )
-        if (
-            isinstance(object_entity_id, int)
-            and not isinstance(object_entity_id, bool)
-            and object_entity_id in world.entities
-        ):
-            reason = FactDecisionReason.REFERENCE_MISMATCH
-        return _decision(candidate, FactDecisionStatus.REJECTED, reason)
-    if subject_entity_id == object_entity_id:
+    if subject_reference.entity_id == object_reference.entity_id:
         return _decision(
             candidate, FactDecisionStatus.REJECTED,
             FactDecisionReason.INVALID_REFERENCE,
@@ -300,7 +273,7 @@ def evaluate_world_fact(
             FactDecisionReason.TRANSFER_DOES_NOT_PROVE_RELATION,
         )
 
-    left_id, right_id = subject_entity_id, object_entity_id
+    left_id, right_id = subject_reference.entity_id, object_reference.entity_id
     if candidate.direction is RelationDirection.OBJECT_TO_SUBJECT:
         left_id, right_id = right_id, left_id
     elif candidate.direction is RelationDirection.SYMMETRIC:
@@ -372,21 +345,24 @@ def evaluate_world_fact(
 
 def _trusted_entity(
     world: WorldState,
-    entity_id: int,
+    reference: ResolvedConversationReference,
     mention: str,
-    visibility_verified: bool,
 ) -> Entity | None:
+    # This value object is produced by the visibility-aware conversation
+    # resolver. Bind its literal mention back to the exact fact endpoint.
     if (
-        not visibility_verified
-        or isinstance(entity_id, bool)
-        or not isinstance(entity_id, int)
+        not isinstance(reference, ResolvedConversationReference)
+        or _fold(reference.mention) != _fold(mention)
     ):
         return None
-    entity = world.entities.get(entity_id)
-    if not isinstance(entity, Entity) or not entity.active:
+    entity = world.entities.get(reference.entity_id)
+    if (
+        not isinstance(entity, Entity)
+        or not entity.active
+        or _fold(entity.name) != _fold(reference.entity_name)
+    ):
         return None
-    names = {entity.name, *entity.aliases}
-    return entity if _fold(mention) in {_fold(name) for name in names} else None
+    return entity
 
 
 def _fold(value: str) -> str:
