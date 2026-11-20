@@ -635,41 +635,12 @@ El esquema JSON es el contrato estructural."""
             if not isinstance(visible_entities, list):
                 visible_entities = []
 
-            # Retrieval is optimized for the current utterance and may omit
-            # an NPC who is the explicit speaker in the already selected chat
-            # history (for example, a player asks "¿qué quiso decir?" after
-            # that NPC spoke). Reintroduce only active NPCs whose canonical
-            # name or alias occurs in that topic-scoped history. The renderer
-            # receives names/aliases only; this does not add historical text to
-            # player evidence or widen the selected transcript.
-            # Only NPCs explicitly identified as speakers of quoted text
-            # in the selected narrative history are added. The extractor checks
-            # the speaker position outside the quotation, so a character named
-            # only inside another NPC's words is not promoted to a candidate.
-            narrative_speaker_ids: set[int] = set()
+            # Retrieval may omit a speaker who is explicitly named in the
+            # selected player-authored history. Also admit NPCs identified as
+            # the speaker of quoted narrator text. Names found only inside an
+            # NPC quotation are not used as player-authored speaker evidence.
             world_entities = tuple(context.world.entities.values())
-            for turn in scoped_turns:
-                _player_text, npc_narrative, turn_id = (
-                    DiscourseContextBuilder._turn_fields(turn)
-                )
-                narrative_speaker_ids.update(
-                    utterance.speaker_entity_id
-                    for utterance in DiscourseContextBuilder.extract_npc_utterances(
-                        npc_narrative,
-                        turn_id,
-                        world_entities,
-                    )
-                )
-
-            discourse_entities = list(visible_entities)
-            discourse_entity_ids = {
-                entity_id
-                for entity_id in (
-                    DiscourseContextBuilder._entity_value(entity, "id")
-                    for entity in visible_entities
-                )
-                if entity_id is not None
-            }
+            active_npc_entities: list[object] = []
             for entity in world_entities:
                 entity_id = DiscourseContextBuilder._entity_value(entity, "id")
                 entity_type = (
@@ -686,25 +657,94 @@ El esquema JSON es el contrato estructural."""
                     .replace(" ", "")
                 )
                 if (
-                    not bool(
+                    bool(
                         DiscourseContextBuilder._entity_value(
                             entity,
                             "active",
                             False,
                         )
                     )
-                    or not (
-                        "npc" in entity_type
-                        or "nonplayer" in entity_type
+                    and ("npc" in entity_type or "nonplayer" in entity_type)
+                    and isinstance(entity_id, int)
+                    and not isinstance(entity_id, bool)
+                    and entity_id > 0
+                ):
+                    active_npc_entities.append(entity)
+
+            discourse_speaker_ids: set[int] = set()
+            for turn in scoped_turns:
+                player_turn_text, npc_narrative, turn_id = (
+                    DiscourseContextBuilder._turn_fields(turn)
+                )
+
+                # An explicit NPC label before quoted narrator speech is
+                # valid speaker evidence, but names inside the quotation are
+                # not. The extractor enforces that boundary and unique identity.
+                discourse_speaker_ids.update(
+                    utterance.speaker_entity_id
+                    for utterance in DiscourseContextBuilder.extract_npc_utterances(
+                        npc_narrative,
+                        turn_id,
+                        active_npc_entities,
                     )
-                    or not isinstance(entity_id, int)
-                    or isinstance(entity_id, bool)
-                    or entity_id not in narrative_speaker_ids
-                    or entity_id in discourse_entity_ids
+                )
+
+                # A name/alias stated by the player in the already selected
+                # history is also enough to keep that NPC available as a
+                # discourse candidate. Do not scan narrator quotations here.
+                player_text = DiscourseContextBuilder._without_quoted_spans(
+                    player_turn_text
+                )
+                for entity in active_npc_entities:
+                    entity_id = DiscourseContextBuilder._entity_value(
+                        entity,
+                        "id",
+                    )
+                    labels = (
+                        DiscourseContextBuilder._entity_value(
+                            entity,
+                            "name",
+                            "",
+                        ),
+                        *(
+                            DiscourseContextBuilder._entity_value(
+                                entity,
+                                "aliases",
+                                [],
+                            )
+                            or []
+                        ),
+                    )
+                    if any(
+                        isinstance(label, str)
+                        and label.strip()
+                        and re.search(
+                            r"(?<!\\w)" + re.escape(label.strip()) + r"(?!\\w)",
+                            player_text,
+                            re.IGNORECASE,
+                        )
+                        is not None
+                        for label in labels
+                    ):
+                        discourse_speaker_ids.add(entity_id)
+
+            discourse_entities = list(visible_entities)
+            discourse_npc_ids = {
+                identity
+                for identity, _name, _aliases in (
+                    DiscourseContextBuilder._visible_npc_specs(visible_entities)
+                )
+                if isinstance(identity, int) and not isinstance(identity, bool)
+            }
+            for entity in active_npc_entities:
+                entity_id = DiscourseContextBuilder._entity_value(entity, "id")
+                if (
+                    entity_id not in discourse_speaker_ids
+                    or entity_id in discourse_npc_ids
                 ):
                     continue
                 discourse_entities.append(entity)
-                discourse_entity_ids.add(entity_id)
+                discourse_npc_ids.add(entity_id)
             visible_entities = discourse_entities
 
             world_context = self._compact_text(projection, self.max_context_bytes)
