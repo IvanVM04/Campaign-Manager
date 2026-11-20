@@ -794,6 +794,9 @@ def comparison_shape(comparison: V2V3ShadowComparison) -> dict[str, Any]:
                 item.anchor_candidate for item in v3.discourse_links
                 if item.anchor_candidate is not None
             ] if v3 is not None else [],
+            "event_predicate_surfaces": [
+                item.predicate_surface for item in v3.events
+            ] if v3 is not None else [],
             "act_forces": (
                 [item.force.value for item in v3.utterance_acts]
                 if v3 is not None else []
