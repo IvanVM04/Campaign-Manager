@@ -41,9 +41,13 @@ backend-only `GameplayActionCandidate` record. See the
 **This does not switch production to v3.** The prompt, `IntentInterpreter`,
 mechanics/proposal gates, durable `intent_json`, codecs and persistence still
 use PlayerIntentAnalysis v1/v2. No service or bootstrap module may import the
-v3 contract in this phase. PR #286 is responsible for the single holistic v3
-prompt and shadow comparison; v2 remains the production route until later
-acceptance. Preserve the v1/v2 decoders and historical replay behavior.
+v3 contract in this phase. PR #286 adds the single holistic v3 prompt and paired
+v2/v3 shadow runner under `tests/` only. It reuses the exact v2-rendered context
+and evidence, performs a second call with the same provider, validates v3 with
+the PR #285 decoder and emits only content-free metrics. Neither v3 output nor
+its errors can affect the v2 result, mechanics or persistence. See the
+[v3 shadow evaluation specification](../../docs/architecture/player-turn-interpretation-v3-shadow-2026-11-20.md).
+Preserve the v1/v2 decoders and historical replay behavior.
 
 PR #284 hardens the existing v2 boundary without changing its durable schema:
 a callback-only first clause is removed only when it is a separately emitted,
