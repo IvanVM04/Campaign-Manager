@@ -439,10 +439,19 @@ def _collapse_split_attempt_outcome(
     uncertainty/failure continuation is collapsed. Independent later actions,
     relation claims, reordered excerpts and additional steps remain untouched.
     """
+    claims = normalized.get("relation_claims")
+    result_only_claims = (
+        isinstance(claims, list)
+        and all(
+            isinstance(claim, dict)
+            and claim.get("step_index") == 1
+            for claim in claims
+        )
+    )
     if (
         len(steps) != 2
         or len(evidence) > 300
-        or normalized.get("relation_claims")
+        or (claims and not result_only_claims)
         # Reported speech and its epistemic caveat are handled by the
         # speaker-scoping rule below; they are not player-attempt outcomes.
         or _REPORTED_SPEAKER_RE.search(evidence) is not None
@@ -504,6 +513,8 @@ def _collapse_split_attempt_outcome(
     first["source_excerpt"] = evidence.strip()
     steps = [first]
     normalized["steps"] = steps
+    if result_only_claims:
+        normalized["relation_claims"] = []
     normalized["category"] = "action"
     normalized["active_step_index"] = 0
     rules.append(
