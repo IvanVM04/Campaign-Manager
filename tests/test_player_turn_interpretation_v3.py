@@ -181,7 +181,7 @@ def test_decoder_rejects_span_offsets_that_do_not_match_current_player_text():
 
 
 def test_decoder_rejects_history_only_mentions_and_unknown_schema_fields():
-    source = "Mara es hermana de Aldric."
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
     payload = _payload(source)
     payload["utterance_acts"] = [{
         "local_id": "act_assertion",
@@ -216,7 +216,7 @@ def test_decoder_rejects_canonical_ids_inside_semantic_mentions():
 
 
 def test_local_references_must_resolve_and_be_unique_across_record_types():
-    source = "Mara es hermana de Aldric."
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
     invalid_link = _payload(source)
     invalid_link["discourse_links"][0]["target_ref"] = "event:not_present"
     with pytest.raises(TurnInterpretationV3ValidationError):
@@ -331,7 +331,7 @@ def test_callback_requires_anchor_and_non_callback_links_require_local_target():
 
 
 def test_relation_fact_requires_two_endpoints_and_explicit_direction():
-    source = "Mara es hermana de Aldric."
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
     payload = _payload(source)
     payload["world_facts"][0]["direction"] = None
 
@@ -489,7 +489,7 @@ def test_gameplay_action_candidate_is_a_backend_only_typed_record():
 
 
 def test_v3_contract_rejects_oversized_collections_and_unsupported_enum_values():
-    source = "Mara es hermana de Aldric."
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
     payload = _payload(source)
     payload["utterance_acts"] = payload["utterance_acts"] * 5
 
@@ -550,4 +550,5 @@ def test_contract_records_are_immutable_and_ids_are_local_namespaced_only():
         "world_facts": [],
         "clarification_candidates": [],
     }
-    assert TurnInterpretationV3.from_payload(bad_id, source_text=source).utterance_acts[0].local_id == "entity_42"
+    with pytest.raises(TurnInterpretationV3ValidationError):
+        TurnInterpretationV3.from_payload(bad_id, source_text=source)
