@@ -667,6 +667,32 @@ def _normalize_explicit_actor_modalities(
         ):
             continue
 
+        # A reporting verb followed by "que" introduces an attributed
+        # proposition, not direct dialogue. Check this before the broader named
+        # NPC speech matcher, which also accepts verbs such as "comenta" and
+        # "afirma" and would otherwise relabel the report as dialogue.
+        reported_speaker = _REPORTED_SPEAKER_RE.match(excerpt)
+        if reported_speaker is None:
+            reported_speaker = _REPORTED_SPEAKER_RE.match(evidence)
+            excerpt_start = evidence.casefold().find(excerpt.casefold())
+            if (
+                reported_speaker is not None
+                and excerpt_start >= reported_speaker.end()
+            ):
+                excerpt_end = excerpt_start + len(excerpt)
+                speaker = reported_speaker.group("speaker").strip()
+                step["actor"] = (
+                    "other"
+                    if _fold(speaker).startswith(("un ", "una "))
+                    else "npc"
+                )
+                step["modality"] = "reported"
+                step["attributed_to"] = speaker
+                _widen_report_excerpt(step, evidence, excerpt_end)
+                rules.append("explicit_reported_speaker")
+        if reported_speaker is not None:
+            continue
+
         named_speech = _NAMED_NPC_SPEECH_STEP_RE.match(excerpt)
         if named_speech is not None:
             speaker = named_speech.group("speaker").strip()
@@ -677,10 +703,6 @@ def _normalize_explicit_actor_modalities(
             step["attributed_to"] = speaker
             dialogue_indices.append(index)
             rules.append("explicit_npc_dialogue_step")
-            continue
-
-        # Attributed propositions remain reports, not direct NPC dialogue.
-        if _REPORTED_SPEAKER_RE.search(excerpt):
             continue
 
         pronoun_speech = _PRONOUN_NPC_SPEECH_STEP_RE.match(excerpt)
@@ -1485,11 +1507,32 @@ def normalize_intent_surface_payload(
         step["polarity"] = "positive"
         step["reported_outcome"] = "not_claimed"
         frame = step.get("action_frame")
+        predicate_match = re.search(
+            r"\b(?:continuar|seguir|retomar|reanudar|proseguir|terminar|"
+            r"acabar|empezar|comenzar|volver\s+a|ir\s+a)\b",
+            plan_desire.group(0),
+            re.IGNORECASE,
+        )
+        # The selected predicate is a literal continuation verb inside the
+        # explicit desire span. A neutral V2 frame is required even when the
+        # model omitted action_frame from an otherwise valid plan step.
+        predicate = (
+            predicate_match.group(0)
+            if predicate_match is not None
+            else "continuar"
+        )
         if isinstance(frame, dict):
             neutral_frame = dict(frame)
+            neutral_frame["predicate"] = predicate
             neutral_frame["family"] = "other"
             neutral_frame["arguments"] = []
             step["action_frame"] = neutral_frame
+        else:
+            step["action_frame"] = {
+                "predicate": predicate,
+                "family": "other",
+                "arguments": [],
+            }
         normalized["category"] = "plan"
         normalized["active_step_index"] = None
         rules.append("explicit_continuation_desire_is_plan")
