@@ -212,7 +212,7 @@ class LLMWorldProposalPromptBuilder:
             "action_frame, roles y dirección de relation_claims. La evidencia "
             "original solo verifica fragmentos literales; no reinterpretes desde "
             "el texto bruto. Sin v2, no inventes intención ausente.\n"
-            + "No conviertas planes, condicionales, preguntas, deseos, diálogo, "
+            + "Una intención no es resultado. No conviertas planes, condicionales, preguntas, deseos, diálogo, "
             "citas, relatos, rumores o hipótesis en hechos ni acciones propias. "
             "Las acciones compuestas se evalúan en orden y no avanzan más allá "
             "de un requisito fallido o no confirmado. Un fracaso no modifica el "
