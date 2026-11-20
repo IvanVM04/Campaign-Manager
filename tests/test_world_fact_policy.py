@@ -34,7 +34,9 @@ from operations.world_operations import (
 from services.turns.world_fact_policy import (
     FactDecisionReason,
     FactDecisionStatus,
+    FactEndpointResolution,
     evaluate_world_fact,
+    evaluate_world_facts,
 )
 
 
@@ -398,3 +400,38 @@ def test_fact_evidence_must_be_contained_in_its_source_act():
     assert result.status is FactDecisionStatus.REJECTED
     assert result.reason is FactDecisionReason.FACT_EVIDENCE_OUTSIDE_SOURCE_ACT
     assert result.operations == ()
+
+
+
+def test_fact_candidates_are_evaluated_independently_in_source_order():
+    source = "Mara es hermana de Aldric."
+    accepted = _fact(source)
+    rejected = replace(
+        accepted,
+        local_id="fact_rumour",
+        epistemic_status=EpistemicStatus.RUMOR,
+    )
+    interpretation = TurnInterpretationV3(
+        utterance_acts=_interpretation(source, accepted).utterance_acts,
+        events=(),
+        discourse_links=(),
+        world_facts=(accepted, rejected),
+    )
+    world = _world()
+    resolutions = {
+        accepted.local_id: FactEndpointResolution(
+            subject_reference=_resolved_reference(world, "Mara", 1),
+            object_reference=_resolved_reference(world, "Aldric", 2),
+        ),
+    }
+
+    decisions = evaluate_world_facts(interpretation, world, resolutions)
+
+    assert [item.candidate.local_id for item in decisions] == [
+        "fact_relation",
+        "fact_rumour",
+    ]
+    assert decisions[0].status is FactDecisionStatus.ACCEPTED
+    assert decisions[0].operations
+    assert decisions[1].status is FactDecisionStatus.REJECTED
+    assert decisions[1].operations == ()
