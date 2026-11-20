@@ -20,7 +20,6 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.providers import LLMProvider
 from services.turns.intent_interpreter import IntentInterpreter
-from services.turns.intent_response_schema import INTENT_ANALYSIS_RESPONSE_SCHEMA
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +118,8 @@ LOCAL_ID = r"^[a-z][a-z0-9_]{0,31}$"
 ACT_ID = r"^act_[a-z][a-z0-9_]{0,27}$"
 EVENT_ID = r"^event_[a-z][a-z0-9_]{0,25}$"
 LINK_ID = r"^link_[a-z][a-z0-9_]{0,26}$"
-FACT_ID = r"^fact_[a-z][a-z0-9_]{0,27}$"
-CLARIFY_ID = r"^clarify_[a-z][a-z0-9_]{0,24}$"
+FACT_ID = r"^fact_[a-z][a-z0-9_]{0,26}$"
+CLARIFY_ID = r"^clarify_[a-z][a-z0-9_]{0,23}$"
 LOCAL_REFERENCE = r"^(act|event|fact):[a-z][a-z0-9_]{0,31}$"
 
 EVIDENCE_SPAN_SCHEMA = {
@@ -635,6 +634,7 @@ class PlayerTurnInterpretationV3ShadowRunner:
 
         v3_started = perf_counter()
         v3_prompt: str | None = None
+        v3_interpretation: TurnInterpretationV3 | None = None
         try:
             v3_prompt = build_v3_shadow_prompt(
                 v2_prompt,
@@ -673,9 +673,7 @@ class PlayerTurnInterpretationV3ShadowRunner:
         v3_duration_ms = round((perf_counter() - v3_started) * 1000, 3)
         return V2V3ShadowComparison(
             v2_analysis=v2_analysis,
-            v3_interpretation=(
-                v3_interpretation if v3_status == "valid" else None
-            ) if v3_prompt is not None else None,
+            v3_interpretation=v3_interpretation,
             v2_status=v2_status,
             v3_status=v3_status,
             v2_error_type=v2_error_type,
