@@ -175,6 +175,29 @@ def test_speaker_extractor_recognizes_clitic_warning_as_npc_speech():
     assert pronoun_signals[0].predicate.casefold() == "advierte"
 
 
+
+def test_speaker_extractor_attributes_quoted_warning_with_clitic():
+    @dataclass
+    class Entity:
+        id: int
+        name: str
+        entity_type: str = "npc"
+        active: bool = True
+        aliases: tuple[str, ...] = ()
+
+    mara = Entity(7, "Mara")
+    utterances = SpeakerSignalExtractor.extract_npc_utterances(
+        "Aldric me advierte: «No abras la puerta del sótano».",
+        41,
+        (mara, Entity(8, "Aldric")),
+    )
+    assert len(utterances) == 1
+    assert utterances[0].turn_id == 41
+    assert utterances[0].speaker_entity_id == 8
+    assert utterances[0].speaker_name == "Aldric"
+    assert utterances[0].utterance == "No abras la puerta del sótano"
+
+
 def test_speaker_extractor_keeps_quotes_out_of_speech_signals():
     extractor = SpeakerSignalExtractor()
     assert extractor.speech_predicate_signals(
