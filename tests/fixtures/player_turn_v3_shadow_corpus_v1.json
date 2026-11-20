@@ -28,7 +28,9 @@
           "events": 1,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 3,
+          "quote_spans": 1
         },
         "act_forces": [
           "warning"
@@ -73,7 +75,9 @@
           "events": 1,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 3,
+          "quote_spans": 1
         },
         "act_forces": [
           "report"
@@ -131,7 +135,9 @@
           "events": 1,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 3,
+          "quote_spans": 0
         },
         "act_forces": [
           "assertion"
@@ -183,7 +189,9 @@
           "events": 2,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 4,
+          "quote_spans": 0
         },
         "act_forces": [
           "hypothesis"
@@ -239,7 +247,9 @@
           "events": 1,
           "discourse_links": 0,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 2,
+          "quote_spans": 0
         },
         "act_forces": [
           "assertion"
@@ -289,7 +299,9 @@
           "events": 2,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 4,
+          "quote_spans": 0
         },
         "act_forces": [
           "in_character_dialogue"
@@ -351,7 +363,9 @@
           "events": 0,
           "discourse_links": 0,
           "world_facts": 1,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 2,
+          "quote_spans": 0
         },
         "act_forces": [
           "assertion"
@@ -397,7 +411,9 @@
           "events": 1,
           "discourse_links": 0,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 2,
+          "quote_spans": 0
         },
         "act_forces": [
           "assertion"
@@ -447,7 +463,9 @@
           "events": 1,
           "discourse_links": 0,
           "world_facts": 1,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 3,
+          "quote_spans": 0
         },
         "act_forces": [
           "assertion"
@@ -499,7 +517,9 @@
           "events": 2,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 4,
+          "quote_spans": 0
         },
         "act_forces": [
           "assertion"
@@ -555,7 +575,9 @@
           "events": 2,
           "discourse_links": 1,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 4,
+          "quote_spans": 0
         },
         "act_forces": [
           "refusal"
@@ -604,7 +626,9 @@
           "events": 1,
           "discourse_links": 0,
           "world_facts": 0,
-          "clarification_candidates": 0
+          "clarification_candidates": 0,
+          "evidence_spans": 2,
+          "quote_spans": 0
         },
         "act_forces": [
           "report"
