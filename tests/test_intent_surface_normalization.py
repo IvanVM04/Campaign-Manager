@@ -1557,7 +1557,8 @@ def test_explicit_desire_to_continue_a_topic_is_a_plan_not_an_action():
     assert normalized["active_step_index"] is None
     assert step["actor"] == "player"
     assert step["modality"] == "planned"
-    assert step.get("action_frame") is None
+    assert step["action_frame"]["family"] == "other"
+    assert step["action_frame"]["arguments"] == []
     assert "explicit_continuation_desire_is_plan" in summary.applied_rules
 
 
