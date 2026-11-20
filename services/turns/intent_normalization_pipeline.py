@@ -394,6 +394,7 @@ class IntentNormalizationDiagnostics:
     unverified_named_speaker_dialogue_normalized: bool = False
     semantic_action_rules: tuple[str, ...] = ()
     semantic_relation_rules: tuple[str, ...] = ()
+    dropped_action_shadow_relation_claims: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -514,5 +515,8 @@ class IntentNormalizationPipeline:
             ),
             semantic_action_rules=semantic_surface_summary.action_rules_applied,
             semantic_relation_rules=semantic_surface_summary.relation_rules_applied,
+            dropped_action_shadow_relation_claims=(
+                semantic_surface_summary.dropped_action_shadow_relation_claims
+            ),
         )
         return IntentNormalizationResult(analysis=analysis, diagnostics=diagnostics)
