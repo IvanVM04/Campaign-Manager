@@ -234,7 +234,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_kinship",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?:es\s+)?"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?"
+            r"(?:(?:es|sería|seria|fuera|fuese|será|sera)\s+)?"
             r"(?P<predicate>herman[oa]|madre|padre|hij[oa]|prim[oa]|t[ií][oa])\s+"
             r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
@@ -341,6 +342,7 @@ class _RelationSurface:
     negative: bool
     attributed_to: str | None
     temporal_expression: str | None
+    conditional: bool = False
 
 
 def _fold(value: str) -> str:
@@ -780,6 +782,7 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     clause = original
     speaker: str | None = None
     temporal: str | None = None
+    conditional = False
     reported_match = _REPORTED_PREFIX_RE.match(clause)
     if reported_match is not None:
         speaker = _trim_surface(reported_match.group("speaker"))
@@ -793,7 +796,12 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     clause = _trim_surface(clause)
     if not clause:
         return None
-    if re.match(r"^(?:si|quizá|quizas|tal\s+vez)\b", _fold(clause)):
+    conditional_match = re.match(r"^si\s+(?P<clause>.+)$", clause, re.IGNORECASE)
+    if conditional_match is not None:
+        conditional = True
+        # Parse only the conditional proposition, never its apodosis.
+        clause = re.split(r"[,;]", conditional_match.group("clause"), maxsplit=1)[0].strip()
+    if re.match(r"^(?:quizá|quizas|tal\s+vez)\b", _fold(clause)):
         return None
 
     matches: list[_RelationSurface] = []
@@ -824,6 +832,7 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
                 negative=negative,
                 attributed_to=speaker,
                 temporal_expression=temporal,
+                conditional=conditional,
             )
         )
 
@@ -875,6 +884,8 @@ def _make_relation_claim(
         modality = SemanticModality.QUESTION
     elif polarity is SemanticPolarity.NEGATIVE:
         modality = SemanticModality.NEGATED
+    elif surface.conditional:
+        modality = SemanticModality.CONDITIONAL
     else:
         modality = SemanticModality(step.modality.value)
     attributed_to = (
@@ -1027,8 +1038,17 @@ def normalize_untrusted_intent_payload(
                     "reported", "dialogue", "observed", "question",
                 }
             )
+            non_executable_semantic_step = (
+                normalized.get("category") in {
+                    "dialogue", "report", "question", "plan", "correction", "unknown",
+                }
+                or step.get("modality") in {
+                    "dialogue", "reported", "observed", "question",
+                    "conditional", "planned", "negated", "correction",
+                }
+            )
             if (
-                passive_third_party_step
+                (passive_third_party_step or non_executable_semantic_step)
                 and isinstance(predicate, str)
                 and predicate.strip()
                 and not (
@@ -1036,9 +1056,9 @@ def normalize_untrusted_intent_payload(
                     and _is_literal(excerpt, predicate)
                 )
             ):
-                # Optional frame predicates are never allowed to invent an
-                # action for a quoted/reported third party. Preserve the report
-                # while dropping only this ungrounded semantic enrichment.
+                # Optional frame predicates are not trusted to invent actions
+                # for non-executable utterances. Preserve the speech/report/plan
+                # and drop only ungrounded frame enrichment; active attempts stay strict.
                 step.pop("action_frame", None)
                 dropped_predicates += 1
                 frame = None
@@ -1127,8 +1147,19 @@ def normalize_semantic_surface(
 
     normalized_steps: list[IntentStep] = []
     action_rules: list[str] = []
+    relation_surfaces: dict[int, _RelationSurface] = {}
     speech_only = analysis.category.value in {"dialogue", "question"}
     for step in analysis.steps:
+        surface = _parse_relation_surface(step.source_excerpt)
+        if surface is not None:
+            relation_surfaces[step.index] = surface
+            if step.action_frame is not None:
+                # A literal relational clause is not also an executable action.
+                normalized_steps.append(replace(step, action_frame=None))
+                action_rules.append("relation_surface_replaces_action_frame")
+            else:
+                normalized_steps.append(step)
+            continue
         frame, rule_id = _normalize_action_frame(step, speech_only=speech_only)
         normalized_steps.append(
             step if frame is step.action_frame else replace(step, action_frame=frame)
@@ -1139,7 +1170,7 @@ def normalize_semantic_surface(
     candidate_claims: list[SemanticRelationClaim] = []
     relation_rules: list[str] = []
     for step in normalized_steps:
-        surface = _parse_relation_surface(step.source_excerpt)
+        surface = relation_surfaces.get(step.index)
         if surface is None:
             continue
         claim = _make_relation_claim(step, surface)
