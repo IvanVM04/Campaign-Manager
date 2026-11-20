@@ -31,7 +31,19 @@ not existing behavior of this package.
 
 The production route described below remains the implemented v2 pipeline. The PR #281 live evaluation exposed a gap between field-level scores and complete semantic scenarios, particularly compound-step modality, callbacks, relation direction and the separation of NPC facts from action outcomes. The current architecture target and migration proposal are documented in [the player-intent semantic redesign audit](../../docs/architecture/player-intent-semantic-redesign-audit-2026-11-20.md).
 
-That audit proposes a future versioned contract separating communicative acts, event/proposition frames, discourse links and persistent-fact candidates. Gameplay-action candidates and the active focus would then be derived by backend policy. **This proposal is not implemented by this package yet**: PlayerIntentAnalysis v2, its durable compatibility and the current mechanics/proposal gates remain the runtime contract until the migration is delivered and accepted. Do not describe v3 as an available capability or weaken the existing v1/v2 decoders.
+PR #285 now defines and deterministically validates the additive v3 DTO
+contract in `models/player_turn_interpretation_v3.py`: communicative acts,
+event/proposition frames, discourse links, world-fact candidates, clarification
+candidates and current-utterance evidence spans. It also defines a separate
+backend-only `GameplayActionCandidate` record. See the
+[v3 contract specification](../../docs/architecture/player-turn-interpretation-v3-contract-2026-11-20.md).
+
+**This does not switch production to v3.** The prompt, `IntentInterpreter`,
+mechanics/proposal gates, durable `intent_json`, codecs and persistence still
+use PlayerIntentAnalysis v1/v2. No service or bootstrap module may import the
+v3 contract in this phase. PR #286 is responsible for the single holistic v3
+prompt and shadow comparison; v2 remains the production route until later
+acceptance. Preserve the v1/v2 decoders and historical replay behavior.
 
 PR #284 hardens the existing v2 boundary without changing its durable schema:
 a callback-only first clause is removed only when it is a separately emitted,
