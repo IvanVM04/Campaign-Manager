@@ -29,6 +29,16 @@ _V3_SEQUENCE_FIELDS = (
     "link_types",
     "fact_kinds",
     "relation_families",
+    "fact_directions",
+    "fact_polarities",
+    "fact_epistemic_statuses",
+    "fact_temporal_scopes",
+    "fact_predicate_surfaces",
+    "normalized_relation_types",
+    "clarification_kinds",
+    "link_source_ref_kinds",
+    "link_target_ref_kinds",
+    "callback_anchor_candidates",
 )
 _V3_COUNT_FIELDS = (
     "utterance_acts",
@@ -38,8 +48,13 @@ _V3_COUNT_FIELDS = (
     "clarification_candidates",
     "evidence_spans",
     "quote_spans",
+    "speaker_mentions",
+    "addressee_mentions",
+    "event_attributed_sources",
+    "fact_attributed_sources",
 )
-_V2_FIELDS = ("category", "step_count", "active_step_index")
+_V2_FIELDS = ("category", "step_count", "active_step_index", "relation_count")
+_V2_SEQUENCE_FIELDS = ("modalities", "actors")
 
 
 def load_v3_shadow_corpus() -> list[dict[str, Any]]:
@@ -78,13 +93,21 @@ def load_v3_shadow_corpus() -> list[dict[str, Any]]:
         ):
             raise ValueError("v3 shadow scenario metadata is invalid")
         expected_v2 = scenario["expected_v2"]
-        if not isinstance(expected_v2, dict) or set(expected_v2) != set(_V2_FIELDS):
+        if not isinstance(expected_v2, dict) or set(expected_v2) != {
+            *_V2_FIELDS, *_V2_SEQUENCE_FIELDS,
+        }:
             raise ValueError("v2 shadow gold has an invalid shape")
         if (
             not isinstance(expected_v2["category"], str)
             or isinstance(expected_v2["step_count"], bool)
             or not isinstance(expected_v2["step_count"], int)
             or expected_v2["step_count"] < 0
+            or any(
+                isinstance(expected_v2[field], bool)
+                or not isinstance(expected_v2[field], int)
+                or expected_v2[field] < 0
+                for field in ("step_count", "relation_count")
+            )
             or (
                 expected_v2["active_step_index"] is not None
                 and (
@@ -92,6 +115,11 @@ def load_v3_shadow_corpus() -> list[dict[str, Any]]:
                     or not isinstance(expected_v2["active_step_index"], int)
                     or expected_v2["active_step_index"] < 0
                 )
+            )
+            or any(
+                not isinstance(expected_v2[field], list)
+                or any(not isinstance(value, str) or not value.strip() for value in expected_v2[field])
+                for field in _V2_SEQUENCE_FIELDS
             )
         ):
             raise ValueError("v2 shadow gold values are invalid")
@@ -183,6 +211,19 @@ def score_shadow_comparison(
         if expected != observed:
             mismatches_v2.append(field)
 
+    observed_v2 = shape["v2"]
+    for field in _V2_SEQUENCE_FIELDS:
+        expected_values = expected_v2[field]
+        observed_values = observed_v2[field] if comparison.v2_status == "valid" else []
+        metric = f"v2_{field}:{scenario['family']}"
+        if not _score_sequence(
+            ledger,
+            metric_family=metric,
+            expected=expected_values,
+            observed=observed_values,
+        ):
+            mismatches_v2.append(field)
+
     v2_valid = comparison.v2_status == "valid"
     ledger.record_case(
         f"v2_contract_valid:{scenario['family']}",
@@ -215,7 +256,11 @@ def score_shadow_comparison(
             "fact_count" if field == "world_facts" else
             "clarification_count" if field == "clarification_candidates" else
             "evidence_span_count" if field == "evidence_spans" else
-            "quote_span_count"
+            "quote_span_count" if field == "quote_spans" else
+            "speaker_mention_count" if field == "speaker_mentions" else
+            "addressee_mention_count" if field == "addressee_mentions" else
+            "event_attributed_source_count" if field == "event_attributed_sources" else
+            "fact_attributed_source_count"
         ]
         metric = f"v3_count_{field}:{scenario['family']}"
         passed = expected_count == observed_count
