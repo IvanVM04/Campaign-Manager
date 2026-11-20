@@ -224,7 +224,7 @@ _REPORTED_SPEAKER_RE = re.compile(
     re.IGNORECASE,
 )
 _REPORTED_CLAIM_PREDICATE_RE = re.compile(
-    r"\\b(?:comenta|comentan|comentó|comentaron|comento|"
+    r"\b(?:comenta|comentan|comentó|comentaron|comento|"
     r"afirma|afirman|afirmó|afirmaron|afirmo|"
     r"asegura|aseguran|aseguró|aseguraron|aseguro|"
     r"declara|declaran|declaró|declararon|declaro|"
@@ -233,7 +233,7 @@ _REPORTED_CLAIM_PREDICATE_RE = re.compile(
     r"revela|revelan|reveló|revelaron|revelo|"
     r"informa|informan|informó|informaron|informo|"
     r"sostiene|sostienen|sostuvo|sostuvieron|"
-    r"confirma|confirman|confirmó|confirmaron|confirmo)\\s+que\\b",
+    r"confirma|confirman|confirmó|confirmaron|confirmo)\s+que\b",
     re.IGNORECASE,
 )
 _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
