@@ -237,7 +237,9 @@ def test_pipeline_removes_explicit_callback_preamble_and_reindexes_action_steps(
     )
 
     assert len(result.analysis.steps) == 2
-    assert result.analysis.steps[0].source_excerpt == action
+    assert result.analysis.steps[0].source_excerpt == (
+        "Retomando lo de la pared lisa de piedra, " + action
+    )
     assert result.analysis.steps[0].index == 0
     assert result.analysis.steps[1].source_excerpt == conditional
     assert result.analysis.steps[1].index == 1
