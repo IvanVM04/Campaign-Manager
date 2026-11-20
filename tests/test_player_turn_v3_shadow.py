@@ -17,7 +17,6 @@ from tests.player_turn_interpretation_v3_shadow import (
     comparison_shape,
 )
 
-
 EVIDENCE = "Abro la puerta."
 EVIDENCE_END = len(EVIDENCE)
 
