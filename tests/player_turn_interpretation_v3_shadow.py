@@ -450,7 +450,7 @@ def _extract_section(
         raise ShadowPromptError("invalid_prompt_section_order")
     value = prompt[content_start:end]
     # The v2 renderer appends one framing newline after each section.
-    return value[:-1] if value.endswith("\n") else value
+    return value.removesuffix("\n")
 
 
 def build_v3_shadow_prompt(
