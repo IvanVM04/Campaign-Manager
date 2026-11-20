@@ -257,7 +257,7 @@ def _strip_explicit_callback_prefix(
     first_excerpt = steps[0].get("source_excerpt")
     if not isinstance(first_excerpt, str) or not first_excerpt.strip():
         return None
-    clean = lambda value: _fold(value).strip(" \\t\\r\\n.,;:!?¡¿")
+    clean = lambda value: _fold(value).strip(" \t\r\n.,;:!?¡¿")
     if clean(first_excerpt) != clean(prefix):
         return None
 
