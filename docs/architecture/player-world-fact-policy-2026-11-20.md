@@ -86,7 +86,9 @@ The policy returns one of:
 - `REJECTED`: an authority, evidence, stability, identity or domain check
   failed; no operation is emitted.
 
-`FactDecision.to_receipt()` binds the result to canonical JSON and SHA-256 of
+`evaluate_world_facts()` evaluates every candidate independently in source
+order; a rejected candidate does not erase another candidate's eligibility.
+`FactDecision.to_receipt()` binds each result to canonical JSON and SHA-256 of
 the exact candidate. The receipt uses the existing PR #287
 `FactValidationReceipt` codec and can be advanced through the checkpoint's
 lease-fenced compare-and-swap persistence. A validated receipt means the
@@ -122,7 +124,8 @@ acceptance remain PR #289 work.
   temporary-scope rejection;
 - trusted speaker/act requirements;
 - visibility-aware resolution, unresolved endpoints and mention-to-ID binding;
-- transfer-versus-ownership separation;
+- transfer-versus-ownership separation, including separately evidenced explicit ownership;
+- independent evaluation of multiple facts in one utterance;
 - duplicate idempotency, inactive relation reactivation and exact-candidate
   receipt binding.
 
