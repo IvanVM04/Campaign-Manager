@@ -514,6 +514,84 @@ def _collapse_split_attempt_outcome(
     return steps
 
 
+def _drop_unrelated_uncertainty_after_player_attempt(
+    steps: list[dict[str, Any]],
+    evidence: str,
+    normalized: dict[str, Any],
+    rules: list[str],
+) -> list[dict[str, Any]]:
+    """Do not treat an unrelated speculative sentence as another action step."""
+    if (
+        len(steps) != 2
+        or normalized.get("category") not in {"action", "mixed"}
+        or normalized.get("active_step_index") != 0
+        or len(evidence) > 300
+    ):
+        return steps
+    first, second = steps
+    if (
+        first.get("actor") != "player"
+        or first.get("modality") != "attempted"
+        or first.get("polarity") != "positive"
+        or not isinstance(first.get("source_excerpt"), str)
+        or not isinstance(second.get("source_excerpt"), str)
+    ):
+        return steps
+
+    second_excerpt = second["source_excerpt"].strip()
+    if not _INDEPENDENT_UNCERTAINTY_PREFIX_RE.match(second_excerpt):
+        return steps
+    if (
+        _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(second_excerpt)
+        or _FAILURE_RE.search(second_excerpt)
+        or _EXPLICIT_SUCCESS_RE.search(second_excerpt)
+    ):
+        return steps
+
+    first_excerpt = first["source_excerpt"].strip()
+    folded_evidence = _fold(evidence)
+    first_start = folded_evidence.find(_fold(first_excerpt))
+    if first_start < 0:
+        return steps
+    first_end = first_start + len(first_excerpt)
+    second_start = folded_evidence.find(_fold(second_excerpt), first_end)
+    if second_start < first_end:
+        return steps
+    second_end = second_start + len(second_excerpt)
+    if re.search(r"[.!?]", evidence[first_end:second_start]) is None:
+        return steps
+    if re.search(r"\w", evidence[second_end:]):
+        return steps
+
+    first_targets = {
+        _fold(value)
+        for value in first.get("target_mentions", [])
+        if isinstance(value, str) and value.strip()
+    }
+    second_targets = {
+        _fold(value)
+        for value in second.get("target_mentions", [])
+        if isinstance(value, str) and value.strip()
+    }
+    if not first_targets or not second_targets or first_targets & second_targets:
+        return steps
+
+    normalized["category"] = "action"
+    normalized["active_step_index"] = 0
+    claims = normalized.get("relation_claims")
+    if isinstance(claims, list):
+        normalized["relation_claims"] = [
+            claim
+            for claim in claims
+            if not (
+                isinstance(claim, dict)
+                and claim.get("step_index") == 1
+            )
+        ]
+    rules.append("unrelated_uncertainty_not_added_to_action_sequence")
+    return [first]
+
+
 def _correction_predicate(evidence: str) -> str | None:
     """Return only a literal predicate from an explicit correction construction."""
     match = _CORRECTION_PREDICATE_RE.search(evidence)
@@ -996,6 +1074,13 @@ def normalize_intent_surface_payload(
     # literal result clause; never merge an independent later action.
     if normalized.get("category") in {"action", "mixed"}:
         steps = _collapse_split_attempt_outcome(
+            steps,
+            evidence,
+            normalized,
+            rules,
+        )
+
+        steps = _drop_unrelated_uncertainty_after_player_attempt(
             steps,
             evidence,
             normalized,
