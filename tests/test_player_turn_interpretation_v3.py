@@ -5,10 +5,8 @@ import pytest
 
 from models.player_turn_interpretation_v3 import (
     ActionPhase,
-    DiscourseLink,
     DiscourseLinkType,
     EpistemicStatus,
-    EventFrame,
     EvidenceSpan,
     FactTemporalScope,
     GameplayActionCandidate,
@@ -23,18 +21,12 @@ from models.player_turn_interpretation_v3 import (
     SpeakerRole,
     TurnInterpretationV3,
     TurnInterpretationV3ValidationError,
-    UtteranceAct,
     UtteranceForce,
-    WorldFactCandidate,
 )
 from models.semantic_frames import (
-    SemanticActionFamily,
-    SemanticArgument,
-    SemanticArgumentRole,
     SemanticMention,
     SemanticObjectKind,
     SemanticPolarity,
-    SemanticRelationFamily,
 )
 
 
@@ -207,7 +199,7 @@ def test_decoder_rejects_history_only_mentions_and_unknown_schema_fields():
 
 
 def test_decoder_rejects_canonical_ids_inside_semantic_mentions():
-    source = "Mara es hermana de Aldric."
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
     payload = _payload(source)
     payload["world_facts"][0]["subject"]["entity_id"] = 77
 
@@ -215,7 +207,7 @@ def test_decoder_rejects_canonical_ids_inside_semantic_mentions():
         TurnInterpretationV3.from_payload(payload, source_text=source)
 
 
-def test_local_references_must_resolve_and_be_unique_across_record_types():
+def test_local_references_must_resolve_and_reject_duplicate_local_ids():
     source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
     invalid_link = _payload(source)
     invalid_link["discourse_links"][0]["target_ref"] = "event:not_present"
@@ -223,7 +215,7 @@ def test_local_references_must_resolve_and_be_unique_across_record_types():
         TurnInterpretationV3.from_payload(invalid_link, source_text=source)
 
     duplicate = _payload(source)
-    duplicate["world_facts"][0]["local_id"] = "event_cross"
+    duplicate["utterance_acts"][1]["local_id"] = "act_warning"
     with pytest.raises(TurnInterpretationV3ValidationError):
         TurnInterpretationV3.from_payload(duplicate, source_text=source)
 
