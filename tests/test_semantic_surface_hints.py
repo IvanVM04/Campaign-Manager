@@ -839,7 +839,10 @@ def test_ungrounded_predicate_is_dropped_only_for_non_active_third_party_report(
         evidence_text=source,
     )
 
-    assert "action_frame" not in normalized["steps"][0]
+    frame = normalized["steps"][0]["action_frame"]
+    assert frame["family"] == "other"
+    assert frame["arguments"] == []
+    assert frame["predicate"] in source
     assert summary.dropped_ungrounded_action_predicates == 1
 
 
@@ -893,7 +896,8 @@ def test_conditional_kinship_is_preserved_as_a_non_confirmed_relation():
 
     normalized, summary = normalize_semantic_surface(analysis)
 
-    assert normalized.steps[0].action_frame is None
+    assert normalized.steps[0].action_frame.family.value == "other"
+    assert normalized.steps[0].action_frame.arguments == ()
     assert len(normalized.relation_claims) == 1
     claim = normalized.relation_claims[0]
     assert claim.subject.text == "Mara"
@@ -988,7 +992,10 @@ def test_ungrounded_dialogue_frame_predicate_is_dropped_even_for_player_actor():
         evidence_text=source,
     )
 
-    assert "action_frame" not in normalized["steps"][0]
+    frame = normalized["steps"][0]["action_frame"]
+    assert frame["family"] == "other"
+    assert frame["arguments"] == []
+    assert frame["predicate"] in source
     assert summary.dropped_ungrounded_action_predicates == 1
 
 
@@ -1093,7 +1100,8 @@ def test_relation_only_clauses_do_not_remain_executable_action_frames(
         )
     )
 
-    assert normalized.steps[0].action_frame is None
+    assert normalized.steps[0].action_frame.family.value == "other"
+    assert normalized.steps[0].action_frame.arguments == ()
     assert len(normalized.relation_claims) == 1
     claim = normalized.relation_claims[0]
     assert claim.subject.text == expected_subject
