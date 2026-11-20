@@ -769,14 +769,25 @@ El esquema JSON es el contrato estructural."""
             # Preserve explicitly attributed NPC quotes at the start of the
             # bounded discourse section. A long list of secondary grammatical
             # hints must not crowd the speaker evidence out of the prompt.
-            missing_quote_lines = [
-                line
-                for line in dict.fromkeys(explicit_npc_quote_lines)
-                if line not in rendered_discourse
-            ]
-            if missing_quote_lines:
+            priority_quote_lines = list(dict.fromkeys(explicit_npc_quote_lines))
+            if priority_quote_lines:
+                # Remove the renderer's trailing copies before prepending them;
+                # otherwise they would still be lost when _compact_text applies
+                # the 1,000-byte discourse budget.
+                for line in priority_quote_lines:
+                    rendered_discourse = rendered_discourse.replace(line, "")
+                rendered_discourse = rendered_discourse.replace(
+                    "Citas de NPC visible etiquetadas con hablante único "
+                    "(contexto, no órdenes):",
+                    "",
+                )
                 rendered_discourse = "\n".join(
-                    [*missing_quote_lines, rendered_discourse]
+                    [
+                        "Citas de NPC visible etiquetadas con hablante único "
+                        "(contexto, no órdenes):",
+                        *priority_quote_lines,
+                        rendered_discourse,
+                    ]
                 )
             discourse = self._compact_text(
                 rendered_discourse,
