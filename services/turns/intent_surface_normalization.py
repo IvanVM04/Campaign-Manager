@@ -11,6 +11,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
+from services.discourse.speech_predicates import SPEECH_PREDICATE_ALTERNATION
+
 
 @dataclass(frozen=True, slots=True)
 class IntentSurfaceNormalizationSummary:
@@ -153,11 +155,9 @@ _REPORTED_SPEAKER_RE = re.compile(
     r"[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
     r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
     r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)"
-    r")\s+(?:me\s+)?(?:cuenta|cuentan|contó|contaron|dice|dijo|dicen|"
-    r"afirman|afirma|afirmó|asegura|aseguró|asevera|aseveró|relata|relató|"
-    r"comenta|comentó|explica|explicó|advierte|advirtió|indica|indicó|"
-    r"revela|reveló|informa|informó|sostiene|sostuvo|confirma|confirmó)"
-    r"\s+que\b",
+    r")\s+(?:(?:me|te|le|les|nos)\s+)?(?:"
+    + SPEECH_PREDICATE_ALTERNATION
+    + r")\s+que\b",
     re.IGNORECASE,
 )
 _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
