@@ -57,13 +57,17 @@ def test_prompt_contract_contains_descriptions_required_fields_and_examples():
     operations = parsed["operations"]
     create_entity = operations["create_entity"]
 
-    assert create_entity["required"] == "name:text"
-    assert "entity_type:text" in create_entity["optional"]
+    assert create_entity["required"] == "name:text;entity_type:text"
+    assert "entity_type:text" not in create_entity["optional"]
     assert "aliases" in create_entity["optional"]
     assert "aliases" in parsed["field_notes"]
     assert parsed["field_notes"]["aliases"] == "Alias explícitos."
     assert create_entity["description"]
     assert len(create_entity["description"]) > 32
+    entity_schema = DEFAULT_OPERATION_REGISTRY.get("create_entity").json_schema()
+    assert entity_schema["required"] == ["type", "name", "entity_type"]
+    assert entity_schema["properties"]["entity_type"]["minLength"] == 1
+    assert entity_schema["properties"]["entity_type"]["maxLength"] == 50
     assert parsed["examples"]["create_entity"]["name"] == "Aldric"
     assert parsed["examples"]["create_entity"]["entity_type"] == "npc"
     assert (
