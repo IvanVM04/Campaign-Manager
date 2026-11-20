@@ -3,7 +3,9 @@
 **Fecha:** 2026-11-18; reconciliación de estado: 2026-11-19  
 **Snapshot original:** ae52afcf9c172514a5d119fe301de11255f08091 (PR #261). **Baseline integrado anterior a NLU:** `5988ed161a9023d9a2bf86912c82f74092a53e96` (PR #266). **Último main verificado:** `9de344d4d36fdfc325c91f34075553d6076f2fc0` (PR #271 integrada).  
 **Baseline documental de este snapshot:** `ae52afcf9c172514a5d119fe301de11255f08091`; los cambios de arquitectura NLU del 2026-11-19 se enlazan como fuente activa separada.  
-**Tipo:** auditoría documental y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
+**Tipo:** snapshot histórico de auditoría y priorización; no sustituye la prueba local con Ollama/SillyTavern. La expansión de requisitos v0.2 de esta rama no implica que esas capacidades estén implementadas.
+
+> **Aviso de vigencia — 2026-11-20:** esta hoja de ruta conserva el estado y la secuencia que tenía el 18–19 de noviembre. Su sección NLU y las referencias a PR #272/#273/#274 como trabajo activo quedaron desactualizadas después de que PRs #272–#281 se integraran. No reescribir sus métricas históricas: para el estado live más reciente consultar [la evaluación de PR #281](live-ollama-evaluation-2026-11-20.md), y para la dirección arquitectónica y la siguiente secuencia de trabajo consultar [la auditoría de rediseño semántico del 20-11-2026](../architecture/player-intent-semantic-redesign-audit-2026-11-20.md). La arquitectura v3 descrita allí es una propuesta, no código implementado.
 
 ## 1. Resumen ejecutivo
 
