@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from models.player_intent_analysis import IntentStep, PlayerIntentAnalysis
+from services.discourse.speech_predicates import COMMUNICATION_PREDICATE_PATTERN
 from models.semantic_frames import (
     MAX_RELATION_CLAIMS,
     SemanticActionFamily,
@@ -150,13 +151,7 @@ _PERCEPTION_VERB_RE = re.compile(
     r"escuch\w*|oigo|oyes|oye|oyen|detect\w*|examin\w*|percib\w*)\b",
     re.IGNORECASE,
 )
-_COMMUNICATION_VERB_RE = re.compile(
-    r"\b(?:habl\w*|digo|dice|dicen|decir|dije|dijo|"
-    r"afirm\w*|asegur\w*|declar\w*|sostuv\w*|"
-    r"cuent\w*|cont(?:ar|o|as|a|amos|an|é|ó|aron|aba|aban|ado|ando)|"
-    r"pregunt\w*|respond\w*|susurr\w*|avis\w*)\b",
-    re.IGNORECASE,
-)
+_COMMUNICATION_VERB_RE = COMMUNICATION_PREDICATE_PATTERN
 _TRANSFER_VERB_RE = re.compile(
     r"\b(?:entreg\w*|devolv\w*|recib\w*|"
     r"guard(?:o|as|a|amos|an|é|ó|aron|aba|aban|ar|ando|ado)|"
