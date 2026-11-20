@@ -769,21 +769,21 @@ La siguiente secuencia es una recomendación de arquitectura después de #281, n
 | PR futura | Objetivo | Entrega principal | Criterio de cierre |
 |---|---|---|---|
 | #282 | Esta auditoría | Fuente de verdad de diagnóstico, diseño y secuencia | Documentos e índices coherentes; alcance y no-alcance explícitos |
-| #283 | Contratos críticos inmediatos v2 | entity_type no vacío/enum, límites de reparación, callback negativo, cita no confiable, vocabulario de habla centralizado y gold de relación reconciliado | Contratos deterministas pasan; no se debilitan los negativos |
-| #284 | Contratos semánticos v3 | DTOs versionados de actos, eventos, enlaces, hechos y spans; decoder y fixtures | Tests exhaustivos; v1/v2 siguen decodificando; ninguna ruta de producción usa v3 |
-| #285 | Interpretación holística v3 | Prompt único y benchmark en sombra v2/v3 | Mejora por familia sin aumentar citas/relaciones/eventos falsos; spans y cardinalidad correctos |
-| #286 | Foco y dependencias de acciones | Selector backend, grafo de acciones, checkpoint parcial y reanudación | No se adjudican nodos condicionales; fallos no desbloquean sucesores; idempotencia durable |
-| #287 | Hechos y persistencia semántica | Fact candidates, preservación de detalles NPC, operaciones con invariantes de dominio | Cero falsos writes críticos; campos obligatorios y procedencia validados |
-| #288 | Aceptación v3 | Comparación final, repetición live, SillyTavern y decisión de retirada gradual v2 | Gates aprobados por dimensión; replay histórico y rollback probados |
+| #284 | Contratos críticos inmediatos v2 | entity_type no vacío/enum, límites de reparación, callback negativo, cita no confiable, vocabulario de habla centralizado y gold de relación reconciliado | Contratos deterministas pasan; no se debilitan los negativos |
+| #285 | Contratos semánticos v3 | DTOs versionados de actos, eventos, enlaces, hechos y spans; decoder y fixtures | Tests exhaustivos; v1/v2 siguen decodificando; ninguna ruta de producción usa v3 |
+| #286 | Interpretación holística v3 | Prompt único y benchmark en sombra v2/v3 | Mejora por familia sin aumentar citas/relaciones/eventos falsos; spans y cardinalidad correctos |
+| #287 | Foco y dependencias de acciones | Selector backend, grafo de acciones, checkpoint parcial y reanudación | No se adjudican nodos condicionales; fallos no desbloquean sucesores; idempotencia durable |
+| #288 | Hechos y persistencia semántica | Fact candidates, preservación de detalles NPC, operaciones con invariantes de dominio | Cero falsos writes críticos; campos obligatorios y procedencia validados |
+| #289 | Aceptación v3 | Comparación final, repetición live, SillyTavern y decisión de retirada gradual v2 | Gates aprobados por dimensión; replay histórico y rollback probados |
 
 ### Dependencias y disciplina de alcance
 
-- #283 puede empezar sobre v2 sin esperar al nuevo contrato.
-- #284 define los tipos sin cambiar el prompt de producción.
-- #285 depende de que el contrato y el scorer estén estables.
-- #286 depende de que los eventos y enlaces sean fiables; no debe inferir dependencias a partir de una lista de steps sin tipos.
-- #287 consume facts/eventos validados, no el texto crudo ni los argumentos indiscriminadamente.
-- #288 requiere todas las fases anteriores y un SHA verificable.
+- #284 puede empezar sobre v2 sin esperar al nuevo contrato.
+- #285 define los tipos sin cambiar el prompt de producción.
+- #286 depende de que el contrato y el scorer estén estables.
+- #287 depende de que los eventos y enlaces sean fiables; no debe inferir dependencias a partir de una lista de steps sin tipos.
+- #288 consume facts/eventos validados, no el texto crudo ni los argumentos indiscriminadamente.
+- #289 requiere todas las fases anteriores y un SHA verificable.
 
 Se recomienda una PR activa cada vez, desde el último main integrado. No se debe forzar el tamaño de las PR por número de líneas. Una PR debe ser grande cuando las dependencias lo exijan, no acumular cambios de prompt, modelo, persistencia, parser y UI sin una frontera verificable.
 
@@ -837,7 +837,7 @@ La nueva representación no se considera lista por compilar ni por conseguir JSO
 - permitir al LLM asignar IDs, outcomes, active action o permiso de escritura;
 - relajar la validación estricta para que pasen respuestas malformed.
 
-### Preguntas que se deben cerrar antes de #284
+### Preguntas que se deben cerrar antes de #285
 
 1. ¿Qué tipos de actos comunicativos necesita de verdad el MVP y cuáles pueden quedar como OTHER/UNKNOWN?
 2. ¿Qué familias de eventos entran en v3 inicialmente y cuáles se mantienen como OTHER?
@@ -859,6 +859,6 @@ La aplicación necesita dejar de tratar cada segmento relevante como un step de 
 
 **La ruta óptima es evolución del contrato semántico y de la selección de acción, no reescritura de infraestructura.** Conservamos el monolito modular, una llamada LLM holística, el límite de evidencia, el resolver determinista, las reglas del servidor y el ciclo durable. Cambiamos la ontología intermedia, retiramos la autoridad del índice activo del modelo, formalizamos el grafo de discurso/eventos y hacemos más estricta la frontera entre hechos y operaciones.
 
-La PR #282 establece esa dirección. La siguiente implementación debería empezar por los invariantes v2 que ya han fallado (#283), y después construir los contratos v3 con compatibilidad y evaluación en sombra antes de usarlos para adjudicar o persistir.
+La PR #282 establece esa dirección. La siguiente implementación debería empezar por los invariantes v2 que ya han fallado (#284), y después construir los contratos v3 con compatibilidad y evaluación en sombra antes de usarlos para adjudicar o persistir.
 
 **Regla de diseño final:** el LLM interpreta el significado; los resolvers identifican las entidades; el backend decide qué puede hacerse; el motor determina los resultados; y solo el dominio confirma qué pasa a formar parte del mundo persistente.
