@@ -13,6 +13,7 @@ from models.player_action_checkpoint import (
     PlayerActionCheckpoint,
 )
 from models.player_turn_interpretation_v3 import (
+    FactTemporalScope,
     GameplayActionEligibility,
     GameplayActionReason,
     GameplayProcessingState,
@@ -34,10 +35,10 @@ from services.turns.player_action_selector import (
     build_action_checkpoint,
     fact_candidate_json,
     fact_candidate_sha256,
-    record_fact_validation_receipts,
     mark_action_completed,
     mark_action_execution_failed,
     mark_action_started,
+    record_fact_validation_receipts,
     resume_after_clarification,
     select_next_action,
 )
@@ -679,7 +680,16 @@ def test_fact_validation_receipt_is_bound_to_exact_candidate_and_checkpointed():
     assert record_fact_validation_receipts(
         restored, interpretation, (receipt,)
     ) == restored
-    stale_receipt = replace(receipt, candidate_sha256="0" * 64)
+    stale_fact = replace(
+        fact, temporal_scope=FactTemporalScope.TEMPORARY
+    )
+    stale_receipt = FactValidationReceipt(
+        fact_local_id=stale_fact.local_id,
+        source_act_id=stale_fact.source_act_id,
+        candidate_sha256=fact_candidate_sha256(stale_fact),
+        candidate_json=fact_candidate_json(stale_fact),
+        state=receipt.state,
+    )
     with pytest.raises(ActionSelectorError, match="exact candidate"):
         build_action_checkpoint(
             interpretation,

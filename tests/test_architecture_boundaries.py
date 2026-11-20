@@ -323,7 +323,9 @@ def test_v3_semantic_contract_is_not_wired_into_production_services_or_bootstrap
                 for imported in imports
             ):
                 violations.append(str(path.relative_to(ROOT)))
-    assert not violations, (
-        "V3 contract must remain additive and isolated before PR #286: "
+    expected = {"services/turns/player_action_selector.py"}
+    assert set(violations) == expected, (
+        "Only the backend-only action selector may import the v3 DTO; "
+        "provider/runtime/bootstrap wiring remains prohibited: "
         + ", ".join(violations)
     )

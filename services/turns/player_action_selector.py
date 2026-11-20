@@ -205,9 +205,8 @@ def _target_mentions(
         and act.addressee_mention is not None
     ):
         key = _fold(act.addressee_mention.text)
-        if key != _fold(actor.text):
-            if key not in seen:
-                result.append(act.addressee_mention)
+        if key != _fold(actor.text) and key not in seen:
+            result.append(act.addressee_mention)
     return tuple(result)
 
 
@@ -706,7 +705,7 @@ def build_action_checkpoint(
                 f"{resolution_id}:"
                 f"{hashlib.sha256(source_text.encode('utf-8')).hexdigest()}:"
                 f"{candidate.source_event_id}"
-            ).encode("utf-8")
+            ).encode()
         ).hexdigest()
         nodes.append(
             ActionCheckpointNode(

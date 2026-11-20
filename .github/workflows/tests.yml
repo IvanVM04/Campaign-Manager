@@ -72,6 +72,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install --group lint
 
+      - name: Preview Ruff import fixes
+        run: |
+          ruff check --select I001 --fix --diff services/turns/player_action_selector.py tests/test_player_action_selector.py || true
+
       - name: Run Ruff
         run: |
           ruff check .

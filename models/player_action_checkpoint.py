@@ -95,7 +95,7 @@ class FactValidationReceipt:
         except (TypeError, ValueError):
             raise ValueError("candidate_json must contain valid JSON") from None
         if not isinstance(candidate, dict):
-            raise ValueError("candidate_json must contain an object")
+            raise TypeError("candidate_json must contain an object")
         expected_candidate_fields = {
             "local_id", "source_act_id", "fact_kind", "subject",
             "predicate_surface", "object", "value_surface", "relation_family",
@@ -447,6 +447,120 @@ class PlayerActionCheckpoint:
 
         for event_id in nodes:
             visit(event_id)
+
+    def validate_progress_from(self, previous: PlayerActionCheckpoint) -> None:
+        """Require a checkpoint update to preserve identity and advance progress."""
+        if not isinstance(previous, PlayerActionCheckpoint):
+            raise TypeError("previous must be a PlayerActionCheckpoint")
+        if (
+            self.resolution_id != previous.resolution_id
+            or self.context_revision != previous.context_revision
+            or self.source_sha256 != previous.source_sha256
+            or self.interpretation_sha256 != previous.interpretation_sha256
+        ):
+            raise ValueError("checkpoint identity cannot change during progress")
+
+        previous_nodes = {
+            node.candidate.source_event_id: node for node in previous.nodes
+        }
+        current_nodes = {
+            node.candidate.source_event_id: node for node in self.nodes
+        }
+        if set(previous_nodes) != set(current_nodes):
+            raise ValueError("checkpoint progress cannot add or drop action nodes")
+
+        allowed_transitions = {
+            ActionExecutionState.PENDING: {
+                ActionExecutionState.PENDING,
+                ActionExecutionState.IN_PROGRESS,
+                ActionExecutionState.AWAITING_INPUT,
+                ActionExecutionState.SKIPPED,
+            },
+            ActionExecutionState.IN_PROGRESS: {
+                ActionExecutionState.IN_PROGRESS,
+                ActionExecutionState.AWAITING_INPUT,
+                ActionExecutionState.RESOLVED,
+                ActionExecutionState.EXECUTION_FAILED,
+            },
+            ActionExecutionState.AWAITING_INPUT: {
+                ActionExecutionState.AWAITING_INPUT,
+                ActionExecutionState.PENDING,
+                ActionExecutionState.SKIPPED,
+            },
+            ActionExecutionState.EXECUTION_FAILED: {
+                ActionExecutionState.EXECUTION_FAILED,
+                ActionExecutionState.IN_PROGRESS,
+            },
+            ActionExecutionState.RESOLVED: {ActionExecutionState.RESOLVED},
+            ActionExecutionState.SKIPPED: {ActionExecutionState.SKIPPED},
+        }
+        for event_id, old in previous_nodes.items():
+            new = current_nodes[event_id]
+            if (
+                old.source_order != new.source_order
+                or old.execution_key != new.execution_key
+                or old.candidate.local_id != new.candidate.local_id
+                or old.candidate.actor != new.candidate.actor
+                or old.candidate.action_type != new.candidate.action_type
+                or old.candidate.dependency_event_ids
+                != new.candidate.dependency_event_ids
+            ):
+                raise ValueError("checkpoint action identity cannot change")
+            if (
+                old.candidate.target_mentions != new.candidate.target_mentions
+                and old.state is not ActionExecutionState.AWAITING_INPUT
+            ):
+                raise ValueError(
+                    "target mentions may only change while resuming clarification"
+                )
+            if not set(old.candidate.resolved_references).issubset(
+                set(new.candidate.resolved_references)
+            ):
+                raise ValueError("checkpoint cannot discard resolved references")
+            if new.state not in allowed_transitions[old.state]:
+                raise ValueError("checkpoint action state cannot move backwards")
+
+            expected_attempts = old.attempt_count
+            if (
+                old.state
+                in {
+                    ActionExecutionState.PENDING,
+                    ActionExecutionState.EXECUTION_FAILED,
+                }
+                and new.state is ActionExecutionState.IN_PROGRESS
+            ):
+                expected_attempts += 1
+            if new.attempt_count != expected_attempts:
+                raise ValueError("checkpoint action attempt count is not monotonic")
+            if old.state in {
+                ActionExecutionState.RESOLVED,
+                ActionExecutionState.SKIPPED,
+            } and new != old:
+                raise ValueError("terminal checkpoint action is immutable")
+
+        old_receipts = {
+            item.fact_local_id: item
+            for item in previous.fact_validation_receipts
+        }
+        new_receipts = {
+            item.fact_local_id: item
+            for item in self.fact_validation_receipts
+        }
+        if not set(old_receipts).issubset(new_receipts):
+            raise ValueError("checkpoint cannot drop fact validation receipts")
+        for fact_id, old in old_receipts.items():
+            new = new_receipts[fact_id]
+            if (
+                old.source_act_id != new.source_act_id
+                or old.candidate_sha256 != new.candidate_sha256
+                or old.candidate_json != new.candidate_json
+            ):
+                raise ValueError("fact validation receipt identity cannot change")
+            if (
+                old.state is not FactValidationState.PENDING
+                and new.state is not old.state
+            ):
+                raise ValueError("final fact validation receipt cannot be reversed")
 
     def to_dict(self) -> dict[str, Any]:
         return {

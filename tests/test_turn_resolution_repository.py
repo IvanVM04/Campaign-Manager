@@ -376,6 +376,7 @@ def test_action_checkpoint_compare_and_swap_rejects_stale_revision_checkpoint_an
             created.id, checkpoint, scope=CampaignScope(1),
             expected_state="planning", expected_lease_token="worker-a",
             expected_context_revision=None, expected_checkpoint_json=None,
+            now="2026-11-20T10:00:00Z",
             conn=conn,
         )
 
@@ -423,6 +424,7 @@ def test_committed_action_checkpoint_is_immutable(isolated_database):
             created.id, checkpoint, scope=CampaignScope(1),
             expected_state="planning", expected_lease_token="worker-a",
             expected_context_revision=None, expected_checkpoint_json=None,
+            now="2026-11-20T10:00:00Z",
             conn=conn,
         )
         prepared = repository.transition(
@@ -462,11 +464,11 @@ def test_action_checkpoint_cannot_be_written_through_generic_transition(isolated
     created = repository.create(make_record(), scope=CampaignScope(1))
 
     with transaction("IMMEDIATE") as conn, pytest.raises(
-        ValueError, match="unsupported update fields"
+        ValueError, match="unsupported turn resolution fields"
     ):
         repository.transition(
             created.id,
-            "planning",
+            "rejected",
             scope=CampaignScope(1),
             expected_state="accepted",
             updates={"action_checkpoint_json": "{}"},
@@ -491,4 +493,42 @@ def test_new_resolution_cannot_inject_checkpoint_before_claiming_lease(isolated_
         TurnResolutionRepository().create(
             make_record(action_checkpoint_json=checkpoint.to_json()),
             scope=CampaignScope(1),
+        )
+
+
+
+def test_saved_checkpoint_cannot_be_rebound_to_a_new_interpretation(isolated_database):
+    repository = TurnResolutionRepository()
+    created = repository.create(make_record(), scope=CampaignScope(1))
+    with transaction("IMMEDIATE") as conn:
+        repository.claim_for_planning(
+            created.id,
+            scope=CampaignScope(1),
+            lease_token="worker-a",
+            lease_expires_at="2099-01-01T00:00:00Z",
+            now="2026-11-20T10:00:00Z",
+            conn=conn,
+        )
+    original = _empty_action_checkpoint(
+        created.id, created.player_input, 3, "interpretation-v1"
+    ).to_json()
+    with transaction("IMMEDIATE") as conn:
+        repository.save_action_checkpoint(
+            created.id, original, scope=CampaignScope(1),
+            expected_state="planning", expected_lease_token="worker-a",
+            expected_context_revision=None, expected_checkpoint_json=None,
+            now="2026-11-20T10:00:00Z", conn=conn,
+        )
+
+    rebound = _empty_action_checkpoint(
+        created.id, created.player_input, 3, "interpretation-v2"
+    ).to_json()
+    with transaction("IMMEDIATE") as conn, pytest.raises(
+        ValueError, match="checkpoint identity cannot change"
+    ):
+        repository.save_action_checkpoint(
+            created.id, rebound, scope=CampaignScope(1),
+            expected_state="planning", expected_lease_token="worker-a",
+            expected_context_revision=3, expected_checkpoint_json=original,
+            now="2026-11-20T10:00:00Z", conn=conn,
         )

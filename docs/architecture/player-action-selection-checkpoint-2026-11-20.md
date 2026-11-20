@@ -93,9 +93,15 @@ entered `committed`, `narration_pending` or `completed`.
 resolution identity, player-input digest, context revision and checkpoint
 size. It writes only while the caller owns the current planning lease and uses
 compare-and-swap on the expected context revision and prior checkpoint value.
-A stale lease, stale revision or stale expected checkpoint is rejected. The
-existing intent JSON remains unchanged; no v3 payload is silently substituted
-into historical intent records.
+A stale lease, stale revision or stale expected checkpoint is rejected. When a
+checkpoint already exists, its resolution/context/source/interpretation identity,
+node set, action identities, dependency edges and execution keys are preserved.
+Per-action states and attempt counts move only along an explicit forward
+transition graph; resolved/skipped nodes are terminal. Fact-validation receipts
+cannot be removed or rebound, and final receipt states cannot be reversed. The
+repository enforces this monotonic-progress rule before compare-and-swap.
+The existing intent JSON remains unchanged; no v3 payload is silently
+substituted into historical intent records.
 
 ## Tests and acceptance
 
@@ -107,8 +113,8 @@ Deterministic tests cover:
   work;
 - stable idempotency keys across technical retry, checkpoint round-trip and
   strict decoding, and selective clarification resume;
-- migration idempotency, durable repository CAS/lease fencing and post-commit
-  immutability.
+- migration idempotency, durable repository CAS/lease fencing, monotonic
+  checkpoint progress and post-commit immutability.
 
 The next milestones remain separate: PR #288 owns world-fact policy and
 persistence; PR #289 owns end-to-end acceptance, live Ollama evaluation,

@@ -255,6 +255,11 @@ class TurnResolutionRepository:
             raise ValueError("context revision changed before checkpoint save")
         if current.action_checkpoint_json != expected_checkpoint_json:
             raise ValueError("action checkpoint changed before compare-and-swap")
+        if current.action_checkpoint_json is not None:
+            previous_checkpoint = PlayerActionCheckpoint.from_json(
+                current.action_checkpoint_json
+            )
+            checkpoint.validate_progress_from(previous_checkpoint)
         if checkpoint.context_revision < 1:
             raise ValueError("checkpoint context revision must be positive")
         if (
