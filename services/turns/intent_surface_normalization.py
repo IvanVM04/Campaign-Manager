@@ -1484,7 +1484,12 @@ def normalize_intent_surface_payload(
         step["modality"] = "planned"
         step["polarity"] = "positive"
         step["reported_outcome"] = "not_claimed"
-        step.pop("action_frame", None)
+        frame = step.get("action_frame")
+        if isinstance(frame, dict):
+            neutral_frame = dict(frame)
+            neutral_frame["family"] = "other"
+            neutral_frame["arguments"] = []
+            step["action_frame"] = neutral_frame
         normalized["category"] = "plan"
         normalized["active_step_index"] = None
         rules.append("explicit_continuation_desire_is_plan")
