@@ -775,7 +775,7 @@ El esquema JSON es el contrato estructural."""
                 if line not in rendered_discourse
             ]
             if missing_quote_lines:
-                rendered_discourse = "\\n".join(
+                rendered_discourse = "\n".join(
                     [*missing_quote_lines, rendered_discourse]
                 )
             discourse = self._compact_text(
