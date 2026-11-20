@@ -71,7 +71,6 @@ def test_real_ollama_player_turn_v3_shadow_holdout(record_property):
 
     elapsed = perf_counter() - started
     ledger.emit(record_property, prefix="player_turn_v3_shadow")
-    summary = ledger.summary()
     critical_cases = [item for item in comparisons if item["critical"]]
     critical_v3_valid = sum(
         item["v3_status"] == "valid" for item in critical_cases
