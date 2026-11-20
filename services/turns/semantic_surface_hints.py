@@ -13,7 +13,6 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from models.player_intent_analysis import IntentStep, PlayerIntentAnalysis
-from services.discourse.speech_predicates import COMMUNICATION_PREDICATE_PATTERN
 from models.semantic_frames import (
     MAX_RELATION_CLAIMS,
     SemanticActionFamily,
@@ -27,6 +26,7 @@ from models.semantic_frames import (
     SemanticRelationClaim,
     SemanticRelationFamily,
 )
+from services.discourse.speech_predicates import COMMUNICATION_PREDICATE_PATTERN
 
 _END_PUNCTUATION = " \t\r\n.,;:!?¡¿'\"“”«»"
 _ORGANIZATION_WORDS = {
