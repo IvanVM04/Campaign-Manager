@@ -50,7 +50,8 @@ v2/v3 shadow runner under `tests/` only. It reuses the exact v2-rendered context
 and evidence, performs a second call with the same provider, validates v3 with
 the PR #285 decoder and emits only content-free metrics. Neither v3 output nor
 its errors can affect the v2 result, mechanics or persistence. See the
-[v3 shadow evaluation specification](../../docs/architecture/player-turn-interpretation-v3-shadow-2026-11-20.md).
+[v3 shadow evaluation specification](../../docs/architecture/player-turn-interpretation-v3-shadow-2026-11-20.md). See the [world-fact policy specification](../../docs/architecture/player-world-fact-policy-2026-11-20.md) for the isolated PR #288 eligibility and persistence boundary.
+
 Preserve the v1/v2 decoders and historical replay behavior.
 
 PR #284 hardens the existing v2 boundary without changing its durable schema:
