@@ -743,6 +743,57 @@ def comparison_shape(comparison: V2V3ShadowComparison) -> dict[str, Any]:
                 sum(len(item.quote_spans) for item in v3.utterance_acts)
                 if v3 is not None else None
             ),
+            "speaker_mention_count": (
+                sum(item.speaker_mention is not None for item in v3.utterance_acts)
+                if v3 is not None else None
+            ),
+            "addressee_mention_count": (
+                sum(item.addressee_mention is not None for item in v3.utterance_acts)
+                if v3 is not None else None
+            ),
+            "event_attributed_source_count": (
+                sum(item.attributed_source is not None for item in v3.events)
+                if v3 is not None else None
+            ),
+            "fact_attributed_source_count": (
+                sum(item.attributed_source is not None for item in v3.world_facts)
+                if v3 is not None else None
+            ),
+            "fact_directions": [
+                item.direction.value for item in v3.world_facts
+                if item.direction is not None
+            ] if v3 is not None else [],
+            "fact_polarities": [
+                item.polarity.value for item in v3.world_facts
+            ] if v3 is not None else [],
+            "fact_epistemic_statuses": [
+                item.epistemic_status.value for item in v3.world_facts
+            ] if v3 is not None else [],
+            "fact_temporal_scopes": [
+                item.temporal_scope.value for item in v3.world_facts
+            ] if v3 is not None else [],
+            "fact_predicate_surfaces": [
+                item.predicate_surface for item in v3.world_facts
+                if item.fact_kind.value == "relation"
+            ] if v3 is not None else [],
+            "normalized_relation_types": [
+                item.normalized_relation_type for item in v3.world_facts
+                if item.normalized_relation_type is not None
+            ] if v3 is not None else [],
+            "clarification_kinds": [
+                item.ambiguity_kind.value for item in v3.clarification_candidates
+            ] if v3 is not None else [],
+            "link_source_ref_kinds": [
+                item.source_ref.split(":", 1)[0] for item in v3.discourse_links
+            ] if v3 is not None else [],
+            "link_target_ref_kinds": [
+                item.target_ref.split(":", 1)[0] if item.target_ref is not None else "none"
+                for item in v3.discourse_links
+            ] if v3 is not None else [],
+            "callback_anchor_candidates": [
+                item.anchor_candidate for item in v3.discourse_links
+                if item.anchor_candidate is not None
+            ] if v3 is not None else [],
             "act_forces": (
                 [item.force.value for item in v3.utterance_acts]
                 if v3 is not None else []
