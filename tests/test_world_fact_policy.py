@@ -435,3 +435,116 @@ def test_fact_candidates_are_evaluated_independently_in_source_order():
     assert decisions[0].operations
     assert decisions[1].status is FactDecisionStatus.REJECTED
     assert decisions[1].operations == ()
+
+
+
+def test_policy_reports_attribute_already_present_without_duplicate_write():
+    source = "Aldric tiene una cicatriz nueva."
+    fact = _fact(
+        source, fact_kind=WorldFactKind.ENTITY_ATTRIBUTE, predicate="cicatriz",
+        subject="Aldric", object_=None, value="nueva", family=None,
+        normalized=None, direction=None, epistemic=EpistemicStatus.OBSERVED,
+    )
+    world = _world()
+    world.entities[2].notes = "Conoce la posada.\ncicatriz: nueva"
+    result = _evaluate(
+        fact, _interpretation(source, fact), world, subject_entity_id=2
+    )
+    assert result.status is FactDecisionStatus.ALREADY_PRESENT
+    assert result.operations == ()
+
+
+def test_inactive_or_renamed_subject_reference_is_rejected():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    world = _world()
+    world.entities[1].active = False
+    result = _evaluate(fact, _interpretation(source, fact), world)
+    assert result.status is FactDecisionStatus.REJECTED
+    assert result.reason is FactDecisionReason.REFERENCE_MISMATCH
+
+
+def test_same_entity_cannot_form_a_relation_with_itself():
+    source = "Mara es hermana de Mara."
+    fact = _fact(source, object_="Mara")
+    result = _evaluate(
+        fact, _interpretation(source, fact),
+        subject_entity_id=1, object_entity_id=1,
+    )
+    assert result.status is FactDecisionStatus.REJECTED
+    assert result.reason is FactDecisionReason.INVALID_REFERENCE
+
+
+def test_relation_id_collision_is_rejected():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    interpretation = _interpretation(source, fact)
+    operation = _evaluate(fact, interpretation).operations[0]
+    world = _world()
+    world.relations[operation.relation_id] = Relation(
+        id=operation.relation_id, subject_id=999,
+        relation_type=operation.relation_type, target_id=operation.target_id,
+        active=True,
+    )
+    result = _evaluate(fact, interpretation, world)
+    assert result.status is FactDecisionStatus.REJECTED
+    assert result.reason is FactDecisionReason.RELATION_ID_COLLISION
+
+
+def test_matching_active_relation_under_legacy_id_is_idempotent():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    world = _world()
+    world.relations["legacy-relation"] = Relation(
+        id="legacy-relation", subject_id=1,
+        relation_type="kinship.sibling", target_id=2, active=True,
+    )
+    result = _evaluate(fact, _interpretation(source, fact), world)
+    assert result.status is FactDecisionStatus.ALREADY_PRESENT
+    assert result.operations == ()
+
+
+def test_fact_endpoint_resolution_rejects_untrusted_values():
+    with pytest.raises(TypeError):
+        FactEndpointResolution(subject_reference=object())
+
+
+def test_fact_decision_rejects_invalid_status_and_operations():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    with pytest.raises(TypeError):
+        FactDecision(fact, "accepted", FactDecisionReason.ELIGIBLE)
+    with pytest.raises(ValueError):
+        FactDecision(fact, FactDecisionStatus.ACCEPTED, FactDecisionReason.ELIGIBLE)
+    operation = _evaluate(fact, _interpretation(source, fact)).operations[0]
+    with pytest.raises(ValueError):
+        FactDecision(
+            fact, FactDecisionStatus.REJECTED,
+            FactDecisionReason.INVALID_REFERENCE, (operation,),
+        )
+
+
+def test_evaluate_world_facts_validates_resolution_mapping():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    interpretation = _interpretation(source, fact)
+    world = _world()
+    with pytest.raises(TypeError):
+        evaluate_world_facts(interpretation, world, [])
+    with pytest.raises(TypeError):
+        evaluate_world_facts(interpretation, world, {"fact_relation": object()})
+    with pytest.raises(TypeError):
+        evaluate_world_facts(interpretation, world, {1: FactEndpointResolution()})
+
+
+def test_policy_rejects_invalid_runtime_inputs():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    interpretation = _interpretation(source, fact)
+    world = _world()
+    with pytest.raises(TypeError):
+        evaluate_world_fact(object(), interpretation, world, subject_reference=None)
+    with pytest.raises(TypeError):
+        evaluate_world_fact(fact, object(), world, subject_reference=None)
+    with pytest.raises(TypeError):
+        evaluate_world_fact(fact, interpretation, object(), subject_reference=None)
