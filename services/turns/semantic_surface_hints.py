@@ -658,6 +658,66 @@ def _normalize_action_frame(
         new_arguments.extend(
             argument for argument in (theme, instrument) if argument is not None
         )
+    elif selected_rule == "action_communication":
+        # Communication roles are especially important for dialogue callbacks:
+        # "Le pregunto a él si ha visto la llave" has an explicit recipient and
+        # a literal theme even though the theme appears inside the question.
+        recipient_match = re.match(
+            r"^(?:a|al)\\s+(?P<recipient>.+?)"
+            r"(?=\\s+(?:por|sobre|acerca\\s+de|respecto\\s+a|si|que)\\b|$)",
+            tail,
+            re.IGNORECASE,
+        )
+        theme_match = re.search(
+            r"\\b(?:por|sobre|acerca\\s+de|respecto\\s+a)\\s+(?P<theme>.+)$",
+            tail,
+            re.IGNORECASE,
+        )
+        if theme_match is None:
+            theme_match = re.search(
+                r"\\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
+                r"encontró|encontro|conoce|conocía|conocia)\\s+"
+                r"(?P<theme>(?:el|la|los|las|un|una)\\s+[^,.!?;]+)$",
+                tail,
+                re.IGNORECASE,
+            )
+        replaced_roles: set[SemanticArgumentRole] = set()
+        if recipient_match is not None:
+            recipient_text = _trim_surface(recipient_match.group("recipient"))
+            recipient = _make_argument(
+                SemanticArgumentRole.RECIPIENT,
+                recipient_text,
+                text,
+                existing_frame=frame,
+            )
+            if recipient is not None:
+                if _normalize_kind_word(recipient_text) in {
+                    "el", "él", "ella", "ellos", "ellas", "him", "her", "they",
+                }:
+                    recipient = replace(
+                        recipient,
+                        mention=replace(
+                            recipient.mention,
+                            kind_hint=SemanticObjectKind.CHARACTER,
+                        ),
+                    )
+                new_arguments.append(recipient)
+                replaced_roles.add(SemanticArgumentRole.RECIPIENT)
+        if theme_match is not None:
+            theme = _make_argument(
+                SemanticArgumentRole.THEME,
+                theme_match.group("theme"),
+                text,
+                existing_frame=frame,
+            )
+            if theme is not None:
+                new_arguments.append(theme)
+                replaced_roles.add(SemanticArgumentRole.THEME)
+        new_arguments.extend(
+            argument
+            for argument in frame.arguments
+            if argument.role not in replaced_roles
+        )
     elif selected_rule == "action_transfer":
         recipient_match = re.match(
             r"^(?P<theme>.+?)\s+(?:a|al)\s+(?P<recipient>.+)$",
