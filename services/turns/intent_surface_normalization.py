@@ -223,6 +223,19 @@ _REPORTED_SPEAKER_RE = re.compile(
     + r")\s+que\b",
     re.IGNORECASE,
 )
+_REPORTED_CLAIM_PREDICATE_RE = re.compile(
+    r"\\b(?:comenta|comentan|comentó|comentaron|comento|"
+    r"afirma|afirman|afirmó|afirmaron|afirmo|"
+    r"asegura|aseguran|aseguró|aseguraron|aseguro|"
+    r"declara|declaran|declaró|declararon|declaro|"
+    r"relata|relatan|relató|relataron|relato|"
+    r"indica|indican|indicó|indicaron|indico|"
+    r"revela|revelan|reveló|revelaron|revelo|"
+    r"informa|informan|informó|informaron|informo|"
+    r"sostiene|sostienen|sostuvo|sostuvieron|"
+    r"confirma|confirman|confirmó|confirmaron|confirmo)\\s+que\\b",
+    re.IGNORECASE,
+)
 _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
     r"(?:^\s*|[.;]\s*|\b(?:y|pero|entonces|después|despues|luego)\s+)"
     r"(?:(?:(?:yo\s+)?(?:decid(?:o|í|imos)|he\s+decidido|"
@@ -665,6 +678,26 @@ def _normalize_explicit_actor_modalities(
             or _FIRST_PERSON_ACTIVE_CLAUSE_RE.match(excerpt)
             or _NEGATED_FIRST_PERSON_ACTION_RE.match(excerpt)
         ):
+            continue
+
+        reported_claim = _REPORTED_SPEAKER_RE.match(excerpt)
+        if (
+            reported_claim is not None
+            and _REPORTED_CLAIM_PREDICATE_RE.search(reported_claim.group(0))
+            is not None
+        ):
+            # "Dorian comenta/afirma que..." introduces a reported claim.
+            # Do not let the broader named-speech matcher reinterpret that
+            # reporting verb as a direct dialogue act after evidence widening.
+            speaker = reported_claim.group("speaker").strip()
+            step["actor"] = (
+                "other"
+                if _fold(speaker).startswith(("un ", "una "))
+                else "npc"
+            )
+            step["modality"] = "reported"
+            step["attributed_to"] = speaker
+            rules.append("explicit_reported_speaker")
             continue
 
         named_speech = _NAMED_NPC_SPEECH_STEP_RE.match(excerpt)
