@@ -13,7 +13,7 @@ class MigrationDefinition:
     apply: Callable[[sqlite3.Connection], None]
 
 
-CURRENT_VERSION = 34
+CURRENT_VERSION = 35
 
 def migration_001(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -2457,6 +2457,37 @@ def migration_034(conn: sqlite3.Connection) -> None:
         raise
 
 
+
+def migration_035(conn: sqlite3.Connection) -> None:
+    """Add a versioned partial action checkpoint to durable turn resolutions."""
+    conn.execute("SAVEPOINT migration_035")
+    try:
+        columns = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(turn_resolutions)").fetchall()
+        }
+        if "action_checkpoint_json" not in columns:
+            conn.execute(
+                "ALTER TABLE turn_resolutions ADD COLUMN action_checkpoint_json TEXT"
+            )
+        conn.execute("""
+            CREATE TRIGGER IF NOT EXISTS
+                trg_turn_resolutions_committed_checkpoint_immutable
+            BEFORE UPDATE OF action_checkpoint_json ON turn_resolutions
+            FOR EACH ROW
+            WHEN OLD.lifecycle_state IN ('committed', 'narration_pending', 'completed')
+              AND NEW.action_checkpoint_json IS NOT OLD.action_checkpoint_json
+            BEGIN
+                SELECT RAISE(ABORT, 'committed resolution action checkpoint is immutable');
+            END
+        """)
+        conn.execute("RELEASE SAVEPOINT migration_035")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migration_035")
+        conn.execute("RELEASE SAVEPOINT migration_035")
+        raise
+
+
 # Keep this tuple in strict numeric order. Migration functions above remain the
 # immutable historical record; this registry is the discoverable execution map.
 MIGRATIONS: tuple[MigrationDefinition, ...] = (
@@ -2663,5 +2694,11 @@ MIGRATIONS: tuple[MigrationDefinition, ...] = (
         name="migration_034",
         description="Isolate durable and transcript history by external conversation.",
         apply=migration_034,
+    ),
+    MigrationDefinition(
+        version=35,
+        name="migration_035",
+        description="Persist versioned backend-derived partial action progress with commit immutability.",
+        apply=migration_035,
     ),
 )

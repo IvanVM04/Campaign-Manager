@@ -32,6 +32,7 @@ from migrations import (
     migration_032,
     migration_033,
     migration_034,
+    migration_035,
     run_migrations,
 )
 
@@ -1522,4 +1523,30 @@ def test_migration_034_adds_conversation_scope_columns_and_indexes_idempotently(
     }
     assert "idx_turns_conversation_history" in turn_indexes
     assert "idx_turn_resolutions_conversation" in resolution_indexes
+    conn.close()
+
+
+
+def test_migration_035_adds_durable_action_checkpoint_idempotently():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    for definition in MIGRATIONS:
+        if definition.version < 35:
+            definition.apply(conn)
+
+    migration_035(conn)
+    migration_035(conn)
+
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(turn_resolutions)")
+    }
+    assert "action_checkpoint_json" in columns
+    triggers = {
+        row["name"]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger'"
+        )
+    }
+    assert "trg_turn_resolutions_committed_checkpoint_immutable" in triggers
     conn.close()

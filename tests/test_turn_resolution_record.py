@@ -100,3 +100,9 @@ def test_record_enforces_state_specific_requirements():
 def test_record_rejects_invalid_json_intent_analysis():
     with pytest.raises(ValueError, match="intent_json"):
         make_record(intent_json="{broken")
+
+
+
+def test_record_rejects_invalid_json_action_checkpoint():
+    with pytest.raises(ValueError, match="valid JSON"):
+        make_record(action_checkpoint_json="{broken")

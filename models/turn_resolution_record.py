@@ -50,6 +50,7 @@ class TurnResolutionRecord:
     updated_at: str | None = None
     committed_at: str | None = None
     completed_at: str | None = None
+    action_checkpoint_json: str | None = None
 
     TRANSITIONS: ClassVar[dict[str, frozenset[str]]] = {
         "accepted": frozenset({"planning", "rejected"}),
@@ -114,7 +115,7 @@ class TurnResolutionRecord:
         ):
             raise ValueError("completed state requires narrative and completed_at")
         for field_name in (
-            "proposal_json", "intent_json", "adjudication_json", "mechanics_json",
+            "proposal_json", "intent_json", "action_checkpoint_json", "adjudication_json", "mechanics_json",
             "operation_results_json",
         ):
             value = getattr(self, field_name)
