@@ -809,6 +809,10 @@ def comparison_shape(comparison: V2V3ShadowComparison) -> dict[str, Any]:
                 [item.family.value for item in v3.events]
                 if v3 is not None else []
             ),
+            "polarities": (
+                [item.polarity.value for item in v3.events]
+                if v3 is not None else []
+            ),
             "epistemic_statuses": (
                 [item.epistemic_status.value for item in v3.events]
                 if v3 is not None else []
