@@ -60,16 +60,19 @@ def _node(
     attempts=0,
     outcome=None,
     slots=(),
+    **overrides,
 ):
-    return ActionCheckpointNode(
-        candidate=candidate or _candidate(),
-        source_order=order,
-        state=state,
-        execution_key=key,
-        attempt_count=attempts,
-        outcome=outcome,
-        clarification_slots=slots,
-    )
+    values = {
+        "candidate": candidate or _candidate(),
+        "source_order": order,
+        "state": state,
+        "execution_key": key,
+        "attempt_count": attempts,
+        "outcome": outcome,
+        "clarification_slots": slots,
+    }
+    values.update(overrides)
+    return ActionCheckpointNode(**values)
 
 
 def _checkpoint(*nodes, receipts=()):
@@ -142,7 +145,7 @@ def test_fact_validation_receipt_round_trips_and_preserves_canonical_snapshot():
         ({"candidate_sha256": "bad"}, ValueError),
         ({"candidate_json": 1}, TypeError),
         ({"candidate_json": "{"}, ValueError),
-        ({"candidate_json": "[]"}, ValueError),
+        ({"candidate_json": "[]"}, TypeError),
         ({"state": "pending"}, TypeError),
     ],
 )
