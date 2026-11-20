@@ -110,7 +110,11 @@ def _evaluate(fact, interpretation, world=None, **kwargs):
         interpretation,
         world,
         subject_reference=_resolved_reference(world, subject_mention, subject_id),
-        object_reference=_resolved_reference(world, object_mention, object_id),
+        object_reference=(
+            _resolved_reference(world, object_mention, object_id)
+            if fact.object is not None
+            else None
+        ),
         **kwargs,
     )
 
