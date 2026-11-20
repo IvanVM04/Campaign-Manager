@@ -219,6 +219,7 @@ def test_external_silly_tavern_adapters_do_not_import_transport_or_composition()
 DISCOURSE_COMPONENTS = {
     "contracts.py": set(),
     "text.py": set(),
+    "speech_predicates.py": set(),
     "topic_history_selector.py": {
         "services.discourse.contracts",
         "services.discourse.text",
@@ -230,6 +231,7 @@ DISCOURSE_COMPONENTS = {
     "speaker_signal_extractor.py": {
         "services.discourse.contracts",
         "services.discourse.surface_mention_extractor",
+        "services.discourse.speech_predicates",
     },
     "renderer.py": {
         "services.discourse.topic_history_selector",

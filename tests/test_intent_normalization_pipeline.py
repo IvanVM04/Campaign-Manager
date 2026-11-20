@@ -151,6 +151,102 @@ def test_normalization_diagnostics_are_content_free():
     assert "puerta" not in diagnostic_text
     assert result.diagnostics.canonicalized_step_indices == (6,)
 
+
+def test_pipeline_removes_explicit_callback_preamble_and_reindexes_action_steps():
+    source = (
+        "Retomando lo de la pared lisa de piedra, intento escalarla usando "
+        "Atletismo. Si alcanzo la cornisa, entro en la torre."
+    )
+    callback = "Retomando lo de la pared lisa de piedra"
+    action = "intento escalarla usando Atletismo"
+    conditional = "Si alcanzo la cornisa, entro en la torre."
+    payload = {
+        "schema_version": 2,
+        "category": "mixed",
+        "steps": [
+            {
+                "index": 0,
+                "source_excerpt": callback,
+                "actor": "player",
+                "action": "retomar el tema de la pared",
+                "modality": "observed",
+                "polarity": "positive",
+                "reported_outcome": "success",
+                "target_mentions": ["la pared lisa de piedra"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "Retomando",
+                    "family": "other",
+                    "arguments": [],
+                },
+            },
+            {
+                "index": 1,
+                "source_excerpt": action,
+                "actor": "player",
+                "action": "intentar escalar la pared",
+                "modality": "attempted",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["Atletismo"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "escalarla",
+                    "family": "movement",
+                    "arguments": [],
+                },
+            },
+            {
+                "index": 2,
+                "source_excerpt": conditional,
+                "actor": "player",
+                "action": "entrar en la torre si alcanza la cornisa",
+                "modality": "conditional",
+                "polarity": "positive",
+                "reported_outcome": "not_claimed",
+                "target_mentions": ["la cornisa", "la torre"],
+                "attributed_to": None,
+                "action_frame": {
+                    "predicate": "entro",
+                    "family": "movement",
+                    "arguments": [],
+                },
+            },
+        ],
+        "active_step_index": 1,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "la pared lisa de piedra", "kind_hint": "location"},
+            "predicate": "Retomando",
+            "object": {"text": "lo", "kind_hint": "world_entity"},
+            "relation_family": "other",
+            "polarity": "positive",
+            "modality": "observed",
+            "source_excerpt": callback,
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+
+    result = IntentNormalizationPipeline().normalize(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    assert len(result.analysis.steps) == 2
+    assert result.analysis.steps[0].source_excerpt == action
+    assert result.analysis.steps[0].index == 0
+    assert result.analysis.steps[1].source_excerpt == conditional
+    assert result.analysis.steps[1].index == 1
+    assert result.analysis.active_step_index == 0
+    assert result.analysis.is_actionable is True
+    assert result.analysis.relation_claims == ()
+    assert "explicit_callback_preamble_removed" in result.diagnostics.intent_surface_rules
+
+
 def test_pipeline_classifies_an_unverified_named_quoted_speaker_as_dialogue():
     source = "Mara susurra: «cambiando de tema» y después se ríe."
     payload = _payload(
@@ -174,6 +270,34 @@ def test_pipeline_classifies_an_unverified_named_quoted_speaker_as_dialogue():
     assert result.analysis.steps[0].actor.value == "npc"
     assert result.analysis.steps[0].modality.value == "dialogue"
     assert result.analysis.steps[0].attributed_to == "Mara"
+    assert result.analysis.steps[0].action_frame.family.value == "communication"
+    assert result.diagnostics.unverified_named_speaker_dialogue_normalized is True
+
+
+
+def test_pipeline_classifies_named_npc_warning_with_clitic_as_dialogue():
+    source = "Aldric me advierte: «No abras la puerta del sótano»."
+    payload = _payload(
+        source=source,
+        category="report",
+        actor="npc",
+        modality="reported",
+        active_step_index=None,
+    )
+    payload["steps"][0]["action_frame"]["predicate"] = "advierte"
+    payload["steps"][0]["action_frame"]["family"] = "interaction"
+
+    result = IntentNormalizationPipeline().normalize(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    assert result.analysis.category.value == "dialogue"
+    assert result.analysis.active_step_index is None
+    assert result.analysis.steps[0].actor.value == "npc"
+    assert result.analysis.steps[0].modality.value == "dialogue"
+    assert result.analysis.steps[0].attributed_to == "Aldric"
     assert result.analysis.steps[0].action_frame.family.value == "communication"
     assert result.diagnostics.unverified_named_speaker_dialogue_normalized is True
 

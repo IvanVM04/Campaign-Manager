@@ -11,6 +11,9 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
+from services.discourse.speech_predicates import SPEECH_PREDICATE_ALTERNATION
+from services.discourse.topic_history_selector import DiscourseTopicHistorySelector
+
 
 @dataclass(frozen=True, slots=True)
 class IntentSurfaceNormalizationSummary:
@@ -153,11 +156,9 @@ _REPORTED_SPEAKER_RE = re.compile(
     r"[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+){0,2})"
     r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
     r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)"
-    r")\s+(?:me\s+)?(?:cuenta|cuentan|contó|contaron|dice|dijo|dicen|"
-    r"afirman|afirma|afirmó|asegura|aseguró|asevera|aseveró|relata|relató|"
-    r"comenta|comentó|explica|explicó|advierte|advirtió|indica|indicó|"
-    r"revela|reveló|informa|informó|sostiene|sostuvo|confirma|confirmó)"
-    r"\s+que\b",
+    r")\s+(?:(?:me|te|le|les|nos)\s+)?(?:"
+    + SPEECH_PREDICATE_ALTERNATION
+    + r")\s+que\b",
     re.IGNORECASE,
 )
 _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
@@ -226,6 +227,69 @@ def _widen_report_excerpt(
         excerpt = evidence[:end].strip()
         if excerpt:
             step["source_excerpt"] = excerpt
+
+
+def _strip_explicit_callback_prefix(
+    payload: dict[str, Any],
+    steps: list[dict[str, Any]],
+    evidence: str,
+) -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
+    """Remove a callback-only leading clause misrepresented as a world event.
+
+    This is intentionally narrow: the callback must be an explicit, anchored
+    first clause, the model must have emitted it as the first separate step,
+    and at least one later step must remain. Callback history stays in discourse
+    context; this does not synthesize an action or resolve the referenced topic.
+    """
+    if len(steps) < 2:
+        return None
+    delimiter = re.search(r"[,;]", evidence)
+    if delimiter is None:
+        return None
+    prefix = evidence[:delimiter.start()].strip()
+    selector = DiscourseTopicHistorySelector
+    if (
+        not selector.reactivates_prior_topic(prefix)
+        or not selector._callback_anchor_sequence(prefix)
+    ):
+        return None
+
+    first_excerpt = steps[0].get("source_excerpt")
+    if not isinstance(first_excerpt, str) or not first_excerpt.strip():
+        return None
+    clean = lambda value: _fold(value).strip(" \t\r\n.,;:!?¡¿")
+    if clean(first_excerpt) != clean(prefix):
+        return None
+
+    normalized = dict(payload)
+    retained_steps = [dict(step) for step in steps[1:]]
+    old_to_new = {old: old - 1 for old in range(1, len(steps))}
+    for index, step in enumerate(retained_steps):
+        step["index"] = index
+    old_active = payload.get("active_step_index")
+    if isinstance(old_active, int) and not isinstance(old_active, bool):
+        normalized["active_step_index"] = old_to_new.get(old_active)
+    else:
+        normalized["active_step_index"] = old_active
+
+    raw_claims = payload.get("relation_claims")
+    if isinstance(raw_claims, list):
+        claims: list[Any] = []
+        for claim in raw_claims:
+            if not isinstance(claim, dict):
+                claims.append(claim)
+                continue
+            old_index = claim.get("step_index")
+            if isinstance(old_index, int) and not isinstance(old_index, bool):
+                if old_index not in old_to_new:
+                    continue
+                claim = dict(claim)
+                claim["step_index"] = old_to_new[old_index]
+            claims.append(claim)
+        normalized["relation_claims"] = claims
+
+    normalized["steps"] = retained_steps
+    return normalized, retained_steps
 
 
 def _step_evidence(step: dict[str, Any], evidence: str) -> str:
@@ -1061,6 +1125,15 @@ def normalize_intent_surface_payload(
                 step["modality"] = "reported"
         _widen_excerpt(step, evidence)
         rules.append("explicit_epistemic_uncertainty")
+
+    callback_normalization = _strip_explicit_callback_prefix(
+        normalized,
+        steps,
+        evidence,
+    )
+    if callback_normalization is not None:
+        normalized, steps = callback_normalization
+        rules.append("explicit_callback_preamble_removed")
 
     normalized["steps"] = steps
     return normalized, IntentSurfaceNormalizationSummary(tuple(dict.fromkeys(rules)))

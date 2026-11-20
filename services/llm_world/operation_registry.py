@@ -32,12 +32,9 @@ from operations.world_operations import (
 
 _FIELD_DESCRIPTIONS: dict[str, str] = {
     "name": "Nombre visible del registro.",
-    "entity_type": "Usa npc para una persona identificada.",
+    "entity_type": "Tipo obligatorio no vacío. Usa npc para una persona identificada.",
     "aliases": "Alias explícitos.",
-    "description": (
-        "Hechos conocidos y observables. No añadas rasgos, motivos ni "
-        "historia que no estén establecidos."
-    ),
+    "description": "Hechos conocidos y observables; no inventes rasgos ni historia.",
     "notes": (
         "Hechos contextuales duraderos y confirmados; no instrucciones "
         "ni especulación."
@@ -62,7 +59,7 @@ _FIELD_DESCRIPTIONS: dict[str, str] = {
     "resource_id": "ID de la definición del recurso.",
     "resource_type": "Categoría del recurso cuantificable.",
     "unit": "Unidad usada para expresar el recurso.",
-    "amount": "Cantidad del recurso que se transfiere o ajusta.",
+    "amount": "Cantidad transferida o ajustada.",
     "subject_id": "ID de la entidad que inicia la relación o transferencia.",
     "target_id": "ID de la entidad destino.",
     "relation_id": "Identificador estable de la relación.",
@@ -90,6 +87,7 @@ class OperationMetadata:
     reference_fields: tuple[str, ...]
     example: Mapping[str, Any]
     model_allowed_fields: tuple[str, ...] | None = None
+    model_required_fields: tuple[str, ...] = ()
 
     @property
     def dataclass_fields(self) -> tuple[Any, ...]:
@@ -106,10 +104,15 @@ class OperationMetadata:
 
     @property
     def required_fields(self) -> tuple[str, ...]:
-        return tuple(
+        constructor_required = {
             field.name
             for field in self.model_fields
             if field.default is MISSING and field.default_factory is MISSING
+        }
+        return tuple(
+            field.name
+            for field in self.model_fields
+            if field.name in constructor_required or field.name in self.model_required_fields
         )
 
     def json_schema(self) -> dict[str, Any]:
@@ -122,6 +125,9 @@ class OperationMetadata:
         }
         for field in self.model_fields:
             schema = _annotation_schema(hints.get(field.name, Any))
+            if self.name == "create_entity" and field.name == "entity_type":
+                schema["minLength"] = 1
+                schema["maxLength"] = 50
             schema["description"] = _FIELD_DESCRIPTIONS.get(
                 field.name, f"Valor de {field.name}."
             )
@@ -218,6 +224,7 @@ def _metadata(
     example: dict[str, Any],
     model_proposable: bool,
     model_allowed_fields: tuple[str, ...] | None = None,
+    model_required_fields: tuple[str, ...] = (),
 ) -> OperationMetadata:
     if model_proposable and issubclass(operation_class, CharacterOperation):
         raise ValueError(
@@ -246,6 +253,16 @@ def _metadata(
         raise ValueError(f"Model-allowed field names must be non-empty strings for {name}")
     if len(allowed_fields) != len(set(allowed_fields)):
         raise ValueError(f"Duplicate model-allowed fields for {name}")
+    required_fields = tuple(model_required_fields)
+    if any(
+        not isinstance(field_name, str) or not field_name.strip()
+        for field_name in required_fields
+    ):
+        raise ValueError(f"Model-required field names must be non-empty strings for {name}")
+    if len(required_fields) != len(set(required_fields)):
+        raise ValueError(f"Duplicate model-required fields for {name}")
+    if not set(required_fields).issubset(set(allowed_fields)):
+        raise ValueError(f"Model-required fields must be model-allowed for {name}")
     unknown_model_allowed = set(allowed_fields) - declared_fields
     if unknown_model_allowed:
         raise ValueError(
@@ -270,6 +287,7 @@ def _metadata(
         reference_fields=reference_fields,
         example=MappingProxyType(dict(example)),
         model_allowed_fields=allowed_fields if model_proposable else (),
+        model_required_fields=required_fields if model_proposable else (),
     )
 
 
@@ -401,6 +419,7 @@ DEFAULT_OPERATION_REGISTRY = OperationMetadataRegistry(
                       "active",
                       "aliases",
                   ),
+                  model_required_fields=("entity_type",),
         ),
         _metadata("update_entity", UpdateEntityOperation,
                   reference_fields=("entity_id",),

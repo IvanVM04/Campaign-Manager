@@ -24,6 +24,7 @@ from models.player_intent_analysis import (
     UtteranceCategory,
 )
 from models.semantic_frames import SemanticActionFamily
+from services.discourse.speech_predicates import SPEECH_PREDICATE_ALTERNATION
 from services.discourse_context import DiscourseContextBuilder
 
 from .intent_surface_normalization import normalize_intent_surface_payload
@@ -132,9 +133,9 @@ _FOLLOW_UP_PLAYER_ACTION_RE = re.compile(
 _UNVERIFIED_NAMED_SPEAKER_RE = re.compile(
     r"^\s*(?P<speaker>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*"
     r"(?:\s+[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)?)\s+"
-    r"(?i:(?P<predicate>dice|dijo|susurra|susurró|pregunta|preguntó|"
-    r"responde|respondió|contesta|contestó|murmura|murmuró|"
-    r"grita|gritó|añade|añadió|comenta|comentó))\s*[:,]\s*"
+    r"(?:(?:me|te|le|les|nos)\s+)?(?P<predicate>"
+    + SPEECH_PREDICATE_ALTERNATION
+    + r")\s*[:,]\s*"
     r"[«“\u201c\"].+?[»”\u201d\"]",
 )
 
@@ -393,6 +394,7 @@ class IntentNormalizationDiagnostics:
     unverified_named_speaker_dialogue_normalized: bool = False
     semantic_action_rules: tuple[str, ...] = ()
     semantic_relation_rules: tuple[str, ...] = ()
+    dropped_action_shadow_relation_claims: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -513,5 +515,8 @@ class IntentNormalizationPipeline:
             ),
             semantic_action_rules=semantic_surface_summary.action_rules_applied,
             semantic_relation_rules=semantic_surface_summary.relation_rules_applied,
+            dropped_action_shadow_relation_claims=(
+                semantic_surface_summary.dropped_action_shadow_relation_claims
+            ),
         )
         return IntentNormalizationResult(analysis=analysis, diagnostics=diagnostics)

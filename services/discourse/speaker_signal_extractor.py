@@ -6,23 +6,15 @@ import re
 from collections.abc import Iterable
 
 from services.discourse.contracts import AttributedNpcUtterance, SpeechPredicateSignal
+from services.discourse.speech_predicates import SPEECH_PREDICATE_FORMS
 from services.discourse.surface_mention_extractor import SurfaceMentionExtractor
 
 
 class SpeakerSignalExtractor(SurfaceMentionExtractor):
     """Extract literal speaker/speech signals with strict visibility and ambiguity gates."""
 
-    _SPEECH_VERBS = (
-        "dice|dicen|dijo|dijeron|decia|decía|decian|decían|"
-        "pregunta|preguntan|preguntó|preguntaron|pregunto|preguntaba|"
-        "responde|responden|respondió|respondieron|respondia|respondían|"
-        "contesta|contestan|contestó|contestaron|contestaba|contestaban|"
-        "habla|hablan|habló|hablaron|hablaba|hablaban|"
-        "susurra|susurran|susurró|susurraron|grita|gritan|gritó|gritaron|"
-        "murmura|murmuran|murmuró|murmuraron|añade|añaden|añadió|añadieron|"
-        "comenta|comentan|comentó|comentaron|avisa|avisan|avisó|avisaron|"
-        "says|say|said|asks|ask|replies|reply|replied|whispers|whisper|shouts|shout|tells|tell|told"
-    )
+    _SPEECH_VERBS = "|".join(SPEECH_PREDICATE_FORMS)
+
     @classmethod
     def speech_predicate_signals(
         cls,
@@ -43,6 +35,7 @@ class SpeakerSignalExtractor(SurfaceMentionExtractor):
         signals: list[SpeechPredicateSignal] = []
         pronoun_pattern = re.compile(
             r"(?<!\w)(?P<subject>ellas|ellos|ella|él|she|he|they)\s+"
+            r"(?:(?:me|te|le|les|nos)\s+)?"
             r"(?P<predicate>" + verb_pattern + r")(?!\w)",
             re.IGNORECASE,
         )
@@ -87,6 +80,7 @@ class SpeakerSignalExtractor(SurfaceMentionExtractor):
             alias_pattern = re.escape(alias).replace(r"\ ", r"\s+")
             named_pattern = re.compile(
                 r"(?<!\w)(?P<subject>" + alias_pattern + r")(?!\w)\s+"
+                r"(?:(?:me|te|le|les|nos)\s+)?"
                 r"(?P<predicate>" + verb_pattern + r")(?!\w)",
                 re.IGNORECASE,
             )
@@ -245,7 +239,7 @@ class SpeakerSignalExtractor(SurfaceMentionExtractor):
         """Find non-negated lexical speech predicates in current player evidence."""
         normalized = cls.normalize(cls._without_quoted_spans(value))
         verbs = sorted(
-            {cls.normalize(item) for item in cls._SPEECH_VERBS.split("|")},
+            {cls.normalize(item) for item in SPEECH_PREDICATE_FORMS},
             key=len, reverse=True,
         )
         pattern = r"(?<!\w)(?:" + "|".join(re.escape(item) for item in verbs) + r")(?!\w)"
@@ -310,7 +304,7 @@ class SpeakerSignalExtractor(SurfaceMentionExtractor):
             patterns = (
                 re.compile(
                     r"(?<!\w)(?P<speaker>" + escaped + r")(?!\w)"
-                    r"(?:\s+(?:" + cls._SPEECH_VERBS + r"))?\s*[:：]\s*"
+                    r"(?:\s+(?:(?:me|te|le|les|nos)\s+)?(?:" + cls._SPEECH_VERBS + r"))?\s*[:：]\s*"
                     r"[«“\\\"](?P<utterance>[^»”\\\"]{1,600})[»”\\\"]",
                     re.IGNORECASE,
                 ),

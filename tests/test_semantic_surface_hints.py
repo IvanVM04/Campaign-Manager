@@ -317,10 +317,10 @@ def test_explicit_relation_templates_extract_direction_and_lexical_predicate(
 @pytest.mark.parametrize(
     ("source", "predicate", "expected_family", "expected_subject", "expected_object"),
     [
-        ("Mara es dueña de la llave.", "es dueña", "ownership", "Mara", "la llave"),
+        ("Mara es dueña de la llave.", "dueña", "ownership", "Mara", "la llave"),
         ("Mara posee la llave.", "posee", "ownership", "Mara", "la llave"),
         ("Mara tiene la llave.", "tiene", "possession", "Mara", "la llave"),
-        ("Mara es hermana de Aldric.", "es hermana", "kinship", "Mara", "Aldric"),
+        ("Mara es hermana de Aldric.", "hermana", "kinship", "Mara", "Aldric"),
         ("Aldric sirve a la reina.", "sirve", "service", "Aldric", "la reina"),
         ("Mara conoce a Aldric.", "conoce", "knowledge", "Mara", "Aldric"),
         ("La llave está dentro de la caja.", "está", "containment", "La llave", "la caja"),
@@ -349,6 +349,60 @@ def test_additional_relation_families_have_explicit_surface_constructions(
     assert claim.predicate == predicate
     assert claim.relation_family.value == expected_family
     assert summary.relation_rules_applied
+
+
+
+def test_transfer_action_does_not_generate_an_ownership_relation_from_same_clause():
+    source = "Entrego la llave de hierro a Mara."
+    payload = {
+        "schema_version": 2,
+        "category": "action",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "entregar la llave a Mara",
+            "modality": "attempted",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": ["la llave de hierro", "Mara"],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "Entrego",
+                "family": "transfer",
+                "arguments": [],
+            },
+        }],
+        "active_step_index": 0,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [{
+            "step_index": 0,
+            "subject": {"text": "la llave de hierro", "kind_hint": "item_instance"},
+            "predicate": "Entrego",
+            "object": {"text": "Mara", "kind_hint": "character"},
+            "relation_family": "ownership",
+            "polarity": "positive",
+            "modality": "observed",
+            "source_excerpt": source,
+            "attributed_to": None,
+            "temporal_expression": None,
+        }],
+    }
+    normalized, _ = normalize_untrusted_intent_payload(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+    analysis = PlayerIntentAnalysis.from_payload(
+        normalized,
+        source_text=source,
+        evidence_text=source,
+    )
+    normalized_analysis, summary = normalize_semantic_surface(analysis)
+
+    assert normalized_analysis.relation_claims == ()
+    assert summary.dropped_action_shadow_relation_claims == 1
 
 
 def test_negative_relation_keeps_lexical_predicate_and_moves_negation_to_typed_fields():
@@ -742,7 +796,7 @@ def test_split_literal_kinship_relation_is_reconstructed_as_one_reported_clause(
     claim = analysis.relation_claims[0]
     assert claim.subject.text == "Mara"
     assert claim.object.text == "Aldric"
-    assert claim.predicate == "es hermana"
+    assert claim.predicate == "hermana"
     assert claim.relation_family.value == "kinship"
     assert sanitization.widened_relation_evidence_spans == 1
     assert summary.relation_rules_applied == ("relation_kinship",)

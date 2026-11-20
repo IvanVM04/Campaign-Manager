@@ -556,12 +556,21 @@ No se debe reemplazar PlayerIntentAnalysis v2 en una sola PR. Los registros dura
 Antes de cambiar el esquema:
 
 - documentar v2 como contrato actual y no añadir nuevas responsabilidades a IntentModality;
-- revisar CreateEntityOperation y OperationParser: entity_type obligatorio, no vacío y dentro de un conjunto válido;
-- asegurar que la reparación de propuesta no puede inventar el tipo ni pasar un campo vacío;
-- centralizar el catálogo de predicados de habla, o al menos un único colaborador común, para evitar que cada normalizador mantenga un vocabulario divergente;
-- añadir pruebas de regresión para el callback que se convierte en evento y para la cita no confiable;
-- aclarar la discrepancia entre predicate_surface y el gold de parentesco;
+- exigir entity_type en propuestas create_entity: texto no vacío de 1–50 caracteres. No cerrar la taxonomía del dominio en esta fase; el constructor conserva el default para callers de confianza y compatibilidad histórica;
+- publicar la obligatoriedad en el prompt manifest/JSON Schema y volver a imponerla en OperationParser;
+- centralizar el catálogo de predicados de habla, con formas como advierte/advirtió y construcciones con clíticos, sin convertir señales léxicas en identidad NPC;
+- eliminar únicamente una cláusula inicial de callback cuando el modelo la haya separado como step independiente, y reindexar a la vez los pasos, el índice activo y las relation_claims; no inferir una acción que falte;
+- mantener pruebas de regresión para callback, citas y entradas no confiables;
+- descartar relation_claims de ownership/possession/unknown que sean un reflejo del mismo predicado/cláusula de transferencia o creación, salvo que exista una construcción relacional explícita reconocida;
+- unificar el gold de parentesco/propiedad con el núcleo léxico superficial (hermana, dueña), excluyendo la cópula meramente gramatical (es);
 - mantener los controles negativos de citas, negaciones, hipótesis y acciones fallidas.
+
+En v2, el campo `relation_claims[].predicate` mantiene el núcleo léxico
+superficial («hermana», «dueña»); la cópula «es» no forma parte del predicate
+que puntúa el corpus actual. La propuesta v3 puede conservar un span
+`predicate_surface` más amplio («es hermana») como evidencia textual. Son dos
+campos/contratos distintos: no volver a cambiar el gold v2 para anticipar el
+contrato v3 ni perder el span literal cuando v3 se diseñe.
 
 Esta fase reduce defectos actuales sin afirmar que resuelve el diseño semántico.
 
@@ -769,7 +778,7 @@ La siguiente secuencia es una recomendación de arquitectura después de #281, n
 | PR futura | Objetivo | Entrega principal | Criterio de cierre |
 |---|---|---|---|
 | #282 | Esta auditoría | Fuente de verdad de diagnóstico, diseño y secuencia | Documentos e índices coherentes; alcance y no-alcance explícitos |
-| #284 | Contratos críticos inmediatos v2 | entity_type no vacío/enum, límites de reparación, callback negativo, cita no confiable, vocabulario de habla centralizado y gold de relación reconciliado | Contratos deterministas pasan; no se debilitan los negativos |
+| #284 | Contratos críticos inmediatos v2 | entity_type obligatorio y acotado, callback-only step, relation claims que reflejan acciones, vocabulario de habla compartido y gold relacional reconciliado | Parser/normalizadores con regresiones deterministas; v1/v2 durables sin cambios; no se debilitan los controles negativos |
 | #285 | Contratos semánticos v3 | DTOs versionados de actos, eventos, enlaces, hechos y spans; decoder y fixtures | Tests exhaustivos; v1/v2 siguen decodificando; ninguna ruta de producción usa v3 |
 | #286 | Interpretación holística v3 | Prompt único y benchmark en sombra v2/v3 | Mejora por familia sin aumentar citas/relaciones/eventos falsos; spans y cardinalidad correctos |
 | #287 | Foco y dependencias de acciones | Selector backend, grafo de acciones, checkpoint parcial y reanudación | No se adjudican nodos condicionales; fallos no desbloquean sucesores; idempotencia durable |

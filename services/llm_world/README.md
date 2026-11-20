@@ -82,3 +82,11 @@ The response parser strips constructor fields outside the allowlist while
 preserving unknown keys for structural rejection. Trusted application/domain
 callers retain the complete constructor surface. Do not replace this boundary
 with a denylist of known-sensitive fields.
+
+For model-proposed `create_entity`, `entity_type` is additionally required,
+must be non-empty and is bounded to 1–50 characters. The operation registry
+publishes this requirement in both its prompt manifest and JSON Schema; the
+parser enforces it even though the domain dataclass retains a default for
+trusted legacy callers. This is a string boundary, not a closed taxonomy:
+use `npc` for an identified person and preserve supported domain labels such
+as `location`, `creature`, `obstacle` or `door`.

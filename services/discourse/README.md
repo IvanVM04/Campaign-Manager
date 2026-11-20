@@ -14,23 +14,25 @@ canonical entity IDs, authorize mechanics, or mutate campaign state.
   shifts, callback anchor scoring, tie reporting and bounded selection.
 - `surface_mention_extractor.py` — literal pronoun/dative-clitic spans and
   local grammatical features.
-- `speaker_signal_extractor.py` — speech predicates, named-NPC eligibility,
-  quoted-NPC attribution and ambiguity-safe speaker hints.
+- `speech_predicates.py` — one Spanish-first lexical inventory shared by
+  discourse and turn normalization; it recognizes surface forms only.
+- `speaker_signal_extractor.py` — speech predicates, clitic constructions,
+  named-NPC eligibility, quoted-NPC attribution and ambiguity-safe speaker hints.
 - `renderer.py` — bounded Spanish-first hint rendering from collaborator
   results; history remains context, never current-turn evidence.
 
 Allowed dependency direction:
 
 ```text
-contracts / text
-   |       |
-   v       v
+contracts / text     speech predicate inventory
+   |       |                     |
+   v       v                     v
 topic selector     surface mention extractor
-                       |
-                       v
-                speaker signal extractor
                        |         |
                        +---------+
+                            |
+                            v
+                speaker signal extractor
                             |
                             v
                          renderer

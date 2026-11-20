@@ -26,6 +26,7 @@ from models.semantic_frames import (
     SemanticRelationClaim,
     SemanticRelationFamily,
 )
+from services.discourse.speech_predicates import COMMUNICATION_PREDICATE_PATTERN
 
 _END_PUNCTUATION = " \t\r\n.,;:!?¡¿'\"“”«»"
 _ORGANIZATION_WORDS = {
@@ -150,13 +151,7 @@ _PERCEPTION_VERB_RE = re.compile(
     r"escuch\w*|oigo|oyes|oye|oyen|detect\w*|examin\w*|percib\w*)\b",
     re.IGNORECASE,
 )
-_COMMUNICATION_VERB_RE = re.compile(
-    r"\b(?:habl\w*|digo|dice|dicen|decir|dije|dijo|"
-    r"afirm\w*|asegur\w*|declar\w*|sostuv\w*|"
-    r"cuent\w*|cont(?:ar|o|as|a|amos|an|é|ó|aron|aba|aban|ado|ando)|"
-    r"pregunt\w*|respond\w*|susurr\w*|avis\w*)\b",
-    re.IGNORECASE,
-)
+_COMMUNICATION_VERB_RE = COMMUNICATION_PREDICATE_PATTERN
 _TRANSFER_VERB_RE = re.compile(
     r"\b(?:entreg\w*|devolv\w*|recib\w*|"
     r"guard(?:o|as|a|amos|an|é|ó|aron|aba|aban|ar|ando|ado)|"
@@ -212,8 +207,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_ownership_dueno",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>es\s+dueñ[oa])\s+"
-            r"de\s+(?P<object>.+)$",
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?:es\s+)?"
+            r"(?P<predicate>dueñ[oa])\s+de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
         SemanticRelationFamily.OWNERSHIP,
@@ -239,8 +234,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_kinship",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?P<predicate>es\s+(?:herman[oa]|"
-            r"madre|padre|hij[oa]|prim[oa]|t[ií][oa]))\s+"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?:es\s+)?"
+            r"(?P<predicate>herman[oa]|madre|padre|hij[oa]|prim[oa]|t[ií][oa])\s+"
             r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
         ),
@@ -330,6 +325,7 @@ class SurfaceNormalizationSummary:
     dropped_ungrounded_action_arguments: int = 0
     dropped_ungrounded_relation_claims: int = 0
     dropped_ungrounded_action_predicates: int = 0
+    dropped_action_shadow_relation_claims: int = 0
     widened_relation_evidence_spans: int = 0
     action_rules_applied: tuple[str, ...] = ()
     relation_rules_applied: tuple[str, ...] = ()
@@ -1153,6 +1149,41 @@ def normalize_semantic_surface(
         relation_rules.append(surface.rule_id)
 
     claims = list(analysis.relation_claims)
+    dropped_action_shadow_claims = 0
+    retained_claims: list[SemanticRelationClaim] = []
+    for claim in claims:
+        step = (
+            normalized_steps[claim.step_index]
+            if 0 <= claim.step_index < len(normalized_steps)
+            else None
+        )
+        frame = step.action_frame if step is not None else None
+        action_shadows_relation = (
+            frame is not None
+            and frame.family in {
+                SemanticActionFamily.TRANSFER,
+                SemanticActionFamily.CREATION,
+            }
+            and claim.relation_family in {
+                SemanticRelationFamily.OWNERSHIP,
+                SemanticRelationFamily.POSSESSION,
+                SemanticRelationFamily.UNKNOWN,
+            }
+            # The false-positive shape observed in the live run reused
+            # the transfer/creation verb itself as a persistent relation.
+            # Do not discard a separate relation merely because it shares a
+            # compound source excerpt with an action.
+            and _fold(claim.predicate) == _fold(frame.predicate)
+            and not any(
+                candidate.step_index == claim.step_index
+                for candidate in candidate_claims
+            )
+        )
+        if action_shadows_relation:
+            dropped_action_shadow_claims += 1
+            continue
+        retained_claims.append(claim)
+    claims = retained_claims
     for candidate in candidate_claims:
         # A uniquely recognized relation in this step supersedes model claims
         # for that step. Claims from other steps remain untouched.
@@ -1168,4 +1199,5 @@ def normalize_semantic_surface(
     return normalized_analysis, SurfaceNormalizationSummary(
         action_rules_applied=tuple(action_rules),
         relation_rules_applied=tuple(relation_rules),
+        dropped_action_shadow_relation_claims=dropped_action_shadow_claims,
     )

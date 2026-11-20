@@ -174,7 +174,9 @@ class LLMWorldProposalPromptBuilder:
             "identificada por nombre y aporta un rol estable (por ejemplo, "
             "conoce al tabernero Aldric, se presenta por su nombre y confirma "
             "que trabaja allí), propone una sola create_entity de tipo npc con "
-            "solo los datos expresados. Antes comprueba nombres y alias del "
+            "solo los datos expresados. En toda create_entity, entity_type es "
+            "obligatorio, no vacío y de hasta 50 caracteres; para una persona "
+            "identificada usa npc. Antes comprueba nombres y alias del "
             "snapshot: nunca dupliques una entidad conocida. "
             "Si el NPC ya existe en el snapshot y el jugador aporta un detalle "
             "nuevo, explícito, visible y duradero sobre él (por ejemplo, una "
@@ -192,6 +194,43 @@ class LLMWorldProposalPromptBuilder:
             "espera y observación sin cambio no son persistentes. Un fracaso no "
             "modifica el objetivo. Sin cambio justificado, devuelve "
             '{"operations": []}.'
+        )
+
+    @staticmethod
+    def _compact_proposal_instruction_contract() -> str:
+        """Bound the fallback policy while retaining its semantic invariants."""
+        return (
+            COMMON_LLM_TRUST_CONTRACT
+            + "Planifica consecuencias para D&D 5e y devuelve solo "
+            + '{"operations": [...]} .\n'
+            + "Si existe interpretación compartida v2, úsala como autoridad "
+            "semántica: conserva orden, actor, modalidad, polaridad, atribución, "
+            "action_frame, roles y dirección de relation_claims. La evidencia "
+            "original solo verifica fragmentos literales; no reinterpretes desde "
+            "el texto bruto. Sin v2, no inventes intención ausente.\n"
+            + "No conviertas planes, condicionales, preguntas, deseos, diálogo, "
+            "citas, relatos, rumores o hipótesis en hechos ni acciones propias. "
+            "Las acciones compuestas se evalúan en orden y no avanzan más allá "
+            "de un requisito fallido o no confirmado. Un fracaso no modifica el "
+            "objetivo. Un intento no es éxito; negación, cancelación, interrupción "
+            "o fallo no autorizan el resultado opuesto. Solo usa resultados "
+            "mecánicos confirmados por el motor.\n"
+            + "Resuelve nombres y alias contra el snapshot y reutiliza IDs "
+            "canónicos sin mezclar espacios de entidades, definiciones de "
+            "objetos, instancias, recursos o eventos. Mantén distintos los "
+            "miembros de un grupo; un grupo no es objetivo singular. Ante "
+            "ambigüedad, aclara o devuelve operaciones vacías; no dupliques.\n"
+            + "Crea un NPC solo ante una persona nueva, nombrada y con rol "
+            "estable explícito. Toda create_entity requiere entity_type no "
+            "vacío de 1–50 caracteres; usa npc para personas. Si ya existe, "
+            "usa update_entity con su ID y solo detalles explícitos, visibles "
+            "y duraderos. No persistas diálogo, rumores ni acciones efímeras.\n"
+            + "Relaciones requieren evidencia explícita y dirección correcta. "
+            "Las operaciones son propuestas, no escrituras. No inventes IDs, "
+            "objetivos, cantidades, procedencia, permisos, tiradas, éxito, daño, "
+            "HP ni condiciones. Usa solo operaciones permitidas y referencias "
+            "del snapshot o creadas antes. Sin cambio justificado, devuelve "
+            + '{"operations": []}.'
         )
 
     @staticmethod
@@ -461,7 +500,7 @@ class LLMWorldProposalPromptBuilder:
                 marker_index = prompt.find(context_marker)
                 if marker_index > 0:
                     compact_policy = (
-                        LLMWorldProposalPromptBuilder._proposal_instruction_contract()
+                        LLMWorldProposalPromptBuilder._compact_proposal_instruction_contract()
                         + context_marker
                     )
                     prompt = compact_policy + prompt[marker_index + len(context_marker):]

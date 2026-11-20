@@ -168,15 +168,19 @@ class OperationParser:
         # Missing required fields
         # --------------------------------------------------------------
 
-        missing = [
+        constructor_required = [
             name
             for name, field in expected.items()
             if (
                 field.default is MISSING
                 and field.default_factory is MISSING
-                and name not in fields
             )
         ]
+        missing = list(dict.fromkeys([
+            *constructor_required,
+            *metadata.model_required_fields,
+        ]))
+        missing = [name for name in missing if name not in fields]
 
         if missing:
             raise OperationParseError(
@@ -466,6 +470,17 @@ class OperationParser:
                 )
 
             fields["name"] = name.strip()
+            entity_type = fields.get("entity_type")
+            if (
+                not isinstance(entity_type, str)
+                or not entity_type.strip()
+                or len(entity_type.strip()) > 50
+            ):
+                raise OperationParseError(
+                    "'entity_type' is required for create_entity and must contain "
+                    "1 to 50 non-whitespace characters."
+                )
+            fields["entity_type"] = entity_type.strip()
 
         for name in string_fields:
             if name not in fields:
