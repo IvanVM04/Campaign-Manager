@@ -61,7 +61,6 @@ class FactDecisionReason(str, enum.Enum):
     NON_PERMANENT_TEMPORAL_SCOPE = "non_permanent_temporal_scope"
     SUBJECT_UNRESOLVED = "subject_unresolved"
     OBJECT_UNRESOLVED = "object_unresolved"
-    VISIBILITY_UNVERIFIED = "visibility_unverified"
     INVALID_REFERENCE = "invalid_reference"
     REFERENCE_MISMATCH = "reference_mismatch"
     UNSUPPORTED_RELATION_FAMILY = "unsupported_relation_family"
