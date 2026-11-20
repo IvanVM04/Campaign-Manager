@@ -39,12 +39,12 @@ SPEECH_PREDICATE_ALTERNATION = "|".join(
 )
 
 COMMUNICATION_PREDICATE_PATTERN = re.compile(
-    r"\\b(?:"
+    r"\b(?:"
     + SPEECH_PREDICATE_ALTERNATION
-    + r"|habl\\w*|convers\\w*|cuent\\w*|cont(?:ar|o|as|a|amos|an|é|ó|aron|aba|aban|ado|ando)|"
+    + r"|habl\w*|convers\w*|cuent\w*|cont(?:ar|o|as|a|amos|an|é|ó|aron|aba|aban|ado|ando)|"
     + r"decir|decirlo|digo|decimos|dije|dijimos|"
-    + r"pregunt\\w*|respond\\w*|susurr\\w*|avis\\w*|adviert\\w*|explic\\w*|"
-    + r"afirm\\w*|asegur\\w*|declar\\w*|sostuv\\w*|relat\\w*|indic\\w*|revel\\w*|inform\\w*|confirm\\w*"
-    + r")\\b",
+    + r"pregunt\w*|respond\w*|susurr\w*|avis\w*|adviert\w*|explic\w*|"
+    + r"afirm\w*|asegur\w*|declar\w*|sostuv\w*|relat\w*|indic\w*|revel\w*|inform\w*|confirm\w*"
+    + r")\b",
     re.IGNORECASE,
 )
