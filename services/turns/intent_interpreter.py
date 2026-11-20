@@ -642,10 +642,18 @@ El esquema JSON es el contrato estructural."""
             # name or alias occurs in that topic-scoped history. The renderer
             # receives names/aliases only; this does not add historical text to
             # player evidence or widen the selected transcript.
-            scoped_history_text = " ".join(
-                " ".join(DiscourseContextBuilder._turn_fields(turn)[:2])
-                for turn in scoped_turns
-            )
+            scoped_history_parts: list[str] = []
+            for turn in scoped_turns:
+                player_turn_text, npc_narrative, _turn_id = (
+                    DiscourseContextBuilder._turn_fields(turn)
+                )
+                scoped_history_parts.append(player_turn_text)
+                # Names that occur only inside an NPC's quotation are not
+                # promoted to candidate speakers by this history bridge.
+                scoped_history_parts.append(
+                    DiscourseContextBuilder._without_quoted_spans(npc_narrative)
+                )
+            scoped_history_text = " ".join(scoped_history_parts)
             discourse_entities = list(visible_entities)
             discourse_entity_ids = {
                 DiscourseContextBuilder._entity_value(entity, "id")
