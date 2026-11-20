@@ -418,6 +418,17 @@ def test_parser_rejects_blank_or_oversized_create_entity_type(entity_type):
         })
 
 
+
+def test_parser_still_requires_constructor_fields_for_internal_operations():
+    with pytest.raises(OperationParseError, match="entity_id"):
+        OperationParser().parse({
+            "operations": [{
+                "type": "change_character_hp",
+                "amount": -1,
+            }]
+        })
+
+
 def test_parser_rejects_missing_create_entity_type_even_though_domain_constructor_has_default():
     with pytest.raises(OperationParseError, match="entity_type"):
         OperationParser().parse({
