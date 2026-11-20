@@ -14,7 +14,6 @@ import re
 import unicodedata
 from typing import Any
 
-from models.resolved_world_reference import WorldReferenceCategory
 from models.semantic_frames import (
     SemanticActionFamily,
     SemanticArgument,
@@ -202,6 +201,13 @@ def _local_id(value: Any, name: str = "local_id") -> str:
     return text
 
 
+def _prefixed_id(value: Any, prefix: str, name: str = "local_id") -> str:
+    text = _local_id(value, name)
+    if not text.startswith(prefix):
+        raise ValueError(f"{name} must use the {prefix} local namespace")
+    return text
+
+
 def _enum(enum_type: type[enum.Enum], value: Any, name: str) -> Any:
     if not isinstance(value, str):
         raise TypeError(f"{name} must be an enum string")
@@ -325,7 +331,7 @@ class UtteranceAct:
     quote_spans: tuple[EvidenceSpan, ...] = ()
 
     def __post_init__(self) -> None:
-        _local_id(self.local_id)
+        _prefixed_id(self.local_id, "act_")
         if not isinstance(self.force, UtteranceForce):
             raise TypeError("force must be an UtteranceForce")
         if not isinstance(self.speaker_role, SpeakerRole):
@@ -412,8 +418,8 @@ class EventFrame:
     temporal_expression: str | None = None
 
     def __post_init__(self) -> None:
-        _local_id(self.local_id)
-        _local_id(self.source_act_id, "source_act_id")
+        _prefixed_id(self.local_id, "event_")
+        _prefixed_id(self.source_act_id, "act_", "source_act_id")
         _text(self.predicate_surface, "predicate_surface", 120)
         if not isinstance(self.family, SemanticActionFamily):
             raise TypeError("family must be a SemanticActionFamily")
@@ -511,7 +517,7 @@ class DiscourseLink:
     anchor_candidate: str | None = None
 
     def __post_init__(self) -> None:
-        _local_id(self.local_id)
+        _prefixed_id(self.local_id, "link_")
         if not isinstance(self.source_ref, str) or _REFERENCE_RE.fullmatch(self.source_ref) is None:
             raise ValueError("source_ref must identify a local act/event/fact")
         if self.target_ref is not None and (
@@ -590,8 +596,8 @@ class WorldFactCandidate:
     attributed_source: SemanticMention | None = None
 
     def __post_init__(self) -> None:
-        _local_id(self.local_id)
-        _local_id(self.source_act_id, "source_act_id")
+        _prefixed_id(self.local_id, "fact_")
+        _prefixed_id(self.source_act_id, "act_", "source_act_id")
         if not isinstance(self.fact_kind, WorldFactKind):
             raise TypeError("fact_kind must be a WorldFactKind")
         if not isinstance(self.subject, SemanticMention):
@@ -716,7 +722,7 @@ class ClarificationCandidate:
     evidence_spans: tuple[EvidenceSpan, ...]
 
     def __post_init__(self) -> None:
-        _local_id(self.local_id)
+        _prefixed_id(self.local_id, "clarify_")
         if not isinstance(self.affected_local_ids, tuple) or not 1 <= len(self.affected_local_ids) <= 8:
             raise ValueError("affected_local_ids must contain 1-8 local identifiers")
         for identifier in self.affected_local_ids:
@@ -781,7 +787,11 @@ class TurnInterpretationV3:
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if isinstance(self.schema_version, bool) or self.schema_version != SCHEMA_VERSION:
+        if (
+            isinstance(self.schema_version, bool)
+            or not isinstance(self.schema_version, int)
+            or self.schema_version != SCHEMA_VERSION
+        ):
             raise ValueError("TurnInterpretationV3 requires schema_version 3")
         for name, values, maximum, expected_type in (
             ("utterance_acts", self.utterance_acts, MAX_UTTERANCE_ACTS, UtteranceAct),
@@ -798,11 +808,12 @@ class TurnInterpretationV3:
         act_ids = {item.local_id for item in self.utterance_acts}
         event_ids = {item.local_id for item in self.events}
         fact_ids = {item.local_id for item in self.world_facts}
+        link_ids = {item.local_id for item in self.discourse_links}
         clarification_ids = {item.local_id for item in self.clarification_candidates}
-        all_ids = act_ids | event_ids | fact_ids | clarification_ids
+        all_ids = act_ids | event_ids | fact_ids | link_ids | clarification_ids
         declared_id_count = (
-            len(self.utterance_acts) + len(self.events) + len(self.world_facts)
-            + len(self.clarification_candidates)
+            len(self.utterance_acts) + len(self.events) + len(self.discourse_links)
+            + len(self.world_facts) + len(self.clarification_candidates)
         )
         if len(all_ids) != declared_id_count:
             raise ValueError("local identifiers must be unique across the turn")
@@ -944,8 +955,8 @@ class GameplayActionCandidate:
     resolved_references: tuple[GameplayResolvedReference, ...] = ()
 
     def __post_init__(self) -> None:
-        _local_id(self.local_id)
-        _local_id(self.source_event_id, "source_event_id")
+        _prefixed_id(self.local_id, "action_")
+        _prefixed_id(self.source_event_id, "event_", "source_event_id")
         if not isinstance(self.actor, SemanticMention):
             raise TypeError("actor must be a SemanticMention")
         _text(self.action_type, "action_type", 64)
@@ -965,7 +976,7 @@ class GameplayActionCandidate:
         if not isinstance(self.dependency_event_ids, tuple) or len(self.dependency_event_ids) > MAX_EVENT_FRAMES:
             raise ValueError("dependency_event_ids must be a bounded tuple")
         for identifier in self.dependency_event_ids:
-            _local_id(identifier, "dependency_event_id")
+            _prefixed_id(identifier, "event_", "dependency_event_id")
         if self.source_event_id in self.dependency_event_ids or len(set(self.dependency_event_ids)) != len(self.dependency_event_ids):
             raise ValueError("action dependencies must be unique and cannot depend on themselves")
         if not isinstance(self.resolved_references, tuple) or any(
