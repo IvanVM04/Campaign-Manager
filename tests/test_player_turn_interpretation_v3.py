@@ -220,6 +220,47 @@ def test_local_references_must_resolve_and_reject_duplicate_local_ids():
         TurnInterpretationV3.from_payload(duplicate, source_text=source)
 
 
+def test_decoder_rejects_unsorted_and_overlapping_evidence_spans():
+    source = "Mara saluda y después habla con Aldric."
+    base = {
+        "schema_version": 3,
+        "utterance_acts": [{
+            "local_id": "act_sequence",
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": None,
+            "addressee_mention": None,
+            "quote_spans": [],
+            "evidence_spans": [
+                _span(source, "habla con Aldric"),
+                _span(source, "Mara saluda"),
+            ],
+        }],
+        "events": [],
+        "discourse_links": [],
+        "world_facts": [],
+        "clarification_candidates": [],
+    }
+    with pytest.raises(TurnInterpretationV3ValidationError):
+        TurnInterpretationV3.from_payload(base, source_text=source)
+
+    base["utterance_acts"][0]["evidence_spans"] = [
+        _span(source, "Mara saluda y"),
+        _span(source, "saluda"),
+    ]
+    with pytest.raises(TurnInterpretationV3ValidationError):
+        TurnInterpretationV3.from_payload(base, source_text=source)
+
+
+def test_top_level_utterance_acts_must_preserve_surface_order():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    payload["utterance_acts"].reverse()
+
+    with pytest.raises(TurnInterpretationV3ValidationError):
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+
 def test_callback_link_uses_a_surface_anchor_and_never_a_model_supplied_turn_id():
     source = "Retomando lo de la pared, intento escalarla."
     callback = {
@@ -261,7 +302,7 @@ def test_callback_link_uses_a_surface_anchor_and_never_a_model_supplied_turn_id(
                 "action_phase": "attempted",
                 "temporal_expression": None,
                 "attributed_source": None,
-                "evidence_spans": [_span(source, "intento escalarla") , _span(source, "la pared")],
+                "evidence_spans": [_span(source, "la pared"), _span(source, "intento escalarla")],
             }
         ],
         "discourse_links": [
