@@ -663,21 +663,21 @@ def _normalize_action_frame(
         # "Le pregunto a él si ha visto la llave" has an explicit recipient and
         # a literal theme even though the theme appears inside the question.
         recipient_match = re.match(
-            r"^(?:a|al)\\s+(?P<recipient>.+?)"
-            r"(?=\\s+(?:por|sobre|acerca\\s+de|respecto\\s+a|si|que)\\b|$)",
+            r"^(?:a|al)\s+(?P<recipient>.+?)"
+            r"(?=\s+(?:por|sobre|acerca\s+de|respecto\s+a|si|que)\b|$)",
             tail,
             re.IGNORECASE,
         )
         theme_match = re.search(
-            r"\\b(?:por|sobre|acerca\\s+de|respecto\\s+a)\\s+(?P<theme>.+)$",
+            r"\b(?:por|sobre|acerca\s+de|respecto\s+a)\s+(?P<theme>.+)$",
             tail,
             re.IGNORECASE,
         )
         if theme_match is None:
             theme_match = re.search(
-                r"\\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
-                r"encontró|encontro|conoce|conocía|conocia)\\s+"
-                r"(?P<theme>(?:el|la|los|las|un|una)\\s+[^,.!?;]+)$",
+                r"\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
+                r"encontró|encontro|conoce|conocía|conocia)\s+"
+                r"(?P<theme>(?:el|la|los|las|un|una)\s+[^,.!?;]+)$",
                 tail,
                 re.IGNORECASE,
             )
