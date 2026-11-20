@@ -6,7 +6,6 @@ a production route. The v2 interpreter remains authoritative for live turns.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -20,8 +19,6 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.providers import LLMProvider
 from services.turns.intent_interpreter import IntentInterpreter
-
-logger = logging.getLogger(__name__)
 
 V3_SYSTEM_PROMPT = """Eres el intérprete semántico holístico de una partida de rol.
 Devuelve una única interpretación JSON conforme al esquema v3. Analiza el turno
@@ -484,6 +481,16 @@ def build_v3_shadow_prompt(
     conversation_at = _unique_marker(v2_prompt, _CONVERSATION_MARKER)
     evidence_at = _unique_marker(v2_prompt, _EVIDENCE_MARKER)
     json_at = _unique_marker(v2_prompt, _JSON_MARKER)
+    if any(
+        position is None
+        for position in (world_at, history_at, conversation_at, evidence_at, json_at)
+    ):
+        raise ShadowPromptError("unsafe_prompt_boundaries")
+    assert world_at is not None
+    assert history_at is not None
+    assert conversation_at is not None
+    assert evidence_at is not None
+    assert json_at is not None
 
     ordered = [world_at, history_at]
     if discourse_at is not None:
