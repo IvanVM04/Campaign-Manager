@@ -11,14 +11,21 @@ from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.intent_surface_normalization import normalize_intent_surface_payload
 
 
-def _step(excerpt, *, actor="player", modality="attempted", outcome="not_claimed"):
+def _step(
+    excerpt,
+    *,
+    actor="player",
+    modality="attempted",
+    polarity="positive",
+    outcome="not_claimed",
+):
     return {
         "index": 0,
         "source_excerpt": excerpt,
         "actor": actor,
         "action": "acción descrita",
         "modality": modality,
-        "polarity": "positive",
+        "polarity": polarity,
         "reported_outcome": outcome,
         "target_mentions": [],
         "attributed_to": None,
