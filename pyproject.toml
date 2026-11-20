@@ -25,6 +25,9 @@ nlp-pilot = [
     "stanza==1.15.1",
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["models", "services", "tests"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 junit_family = "legacy"
