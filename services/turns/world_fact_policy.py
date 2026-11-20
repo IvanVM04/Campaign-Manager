@@ -15,15 +15,23 @@ from dataclasses import dataclass
 from models.entity import Entity
 from models.player_action_checkpoint import FactValidationReceipt, FactValidationState
 from models.player_turn_interpretation_v3 import (
-    EpistemicStatus, FactTemporalScope, RelationDirection, SpeakerRole,
-    TurnInterpretationV3, UtteranceForce, WorldFactCandidate, WorldFactKind,
+    EpistemicStatus,
+    FactTemporalScope,
+    RelationDirection,
+    SpeakerRole,
+    TurnInterpretationV3,
+    UtteranceForce,
+    WorldFactCandidate,
+    WorldFactKind,
 )
 from models.relation import Relation
 from models.semantic_frames import SemanticActionFamily, SemanticPolarity
 from models.world_state import WorldState
 from operations.turn_operations import TurnOperation
 from operations.world_operations import (
-    CreateRelationOperation, UpdateEntityOperation, UpdateRelationOperation,
+    CreateRelationOperation,
+    UpdateEntityOperation,
+    UpdateRelationOperation,
 )
 
 _ALLOWED_RELATION_FAMILIES = frozenset({
@@ -412,5 +420,5 @@ def _candidate_digest(candidate: WorldFactCandidate) -> str:
 
 
 def _relation_id(subject_id: int, relation_type: str, target_id: int) -> str:
-    identity = f"{subject_id}:{relation_type}:{target_id}".encode("utf-8")
+    identity = f"{subject_id}:{relation_type}:{target_id}".encode()
     return "fact_" + hashlib.sha256(identity).hexdigest()[:32]
