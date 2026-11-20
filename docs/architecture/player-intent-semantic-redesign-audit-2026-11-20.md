@@ -565,6 +565,13 @@ Antes de cambiar el esquema:
 - unificar el gold de parentesco/propiedad con el núcleo léxico superficial (hermana, dueña), excluyendo la cópula meramente gramatical (es);
 - mantener los controles negativos de citas, negaciones, hipótesis y acciones fallidas.
 
+En v2, el campo `relation_claims[].predicate` mantiene el núcleo léxico
+superficial («hermana», «dueña»); la cópula «es» no forma parte del predicate
+que puntúa el corpus actual. La propuesta v3 puede conservar un span
+`predicate_surface` más amplio («es hermana») como evidencia textual. Son dos
+campos/contratos distintos: no volver a cambiar el gold v2 para anticipar el
+contrato v3 ni perder el span literal cuando v3 se diseñe.
+
 Esta fase reduce defectos actuales sin afirmar que resuelve el diseño semántico.
 
 ### Fase 1 — Diseñar y validar contratos v3 sin cambiar la producción
