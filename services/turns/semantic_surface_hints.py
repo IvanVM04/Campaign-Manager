@@ -325,6 +325,7 @@ class SurfaceNormalizationSummary:
     dropped_ungrounded_action_arguments: int = 0
     dropped_ungrounded_relation_claims: int = 0
     dropped_ungrounded_action_predicates: int = 0
+    dropped_action_shadow_relation_claims: int = 0
     widened_relation_evidence_spans: int = 0
     action_rules_applied: tuple[str, ...] = ()
     relation_rules_applied: tuple[str, ...] = ()
