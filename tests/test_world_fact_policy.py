@@ -4,21 +4,36 @@ import pytest
 
 from models.entity import Entity
 from models.player_turn_interpretation_v3 import (
-    ActionPhase, EpistemicStatus, EventFrame, FactTemporalScope,
-    RelationDirection, SpeakerRole, TurnInterpretationV3, UtteranceAct,
-    UtteranceForce, WorldFactCandidate, WorldFactKind, EvidenceSpan,
+    ActionPhase,
+    EpistemicStatus,
+    EventFrame,
+    EvidenceSpan,
+    FactTemporalScope,
+    RelationDirection,
+    SpeakerRole,
+    TurnInterpretationV3,
+    UtteranceAct,
+    UtteranceForce,
+    WorldFactCandidate,
+    WorldFactKind,
 )
 from models.relation import Relation
 from models.semantic_frames import (
-    SemanticActionFamily, SemanticMention, SemanticPolarity,
+    SemanticActionFamily,
+    SemanticMention,
+    SemanticPolarity,
     SemanticRelationFamily,
 )
 from models.world_state import WorldState
 from operations.world_operations import (
-    CreateRelationOperation, UpdateEntityOperation, UpdateRelationOperation,
+    CreateRelationOperation,
+    UpdateEntityOperation,
+    UpdateRelationOperation,
 )
 from services.turns.world_fact_policy import (
-    FactDecisionReason, FactDecisionStatus, evaluate_world_fact,
+    FactDecisionReason,
+    FactDecisionStatus,
+    evaluate_world_fact,
 )
 
 
