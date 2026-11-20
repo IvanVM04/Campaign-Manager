@@ -168,11 +168,19 @@ class OperationParser:
         # Missing required fields
         # --------------------------------------------------------------
 
-        missing = [
+        constructor_required = [
             name
-            for name in metadata.required_fields
-            if name not in fields
+            for name, field in expected.items()
+            if (
+                field.default is MISSING
+                and field.default_factory is MISSING
+            )
         ]
+        missing = list(dict.fromkeys([
+            *constructor_required,
+            *metadata.model_required_fields,
+        ]))
+        missing = [name for name in missing if name not in fields]
 
         if missing:
             raise OperationParseError(
