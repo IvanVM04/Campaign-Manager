@@ -1130,12 +1130,25 @@ def normalize_untrusted_intent_payload(
                     and _is_literal(excerpt, predicate)
                 )
             ):
-                # Optional frame predicates are not trusted to invent actions
-                # for non-executable utterances. Preserve the speech/report/plan
-                # and drop only ungrounded frame enrichment; active attempts stay strict.
-                step.pop("action_frame", None)
+                # V2 requires a frame even for non-executable steps. Replace
+                # only the ungrounded predicate with a literal, neutral marker;
+                # category/modality and typed relation claims retain semantics.
+                literal_marker = re.search(
+                    r"[^\\W\\d_][\\wáéíóúüñ-]*",
+                    excerpt,
+                    re.UNICODE,
+                )
+                if literal_marker is None:
+                    # The schema already rejects empty/malformed source spans.
+                    # Leave validation authoritative rather than inventing text.
+                    continue
+                frame_copy = dict(frame)
+                frame_copy["predicate"] = literal_marker.group(0)
+                frame_copy["family"] = SemanticActionFamily.OTHER.value
+                frame_copy["arguments"] = []
+                step["action_frame"] = frame_copy
                 dropped_predicates += 1
-                frame = None
+                frame = frame_copy
         if isinstance(frame, dict):
             arguments = frame.get("arguments")
             if isinstance(arguments, list):
