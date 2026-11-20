@@ -25,7 +25,8 @@ param(
     [string]$HardwareLabel,
     [string]$ScenarioId,
     [string]$CompoundScenarioId,
-    [ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent")][string]$Evaluation = "all",
+    [string]$V3ShadowScenarioId,
+    [ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")][string]$Evaluation = "all",
     [string]$NlpModelDirectory,
     [string]$ResultsRoot = "artifacts/quality-runs",
     [switch]$RunNlpAb,
@@ -269,6 +270,7 @@ $NlpModelDirectory = [IO.Path]::GetFullPath($NlpModelDirectory)
 Set-EnvOverride "CAMPAIGN_MANAGER_NLP_PILOT_MODEL_DIR" $NlpModelDirectory
 Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID -ErrorAction SilentlyContinue
 Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID -ErrorAction SilentlyContinue
+Remove-Item Env:CAMPAIGN_MANAGER_REAL_LLM_V3_SHADOW_SCENARIO_ID -ErrorAction SilentlyContinue
 if ($ScenarioId) {
     if ($Evaluation -notin @("language", "semantic-frames", "discourse")) { throw "-ScenarioId requires language, semantic-frames or discourse." }
     Set-EnvOverride "CAMPAIGN_MANAGER_REAL_LLM_SCENARIO_ID" $ScenarioId
@@ -276,6 +278,10 @@ if ($ScenarioId) {
 if ($CompoundScenarioId) {
     if ($Evaluation -ne "compound-intent") { throw "-CompoundScenarioId requires compound-intent." }
     Set-EnvOverride "CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_SCENARIO_ID" $CompoundScenarioId
+}
+if ($V3ShadowScenarioId) {
+    if ($Evaluation -ne "v3-shadow") { throw "-V3ShadowScenarioId requires v3-shadow." }
+    Set-EnvOverride "CAMPAIGN_MANAGER_REAL_LLM_V3_SHADOW_SCENARIO_ID" $V3ShadowScenarioId
 }
 
 $startedAt = Get-Date
@@ -374,6 +380,9 @@ New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
 Set-EnvOverride "CAMPAIGN_MANAGER_REAL_LLM_REPORT_DIR" $reportDir
 Set-EnvOverride "CAMPAIGN_MANAGER_REAL_LLM_REPORT_PATH" (Join-Path $reportDir "semantic-holdout.json")
 Set-EnvOverride "CAMPAIGN_MANAGER_REAL_LLM_COMPOUND_REPORT_PATH" (Join-Path $reportDir "compound-intent.json")
+# The v3 shadow test writes a separate, privacy-safe report. Always scope it to
+# this run so reports from prior runs cannot be mistaken for current evidence.
+[Environment]::SetEnvironmentVariable("CAMPAIGN_MANAGER_REAL_LLM_V3_SHADOW_REPORT_PATH", (Join-Path $reportDir "player-turn-v3-shadow.json"), "Process")
 $ollamaJUnit = Join-Path $script:LogDir "ollama.junit.xml"
 $abJUnit = Join-Path $script:LogDir "nlp-ab.junit.xml"
 $abReport = Join-Path $reportDir "nlp-pilot-ab.json"
@@ -387,6 +396,7 @@ elseif ($python) {
         "semantic-frames" = "held_out_semantic_frame_corpus_v1"
         "discourse" = "held_out_discourse_intent_and_resolution_corpus"
         "compound-intent" = "compound_intent_understanding_holdout"
+        "v3-shadow" = "player_turn_v3_shadow_holdout"
     }
     if ($Evaluation -ne "all") { $ollamaPytestArgs += @("-k", $keywords[$Evaluation]) }
     Invoke-CommandStage "Ollama real_llm test suite" $python $ollamaPytestArgs "30-ollama.log" | Out-Null

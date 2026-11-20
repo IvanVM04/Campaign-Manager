@@ -62,6 +62,10 @@ def test_runner_separates_regular_llm_tests_from_optional_nlp_ab():
     assert '"real_llm and nlp_pilot"' in source
     assert "CAMPAIGN_MANAGER_REAL_LLM_REPORT_DIR" in source
     assert "scripts/ollama_test_report.py" in source
+    assert 'CAMPAIGN_MANAGER_REAL_LLM_V3_SHADOW_REPORT_PATH' in source
+    assert 'player-turn-v3-shadow.json' in source
+    assert 'player_turn_v3_shadow_holdout' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
 
 
 def test_runner_writes_unique_machine_readable_and_human_reports():
@@ -91,7 +95,7 @@ def test_runner_keeps_local_configuration_and_role_overrides():
 
 def test_runner_scopes_single_scenario_filters_to_the_matching_suite():
     source = RUNNER.read_text(encoding="utf-8")
-    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent")' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
     assert "held_out_language_understanding_corpus_v1" in source
     assert "held_out_semantic_frame_corpus_v1" in source
     assert "held_out_discourse_intent_and_resolution_corpus" in source
