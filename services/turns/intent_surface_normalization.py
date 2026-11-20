@@ -92,10 +92,17 @@ _PLAYER_OBSERVATION_RE = re.compile(
 )
 _NAMED_NPC_SPEECH_STEP_RE = re.compile(
     r"^\s*(?P<speaker>(?:el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+)?"
-    r"|[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)\s+"
+    r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*))\s+"
     r"(?:(?:me|te|le|les|nos)\s+)?(?P<predicate>"
-    + SPEECH_PREDICATE_ALTERNATION
-    + r")\b",
+    r"(?:dice|dicen|dijo|dijeron|pregunt\w*|respond\w*|contest\w*|"
+    r"habl\w*|convers\w*|susurr\w*|grit\w*|murmur\w*|avis\w*|"
+    r"adviert\w*|añad\w*|coment\w*)"
+    r")\b",
+    re.IGNORECASE,
+)
+_NON_NPC_SPEAKER_STARTER_RE = re.compile(
+    r"^\s*(?:no|si|sí|mañana|ayer|hoy|luego|después|despues|entonces|"
+    r"quizá|quizas|tal|pero|aunque|ahora|yo)\b",
     re.IGNORECASE,
 )
 _PLAYER_SPEECH_STEP_RE = re.compile(
@@ -123,7 +130,7 @@ _INDEPENDENT_UNCERTAINTY_PREFIX_RE = re.compile(
 )
 _OBSERVED_THIRD_PARTY_ACTION_RE = re.compile(
     r"^\s*(?:veo|vi|observo|observé|miro|miré|escucho|escuché)\s+a\s+"
-    r"(?P<speaker>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)\s+"
+    r"(?P<speaker>(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*))\s+"
     r"(?P<predicate>dejar|dejando|entregar|entregando|entrar|entrando|"
     r"salir|saliendo|señalar|señala|señalando|mover|moviendo|"
     r"guardar|guardando|mostrar|muestra|mostrando)\b",
@@ -131,7 +138,7 @@ _OBSERVED_THIRD_PARTY_ACTION_RE = re.compile(
 )
 _NPC_PHYSICAL_EVENT_STEP_RE = re.compile(
     r"^\s*(?P<speaker>(?:el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+)?"
-    r"|[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)\s+"
+    r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*))\s+"
     r"(?:(?:me|te|le|les|nos)\s+)?"
     r"(?:entreg\w*|devolv\w*|recib\w*|entr\w*|sal\w*|"
     r"señal\w*|muestr\w*|mostr\w*|guard\w*|mov\w*|"
@@ -636,9 +643,25 @@ def _normalize_explicit_actor_modalities(
             continue
         if _fold(excerpt) not in _fold(evidence):
             continue
-        # A reported proposition ("Mara afirma que...") keeps its attributed
-        # report semantics; it is not rewritten as a direct speech event.
-        if _REPORTED_SPEAKER_RE.search(excerpt):
+        # Player speech with a dative clitic (e.g. "Le pregunto...")
+        # takes precedence over any sentence-initial capitalized token.
+        if _PLAYER_SPEECH_STEP_RE.match(excerpt):
+            step["actor"] = "player"
+            step["modality"] = "dialogue"
+            step["polarity"] = "positive"
+            step["reported_outcome"] = "not_claimed"
+            dialogue_indices.append(index)
+            rules.append("explicit_player_dialogue_step")
+            continue
+
+        # Future/discourse markers and first-person actions must not become
+        # NPC subjects solely because the sentence starts with a capital.
+        if (
+            _NON_NPC_SPEAKER_STARTER_RE.match(excerpt)
+            or _FIRST_PERSON_PRESENT_RE.match(excerpt)
+            or _FIRST_PERSON_ACTIVE_CLAUSE_RE.match(excerpt)
+            or _NEGATED_FIRST_PERSON_ACTION_RE.match(excerpt)
+        ):
             continue
 
         named_speech = _NAMED_NPC_SPEECH_STEP_RE.match(excerpt)
@@ -653,13 +676,8 @@ def _normalize_explicit_actor_modalities(
             rules.append("explicit_npc_dialogue_step")
             continue
 
-        if _PLAYER_SPEECH_STEP_RE.match(excerpt):
-            step["actor"] = "player"
-            step["modality"] = "dialogue"
-            step["polarity"] = "positive"
-            step["reported_outcome"] = "not_claimed"
-            dialogue_indices.append(index)
-            rules.append("explicit_player_dialogue_step")
+        # Attributed propositions remain reports, not direct NPC dialogue.
+        if _REPORTED_SPEAKER_RE.search(excerpt):
             continue
 
         pronoun_speech = _PRONOUN_NPC_SPEECH_STEP_RE.match(excerpt)
@@ -688,7 +706,13 @@ def _normalize_explicit_actor_modalities(
             rules.append("explicit_observed_npc_action")
             continue
 
-        physical_event = _NPC_PHYSICAL_EVENT_STEP_RE.match(excerpt)
+        physical_event = (
+            None
+            if _NON_NPC_SPEAKER_STARTER_RE.match(excerpt)
+            or _FIRST_PERSON_PRESENT_RE.match(excerpt)
+            or _NEGATED_FIRST_PERSON_ACTION_RE.match(excerpt)
+            else _NPC_PHYSICAL_EVENT_STEP_RE.match(excerpt)
+        )
         if physical_event is not None:
             speaker = _fold(physical_event.group("speaker").strip())
             if speaker not in {"el jugador", "la jugadora"}:
