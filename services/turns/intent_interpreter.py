@@ -112,7 +112,13 @@ reportada no es decisión del jugador; una nueva cláusula explícita suya
 («pero decido no...») sí se atribuye al jugador. Permanecer fuera solo confirma
 la abstención. Si reporte y acción no se separan en pasos, pide aclaración.
 Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
-ambigüedad pide aclaración. Si el mensaje actual contiene una elipsis afirmativa
+ambigüedad pide aclaración. Un pronombre aislado con un verbo de habla presente
+(«Ella vuelve a hablar conmigo») no es por sí solo un callback: clasifica el
+acto como diálogo y conserva el pronombre sin inventar identidad ni reactivar
+un tema histórico salvo que exista una marca de callback explícita. Una frase
+como «Como te dije antes, quiero continuar con el asunto de la carta» expresa
+un plan/deseo de continuación, no una acción actual ni un acto de diálogo.
+Si el mensaje actual contiene una elipsis afirmativa
 no citada («Hazlo otra vez», «Continúa con eso») y el contexto seleccionado
 identifica una única acción previa del jugador aún pendiente, clasifica el acto
 actual como action, actor=player y modality=attempted; el campo action puede
