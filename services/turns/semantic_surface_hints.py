@@ -691,7 +691,7 @@ def _normalize_action_frame(
             theme_match = re.search(
                 r"\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
                 r"encontró|encontro|conoce|conocía|conocia)\s+"
-                r"(?P<theme>(?:el|la|los|las|un|una)\s+[^,.!?;]+)$",
+                r"(?P<theme>(?:el|la|los|las|un|una)\s+[^,.!?;]+)[.!?]?\\s*$",
                 tail,
                 re.IGNORECASE,
             )
@@ -1228,8 +1228,17 @@ def normalize_semantic_surface(
         if surface is not None:
             relation_surfaces[step.index] = surface
             if step.action_frame is not None:
-                # A literal relational clause is not also an executable action.
-                normalized_steps.append(replace(step, action_frame=None))
+                # V2 requires an action-frame value for every step. Keep a
+                # neutral, non-executable placeholder while the typed relation
+                # claim carries the actual relational semantics.
+                neutral_frame = replace(
+                    step.action_frame,
+                    family=SemanticActionFamily.OTHER,
+                    arguments=(),
+                )
+                normalized_steps.append(
+                    replace(step, action_frame=neutral_frame)
+                )
                 action_rules.append("relation_surface_replaces_action_frame")
             else:
                 normalized_steps.append(step)
