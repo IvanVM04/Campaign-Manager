@@ -104,6 +104,23 @@ _PLAYER_SPEECH_STEP_RE = re.compile(
     + r")\b",
     re.IGNORECASE,
 )
+_PRONOUN_NPC_SPEECH_STEP_RE = re.compile(
+    r"^\s*(?P<pronoun>él|ella|ellos|ellas)\s+"
+    r"(?:(?:vuelve|volvió|volvia|volvía|empieza|empezó|continúa|continua|sigue)"
+    r"\s+a\s+)?(?:habl\w*|convers\w*|pregunt\w*|respond\w*|contest\w*|"
+    r"avis\w*|susurr\w*|grit\w*|cuent\w*)\b",
+    re.IGNORECASE,
+)
+_PLAN_DESIRE_RE = re.compile(
+    r"\b(?:quiero|quisiera|me gustaría|me gustaria|pretendo|planeo|pienso)\s+"
+    r"(?:continuar|seguir|retomar|reanudar|volver\s+a|proseguir|"
+    r"terminar|acabar|empezar|comenzar|ir\s+a)\b",
+    re.IGNORECASE,
+)
+_INDEPENDENT_UNCERTAINTY_PREFIX_RE = re.compile(
+    r"^\s*(?:quizá|quizas|tal\s+vez|puede\s+que|es\s+posible\s+que)\b",
+    re.IGNORECASE,
+)
 _OBSERVED_THIRD_PARTY_ACTION_RE = re.compile(
     r"^\s*(?:veo|vi|observo|observé|miro|miré|escucho|escuché)\s+a\s+"
     r"(?P<speaker>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)\s+"
@@ -554,6 +571,19 @@ def _normalize_explicit_actor_modalities(
             step["reported_outcome"] = "not_claimed"
             dialogue_indices.append(index)
             rules.append("explicit_player_dialogue_step")
+            continue
+
+        pronoun_speech = _PRONOUN_NPC_SPEECH_STEP_RE.match(excerpt)
+        if pronoun_speech is not None:
+            step["actor"] = "npc"
+            step["modality"] = "dialogue"
+            step["polarity"] = "positive"
+            step["reported_outcome"] = "not_claimed"
+            # The grammatical pronoun establishes the speaker role, not a
+            # canonical identity. Keep attribution empty for later resolution.
+            step["attributed_to"] = None
+            dialogue_indices.append(index)
+            rules.append("explicit_pronoun_npc_dialogue_step")
             continue
 
         observed = _OBSERVED_THIRD_PARTY_ACTION_RE.match(excerpt)
