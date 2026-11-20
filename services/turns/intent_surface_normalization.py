@@ -569,15 +569,16 @@ def _normalize_explicit_actor_modalities(
             rules.append("explicit_observed_npc_action")
             continue
 
-        if (
-            step.get("actor") in {"npc", "other"}
-            and _NPC_PHYSICAL_EVENT_STEP_RE.match(excerpt)
-        ):
-            step["modality"] = "observed"
-            step["polarity"] = "positive"
-            step["reported_outcome"] = "not_claimed"
-            observed_npc_indices.append(index)
-            rules.append("explicit_observed_npc_event_step")
+        physical_event = _NPC_PHYSICAL_EVENT_STEP_RE.match(excerpt)
+        if physical_event is not None:
+            speaker = _fold(physical_event.group("speaker").strip())
+            if speaker not in {"el jugador", "la jugadora"}:
+                step["actor"] = "npc"
+                step["modality"] = "observed"
+                step["polarity"] = "positive"
+                step["reported_outcome"] = "not_claimed"
+                observed_npc_indices.append(index)
+                rules.append("explicit_observed_npc_event_step")
 
     # A plainly negated first-person action followed by a separate positive
     # attempt remains one action sequence, not a mixed report/dialogue category.
