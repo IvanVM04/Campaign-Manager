@@ -878,3 +878,115 @@ def test_ungrounded_active_player_action_predicate_is_not_silently_removed():
 
     assert normalized["steps"][0]["action_frame"]["predicate"] == "abrirlo"
     assert summary.dropped_ungrounded_action_predicates == 0
+
+
+def test_conditional_kinship_is_preserved_as_a_non_confirmed_relation():
+    source = "Si Mara fuera hermana de Aldric, podría heredar la posada."
+    analysis = _analysis(
+        source,
+        "hermana",
+        family="interaction",
+        category="plan",
+        modality="conditional",
+        active_step_index=None,
+    )
+
+    normalized, summary = normalize_semantic_surface(analysis)
+
+    assert normalized.steps[0].action_frame is None
+    assert len(normalized.relation_claims) == 1
+    claim = normalized.relation_claims[0]
+    assert claim.subject.text == "Mara"
+    assert claim.object.text == "Aldric"
+    assert claim.predicate == "hermana"
+    assert claim.relation_family.value == "kinship"
+    assert claim.modality.value == "conditional"
+    assert "relation_surface_replaces_action_frame" in summary.action_rules_applied
+    assert summary.relation_rules_applied == ("relation_kinship",)
+
+
+def test_communication_frame_recovers_literal_recipient_and_embedded_theme():
+    source = "Le pregunto a él si ha visto la llave."
+    analysis = _analysis(
+        source,
+        "pregunto",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        active_step_index=None,
+    )
+
+    normalized, _summary = normalize_semantic_surface(analysis)
+
+    frame = normalized.steps[0].action_frame
+    assert frame.family.value == "communication"
+    arguments = {
+        argument.role.value: (
+            argument.mention.text,
+            argument.mention.kind_hint.value,
+        )
+        for argument in frame.arguments
+    }
+    assert arguments["recipient"] == ("él", "character")
+    assert arguments["theme"] == ("la llave", "item_instance")
+
+
+def test_communication_frame_recovers_question_topic_without_inventing_recipient():
+    source = "Mara pregunta por el mapa."
+    analysis = _analysis(
+        source,
+        "pregunta",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        actor="npc",
+        active_step_index=None,
+    )
+
+    normalized, _summary = normalize_semantic_surface(analysis)
+
+    arguments = {
+        argument.role.value: argument.mention.text
+        for argument in normalized.steps[0].action_frame.arguments
+    }
+    assert arguments == {"theme": "el mapa"}
+
+
+def test_ungrounded_dialogue_frame_predicate_is_dropped_even_for_player_actor():
+    source = (
+        "El pergamino contiene la orden «abre el portal ahora»; "
+        "solo estoy leyendo el texto."
+    )
+    payload = {
+        "schema_version": 2,
+        "category": "dialogue",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "leer una orden citada",
+            "modality": "dialogue",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": [],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "El jugador cita una orden externa.",
+                "family": "creation",
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+
+    normalized, summary = normalize_untrusted_intent_payload(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    assert "action_frame" not in normalized["steps"][0]
+    assert summary.dropped_ungrounded_action_predicates == 1
