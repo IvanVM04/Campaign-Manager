@@ -178,6 +178,34 @@ def test_pipeline_classifies_an_unverified_named_quoted_speaker_as_dialogue():
     assert result.diagnostics.unverified_named_speaker_dialogue_normalized is True
 
 
+
+def test_pipeline_classifies_named_npc_warning_with_clitic_as_dialogue():
+    source = "Aldric me advierte: «No abras la puerta del sótano»."
+    payload = _payload(
+        source=source,
+        category="report",
+        actor="npc",
+        modality="reported",
+        active_step_index=None,
+    )
+    payload["steps"][0]["action_frame"]["predicate"] = "advierte"
+    payload["steps"][0]["action_frame"]["family"] = "interaction"
+
+    result = IntentNormalizationPipeline().normalize(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    assert result.analysis.category.value == "dialogue"
+    assert result.analysis.active_step_index is None
+    assert result.analysis.steps[0].actor.value == "npc"
+    assert result.analysis.steps[0].modality.value == "dialogue"
+    assert result.analysis.steps[0].attributed_to == "Aldric"
+    assert result.analysis.steps[0].action_frame.family.value == "communication"
+    assert result.diagnostics.unverified_named_speaker_dialogue_normalized is True
+
+
 def test_pipeline_keeps_explicit_player_dialogue_before_follow_up_investigation():
     source = "Le pregunto a Mara por la llave y después examino el escritorio."
     payload = {
