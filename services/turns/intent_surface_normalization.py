@@ -1431,5 +1431,25 @@ def normalize_intent_surface_payload(
         normalized, steps = callback_normalization
         rules.append("explicit_callback_preamble_removed")
 
+    # A stated desire to resume/continue a topic is a plan, not an immediate
+    # executable action or a dialogue act merely because it follows "Como te
+    # dije antes". Keep this rule to explicit desire + continuation predicates.
+    plan_desire = _PLAN_DESIRE_RE.search(evidence)
+    if (
+        plan_desire is not None
+        and len(steps) == 1
+        and normalized.get("category") not in {"question", "correction"}
+        and _ATTEMPT_RE.search(evidence) is None
+    ):
+        step = steps[0]
+        step["actor"] = "player"
+        step["modality"] = "planned"
+        step["polarity"] = "positive"
+        step["reported_outcome"] = "not_claimed"
+        step.pop("action_frame", None)
+        normalized["category"] = "plan"
+        normalized["active_step_index"] = None
+        rules.append("explicit_continuation_desire_is_plan")
+
     normalized["steps"] = steps
     return normalized, IntentSurfaceNormalizationSummary(tuple(dict.fromkeys(rules)))
