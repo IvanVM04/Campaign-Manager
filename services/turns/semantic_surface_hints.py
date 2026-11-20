@@ -673,6 +673,20 @@ def _normalize_action_frame(
             tail,
             re.IGNORECASE,
         )
+        if recipient_match is None:
+            # An explicit callback such as "Volviendo a lo de Mara, le
+            # pregunto..." keeps the named callback anchor in the pre-predicate
+            # span. The dative clitic "le" licenses it as recipient; without
+            # both signals we do not infer a communication participant.
+            callback_recipient = re.search(
+                r"\\b(?:lo|la|tema|asunto)\\s+de\\s+"
+                r"(?P<recipient>[A-ZÁÉÍÓÚÜÑ][\\wáéíóúüñ-]*)"
+                r"(?:\\s*,\\s*(?:me|te|le|les|nos))?\\s*$",
+                prefix,
+                re.IGNORECASE,
+            )
+            if callback_recipient is not None:
+                recipient_match = callback_recipient
         if theme_match is None:
             theme_match = re.search(
                 r"\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
