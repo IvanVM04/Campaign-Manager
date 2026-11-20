@@ -47,7 +47,6 @@ from models.semantic_frames import (
     SemanticPolarity,
 )
 
-
 _TARGET_ROLES = frozenset(
     {
         SemanticArgumentRole.PATIENT,
