@@ -138,7 +138,6 @@ def test_observed_npc_attribute_is_appended_without_overwriting_existing_notes()
         ({"polarity": SemanticPolarity.UNCERTAIN}, FactDecisionReason.NON_POSITIVE_POLARITY),
         ({"temporal_scope": FactTemporalScope.TEMPORARY}, FactDecisionReason.NON_PERMANENT_TEMPORAL_SCOPE),
         ({"temporal_scope": FactTemporalScope.UNKNOWN}, FactDecisionReason.NON_PERMANENT_TEMPORAL_SCOPE),
-        ({"attributed_source": SemanticMention("un viajero")}, FactDecisionReason.ATTRIBUTED_OR_REPORTED),
     ],
 )
 def test_unstable_or_untrusted_fact_claims_never_produce_writes(changes, reason):
@@ -282,3 +281,13 @@ def test_unknown_relation_family_or_missing_normalization_is_rejected():
     )
     result = _evaluate(missing, _interpretation(source, missing))
     assert result.reason is FactDecisionReason.MISSING_NORMALIZED_RELATION
+
+
+
+def test_attributed_fact_is_not_persisted_without_source_authority():
+    source = "Según un viajero, Mara es hermana de Aldric."
+    fact = _fact(source, attributed="un viajero")
+    result = _evaluate(fact, _interpretation(source, fact))
+    assert result.status is FactDecisionStatus.REJECTED
+    assert result.reason is FactDecisionReason.ATTRIBUTED_OR_REPORTED
+    assert result.operations == ()
