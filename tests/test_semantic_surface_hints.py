@@ -839,7 +839,10 @@ def test_ungrounded_predicate_is_dropped_only_for_non_active_third_party_report(
         evidence_text=source,
     )
 
-    assert "action_frame" not in normalized["steps"][0]
+    frame = normalized["steps"][0]["action_frame"]
+    assert frame["family"] == "other"
+    assert frame["arguments"] == []
+    assert frame["predicate"] in source
     assert summary.dropped_ungrounded_action_predicates == 1
 
 
@@ -878,3 +881,235 @@ def test_ungrounded_active_player_action_predicate_is_not_silently_removed():
 
     assert normalized["steps"][0]["action_frame"]["predicate"] == "abrirlo"
     assert summary.dropped_ungrounded_action_predicates == 0
+
+
+def test_conditional_kinship_is_preserved_as_a_non_confirmed_relation():
+    source = "Si Mara fuera hermana de Aldric, podría heredar la posada."
+    analysis = _analysis(
+        source,
+        "hermana",
+        family="interaction",
+        category="plan",
+        modality="conditional",
+        active_step_index=None,
+    )
+
+    normalized, summary = normalize_semantic_surface(analysis)
+
+    assert normalized.steps[0].action_frame.family.value == "other"
+    assert normalized.steps[0].action_frame.arguments == ()
+    assert len(normalized.relation_claims) == 1
+    claim = normalized.relation_claims[0]
+    assert claim.subject.text == "Mara"
+    assert claim.object.text == "Aldric"
+    assert claim.predicate == "hermana"
+    assert claim.relation_family.value == "kinship"
+    assert claim.modality.value == "conditional"
+    assert "relation_surface_replaces_action_frame" in summary.action_rules_applied
+    assert summary.relation_rules_applied == ("relation_kinship",)
+
+
+def test_communication_frame_recovers_literal_recipient_and_embedded_theme():
+    source = "Le pregunto a él si ha visto la llave."
+    analysis = _analysis(
+        source,
+        "pregunto",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        active_step_index=None,
+    )
+
+    normalized, _summary = normalize_semantic_surface(analysis)
+
+    frame = normalized.steps[0].action_frame
+    assert frame.family.value == "communication"
+    arguments = {
+        argument.role.value: (
+            argument.mention.text,
+            argument.mention.kind_hint.value,
+        )
+        for argument in frame.arguments
+    }
+    assert arguments["recipient"] == ("él", "character")
+    assert arguments["theme"] == ("la llave", "item_instance")
+
+
+def test_communication_frame_recovers_question_topic_without_inventing_recipient():
+    source = "Mara pregunta por el mapa."
+    analysis = _analysis(
+        source,
+        "pregunta",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        actor="npc",
+        active_step_index=None,
+    )
+
+    normalized, _summary = normalize_semantic_surface(analysis)
+
+    arguments = {
+        argument.role.value: argument.mention.text
+        for argument in normalized.steps[0].action_frame.arguments
+    }
+    assert arguments == {"theme": "el mapa"}
+
+
+def test_ungrounded_dialogue_frame_predicate_is_dropped_even_for_player_actor():
+    source = (
+        "El pergamino contiene la orden «abre el portal ahora»; "
+        "solo estoy leyendo el texto."
+    )
+    payload = {
+        "schema_version": 2,
+        "category": "dialogue",
+        "steps": [{
+            "index": 0,
+            "source_excerpt": source,
+            "actor": "player",
+            "action": "leer una orden citada",
+            "modality": "dialogue",
+            "polarity": "positive",
+            "reported_outcome": "not_claimed",
+            "target_mentions": [],
+            "attributed_to": None,
+            "action_frame": {
+                "predicate": "El jugador cita una orden externa.",
+                "family": "creation",
+                "arguments": [],
+            },
+        }],
+        "active_step_index": None,
+        "requires_clarification": False,
+        "clarification_question": None,
+        "relation_claims": [],
+    }
+
+    normalized, summary = normalize_untrusted_intent_payload(
+        payload,
+        player_input=source,
+        evidence_text=source,
+    )
+
+    frame = normalized["steps"][0]["action_frame"]
+    assert frame["family"] == "other"
+    assert frame["arguments"] == []
+    assert frame["predicate"] in source
+    assert summary.dropped_ungrounded_action_predicates == 1
+
+
+def test_callback_anchor_is_retained_as_communication_recipient():
+    source = "Volviendo a lo de Mara, le pregunto por el mapa."
+    analysis = _analysis(
+        source,
+        "pregunto",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        active_step_index=None,
+    )
+
+    normalized, _summary = normalize_semantic_surface(analysis)
+
+    frame = normalized.steps[0].action_frame
+    arguments = {
+        argument.role.value: argument.mention.text
+        for argument in frame.arguments
+    }
+    assert arguments == {"recipient": "Mara", "theme": "el mapa"}
+
+
+@pytest.mark.parametrize(
+    (
+        "source",
+        "predicate",
+        "category",
+        "modality",
+        "actor",
+        "expected_family",
+        "expected_polarity",
+        "expected_modality",
+        "expected_subject",
+        "expected_object",
+        "expected_attribution",
+    ),
+    [
+        (
+            "Aldric jura lealtad a la reina.",
+            "jura lealtad",
+            "report",
+            "observed",
+            "other",
+            "allegiance",
+            "positive",
+            "observed",
+            "Aldric",
+            "la reina",
+            None,
+        ),
+        (
+            "El anillo de plata no pertenece a Aldric.",
+            "pertenece",
+            "report",
+            "observed",
+            "other",
+            "ownership",
+            "negative",
+            "negated",
+            "El anillo de plata",
+            "Aldric",
+            None,
+        ),
+        (
+            "El mercader afirma que el mapa pertenece a Mara.",
+            "pertenece",
+            "report",
+            "reported",
+            "npc",
+            "ownership",
+            "positive",
+            "reported",
+            "el mapa",
+            "Mara",
+            "El mercader",
+        ),
+    ],
+)
+def test_relation_only_clauses_do_not_remain_executable_action_frames(
+    source,
+    predicate,
+    category,
+    modality,
+    actor,
+    expected_family,
+    expected_polarity,
+    expected_modality,
+    expected_subject,
+    expected_object,
+    expected_attribution,
+):
+    normalized, summary = normalize_semantic_surface(
+        _analysis(
+            source,
+            predicate,
+            category=category,
+            modality=modality,
+            actor=actor,
+            active_step_index=None,
+        )
+    )
+
+    assert normalized.steps[0].action_frame.family.value == "other"
+    assert normalized.steps[0].action_frame.arguments == ()
+    assert len(normalized.relation_claims) == 1
+    claim = normalized.relation_claims[0]
+    assert claim.subject.text == expected_subject
+    assert claim.object.text == expected_object
+    assert claim.relation_family.value == expected_family
+    assert claim.polarity.value == expected_polarity
+    assert claim.modality.value == expected_modality
+    assert (
+        claim.attributed_to.text if claim.attributed_to is not None else None
+    ) == expected_attribution
+    assert "relation_surface_replaces_action_frame" in summary.action_rules_applied

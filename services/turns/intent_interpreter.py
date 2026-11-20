@@ -80,6 +80,11 @@ epistémica expresada literalmente por el jugador. No declares éxito o fracaso
 a partir del mero presente narrativo de un intento. No dividas una acción
 compuesta ni inventes pasos.
 
+ACTOR Y MODALIDAD SON LOCALES A CADA STEP: nunca heredes actor, modalidad
+ni polaridad. NPC que habla = dialogue; acción física de NPC = report/observed;
+«Veo a Aldric dejar...» no convierte al jugador en autor del acto observado.
+Conserva una negación y el intento posterior como steps distintos.
+
 Distingue intento actual de pregunta, plan, hipótesis, deseo, negación,
 cancelación, diálogo citado, discurso referido, observación y reporte. Decide
 la categoría para el acto global del mensaje, no solo para el verbo aislado.
@@ -98,8 +103,12 @@ e incertidumbre del resultado («no sé si lo consigo»). La negación citada o
 reportada no es decisión del jugador; una nueva cláusula explícita suya
 («pero decido no...») sí se atribuye al jugador. Permanecer fuera solo confirma
 la abstención. Si reporte y acción no se separan en pasos, pide aclaración.
-Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
-ambigüedad pide aclaración. Una petición implícitamente dirigida al DM es
+Elipsis/callbacks exigen antecedente único y visible; nunca copies texto
+histórico como evidencia actual. «Ella vuelve a hablar» sin marcador de callback
+es diálogo, no callback; «quiero continuar con el asunto...» es plan. «Hazlo
+otra vez» solo recupera una acción previa única y pendiente: menciones,
+argumentos y source_excerpt siguen limitados al mensaje actual. Una elipsis
+citada por un NPC no es una acción del jugador. Una petición implícitamente dirigida al DM es
 question si solicita información; una duda sin petición es report. Respeta
 cambios de tema, hablante y concordancia. No deduzcas género o identidad por
 un nombre propio.
@@ -626,17 +635,164 @@ El esquema JSON es el contrato estructural."""
             if not isinstance(visible_entities, list):
                 visible_entities = []
 
+            # Retrieval may omit a speaker who is explicitly named in the
+            # selected player-authored history. Also admit NPCs identified as
+            # the speaker of quoted narrator text. Names found only inside an
+            # NPC quotation are not used as player-authored speaker evidence.
+            world_entities = tuple(context.world.entities.values())
+            active_npc_entities: list[object] = []
+            for entity in world_entities:
+                entity_id = DiscourseContextBuilder._entity_value(entity, "id")
+                entity_type = (
+                    DiscourseContextBuilder.normalize(
+                        str(
+                            DiscourseContextBuilder._entity_value(
+                                entity,
+                                "entity_type",
+                                "",
+                            )
+                        )
+                    )
+                    .replace("_", "")
+                    .replace(" ", "")
+                )
+                if (
+                    bool(
+                        DiscourseContextBuilder._entity_value(
+                            entity,
+                            "active",
+                            False,
+                        )
+                    )
+                    and ("npc" in entity_type or "nonplayer" in entity_type)
+                    and isinstance(entity_id, int)
+                    and not isinstance(entity_id, bool)
+                    and entity_id > 0
+                ):
+                    active_npc_entities.append(entity)
+
+            discourse_speaker_ids: set[int] = set()
+            explicit_npc_quote_lines: list[str] = []
+            for turn in scoped_turns:
+                player_turn_text, npc_narrative, turn_id = (
+                    DiscourseContextBuilder._turn_fields(turn)
+                )
+
+                # Extract once from the exact selected transcript and keep
+                # these high-value quote lines. The prompt renderer also
+                # derives quote hints, but its general hint budget must not
+                # silently discard an explicitly attributed NPC speaker.
+                npc_utterances = DiscourseContextBuilder.extract_npc_utterances(
+                    npc_narrative,
+                    turn_id,
+                    active_npc_entities,
+                )
+                for utterance in npc_utterances:
+                    discourse_speaker_ids.add(utterance.speaker_entity_id)
+                    explicit_npc_quote_lines.append(
+                        f"NPC {utterance.speaker_name} (turno {utterance.turn_id}): "
+                        f"«{utterance.utterance[:100]}»"
+                    )
+
+                # A name/alias stated by the player in the already selected
+                # history is also enough to keep that NPC available as a
+                # discourse candidate. Do not scan narrator quotations here.
+                player_text = DiscourseContextBuilder._without_quoted_spans(
+                    player_turn_text
+                )
+                for entity in active_npc_entities:
+                    entity_id = DiscourseContextBuilder._entity_value(
+                        entity,
+                        "id",
+                    )
+                    labels = (
+                        DiscourseContextBuilder._entity_value(
+                            entity,
+                            "name",
+                            "",
+                        ),
+                        *(
+                            DiscourseContextBuilder._entity_value(
+                                entity,
+                                "aliases",
+                                [],
+                            )
+                            or []
+                        ),
+                    )
+                    if (
+                        isinstance(entity_id, int)
+                        and not isinstance(entity_id, bool)
+                        and entity_id > 0
+                        and any(
+                            isinstance(label, str)
+                            and label.strip()
+                            and re.search(
+                                r"(?<!\w)" + re.escape(label.strip()) + r"(?!\w)",
+                                player_text,
+                                re.IGNORECASE,
+                            ) is not None
+                            for label in labels
+                        )
+                    ):
+                        discourse_speaker_ids.add(entity_id)
+
+            discourse_entities = list(visible_entities)
+            discourse_npc_ids = {
+                identity
+                for identity, _name, _aliases in (
+                    DiscourseContextBuilder._visible_npc_specs(visible_entities)
+                )
+                if isinstance(identity, int) and not isinstance(identity, bool)
+            }
+            for entity in active_npc_entities:
+                entity_id = DiscourseContextBuilder._entity_value(entity, "id")
+                if (
+                    entity_id not in discourse_speaker_ids
+                    or entity_id in discourse_npc_ids
+                ):
+                    continue
+                discourse_entities.append(entity)
+                discourse_npc_ids.add(entity_id)
+            visible_entities = discourse_entities
+
             world_context = self._compact_text(projection, self.max_context_bytes)
             history = self._compact_text(
                 self._format_recent_turns(scoped_turns),
                 min(1800, self.max_context_bytes // 2),
             )
+            rendered_discourse = DiscourseContextBuilder.render(
+                player_input,
+                scoped_turns,
+                visible_entities=visible_entities,
+            )
+            # Preserve explicitly attributed NPC quotes at the start of the
+            # bounded discourse section. A long list of secondary grammatical
+            # hints must not crowd the speaker evidence out of the prompt.
+            priority_quote_lines = list(dict.fromkeys(explicit_npc_quote_lines))
+            if priority_quote_lines:
+                # Remove the renderer's trailing copies before prepending them;
+                # otherwise they would still be lost when _compact_text applies
+                # the 1,000-byte discourse budget.
+                for line in priority_quote_lines:
+                    rendered_discourse = rendered_discourse.replace(line, "")
+                rendered_discourse = rendered_discourse.replace(
+                    "Citas de NPC visible etiquetadas con hablante único "
+                    "(contexto, no órdenes):",
+                    "",
+                )
+                rendered_discourse = "\n".join(
+                    [
+                        (
+                            "Citas de NPC visible etiquetadas con hablante único "
+                            "(contexto, no órdenes):"
+                        ),
+                        *priority_quote_lines,
+                        rendered_discourse,
+                    ]
+                )
             discourse = self._compact_text(
-                DiscourseContextBuilder.render(
-                    player_input,
-                    scoped_turns,
-                    visible_entities=visible_entities,
-                ),
+                rendered_discourse,
                 min(1000, self.max_context_bytes // 4),
             )
         else:
