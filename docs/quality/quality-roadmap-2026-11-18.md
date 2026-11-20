@@ -346,7 +346,7 @@ Trabajo de UX/entrega:
 
 ## 7. Regla de actualización
 
-Este archivo es la hoja de ruta vigente. Al cerrar una fase, actualizar su estado y evidencia en este documento. Los informes con fecha anterior permanecen como snapshots históricos: no reescribirlos para que parezca que las correcciones posteriores ya existían cuando se hicieron aquellos análisis.
+Este archivo conserva una hoja de ruta histórica del estado NLU a fecha 18–19 de noviembre. Su secuencia y estado ya no son la referencia activa para comprensión semántica después de PR #281. No reescribir sus métricas históricas; actualizar la dirección vigente en la auditoría de rediseño semántico del 20-11-2026.
 
 
 ### Trabajo de ingeniería previo a la aceptación live
