@@ -1519,3 +1519,105 @@ def test_explicit_negation_before_a_new_player_attempt_is_one_action_sequence():
     assert normalized["steps"][0]["polarity"] == "negative"
     assert normalized["steps"][1]["modality"] == "attempted"
     assert "explicit_negated_then_positive_player_action" in summary.applied_rules
+
+
+def test_pronoun_led_npc_speech_is_dialogue_without_invented_identity():
+    source = "Ella vuelve a hablar conmigo."
+    payload = _payload(
+        _step(source, actor="player", modality="attempted"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "dialogue"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "npc"
+    assert step["modality"] == "dialogue"
+    assert step["attributed_to"] is None
+    assert "explicit_pronoun_npc_dialogue_step" in summary.applied_rules
+
+
+def test_explicit_desire_to_continue_a_topic_is_a_plan_not_an_action():
+    source = "Como te dije antes, quiero continuar con el asunto de la carta."
+    payload = _payload(_step(source, actor="player", modality="attempted"))
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "plan"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "player"
+    assert step["modality"] == "planned"
+    assert step["action_frame"] is None
+    assert "explicit_continuation_desire_is_plan" in summary.applied_rules
+
+
+def test_unrelated_epistemic_sentence_does_not_become_a_second_action_step():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    first = _step(
+        "Intento abrir la puerta",
+        actor="player",
+        modality="attempted",
+    )
+    first["target_mentions"] = ["la puerta"]
+    second = dict(
+        _step(
+            "Quizá el guardia se despierte",
+            actor="npc",
+            modality="reported",
+            outcome="not_claimed",
+        ),
+        index=1,
+    )
+    second["target_mentions"] = ["el guardia"]
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="mixed", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert "unrelated_uncertainty_not_added_to_action_sequence" in summary.applied_rules
+
+
+def test_failed_attempt_result_only_relation_noise_is_removed_when_collapsed():
+    from services.turns.intent_surface_normalization import (
+        _collapse_split_attempt_outcome,
+    )
+
+    source = "Pruebo la llave, pero el cofre sigue cerrado."
+    first = _step("Pruebo la llave", actor="player", modality="attempted")
+    second = dict(
+        _step("el cofre sigue cerrado", actor="other", modality="reported"),
+        index=1,
+    )
+    normalized = {
+        "category": "mixed",
+        "active_step_index": 0,
+        "relation_claims": [{"step_index": 1}],
+    }
+    rules = []
+
+    steps = _collapse_split_attempt_outcome(
+        [first, second],
+        source,
+        normalized,
+        rules,
+    )
+
+    assert len(steps) == 1
+    assert steps[0]["reported_outcome"] == "failure"
+    assert normalized["relation_claims"] == []
+    assert "split_attempt_failure_collapsed" in rules
