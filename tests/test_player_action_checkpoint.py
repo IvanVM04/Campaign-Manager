@@ -399,3 +399,28 @@ def test_checkpoint_progress_preserves_final_fact_validation_receipts():
 
     with pytest.raises(ValueError, match="final fact validation receipt"):
         previous.validate_progress_from(_checkpoint(receipts=(rejected,)))
+
+
+def test_checkpoint_codec_round_trips_canonical_json_with_fact_receipts():
+    checkpoint = _checkpoint(_node(), receipts=(_receipt(),))
+
+    serialized = checkpoint.to_json()
+    restored = PlayerActionCheckpoint.from_json(serialized)
+
+    assert restored == checkpoint
+    assert restored.to_json() == serialized
+
+
+def test_checkpoint_codec_rejects_malformed_nested_candidate_and_receipt():
+    checkpoint = _checkpoint(_node())
+    payload = checkpoint.to_dict()
+    payload["nodes"][0]["candidate"]["target_mentions"] = "not-an-array"
+
+    with pytest.raises(ActionCheckpointValidationError):
+        PlayerActionCheckpoint.from_payload(payload)
+
+    payload = checkpoint.to_dict()
+    payload["fact_validation_receipts"] = "not-an-array"
+
+    with pytest.raises(ActionCheckpointValidationError):
+        PlayerActionCheckpoint.from_payload(payload)
