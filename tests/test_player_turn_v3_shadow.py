@@ -1,7 +1,3 @@
-"""Deterministic tests for the isolated v3 shadow harness."""
-
-from __future__ import annotations
-
 import json
 
 import pytest
