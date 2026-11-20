@@ -62,6 +62,10 @@ def test_runner_separates_regular_llm_tests_from_optional_nlp_ab():
     assert '"real_llm and nlp_pilot"' in source
     assert "CAMPAIGN_MANAGER_REAL_LLM_REPORT_DIR" in source
     assert "scripts/ollama_test_report.py" in source
+    assert 'CAMPAIGN_MANAGER_REAL_LLM_V3_SHADOW_REPORT_PATH' in source
+    assert 'player-turn-v3-shadow.json' in source
+    assert 'player_turn_v3_shadow_holdout' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
 
 
 def test_runner_writes_unique_machine_readable_and_human_reports():
