@@ -230,7 +230,11 @@ def evaluate_world_fact(
             FactDecisionReason.ELIGIBLE, (operation,),
         )
 
-    if candidate.fact_kind is not WorldFactKind.RELATION or candidate.object is None:
+    if (
+        candidate.fact_kind is not WorldFactKind.RELATION
+        or candidate.object is None
+        or candidate.direction is None
+    ):
         return _decision(
             candidate, FactDecisionStatus.REJECTED,
             FactDecisionReason.INVALID_REFERENCE,
