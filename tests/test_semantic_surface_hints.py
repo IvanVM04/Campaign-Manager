@@ -990,3 +990,24 @@ def test_ungrounded_dialogue_frame_predicate_is_dropped_even_for_player_actor():
 
     assert "action_frame" not in normalized["steps"][0]
     assert summary.dropped_ungrounded_action_predicates == 1
+
+
+def test_callback_anchor_is_retained_as_communication_recipient():
+    source = "Volviendo a lo de Mara, le pregunto por el mapa."
+    analysis = _analysis(
+        source,
+        "pregunto",
+        family="interaction",
+        category="dialogue",
+        modality="dialogue",
+        active_step_index=None,
+    )
+
+    normalized, _summary = normalize_semantic_surface(analysis)
+
+    frame = normalized.steps[0].action_frame
+    arguments = {
+        argument.role.value: argument.mention.text
+        for argument in frame.arguments
+    }
+    assert arguments == {"recipient": "Mara", "theme": "el mapa"}
