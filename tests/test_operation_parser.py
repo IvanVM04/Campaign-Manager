@@ -473,6 +473,7 @@ def test_parser_rejects_malformed_or_unbounded_entity_aliases(aliases):
                     {
                         "type": "create_entity",
                         "name": "Aldric",
+                        "entity_type": "npc",
                         "aliases": aliases,
                     }
                 ]
