@@ -8,8 +8,8 @@ interpretation (#286) and durable fact-validation receipts (#287).
 
 The policy in `services/turns/world_fact_policy.py` is a deterministic,
 backend-only adapter. It consumes one exact `WorldFactCandidate` from a
-validated `TurnInterpretationV3`, trusted canonical endpoint IDs, explicit
-visibility attestations and a detached `WorldState`. It can return at most
+validated `TurnInterpretationV3`, trusted `ResolvedConversationReference` endpoint values from the existing
+visibility-aware resolver and a detached `WorldState`. It can return at most
 one typed world operation. It never calls a model, resolves names, decides
 mechanical outcomes or commits state.
 
@@ -29,9 +29,10 @@ A candidate is eligible only when all of these conditions hold:
 - epistemic status is `asserted` or `observed`;
 - polarity is positive and temporal scope is permanent;
 - every required endpoint resolves to an existing, active world entity;
-- the backend explicitly attests visibility for each endpoint;
-- each canonical entity ID matches the candidate's literal mention or an
-  explicitly stored alias;
+- each endpoint is a trusted `ResolvedConversationReference` produced by the
+  visibility-aware resolver;
+- its literal mention matches the exact candidate endpoint, its canonical ID
+  resolves to an active entity, and its canonical name matches the world row;
 - relation facts have an allowlisted semantic family and a normalized
   relation type.
 
@@ -120,7 +121,7 @@ acceptance remain PR #289 work.
 - report/rumour/hypothesis/uncertainty, attribution, quote, negation and
   temporary-scope rejection;
 - trusted speaker/act requirements;
-- visibility, unresolved endpoints and mention-to-ID binding;
+- visibility-aware resolution, unresolved endpoints and mention-to-ID binding;
 - transfer-versus-ownership separation;
 - duplicate idempotency, inactive relation reactivation and exact-candidate
   receipt binding.
