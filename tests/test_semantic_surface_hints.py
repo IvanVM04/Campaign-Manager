@@ -1011,3 +1011,97 @@ def test_callback_anchor_is_retained_as_communication_recipient():
         for argument in frame.arguments
     }
     assert arguments == {"recipient": "Mara", "theme": "el mapa"}
+
+
+@pytest.mark.parametrize(
+    (
+        "source",
+        "predicate",
+        "category",
+        "modality",
+        "actor",
+        "expected_family",
+        "expected_polarity",
+        "expected_modality",
+        "expected_subject",
+        "expected_object",
+        "expected_attribution",
+    ),
+    [
+        (
+            "Aldric jura lealtad a la reina.",
+            "jura lealtad",
+            "report",
+            "observed",
+            "other",
+            "allegiance",
+            "positive",
+            "observed",
+            "Aldric",
+            "la reina",
+            None,
+        ),
+        (
+            "El anillo de plata no pertenece a Aldric.",
+            "pertenece",
+            "report",
+            "observed",
+            "other",
+            "ownership",
+            "negative",
+            "negated",
+            "El anillo de plata",
+            "Aldric",
+            None,
+        ),
+        (
+            "El mercader afirma que el mapa pertenece a Mara.",
+            "pertenece",
+            "report",
+            "reported",
+            "npc",
+            "ownership",
+            "positive",
+            "reported",
+            "el mapa",
+            "Mara",
+            "El mercader",
+        ),
+    ],
+)
+def test_relation_only_clauses_do_not_remain_executable_action_frames(
+    source,
+    predicate,
+    category,
+    modality,
+    actor,
+    expected_family,
+    expected_polarity,
+    expected_modality,
+    expected_subject,
+    expected_object,
+    expected_attribution,
+):
+    normalized, summary = normalize_semantic_surface(
+        _analysis(
+            source,
+            predicate,
+            category=category,
+            modality=modality,
+            actor=actor,
+            active_step_index=None,
+        )
+    )
+
+    assert normalized.steps[0].action_frame is None
+    assert len(normalized.relation_claims) == 1
+    claim = normalized.relation_claims[0]
+    assert claim.subject.text == expected_subject
+    assert claim.object.text == expected_object
+    assert claim.relation_family.value == expected_family
+    assert claim.polarity.value == expected_polarity
+    assert claim.modality.value == expected_modality
+    assert (
+        claim.attributed_to.text if claim.attributed_to is not None else None
+    ) == expected_attribution
+    assert "relation_surface_replaces_action_frame" in summary.action_rules_applied
