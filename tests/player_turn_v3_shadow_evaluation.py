@@ -23,6 +23,7 @@ _V3_SEQUENCE_FIELDS = (
     "act_forces",
     "speaker_roles",
     "event_families",
+    "event_predicate_surfaces",
     "polarities",
     "epistemic_statuses",
     "action_phases",
