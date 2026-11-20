@@ -14,6 +14,7 @@ class SpeakerSignalExtractor(SurfaceMentionExtractor):
     """Extract literal speaker/speech signals with strict visibility and ambiguity gates."""
 
     _SPEECH_VERBS = "|".join(SPEECH_PREDICATE_FORMS)
+
     @classmethod
     def speech_predicate_signals(
         cls,
