@@ -220,9 +220,9 @@ def test_quoted_evidence_cannot_be_persisted_as_player_fact():
 
 
 def test_transfer_arguments_do_not_imply_ownership_or_possession():
-    source = "Entrego Mara a Aldric; propiedad confirmada."
+    source = "Entrego Mara a Aldric."
     fact = _fact(
-        source, predicate="propiedad", family=SemanticRelationFamily.OWNERSHIP,
+        source, predicate="Entrego", family=SemanticRelationFamily.OWNERSHIP,
         normalized="ownership.owner", direction=RelationDirection.SUBJECT_TO_OBJECT,
     )
     event = EventFrame(
@@ -236,6 +236,46 @@ def test_transfer_arguments_do_not_imply_ownership_or_possession():
     assert result.status is FactDecisionStatus.REJECTED
     assert result.reason is FactDecisionReason.TRANSFER_DOES_NOT_PROVE_RELATION
     assert result.operations == ()
+
+
+def test_explicit_ownership_clause_separate_from_transfer_can_be_persisted():
+    source = "Entrego Llave a Mara; Llave pertenece a Mara."
+    fact = _fact(
+        source, predicate="pertenece", subject="Llave", object_="Mara",
+        family=SemanticRelationFamily.OWNERSHIP, normalized="ownership.owner",
+        direction=RelationDirection.SUBJECT_TO_OBJECT,
+    )
+    fact = replace(
+        fact,
+        evidence_spans=(
+            _span(source, "Llave"),
+            _span(source, "Mara"),
+            _span(source, "pertenece"),
+        ),
+    )
+    event = EventFrame(
+        local_id="event_transfer", source_act_id="act_assertion",
+        predicate_surface="Entrego", family=SemanticActionFamily.TRANSFER,
+        arguments=(), polarity=SemanticPolarity.POSITIVE,
+        epistemic_status=EpistemicStatus.ASSERTED,
+        action_phase=ActionPhase.ATTEMPTED,
+        evidence_spans=(_span(source, "Entrego Llave a Mara"),),
+    )
+    world = _world()
+    world.entities[3] = Entity(id=3, name="Llave", entity_type="item")
+
+    result = _evaluate(
+        fact,
+        _interpretation(source, fact, events=(event,)),
+        world,
+        subject_entity_id=3,
+        object_entity_id=1,
+    )
+
+    assert result.status is FactDecisionStatus.ACCEPTED
+    assert isinstance(result.operations[0], CreateRelationOperation)
+    assert result.operations[0].subject_id == 3
+    assert result.operations[0].target_id == 1
 
 
 def test_unresolved_or_mismatched_endpoints_do_not_create_relations():
