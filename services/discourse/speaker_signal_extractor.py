@@ -6,8 +6,8 @@ import re
 from collections.abc import Iterable
 
 from services.discourse.contracts import AttributedNpcUtterance, SpeechPredicateSignal
-from services.discourse.surface_mention_extractor import SurfaceMentionExtractor
 from services.discourse.speech_predicates import SPEECH_PREDICATE_FORMS
+from services.discourse.surface_mention_extractor import SurfaceMentionExtractor
 
 
 class SpeakerSignalExtractor(SurfaceMentionExtractor):
