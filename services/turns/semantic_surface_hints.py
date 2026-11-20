@@ -1134,7 +1134,7 @@ def normalize_untrusted_intent_payload(
                 # only the ungrounded predicate with a literal, neutral marker;
                 # category/modality and typed relation claims retain semantics.
                 literal_marker = re.search(
-                    r"[^\\W\\d_][\\wáéíóúüñ-]*",
+                    r"[^\W\d_][\wáéíóúüñ-]*",
                     excerpt,
                     re.UNICODE,
                 )
