@@ -10,6 +10,7 @@ import enum
 import hashlib
 import json
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from models.entity import Entity
@@ -68,6 +69,24 @@ class FactDecisionReason(str, enum.Enum):
     MISSING_NORMALIZED_RELATION = "missing_normalized_relation"
     TRANSFER_DOES_NOT_PROVE_RELATION = "transfer_does_not_prove_relation"
     RELATION_ID_COLLISION = "relation_id_collision"
+
+
+@dataclass(frozen=True, slots=True)
+class FactEndpointResolution:
+    """Trusted canonical endpoint matches for one exact fact candidate."""
+
+    subject_reference: ResolvedConversationReference | None = None
+    object_reference: ResolvedConversationReference | None = None
+
+    def __post_init__(self) -> None:
+        for name, reference in (
+            ("subject_reference", self.subject_reference),
+            ("object_reference", self.object_reference),
+        ):
+            if reference is not None and not isinstance(
+                reference, ResolvedConversationReference
+            ):
+                raise TypeError(f"{name} must be a trusted conversation reference")
 
 
 @dataclass(frozen=True, slots=True)
@@ -359,6 +378,48 @@ def evaluate_world_fact(
     return _decision(
         candidate, FactDecisionStatus.ACCEPTED,
         FactDecisionReason.ELIGIBLE, (operation,),
+    )
+
+
+def evaluate_world_facts(
+    interpretation: TurnInterpretationV3,
+    world: WorldState,
+    reference_resolutions: Mapping[str, FactEndpointResolution],
+) -> tuple[FactDecision, ...]:
+    """Evaluate every fact independently and preserve source candidate order.
+
+    Missing resolutions remain pending for clarification. Decisions are not
+    combined into one atomic operation batch, so one rejected candidate does
+    not erase another candidate's independent eligibility result.
+    """
+    if not isinstance(interpretation, TurnInterpretationV3):
+        raise TypeError("interpretation must be a TurnInterpretationV3")
+    if not isinstance(world, WorldState):
+        raise TypeError("world must be a WorldState")
+    if not isinstance(reference_resolutions, Mapping):
+        raise TypeError("reference_resolutions must be a mapping")
+    if any(
+        not isinstance(key, str) or not isinstance(value, FactEndpointResolution)
+        for key, value in reference_resolutions.items()
+    ):
+        raise TypeError("reference_resolutions must map fact IDs to endpoint resolutions")
+    return tuple(
+        evaluate_world_fact(
+            candidate,
+            interpretation,
+            world,
+            subject_reference=(
+                reference_resolutions[candidate.local_id].subject_reference
+                if candidate.local_id in reference_resolutions
+                else None
+            ),
+            object_reference=(
+                reference_resolutions[candidate.local_id].object_reference
+                if candidate.local_id in reference_resolutions
+                else None
+            ),
+        )
+        for candidate in interpretation.world_facts
     )
 
 
