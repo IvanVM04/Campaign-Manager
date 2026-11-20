@@ -733,6 +733,16 @@ def comparison_shape(comparison: V2V3ShadowComparison) -> dict[str, Any]:
             "clarification_count": (
                 len(v3.clarification_candidates) if v3 is not None else None
             ),
+            "evidence_span_count": (
+                sum(len(item.evidence_spans) for item in (
+                    *v3.utterance_acts, *v3.events, *v3.discourse_links,
+                    *v3.world_facts, *v3.clarification_candidates,
+                )) if v3 is not None else None
+            ),
+            "quote_span_count": (
+                sum(len(item.quote_spans) for item in v3.utterance_acts)
+                if v3 is not None else None
+            ),
             "act_forces": (
                 [item.force.value for item in v3.utterance_acts]
                 if v3 is not None else []
