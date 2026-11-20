@@ -679,9 +679,9 @@ def _normalize_action_frame(
             # span. The dative clitic "le" licenses it as recipient; without
             # both signals we do not infer a communication participant.
             callback_recipient = re.search(
-                r"\\b(?:lo|la|tema|asunto)\\s+de\\s+"
-                r"(?P<recipient>[A-ZÁÉÍÓÚÜÑ][\\wáéíóúüñ-]*)"
-                r"(?:\\s*,\\s*(?:me|te|le|les|nos))?\\s*$",
+                r"\b(?:lo|la|tema|asunto)\s+de\s+"
+                r"(?P<recipient>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)"
+                r"(?:\s*,\s*(?:me|te|le|les|nos))?\s*$",
                 prefix,
                 re.IGNORECASE,
             )
