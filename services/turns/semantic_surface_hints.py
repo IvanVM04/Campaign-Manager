@@ -896,6 +896,11 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
                 # service or another relation. Do not overwrite the model's
                 # interpretation with an unsupported ownership guess.
                 continue
+        if conditional and family is not SemanticRelationFamily.KINSHIP:
+            # A conditional membership/ownership/employment proposition is
+            # not an asserted world relation. Conditional kinship is retained
+            # as explicitly hypothetical rather than asserted fact evidence.
+            continue
         matches.append(
             _RelationSurface(
                 rule_id=rule_id,
@@ -1241,18 +1246,30 @@ def normalize_semantic_surface(
         if surface is not None:
             relation_surfaces[step.index] = surface
             if step.action_frame is not None:
-                # V2 requires an action-frame value for every step. Keep a
-                # neutral, non-executable placeholder while the typed relation
-                # claim carries the actual relational semantics.
-                neutral_frame = replace(
-                    step.action_frame,
-                    family=SemanticActionFamily.OTHER,
-                    arguments=(),
+                # A reported relation is communicated by its explicit
+                # reporting verb. Preserve that communication act while the
+                # embedded proposition is represented by a separate relation
+                # claim. Relation-only utterances retain a neutral frame.
+                frame, rule_id = _normalize_action_frame(
+                    step,
+                    speech_only=surface.attributed_to is not None,
                 )
-                normalized_steps.append(
-                    replace(step, action_frame=neutral_frame)
-                )
-                action_rules.append("relation_surface_replaces_action_frame")
+                if rule_id == "action_communication":
+                    normalized_steps.append(replace(step, action_frame=frame))
+                    action_rules.append(rule_id)
+                else:
+                    # V2 requires an action-frame value for every step. Keep a
+                    # neutral, non-executable placeholder for relation-only
+                    # utterances; it cannot become an executable action.
+                    neutral_frame = replace(
+                        step.action_frame,
+                        family=SemanticActionFamily.OTHER,
+                        arguments=(),
+                    )
+                    normalized_steps.append(
+                        replace(step, action_frame=neutral_frame)
+                    )
+                    action_rules.append("relation_surface_replaces_action_frame")
             else:
                 normalized_steps.append(step)
             continue
