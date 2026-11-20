@@ -534,8 +534,8 @@ class DiscourseLink:
         if self.link_type is DiscourseLinkType.CALLBACK:
             if self.target_ref is not None:
                 raise ValueError("callback cannot invent a historical local target")
-            _text(self.anchor_candidate, "anchor_candidate", 160)
-            _require_in_spans(self.evidence_spans, self.anchor_candidate, "anchor_candidate")
+            anchor_candidate = _text(self.anchor_candidate, "anchor_candidate", 160)
+            _require_in_spans(self.evidence_spans, anchor_candidate, "anchor_candidate")
         else:
             if self.target_ref is None:
                 raise ValueError("non-callback discourse links require a local target_ref")
