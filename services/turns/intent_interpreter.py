@@ -719,7 +719,7 @@ El esquema JSON es el contrato estructural."""
                         isinstance(label, str)
                         and label.strip()
                         and re.search(
-                            r"(?<!\\w)" + re.escape(label.strip()) + r"(?!\\w)",
+                            r"(?<!\w)" + re.escape(label.strip()) + r"(?!\w)",
                             player_text,
                             re.IGNORECASE,
                         )
