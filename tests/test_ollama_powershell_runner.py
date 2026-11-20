@@ -95,7 +95,7 @@ def test_runner_keeps_local_configuration_and_role_overrides():
 
 def test_runner_scopes_single_scenario_filters_to_the_matching_suite():
     source = RUNNER.read_text(encoding="utf-8")
-    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent")' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
     assert "held_out_language_understanding_corpus_v1" in source
     assert "held_out_semantic_frame_corpus_v1" in source
     assert "held_out_discourse_intent_and_resolution_corpus" in source
