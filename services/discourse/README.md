@@ -24,15 +24,15 @@ canonical entity IDs, authorize mechanics, or mutate campaign state.
 Allowed dependency direction:
 
 ```text
-contracts / text
-   |       |
-   v       v
+contracts / text     speech predicate inventory
+   |       |                     |
+   v       v                     v
 topic selector     surface mention extractor
-                       |
-                       v
-                speaker signal extractor
                        |         |
                        +---------+
+                            |
+                            v
+                speaker signal extractor
                             |
                             v
                          renderer
