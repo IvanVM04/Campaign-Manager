@@ -32,6 +32,7 @@ from operations.world_operations import (
     UpdateRelationOperation,
 )
 from services.turns.world_fact_policy import (
+    FactDecision,
     FactDecisionReason,
     FactDecisionStatus,
     FactEndpointResolution,
