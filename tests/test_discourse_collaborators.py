@@ -148,6 +148,33 @@ def test_speaker_extractor_requires_unique_visible_active_npc_alias():
     assert ambiguous == ()
 
 
+
+def test_speaker_extractor_recognizes_clitic_warning_as_npc_speech():
+    @dataclass
+    class Entity:
+        id: int
+        name: str
+        entity_type: str = "npc"
+        active: bool = True
+        aliases: tuple[str, ...] = ()
+
+    mara = Entity(1, "Mara")
+    signals = SpeakerSignalExtractor.speech_predicate_signals(
+        "Mara me advierte: «No abras la puerta».",
+        visible_entities=(mara,),
+    )
+    assert len(signals) == 1
+    assert signals[0].subject == "Mara"
+    assert signals[0].predicate == "advierte"
+
+    pronoun_signals = SpeakerSignalExtractor.speech_predicate_signals(
+        "Ella le advierte que espere.",
+    )
+    assert len(pronoun_signals) == 1
+    assert pronoun_signals[0].subject.casefold() == "ella"
+    assert pronoun_signals[0].predicate.casefold() == "advierte"
+
+
 def test_speaker_extractor_keeps_quotes_out_of_speech_signals():
     extractor = SpeakerSignalExtractor()
     assert extractor.speech_predicate_signals(
