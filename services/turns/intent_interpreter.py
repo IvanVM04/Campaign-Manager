@@ -715,16 +715,20 @@ El esquema JSON es el contrato estructural."""
                             or []
                         ),
                     )
-                    if any(
-                        isinstance(label, str)
-                        and label.strip()
-                        and re.search(
-                            r"(?<!\w)" + re.escape(label.strip()) + r"(?!\w)",
-                            player_text,
-                            re.IGNORECASE,
+                    if (
+                        isinstance(entity_id, int)
+                        and not isinstance(entity_id, bool)
+                        and entity_id > 0
+                        and any(
+                            isinstance(label, str)
+                            and label.strip()
+                            and re.search(
+                                r"(?<!\w)" + re.escape(label.strip()) + r"(?!\w)",
+                                player_text,
+                                re.IGNORECASE,
+                            ) is not None
+                            for label in labels
                         )
-                        is not None
-                        for label in labels
                     ):
                         discourse_speaker_ids.add(entity_id)
 
