@@ -642,24 +642,35 @@ El esquema JSON es el contrato estructural."""
             # name or alias occurs in that topic-scoped history. The renderer
             # receives names/aliases only; this does not add historical text to
             # player evidence or widen the selected transcript.
-            scoped_history_parts: list[str] = []
+            # Only NPCs explicitly identified as speakers of quoted text
+            # in the selected narrative history are added. The extractor checks
+            # the speaker position outside the quotation, so a character named
+            # only inside another NPC's words is not promoted to a candidate.
+            narrative_speaker_ids: set[int] = set()
+            world_entities = tuple(context.world.entities.values())
             for turn in scoped_turns:
-                player_turn_text, npc_narrative, _turn_id = (
+                _player_text, npc_narrative, turn_id = (
                     DiscourseContextBuilder._turn_fields(turn)
                 )
-                scoped_history_parts.append(player_turn_text)
-                # Names that occur only inside an NPC's quotation are not
-                # promoted to candidate speakers by this history bridge.
-                scoped_history_parts.append(
-                    DiscourseContextBuilder._without_quoted_spans(npc_narrative)
+                narrative_speaker_ids.update(
+                    utterance.speaker_entity_id
+                    for utterance in DiscourseContextBuilder.extract_npc_utterances(
+                        npc_narrative,
+                        turn_id,
+                        world_entities,
+                    )
                 )
-            scoped_history_text = " ".join(scoped_history_parts)
+
             discourse_entities = list(visible_entities)
             discourse_entity_ids = {
-                DiscourseContextBuilder._entity_value(entity, "id")
-                for entity in visible_entities
+                entity_id
+                for entity_id in (
+                    DiscourseContextBuilder._entity_value(entity, "id")
+                    for entity in visible_entities
+                )
+                if entity_id is not None
             }
-            for entity in context.world.entities.values():
+            for entity in world_entities:
                 entity_id = DiscourseContextBuilder._entity_value(entity, "id")
                 entity_type = (
                     DiscourseContextBuilder.normalize(
@@ -686,33 +697,14 @@ El esquema JSON es el contrato estructural."""
                         "npc" in entity_type
                         or "nonplayer" in entity_type
                     )
+                    or not isinstance(entity_id, int)
+                    or isinstance(entity_id, bool)
+                    or entity_id not in narrative_speaker_ids
                     or entity_id in discourse_entity_ids
                 ):
                     continue
-                labels = (
-                    DiscourseContextBuilder._entity_value(entity, "name", ""),
-                    *(
-                        DiscourseContextBuilder._entity_value(
-                            entity,
-                            "aliases",
-                            [],
-                        )
-                        or []
-                    ),
-                )
-                if any(
-                    isinstance(label, str)
-                    and label.strip()
-                    and re.search(
-                        r"(?<!\w)" + re.escape(label.strip()) + r"(?!\w)",
-                        scoped_history_text,
-                        re.IGNORECASE,
-                    )
-                    is not None
-                    for label in labels
-                ):
-                    discourse_entities.append(entity)
-                    discourse_entity_ids.add(entity_id)
+                discourse_entities.append(entity)
+                discourse_entity_ids.add(entity_id)
             visible_entities = discourse_entities
 
             world_context = self._compact_text(projection, self.max_context_bytes)
