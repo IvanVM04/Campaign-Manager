@@ -550,5 +550,7 @@ def test_proposal_prompt_distinguishes_stable_npc_creation_from_new_facts():
     assert "una sola create_entity de tipo npc" in prompt
     assert "update_entity con el ID existente" in prompt
     assert "description o notes" in prompt
+    assert "rasgo corporal" in prompt
+    assert "nunca un CreateItem" in prompt
     assert "No lo representes como create_relation ni create_event" in prompt
     assert "nunca dupliques una entidad conocida" in prompt
