@@ -26,6 +26,7 @@ not existing behavior of this package.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
 - `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; it is not called by the current production turn route.
+- `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
 ## Active NLU design decision — 2026-11-20
