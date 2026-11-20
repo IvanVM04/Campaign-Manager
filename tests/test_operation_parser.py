@@ -405,6 +405,29 @@ def test_parser_uses_registry_reference_fields_for_id_normalization():
     assert operations[0].target_id == 14
 
 
+
+@pytest.mark.parametrize("entity_type", [None, "", "   ", "x" * 51])
+def test_parser_rejects_blank_or_oversized_create_entity_type(entity_type):
+    with pytest.raises(OperationParseError, match="entity_type"):
+        OperationParser().parse({
+            "operations": [{
+                "type": "create_entity",
+                "name": "Aldric",
+                "entity_type": entity_type,
+            }]
+        })
+
+
+def test_parser_rejects_missing_create_entity_type_even_though_domain_constructor_has_default():
+    with pytest.raises(OperationParseError, match="entity_type"):
+        OperationParser().parse({
+            "operations": [{
+                "type": "create_entity",
+                "name": "Aldric",
+            }]
+        })
+
+
 def test_parser_accepts_and_normalizes_entity_aliases():
     operations = OperationParser().parse(
         {
