@@ -79,7 +79,10 @@
         "link_target_ref_kinds": [
           "event"
         ],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "cruces"
+        ]
       }
     },
     {
@@ -151,7 +154,10 @@
         "link_target_ref_kinds": [
           "event"
         ],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "Crea"
+        ]
       }
     },
     {
@@ -238,6 +244,9 @@
         ],
         "callback_anchor_candidates": [
           "lo de la pared"
+        ],
+        "event_predicate_surfaces": [
+          "escalarla"
         ]
       }
     },
@@ -323,7 +332,11 @@
         "link_target_ref_kinds": [
           "event"
         ],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "alcanzo",
+          "entro"
+        ]
       }
     },
     {
@@ -396,7 +409,10 @@
         "clarification_kinds": [],
         "link_source_ref_kinds": [],
         "link_target_ref_kinds": [],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "abrir"
+        ]
       }
     },
     {
@@ -481,7 +497,11 @@
         "link_target_ref_kinds": [
           "event"
         ],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "pregunto",
+          "examino"
+        ]
       }
     },
     {
@@ -568,7 +588,8 @@
         "clarification_kinds": [],
         "link_source_ref_kinds": [],
         "link_target_ref_kinds": [],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": []
       }
     },
     {
@@ -641,7 +662,10 @@
         "clarification_kinds": [],
         "link_source_ref_kinds": [],
         "link_target_ref_kinds": [],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "Entrego"
+        ]
       }
     },
     {
@@ -722,7 +746,10 @@
         "clarification_kinds": [],
         "link_source_ref_kinds": [],
         "link_target_ref_kinds": [],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "muestra"
+        ]
       }
     },
     {
@@ -805,7 +832,11 @@
         "link_target_ref_kinds": [
           "event"
         ],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "abrir",
+          "gira"
+        ]
       }
     },
     {
@@ -890,7 +921,11 @@
         "link_target_ref_kinds": [
           "event"
         ],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "abro",
+          "marcharme"
+        ]
       }
     },
     {
@@ -956,7 +991,10 @@
         "clarification_kinds": [],
         "link_source_ref_kinds": [],
         "link_target_ref_kinds": [],
-        "callback_anchor_candidates": []
+        "callback_anchor_candidates": [],
+        "event_predicate_surfaces": [
+          "dice"
+        ]
       }
     }
   ]
