@@ -671,26 +671,7 @@ def _normalize_explicit_actor_modalities(
         # proposition, not direct dialogue. Check this before the broader named
         # NPC speech matcher, which also accepts verbs such as "comenta" and
         # "afirma" and would otherwise relabel the report as dialogue.
-        reported_speaker = _REPORTED_SPEAKER_RE.match(excerpt)
-        if reported_speaker is None:
-            reported_speaker = _REPORTED_SPEAKER_RE.match(evidence)
-            excerpt_start = evidence.casefold().find(excerpt.casefold())
-            if (
-                reported_speaker is not None
-                and excerpt_start >= reported_speaker.end()
-            ):
-                excerpt_end = excerpt_start + len(excerpt)
-                speaker = reported_speaker.group("speaker").strip()
-                step["actor"] = (
-                    "other"
-                    if _fold(speaker).startswith(("un ", "una "))
-                    else "npc"
-                )
-                step["modality"] = "reported"
-                step["attributed_to"] = speaker
-                _widen_report_excerpt(step, evidence, excerpt_end)
-                rules.append("explicit_reported_speaker")
-        if reported_speaker is not None:
+        if _REPORTED_SPEAKER_RE.search(excerpt):
             continue
 
         named_speech = _NAMED_NPC_SPEECH_STEP_RE.match(excerpt)
