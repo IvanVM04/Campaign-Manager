@@ -1569,6 +1569,73 @@ def test_explicit_desire_to_continue_a_topic_is_a_plan_not_an_action():
     assert "explicit_continuation_desire_is_plan" in summary.applied_rules
 
 
+def test_explicit_continuation_plan_neutralizes_an_existing_action_frame():
+    source = "Quiero continuar con el asunto de la carta."
+    step = _step(source, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "continuar",
+        "family": "movement",
+        "arguments": [
+            {
+                "role": "patient",
+                "mention": {"text": "el asunto de la carta", "kind_hint": "world_entity"},
+            }
+        ],
+    }
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(step, category="action", active=0),
+        evidence_text=source,
+    )
+
+    frame = normalized["steps"][0]["action_frame"]
+    assert normalized["category"] == "plan"
+    assert normalized["active_step_index"] is None
+    assert frame["predicate"] == "continuar"
+    assert frame["family"] == "other"
+    assert frame["arguments"] == []
+    assert "explicit_continuation_desire_is_plan" in summary.applied_rules
+
+
+@pytest.mark.parametrize(
+    ("source", "steps"),
+    [
+        ("Retomando la carta y sigo leyendo.", [_step("Retomando la carta")]),
+        (
+            "Retomando la carta.",
+            [_step("Retomando la carta"), dict(_step("la carta"), index=1)],
+        ),
+        (
+            "Hablo de la carta, y sigo leyendo.",
+            [_step("Hablo de la carta"), dict(_step("y sigo leyendo"), index=1)],
+        ),
+        (
+            "Volviendo a eso, sigo leyendo.",
+            [_step("Volviendo a eso"), dict(_step("sigo leyendo"), index=1)],
+        ),
+        (
+            "Retomando la carta, sigo leyendo.",
+            [_step("otra cosa"), dict(_step("sigo leyendo"), index=1)],
+        ),
+    ],
+)
+def test_callback_prefix_normalizer_abstains_without_two_valid_anchored_steps(
+    source,
+    steps,
+):
+    from services.turns.intent_surface_normalization import (
+        _strip_explicit_callback_prefix,
+    )
+
+    result = _strip_explicit_callback_prefix(
+        _payload(*steps, category="action", active=1),
+        steps,
+        source,
+    )
+
+    assert result is None
+
+
 def test_unrelated_epistemic_sentence_does_not_become_a_second_action_step():
     source = "Intento abrir la puerta. Quizá el guardia se despierte."
     first = _step(
