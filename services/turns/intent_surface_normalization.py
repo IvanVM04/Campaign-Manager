@@ -667,13 +667,6 @@ def _normalize_explicit_actor_modalities(
         ):
             continue
 
-        # A reporting verb followed by "que" introduces an attributed
-        # proposition, not direct dialogue. Check this before the broader named
-        # NPC speech matcher, which also accepts verbs such as "comenta" and
-        # "afirma" and would otherwise relabel the report as dialogue.
-        if _REPORTED_SPEAKER_RE.search(excerpt):
-            continue
-
         named_speech = _NAMED_NPC_SPEECH_STEP_RE.match(excerpt)
         if named_speech is not None:
             speaker = named_speech.group("speaker").strip()
@@ -684,6 +677,13 @@ def _normalize_explicit_actor_modalities(
             step["attributed_to"] = speaker
             dialogue_indices.append(index)
             rules.append("explicit_npc_dialogue_step")
+            continue
+
+        # A reported proposition that has no explicit direct-speech step
+        # remains attributed speech. This follows the named dialogue matcher:
+        # "Aldric responde que..." is still an NPC dialogue act even though
+        # its complement is introduced by "que".
+        if _REPORTED_SPEAKER_RE.search(excerpt):
             continue
 
         pronoun_speech = _PRONOUN_NPC_SPEECH_STEP_RE.match(excerpt)
