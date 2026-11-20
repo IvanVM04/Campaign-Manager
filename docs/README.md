@@ -13,7 +13,7 @@ Read these first. They describe the current product target, source-verified impl
 - [Auditoría y rediseño de intención y semántica — 2026-11-20](architecture/player-intent-semantic-redesign-audit-2026-11-20.md) — dirección arquitectónica activa tras PR #281: actos comunicativos, eventos, enlaces discursivos, hechos y selección backend de acciones.
 - [Diseño de comprensión de lenguaje — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — snapshot histórico del pipeline v2 y del trabajo estructural #267–#272; no describe el diseño objetivo propuesto el 20 de noviembre.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
-- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — historical quality roadmap snapshot; its original NLU sequence predates PRs #272–#281. Use the 2026-11-20 semantic redesign audit and PR #281 report for the current NLU diagnosis and next steps.
+- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — dated snapshot of the previous quality roadmap; its original NLU sequence predates PRs #272–#281. Use the 2026-11-20 semantic redesign audit and PR #281 report for the current NLU diagnosis and next steps.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.
