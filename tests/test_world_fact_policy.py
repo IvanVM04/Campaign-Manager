@@ -334,3 +334,27 @@ def test_attributed_fact_is_not_persisted_without_source_authority():
     assert result.status is FactDecisionStatus.REJECTED
     assert result.reason is FactDecisionReason.ATTRIBUTED_OR_REPORTED
     assert result.operations == ()
+
+
+
+def test_fact_evidence_must_be_contained_in_its_source_act():
+    source = "Mara es hermana de Aldric."
+    fact = _fact(source)
+    act = UtteranceAct(
+        local_id="act_assertion",
+        force=UtteranceForce.ASSERTION,
+        speaker_role=SpeakerRole.PLAYER,
+        evidence_spans=(_span(source, "Mara"),),
+    )
+    interpretation = TurnInterpretationV3(
+        utterance_acts=(act,),
+        events=(),
+        discourse_links=(),
+        world_facts=(fact,),
+    )
+
+    result = _evaluate(fact, interpretation)
+
+    assert result.status is FactDecisionStatus.REJECTED
+    assert result.reason is FactDecisionReason.FACT_EVIDENCE_OUTSIDE_SOURCE_ACT
+    assert result.operations == ()
