@@ -55,6 +55,7 @@ class FactDecisionReason(str, enum.Enum):
     CANDIDATE_NOT_IN_INTERPRETATION = "candidate_not_in_interpretation"
     SOURCE_ACT_NOT_PLAYER_ASSERTION = "source_act_not_player_assertion"
     QUOTED_EVIDENCE = "quoted_evidence"
+    FACT_EVIDENCE_OUTSIDE_SOURCE_ACT = "fact_evidence_outside_source_act"
     ATTRIBUTED_OR_REPORTED = "attributed_or_reported"
     NON_PERSISTENT_EPISTEMIC_STATUS = "non_persistent_epistemic_status"
     NON_POSITIVE_POLARITY = "non_positive_polarity"
@@ -152,6 +153,18 @@ def evaluate_world_fact(
         return _decision(
             candidate, FactDecisionStatus.REJECTED,
             FactDecisionReason.SOURCE_ACT_NOT_PLAYER_ASSERTION,
+        )
+    if any(
+        not any(
+            act_span.start <= fact_span.start
+            and fact_span.end <= act_span.end
+            for act_span in act.evidence_spans
+        )
+        for fact_span in candidate.evidence_spans
+    ):
+        return _decision(
+            candidate, FactDecisionStatus.REJECTED,
+            FactDecisionReason.FACT_EVIDENCE_OUTSIDE_SOURCE_ACT,
         )
     if any(
         evidence.start < quote.end and quote.start < evidence.end
