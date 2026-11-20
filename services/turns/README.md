@@ -25,6 +25,7 @@ not existing behavior of this package.
 - `intent_normalization_pipeline.py` — deterministic provider-payload normalization, strict versioned model decoding and content-free stage diagnostics. It does not call the provider, resolve canonical IDs or authorize writes.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
+- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; it is not called by the current production turn route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
 ## Active NLU design decision — 2026-11-20
@@ -40,8 +41,10 @@ backend-only `GameplayActionCandidate` record. See the
 
 **This does not switch production to v3.** The prompt, `IntentInterpreter`,
 mechanics/proposal gates, durable `intent_json`, codecs and persistence still
-use PlayerIntentAnalysis v1/v2. No service or bootstrap module may import the
-v3 contract in this phase. PR #286 adds the single holistic v3 prompt and paired
+use PlayerIntentAnalysis v1/v2. PR #287 adds one isolated service module, `player_action_selector.py`, which
+consumes the v3 DTO to derive backend action candidates. No provider runtime,
+turn orchestration, bootstrap or composition root imports or invokes the v3
+pipeline yet. PR #286 adds the single holistic v3 prompt and paired
 v2/v3 shadow runner under `tests/` only. It reuses the exact v2-rendered context
 and evidence, performs a second call with the same provider, validates v3 with
 the PR #285 decoder and emits only content-free metrics. Neither v3 output nor

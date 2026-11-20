@@ -13,6 +13,7 @@ Read these first. They describe the current product target, source-verified impl
 - [Auditoría y rediseño de intención y semántica — 2026-11-20](architecture/player-intent-semantic-redesign-audit-2026-11-20.md) — dirección arquitectónica activa tras PR #281: actos comunicativos, eventos, enlaces discursivos, hechos y selección backend de acciones.
 - [Player turn interpretation v3 contract — 2026-11-20](architecture/player-turn-interpretation-v3-contract-2026-11-20.md) — contrato de fase 1 entregado por PR #285; DTOs/decoder y criterios de aislamiento. No implica que v3 se use en producción.
 - [Player turn interpretation v3 shadow prompt — 2026-11-20](architecture/player-turn-interpretation-v3-shadow-2026-11-20.md) — PR #286: prompt holístico y comparación en sombra v2/v3 con corpus held-out; harness de evaluación únicamente, producción permanece en v2.
+- [Player action selection and partial checkpoint — 2026-11-20](architecture/player-action-selection-checkpoint-2026-11-20.md) — PR #287: selector backend determinista, dependencias `condition_on_success`, checkpoint durable por acción y reanudación parcial; sin activar todavía el pipeline v3 en los turnos reales.
 - [Diseño de comprensión de lenguaje — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — snapshot histórico del pipeline v2 y del trabajo estructural #267–#272; no describe el diseño objetivo propuesto el 20 de noviembre.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
 - [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — dated snapshot of the previous quality roadmap; its original NLU sequence predates PRs #272–#281. Use the 2026-11-20 semantic redesign audit and PR #281 report for the current NLU diagnosis and next steps.
@@ -26,7 +27,7 @@ Read these first. They describe the current product target, source-verified impl
 - [Shared-layer module catalogue — dated PR #205 inventory](architecture/module-catalog-2026-11-12.md) — useful navigation aid for shared layers; individual paths/notes are not a fresh 2026-11-18 audit, so verify against source and the current-state map.
 - [Change-impact map](architecture/change-impact-map-2026-11-12.md) — contracts and tests to review for cross-layer changes.
 - [Capability dependency matrix](architecture/package-dependency-matrix.md) — dependency direction enforced by architecture tests.
-- [Migration catalogue](architecture/migration-catalog-2026-11-12.md) — migration registry and schema version. The current code baseline has `CURRENT_VERSION = 34`.
+- [Migration catalogue](architecture/migration-catalog-2026-11-12.md) — migration registry and schema version. The current code baseline has `CURRENT_VERSION = 35`.
 - [Observability and diagnostics](architecture/observability-and-diagnostics.md) — structured local logs, correlation, safe telemetry and privacy boundaries.
 - [Writer, lock and cache audit](architecture/writer-lock-cache-audit.md) — current single-process synchronization and route-to-writer responsibilities.
 

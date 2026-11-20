@@ -13,8 +13,8 @@ class TurnResolutionRepository:
     _FIELDS = """
         id, campaign_id, session_id, turn_id, player_input,
         adapter_namespace, conversation_id, idempotency_key, request_fingerprint,
-        lifecycle_state, context_revision, resulting_revision, proposal_json, intent_json, adjudication_json,
-        mechanics_json, operation_results_json, narrative, attempt_count,
+        lifecycle_state, context_revision, resulting_revision, proposal_json, intent_json, action_checkpoint_json,
+        adjudication_json, mechanics_json, operation_results_json, narrative, attempt_count,
         lease_token, lease_expires_at, last_error_code, created_at,
         updated_at, committed_at, completed_at
     """
@@ -53,15 +53,19 @@ class TurnResolutionRepository:
             raise TypeError("record must be a TurnResolutionRecord")
         if record.campaign_id != scope.campaign_id:
             raise ValueError("record campaign does not match scope")
+        if record.action_checkpoint_json is not None:
+            raise ValueError(
+                "action checkpoints must be saved under an active planning lease"
+            )
         query = """
             INSERT INTO turn_resolutions (
                 campaign_id, session_id, turn_id, player_input,
                 adapter_namespace, conversation_id, idempotency_key, request_fingerprint,
                 lifecycle_state, context_revision, resulting_revision, proposal_json,
-                intent_json, adjudication_json, mechanics_json, operation_results_json,
+                intent_json, action_checkpoint_json, adjudication_json, mechanics_json, operation_results_json,
                 narrative, attempt_count, lease_token, lease_expires_at,
                 last_error_code, committed_at, completed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             record.campaign_id, record.session_id, record.turn_id,
@@ -69,7 +73,7 @@ class TurnResolutionRepository:
             record.idempotency_key, record.request_fingerprint,
             record.lifecycle_state, record.context_revision,
             record.resulting_revision, record.proposal_json, record.intent_json,
-            record.adjudication_json, record.mechanics_json, record.operation_results_json,
+            record.action_checkpoint_json, record.adjudication_json, record.mechanics_json, record.operation_results_json,
             record.narrative, record.attempt_count, record.lease_token,
             record.lease_expires_at, record.last_error_code,
             record.committed_at, record.completed_at,
@@ -196,6 +200,107 @@ class TurnResolutionRepository:
         )
         if cursor.rowcount != 1:
             raise ValueError("turn resolution state changed during transition")
+        return self._require_record(self.get(resolution_id, scope=scope, conn=conn))
+
+
+    def save_action_checkpoint(
+        self,
+        resolution_id: int,
+        checkpoint_json: str,
+        *,
+        scope: CampaignScope,
+        expected_state: str,
+        expected_lease_token: str,
+        expected_context_revision: int | None,
+        expected_checkpoint_json: str | None,
+        now: str,
+        conn,
+    ) -> TurnResolutionRecord:
+        """CAS-save a versioned action checkpoint while this worker owns the lease.
+
+        The first checkpoint may bind a previously unset context revision. Later
+        updates must compare against the exact revision and checkpoint currently
+        stored by the caller. Committed evidence is immutable.
+        """
+        import hashlib
+
+        from models.player_action_checkpoint import PlayerActionCheckpoint
+
+        self._validate_scope(scope)
+        if expected_state != "planning":
+            raise ValueError("action checkpoints can only be saved while planning")
+        if not isinstance(expected_lease_token, str) or not expected_lease_token:
+            raise ValueError("expected_lease_token is required")
+        if not isinstance(now, str) or not now:
+            raise ValueError("now is required for lease fencing")
+        if expected_context_revision is not None and (
+            isinstance(expected_context_revision, bool)
+            or not isinstance(expected_context_revision, int)
+            or expected_context_revision < 1
+        ):
+            raise ValueError("expected_context_revision must be positive or None")
+        checkpoint = PlayerActionCheckpoint.from_json(checkpoint_json)
+        if checkpoint.resolution_id != resolution_id:
+            raise ValueError("checkpoint belongs to a different resolution")
+        current = self.get(resolution_id, scope=scope, conn=conn)
+        if current is None:
+            raise LookupError("turn resolution not found")
+        if current.lifecycle_state != expected_state:
+            raise ValueError("turn resolution state changed; reload before checkpoint save")
+        if current.lease_token != expected_lease_token:
+            raise ValueError("planning lease was superseded")
+        if current.lease_expires_at is None or current.lease_expires_at <= now:
+            raise ValueError("planning lease expired before checkpoint save")
+        if current.context_revision != expected_context_revision:
+            raise ValueError("context revision changed before checkpoint save")
+        if current.action_checkpoint_json != expected_checkpoint_json:
+            raise ValueError("action checkpoint changed before compare-and-swap")
+        if current.action_checkpoint_json is not None:
+            previous_checkpoint = PlayerActionCheckpoint.from_json(
+                current.action_checkpoint_json
+            )
+            checkpoint.validate_progress_from(previous_checkpoint)
+        if checkpoint.context_revision < 1:
+            raise ValueError("checkpoint context revision must be positive")
+        if (
+            expected_context_revision is not None
+            and checkpoint.context_revision != expected_context_revision
+        ):
+            raise ValueError("checkpoint context revision does not match the durable snapshot")
+        source_digest = hashlib.sha256(
+            current.player_input.encode("utf-8")
+        ).hexdigest()
+        if checkpoint.source_sha256 != source_digest:
+            raise ValueError("checkpoint is not bound to the durable player input")
+        if len(checkpoint_json.encode("utf-8")) > 131_072:
+            raise ValueError("action checkpoint exceeds its byte budget")
+
+        cursor = conn.execute(
+            """
+            UPDATE turn_resolutions
+            SET action_checkpoint_json=?,
+                context_revision=?,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE id=? AND campaign_id=?
+              AND lifecycle_state='planning'
+              AND lease_token=?
+              AND lease_expires_at>?
+              AND context_revision IS ?
+              AND action_checkpoint_json IS ?
+            """,
+            (
+                checkpoint_json,
+                checkpoint.context_revision,
+                resolution_id,
+                scope.campaign_id,
+                expected_lease_token,
+                now,
+                expected_context_revision,
+                expected_checkpoint_json,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise ValueError("action checkpoint changed during compare-and-swap")
         return self._require_record(self.get(resolution_id, scope=scope, conn=conn))
 
     def update_completed_projection(
