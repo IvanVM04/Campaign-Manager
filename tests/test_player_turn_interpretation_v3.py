@@ -91,7 +91,7 @@ def _payload(source=None):
                 "action_phase": "planned",
                 "temporal_expression": None,
                 "attributed_source": _mention("Aldric"),
-                "evidence_spans": [_span(source, quote)],
+                "evidence_spans": [_span(source, warning)],
             }
         ],
         "discourse_links": [
