@@ -18,6 +18,7 @@ from models.player_turn_interpretation_v3 import (
     WorldFactKind,
 )
 from models.relation import Relation
+from models.resolved_conversation_reference import ResolvedConversationReference
 from models.semantic_frames import (
     SemanticActionFamily,
     SemanticMention,
@@ -83,13 +84,33 @@ def _world():
     })
 
 
+def _resolved_reference(world, mention, entity_id):
+    if entity_id is None:
+        return None
+    entity = world.entities[entity_id]
+    return ResolvedConversationReference(
+        mention=mention,
+        entity_id=entity_id,
+        entity_name=entity.name,
+        match_kind="test",
+    )
+
+
 def _evaluate(fact, interpretation, world=None, **kwargs):
+    world = world or _world()
+    subject_id = kwargs.pop("subject_entity_id", 1)
+    object_id = kwargs.pop("object_entity_id", 2)
+    subject_mention = kwargs.pop("subject_reference_mention", fact.subject.text)
+    object_mention = kwargs.pop(
+        "object_reference_mention",
+        fact.object.text if fact.object is not None else "",
+    )
     return evaluate_world_fact(
-        fact, interpretation, world or _world(),
-        subject_entity_id=kwargs.pop("subject_entity_id", 1),
-        subject_visibility_verified=kwargs.pop("subject_visibility_verified", True),
-        object_entity_id=kwargs.pop("object_entity_id", 2),
-        object_visibility_verified=kwargs.pop("object_visibility_verified", True),
+        fact,
+        interpretation,
+        world,
+        subject_reference=_resolved_reference(world, subject_mention, subject_id),
+        object_reference=_resolved_reference(world, object_mention, object_id),
         **kwargs,
     )
 
@@ -213,7 +234,7 @@ def test_transfer_arguments_do_not_imply_ownership_or_possession():
     assert result.operations == ()
 
 
-def test_unresolved_or_invisible_endpoints_do_not_create_relations():
+def test_unresolved_or_mismatched_endpoints_do_not_create_relations():
     source = "Mara es hermana de Aldric."
     fact = _fact(source)
     interpretation = _interpretation(source, fact)
@@ -221,19 +242,22 @@ def test_unresolved_or_invisible_endpoints_do_not_create_relations():
     assert unresolved.status is FactDecisionStatus.NEEDS_CLARIFICATION
     assert unresolved.reason is FactDecisionReason.SUBJECT_UNRESOLVED
     assert unresolved.to_receipt().state.value == "pending"
-    invisible = _evaluate(fact, interpretation, subject_visibility_verified=False)
-    assert invisible.status is FactDecisionStatus.REJECTED
-    assert invisible.reason is FactDecisionReason.VISIBILITY_UNVERIFIED
+    mismatched = _evaluate(
+        fact, interpretation, subject_reference_mention="Aldric"
+    )
+    assert mismatched.status is FactDecisionStatus.REJECTED
+    assert mismatched.reason is FactDecisionReason.REFERENCE_MISMATCH
     unresolved_object = _evaluate(fact, interpretation, object_entity_id=None)
     assert unresolved_object.status is FactDecisionStatus.NEEDS_CLARIFICATION
     assert unresolved_object.reason is FactDecisionReason.OBJECT_UNRESOLVED
 
 
-def test_reference_id_must_match_the_literal_mention():
+def test_reference_mention_must_match_the_exact_candidate_endpoint():
     source = "Mara es hermana de Aldric."
     fact = _fact(source)
     result = _evaluate(
-        fact, _interpretation(source, fact), subject_entity_id=2
+        fact, _interpretation(source, fact),
+        subject_reference_mention="Aldric",
     )
     assert result.status is FactDecisionStatus.REJECTED
     assert result.reason is FactDecisionReason.REFERENCE_MISMATCH
