@@ -59,7 +59,7 @@ _FIELD_DESCRIPTIONS: dict[str, str] = {
     "resource_id": "ID de la definición del recurso.",
     "resource_type": "Categoría del recurso cuantificable.",
     "unit": "Unidad usada para expresar el recurso.",
-    "amount": "Cantidad del recurso que se transfiere o ajusta.",
+    "amount": "Cantidad transferida o ajustada.",
     "subject_id": "ID de la entidad que inicia la relación o transferencia.",
     "target_id": "ID de la entidad destino.",
     "relation_id": "Identificador estable de la relación.",
