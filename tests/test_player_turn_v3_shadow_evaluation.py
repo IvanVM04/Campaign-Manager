@@ -7,8 +7,10 @@ from services.providers import FakeLLMProvider
 from services.turns.intent_interpreter import IntentInterpreter
 from tests.player_turn_interpretation_v3_shadow import (
     PlayerTurnInterpretationV3ShadowRunner,
+    comparison_shape,
 )
 from tests.player_turn_v3_shadow_evaluation import (
+    _V3_SEQUENCE_FIELDS,
     load_v3_shadow_corpus,
     score_shadow_comparison,
 )
@@ -57,6 +59,9 @@ def test_shadow_scorer_emits_only_structural_diagnostics():
     comparison = PlayerTurnInterpretationV3ShadowRunner(interpreter).run(
         _context(),
         EVIDENCE,
+    )
+    assert set(_V3_SEQUENCE_FIELDS).issubset(
+        comparison_shape(comparison)["v3"]
     )
     scenario = next(
         item
