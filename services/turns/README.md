@@ -26,6 +26,7 @@ not existing behavior of this package.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
 - `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; it is not called by the current production turn route.
+- `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
 ## Active NLU design decision — 2026-11-20
@@ -49,7 +50,8 @@ v2/v3 shadow runner under `tests/` only. It reuses the exact v2-rendered context
 and evidence, performs a second call with the same provider, validates v3 with
 the PR #285 decoder and emits only content-free metrics. Neither v3 output nor
 its errors can affect the v2 result, mechanics or persistence. See the
-[v3 shadow evaluation specification](../../docs/architecture/player-turn-interpretation-v3-shadow-2026-11-20.md).
+[v3 shadow evaluation specification](../../docs/architecture/player-turn-interpretation-v3-shadow-2026-11-20.md). See the [world-fact policy specification](../../docs/architecture/player-world-fact-policy-2026-11-20.md) for the isolated PR #288 eligibility and persistence boundary.
+
 Preserve the v1/v2 decoders and historical replay behavior.
 
 PR #284 hardens the existing v2 boundary without changing its durable schema:
