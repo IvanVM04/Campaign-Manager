@@ -80,18 +80,10 @@ epistémica expresada literalmente por el jugador. No declares éxito o fracaso
 a partir del mero presente narrativo de un intento. No dividas una acción
 compuesta ni inventes pasos.
 
-MODALIDAD Y ACTOR POR PASO — NO HEREDES EL VALOR DEL PASO ANTERIOR
-Cada step tiene su propio actor, modalidad y polaridad. En «Mara me entrega la
-llave y yo intento guardarla», el primer step es actor=npc, modality=observed;
-el segundo actor=player, modality=attempted. En «Mara pregunta por el mapa y
-Aldric responde», ambos pasos son dialogue de NPC. En «Mara responde mientras
-Aldric entra», el primero es dialogue y el segundo report/observed. En «No
-abro la puerta; en cambio, intento levantar la reja», conserva el primer paso
-negated/negative y el segundo attempted/positive; la categoría global es
-action y el paso activo es el segundo. En «Veo a Aldric dejar una bolsa», el
-actor del evento dejar es Aldric (npc), modality=observed; el jugador es quien
-percibe, no quien deja la bolsa. Nunca asignes la misma modalidad a todos los
-steps por defecto.
+ACTOR Y MODALIDAD SON LOCALES A CADA STEP: nunca heredes actor, modalidad
+ni polaridad. NPC que habla = dialogue; acción física de NPC = report/observed;
+«Veo a Aldric dejar...» no convierte al jugador en autor del acto observado.
+Conserva una negación y el intento posterior como steps distintos.
 
 Distingue intento actual de pregunta, plan, hipótesis, deseo, negación,
 cancelación, diálogo citado, discurso referido, observación y reporte. Decide
@@ -111,22 +103,12 @@ e incertidumbre del resultado («no sé si lo consigo»). La negación citada o
 reportada no es decisión del jugador; una nueva cláusula explícita suya
 («pero decido no...») sí se atribuye al jugador. Permanecer fuera solo confirma
 la abstención. Si reporte y acción no se separan en pasos, pide aclaración.
-Elipsis y callbacks requieren antecedente único, visible y no resuelto; ante
-ambigüedad pide aclaración. Un pronombre aislado con un verbo de habla presente
-(«Ella vuelve a hablar conmigo») no es por sí solo un callback: clasifica el
-acto como diálogo y conserva el pronombre sin inventar identidad ni reactivar
-un tema histórico salvo que exista una marca de callback explícita. Una frase
-como «Como te dije antes, quiero continuar con el asunto de la carta» expresa
-un plan/deseo de continuación, no una acción actual ni un acto de diálogo.
-Si el mensaje actual contiene una elipsis afirmativa
-no citada («Hazlo otra vez», «Continúa con eso») y el contexto seleccionado
-identifica una única acción previa del jugador aún pendiente, clasifica el acto
-actual como action, actor=player y modality=attempted; el campo action puede
-describir la acción recuperada. source_excerpt, predicate, argumentos y
-menciones siguen siendo literales del mensaje actual: nunca copies palabras
-ni argumentos históricos como si se hubieran repetido. Si no existe predicado
-literal suficiente, no inventes un action_frame. Una elipsis citada por un NPC
-no es una orden ni una acción del jugador. Una petición implícitamente dirigida al DM es
+Elipsis/callbacks exigen antecedente único y visible; nunca copies texto
+histórico como evidencia actual. «Ella vuelve a hablar» sin marcador de callback
+es diálogo, no callback; «quiero continuar con el asunto...» es plan. «Hazlo
+otra vez» solo recupera una acción previa única y pendiente: menciones,
+argumentos y source_excerpt siguen limitados al mensaje actual. Una elipsis
+citada por un NPC no es una acción del jugador. Una petición implícitamente dirigida al DM es
 question si solicita información; una duda sin petición es report. Respeta
 cambios de tema, hablante y concordancia. No deduzcas género o identidad por
 un nombre propio.
