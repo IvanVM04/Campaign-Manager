@@ -24,8 +24,8 @@ from models.player_intent_analysis import (
     UtteranceCategory,
 )
 from models.semantic_frames import SemanticActionFamily
-from services.discourse_context import DiscourseContextBuilder
 from services.discourse.speech_predicates import SPEECH_PREDICATE_ALTERNATION
+from services.discourse_context import DiscourseContextBuilder
 
 from .intent_surface_normalization import normalize_intent_surface_payload
 from .semantic_surface_hints import (
