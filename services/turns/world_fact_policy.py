@@ -248,8 +248,7 @@ def evaluate_world_fact(
             candidate, FactDecisionStatus.NEEDS_CLARIFICATION,
             FactDecisionReason.OBJECT_UNRESOLVED,
         )
-    target = _trusted_entity(world, object_reference, candidate.object.text)
-    if target is None:
+    if _trusted_entity(world, object_reference, candidate.object.text) is None:
         return _decision(
             candidate, FactDecisionStatus.REJECTED,
             FactDecisionReason.REFERENCE_MISMATCH,
