@@ -272,12 +272,20 @@ def evaluate_world_fact(
             candidate, FactDecisionStatus.REJECTED,
             FactDecisionReason.MISSING_NORMALIZED_RELATION,
         )
+    transfer_events = tuple(
+        event for event in interpretation.events
+        if event.source_act_id == candidate.source_act_id
+        and event.family is SemanticActionFamily.TRANSFER
+    )
     if (
         candidate.relation_family.value in {"ownership", "possession"}
         and any(
-            event.source_act_id == candidate.source_act_id
-            and event.family is SemanticActionFamily.TRANSFER
-            for event in interpretation.events
+            _fold(candidate.predicate_surface) in _fold(fact_span.text)
+            and fact_span.start < event_span.end
+            and event_span.start < fact_span.end
+            for event in transfer_events
+            for fact_span in candidate.evidence_spans
+            for event_span in event.evidence_spans
         )
     ):
         return _decision(
