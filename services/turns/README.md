@@ -33,6 +33,24 @@ The production route described below remains the implemented v2 pipeline. The PR
 
 That audit proposes a future versioned contract separating communicative acts, event/proposition frames, discourse links and persistent-fact candidates. Gameplay-action candidates and the active focus would then be derived by backend policy. **This proposal is not implemented by this package yet**: PlayerIntentAnalysis v2, its durable compatibility and the current mechanics/proposal gates remain the runtime contract until the migration is delivered and accepted. Do not describe v3 as an available capability or weaken the existing v1/v2 decoders.
 
+PR #284 hardens the existing v2 boundary without changing its durable schema:
+a callback-only first clause is removed only when it is a separately emitted,
+literal, anchored preamble; later steps, active-step indices and relation-claim
+indices are remapped together. The callback remains discourse context, not an
+event. For transfer/creation frames, an ownership/possession/unknown relation
+claim that shadows the same action clause is discarded with a content-free
+diagnostic. Explicitly recognized relation constructions still take
+precedence and preserve their directed endpoints. Relation predicates use
+the lexical relation head (for example, `hermana`, not the copular sequence
+`es hermana`) to match the semantic-frame gold contract.
+
+Speech predicate morphology is centralized in
+`services/discourse/speech_predicates.py`; the intent surface normalizer,
+semantic action normalizer and discourse signal extractor consume the same
+inventory, including forms such as `advierte/advirtió` and clitic-bearing
+constructions. This inventory detects evidence only: it does not assign NPC
+identity or grant action authority.
+
 ## Modular language-understanding pipeline
 
 The production runtime composes role-specific providers and follows this sequence:
