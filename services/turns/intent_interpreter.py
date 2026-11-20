@@ -1108,6 +1108,16 @@ El esquema JSON es el contrato estructural."""
                         "normalization": "literal_named_quoted_speaker",
                     },
                 )
+            if diagnostics.dropped_action_shadow_relation_claims:
+                logger.warning(
+                    "llm.intent.action_shadow_relation_claims_dropped",
+                    extra={
+                        "provider_role": "intent",
+                        "provider_model": getattr(self.provider, "model", None),
+                        "dropped_count": diagnostics.dropped_action_shadow_relation_claims,
+                        "normalization": "action_is_not_a_world_relation",
+                    },
+                )
             if diagnostics.semantic_action_rules or diagnostics.semantic_relation_rules:
                 logger.info(
                     "llm.intent.semantic_surface_rules_applied",
