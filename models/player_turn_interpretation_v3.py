@@ -293,6 +293,22 @@ class EvidenceSpan:
         return span
 
 
+def _validate_span_order(spans: tuple[EvidenceSpan, ...], name: str) -> None:
+    """Require exact evidence spans to follow surface order without overlap."""
+    previous_end = -1
+    for span in spans:
+        if span.start < previous_end:
+            raise ValueError(f"{name} spans must be ordered and non-overlapping")
+        previous_end = span.end
+
+
+def _validate_record_order(records: tuple[Any, ...], name: str) -> None:
+    """Keep same-layer records in the order they first occur in player text."""
+    starts = tuple(record.evidence_spans[0].start for record in records)
+    if starts != tuple(sorted(starts)):
+        raise ValueError(f"{name} must preserve source order")
+
+
 def _parse_spans(payload: Any, *, source_text: str, name: str, minimum: int = 1) -> tuple[EvidenceSpan, ...]:
     raw = _sequence(
         payload,
@@ -300,7 +316,9 @@ def _parse_spans(payload: Any, *, source_text: str, name: str, minimum: int = 1)
         MAX_EVIDENCE_SPANS_PER_RECORD,
         minimum=minimum,
     )
-    return tuple(EvidenceSpan.from_payload(item, source_text=source_text) for item in raw)
+    spans = tuple(EvidenceSpan.from_payload(item, source_text=source_text) for item in raw)
+    _validate_span_order(spans, name)
+    return spans
 
 
 def _parse_mention(
@@ -340,6 +358,7 @@ class UtteranceAct:
             raise ValueError("utterance act requires bounded evidence spans")
         if any(not isinstance(item, EvidenceSpan) for item in self.evidence_spans):
             raise TypeError("evidence_spans must contain EvidenceSpan values")
+        _validate_span_order(self.evidence_spans, "utterance act evidence")
         for name, mention in (("speaker_mention", self.speaker_mention), ("addressee_mention", self.addressee_mention)):
             if mention is not None and not isinstance(mention, SemanticMention):
                 raise TypeError(f"{name} must be a SemanticMention or None")
@@ -347,6 +366,7 @@ class UtteranceAct:
                 _require_in_spans(self.evidence_spans, mention.text, name)
         if not isinstance(self.quote_spans, tuple) or len(self.quote_spans) > MAX_QUOTE_SPANS_PER_ACT:
             raise ValueError("quote_spans must be a bounded tuple")
+        _validate_span_order(self.quote_spans, "quote")
         for quote in self.quote_spans:
             if not isinstance(quote, EvidenceSpan):
                 raise TypeError("quote_spans must contain EvidenceSpan values")
@@ -441,6 +461,7 @@ class EventFrame:
             raise ValueError("event frame requires bounded evidence spans")
         if any(not isinstance(item, EvidenceSpan) for item in self.evidence_spans):
             raise TypeError("evidence_spans must contain EvidenceSpan values")
+        _validate_span_order(self.evidence_spans, "event evidence")
         _require_in_spans(self.evidence_spans, self.predicate_surface, "predicate_surface")
         for argument in self.arguments:
             _require_in_spans(self.evidence_spans, argument.mention.text, "argument mention")
@@ -531,6 +552,7 @@ class DiscourseLink:
             raise ValueError("discourse link requires bounded evidence spans")
         if any(not isinstance(item, EvidenceSpan) for item in self.evidence_spans):
             raise TypeError("evidence_spans must contain EvidenceSpan values")
+        _validate_span_order(self.evidence_spans, "discourse link evidence")
         if self.link_type is DiscourseLinkType.CALLBACK:
             if self.target_ref is not None:
                 raise ValueError("callback cannot invent a historical local target")
@@ -613,6 +635,7 @@ class WorldFactCandidate:
             raise ValueError("world fact requires bounded evidence spans")
         if any(not isinstance(item, EvidenceSpan) for item in self.evidence_spans):
             raise TypeError("evidence_spans must contain EvidenceSpan values")
+        _validate_span_order(self.evidence_spans, "world fact evidence")
         if self.object is not None and not isinstance(self.object, SemanticMention):
             raise TypeError("object must be a SemanticMention or None")
         if self.value_surface is not None:
@@ -737,6 +760,7 @@ class ClarificationCandidate:
             raise ValueError("clarification candidate requires bounded evidence spans")
         if any(not isinstance(item, EvidenceSpan) for item in self.evidence_spans):
             raise TypeError("evidence_spans must contain EvidenceSpan values")
+        _validate_span_order(self.evidence_spans, "clarification evidence")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -804,6 +828,10 @@ class TurnInterpretationV3:
                 raise ValueError(f"{name} must be a bounded tuple")
             if any(not isinstance(item, expected_type) for item in values):
                 raise TypeError(f"{name} contains an invalid record type")
+
+        _validate_record_order(self.utterance_acts, "utterance_acts")
+        _validate_record_order(self.events, "events")
+        _validate_record_order(self.world_facts, "world_facts")
 
         act_ids = {item.local_id for item in self.utterance_acts}
         event_ids = {item.local_id for item in self.events}
