@@ -691,7 +691,7 @@ def _normalize_action_frame(
             theme_match = re.search(
                 r"\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
                 r"encontró|encontro|conoce|conocía|conocia)\s+"
-                r"(?P<theme>(?:el|la|los|las|un|una)\s+[^,.!?;]+)[.!?]?\\s*$",
+                r"(?P<theme>(?:el|la|los|las|un|una)\s+[^,.!?;]+)[.!?]?\s*$",
                 tail,
                 re.IGNORECASE,
             )
