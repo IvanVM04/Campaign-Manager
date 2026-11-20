@@ -36,6 +36,8 @@ _V3_COUNT_FIELDS = (
     "discourse_links",
     "world_facts",
     "clarification_candidates",
+    "evidence_spans",
+    "quote_spans",
 )
 _V2_FIELDS = ("category", "step_count", "active_step_index")
 
@@ -211,7 +213,9 @@ def score_shadow_comparison(
             "event_count" if field == "events" else
             "link_count" if field == "discourse_links" else
             "fact_count" if field == "world_facts" else
-            "clarification_count"
+            "clarification_count" if field == "clarification_candidates" else
+            "evidence_span_count" if field == "evidence_spans" else
+            "quote_span_count"
         ]
         metric = f"v3_count_{field}:{scenario['family']}"
         passed = expected_count == observed_count
