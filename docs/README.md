@@ -2,7 +2,7 @@
 
 This is the navigation entry point for maintainers, coding agents and product work. The repository contains both current source-of-truth documents and dated implementation/audit snapshots. **A date-stamped PR record is not automatically current guidance.**
 
-## Current source of truth — 2026-11-19
+## Current source of truth — 2026-11-20
 
 Read these first. They describe the current product target, source-verified implementation state and active quality priorities.
 
@@ -10,9 +10,10 @@ Read these first. They describe the current product target, source-verified impl
 - [Current system state and architecture map](architecture/current-state-2026-11-18.md) — architecture snapshot dated 18 Nov with a 19 Nov reconciliation note.
 - [Project-wide audit — 19 Nov](architecture/project-audit-2026-11-19.md) — latest source-verified baseline at `8276450`, PR #267–#269 delivery, CI metrics and updated roadmap.
 - [Current architecture map](architecture/architecture-map-2026-11-18.md), [architecture audit](architecture/architecture-audit-2026-11-18.md) and [change-impact map](architecture/change-impact-map-2026-11-18.md) — complementary package/flow map, source-verified technical risks and regression surfaces.
-- [Player-language understanding architecture — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — active NLU/discourse/reference boundaries, normalization-stage order, evidence/authority invariants and structural PR roadmap.
+- [Auditoría y rediseño de intención y semántica — 2026-11-20](architecture/player-intent-semantic-redesign-audit-2026-11-20.md) — dirección arquitectónica activa tras PR #281: actos comunicativos, eventos, enlaces discursivos, hechos y selección backend de acciones.
+- [Diseño de comprensión de lenguaje — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — snapshot histórico del pipeline v2 y del trabajo estructural #267–#272; no describe el diseño objetivo propuesto el 20 de noviembre.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
-- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — quality/AI risks, corrected evaluator-first sequence and live acceptance gates.
+- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — historical quality roadmap snapshot; its original NLU sequence predates PRs #272–#281. Use the 2026-11-20 semantic redesign audit and PR #281 report for the current NLU diagnosis and next steps.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.
@@ -72,7 +73,8 @@ These documents describe current production boundaries. Prefer them over histori
 The latest project-wide baseline and reconciled milestone status are recorded in [the 2026-11-19 project audit](architecture/project-audit-2026-11-19.md). PR #269 is integrated; it is no longer in progress.
 
 - [Current quality roadmap](quality/quality-roadmap-2026-11-18.md) — authoritative priority order after PR #266; the full live model benchmark is deliberately gated behind the architecture milestones.
-- [Live Ollama evaluation — 2026-11-20](quality/live-ollama-evaluation-2026-11-20.md) — diagnostic run with Gemma 4 12B Q4_K_M after PRs #279/#280: 11/22 live tests passed, domain F1 85,24–98,67 %, compound-step modality 54,0 %, callback 3/12 and a report-commit provenance mismatch. This is not a SillyTavern acceptance result; use it as the latest observed failure inventory until a clean, reproducible rerun is available.
+- [Live Ollama evaluation — 2026-11-20](quality/live-ollama-evaluation-2026-11-20.md) — diagnostic run with Gemma 4 12B Q4_K_M after PRs #279/#280: 11/22 live tests passed, domain F1 85,24–98,67 %, compound-step modality 54,0 %, callback 3/12 and a report-commit provenance mismatch. The 93 % mean is not a global comprehension score, and the run is not a SillyTavern acceptance result.
+- [Auditoría de rediseño semántico — 2026-11-20](architecture/player-intent-semantic-redesign-audit-2026-11-20.md) — diagnosis and target architecture based on that failure inventory; the proposed v3 contract is not implemented yet.
 - [Player-language understanding architecture](architecture/player-language-understanding-architecture-2026-11-19.md) — the contract source for the NLU structural work.
 - [Player-message comprehension phase — PR #255](quality/player-message-comprehension-phase-2026-11-18.md) — current delivery record: dative clitics, named-NPC speech signals, callback anchor scoping, negated step sequencing and 14 compound-intent holdout scenarios.
 - [Predicate-understanding audit](quality/predicate-understanding-audit-2026-11-17.md) — dated audit which motivated predicate-specific scoring; its historical scores are not a current post-PR255 baseline.

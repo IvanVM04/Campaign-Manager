@@ -27,6 +27,12 @@ not existing behavior of this package.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
+## Active NLU design decision — 2026-11-20
+
+The production route described below remains the implemented v2 pipeline. The PR #281 live evaluation exposed a gap between field-level scores and complete semantic scenarios, particularly compound-step modality, callbacks, relation direction and the separation of NPC facts from action outcomes. The current architecture target and migration proposal are documented in [the player-intent semantic redesign audit](../../docs/architecture/player-intent-semantic-redesign-audit-2026-11-20.md).
+
+That audit proposes a future versioned contract separating communicative acts, event/proposition frames, discourse links and persistent-fact candidates. Gameplay-action candidates and the active focus would then be derived by backend policy. **This proposal is not implemented by this package yet**: PlayerIntentAnalysis v2, its durable compatibility and the current mechanics/proposal gates remain the runtime contract until the migration is delivered and accepted. Do not describe v3 as an available capability or weaken the existing v1/v2 decoders.
+
 ## Modular language-understanding pipeline
 
 The production runtime composes role-specific providers and follows this sequence:
@@ -68,7 +74,7 @@ The modular pipeline was introduced/hardened through PRs #225–#226. Subsequent
 work added discourse/reference evaluation and correction reliability (#246–#250),
 semantic predicate hardening (#253) and the latest compound-intent/discourse
 changes (#255). The current delivery record is [player-message comprehension
-phase — PR #255](../../docs/quality/player-message-comprehension-phase-2026-11-18.md);
+phase — PR #255](../../docs/quality/player-message-comprehension-phase-2026-11-18.md), with the subsequent live failure baseline in [PR #281](../../docs/quality/live-ollama-evaluation-2026-11-20.md);
 older PR documents remain implementation snapshots, not a list of pending work.
 
 ### Current state after PR #255 and product v0.2 boundary

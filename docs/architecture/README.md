@@ -9,7 +9,8 @@ This index separates active technical contracts from dated architecture proposal
 - [Current architecture map](architecture-map-2026-11-18.md): package ownership, pipelines, persistence, API surfaces and implementation gaps.
 - [Current architecture audit](architecture-audit-2026-11-18.md): source-verified design, risks and ordered engineering priorities.
 - [Current change-impact map](change-impact-map-2026-11-18.md): cross-package dependencies, affected contracts and regression-test surfaces.
-- [Player-language understanding architecture — 2026-11-19](player-language-understanding-architecture-2026-11-19.md): active design for Intent normalization, discourse selection, surface references, canonical resolution, evaluator requirements and PR sequence.
+- [Player intent and semantic understanding redesign audit — 2026-11-20](player-intent-semantic-redesign-audit-2026-11-20.md): current architecture direction after the PR #281 live evaluation; diagnosis, target semantic model, authority boundaries, v2-to-v3 migration and implementation PR sequence.
+- [Player-language understanding architecture — 2026-11-19](player-language-understanding-architecture-2026-11-19.md): historical design baseline for the v2 pipeline and the PR #267–#272 structural work. The 2026-11-20 audit supersedes it as the recommended target design; the v2 code remains the current implementation until the proposed migration is delivered.
 - [Documentation freshness audit — 2026-11-18](documentation-audit-2026-11-18.md): stale statements, current-vs-historical classification and synchronized index work.
 - [Shared-layer module catalogue — PR #205 snapshot](module-catalog-2026-11-12.md): useful navigation inventory for shared layers, not a current source audit. Verify current paths against source and the 2026-11-18 map.
 - [Change-impact map — 2026-11-12](change-impact-map-2026-11-12.md): cross-layer contracts, consumers and regression-test review.
@@ -45,6 +46,8 @@ Prefer these contracts for current implementation work.
 **Historical lifecycle design:** [turn-resolution-lifecycle.md](turn-resolution-lifecycle.md) is the original PR #28 design proposal. It is intentionally retained, marked superseded and must not be used as the active contract.
 
 ## Historical architecture decisions and audits
+
+The 2026-11-19 player-language understanding document is retained as the historical v2 architecture baseline. Its implementation notes remain useful, but its original roadmap/status predates PRs #272–#281 and its target design is superseded by the 2026-11-20 player-intent semantic redesign audit.
 
 These documents are point-in-time reports. Their original conclusions, PR recommendations, counts and implementation status should be read against their recorded dates/baselines. The 2026-11-18 current-state map supersedes their general “current status”.
 
