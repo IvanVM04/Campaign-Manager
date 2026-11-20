@@ -50,7 +50,7 @@ The 12 held-out scenarios are based on the reference phenomena in section 8 of t
 - explicit negation contrasted with a later decision;
 - uncertainty about a reported statement.
 
-The v2 gold records category, step count and active-step index. The v3 gold records exact counts and multisets for utterance forces, speaker roles, event families, polarity, epistemic status, action phase, discourse-link types, fact kinds and relation families. The scorer does not award credit for extra labels or nodes.
+The v2 gold records category, step count, active-step index, modality and actor axes, and relation-claim count. The v3 gold records node/evidence/quote cardinality; speaker and addressee mention presence; attributed event/fact source counts; utterance forces and speaker roles; event families, polarity, epistemic status and action phase; discourse-link types and endpoint kinds; callback anchors; fact kinds, relation families, direction, polarity, epistemic status, temporal scope, literal relation predicate surface and normalized relation type; and clarification kinds. Arrays are scored as multisets, so duplicate and unsupported labels are false positives. Exact cardinality checks expose extra and missing nodes/spans. The scorer does not award credit for extra labels or nodes.
 
 These first gold annotations are an explicit diagnostic baseline. Any disputed annotation must be reviewed against the audit and resolved before interpreting aggregate scores. The fixture is separate from the prompt and is not injected into model context.
 
@@ -60,7 +60,7 @@ These first gold annotations are an explicit diagnostic baseline. Any disputed a
 - The v3 runner and v3 model imports remain under tests/; no production service or bootstrap imports models.player_turn_interpretation_v3.
 - The v3 output is not converted into GameplayActionCandidate, is not passed to MechanicsAdjudicator or LLMWorldExtractor and cannot change world state.
 - No v3 prompt, completion, player input, transcript, campaign context, entity names or evidence span text is written to logs or reports.
-- Reports contain only the existing allowlisted provider metadata/usage and the benchmark's case IDs, family names, statuses, mismatch field names, enum labels, counts, prompt sizes and durations.
+- Reports contain only the existing allowlisted provider metadata/usage and the benchmark's case IDs, family names, statuses, mismatch field names, aggregate metric counts, prompt sizes and durations. Raw mention strings, predicates, callback anchors and utterance text are used only for in-memory exact matching and are never emitted in reports or logs.
 - Evidence is still validated by the strict PR #285 decoder. A valid JSON response that invents a span, reference or unsupported field is not considered a valid interpretation.
 - The runner makes two sequential model calls per case. The extra latency and total VRAM/model load are part of the measurement and must be reported; v3 is not run in production.
 
