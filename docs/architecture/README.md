@@ -10,6 +10,7 @@ This index separates active technical contracts from dated architecture proposal
 - [Current architecture audit](architecture-audit-2026-11-18.md): source-verified design, risks and ordered engineering priorities.
 - [Current change-impact map](change-impact-map-2026-11-18.md): cross-package dependencies, affected contracts and regression-test surfaces.
 - [Player intent and semantic understanding redesign audit — 2026-11-20](player-intent-semantic-redesign-audit-2026-11-20.md): current architecture direction after the PR #281 live evaluation; diagnosis, target semantic model, authority boundaries, v2-to-v3 migration and implementation PR sequence.
+- [Player turn interpretation v3 contract — 2026-11-20](player-turn-interpretation-v3-contract-2026-11-20.md): phase-1 v3 DTOs, strict evidence/local-reference decoder, backend-only gameplay candidate and explicit no-production-wiring boundary delivered by PR #285.
 - [Player-language understanding architecture — 2026-11-19](player-language-understanding-architecture-2026-11-19.md): historical design baseline for the v2 pipeline and the PR #267–#272 structural work. The 2026-11-20 audit supersedes it as the recommended target design; the v2 code remains the current implementation until the proposed migration is delivered.
 - [Documentation freshness audit — 2026-11-18](documentation-audit-2026-11-18.md): stale statements, current-vs-historical classification and synchronized index work.
 - [Shared-layer module catalogue — PR #205 snapshot](module-catalog-2026-11-12.md): useful navigation inventory for shared layers, not a current source audit. Verify current paths against source and the 2026-11-18 map.
@@ -76,7 +77,7 @@ These focused documents explain individual fixes and contracts that remain relev
 ## Index maintenance
 
 - Keep the current-state map as the architecture-wide implementation snapshot. The player-language understanding design is an active capability contract; do not treat its target roadmap as code that already exists.
-- Link new active technical contracts here and from the documentation hub.
+- Link new active technical contracts here and from the documentation hub; label v3 as a contract-only milestone until PR #286 and later gates are complete.
 - Do not put dated PR implementation notes in the current baseline section.
 - Preserve historical baselines; add a supersession notice rather than rewriting their original state.
 - Product requirements define the target; implementation claims must be checked against code and current tests.

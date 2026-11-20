@@ -16,6 +16,14 @@ contract:
 - Both versions preserve ordered steps, active-step and clarification state,
   actor, modality, polarity, player-reported outcome and literal evidence.
 
+- **V3 contract proposal:** `player_turn_interpretation_v3.py` defines
+  `TurnInterpretationV3`, `UtteranceAct`, `EventFrame`, `DiscourseLink`,
+  `WorldFactCandidate`, `ClarificationCandidate` and literal
+  `EvidenceSpan` values. It is additive and is not used by production.
+  `GameplayActionCandidate` is a separate backend-only value and is not
+  accepted by the model-payload decoder. See the
+  [v3 contract specification](../docs/architecture/player-turn-interpretation-v3-contract-2026-11-20.md).
+
 `semantic_frames.py` defines untrusted, ID-free semantic value objects:
 
 - `SemanticMention` — exact text and coarse `kind_hint` (character, creature,
@@ -29,6 +37,11 @@ contract:
 - `SemanticRelationClaim` — step index, directed subject/predicate/object,
   family hint, polarity, modality, literal source excerpt, optional attribution
   and temporal expression.
+
+The v3 `TurnInterpretationV3.from_payload()` decoder is a separate
+phase-1 trust boundary. It validates exact current-utterance Unicode spans,
+typed local IDs, record references, bounds and field invariants. It does not
+change or replace the v1/v2 decoder.
 
 `PlayerIntentAnalysis.from_payload()` is the trust boundary for model output.
 It rejects unsupported fields/enums, over-budget arrays/text, invalid step

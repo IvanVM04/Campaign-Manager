@@ -308,3 +308,22 @@ def test_conversation_reference_evidence_and_ranking_have_single_owners():
         for imported in model_imports
         if imported == "services" or imported.startswith("services.")
     }
+
+def test_v3_semantic_contract_is_not_wired_into_production_services_or_bootstrap():
+    forbidden = "models.player_turn_interpretation_v3"
+    violations = []
+    for layer in ("services", "bootstrap"):
+        layer_path = ROOT / layer
+        if not layer_path.exists():
+            continue
+        for path in sorted(layer_path.rglob("*.py")):
+            imports = _absolute_module_imports(path.read_text(encoding="utf-8"))
+            if any(
+                imported == forbidden or imported.startswith(forbidden + ".")
+                for imported in imports
+            ):
+                violations.append(str(path.relative_to(ROOT)))
+    assert not violations, (
+        "V3 contract must remain additive and isolated before PR #286: "
+        + ", ".join(violations)
+    )
