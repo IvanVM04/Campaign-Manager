@@ -1,3 +1,5 @@
+"""Deterministic tests for the isolated v3 shadow harness."""
+
 from __future__ import annotations
 
 import json
@@ -11,7 +13,7 @@ from models.turn_context import TurnContext
 from models.world_state import WorldState
 from services.context import ContextBuilder
 from services.providers import FakeLLMProvider
-from services.turns.intent_interpreter import IntentInterpreter
+from services.turns import IntentInterpreter
 from tests.player_turn_interpretation_v3_shadow import (
     PlayerTurnInterpretationV3ShadowRunner,
     ShadowPromptError,
