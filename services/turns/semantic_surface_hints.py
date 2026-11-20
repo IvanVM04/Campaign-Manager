@@ -1169,10 +1169,11 @@ def normalize_semantic_surface(
                 SemanticRelationFamily.POSSESSION,
                 SemanticRelationFamily.UNKNOWN,
             }
-            and (
-                _fold(claim.predicate) == _fold(frame.predicate)
-                or _fold(claim.source_excerpt) == _fold(step.source_excerpt)
-            )
+            # The false-positive shape observed in the live run reused
+            # the transfer/creation verb itself as a persistent relation.
+            # Do not discard a separate relation merely because it shares a
+            # compound source excerpt with an action.
+            and _fold(claim.predicate) == _fold(frame.predicate)
             and not any(
                 candidate.step_index == claim.step_index
                 for candidate in candidate_claims
