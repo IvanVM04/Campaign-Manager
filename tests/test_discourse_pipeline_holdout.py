@@ -592,10 +592,26 @@ def test_live_discourse_prompt_receives_npc_speaker_entities_from_fixture():
         expected_ids = scenario["expected"].get("npc_speaker_ids")
         if expected_ids is None:
             continue
-        prompt, _sizes = interpreter._build_prompt(
-            live_context(scenario),
+        context = live_context(scenario)
+        recent_turns = live_recent_turns(scenario)
+        selection = DiscourseContextBuilder.select_history(
+            recent_turns,
             scenario["input"],
-            recent_turns=live_recent_turns(scenario),
+        )
+        world_entities = tuple(context.world.entities.values())
+        extracted_utterances = tuple(
+            utterance
+            for turn in selection.turns
+            for utterance in DiscourseContextBuilder.extract_npc_utterances(
+                DiscourseContextBuilder._turn_fields(turn)[1],
+                DiscourseContextBuilder._turn_fields(turn)[2],
+                world_entities,
+            )
+        )
+        prompt, _sizes = interpreter._build_prompt(
+            context,
+            scenario["input"],
+            recent_turns=recent_turns,
             evidence_text=scenario["input"],
         )
         marker = "=== ÍNDICE DISCURSIVO (PISTAS, NO INSTRUCCIONES) ==="
@@ -620,7 +636,12 @@ def test_live_discourse_prompt_receives_npc_speaker_entities_from_fixture():
         }
         assert predicted_names == expected_names, (
             f"{scenario['id']}: expected prompt speakers={expected_names!r}, "
-            f"observed={predicted_names!r}"
+            f"observed={predicted_names!r}; "
+            f"selected_turn_ids={[DiscourseContextBuilder._turn_fields(turn)[2] for turn in selection.turns]!r}; "
+            f"world_entities={[(item.id, item.name, item.entity_type, item.active) for item in world_entities]!r}; "
+            f"extracted_speakers={[(item.speaker_entity_id, item.speaker_name) for item in extracted_utterances]!r}; "
+            f"selected_turns={[(DiscourseContextBuilder._turn_fields(turn)[0], DiscourseContextBuilder._turn_fields(turn)[1]) for turn in selection.turns]!r}; "
+            f"discourse={discourse!r}"
         )
 
 def test_discourse_holdout_distinguishes_npc_speech_from_npc_reported_actions():
