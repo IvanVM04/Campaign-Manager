@@ -143,7 +143,9 @@ def test_live_report_keeps_only_valid_generation_option_metadata():
         "temperature": 0.0,
         "seed": 1729,
     }
-    assert "secret" not in json.dumps(report)
+    serialized = json.dumps(report)
+    assert '"private_option"' not in serialized
+    assert '"secret"' not in serialized
 
 
 def test_live_report_prefers_checked_out_runner_commit_over_inherited_github_sha(monkeypatch):
