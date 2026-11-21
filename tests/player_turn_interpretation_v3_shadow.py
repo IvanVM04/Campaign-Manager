@@ -609,6 +609,7 @@ def build_v3_shadow_prompt(
     *,
     expected_evidence: str,
     max_prompt_bytes: int = 24_000,
+    system_prompt: str = V3_SYSTEM_PROMPT,
 ) -> str:
     """Replace only the v2 instruction block; preserve every context section.
 
@@ -619,6 +620,8 @@ def build_v3_shadow_prompt(
         raise ShadowPromptError("missing_v2_prompt")
     if not isinstance(expected_evidence, str) or not expected_evidence.strip():
         raise ShadowPromptError("missing_player_evidence")
+    if not isinstance(system_prompt, str) or not system_prompt.strip():
+        raise ShadowPromptError("missing_v3_system_prompt")
     if (
         isinstance(max_prompt_bytes, bool)
         or not isinstance(max_prompt_bytes, int)
@@ -669,7 +672,7 @@ def build_v3_shadow_prompt(
         raise ShadowPromptError("evidence_mismatch")
 
     prompt = (
-        V3_SYSTEM_PROMPT
+        system_prompt.strip()
         + "\n\n"
         + _WORLD_MARKER + world + "\n"
         + _HISTORY_MARKER + history + "\n"
@@ -754,6 +757,7 @@ class PlayerTurnInterpretationV3ShadowRunner:
         *,
         recent_turns: list[TurnRecord] | None = None,
         evidence_text: str | None = None,
+        v3_system_prompt: str = V3_SYSTEM_PROMPT,
     ) -> V2V3ShadowComparison:
         provider = self.interpreter.provider
         capturing_provider = _PromptCapturingProvider(provider)
@@ -800,6 +804,7 @@ class PlayerTurnInterpretationV3ShadowRunner:
                 v2_prompt,
                 expected_evidence=exact_evidence,
                 max_prompt_bytes=self.interpreter.max_prompt_bytes,
+                system_prompt=v3_system_prompt,
             )
         except ShadowPromptError as exc:
             v3_status = "not_run"
