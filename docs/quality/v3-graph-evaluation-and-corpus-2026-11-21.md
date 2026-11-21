@@ -64,6 +64,10 @@ crédito de arista.
 El scorer no decide elegibilidad de acciones ni escritura de hechos. La
 evaluación del grafo no sustituye al selector backend ni a world_fact_policy.
 
+- Las aclaraciones pueden referenciar actos, eventos, hechos y enlaces
+  discursivos. El scorer alinea cada tipo de nodo antes de comprobar los
+  registros afectados, sin depender de los local IDs del modelo.
+
 ## 4. Contrato del gold
 
 Nuevo fixture: tests/fixtures/player_turn_v3_graph_corpus_v1.json.
