@@ -5,9 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+_SAFE_COMMIT = re.compile(r"^[0-9a-fA-F]{7,64}$")
 
 _SAFE_METADATA_FIELDS = {
     "git_commit",
@@ -300,6 +303,57 @@ def _safe_report(path: Path) -> dict[str, Any]:
     return result
 
 
+
+def _validate_report_commits(paths: list[Path], expected_commit: str | None) -> dict[str, Any]:
+    """Require each emitted live report to identify the exact checked-out commit."""
+    if expected_commit is None:
+        return {
+            "checked": False,
+            "passed": True,
+            "expected_commit": None,
+            "reports_checked": 0,
+            "mismatched_reports": [],
+        }
+
+    expected = expected_commit.strip()
+    if not _SAFE_COMMIT.fullmatch(expected):
+        return {
+            "checked": True,
+            "passed": False,
+            "expected_commit": "invalid",
+            "reports_checked": len(paths),
+            "mismatched_reports": [
+                {"file": path.name, "reported_commit": "not_checked"}
+                for path in paths
+            ] or [{"file": "<runner_commit>", "reported_commit": "invalid"}],
+        }
+
+    mismatches: list[dict[str, str]] = []
+    for path in paths:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            mismatches.append({"file": path.name, "reported_commit": "unreadable"})
+            continue
+        metadata = payload.get("metadata") if isinstance(payload, dict) else None
+        reported = metadata.get("git_commit") if isinstance(metadata, dict) else None
+        if not isinstance(reported, str) or not _SAFE_COMMIT.fullmatch(reported.strip()):
+            mismatches.append({"file": path.name, "reported_commit": "missing_or_invalid"})
+        elif reported.strip().casefold() != expected.casefold():
+            mismatches.append({"file": path.name, "reported_commit": reported.strip()})
+
+    if not paths:
+        mismatches.append({"file": "<reports>", "reported_commit": "no_live_reports"})
+
+    return {
+        "checked": True,
+        "passed": not mismatches,
+        "expected_commit": expected,
+        "reports_checked": len(paths),
+        "mismatched_reports": mismatches,
+    }
+
+
 def build_summary(
     *,
     junit_xml: Path,
@@ -310,10 +364,9 @@ def build_summary(
     output_dir.mkdir(parents=True, exist_ok=True)
     junit = _junit_summary(junit_xml)
     reports_dir = output_dir / "reports"
-    live_reports = [
-        _safe_report(path)
-        for path in sorted(reports_dir.glob("*.json"))
-    ] if reports_dir.exists() else []
+    report_paths = sorted(reports_dir.glob("*.json")) if reports_dir.exists() else []
+    live_reports = [_safe_report(path) for path in report_paths]
+    commit_validation = _validate_report_commits(report_paths, commit)
 
     summary = {
         "schema_version": 1,
@@ -322,10 +375,11 @@ def build_summary(
             "not_run"
             if not junit["junit_available"]
             else "failed"
-            if junit["failures"] or junit["errors"]
+            if junit["failures"] or junit["errors"] or not commit_validation["passed"]
             else "passed"
         ),
         "pytest": junit,
+        "commit_validation": commit_validation,
         "live_reports": live_reports,
     }
     (output_dir / "summary.json").write_text(
@@ -353,6 +407,22 @@ def render_markdown(summary: dict[str, Any]) -> str:
         f"- Test duration: {pytest_summary['duration_seconds']} seconds",
         "",
     ]
+
+    validation = summary.get("commit_validation", {})
+    if validation.get("checked"):
+        lines.extend([
+            "## Commit provenance validation",
+            "",
+            f"- Status: **{'PASS' if validation.get('passed') else 'FAIL'}**",
+            f"- Expected commit: {validation.get('expected_commit')}",
+            f"- Reports checked: {validation.get('reports_checked', 0)}",
+        ])
+        for mismatch in validation.get("mismatched_reports", []):
+            lines.append(
+                f"- Mismatch: {mismatch.get('file')} "
+                f"(reported: {mismatch.get('reported_commit')})"
+            )
+        lines.append("")
 
     if pytest_summary["failed_tests"]:
         lines.extend(["## Failed test names", ""])
@@ -428,6 +498,8 @@ def main() -> int:
         f"skipped={summary['pytest']['skipped']}"
     )
     print(f"Markdown report: {args.output_dir / 'summary.md'}")
+    if not summary["commit_validation"]["passed"]:
+        return 2
     return 0
 
 
