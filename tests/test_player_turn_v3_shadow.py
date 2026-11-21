@@ -11,12 +11,12 @@ from services.context import ContextBuilder
 from services.providers import FakeLLMProvider
 from services.turns import IntentInterpreter
 from tests.player_turn_interpretation_v3_shadow import (
-    EvidenceSpanAlignmentError,
-    PlayerTurnInterpretationV3ShadowRunner,
-    ShadowPromptError,
     V3_EVIDENCE_ALIGNMENT_VERSION,
     V3_PROMPT_VERSION,
     V3_SYSTEM_PROMPT,
+    EvidenceSpanAlignmentError,
+    PlayerTurnInterpretationV3ShadowRunner,
+    ShadowPromptError,
     align_v3_evidence_span_offsets,
     build_v3_shadow_prompt,
     comparison_shape,
