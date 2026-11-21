@@ -239,6 +239,77 @@ def test_graph_scorer_treats_invalid_interpretation_as_all_missing_nodes():
     assert result["observed_node_counts"]["events"] == 0
 
 
+def test_graph_scorer_resolves_clarification_affected_discourse_link():
+    source = "Retomando lo de la pared, intento escalarla."
+    scenarios = load_v3_graph_corpus()
+    base = next(
+        item for item in scenarios if item["id"] == "callback_then_attempt"
+    )
+    scenario = json.loads(json.dumps(base))
+    scenario["expected_graph"]["clarifications"] = [{
+        "ambiguity_kind": "referent",
+        "missing_slot": "callback_reference",
+        "question_intent": "¿Qué referencia quieres retomar?",
+        "affected": [{"kind": "link", "index": 0}],
+        "evidence_spans": [_span(source)],
+    }]
+    payload = {
+        "schema_version": 3,
+        "utterance_acts": [{
+            "local_id": "act_player",
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": None,
+            "addressee_mention": None,
+            "quote_spans": [],
+            "evidence_spans": [_span(source)],
+        }],
+        "events": [{
+            "local_id": "event_climb",
+            "source_act_id": "act_player",
+            "predicate_surface": "escalar",
+            "family": "movement",
+            "arguments": [{
+                "role": "theme",
+                "mention": {"text": "la pared", "kind_hint": "location"},
+            }],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": None,
+            "attributed_source": None,
+            "evidence_spans": [_span(source)],
+        }],
+        "discourse_links": [{
+            "local_id": "link_callback",
+            "source_ref": "event:event_climb",
+            "target_ref": None,
+            "link_type": "callback",
+            "anchor_candidate": "lo de la pared",
+            "evidence_spans": [_span(source)],
+        }],
+        "world_facts": [],
+        "clarification_candidates": [{
+            "local_id": "clarify_link",
+            "affected_local_ids": ["link_callback"],
+            "ambiguity_kind": "referent",
+            "missing_slot": "callback_reference",
+            "question_intent": "¿Qué referencia quieres retomar?",
+            "evidence_spans": [_span(source)],
+        }],
+    }
+    interpretation = TurnInterpretationV3.from_payload(
+        payload, source_text=source
+    )
+
+    result = score_v3_graph_scenario(
+        scenario, interpretation, SemanticEvaluationLedger()
+    )
+
+    assert result["graph_exact_match"] is True
+    assert result["components"]["clarification_edges"]["matched"] == 1
+
+
 def test_graph_gold_rejects_evidence_outside_the_player_message():
     scenarios = load_v3_graph_corpus()
     scenario = next(item for item in scenarios if item["id"] == "open_door_attempt")
