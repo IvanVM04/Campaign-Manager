@@ -71,7 +71,11 @@ def _correction_mentions_equivalent(left: str, right: str) -> bool:
     )
 
 
-def _live_intent_runtime():
+def _live_intent_runtime(
+    *,
+    intent_model: str | None = None,
+    generation_options: dict[str, int | float] | None = None,
+):
     settings = LLMSettings.from_env()
     common_model = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_MODEL")
     common_timeout_raw = os.getenv("CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT")
@@ -89,15 +93,19 @@ def _live_intent_runtime():
     settings = replace(
         settings,
         base_url=os.getenv("CAMPAIGN_MANAGER_REAL_LLM_BASE_URL", settings.base_url),
-        intent_model=os.getenv(
-            "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
-            common_model or settings.intent_model,
+        intent_model=(
+            intent_model
+            or os.getenv(
+                "CAMPAIGN_MANAGER_LLM_INTENT_MODEL",
+                common_model or settings.intent_model,
+            )
         ),
         intent_timeout_seconds=role_timeout,
     )
     usage_events: list[dict] = []
     provider = settings.create_provider(
         "intent",
+        generation_options=generation_options,
         metrics_callback=usage_events.append,
     )
     context_builder = ContextBuilder()
