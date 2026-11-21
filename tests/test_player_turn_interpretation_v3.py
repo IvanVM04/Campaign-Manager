@@ -568,7 +568,10 @@ def test_clarification_evidence_must_be_grounded_in_an_affected_record():
 
 
 def test_other_fact_candidates_cannot_mix_in_relation_only_fields():
-    source = "Mara es hermana de Aldric."
+    source = (
+        "Aldric me advierte: «No cruces el puente». "
+        "Mara es hermana de Aldric."
+    )
     payload = _payload(source)
     payload["world_facts"][0]["fact_kind"] = "other"
 
