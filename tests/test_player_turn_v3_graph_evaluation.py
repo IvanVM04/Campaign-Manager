@@ -201,12 +201,14 @@ def test_graph_scorer_detects_wrong_edge_semantics_after_node_alignment():
         item for item in scenarios if item["id"] == "conditional_open_then_enter"
     )
     payload = json.loads(_conditional_payload(scenario["input"]))
-    # Keep a structurally valid event sequence while changing the predicted
-    # relation. The decoder rejects reversed conditional dependencies now;
-    # this test exercises the graph scorer's semantic comparison instead.
-    payload["discourse_links"][0]["link_type"] = "before_after"
-    payload["discourse_links"][0]["source_ref"] = "event:event_open"
-    payload["discourse_links"][0]["target_ref"] = "event:event_enter"
+    # Keep the expected edge node signature while pointing it at an extra,
+    # decoder-valid dependent event. The two gold event nodes still align;
+    # the extra clone is intentionally unmatched by the node scorer.
+    extra_dependent = dict(payload["events"][1])
+    extra_dependent["local_id"] = "event_enter_extra"
+    payload["events"].append(extra_dependent)
+    payload["discourse_links"][0]["source_ref"] = "event:event_enter_extra"
+    payload["discourse_links"][0]["target_ref"] = "event:event_open"
     interpretation = TurnInterpretationV3.from_payload(
         payload, source_text=scenario["input"]
     )
