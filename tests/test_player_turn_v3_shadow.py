@@ -11,8 +11,13 @@ from services.context import ContextBuilder
 from services.providers import FakeLLMProvider
 from services.turns import IntentInterpreter
 from tests.player_turn_interpretation_v3_shadow import (
+    EvidenceSpanAlignmentError,
     PlayerTurnInterpretationV3ShadowRunner,
     ShadowPromptError,
+    V3_EVIDENCE_ALIGNMENT_VERSION,
+    V3_PROMPT_VERSION,
+    V3_SYSTEM_PROMPT,
+    align_v3_evidence_span_offsets,
     build_v3_shadow_prompt,
     comparison_shape,
 )
@@ -155,6 +160,138 @@ def test_v3_shadow_prompt_supports_missing_optional_discourse_section():
     assert "ÍNDICE DISCURSIVO" not in prompt
     assert "Puerta de roble" in prompt
     assert EVIDENCE in prompt
+
+
+def test_v3_prompt_requires_full_clause_inventory_and_independent_fact_pass():
+    assert V3_PROMPT_VERSION == "player-turn-v3-holistic-2026-11-21-pr294"
+    assert "PROCEDIMIENTO DE COBERTURA" in V3_SYSTEM_PROMPT
+    assert "INVENTARIO DE CLÁUSULAS" in V3_SYSTEM_PROMPT
+    assert "No te detengas tras encontrar la primera acción" in V3_SYSTEM_PROMPT
+    assert "HECHOS. Haz una pasada independiente" in V3_SYSTEM_PROMPT
+    assert "REVISIÓN FINAL" in V3_SYSTEM_PROMPT
+
+
+def test_v3_prompt_contains_contrasts_for_composition_and_authority():
+    assert "Dos cláusulas independientes pueden producir dos eventos" in V3_SYSTEM_PROMPT
+    assert "«Si ocurre A, haré B»" in V3_SYSTEM_PROMPT
+    assert "«N dice que P»" in V3_SYSTEM_PROMPT
+    assert "callback" in V3_SYSTEM_PROMPT.lower()
+    assert "no implica" in V3_SYSTEM_PROMPT
+    assert "No suprimas una proposición explícita" in V3_SYSTEM_PROMPT
+    assert "recipient, source o carrier" in V3_SYSTEM_PROMPT
+    assert V3_EVIDENCE_ALIGNMENT_VERSION == "exact-unique-substring-v1"
+
+
+def test_evidence_alignment_repairs_only_a_unique_literal_span():
+    source = "🐉 Examino la runa."
+    raw = json.dumps({
+        "schema_version": 3,
+        "events": [{
+            "evidence_spans": [{
+                "start": 0,
+                "end": 1,
+                "text": "Examino la runa.",
+                "source": "current_utterance",
+            }],
+        }],
+    })
+
+    aligned, repaired = align_v3_evidence_span_offsets(
+        raw,
+        source_text=source,
+    )
+    span = json.loads(aligned)["events"][0]["evidence_spans"][0]
+
+    assert repaired == 1
+    assert span["start"] == source.index("Examino la runa.")
+    assert source[span["start"]:span["end"]] == span["text"]
+
+
+def test_evidence_alignment_preserves_a_valid_occurrence_when_text_repeats():
+    source = "Veo la runa y después marco la runa."
+    start = source.rindex("la runa")
+    raw = json.dumps({
+        "evidence_spans": [{
+            "start": start,
+            "end": start + len("la runa"),
+            "text": "la runa",
+            "source": "current_utterance",
+        }],
+    })
+
+    aligned, repaired = align_v3_evidence_span_offsets(
+        raw,
+        source_text=source,
+    )
+
+    assert repaired == 0
+    assert json.loads(aligned)["evidence_spans"][0]["start"] == start
+
+
+def test_evidence_alignment_rejects_ambiguous_repeated_text_without_guessing():
+    source = "Veo la runa y después marco la runa."
+    raw = json.dumps({
+        "evidence_spans": [{
+            "start": 0,
+            "end": 7,
+            "text": "la runa",
+            "source": "current_utterance",
+        }],
+    })
+
+    with pytest.raises(EvidenceSpanAlignmentError) as error:
+        align_v3_evidence_span_offsets(raw, source_text=source)
+
+    assert error.value.code == "ambiguous_evidence_text"
+    assert "la runa" not in str(error.value)
+
+
+def test_evidence_alignment_rejects_non_literal_or_missing_text():
+    raw = json.dumps({
+        "evidence_spans": [{
+            "start": 0,
+            "end": 6,
+            "text": "invento",
+            "source": "current_utterance",
+        }],
+    })
+
+    with pytest.raises(EvidenceSpanAlignmentError) as error:
+        align_v3_evidence_span_offsets(raw, source_text="Miro la puerta.")
+
+    assert error.value.code == "evidence_text_not_found"
+    assert "invento" not in str(error.value)
+
+
+def test_shadow_runner_repairs_unique_offsets_before_strict_v3_decode():
+    payload = json.loads(_v3_response())
+    for record in (
+        payload["utterance_acts"][0],
+        payload["events"][0],
+    ):
+        for span in record["evidence_spans"]:
+            span["start"] = 100
+            span["end"] = 100 + len(span["text"])
+    provider = FakeLLMProvider(responses={
+        "Devuelve exclusivamente el objeto JSON exigido por el esquema de interpretación v2.":
+            _v2_response(),
+        "Eres el intérprete semántico holístico de una partida de rol.":
+            json.dumps(payload, ensure_ascii=False),
+    })
+    interpreter = IntentInterpreter(
+        provider=provider,
+        context_builder=ContextBuilder(),
+    )
+
+    comparison = PlayerTurnInterpretationV3ShadowRunner(interpreter).run(
+        _context(),
+        EVIDENCE,
+    )
+
+    assert comparison.v2_status == "valid"
+    assert comparison.v3_status == "valid"
+    assert comparison.v3_evidence_spans_realigned == 2
+    assert comparison_shape(comparison)["v3"]["evidence_spans_realigned"] == 2
 
 
 @pytest.mark.parametrize(
