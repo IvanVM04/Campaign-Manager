@@ -553,7 +553,7 @@ def test_conditional_dependent_must_be_a_planned_event_and_edge_must_not_repeat(
 
 
 def test_before_after_link_requires_forward_event_sequence():
-    source = "Abro la puerta y después entro en la sala."
+    source = "Yo abro la puerta y después entro en la sala."
     payload = _conditional_payload(source, link_evidence="después")
     payload["discourse_links"][0]["link_type"] = "before_after"
     payload["discourse_links"][0]["source_ref"] = "event:event_open"
