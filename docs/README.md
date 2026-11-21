@@ -2,7 +2,19 @@
 
 This is the navigation entry point for maintainers, coding agents and product work. The repository contains both current source-of-truth documents and dated implementation/audit snapshots. **A date-stamped PR record is not automatically current guidance.**
 
-## Current source of truth — 2026-11-20
+## Current source of truth — 2026-11-21
+
+**Prioridad técnica máxima:** programa de comprensión semántica #292–#306.
+- [Roadmap maestro de comprensión semántica — 2026-11-21](architecture/player-understanding-roadmap-2026-11-21.md) — fuente de verdad para PRs, dependencias, gates y estado de implementación.
+- [Arquitectura objetivo de comprensión — 2026-11-21](architecture/player-understanding-target-architecture-2026-11-21.md) — modelo semántico v3, responsabilidades, autoridad, evidencia y migración v2→v3.
+- [Roadmap de evaluación semántica — 2026-11-21](quality/semantic-understanding-evaluation-roadmap-2026-11-21.md) — corpus, gold, graph scorer, métricas y gates propuestos.
+- [Roadmap de prompts y runtime Ollama — 2026-11-21](quality/llm-runtime-reproducibility-and-prompt-roadmap-2026-11-21.md) — generation options, manifiesto reproducible, prompts, budgets y telemetría.
+- [Proceso de entrega del programa NLU — 2026-11-21](architecture/player-understanding-delivery-workflow-2026-11-21.md) — obligación de sincronizar roadmap en cada PR antes de merge.
+
+## Previous source-of-truth snapshots
+
+Los documentos de los días 18–20 de noviembre siguen siendo registros históricos y de implementación. Sus baselines y hallazgos no se reescriben; para la secuencia NLU activa y el estado actual de las PR debe utilizarse el roadmap del 21 de noviembre.
+
 
 Read these first. They describe the current product target, source-verified implementation state and active quality priorities.
 
@@ -17,7 +29,7 @@ Read these first. They describe the current product target, source-verified impl
 - [World-fact eligibility and persistence policy — 2026-11-20](architecture/player-world-fact-policy-2026-11-20.md) — PR #288: política backend de hechos persistentes, resolución canónica visible, escritura append-only de atributos, relaciones dirigidas/idempotentes y recibos ligados al checkpoint; todavía no conectada al runtime v2.
 - [Diseño de comprensión de lenguaje — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — snapshot histórico del pipeline v2 y del trabajo estructural #267–#272; no describe el diseño objetivo propuesto el 20 de noviembre.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
-- [Current quality audit and roadmap](quality/quality-roadmap-2026-11-18.md) — dated snapshot of the previous quality roadmap; its original NLU sequence predates PRs #272–#281. Use the 2026-11-20 semantic redesign audit and PR #281 report for the current NLU diagnosis and next steps.
+- [Current NLU roadmap](architecture/player-understanding-roadmap-2026-11-21.md) — maximum-priority, merge-tracked implementation sequence #292–#306. The 18 November quality roadmap is now a historical snapshot for its original broader quality scope.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.
@@ -76,7 +88,7 @@ These documents describe current production boundaries. Prefer them over histori
 
 The latest project-wide baseline and reconciled milestone status are recorded in [the 2026-11-19 project audit](architecture/project-audit-2026-11-19.md). PR #269 is integrated; it is no longer in progress.
 
-- [Current quality roadmap](quality/quality-roadmap-2026-11-18.md) — authoritative priority order after PR #266; the full live model benchmark is deliberately gated behind the architecture milestones.
+- [Historical quality roadmap](quality/quality-roadmap-2026-11-18.md) — original dated priority order after PR #266; use the 21 November NLU roadmap for the current semantic-understanding program.
 - [Live Ollama evaluation — 2026-11-20](quality/live-ollama-evaluation-2026-11-20.md) — diagnostic run with Gemma 4 12B Q4_K_M after PRs #279/#280: 11/22 live tests passed, domain F1 85,24–98,67 %, compound-step modality 54,0 %, callback 3/12 and a report-commit provenance mismatch. The 93 % mean is not a global comprehension score, and the run is not a SillyTavern acceptance result.
 - [Auditoría de rediseño semántico — 2026-11-20](architecture/player-intent-semantic-redesign-audit-2026-11-20.md) — diagnosis and target architecture based on that failure inventory; PR #285 implements its additive v3 DTO/decoder phase, while production remains on v2.
 - [Player-language understanding architecture](architecture/player-language-understanding-architecture-2026-11-19.md) — the contract source for the NLU structural work.
