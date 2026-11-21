@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 from scripts.quality_run_report import (
@@ -155,3 +156,42 @@ def test_build_report_writes_markdown_and_json_and_fails_if_any_stage_failed(tmp
     assert "Estado global: FAILED" in markdown
     assert "Python tests" in markdown
     assert "| Ruff | failed |" in markdown
+
+
+
+def test_combined_coverage_gate_rejects_84_90_and_accepts_exactly_85(tmp_path: Path):
+    def write_report(path: Path, covered: int) -> None:
+        line_nodes = "".join(
+            (
+                f'<line number="{index}" hits="{1 if index <= covered else 0}" '
+                f'branch="true" condition-coverage="{covered / 10:.1f}% ({covered}/1000)"/>'
+            )
+            for index in range(1, 1001)
+        )
+        path.write_text(
+            f'<coverage><packages><package><classes><class filename="services/sample.py">'
+            f'<lines>{line_nodes}</lines></class></classes></package></packages></coverage>',
+            encoding="utf-8",
+        )
+
+    below_path = tmp_path / "below.xml"
+    exact_path = tmp_path / "exact.xml"
+    write_report(below_path, 849)
+    write_report(exact_path, 850)
+
+    below = coverage_summary(below_path)
+    exact = coverage_summary(exact_path)
+
+    assert below is not None and below["combined_percent"] == 84.9
+    assert below["gate_passed"] is False
+    assert exact is not None and exact["combined_percent"] == 85.0
+    assert exact["gate_passed"] is True
+
+
+def test_coverage_pytest_gate_uses_two_decimal_precision():
+    root = Path(__file__).resolve().parents[1]
+    config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    report_config = config["tool"]["coverage"]["report"]
+
+    assert report_config["fail_under"] == 85
+    assert report_config["precision"] == 2
