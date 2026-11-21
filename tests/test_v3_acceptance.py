@@ -3,6 +3,7 @@ import copy
 import pytest
 
 from tests.player_turn_interpretation_v3_shadow import V3_SYSTEM_PROMPT
+from tests.player_turn_v3_graph_evaluation import load_v3_graph_corpus
 from tests.v3_acceptance import (
     V3_ACCEPTANCE_CONTRACT_ID,
     build_v3_acceptance_matrix_report,
@@ -103,7 +104,7 @@ def test_acceptance_variants_reject_invalid_model_matrix(primary, candidate):
 
 
 def test_acceptance_gates_pass_only_with_full_repeated_critical_holdout():
-    scenario_ids = [f"case_{index:02d}" for index in range(20)]
+    scenario_ids = [item["id"] for item in load_v3_graph_corpus()]
     results = _perfect_results(scenario_ids)
 
     report = evaluate_v3_acceptance_variant(
@@ -223,7 +224,7 @@ def test_acceptance_gate_measures_repeat_stability_per_scenario():
         scenario_ids=scenario_ids,
         repetitions=3,
         results=results,
-        full_corpus=True,
+        full_corpus=False,
     )
 
     assert report["critical"]["repeat_stability_agreement"] == pytest.approx(2 / 3, abs=0.0001)
