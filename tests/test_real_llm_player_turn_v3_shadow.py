@@ -6,6 +6,8 @@ passed to mechanics, world extraction, persistence or narration.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from time import perf_counter
 
@@ -15,6 +17,8 @@ from tests.player_turn_interpretation_v3_shadow import (
     PlayerTurnInterpretationV3ShadowRunner,
     V3_EVIDENCE_ALIGNMENT_VERSION,
     V3_PROMPT_VERSION,
+    V3_RESPONSE_SCHEMA,
+    V3_SYSTEM_PROMPT,
 )
 from tests.player_turn_v3_shadow_evaluation import (
     load_v3_shadow_corpus,
@@ -127,6 +131,18 @@ def test_real_ollama_player_turn_v3_shadow_holdout(record_property):
     }
     report["run_manifest"] = {
         "prompt_version": V3_PROMPT_VERSION,
+        "prompt_sha256": hashlib.sha256(
+            V3_SYSTEM_PROMPT.encode("utf-8")
+        ).hexdigest(),
+        "schema_version": 3,
+        "schema_sha256": hashlib.sha256(
+            json.dumps(
+                V3_RESPONSE_SCHEMA,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
         "evidence_alignment_version": V3_EVIDENCE_ALIGNMENT_VERSION,
         "production_route": "v2",
         "v3_authority": "none",
