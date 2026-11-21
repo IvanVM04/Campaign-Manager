@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from time import perf_counter
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -15,6 +15,43 @@ from .llm_provider import (
 )
 
 logger = logging.getLogger(__name__)
+
+_GENERATION_OPTION_RANGES: dict[str, tuple[type, float, float]] = {
+    "temperature": (float, 0.0, 2.0),
+    "top_p": (float, 0.0, 1.0),
+    "top_k": (int, 0.0, 1024.0),
+    "seed": (int, 0.0, 2_147_483_647.0),
+    "num_predict": (int, 1.0, 32_768.0),
+    "repeat_penalty": (float, 0.1, 3.0),
+}
+
+
+def _validate_generation_options(
+    options: Mapping[str, object] | None,
+) -> dict[str, int | float]:
+    """Validate the small, reproducible Ollama option surface used by evals."""
+    if options is None:
+        return {}
+    if not isinstance(options, Mapping):
+        raise TypeError("generation_options must be a mapping or None")
+
+    validated: dict[str, int | float] = {}
+    for name, value in options.items():
+        contract = _GENERATION_OPTION_RANGES.get(name)
+        if contract is None:
+            raise ValueError(f"unsupported Ollama generation option: {name}")
+        expected_type, minimum, maximum = contract
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(f"generation option {name} must be numeric")
+        if expected_type is int and not isinstance(value, int):
+            raise TypeError(f"generation option {name} must be an integer")
+        numeric = float(value)
+        if not math.isfinite(numeric) or not minimum <= numeric <= maximum:
+            raise ValueError(
+                f"generation option {name} must be between {minimum:g} and {maximum:g}"
+            )
+        validated[name] = int(value) if expected_type is int else float(value)
+    return validated
 
 
 class OllamaProvider(LLMProvider):
@@ -50,6 +87,7 @@ class OllamaProvider(LLMProvider):
         *,
         role: str | None = None,
         think: bool | None = None,
+        generation_options: Mapping[str, object] | None = None,
         metrics_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
 
@@ -103,6 +141,7 @@ class OllamaProvider(LLMProvider):
         self.timeout = float(timeout)
         self.role = role
         self.think = think
+        self.generation_options = _validate_generation_options(generation_options)
         self.metrics_callback = metrics_callback
 
     def generate(
@@ -133,6 +172,8 @@ class OllamaProvider(LLMProvider):
         }
         if self.think is not None:
             payload["think"] = self.think
+        if self.generation_options:
+            payload["options"] = dict(self.generation_options)
 
         response = self._request_with_metrics(payload, prompt)
 
@@ -171,6 +212,8 @@ class OllamaProvider(LLMProvider):
         }
         if self.think is not None:
             payload["think"] = self.think
+        if self.generation_options:
+            payload["options"] = dict(self.generation_options)
         response = self._request_with_metrics(payload, normalized_prompt)
         return self._extract_response_text(response)
 
@@ -219,6 +262,8 @@ class OllamaProvider(LLMProvider):
         }
         if self.think is not None:
             metrics["think"] = self.think
+        if self.generation_options:
+            metrics["generation_options"] = dict(self.generation_options)
         if error_type is not None:
             metrics["error_type"] = error_type
         if response is not None:
