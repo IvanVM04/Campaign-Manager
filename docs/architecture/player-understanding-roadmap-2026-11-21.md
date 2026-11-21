@@ -146,7 +146,7 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
 | #292 | P0 | [x] MERGED + VERIFIED | Roadmaps, arquitectura objetivo, evaluación, proceso de entrega e instrucciones obligatorias. Merge: 2026-11-21, SHA 6754d41a53a766a1dbc928c2c9c31f16064e49a8 | #291 |
-| #293 | P0 | MERGED — verificación post-merge registrada al cerrar CI | Scorer semántico de grafo, alineación sin IDs locales, métricas por nodos/aristas, diagnósticos privados, 20 escenarios graph-gold y evaluación live opt-in | #292 |
+| #293 | P0 | [x] MERGED + CI VERIFIED | Scorer semántico de grafo, métricas por nodos/aristas, 20 escenarios graph-gold y evaluación live opt-in. Merge: 2026-11-21, SHA c05550ea2ba16b8dca0de7d578d8c001202b6e32; CI: 2.482 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #292 |
 | #294 | P0 | [~] IN PROGRESS | Rediseño del prompt v3 para recuperar proposiciones y actos compuestos; alineación determinista y conservadora de spans exactos; métricas/manifiesto versionados. V2 sigue en producción | #293 |
 | #295 | P0 | [ ] PLANNED | Validación de consistencia del grafo semántico: argumentos, atribuciones, dependencias, citas, extremos y hechos | #293–#294 |
 | #296 | P0 | [ ] PLANNED | Evaluación de aceptación v3, ablations controladas de modelo/prompt/parámetros y decisión objetiva de promoción | #293–#295 |
