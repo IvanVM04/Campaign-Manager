@@ -68,6 +68,18 @@ def test_runner_separates_regular_llm_tests_from_optional_nlp_ab():
     assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
 
 
+def test_runner_exposes_opt_in_v3_acceptance_and_safe_report_path():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert '"v3-acceptance"' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow", "v3-acceptance")' in source
+    assert "V3AcceptanceScenarioId" in source
+    assert "CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_ENABLE" in source
+    assert "CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_SCENARIO_ID" in source
+    assert "CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_CANDIDATE_MODEL" in source
+    assert "CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_REPORT_PATH" in source
+    assert "real_ollama_player_turn_v3_acceptance" in source
+
+
 def test_runner_writes_unique_machine_readable_and_human_reports():
     source = RUNNER.read_text(encoding="utf-8")
     assert "artifacts/quality-runs" in source
@@ -95,7 +107,7 @@ def test_runner_keeps_local_configuration_and_role_overrides():
 
 def test_runner_scopes_single_scenario_filters_to_the_matching_suite():
     source = RUNNER.read_text(encoding="utf-8")
-    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow", "v3-acceptance")' in source
     assert "held_out_language_understanding_corpus_v1" in source
     assert "held_out_semantic_frame_corpus_v1" in source
     assert "held_out_discourse_intent_and_resolution_corpus" in source
