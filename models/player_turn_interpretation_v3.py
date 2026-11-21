@@ -50,13 +50,11 @@ class TurnInterpretationV3ValidationError(ValueError):
         super().__init__(f"Invalid v3 interpretation ({code}) at {field_path}")
 
 
-class _GraphConsistencyError(ValueError):
+class _GraphConsistencyError(TurnInterpretationV3ValidationError):
     """Internal graph invariant failure with a content-free diagnostic."""
 
     def __init__(self, code: str, field_path: str) -> None:
-        self.code = code
-        self.field_path = field_path
-        super().__init__(f"{code}:{field_path}")
+        super().__init__(code, field_path)
 
 
 class UtteranceForce(str, enum.Enum):
@@ -1118,10 +1116,6 @@ class TurnInterpretationV3:
             )
         except TurnInterpretationV3ValidationError:
             raise
-        except _GraphConsistencyError as exc:
-            raise TurnInterpretationV3ValidationError(
-                exc.code, exc.field_path
-            ) from None
         except (TypeError, ValueError, KeyError):
             raise TurnInterpretationV3ValidationError("invalid_payload", "payload") from None
 
