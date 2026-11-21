@@ -256,7 +256,7 @@ Set-EnvDefault "CAMPAIGN_MANAGER_REAL_LLM_MODEL" "gemma4:12b-it-q4_K_M"
 Set-EnvDefault "CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT" "300"
 Set-EnvDefault "CAMPAIGN_MANAGER_OLLAMA_THINK" "false"
 Set-EnvDefault "CAMPAIGN_MANAGER_REAL_LLM_THINK" $env:CAMPAIGN_MANAGER_OLLAMA_THINK
-Set-EnvDefault "CAMPAIGN_MANAGER_GIT_COMMIT" $commit
+Set-EnvOverride "CAMPAIGN_MANAGER_GIT_COMMIT" $commit
 foreach ($role in @("INTENT", "MECHANICS", "EXTRACTION", "NARRATIVE")) {
     Set-EnvDefault "CAMPAIGN_MANAGER_LLM_$($role)_MODEL" $env:CAMPAIGN_MANAGER_REAL_LLM_MODEL
     Set-EnvDefault "CAMPAIGN_MANAGER_LLM_$($role)_TIMEOUT_SECONDS" $env:CAMPAIGN_MANAGER_REAL_LLM_TIMEOUT
@@ -450,6 +450,18 @@ Write-Manifest $manifest $commit $startedAt $finished
 $null = & $python @reportArgs 2>&1 | Tee-Object -FilePath (Join-Path $script:LogDir "99-report-final.log") | Out-Host
 $reportExit = $LASTEXITCODE
 $failedCount = @($script:Stages | Where-Object { $_.status -eq "failed" }).Count
+$chatSummaryPath = Join-Path $script:RunDir "chat-summary.txt"
+
+Write-Host ""
+Write-Host "RESUMEN PARA COPIAR Y PEGAR" -ForegroundColor Cyan
+Write-Host ("-" * 76) -ForegroundColor DarkCyan
+if (Test-Path -LiteralPath $chatSummaryPath -PathType Leaf) {
+    Get-Content -LiteralPath $chatSummaryPath -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+}
+else {
+    Write-Host "No se pudo generar chat-summary.txt. Conserva el summary.md y los logs de esta ejecución." -ForegroundColor Yellow
+}
+Write-Host ("-" * 76) -ForegroundColor DarkCyan
 
 Write-Host ""
 Write-Host ("-" * 76) -ForegroundColor DarkCyan
@@ -457,6 +469,7 @@ if ($failedCount -eq 0 -and $reportExit -eq 0) { Write-Host "ALL REQUESTED CHECK
 else { Write-Host ("RUN FINISHED WITH {0} FAILED STAGE(S)" -f $failedCount) -ForegroundColor Red }
 Write-Host ("Markdown report: " + (Join-Path $script:RunDir "summary.md")) -ForegroundColor Cyan
 Write-Host ("JSON report:     " + (Join-Path $script:RunDir "summary.json")) -ForegroundColor Cyan
+Write-Host ("Copy/paste:      " + $chatSummaryPath) -ForegroundColor Cyan
 Write-Host ("Logs:            " + $script:LogDir) -ForegroundColor Cyan
 Write-Host ("-" * 76) -ForegroundColor DarkCyan
 if ($failedCount -gt 0 -or $reportExit -ne 0) { exit 1 }

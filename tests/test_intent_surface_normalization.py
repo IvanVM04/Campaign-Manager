@@ -1736,3 +1736,289 @@ def test_future_player_speech_is_not_reclassified_as_npc_dialogue():
     assert normalized["category"] == "plan"
     assert step["actor"] == "player"
     assert step["modality"] == "planned"
+
+
+@pytest.mark.parametrize(
+    ("evidence", "first_excerpt", "second_excerpt", "expected"),
+    [
+        (
+            "Reviso el sello y después abro la puerta.",
+            "Reviso el sello y después",
+            "abro la puerta",
+            True,
+        ),
+        (
+            "Reviso el sello y luego abro la puerta.",
+            "Reviso el sello",
+            "luego abro la puerta",
+            True,
+        ),
+        (
+            "Reviso el sello y luego abro la puerta.",
+            "Reviso el sello",
+            "abro la puerta",
+            True,
+        ),
+        (
+            "Reviso el sello, abro la puerta.",
+            "Reviso el sello",
+            "abro la puerta",
+            False,
+        ),
+        (
+            "Reviso el sello y luego abro la puerta.",
+            "un texto que no aparece",
+            "abro la puerta",
+            False,
+        ),
+        (
+            "Reviso el sello y luego abro la puerta.",
+            None,
+            "abro la puerta",
+            False,
+        ),
+        (
+            "Reviso el sello y luego abro la puerta.",
+            "Reviso el sello",
+            "un texto que no aparece",
+            False,
+        ),
+    ],
+)
+def test_explicit_sequence_requires_literal_order_and_a_surface_linker(
+    evidence, first_excerpt, second_excerpt, expected
+):
+    from services.turns.intent_surface_normalization import (
+        _steps_follow_explicit_sequence,
+    )
+
+    assert _steps_follow_explicit_sequence(
+        evidence,
+        {"source_excerpt": first_excerpt},
+        {"source_excerpt": second_excerpt},
+    ) is expected
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "wrong_step_count",
+        "oversized_evidence",
+        "non_result_relation",
+        "reported_speech",
+        "wrong_actor",
+        "wrong_modality",
+        "negative_attempt",
+        "missing_first_excerpt",
+        "missing_second_excerpt",
+        "first_excerpt_not_grounded",
+        "empty_first_excerpt",
+        "second_precedes_first",
+        "trailing_text",
+        "independent_clause",
+        "no_explicit_outcome",
+        "both_uncertainty_and_failure",
+    ],
+)
+def test_split_attempt_outcome_abstains_outside_its_literal_result_contract(case):
+    from services.turns.intent_surface_normalization import (
+        _collapse_split_attempt_outcome,
+    )
+
+    evidence = "Intento abrir la puerta, pero el cofre sigue cerrado."
+    first = _step("Intento abrir la puerta")
+    second = dict(
+        _step("el cofre sigue cerrado", actor="other", modality="reported"),
+        index=1,
+    )
+    normalized = {"relation_claims": [], "category": "mixed", "active_step_index": 0}
+    steps = [first, second]
+
+    if case == "wrong_step_count":
+        steps = [first]
+    elif case == "oversized_evidence":
+        evidence = "x" * 301
+    elif case == "non_result_relation":
+        normalized["relation_claims"] = [{"step_index": 0}]
+    elif case == "reported_speech":
+        evidence = "Mara dice que intento abrir la puerta, pero el cofre sigue cerrado."
+        first["source_excerpt"] = "intento abrir la puerta"
+    elif case == "wrong_actor":
+        first["actor"] = "npc"
+    elif case == "wrong_modality":
+        first["modality"] = "observed"
+    elif case == "negative_attempt":
+        first["polarity"] = "negative"
+    elif case == "missing_first_excerpt":
+        first["source_excerpt"] = None
+    elif case == "missing_second_excerpt":
+        second["source_excerpt"] = None
+    elif case == "first_excerpt_not_grounded":
+        first["source_excerpt"] = "Inspecciono el broche"
+    elif case == "empty_first_excerpt":
+        first["source_excerpt"] = ""
+    elif case == "second_precedes_first":
+        evidence = "El cofre sigue cerrado. Intento abrir la puerta."
+        second["source_excerpt"] = "El cofre sigue cerrado"
+    elif case == "trailing_text":
+        evidence += " Me alejo."
+    elif case == "independent_clause":
+        evidence = "Intento abrir la puerta. Más tarde, el cofre sigue cerrado."
+    elif case == "no_explicit_outcome":
+        evidence = "Intento abrir la puerta, pero observo la cerradura."
+        second["source_excerpt"] = "observo la cerradura"
+    elif case == "both_uncertainty_and_failure":
+        evidence = (
+            "Intento abrir la puerta, pero no sé si puedo abrirla; "
+            "el cofre sigue cerrado."
+        )
+        second["source_excerpt"] = (
+            "no sé si puedo abrirla; el cofre sigue cerrado"
+        )
+
+    rules = []
+    result = _collapse_split_attempt_outcome(
+        steps,
+        evidence,
+        normalized,
+        rules,
+    )
+
+    assert result is steps
+    assert rules == []
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing_first_target",
+        "missing_second_target",
+        "overlapping_targets",
+        "no_sentence_boundary",
+        "trailing_text",
+        "attempt_outcome_uncertainty",
+        "explicit_success",
+        "wrong_category",
+        "wrong_active_step",
+        "wrong_actor",
+        "wrong_modality",
+        "negative_attempt",
+        "first_excerpt_not_grounded",
+    ],
+)
+def test_unrelated_uncertainty_is_not_dropped_without_distinct_grounded_targets(case):
+    from services.turns.intent_surface_normalization import (
+        _drop_unrelated_uncertainty_after_player_attempt,
+    )
+
+    evidence = "Intento abrir la puerta. Quizá el guardia se despierte."
+    first = _step("Intento abrir la puerta")
+    first["target_mentions"] = ["la puerta"]
+    second = dict(
+        _step(
+            "Quizá el guardia se despierte",
+            actor="npc",
+            modality="reported",
+            outcome="not_claimed",
+        ),
+        index=1,
+    )
+    second["target_mentions"] = ["el guardia"]
+    normalized = {"category": "mixed", "active_step_index": 0, "relation_claims": []}
+    steps = [first, second]
+
+    if case == "missing_first_target":
+        first["target_mentions"] = []
+    elif case == "missing_second_target":
+        second["target_mentions"] = []
+    elif case == "overlapping_targets":
+        second["target_mentions"] = ["la puerta"]
+    elif case == "no_sentence_boundary":
+        evidence = "Intento abrir la puerta, quizá el guardia se despierte."
+    elif case == "trailing_text":
+        evidence += " Después me alejo."
+    elif case == "attempt_outcome_uncertainty":
+        evidence = "Intento abrir la puerta. Quizá no sé si puedo abrirla."
+        second["source_excerpt"] = "Quizá no sé si puedo abrirla"
+    elif case == "explicit_success":
+        evidence = "Intento abrir la puerta. Quizá la puerta se abre."
+        second["source_excerpt"] = "Quizá la puerta se abre"
+    elif case == "wrong_category":
+        normalized["category"] = "question"
+    elif case == "wrong_active_step":
+        normalized["active_step_index"] = 1
+    elif case == "wrong_actor":
+        first["actor"] = "npc"
+    elif case == "wrong_modality":
+        first["modality"] = "observed"
+    elif case == "negative_attempt":
+        first["polarity"] = "negative"
+    elif case == "first_excerpt_not_grounded":
+        first["source_excerpt"] = "Inspecciono el broche"
+
+    rules = []
+    result = _drop_unrelated_uncertainty_after_player_attempt(
+        steps,
+        evidence,
+        normalized,
+        rules,
+    )
+
+    assert result is steps
+    assert rules == []
+
+
+@pytest.mark.parametrize(
+    ("evidence", "expected_attribution"),
+    [
+        ("Mara me entrega el documento.", None),
+        ("Observo a Mara entregando el documento.", "Mara"),
+    ],
+)
+def test_explicit_npc_physical_events_are_observations_not_player_actions(
+    evidence, expected_attribution
+):
+    from services.turns.intent_surface_normalization import (
+        _normalize_explicit_actor_modalities,
+    )
+
+    step = _step(evidence, actor="player", modality="attempted")
+    normalized = {"category": "mixed", "active_step_index": 0}
+    rules = []
+
+    _normalize_explicit_actor_modalities(
+        normalized,
+        [step],
+        evidence,
+        rules,
+    )
+
+    assert step["actor"] == "npc"
+    assert step["modality"] == "observed"
+    assert step["polarity"] == "positive"
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert step["attributed_to"] == expected_attribution
+
+
+def test_first_person_attempt_is_not_reclassified_as_an_npc_event():
+    from services.turns.intent_surface_normalization import (
+        _normalize_explicit_actor_modalities,
+    )
+
+    evidence = "Intento abrir la puerta."
+    step = _step(evidence, actor="player", modality="attempted")
+    normalized = {"category": "action", "active_step_index": 0}
+    rules = []
+
+    _normalize_explicit_actor_modalities(
+        normalized,
+        [step],
+        evidence,
+        rules,
+    )
+
+    assert step["actor"] == "player"
+    assert step["modality"] == "attempted"
+    assert normalized == {"category": "action", "active_step_index": 0}
+    assert rules == []

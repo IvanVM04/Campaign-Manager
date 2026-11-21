@@ -2,7 +2,7 @@
 
 import json
 
-from scripts.ollama_test_report import build_summary
+from scripts.ollama_test_report import build_summary, main
 
 
 def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
@@ -37,6 +37,7 @@ def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
             "evaluation": "language",
             "corpus": "language_holdout_v1",
             "metadata": {
+                "git_commit": "a" * 40,
                 "model": "gemma4:26b",
                 "provider_calls": 12,
                 "elapsed_seconds": 4.5,
@@ -69,6 +70,13 @@ def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
     assert summary["pytest"]["skipped"] == 1
     assert summary["pytest"]["duration_seconds"] == 4.5
     assert summary["pytest"]["failed_tests"] == ["tests.live::test_failed"]
+    assert summary["commit_validation"] == {
+        "checked": True,
+        "passed": True,
+        "expected_commit": "a" * 40,
+        "reports_checked": 1,
+        "mismatched_reports": [],
+    }
     assert summary["pytest"]["safe_properties"] == {
         "language_understanding_model": "gemma4:26b",
         "language_understanding_provider_calls": 12,
@@ -156,3 +164,133 @@ def test_summary_survives_malformed_or_truncated_junit_xml(tmp_path):
     assert summary["pytest"]["junit_error"] == "missing_or_invalid"
     assert (output / "summary.md").is_file()
     assert (output / "summary.json").is_file()
+
+
+
+def test_summary_fails_commit_validation_when_a_report_uses_another_sha(tmp_path):
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "discourse.json").write_text(
+        json.dumps({"metadata": {"git_commit": "b" * 40}, "metrics": {}}),
+        encoding="utf-8",
+    )
+
+    summary = build_summary(
+        junit_xml=junit,
+        output_dir=output,
+        commit="a" * 40,
+    )
+
+    assert summary["status"] == "failed"
+    assert summary["commit_validation"]["passed"] is False
+    assert summary["commit_validation"]["mismatched_reports"] == [{
+        "file": "discourse.json",
+        "reported_commit": "b" * 40,
+    }]
+    markdown = (output / "summary.md").read_text(encoding="utf-8")
+    assert "Commit provenance validation" in markdown
+    assert "FAIL" in markdown
+
+
+
+def test_summary_fails_commit_validation_when_a_report_omits_its_sha(tmp_path):
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "language.json").write_text(
+        json.dumps({"metadata": {"model": "gemma4:12b"}, "metrics": {}}),
+        encoding="utf-8",
+    )
+
+    summary = build_summary(junit_xml=junit, output_dir=output, commit="a" * 40)
+
+    assert summary["status"] == "failed"
+    assert summary["commit_validation"]["mismatched_reports"] == [{
+        "file": "language.json",
+        "reported_commit": "missing_or_invalid",
+    }]
+
+
+def test_ollama_report_cli_exits_nonzero_when_report_commit_does_not_match(tmp_path, monkeypatch):
+    import sys
+
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "discourse.json").write_text(
+        json.dumps({"metadata": {"git_commit": "b" * 40}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "ollama_test_report.py",
+            "--junit-xml",
+            str(junit),
+            "--output-dir",
+            str(output),
+            "--commit",
+            "a" * 40,
+        ],
+    )
+
+    assert main() == 2
+
+
+def test_summary_preserves_only_aggregate_run_counts_for_compact_reporting(tmp_path):
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "discourse.json").write_text(
+        json.dumps({
+            "metadata": {"model": "gemma4:12b", "git_commit": "a" * 40},
+            "run": {
+                "scenario_count": 12,
+                "provider_calls": 24,
+                "elapsed_seconds": 120.5,
+                "critical_failure_count": 1,
+                "observational_failure_count": 2,
+                "private_input": "PLAYER_SECRET_UTTERANCE",
+            },
+            "discourse_controls": {
+                "callback": {"cases": 4, "exact_matches": 3, "exact_accuracy": 0.75}
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    summary = build_summary(junit_xml=junit, output_dir=output, commit="a" * 40)
+    live = summary["live_reports"][0]
+
+    assert live["run"] == {
+        "scenario_count": 12,
+        "provider_calls": 24,
+        "elapsed_seconds": 120.5,
+        "critical_failure_count": 1,
+        "observational_failure_count": 2,
+    }
+    assert live["discourse_controls"]["callback"]["exact_accuracy"] == 0.75
+    assert "private_input" not in json.dumps(live)
+    assert "PLAYER_SECRET_UTTERANCE" not in json.dumps(live)
