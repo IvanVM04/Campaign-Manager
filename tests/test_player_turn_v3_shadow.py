@@ -178,7 +178,7 @@ def test_v3_prompt_contains_contrasts_for_composition_and_authority():
     assert "callback" in V3_SYSTEM_PROMPT.lower()
     assert "no implica" in V3_SYSTEM_PROMPT
     assert "No suprimas una proposición explícita" in V3_SYSTEM_PROMPT
-    assert "recipient, source o carrier" in V3_SYSTEM_PROMPT
+    assert "recipient, source, destination, instrument" in V3_SYSTEM_PROMPT
     assert V3_EVIDENCE_ALIGNMENT_VERSION == "exact-unique-substring-v1"
 
 
