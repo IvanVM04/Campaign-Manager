@@ -242,7 +242,7 @@ No conservar en el aggregate texto íntegro del jugador, prompts/completions, co
 - PR #293: scorer graph-aware, diagnóstico por caso, métricas exact graph match y evaluación live opt-in. Incluye la primera tanda de 20 escenarios graph-gold que originalmente estaba planificada como una entrega separada de corpus.
 - La expansión restante del corpus hasta 100–300 escenarios sigue pendiente. Debe basarse en errores reales y revisión de gold; no se debe fabricar volumen con permutaciones triviales.
 - PR #294: rediseño del prompt v3 para aumentar la cobertura de cláusulas/proposiciones, más alineación conservadora de spans exactos y telemetría explícita del proceso.
-- PR #295: consistencia semántica de grafo.
+- PR #295: validación de consistencia semántica en el decoder v3: evidencia contenida en el acto origen, edges `quotes`/`condition_on_success`/`before_after`, duplicados, referencias y grounding de aclaraciones.
 - PR #296: gate de aceptación y ablations controladas antes de cualquier promoción.
 
 La numeración anterior era una secuencia propuesta. La primera entrega de corpus se integró en #293 y no consumió un número real de GitHub; por eso el hito de prompt se entrega como la PR real #294. Ver [roadmap maestro](../architecture/player-understanding-roadmap-2026-11-21.md) para estado por PR. Toda PR debe actualizar dicho ledger antes de merge.
