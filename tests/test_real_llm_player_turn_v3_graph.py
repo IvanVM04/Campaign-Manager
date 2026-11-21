@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import re
 from time import perf_counter
 
 import pytest
 
 from tests.player_turn_interpretation_v3_shadow import (
+    V3_RESPONSE_SCHEMA,
+    V3_SYSTEM_PROMPT,
     PlayerTurnInterpretationV3ShadowRunner,
 )
 from tests.player_turn_v3_graph_evaluation import (
@@ -108,6 +113,44 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
         scenario_filter=scenario_filter,
     )
     report["graph_comparisons"] = comparisons
+    reported_commit = (
+        os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
+        or ""
+    )
+    report["run_manifest"] = {
+        "git_commit": (
+            reported_commit if re.fullmatch(r"[0-9a-fA-F]{40}", reported_commit)
+            else "unavailable"
+        ),
+        "corpus_id": "player-turn-v3-graph-corpus-v1",
+        "corpus_schema_version": 1,
+        "scenario_count": len(scenarios),
+        "model": provider.model,
+        "model_digest": provider.get_model_digest() or "unavailable",
+        "ollama_version": provider.get_server_version() or "unavailable",
+        "thinking": getattr(provider, "think", None),
+        "timeout_seconds": getattr(provider, "timeout", None),
+        "prompt_version": "player-turn-v3-holistic-2026-11-20",
+        "prompt_sha256": hashlib.sha256(
+            V3_SYSTEM_PROMPT.encode("utf-8")
+        ).hexdigest(),
+        "schema_version": 3,
+        "schema_sha256": hashlib.sha256(
+            json.dumps(
+                V3_RESPONSE_SCHEMA,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
+        "generation_options": {
+            "sampling_parameters": "not_exposed_by_current_provider_contract",
+            "effective_values": "not_claimed",
+        },
+        "production_route": "v2",
+        "v3_authority": "none",
+    }
     report["acceptance"] = {
         "mode": "diagnostic_baseline",
         "production_route": "v2",
