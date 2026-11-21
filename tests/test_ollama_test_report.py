@@ -2,7 +2,7 @@
 
 import json
 
-from scripts.ollama_test_report import build_summary
+from scripts.ollama_test_report import build_summary, main
 
 
 def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
@@ -196,3 +196,59 @@ def test_summary_fails_commit_validation_when_a_report_uses_another_sha(tmp_path
     markdown = (output / "summary.md").read_text(encoding="utf-8")
     assert "Commit provenance validation" in markdown
     assert "FAIL" in markdown
+
+
+
+def test_summary_fails_commit_validation_when_a_report_omits_its_sha(tmp_path):
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "language.json").write_text(
+        json.dumps({"metadata": {"model": "gemma4:12b"}, "metrics": {}}),
+        encoding="utf-8",
+    )
+
+    summary = build_summary(junit_xml=junit, output_dir=output, commit="a" * 40)
+
+    assert summary["status"] == "failed"
+    assert summary["commit_validation"]["mismatched_reports"] == [{
+        "file": "language.json",
+        "reported_commit": "missing_or_invalid",
+    }]
+
+
+def test_ollama_report_cli_exits_nonzero_when_report_commit_does_not_match(tmp_path, monkeypatch):
+    import sys
+
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "discourse.json").write_text(
+        json.dumps({"metadata": {"git_commit": "b" * 40}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "ollama_test_report.py",
+            "--junit-xml",
+            str(junit),
+            "--output-dir",
+            str(output),
+            "--commit",
+            "a" * 40,
+        ],
+    )
+
+    assert main() == 2
