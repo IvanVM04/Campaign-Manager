@@ -128,3 +128,10 @@ def test_runner_does_not_shadow_automatic_powershell_args_variable():
     assert "[string[]]$Args" not in source
     assert "& $Exe @CommandArgs" in source
     assert "$ollamaPytestArgs" in source
+
+
+
+def test_runner_overwrites_inherited_commit_metadata_with_checked_out_head():
+    source = RUNNER.read_text(encoding="utf-8")
+    assert 'Set-EnvOverride "CAMPAIGN_MANAGER_GIT_COMMIT" $commit' in source
+    assert 'Set-EnvDefault "CAMPAIGN_MANAGER_GIT_COMMIT" $commit' not in source
