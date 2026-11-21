@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; creado por PR #292 (documental).  
-**Baseline inspeccionada:** main, commit 9bf33899b3505dfd99c8f76087d89b1fcbbce885 (PR #291 integrada).
+**Estado:** activo; PR #292 fusionada y reconciliada; actualización de ejecución por PR #293.  
+**Baseline inspeccionada:** main, commit 6754d41a53a766a1dbc928c2c9c31f16064e49a8 (PR #292 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -127,7 +127,7 @@ Los parámetros efectivos de generación, la versión del prompt, el schema, el 
 | #290 | Reparaciones puntuales de regresiones v2 de semántica/discurso | No sustituye la representación v2 |
 | #291 | Procedencia SHA y gate de cobertura exacta del 85 % | No valida calidad semántica |
 
-La implementación y el estado real deben comprobarse en código al empezar cada PR. Esta tabla evita volver a implementar piezas ya entregadas y evita declarar como integrada una capacidad aislada.
+La PR #292 quedó fusionada el 2026-11-21 en 6754d41a53a766a1dbc928c2c9c31f16064e49a8; esta reconciliación se incorpora en la PR #293. La primera entrega de la PR #294 se integra dentro de la misma PR #293 para mantener scorer y gold graph juntos. No se crea una PR #294 separada. La expansión posterior hacia 100–300 casos permanece abierta. La implementación y el estado real deben comprobarse en código al empezar cada PR.
 
 ## 5. Roadmap de PRs: secuencia principal
 
@@ -145,9 +145,9 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #292 | P0 | IMPLEMENTED — PR OPEN | Consolidación documental, arquitectura objetivo, evaluación y política obligatoria de roadmap; actualizar fila a MERGED + VERIFIED tras merge y sincronización posterior | #291 |
-| #293 | P0 | [ ] PLANNED | Diagnóstico por escenario, grafo scorer, métricas de omisiones/extras, manifiesto reproducible de ejecución y parámetros Ollama explícitos | #292 |
-| #294 | P0 | [ ] PLANNED | Corpus v3 held-out ampliado, gold relacional completo, negativos y validación de split/leakage | #293 |
+| #292 | P0 | [x] MERGED + VERIFIED | Roadmaps, arquitectura objetivo, evaluación, proceso de entrega e instrucciones obligatorias. Merge: 2026-11-21, SHA 6754d41a53a766a1dbc928c2c9c31f16064e49a8 | #291 |
+| #293 | P0 | IMPLEMENTED — PR OPEN | Scorer semántico de grafo, alineación sin IDs locales, métricas por nodos/aristas, diagnósticos privados y evaluación live opt-in | #292 |
+| #294 | P0 | BUNDLED PARTIAL INTO #293 | Primer corpus adicional con 20 escenarios held-out y gold relacional/argumental completo. El objetivo mayor de 100–300 escenarios sigue pendiente y deberá crecer según los fallos observados | #293 (misma PR) |
 | #295 | P0 | [ ] PLANNED | Rediseño del prompt v3 y contrato de generación para aumentar recall sin relajar evidencia/seguridad; evaluación de alineación de spans desde backend | #293–#294 |
 | #296 | P0 | [ ] PLANNED | Validación de consistencia del grafo semántico: argumentos, atribuciones, dependencias, citas, extremos y hechos | #294–#295 |
 | #297 | P0 | [ ] PLANNED | Evaluación de aceptación v3, ablations controladas de modelo/prompt/parámetros y decisión objetiva de promoción | #293–#296 |
@@ -230,6 +230,7 @@ La revisión del roadmap forma parte de la checklist de aceptación de PR. Una P
 - [Auditoría semántica inicial — 20/11](player-intent-semantic-redesign-audit-2026-11-20.md).
 - [Arquitectura objetivo de comprensión — 21/11](player-understanding-target-architecture-2026-11-21.md).
 - [Roadmap de evaluación semántica — 21/11](../quality/semantic-understanding-evaluation-roadmap-2026-11-21.md).
+- [Scorer y corpus v3 graph-aware — 21/11](../quality/v3-graph-evaluation-and-corpus-2026-11-21.md).
 - [Roadmap de prompts y runtime Ollama — 21/11](../quality/llm-runtime-reproducibility-and-prompt-roadmap-2026-11-21.md).
 - [Proceso de entrega y sincronización de PRs — 21/11](player-understanding-delivery-workflow-2026-11-21.md).
 - [Contrato v3](player-turn-interpretation-v3-contract-2026-11-20.md), [shadow v3](player-turn-interpretation-v3-shadow-2026-11-20.md), [selector/checkpoint](player-action-selection-checkpoint-2026-11-20.md) y [política de hechos](player-world-fact-policy-2026-11-20.md).

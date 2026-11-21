@@ -35,6 +35,34 @@ No producir una sola cifra de «comprensión general».
 
 Los corpus tienen contratos y denominadores distintos. La media de F1 de diferentes informes no es una métrica global. El scorer shadow inicial mide recuentos y secuencias de etiquetas, pero todavía no demuestra conectividad semántica completa del grafo.
 
+## 2.1 Scorer graph-aware y corpus complementario (PR #293 + primera fase #294)
+
+La PR #293 añade un scorer dedicado al grafo semántico completo y un corpus
+graph-gold v1 de 20 escenarios adicionales. Se conserva sin cambios el
+corpus shadow v1 de 12 escenarios; ambos son holdouts complementarios con
+contratos y métricas distintos y no se deben sumar como si compartieran gold.
+
+El nuevo scorer:
+- Alinea nodos por firma semántica y spans exactos, no por local IDs del LLM.
+- Puntúa actos, eventos, hechos, enlaces y aclaraciones por separado.
+- Puntúa edges de evento→acto, hecho→acto, discourse-link con endpoints y
+  clarification→affected-records después de alinear los nodos.
+- Detecta argumento/rol ligado al evento incorrecto y links con endpoints
+  invertidos aunque las etiquetas de nodo coincidan.
+- Devuelve IDs de escenario, contadores y nombres de componentes discrepantes,
+  nunca el texto de entrada, menciones, predicados ni prompts.
+
+La primera entrega de #294 queda **parcialmente incluida en #293**: 20 nuevos
+escenarios graph-gold cubren acciones, citas, condicionales, callback,
+relaciones, atributos, transferencia, incertidumbre, reportes y aclaraciones.
+No se afirma que el objetivo de 100–300 escenarios esté completado; la
+ampliación se hará tras estudiar la distribución real de errores y revisar
+el gold. El nuevo holdout live es opt-in para no alargar por defecto cada
+ejecución de la suite real.
+
+Detalles, esquema de anotación y comandos: [Scorer y corpus v3 graph-aware
+— 2026-11-21](v3-graph-evaluation-and-corpus-2026-11-21.md).
+
 ## 3. Fallos a conservar como escenarios de regresión
 
 1. Hecho nuevo explícito de NPC existente: preservar una cicatriz visible sin duplicar NPC ni perder notas anteriores.
@@ -211,8 +239,8 @@ No conservar en el aggregate texto íntegro del jugador, prompts/completions, co
 
 ## 11. PR responsables
 
-- PR #293: scorer de grafo, diagnósticos por escenario, run manifest, parámetros efectivos.
-- PR #294: corpus amplio, gold y controles de leakage.
+- PR #293: scorer graph-aware, diagnóstico por caso, métricas exact graph match y evaluación live opt-in. Incluye la primera entrega graph-gold de 20 escenarios de #294.
+- PR #294 no se abre como PR separada en esta iteración. El objetivo pendiente de llegar a 100–300 escenarios permanece en el backlog y se replanificará con evidencia del primer benchmark.
 - PR #295: prompt y alineación de evidencia.
 - PR #296: consistencia semántica de grafo.
 - PR #297: gate de aceptación y ablations.
