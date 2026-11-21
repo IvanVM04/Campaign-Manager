@@ -25,6 +25,18 @@ Dated audits and PR implementation records are historical snapshots unless expli
 
 The default-branch ruleset `protc1` requires pull requests, review-thread resolution, `CI summary`, and both CodeQL language checks. `CI summary` aggregates Ruff, deterministic tests, scoped and repository-wide Pyright, and JavaScript tests. See the current CI audit.
 
+## Mandatory player-understanding roadmap synchronization
+
+The active highest-priority language-understanding program is governed by [the master roadmap](docs/architecture/player-understanding-roadmap-2026-11-21.md) and [its delivery workflow](docs/architecture/player-understanding-delivery-workflow-2026-11-21.md).
+
+For every PR in that program:
+- Update the matching master-roadmap row before requesting review and before merge.
+- Record delivered and deferred scope, acceptance criteria, deterministic CI, Ollama evidence and SillyTavern status separately.
+- Do not mark a row MERGED + VERIFIED until the PR is actually merged and required evidence exists.
+- At the next program PR, reconcile all rows left as IMPLEMENTED — PR OPEN by recording the confirmed merge SHA/date.
+- A code module that is not wired into the runtime must be described as isolated, not integrated.
+- Any exception to the roadmap checklist must be explained in the PR body and reflected in the roadmap.
+
 ## Environment setup
 
 Install runtime dependencies and the pinned development tools from the canonical PEP 735 dependency groups:
@@ -108,4 +120,6 @@ A green CI run does not prove that a manual SillyTavern session or live LLM call
 - [ ] Required Pyright scope passes.
 - [ ] CodeQL checks pass.
 - [ ] Package and architecture docs are current.
+- [ ] Applicable roadmap row is updated; acceptance evidence, deferred work and dependencies are recorded.
+- [ ] Previously merged roadmap rows are reconciled with merge SHA/date.
 - [ ] Manual/live checks are reported honestly.

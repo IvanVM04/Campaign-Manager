@@ -4,6 +4,10 @@ This index separates active technical contracts from dated architecture proposal
 
 ## Current architecture baseline
 
+- [Player understanding master roadmap — 2026-11-21](player-understanding-roadmap-2026-11-21.md): maximum-priority NLU delivery ledger, PR #292–#306 status, acceptance gates and mandatory merge-time synchronization.
+- [Player understanding target architecture — 2026-11-21](player-understanding-target-architecture-2026-11-21.md): intended v3 semantic graph, trust boundaries, action/fact split and staged migration.
+- [Player understanding delivery workflow — 2026-11-21](player-understanding-delivery-workflow-2026-11-21.md): required per-PR checklist and roadmap state lifecycle.
+
 - [Current system state and architecture map — 2026-11-18](current-state-2026-11-18.md): current implementation shape, API/workflow, ownership, migration version, security, observed CI and unimplemented product requirements.
 - [Project-wide audit — 2026-11-19](project-audit-2026-11-19.md): latest reconciled main SHA, integrated PRs #267–#269, CI metrics, product requirements progress, risks and next steps.
 - [Current architecture map](architecture-map-2026-11-18.md): package ownership, pipelines, persistence, API surfaces and implementation gaps.
