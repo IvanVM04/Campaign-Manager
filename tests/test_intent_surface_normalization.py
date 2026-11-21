@@ -11,14 +11,21 @@ from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.intent_surface_normalization import normalize_intent_surface_payload
 
 
-def _step(excerpt, *, actor="player", modality="attempted", outcome="not_claimed"):
+def _step(
+    excerpt,
+    *,
+    actor="player",
+    modality="attempted",
+    polarity="positive",
+    outcome="not_claimed",
+):
     return {
         "index": 0,
         "source_excerpt": excerpt,
         "actor": actor,
         "action": "acción descrita",
         "modality": modality,
-        "polarity": "positive",
+        "polarity": polarity,
         "reported_outcome": outcome,
         "target_mentions": [],
         "attributed_to": None,
@@ -1439,3 +1446,293 @@ def test_reported_uncertainty_split_by_model_remains_one_attributed_claim():
     assert normalized["steps"][0]["polarity"] == "uncertain"
     assert normalized["steps"][0]["attributed_to"] == "Un viajero"
     assert "reported_uncertainty_steps_collapsed" in summary.applied_rules
+
+
+def test_observed_third_party_action_keeps_npc_as_actor():
+    source = "Veo a Aldric dejar una bolsa sobre la mesa."
+    payload = _payload(_step(source, actor="player"), category="action", active=0)
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "report"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "npc"
+    assert step["modality"] == "observed"
+    assert step["attributed_to"] == "Aldric"
+    assert "explicit_observed_npc_action" in summary.applied_rules
+
+
+def test_multi_npc_dialogue_steps_keep_independent_speakers_and_modality():
+    source = "Mara pregunta por el mapa y Aldric responde que no lo ha visto."
+    first = dict(_step("Mara pregunta por el mapa", actor="npc", modality="reported"), index=0)
+    second = dict(
+        _step("Aldric responde que no lo ha visto", actor="npc", modality="observed"),
+        index=1,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="mixed", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "dialogue"
+    assert normalized["active_step_index"] is None
+    assert [step["actor"] for step in normalized["steps"]] == ["npc", "npc"]
+    assert [step["modality"] for step in normalized["steps"]] == ["dialogue", "dialogue"]
+    assert [step["attributed_to"] for step in normalized["steps"]] == ["Mara", "Aldric"]
+    assert "explicit_npc_dialogue_step" in summary.applied_rules
+
+
+def test_npc_dialogue_before_player_attempt_remains_a_mixed_turn():
+    source = "Mara me advierte del peligro y yo intento retroceder hasta la puerta."
+    first = dict(_step("Mara me advierte del peligro", actor="npc", modality="reported"), index=0)
+    second = dict(
+        _step("yo intento retroceder hasta la puerta", actor="player", modality="attempted"),
+        index=1,
+    )
+
+    normalized, _summary = normalize_intent_surface_payload(
+        _payload(first, second, category="action", active=1),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "mixed"
+    assert normalized["active_step_index"] == 1
+    assert normalized["steps"][0]["modality"] == "dialogue"
+    assert normalized["steps"][0]["actor"] == "npc"
+    assert normalized["steps"][1]["modality"] == "attempted"
+
+
+def test_explicit_negation_before_a_new_player_attempt_is_one_action_sequence():
+    source = "No abro la puerta; en cambio, intento levantar la reja."
+    first = _step("No abro la puerta", actor="player", modality="observed")
+    second = dict(
+        _step("en cambio, intento levantar la reja", actor="player", modality="attempted"),
+        index=1,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="mixed", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 1
+    assert normalized["steps"][0]["modality"] == "negated"
+    assert normalized["steps"][0]["polarity"] == "negative"
+    assert normalized["steps"][1]["modality"] == "attempted"
+    assert "explicit_negated_then_positive_player_action" in summary.applied_rules
+
+
+def test_pronoun_led_npc_speech_is_dialogue_without_invented_identity():
+    source = "Ella vuelve a hablar conmigo."
+    payload = _payload(
+        _step(source, actor="player", modality="attempted"),
+        category="action",
+        active=0,
+    )
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "dialogue"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "npc"
+    assert step["modality"] == "dialogue"
+    assert step["attributed_to"] is None
+    assert "explicit_pronoun_npc_dialogue_step" in summary.applied_rules
+
+
+def test_explicit_desire_to_continue_a_topic_is_a_plan_not_an_action():
+    source = "Como te dije antes, quiero continuar con el asunto de la carta."
+    payload = _payload(_step(source, actor="player", modality="attempted"))
+
+    normalized, summary = normalize_intent_surface_payload(
+        payload,
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "plan"
+    assert normalized["active_step_index"] is None
+    assert step["actor"] == "player"
+    assert step["modality"] == "planned"
+    assert step["action_frame"]["family"] == "other"
+    assert step["action_frame"]["arguments"] == []
+    assert "explicit_continuation_desire_is_plan" in summary.applied_rules
+
+
+def test_explicit_continuation_plan_neutralizes_an_existing_action_frame():
+    source = "Quiero continuar con el asunto de la carta."
+    step = _step(source, actor="player", modality="attempted")
+    step["action_frame"] = {
+        "predicate": "continuar",
+        "family": "movement",
+        "arguments": [
+            {
+                "role": "patient",
+                "mention": {"text": "el asunto de la carta", "kind_hint": "world_entity"},
+            }
+        ],
+    }
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(step, category="action", active=0),
+        evidence_text=source,
+    )
+
+    frame = normalized["steps"][0]["action_frame"]
+    assert normalized["category"] == "plan"
+    assert normalized["active_step_index"] is None
+    assert frame["predicate"] == "continuar"
+    assert frame["family"] == "other"
+    assert frame["arguments"] == []
+    assert "explicit_continuation_desire_is_plan" in summary.applied_rules
+
+
+@pytest.mark.parametrize(
+    ("source", "steps"),
+    [
+        ("Retomando la carta y sigo leyendo.", [_step("Retomando la carta")]),
+        (
+            "Retomando la carta.",
+            [_step("Retomando la carta"), dict(_step("la carta"), index=1)],
+        ),
+        (
+            "Hablo de la carta, y sigo leyendo.",
+            [_step("Hablo de la carta"), dict(_step("y sigo leyendo"), index=1)],
+        ),
+        (
+            "Volviendo a eso, sigo leyendo.",
+            [_step("Volviendo a eso"), dict(_step("sigo leyendo"), index=1)],
+        ),
+        (
+            "Retomando la carta, sigo leyendo.",
+            [_step("otra cosa"), dict(_step("sigo leyendo"), index=1)],
+        ),
+    ],
+)
+def test_callback_prefix_normalizer_abstains_without_two_valid_anchored_steps(
+    source,
+    steps,
+):
+    from services.turns.intent_surface_normalization import (
+        _strip_explicit_callback_prefix,
+    )
+
+    result = _strip_explicit_callback_prefix(
+        _payload(*steps, category="action", active=1),
+        steps,
+        source,
+    )
+
+    assert result is None
+
+
+def test_unrelated_epistemic_sentence_does_not_become_a_second_action_step():
+    source = "Intento abrir la puerta. Quizá el guardia se despierte."
+    first = _step(
+        "Intento abrir la puerta",
+        actor="player",
+        modality="attempted",
+    )
+    first["target_mentions"] = ["la puerta"]
+    second = dict(
+        _step(
+            "Quizá el guardia se despierte",
+            actor="npc",
+            modality="reported",
+            outcome="not_claimed",
+        ),
+        index=1,
+    )
+    second["target_mentions"] = ["el guardia"]
+
+    normalized, summary = normalize_intent_surface_payload(
+        _payload(first, second, category="mixed", active=0),
+        evidence_text=source,
+    )
+
+    assert normalized["category"] == "action"
+    assert normalized["active_step_index"] == 0
+    assert len(normalized["steps"]) == 1
+    assert normalized["steps"][0]["modality"] == "attempted"
+    assert "unrelated_uncertainty_not_added_to_action_sequence" in summary.applied_rules
+
+
+def test_failed_attempt_result_only_relation_noise_is_removed_when_collapsed():
+    from services.turns.intent_surface_normalization import (
+        _collapse_split_attempt_outcome,
+    )
+
+    source = "Pruebo la llave, pero el cofre sigue cerrado."
+    first = _step("Pruebo la llave", actor="player", modality="attempted")
+    second = dict(
+        _step("el cofre sigue cerrado", actor="other", modality="reported"),
+        index=1,
+    )
+    normalized = {
+        "category": "mixed",
+        "active_step_index": 0,
+        "relation_claims": [{"step_index": 1}],
+    }
+    rules = []
+
+    steps = _collapse_split_attempt_outcome(
+        [first, second],
+        source,
+        normalized,
+        rules,
+    )
+
+    assert len(steps) == 1
+    assert steps[0]["reported_outcome"] == "failure"
+    assert normalized["relation_claims"] == []
+    assert "split_attempt_failure_collapsed" in rules
+
+
+def test_negated_player_attack_is_not_reclassified_as_an_npc_event():
+    source = "No ataco al guardia."
+    normalized, _summary = normalize_intent_surface_payload(
+        _payload(
+            _step(
+                source,
+                actor="player",
+                modality="negated",
+                polarity="negative",
+            ),
+            category="action",
+            active=None,
+        ),
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "action"
+    assert step["actor"] == "player"
+    assert step["modality"] == "negated"
+    assert step["polarity"] == "negative"
+
+
+def test_future_player_speech_is_not_reclassified_as_npc_dialogue():
+    source = "Mañana pregunto al capitán."
+    normalized, _summary = normalize_intent_surface_payload(
+        _payload(
+            _step(source, actor="player", modality="planned"),
+            category="plan",
+            active=None,
+        ),
+        evidence_text=source,
+    )
+
+    step = normalized["steps"][0]
+    assert normalized["category"] == "plan"
+    assert step["actor"] == "player"
+    assert step["modality"] == "planned"

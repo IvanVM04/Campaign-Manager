@@ -90,6 +90,68 @@ _PLAYER_OBSERVATION_RE = re.compile(
     r"distingo|distinguí)\b",
     re.IGNORECASE,
 )
+_NAMED_NPC_SPEECH_STEP_RE = re.compile(
+    r"^\s*(?P<speaker>(?:el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+)?"
+    r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*))\s+"
+    r"(?:(?:me|te|le|les|nos)\s+)?(?P<predicate>"
+    r"(?:dice|dicen|dijo|dijeron|pregunt\w*|respond\w*|contest\w*|"
+    r"habl\w*|convers\w*|susurr\w*|grit\w*|murmur\w*|avis\w*|"
+    r"adviert\w*|añad\w*|coment\w*)"
+    r")\b",
+    re.IGNORECASE,
+)
+_NON_NPC_SPEAKER_STARTER_RE = re.compile(
+    r"^\s*(?:no|si|sí|mañana|ayer|hoy|luego|después|despues|entonces|"
+    r"quizá|quizas|tal|pero|aunque|ahora|yo)\b",
+    re.IGNORECASE,
+)
+_PLAYER_SPEECH_STEP_RE = re.compile(
+    r"^\s*(?:(?:yo)\s+)?(?:(?:me|te|le|les|nos)\s+)?(?:"
+    + SPEECH_PREDICATE_ALTERNATION
+    + r")\b",
+    re.IGNORECASE,
+)
+_PRONOUN_NPC_SPEECH_STEP_RE = re.compile(
+    r"^\s*(?P<pronoun>él|ella|ellos|ellas)\s+"
+    r"(?:(?:vuelve|volvió|volvia|volvía|empieza|empezó|continúa|continua|sigue)"
+    r"\s+a\s+)?(?:habl\w*|convers\w*|pregunt\w*|respond\w*|contest\w*|"
+    r"avis\w*|susurr\w*|grit\w*|cuent\w*)\b",
+    re.IGNORECASE,
+)
+_PLAN_DESIRE_RE = re.compile(
+    r"\b(?:quiero|quisiera|me gustaría|me gustaria|pretendo|planeo|pienso)\s+"
+    r"(?:continuar|seguir|retomar|reanudar|volver\s+a|proseguir|"
+    r"terminar|acabar|empezar|comenzar|ir\s+a)\b",
+    re.IGNORECASE,
+)
+_INDEPENDENT_UNCERTAINTY_PREFIX_RE = re.compile(
+    r"^\s*(?:quizá|quizas|tal\s+vez|puede\s+que|es\s+posible\s+que)\b",
+    re.IGNORECASE,
+)
+_OBSERVED_THIRD_PARTY_ACTION_RE = re.compile(
+    r"^\s*(?:veo|vi|observo|observé|miro|miré|escucho|escuché)\s+a\s+"
+    r"(?P<speaker>(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*))\s+"
+    r"(?P<predicate>dejar|dejando|entregar|entregando|entrar|entrando|"
+    r"salir|saliendo|señalar|señala|señalando|mover|moviendo|"
+    r"guardar|guardando|mostrar|muestra|mostrando)\b",
+    re.IGNORECASE,
+)
+_NPC_PHYSICAL_EVENT_STEP_RE = re.compile(
+    r"^\s*(?P<speaker>(?:el|la)\s+[\wáéíóúüñ-]+(?:\s+[\wáéíóúüñ-]+)?"
+    r"|(?-i:[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*))\s+"
+    r"(?:(?:me|te|le|les|nos)\s+)?"
+    r"(?:entreg\w*|devolv\w*|recib\w*|entr\w*|sal\w*|"
+    r"señal\w*|muestr\w*|mostr\w*|guard\w*|mov\w*|"
+    r"golpe\w*|atac\w*|proteg\w*)\b",
+    re.IGNORECASE,
+)
+_NEGATED_FIRST_PERSON_ACTION_RE = re.compile(
+    r"^\s*no\s+(?:(?:yo)\s+)?(?:abro|cierro|desbloqueo|recojo|tomo|"
+    r"cojo|guardo|saco|coloco|entrego|recibo|enciendo|apago|rompo|muevo|"
+    r"levanto|agarro|cruzo|activo|desato|sujeto|trepo|escalo|camino|"
+    r"corro|entro|salgo|subo|bajo|salto|nado|viajo)\b",
+    re.IGNORECASE,
+)
 _PLAYER_INVESTIGATION_ATTEMPT_RE = re.compile(
     r"^\s*(?:(?:yo)\s+)?(?:examino|examiné|inspecciono|inspeccioné)\b",
     re.IGNORECASE,
@@ -159,6 +221,19 @@ _REPORTED_SPEAKER_RE = re.compile(
     r")\s+(?:(?:me|te|le|les|nos)\s+)?(?:"
     + SPEECH_PREDICATE_ALTERNATION
     + r")\s+que\b",
+    re.IGNORECASE,
+)
+_REPORTED_CLAIM_PREDICATE_RE = re.compile(
+    r"\b(?:comenta|comentan|comentó|comentaron|comento|"
+    r"afirma|afirman|afirmó|afirmaron|afirmo|"
+    r"asegura|aseguran|aseguró|aseguraron|aseguro|"
+    r"declara|declaran|declaró|declararon|declaro|"
+    r"relata|relatan|relató|relataron|relato|"
+    r"indica|indican|indicó|indicaron|indico|"
+    r"revela|revelan|reveló|revelaron|revelo|"
+    r"informa|informan|informó|informaron|informo|"
+    r"sostiene|sostienen|sostuvo|sostuvieron|"
+    r"confirma|confirman|confirmó|confirmaron|confirmo)\s+que\b",
     re.IGNORECASE,
 )
 _EXPLICIT_DECISION_NOT_TO_ACT_RE = re.compile(
@@ -264,6 +339,15 @@ def _strip_explicit_callback_prefix(
     normalized = dict(payload)
     retained_steps = [dict(step) for step in steps[1:]]
     old_to_new = {old: old - 1 for old in range(1, len(steps))}
+    first_retained_excerpt = retained_steps[0].get("source_excerpt")
+    if isinstance(first_retained_excerpt, str) and first_retained_excerpt.strip():
+        # Keep the literal callback anchor in the first actionable step's
+        # evidence span. Otherwise later validation drops it and the resolver
+        # sees only an ungrounded pronoun.
+        excerpt_start = evidence.find(first_retained_excerpt)
+        if excerpt_start >= 0:
+            excerpt_end = excerpt_start + len(first_retained_excerpt)
+            retained_steps[0]["source_excerpt"] = evidence[:excerpt_end].strip()
     for index, step in enumerate(retained_steps):
         step["index"] = index
     old_active = payload.get("active_step_index")
@@ -375,10 +459,19 @@ def _collapse_split_attempt_outcome(
     uncertainty/failure continuation is collapsed. Independent later actions,
     relation claims, reordered excerpts and additional steps remain untouched.
     """
+    claims = normalized.get("relation_claims")
+    result_only_claims = (
+        isinstance(claims, list)
+        and all(
+            isinstance(claim, dict)
+            and claim.get("step_index") == 1
+            for claim in claims
+        )
+    )
     if (
         len(steps) != 2
         or len(evidence) > 300
-        or normalized.get("relation_claims")
+        or (claims and not result_only_claims)
         # Reported speech and its epistemic caveat are handled by the
         # speaker-scoping rule below; they are not player-attempt outcomes.
         or _REPORTED_SPEAKER_RE.search(evidence) is not None
@@ -438,8 +531,13 @@ def _collapse_split_attempt_outcome(
         return steps
 
     first["source_excerpt"] = evidence.strip()
+    first["reported_outcome"] = (
+        "failure" if failure is not None else "uncertain"
+    )
     steps = [first]
     normalized["steps"] = steps
+    if result_only_claims:
+        normalized["relation_claims"] = []
     normalized["category"] = "action"
     normalized["active_step_index"] = 0
     rules.append(
@@ -448,6 +546,84 @@ def _collapse_split_attempt_outcome(
         else "split_attempt_failure_collapsed"
     )
     return steps
+
+
+def _drop_unrelated_uncertainty_after_player_attempt(
+    steps: list[dict[str, Any]],
+    evidence: str,
+    normalized: dict[str, Any],
+    rules: list[str],
+) -> list[dict[str, Any]]:
+    """Do not treat an unrelated speculative sentence as another action step."""
+    if (
+        len(steps) != 2
+        or normalized.get("category") not in {"action", "mixed"}
+        or normalized.get("active_step_index") != 0
+        or len(evidence) > 300
+    ):
+        return steps
+    first, second = steps
+    if (
+        first.get("actor") != "player"
+        or first.get("modality") != "attempted"
+        or first.get("polarity") != "positive"
+        or not isinstance(first.get("source_excerpt"), str)
+        or not isinstance(second.get("source_excerpt"), str)
+    ):
+        return steps
+
+    second_excerpt = second["source_excerpt"].strip()
+    if not _INDEPENDENT_UNCERTAINTY_PREFIX_RE.match(second_excerpt):
+        return steps
+    if (
+        _ATTEMPT_OUTCOME_UNCERTAINTY_RE.search(second_excerpt)
+        or _FAILURE_RE.search(second_excerpt)
+        or _EXPLICIT_SUCCESS_RE.search(second_excerpt)
+    ):
+        return steps
+
+    first_excerpt = first["source_excerpt"].strip()
+    folded_evidence = _fold(evidence)
+    first_start = folded_evidence.find(_fold(first_excerpt))
+    if first_start < 0:
+        return steps
+    first_end = first_start + len(first_excerpt)
+    second_start = folded_evidence.find(_fold(second_excerpt), first_end)
+    if second_start < first_end:
+        return steps
+    second_end = second_start + len(second_excerpt)
+    if re.search(r"[.!?]", evidence[first_end:second_start]) is None:
+        return steps
+    if re.search(r"\w", evidence[second_end:]):
+        return steps
+
+    first_targets = {
+        _fold(value)
+        for value in first.get("target_mentions", [])
+        if isinstance(value, str) and value.strip()
+    }
+    second_targets = {
+        _fold(value)
+        for value in second.get("target_mentions", [])
+        if isinstance(value, str) and value.strip()
+    }
+    if not first_targets or not second_targets or first_targets & second_targets:
+        return steps
+
+    normalized["category"] = "action"
+    normalized["active_step_index"] = 0
+    claims = normalized.get("relation_claims")
+    if isinstance(claims, list):
+        normalized["relation_claims"] = [
+            claim
+            for claim in claims
+            if not (
+                isinstance(claim, dict)
+                and claim.get("step_index") == 1
+            )
+        ]
+    rules.append("unrelated_uncertainty_not_added_to_action_sequence")
+    return [first]
 
 
 def _correction_predicate(evidence: str) -> str | None:
@@ -460,6 +636,191 @@ def _correction_predicate(evidence: str) -> str | None:
         if value is not None:
             return value
     return None
+
+
+def _normalize_explicit_actor_modalities(
+    normalized: dict[str, Any],
+    steps: list[dict[str, Any]],
+    evidence: str,
+    rules: list[str],
+) -> None:
+    """Repair literal speaker/modality cues in already-separated steps."""
+    if not steps:
+        return
+
+    dialogue_indices: list[int] = []
+    observed_npc_indices: list[int] = []
+
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        excerpt = step.get("source_excerpt")
+        if not isinstance(excerpt, str) or not excerpt.strip():
+            continue
+        if _fold(excerpt) not in _fold(evidence):
+            continue
+        # Player speech with a dative clitic (e.g. "Le pregunto...")
+        # takes precedence over any sentence-initial capitalized token.
+        if _PLAYER_SPEECH_STEP_RE.match(excerpt):
+            step["actor"] = "player"
+            step["modality"] = "dialogue"
+            step["polarity"] = "positive"
+            step["reported_outcome"] = "not_claimed"
+            dialogue_indices.append(index)
+            rules.append("explicit_player_dialogue_step")
+            continue
+
+        # Future/discourse markers and first-person actions must not become
+        # NPC subjects solely because the sentence starts with a capital.
+        if (
+            _NON_NPC_SPEAKER_STARTER_RE.match(excerpt)
+            or _FIRST_PERSON_PRESENT_RE.match(excerpt)
+            or _FIRST_PERSON_ACTIVE_CLAUSE_RE.match(excerpt)
+            or _NEGATED_FIRST_PERSON_ACTION_RE.match(excerpt)
+        ):
+            continue
+
+        reported_claim = _REPORTED_SPEAKER_RE.match(excerpt)
+        if (
+            reported_claim is not None
+            and _REPORTED_CLAIM_PREDICATE_RE.search(reported_claim.group(0))
+            is not None
+        ):
+            # "Dorian comenta/afirma que..." introduces a reported claim.
+            # Do not let the broader named-speech matcher reinterpret that
+            # reporting verb as a direct dialogue act after evidence widening.
+            speaker = reported_claim.group("speaker").strip()
+            step["actor"] = (
+                "other"
+                if _fold(speaker).startswith(("un ", "una "))
+                else "npc"
+            )
+            step["modality"] = "reported"
+            step["attributed_to"] = speaker
+            rules.append("explicit_reported_speaker")
+            continue
+
+        named_speech = _NAMED_NPC_SPEECH_STEP_RE.match(excerpt)
+        if named_speech is not None:
+            speaker = named_speech.group("speaker").strip()
+            step["actor"] = "npc"
+            step["modality"] = "dialogue"
+            step["polarity"] = "positive"
+            step["reported_outcome"] = "not_claimed"
+            step["attributed_to"] = speaker
+            dialogue_indices.append(index)
+            rules.append("explicit_npc_dialogue_step")
+            continue
+
+        # A reported proposition that has no explicit direct-speech step
+        # remains attributed speech. This follows the named dialogue matcher:
+        # "Aldric responde que..." is still an NPC dialogue act even though
+        # its complement is introduced by "que".
+        if _REPORTED_SPEAKER_RE.search(excerpt):
+            continue
+
+        pronoun_speech = _PRONOUN_NPC_SPEECH_STEP_RE.match(excerpt)
+        if pronoun_speech is not None:
+            step["actor"] = "npc"
+            step["modality"] = "dialogue"
+            step["polarity"] = "positive"
+            step["reported_outcome"] = "not_claimed"
+            # The grammatical pronoun establishes the speaker role, not a
+            # canonical identity. Keep attribution empty for later resolution.
+            step["attributed_to"] = None
+            dialogue_indices.append(index)
+            rules.append("explicit_pronoun_npc_dialogue_step")
+            continue
+
+        observed = _OBSERVED_THIRD_PARTY_ACTION_RE.match(excerpt)
+        if observed is not None and len(steps) == 1:
+            speaker = observed.group("speaker").strip()
+            step["actor"] = "npc"
+            step["modality"] = "observed"
+            step["polarity"] = "positive"
+            step["reported_outcome"] = "not_claimed"
+            step["attributed_to"] = speaker
+            step["source_excerpt"] = evidence.strip()
+            observed_npc_indices.append(index)
+            rules.append("explicit_observed_npc_action")
+            continue
+
+        physical_event = (
+            None
+            if _NON_NPC_SPEAKER_STARTER_RE.match(excerpt)
+            or _FIRST_PERSON_PRESENT_RE.match(excerpt)
+            or _NEGATED_FIRST_PERSON_ACTION_RE.match(excerpt)
+            else _NPC_PHYSICAL_EVENT_STEP_RE.match(excerpt)
+        )
+        if physical_event is not None:
+            speaker = _fold(physical_event.group("speaker").strip())
+            if speaker not in {"el jugador", "la jugadora"}:
+                step["actor"] = "npc"
+                step["modality"] = "observed"
+                step["polarity"] = "positive"
+                step["reported_outcome"] = "not_claimed"
+                observed_npc_indices.append(index)
+                rules.append("explicit_observed_npc_event_step")
+
+    # A plainly negated first-person action followed by a separate positive
+    # attempt remains one action sequence, not a mixed report/dialogue category.
+    if len(steps) >= 2:
+        first_excerpt = steps[0].get("source_excerpt")
+        second_excerpt = steps[1].get("source_excerpt")
+        if (
+            isinstance(first_excerpt, str)
+            and isinstance(second_excerpt, str)
+            and _NEGATED_FIRST_PERSON_ACTION_RE.match(first_excerpt)
+            and _fold(first_excerpt) in _fold(evidence)
+            and _fold(second_excerpt) in _fold(evidence)
+        ):
+            steps[0]["actor"] = "player"
+            steps[0]["modality"] = "negated"
+            steps[0]["polarity"] = "negative"
+            steps[0]["reported_outcome"] = "not_claimed"
+            active = next(
+                (
+                    i for i, step in enumerate(steps[1:], start=1)
+                    if isinstance(step, dict)
+                    and step.get("actor") == "player"
+                    and step.get("modality") == "attempted"
+                    and step.get("polarity") == "positive"
+                ),
+                None,
+            )
+            if active is not None:
+                normalized["category"] = "action"
+                normalized["active_step_index"] = active
+                rules.append("explicit_negated_then_positive_player_action")
+
+    if dialogue_indices:
+        if len(dialogue_indices) == len(steps):
+            normalized["category"] = "dialogue"
+            normalized["active_step_index"] = None
+        elif len(steps) > 1:
+            normalized["category"] = "mixed"
+            active = normalized.get("active_step_index")
+            if (
+                isinstance(active, int)
+                and (
+                    active >= len(steps)
+                    or steps[active].get("modality") == "dialogue"
+                )
+            ):
+                normalized["active_step_index"] = next(
+                    (
+                        i for i, step in enumerate(steps)
+                        if isinstance(step, dict)
+                        and step.get("actor") == "player"
+                        and step.get("modality") == "attempted"
+                        and step.get("polarity") == "positive"
+                    ),
+                    None,
+                )
+
+    if observed_npc_indices and len(steps) == 1:
+        normalized["category"] = "report"
+        normalized["active_step_index"] = None
 
 
 def normalize_intent_surface_payload(
@@ -787,6 +1148,13 @@ def normalize_intent_surface_payload(
     # literal result clause; never merge an independent later action.
     if normalized.get("category") in {"action", "mixed"}:
         steps = _collapse_split_attempt_outcome(
+            steps,
+            evidence,
+            normalized,
+            rules,
+        )
+
+        steps = _drop_unrelated_uncertainty_after_player_attempt(
             steps,
             evidence,
             normalized,
@@ -1126,6 +1494,8 @@ def normalize_intent_surface_payload(
         _widen_excerpt(step, evidence)
         rules.append("explicit_epistemic_uncertainty")
 
+    _normalize_explicit_actor_modalities(normalized, steps, evidence, rules)
+
     callback_normalization = _strip_explicit_callback_prefix(
         normalized,
         steps,
@@ -1134,6 +1504,52 @@ def normalize_intent_surface_payload(
     if callback_normalization is not None:
         normalized, steps = callback_normalization
         rules.append("explicit_callback_preamble_removed")
+
+    # A stated desire to resume/continue a topic is a plan, not an immediate
+    # executable action or a dialogue act merely because it follows "Como te
+    # dije antes". Keep this rule to explicit desire + continuation predicates.
+    plan_desire = _PLAN_DESIRE_RE.search(evidence)
+    if (
+        plan_desire is not None
+        and len(steps) == 1
+        and normalized.get("category") not in {"question", "correction"}
+        and _ATTEMPT_RE.search(evidence) is None
+    ):
+        step = steps[0]
+        step["actor"] = "player"
+        step["modality"] = "planned"
+        step["polarity"] = "positive"
+        step["reported_outcome"] = "not_claimed"
+        frame = step.get("action_frame")
+        predicate_match = re.search(
+            r"\b(?:continuar|seguir|retomar|reanudar|proseguir|terminar|"
+            r"acabar|empezar|comenzar|volver\s+a|ir\s+a)\b",
+            plan_desire.group(0),
+            re.IGNORECASE,
+        )
+        # The selected predicate is a literal continuation verb inside the
+        # explicit desire span. A neutral V2 frame is required even when the
+        # model omitted action_frame from an otherwise valid plan step.
+        predicate = (
+            predicate_match.group(0)
+            if predicate_match is not None
+            else "continuar"
+        )
+        if isinstance(frame, dict):
+            neutral_frame = dict(frame)
+            neutral_frame["predicate"] = predicate
+            neutral_frame["family"] = "other"
+            neutral_frame["arguments"] = []
+            step["action_frame"] = neutral_frame
+        else:
+            step["action_frame"] = {
+                "predicate": predicate,
+                "family": "other",
+                "arguments": [],
+            }
+        normalized["category"] = "plan"
+        normalized["active_step_index"] = None
+        rules.append("explicit_continuation_desire_is_plan")
 
     normalized["steps"] = steps
     return normalized, IntentSurfaceNormalizationSummary(tuple(dict.fromkeys(rules)))

@@ -234,7 +234,8 @@ _RELATION_PATTERNS: tuple[
     (
         "relation_kinship",
         re.compile(
-            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?(?:es\s+)?"
+            r"^(?P<subject>.+?)\s+(?P<negative>no\s+)?"
+            r"(?:(?:es|sería|seria|fuera|fuese|será|sera)\s+)?"
             r"(?P<predicate>herman[oa]|madre|padre|hij[oa]|prim[oa]|t[ií][oa])\s+"
             r"de\s+(?P<object>.+)$",
             re.IGNORECASE,
@@ -341,6 +342,7 @@ class _RelationSurface:
     negative: bool
     attributed_to: str | None
     temporal_expression: str | None
+    conditional: bool = False
 
 
 def _fold(value: str) -> str:
@@ -656,6 +658,80 @@ def _normalize_action_frame(
         new_arguments.extend(
             argument for argument in (theme, instrument) if argument is not None
         )
+    elif selected_rule == "action_communication":
+        # Communication roles are especially important for dialogue callbacks:
+        # "Le pregunto a él si ha visto la llave" has an explicit recipient and
+        # a literal theme even though the theme appears inside the question.
+        recipient_match = re.match(
+            r"^(?:a|al)\s+(?P<recipient>.+?)"
+            r"(?=\s+(?:por|sobre|acerca\s+de|respecto\s+a|si|que)\b|$)",
+            tail,
+            re.IGNORECASE,
+        )
+        theme_match = re.search(
+            r"\b(?:por|sobre|acerca\s+de|respecto\s+a)\s+(?P<theme>.+)$",
+            tail,
+            re.IGNORECASE,
+        )
+        if recipient_match is None:
+            # An explicit callback such as "Volviendo a lo de Mara, le
+            # pregunto..." keeps the named callback anchor in the pre-predicate
+            # span. The dative clitic "le" licenses it as recipient; without
+            # both signals we do not infer a communication participant.
+            callback_recipient = re.search(
+                r"\b(?:lo|la|tema|asunto)\s+de\s+"
+                r"(?P<recipient>[A-ZÁÉÍÓÚÜÑ][\wáéíóúüñ-]*)"
+                r"(?:\s*,\s*(?:me|te|le|les|nos))?\s*$",
+                prefix,
+                re.IGNORECASE,
+            )
+            if callback_recipient is not None:
+                recipient_match = callback_recipient
+        if theme_match is None:
+            theme_match = re.search(
+                r"\b(?:ha|has|han|había|habia|habían|habian|visto|encontrado|"
+                r"encontró|encontro|conoce|conocía|conocia)\s+"
+                r"(?P<theme>(?:el|la|los|las|un|una)\s+[^,.!?;]+)[.!?]?\s*$",
+                tail,
+                re.IGNORECASE,
+            )
+        replaced_roles: set[SemanticArgumentRole] = set()
+        if recipient_match is not None:
+            recipient_text = _trim_surface(recipient_match.group("recipient"))
+            recipient = _make_argument(
+                SemanticArgumentRole.RECIPIENT,
+                recipient_text,
+                text,
+                existing_frame=frame,
+            )
+            if recipient is not None:
+                if _normalize_kind_word(recipient_text) in {
+                    "el", "él", "ella", "ellos", "ellas", "him", "her", "they",
+                }:
+                    recipient = replace(
+                        recipient,
+                        mention=replace(
+                            recipient.mention,
+                            kind_hint=SemanticObjectKind.CHARACTER,
+                        ),
+                    )
+                new_arguments.append(recipient)
+                replaced_roles.add(SemanticArgumentRole.RECIPIENT)
+        if theme_match is not None:
+            theme = _make_argument(
+                SemanticArgumentRole.THEME,
+                theme_match.group("theme"),
+                text,
+                existing_frame=frame,
+            )
+            if theme is not None:
+                new_arguments.append(theme)
+                replaced_roles.add(SemanticArgumentRole.THEME)
+        new_arguments.extend(
+            argument
+            for argument in frame.arguments
+            if argument.role not in replaced_roles
+        )
     elif selected_rule == "action_transfer":
         recipient_match = re.match(
             r"^(?P<theme>.+?)\s+(?:a|al)\s+(?P<recipient>.+)$",
@@ -780,6 +856,7 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     clause = original
     speaker: str | None = None
     temporal: str | None = None
+    conditional = False
     reported_match = _REPORTED_PREFIX_RE.match(clause)
     if reported_match is not None:
         speaker = _trim_surface(reported_match.group("speaker"))
@@ -793,7 +870,12 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
     clause = _trim_surface(clause)
     if not clause:
         return None
-    if re.match(r"^(?:si|quizá|quizas|tal\s+vez)\b", _fold(clause)):
+    conditional_match = re.match(r"^si\s+(?P<clause>.+)$", clause, re.IGNORECASE)
+    if conditional_match is not None:
+        conditional = True
+        # Parse only the conditional proposition, never its apodosis.
+        clause = re.split(r"[,;]", conditional_match.group("clause"), maxsplit=1)[0].strip()
+    if re.match(r"^(?:quizá|quizas|tal\s+vez)\b", _fold(clause)):
         return None
 
     matches: list[_RelationSurface] = []
@@ -814,6 +896,11 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
                 # service or another relation. Do not overwrite the model's
                 # interpretation with an unsupported ownership guess.
                 continue
+        if conditional and family is not SemanticRelationFamily.KINSHIP:
+            # A conditional membership/ownership/employment proposition is
+            # not an asserted world relation. Conditional kinship is retained
+            # as explicitly hypothetical rather than asserted fact evidence.
+            continue
         matches.append(
             _RelationSurface(
                 rule_id=rule_id,
@@ -824,6 +911,7 @@ def _parse_relation_surface(text: str) -> _RelationSurface | None:
                 negative=negative,
                 attributed_to=speaker,
                 temporal_expression=temporal,
+                conditional=conditional,
             )
         )
 
@@ -875,6 +963,8 @@ def _make_relation_claim(
         modality = SemanticModality.QUESTION
     elif polarity is SemanticPolarity.NEGATIVE:
         modality = SemanticModality.NEGATED
+    elif surface.conditional:
+        modality = SemanticModality.CONDITIONAL
     else:
         modality = SemanticModality(step.modality.value)
     attributed_to = (
@@ -1027,8 +1117,17 @@ def normalize_untrusted_intent_payload(
                     "reported", "dialogue", "observed", "question",
                 }
             )
+            non_executable_semantic_step = (
+                normalized.get("category") in {
+                    "dialogue", "report", "question", "plan", "correction", "unknown",
+                }
+                or step.get("modality") in {
+                    "dialogue", "reported", "observed", "question",
+                    "conditional", "planned", "negated", "correction",
+                }
+            )
             if (
-                passive_third_party_step
+                (passive_third_party_step or non_executable_semantic_step)
                 and isinstance(predicate, str)
                 and predicate.strip()
                 and not (
@@ -1036,12 +1135,25 @@ def normalize_untrusted_intent_payload(
                     and _is_literal(excerpt, predicate)
                 )
             ):
-                # Optional frame predicates are never allowed to invent an
-                # action for a quoted/reported third party. Preserve the report
-                # while dropping only this ungrounded semantic enrichment.
-                step.pop("action_frame", None)
+                # V2 requires a frame even for non-executable steps. Replace
+                # only the ungrounded predicate with a literal, neutral marker;
+                # category/modality and typed relation claims retain semantics.
+                literal_marker = re.search(
+                    r"[^\W\d_][\wáéíóúüñ-]*",
+                    excerpt,
+                    re.UNICODE,
+                )
+                if literal_marker is None:
+                    # The schema already rejects empty/malformed source spans.
+                    # Leave validation authoritative rather than inventing text.
+                    continue
+                frame_copy = dict(frame)
+                frame_copy["predicate"] = literal_marker.group(0)
+                frame_copy["family"] = SemanticActionFamily.OTHER.value
+                frame_copy["arguments"] = []
+                step["action_frame"] = frame_copy
                 dropped_predicates += 1
-                frame = None
+                frame = frame_copy
         if isinstance(frame, dict):
             arguments = frame.get("arguments")
             if isinstance(arguments, list):
@@ -1127,8 +1239,40 @@ def normalize_semantic_surface(
 
     normalized_steps: list[IntentStep] = []
     action_rules: list[str] = []
+    relation_surfaces: dict[int, _RelationSurface] = {}
     speech_only = analysis.category.value in {"dialogue", "question"}
     for step in analysis.steps:
+        surface = _parse_relation_surface(step.source_excerpt)
+        if surface is not None:
+            relation_surfaces[step.index] = surface
+            if step.action_frame is not None:
+                # A reported relation is communicated by its explicit
+                # reporting verb. Preserve that communication act while the
+                # embedded proposition is represented by a separate relation
+                # claim. Relation-only utterances retain a neutral frame.
+                frame, rule_id = _normalize_action_frame(
+                    step,
+                    speech_only=surface.attributed_to is not None,
+                )
+                if rule_id == "action_communication":
+                    normalized_steps.append(replace(step, action_frame=frame))
+                    action_rules.append(rule_id)
+                else:
+                    # V2 requires an action-frame value for every step. Keep a
+                    # neutral, non-executable placeholder for relation-only
+                    # utterances; it cannot become an executable action.
+                    neutral_frame = replace(
+                        step.action_frame,
+                        family=SemanticActionFamily.OTHER,
+                        arguments=(),
+                    )
+                    normalized_steps.append(
+                        replace(step, action_frame=neutral_frame)
+                    )
+                    action_rules.append("relation_surface_replaces_action_frame")
+            else:
+                normalized_steps.append(step)
+            continue
         frame, rule_id = _normalize_action_frame(step, speech_only=speech_only)
         normalized_steps.append(
             step if frame is step.action_frame else replace(step, action_frame=frame)
@@ -1139,7 +1283,7 @@ def normalize_semantic_surface(
     candidate_claims: list[SemanticRelationClaim] = []
     relation_rules: list[str] = []
     for step in normalized_steps:
-        surface = _parse_relation_surface(step.source_excerpt)
+        surface = relation_surfaces.get(step.index)
         if surface is None:
             continue
         claim = _make_relation_claim(step, surface)
