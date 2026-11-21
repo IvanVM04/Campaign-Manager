@@ -145,7 +145,7 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #292 | P0 | [~] IN PROGRESS | Consolidación documental, arquitectura objetivo, evaluación y política obligatoria de roadmap | #291 |
+| #292 | P0 | IMPLEMENTED — PR OPEN | Consolidación documental, arquitectura objetivo, evaluación y política obligatoria de roadmap; actualizar fila a MERGED + VERIFIED tras merge y sincronización posterior | #291 |
 | #293 | P0 | [ ] PLANNED | Diagnóstico por escenario, grafo scorer, métricas de omisiones/extras, manifiesto reproducible de ejecución y parámetros Ollama explícitos | #292 |
 | #294 | P0 | [ ] PLANNED | Corpus v3 held-out ampliado, gold relacional completo, negativos y validación de split/leakage | #293 |
 | #295 | P0 | [ ] PLANNED | Rediseño del prompt v3 y contrato de generación para aumentar recall sin relajar evidencia/seguridad; evaluación de alineación de spans desde backend | #293–#294 |
