@@ -65,7 +65,7 @@ def test_runner_separates_regular_llm_tests_from_optional_nlp_ab():
     assert 'CAMPAIGN_MANAGER_REAL_LLM_V3_SHADOW_REPORT_PATH' in source
     assert 'player-turn-v3-shadow.json' in source
     assert 'player_turn_v3_shadow_holdout' in source
-    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow")' in source
+    assert 'ValidateSet("all", "language", "semantic-frames", "discourse", "compound-intent", "v3-shadow", "v3-acceptance")' in source
 
 
 def test_runner_exposes_opt_in_v3_acceptance_and_safe_report_path():
