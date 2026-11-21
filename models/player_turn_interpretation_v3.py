@@ -846,7 +846,6 @@ def _validate_graph_consistency(
     """Validate cross-record semantics after all local references resolve."""
     acts_by_id = {item.local_id: item for item in acts}
     events_by_id = {item.local_id: item for item in events}
-    facts_by_id = {item.local_id: item for item in facts}
 
     event_order = {
         item.local_id: index
