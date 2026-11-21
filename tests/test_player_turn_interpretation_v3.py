@@ -267,28 +267,19 @@ def test_callback_link_uses_a_surface_anchor_and_never_a_model_supplied_turn_id(
         "schema_version": 3,
         "utterance_acts": [
             {
-                "local_id": "act_callback",
+                "local_id": "act_player",
                 "force": "assertion",
                 "speaker_role": "player",
                 "speaker_mention": None,
                 "addressee_mention": None,
                 "quote_spans": [],
-                "evidence_spans": [_span(source, "Retomando lo de la pared")],
-            },
-            {
-                "local_id": "act_attempt",
-                "force": "assertion",
-                "speaker_role": "player",
-                "speaker_mention": None,
-                "addressee_mention": None,
-                "quote_spans": [],
-                "evidence_spans": [_span(source, "intento escalarla")],
+                "evidence_spans": [_span(source, source)],
             },
         ],
         "events": [
             {
                 "local_id": "event_climb",
-                "source_act_id": "act_attempt",
+                "source_act_id": "act_player",
                 "predicate_surface": "escalar",
                 "family": "movement",
                 "arguments": [
@@ -361,6 +352,265 @@ def test_callback_requires_anchor_and_non_callback_links_require_local_target():
     base["discourse_links"][0]["anchor_candidate"] = None
     with pytest.raises(TurnInterpretationV3ValidationError):
         TurnInterpretationV3.from_payload(base, source_text=source)
+
+
+def _conditional_payload(
+    source: str,
+    *,
+    link_evidence: str = "Si abro la puerta",
+) -> dict:
+    return {
+        "schema_version": 3,
+        "utterance_acts": [{
+            "local_id": "act_turn",
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": None,
+            "addressee_mention": None,
+            "quote_spans": [],
+            "evidence_spans": [_span(source, source)],
+        }],
+        "events": [
+            {
+                "local_id": "event_open",
+                "source_act_id": "act_turn",
+                "predicate_surface": "abro",
+                "family": "interaction",
+                "arguments": [{
+                    "role": "theme",
+                    "mention": _mention("la puerta", "world_entity"),
+                }],
+                "polarity": "positive",
+                "epistemic_status": "hypothetical",
+                "action_phase": "planned",
+                "temporal_expression": None,
+                "attributed_source": None,
+                "evidence_spans": [_span(source, "abro la puerta")],
+            },
+            {
+                "local_id": "event_enter",
+                "source_act_id": "act_turn",
+                "predicate_surface": "entro",
+                "family": "movement",
+                "arguments": [{
+                    "role": "destination",
+                    "mention": _mention("la sala", "location"),
+                }],
+                "polarity": "positive",
+                "epistemic_status": "hypothetical",
+                "action_phase": "planned",
+                "temporal_expression": None,
+                "attributed_source": None,
+                "evidence_spans": [_span(source, "entro en la sala")],
+            },
+        ],
+        "discourse_links": [{
+            "local_id": "link_condition",
+            "source_ref": "event:event_enter",
+            "target_ref": "event:event_open",
+            "link_type": "condition_on_success",
+            "anchor_candidate": None,
+            "evidence_spans": [_span(source, link_evidence)],
+        }],
+        "world_facts": [],
+        "clarification_candidates": [],
+    }
+
+
+def test_event_evidence_must_be_contained_in_its_declared_source_act():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    payload["discourse_links"] = []
+    payload["utterance_acts"][0]["quote_spans"] = []
+    payload["utterance_acts"][0]["evidence_spans"] = [
+        _span(source, "Aldric me advierte")
+    ]
+    payload["events"][0]["attributed_source"] = None
+    payload["events"][0]["evidence_spans"] = [
+        _span(source, "cruces el puente")
+    ]
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "event_evidence_outside_source_act"
+    assert error.value.field_path == "events/0/evidence_spans/0"
+    assert source not in str(error.value)
+    assert "cruces el puente" not in str(error.value)
+
+
+def test_fact_evidence_must_be_contained_in_its_declared_source_act():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    payload["utterance_acts"][1]["evidence_spans"] = [
+        _span(source, "Mara")
+    ]
+    payload["world_facts"][0]["evidence_spans"] = [
+        _span(source, "Mara"),
+        _span(source, "hermana"),
+        _span(source, "Aldric."),
+    ]
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "fact_evidence_outside_source_act"
+    assert error.value.field_path == "world_facts/0/evidence_spans/1"
+
+
+def test_quote_link_must_connect_an_act_to_an_event_from_that_same_act():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    other_event = dict(payload["events"][0])
+    other_event.update({
+        "local_id": "event_relation",
+        "source_act_id": "act_assertion",
+        "predicate_surface": "hermana",
+        "family": "social",
+        "arguments": [
+            {"role": "agent", "mention": _mention("Mara")},
+            {"role": "theme", "mention": _mention("Aldric")},
+        ],
+        "action_phase": "state",
+        "attributed_source": None,
+        "evidence_spans": [_span(source, "Mara es hermana de Aldric.")],
+    })
+    payload["events"].append(other_event)
+    payload["discourse_links"][0]["target_ref"] = "event:event_relation"
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "quote_link_source_act_mismatch"
+
+
+def test_quote_link_requires_act_to_event_endpoint_kinds():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    payload["discourse_links"][0]["source_ref"] = "fact:fact_sibling"
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "quote_link_invalid_endpoints"
+
+
+def test_quote_link_evidence_must_be_inside_the_source_acts_quote_span():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    payload["discourse_links"][0]["evidence_spans"] = [
+        _span(source, "Aldric me advierte")
+    ]
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "quote_link_evidence_outside_quote"
+
+
+def test_conditional_dependency_requires_event_endpoints_and_dependent_to_prerequisite_direction():
+    source = "Si abro la puerta, entro en la sala."
+    payload = _conditional_payload(source)
+    valid = TurnInterpretationV3.from_payload(payload, source_text=source)
+    assert valid.discourse_links[0].source_ref == "event:event_enter"
+    assert valid.discourse_links[0].target_ref == "event:event_open"
+
+    wrong_endpoints = _payload()
+    wrong_endpoints["discourse_links"][0]["source_ref"] = "act:act_warning"
+    wrong_endpoints["discourse_links"][0]["link_type"] = "condition_on_success"
+    with pytest.raises(TurnInterpretationV3ValidationError) as endpoint_error:
+        TurnInterpretationV3.from_payload(
+            wrong_endpoints,
+            source_text="Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric.",
+        )
+    assert endpoint_error.value.code == "condition_dependency_invalid_endpoints"
+
+    wrong_direction = _conditional_payload(source)
+    wrong_direction["discourse_links"][0]["source_ref"] = "event:event_open"
+    wrong_direction["discourse_links"][0]["target_ref"] = "event:event_enter"
+    with pytest.raises(TurnInterpretationV3ValidationError) as order_error:
+        TurnInterpretationV3.from_payload(wrong_direction, source_text=source)
+    assert order_error.value.code == "condition_dependency_forward_reference"
+
+
+def test_conditional_dependent_must_be_a_planned_event_and_edge_must_not_repeat():
+    source = "Si abro la puerta, entro en la sala."
+    non_planned = _conditional_payload(source)
+    non_planned["events"][1]["action_phase"] = "attempted"
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as phase_error:
+        TurnInterpretationV3.from_payload(non_planned, source_text=source)
+    assert phase_error.value.code == "condition_dependency_dependent_not_planned"
+
+    duplicate = _conditional_payload(source)
+    duplicate["discourse_links"].append({
+        **duplicate["discourse_links"][0],
+        "local_id": "link_condition_duplicate",
+    })
+    with pytest.raises(TurnInterpretationV3ValidationError) as duplicate_error:
+        TurnInterpretationV3.from_payload(duplicate, source_text=source)
+    assert duplicate_error.value.code == "duplicate_discourse_edge"
+
+
+def test_before_after_link_requires_forward_event_sequence():
+    source = "Yo abro la puerta y después entro en la sala."
+    payload = _conditional_payload(source, link_evidence="después")
+    payload["discourse_links"][0]["link_type"] = "before_after"
+    payload["discourse_links"][0]["source_ref"] = "event:event_open"
+    payload["discourse_links"][0]["target_ref"] = "event:event_enter"
+    valid = TurnInterpretationV3.from_payload(payload, source_text=source)
+    assert valid.discourse_links[0].source_ref == "event:event_open"
+
+    payload["discourse_links"][0]["source_ref"] = "event:event_enter"
+    payload["discourse_links"][0]["target_ref"] = "event:event_open"
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "sequence_link_invalid_order"
+
+
+def test_clarification_evidence_must_be_grounded_in_an_affected_record():
+    source = "Entrego la llave a Mara. Después observo la puerta."
+    payload = {
+        "schema_version": 3,
+        "utterance_acts": [{
+            "local_id": "act_transfer",
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": None,
+            "addressee_mention": None,
+            "quote_spans": [],
+            "evidence_spans": [_span(source, "Entrego la llave a Mara.")],
+        }],
+        "events": [],
+        "discourse_links": [],
+        "world_facts": [],
+        "clarification_candidates": [{
+            "local_id": "clarify_recipient",
+            "affected_local_ids": ["act_transfer"],
+            "ambiguity_kind": "role",
+            "missing_slot": "recipient",
+            "question_intent": "Aclarar el destinatario",
+            "evidence_spans": [_span(source, "la puerta")],
+        }],
+    }
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "clarification_evidence_outside_affected_records"
+
+
+def test_other_fact_candidates_cannot_mix_in_relation_only_fields():
+    source = (
+        "Aldric me advierte: «No cruces el puente». "
+        "Mara es hermana de Aldric."
+    )
+    payload = _payload(source)
+    payload["world_facts"][0]["fact_kind"] = "other"
+
+    with pytest.raises(TurnInterpretationV3ValidationError):
+        TurnInterpretationV3.from_payload(payload, source_text=source)
 
 
 def test_relation_fact_requires_two_endpoints_and_explicit_direction():

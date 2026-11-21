@@ -195,14 +195,22 @@ def test_graph_scorer_detects_argument_role_attached_to_wrong_event():
     assert "event_sources" in result["mismatch_components"]
 
 
-def test_graph_scorer_checks_conditional_edge_endpoints_after_node_alignment():
+def test_graph_scorer_detects_edge_with_unmatched_endpoint_after_node_alignment():
     scenarios = load_v3_graph_corpus()
     scenario = next(
         item for item in scenarios if item["id"] == "conditional_open_then_enter"
     )
-    interpretation = TurnInterpretationV3.from_json(
-        _conditional_payload(scenario["input"], reverse_link=True),
-        source_text=scenario["input"],
+    payload = json.loads(_conditional_payload(scenario["input"]))
+    # Keep the expected edge node signature while pointing it at an extra,
+    # decoder-valid dependent event. The two gold event nodes still align;
+    # the extra clone is intentionally unmatched by the node scorer.
+    extra_dependent = dict(payload["events"][1])
+    extra_dependent["local_id"] = "event_enter_extra"
+    payload["events"].append(extra_dependent)
+    payload["discourse_links"][0]["source_ref"] = "event:event_enter_extra"
+    payload["discourse_links"][0]["target_ref"] = "event:event_open"
+    interpretation = TurnInterpretationV3.from_payload(
+        payload, source_text=scenario["input"]
     )
     result = score_v3_graph_scenario(
         scenario, interpretation, SemanticEvaluationLedger()
@@ -211,8 +219,15 @@ def test_graph_scorer_checks_conditional_edge_endpoints_after_node_alignment():
     assert result["components"]["acts"]["matched"] == 1
     assert result["components"]["events"]["matched"] == 2
     assert result["components"]["links"]["matched"] == 1
+    assert result["components"]["discourse_edges"]["matched"] == 0
+    assert result["components"]["discourse_edges"]["false_positives"] == 1
+    assert result["components"]["discourse_edges"]["false_negatives"] == 1
     assert result["graph_exact_match"] is False
-    assert result["mismatch_components"] == ["discourse_edges"]
+    assert result["mismatch_components"] == [
+        "events",
+        "event_sources",
+        "discourse_edges",
+    ]
 
 
 def test_graph_scorer_counts_extra_nodes_as_false_positives():

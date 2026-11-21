@@ -389,12 +389,16 @@ def test_fact_evidence_must_be_contained_in_its_source_act():
         speaker_role=SpeakerRole.PLAYER,
         evidence_spans=(_span(source, "Mara"),),
     )
-    interpretation = TurnInterpretationV3(
-        utterance_acts=(act,),
-        events=(),
-        discourse_links=(),
-        world_facts=(fact,),
-    )
+    # Public construction now rejects this graph before policy evaluation.
+    # Forge the frozen value deliberately to keep testing the policy's
+    # defense-in-depth behavior for corrupted/internal inputs.
+    interpretation = object.__new__(TurnInterpretationV3)
+    object.__setattr__(interpretation, "utterance_acts", (act,))
+    object.__setattr__(interpretation, "events", ())
+    object.__setattr__(interpretation, "discourse_links", ())
+    object.__setattr__(interpretation, "world_facts", (fact,))
+    object.__setattr__(interpretation, "clarification_candidates", ())
+    object.__setattr__(interpretation, "schema_version", 3)
 
     result = _evaluate(fact, interpretation)
 

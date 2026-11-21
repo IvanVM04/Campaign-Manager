@@ -10,6 +10,7 @@ This is the navigation entry point for maintainers, coding agents and product wo
 - [Roadmap de evaluación semántica — 2026-11-21](quality/semantic-understanding-evaluation-roadmap-2026-11-21.md) — corpus, gold, graph scorer, métricas y gates propuestos.
 - [Scorer graph-aware y corpus v3 — 2026-11-21](quality/v3-graph-evaluation-and-corpus-2026-11-21.md) — evaluación por nodos y aristas, alineación sin IDs locales, diagnóstico por escenario y 20 nuevos casos held-out.
 - [Prompt v3 y alineación de evidencias — 2026-11-21](quality/v3-prompt-recall-and-evidence-alignment-2026-11-21.md) — cobertura de cláusulas compuestas, pasada independiente de hechos y reparación conservadora de offsets literales en shadow.
+- [Consistencia del grafo semántico v3 — 2026-11-21](quality/v3-semantic-graph-consistency-2026-11-21.md) — evidencia dentro del acto origen, dependencias direccionales, enlaces de cita, referencias de aclaraciones y validación de forma de hechos.
 - [Roadmap de prompts y runtime Ollama — 2026-11-21](quality/llm-runtime-reproducibility-and-prompt-roadmap-2026-11-21.md) — generation options, manifiesto reproducible, prompts, budgets y telemetría.
 - [Proceso de entrega del programa NLU — 2026-11-21](architecture/player-understanding-delivery-workflow-2026-11-21.md) — obligación de sincronizar roadmap en cada PR antes de merge.
 

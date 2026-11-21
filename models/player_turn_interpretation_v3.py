@@ -50,6 +50,13 @@ class TurnInterpretationV3ValidationError(ValueError):
         super().__init__(f"Invalid v3 interpretation ({code}) at {field_path}")
 
 
+class _GraphConsistencyError(TurnInterpretationV3ValidationError):
+    """Internal graph invariant failure with a content-free diagnostic."""
+
+    def __init__(self, code: str, field_path: str) -> None:
+        super().__init__(code, field_path)
+
+
 class UtteranceForce(str, enum.Enum):
     ASSERTION = "assertion"
     QUESTION = "question"
@@ -661,8 +668,15 @@ class WorldFactCandidate:
                 raise ValueError("entity-attribute facts require value_surface and no object")
             if self.relation_family is not None or self.direction is not None or self.normalized_relation_type is not None:
                 raise ValueError("entity-attribute facts cannot carry relation fields")
-        elif self.object is None and self.value_surface is None:
-            raise ValueError("other fact candidates require an object or value")
+        elif self.fact_kind is WorldFactKind.OTHER:
+            if self.object is None and self.value_surface is None:
+                raise ValueError("other fact candidates require an object or value")
+            if (
+                self.relation_family is not None
+                or self.direction is not None
+                or self.normalized_relation_type is not None
+            ):
+                raise ValueError("other fact candidates cannot carry relation fields")
 
         for name, mention in (
             ("subject", self.subject),
@@ -799,6 +813,170 @@ class ClarificationCandidate:
         )
 
 
+def _span_is_within(
+    span: EvidenceSpan,
+    parent_spans: tuple[EvidenceSpan, ...],
+) -> bool:
+    return any(
+        parent.start <= span.start and span.end <= parent.end
+        for parent in parent_spans
+    )
+
+
+def _require_spans_within(
+    spans: tuple[EvidenceSpan, ...],
+    parent_spans: tuple[EvidenceSpan, ...],
+    *,
+    code: str,
+    field_path: str,
+) -> None:
+    for index, span in enumerate(spans):
+        if not _span_is_within(span, parent_spans):
+            raise _GraphConsistencyError(code, f"{field_path}/{index}")
+
+
+def _validate_graph_consistency(
+    *,
+    acts: tuple[UtteranceAct, ...],
+    events: tuple[EventFrame, ...],
+    links: tuple[DiscourseLink, ...],
+    facts: tuple[WorldFactCandidate, ...],
+    clarifications: tuple[ClarificationCandidate, ...],
+) -> None:
+    """Validate cross-record semantics after all local references resolve."""
+    acts_by_id = {item.local_id: item for item in acts}
+    events_by_id = {item.local_id: item for item in events}
+
+    event_order = {
+        item.local_id: index
+        for index, item in enumerate(events)
+    }
+
+    # Every event/fact must be grounded by the act it explicitly declares as
+    # its source, not merely by some other clause in the same utterance.
+    for index, event in enumerate(events):
+        source_act = acts_by_id[event.source_act_id]
+        _require_spans_within(
+            event.evidence_spans,
+            source_act.evidence_spans,
+            code="event_evidence_outside_source_act",
+            field_path=f"events/{index}/evidence_spans",
+        )
+
+    for index, fact in enumerate(facts):
+        source_act = acts_by_id[fact.source_act_id]
+        _require_spans_within(
+            fact.evidence_spans,
+            source_act.evidence_spans,
+            code="fact_evidence_outside_source_act",
+            field_path=f"world_facts/{index}/evidence_spans",
+        )
+
+    # A semantic edge is a single typed relationship between two local
+    # records. Multiple evidence spans belong on one edge rather than being
+    # emitted as duplicate edge records.
+    edge_identities: set[tuple[DiscourseLinkType, str, str | None, str | None]] = set()
+    for index, link in enumerate(links):
+        edge_identity = (
+            link.link_type,
+            link.source_ref,
+            link.target_ref,
+            link.anchor_candidate,
+        )
+        if edge_identity in edge_identities:
+            raise _GraphConsistencyError(
+                "duplicate_discourse_edge", f"discourse_links/{index}"
+            )
+        edge_identities.add(edge_identity)
+
+        source_kind, source_id = link.source_ref.split(":", 1)
+        target_kind, target_id = (
+            link.target_ref.split(":", 1)
+            if link.target_ref is not None else (None, None)
+        )
+
+        if link.link_type is DiscourseLinkType.CONDITION_ON_SUCCESS:
+            if source_kind != "event" or target_kind != "event":
+                raise _GraphConsistencyError(
+                    "condition_dependency_invalid_endpoints",
+                    f"discourse_links/{index}",
+                )
+            if target_id is None:
+                raise _GraphConsistencyError(
+                    "condition_dependency_invalid_endpoints",
+                    f"discourse_links/{index}/target_ref",
+                )
+            dependent = events_by_id[source_id]
+            prerequisite = events_by_id[target_id]
+            if event_order[prerequisite.local_id] >= event_order[dependent.local_id]:
+                raise _GraphConsistencyError(
+                    "condition_dependency_forward_reference",
+                    f"discourse_links/{index}/target_ref",
+                )
+            if dependent.action_phase is not ActionPhase.PLANNED:
+                raise _GraphConsistencyError(
+                    "condition_dependency_dependent_not_planned",
+                    f"discourse_links/{index}/source_ref",
+                )
+
+        elif link.link_type is DiscourseLinkType.BEFORE_AFTER:
+            if source_kind != "event" or target_kind != "event":
+                raise _GraphConsistencyError(
+                    "sequence_link_invalid_endpoints",
+                    f"discourse_links/{index}",
+                )
+            if target_id is None or event_order[source_id] >= event_order[target_id]:
+                raise _GraphConsistencyError(
+                    "sequence_link_invalid_order",
+                    f"discourse_links/{index}",
+                )
+
+        elif link.link_type is DiscourseLinkType.QUOTES:
+            if source_kind != "act" or target_kind != "event":
+                raise _GraphConsistencyError(
+                    "quote_link_invalid_endpoints",
+                    f"discourse_links/{index}",
+                )
+            if target_id is None:
+                raise _GraphConsistencyError(
+                    "quote_link_invalid_endpoints",
+                    f"discourse_links/{index}/target_ref",
+                )
+            source_act = acts_by_id[source_id]
+            target_event = events_by_id[target_id]
+            if target_event.source_act_id != source_act.local_id:
+                raise _GraphConsistencyError(
+                    "quote_link_source_act_mismatch",
+                    f"discourse_links/{index}/target_ref",
+                )
+            _require_spans_within(
+                link.evidence_spans,
+                source_act.quote_spans,
+                code="quote_link_evidence_outside_quote",
+                field_path=f"discourse_links/{index}/evidence_spans",
+            )
+
+    # A clarification must point to the records whose evidence actually
+    # contains the ambiguity it is asking about. This also supports link_*
+    # targets, not only acts/events/facts.
+    record_evidence: dict[str, tuple[EvidenceSpan, ...]] = {
+        item.local_id: item.evidence_spans
+        for item in (*acts, *events, *links, *facts)
+    }
+    for index, clarification in enumerate(clarifications):
+        affected_spans = tuple(
+            span
+            for identifier in clarification.affected_local_ids
+            for span in record_evidence[identifier]
+        )
+        _require_spans_within(
+            clarification.evidence_spans,
+            affected_spans,
+            code="clarification_evidence_outside_affected_records",
+            field_path=f"clarification_candidates/{index}/evidence_spans",
+        )
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class TurnInterpretationV3:
     """One holistic untrusted interpretation. It never selects an active action."""
@@ -866,6 +1044,14 @@ class TurnInterpretationV3:
             for identifier in item.affected_local_ids
         ):
             raise ValueError("clarification candidate references an unknown local record")
+
+        _validate_graph_consistency(
+            acts=self.utterance_acts,
+            events=self.events,
+            links=self.discourse_links,
+            facts=self.world_facts,
+            clarifications=self.clarification_candidates,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

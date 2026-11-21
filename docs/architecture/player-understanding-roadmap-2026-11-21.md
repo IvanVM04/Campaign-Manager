@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PR #293 fusionada; PR #294 en implementación.  
-**Baseline inspeccionada:** main, commit c05550ea2ba16b8dca0de7d578d8c001202b6e32 (PR #293 integrada).
+**Estado:** activo; PR #293 y #294 fusionadas; PR #295 en implementación.  
+**Baseline inspeccionada:** main, commit a457799c357e73018fa943171a8c032708a199a5 (PR #294 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -127,7 +127,7 @@ Los parámetros efectivos de generación, la versión del prompt, el schema, el 
 | #290 | Reparaciones puntuales de regresiones v2 de semántica/discurso | No sustituye la representación v2 |
 | #291 | Procedencia SHA y gate de cobertura exacta del 85 % | No valida calidad semántica |
 
-La PR #293 quedó fusionada el 2026-11-21 en c05550ea2ba16b8dca0de7d578d8c001202b6e32. La primera entrega del corpus adicional, originalmente planificada como PR #294, se integró dentro de #293 para mantener scorer y gold graph juntos; ese issue nunca se abrió como PR independiente. Por ello, el número real siguiente disponible es #294 y se utiliza para el rediseño del prompt v3. El objetivo de ampliar el corpus hasta 100–300 escenarios sigue abierto y se replanificará a partir de errores medidos. La implementación y el estado real deben comprobarse en código al empezar cada PR.
+La PR #293 quedó fusionada el 2026-11-21 en c05550ea2ba16b8dca0de7d578d8c001202b6e32. La primera entrega del corpus adicional, originalmente planificada como PR #294, se integró dentro de #293 y no consumió un número real de GitHub. La PR #294 real (prompt v3 y alineación conservadora de spans) quedó fusionada el 2026-11-21 en a457799c357e73018fa943171a8c032708a199a5. Su CI terminó con 2.489 tests passed, 25 deselected y coverage 85,04 %, además de Ruff, Pyright, CodeQL, JavaScript y PowerShell. La expansión del corpus hacia 100–300 escenarios sigue abierta y se replanificará a partir de errores medidos. La implementación y el estado real deben comprobarse en código al empezar cada PR.
 
 ## 5. Roadmap de PRs: secuencia principal
 
@@ -147,8 +147,8 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 |---|---|---|---|---|
 | #292 | P0 | [x] MERGED + VERIFIED | Roadmaps, arquitectura objetivo, evaluación, proceso de entrega e instrucciones obligatorias. Merge: 2026-11-21, SHA 6754d41a53a766a1dbc928c2c9c31f16064e49a8 | #291 |
 | #293 | P0 | [x] MERGED + CI VERIFIED | Scorer semántico de grafo, métricas por nodos/aristas, 20 escenarios graph-gold y evaluación live opt-in. Merge: 2026-11-21, SHA c05550ea2ba16b8dca0de7d578d8c001202b6e32; CI: 2.482 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #292 |
-| #294 | P0 | [~] IN PROGRESS | Rediseño del prompt v3 para recuperar proposiciones y actos compuestos; alineación determinista y conservadora de spans exactos; métricas/manifiesto versionados. V2 sigue en producción | #293 |
-| #295 | P0 | [ ] PLANNED | Validación de consistencia del grafo semántico: argumentos, atribuciones, dependencias, citas, extremos y hechos | #293–#294 |
+| #294 | P0 | [x] MERGED + CI VERIFIED | Prompt v3 holístico orientado a cobertura completa, alineación exacta conservadora de spans y manifiestos/telemetría versionados; v2 sigue en producción. Merge: 2026-11-21, SHA a457799c357e73018fa943171a8c032708a199a5; CI: 2.489 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #293 |
+| #295 | P0 | [~] IN PROGRESS | Validación de consistencia del grafo semántico: evidencia dentro del acto origen, extremos tipados, dependencias/orden, citas, aclaraciones ligadas a registros afectados y forma de hechos | #293–#294 |
 | #296 | P0 | [ ] PLANNED | Evaluación de aceptación v3, ablations controladas de modelo/prompt/parámetros y decisión objetiva de promoción | #293–#295 |
 
 ### Track B — Integración durable del significado
