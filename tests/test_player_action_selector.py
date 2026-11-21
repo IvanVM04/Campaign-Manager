@@ -22,6 +22,7 @@ from models.player_turn_interpretation_v3 import (
     GameplayUnlockCondition,
     GameplayWorkflow,
     TurnInterpretationV3,
+    TurnInterpretationV3ValidationError,
     WorldFactCandidate,
 )
 from models.semantic_frames import (
@@ -564,16 +565,10 @@ def test_conditional_link_with_forward_dependency_fails_closed():
         "anchor_candidate": None,
         "evidence_spans": [_span(source, "Si yo entro en la torre")],
     }
-    analysis = _interpretation(source, events, links=[link])
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        _interpretation(source, events, links=[link])
 
-    with pytest.raises(ActionSelectorError, match="must precede"):
-        build_action_checkpoint(
-            analysis,
-            resolution_id=49,
-            context_revision=2,
-            source_text=source,
-            active_character_id=7,
-        )
+    assert error.value.code == "condition_dependency_forward_reference"
 
 
 def test_failed_prerequisite_skips_even_a_dependent_action_awaiting_clarification():
