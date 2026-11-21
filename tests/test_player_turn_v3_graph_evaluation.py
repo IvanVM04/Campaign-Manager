@@ -14,6 +14,7 @@ from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 
 
 def _span(source: str, text: str | None = None) -> dict[str, object]:
+    """Build a model EvidenceSpan, including its required source marker."""
     value = source if text is None else text
     start = source.index(value)
     return {
@@ -21,6 +22,17 @@ def _span(source: str, text: str | None = None) -> dict[str, object]:
         "end": start + len(value),
         "text": value,
         "source": "current_utterance",
+    }
+
+
+def _gold_span(source: str, text: str | None = None) -> dict[str, object]:
+    """Build a corpus annotation span; gold intentionally has no source field."""
+    value = source if text is None else text
+    start = source.index(value)
+    return {
+        "start": start,
+        "end": start + len(value),
+        "text": value,
     }
 
 
@@ -251,7 +263,7 @@ def test_graph_scorer_resolves_clarification_affected_discourse_link():
         "missing_slot": "callback_reference",
         "question_intent": "¿Qué referencia quieres retomar?",
         "affected": [{"kind": "link", "index": 0}],
-        "evidence_spans": [_span(source)],
+        "evidence_spans": [_gold_span(source, "lo de la pared")],
     }]
     _validate_graph(scenario["expected_graph"], source)
     payload = {
