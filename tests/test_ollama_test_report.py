@@ -37,6 +37,7 @@ def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
             "evaluation": "language",
             "corpus": "language_holdout_v1",
             "metadata": {
+                "git_commit": "a" * 40,
                 "model": "gemma4:26b",
                 "provider_calls": 12,
                 "elapsed_seconds": 4.5,
@@ -69,6 +70,13 @@ def test_summary_counts_junit_results_and_never_copies_failure_output(tmp_path):
     assert summary["pytest"]["skipped"] == 1
     assert summary["pytest"]["duration_seconds"] == 4.5
     assert summary["pytest"]["failed_tests"] == ["tests.live::test_failed"]
+    assert summary["commit_validation"] == {
+        "checked": True,
+        "passed": True,
+        "expected_commit": "a" * 40,
+        "reports_checked": 1,
+        "mismatched_reports": [],
+    }
     assert summary["pytest"]["safe_properties"] == {
         "language_understanding_model": "gemma4:26b",
         "language_understanding_provider_calls": 12,
@@ -156,3 +164,35 @@ def test_summary_survives_malformed_or_truncated_junit_xml(tmp_path):
     assert summary["pytest"]["junit_error"] == "missing_or_invalid"
     assert (output / "summary.md").is_file()
     assert (output / "summary.json").is_file()
+
+
+
+def test_summary_fails_commit_validation_when_a_report_uses_another_sha(tmp_path):
+    junit = tmp_path / "junit.xml"
+    output = tmp_path / "run"
+    junit.write_text(
+        '<testsuites><testsuite><testcase classname="live" name="ok"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    reports = output / "reports"
+    reports.mkdir(parents=True)
+    (reports / "discourse.json").write_text(
+        json.dumps({"metadata": {"git_commit": "b" * 40}, "metrics": {}}),
+        encoding="utf-8",
+    )
+
+    summary = build_summary(
+        junit_xml=junit,
+        output_dir=output,
+        commit="a" * 40,
+    )
+
+    assert summary["status"] == "failed"
+    assert summary["commit_validation"]["passed"] is False
+    assert summary["commit_validation"]["mismatched_reports"] == [{
+        "file": "discourse.json",
+        "reported_commit": "b" * 40,
+    }]
+    markdown = (output / "summary.md").read_text(encoding="utf-8")
+    assert "Commit provenance validation" in markdown
+    assert "FAIL" in markdown
