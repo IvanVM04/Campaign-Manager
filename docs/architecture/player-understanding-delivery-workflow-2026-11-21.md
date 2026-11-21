@@ -85,7 +85,7 @@ Los reportes adjuntos a PR deben ser agregados y no contener prompts/completions
 
 ## 7. Cambios de alcance o numeración
 
-La secuencia #293–#306 es una planificación reservada, no una afirmación de que esas PR ya existan. Antes de crear una PR:
+La secuencia #293–#305 es la planificación vigente, no una afirmación de que esas PR ya existan. Antes de crear una PR:
 - Comprobar números y ramas existentes.
 - Reconciliar PRs abiertas de terceros o trabajo intermedio.
 - Mantener dependencias y orden lógico.
