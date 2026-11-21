@@ -14,11 +14,11 @@ from time import perf_counter
 import pytest
 
 from tests.player_turn_interpretation_v3_shadow import (
-    PlayerTurnInterpretationV3ShadowRunner,
     V3_EVIDENCE_ALIGNMENT_VERSION,
     V3_PROMPT_VERSION,
     V3_RESPONSE_SCHEMA,
     V3_SYSTEM_PROMPT,
+    PlayerTurnInterpretationV3ShadowRunner,
 )
 from tests.player_turn_v3_shadow_evaluation import (
     load_v3_shadow_corpus,
