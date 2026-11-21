@@ -40,7 +40,7 @@ def test_report_writer_keeps_legacy_path_when_report_directory_is_absent(tmp_pat
 
 
 def test_live_report_drops_untrusted_provider_strings_and_invalid_metadata(tmp_path, monkeypatch):
-    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
     class Provider:
         model = "gemma4:12b"
         timeout = 120
@@ -95,3 +95,34 @@ def test_live_report_drops_untrusted_provider_strings_and_invalid_metadata(tmp_p
     assert "private completion text" not in serialized
     assert "private prompt" not in serialized
     assert report["metric_schema_version"] == 1
+
+
+
+def test_live_report_prefers_checked_out_runner_commit_over_inherited_github_sha(monkeypatch):
+    class Provider:
+        model = "gemma4:12b"
+        timeout = 120
+        think = False
+
+        def get_model_digest(self):
+            return "sha256:deadbeef"
+
+        def get_server_version(self):
+            return "0.40.16"
+
+    expected_commit = "b" * 40
+    monkeypatch.setenv("GITHUB_SHA", "a" * 40)
+    monkeypatch.setenv("CAMPAIGN_MANAGER_GIT_COMMIT", expected_commit)
+
+    report = build_live_evaluation_report(
+        evaluation_name="safe_eval",
+        corpus_name="holdout_v1.json",
+        provider=Provider(),
+        ledger=SemanticEvaluationLedger(),
+        scenario_count=1,
+        provider_calls=1,
+        elapsed_seconds=0.5,
+        usage_events=[],
+    )
+
+    assert report["metadata"]["git_commit"] == expected_commit
