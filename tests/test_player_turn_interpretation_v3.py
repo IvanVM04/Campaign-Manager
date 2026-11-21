@@ -354,7 +354,11 @@ def test_callback_requires_anchor_and_non_callback_links_require_local_target():
         TurnInterpretationV3.from_payload(base, source_text=source)
 
 
-def _conditional_payload(source: str) -> dict:
+def _conditional_payload(
+    source: str,
+    *,
+    link_evidence: str = "Si abro la puerta",
+) -> dict:
     return {
         "schema_version": 3,
         "utterance_acts": [{
@@ -406,7 +410,7 @@ def _conditional_payload(source: str) -> dict:
             "target_ref": "event:event_open",
             "link_type": "condition_on_success",
             "anchor_candidate": None,
-            "evidence_spans": [_span(source, "Si abro la puerta")],
+            "evidence_spans": [_span(source, link_evidence)],
         }],
         "world_facts": [],
         "clarification_candidates": [],
@@ -550,13 +554,15 @@ def test_conditional_dependent_must_be_a_planned_event_and_edge_must_not_repeat(
 
 def test_before_after_link_requires_forward_event_sequence():
     source = "Abro la puerta y después entro en la sala."
-    payload = _conditional_payload(source)
+    payload = _conditional_payload(source, link_evidence="después")
     payload["discourse_links"][0]["link_type"] = "before_after"
-    valid = TurnInterpretationV3.from_payload(payload, source_text=source)
-    assert valid.discourse_links[0].source_ref == "event:event_enter"
-
     payload["discourse_links"][0]["source_ref"] = "event:event_open"
     payload["discourse_links"][0]["target_ref"] = "event:event_enter"
+    valid = TurnInterpretationV3.from_payload(payload, source_text=source)
+    assert valid.discourse_links[0].source_ref == "event:event_open"
+
+    payload["discourse_links"][0]["source_ref"] = "event:event_enter"
+    payload["discourse_links"][0]["target_ref"] = "event:event_open"
     with pytest.raises(TurnInterpretationV3ValidationError) as error:
         TurnInterpretationV3.from_payload(payload, source_text=source)
 
