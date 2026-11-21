@@ -57,7 +57,7 @@ $env:CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_CANDIDATE_MODEL = "candidate-model:
 .scriptsun-ollama-tests.ps1 -Evaluation v3-acceptance
 ```
 
-Defaults: 3 repetitions, all 20 graph scenarios, and all available variants. The primary model comes from the configured intent role or `CAMPAIGN_MANAGER_REAL_LLM_MODEL`. The run writes `ollama/reports/player-turn-v3-acceptance.json` under its unique quality-run directory.
+Defaults: 3 repetitions, all 20 graph scenarios, and all available variants. The primary model comes from the configured intent role or `CAMPAIGN_MANAGER_REAL_LLM_MODEL`. With the three default variants, the full matrix makes 360 generation calls (20 scenarios × 3 repetitions × 2 paired v2/v3 calls × 3 variants); an optional candidate model adds 120. The run writes `ollama/reports/player-turn-v3-acceptance.json` under its unique quality-run directory.
 
 Optional environment controls:
 
