@@ -171,7 +171,7 @@ def evaluate_v3_acceptance_variant(
 
     for item in results:
         if not isinstance(item, dict):
-            raise ValueError("acceptance result must be an object")
+            raise TypeError("acceptance result must be an object")
         scenario_id = item.get("scenario_id")
         repeat = item.get("repetition")
         if (
@@ -179,7 +179,7 @@ def evaluate_v3_acceptance_variant(
             or isinstance(repeat, bool)
             or not isinstance(repeat, int)
         ):
-            raise ValueError("acceptance result has an invalid run key")
+            raise TypeError("acceptance result has an invalid run key")
         observed_keys.append((scenario_id, repeat))
         if scenario_id not in scenario_ids or not 1 <= repeat <= repetitions:
             raise ValueError("acceptance result is outside the declared run matrix")
