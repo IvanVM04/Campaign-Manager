@@ -879,7 +879,6 @@ def _validate_graph_consistency(
     # records. Multiple evidence spans belong on one edge rather than being
     # emitted as duplicate edge records.
     edge_identities: set[tuple[DiscourseLinkType, str, str | None, str | None]] = set()
-    conditional_edges: set[tuple[str, str]] = set()
     for index, link in enumerate(links):
         edge_identity = (
             link.link_type,
@@ -905,6 +904,11 @@ def _validate_graph_consistency(
                     "condition_dependency_invalid_endpoints",
                     f"discourse_links/{index}",
                 )
+            if target_id is None:
+                raise _GraphConsistencyError(
+                    "condition_dependency_invalid_endpoints",
+                    f"discourse_links/{index}/target_ref",
+                )
             dependent = events_by_id[source_id]
             prerequisite = events_by_id[target_id]
             if event_order[prerequisite.local_id] >= event_order[dependent.local_id]:
@@ -917,13 +921,6 @@ def _validate_graph_consistency(
                     "condition_dependency_dependent_not_planned",
                     f"discourse_links/{index}/source_ref",
                 )
-            edge = (dependent.local_id, prerequisite.local_id)
-            if edge in conditional_edges:
-                raise _GraphConsistencyError(
-                    "duplicate_condition_dependency",
-                    f"discourse_links/{index}",
-                )
-            conditional_edges.add(edge)
 
         elif link.link_type is DiscourseLinkType.BEFORE_AFTER:
             if source_kind != "event" or target_kind != "event":
@@ -931,7 +928,7 @@ def _validate_graph_consistency(
                     "sequence_link_invalid_endpoints",
                     f"discourse_links/{index}",
                 )
-            if event_order[source_id] >= event_order[target_id]:
+            if target_id is None or event_order[source_id] >= event_order[target_id]:
                 raise _GraphConsistencyError(
                     "sequence_link_invalid_order",
                     f"discourse_links/{index}",
@@ -942,6 +939,11 @@ def _validate_graph_consistency(
                 raise _GraphConsistencyError(
                     "quote_link_invalid_endpoints",
                     f"discourse_links/{index}",
+                )
+            if target_id is None:
+                raise _GraphConsistencyError(
+                    "quote_link_invalid_endpoints",
+                    f"discourse_links/{index}/target_ref",
                 )
             source_act = acts_by_id[source_id]
             target_event = events_by_id[target_id]
