@@ -44,6 +44,32 @@ def _validate_mention(value: Any, *, nullable: bool = False) -> None:
         raise ValueError("graph gold mention values must be non-empty strings")
 
 
+def _span_texts(values: list[dict[str, Any]]) -> tuple[str, ...]:
+    return tuple(value["text"] for value in values)
+
+
+def _require_literal_in_spans(
+    value: str | None,
+    spans: list[dict[str, Any]],
+    field_name: str,
+) -> None:
+    if value is not None and not any(value in span for span in _span_texts(spans)):
+        raise ValueError(f"{field_name} is not grounded in its gold evidence spans")
+
+
+def _spans_within_parent(
+    child: list[dict[str, Any]],
+    parent: list[dict[str, Any]],
+    field_name: str,
+) -> None:
+    for span in child:
+        if not any(
+            outer["start"] <= span["start"] and span["end"] <= outer["end"]
+            for outer in parent
+        ):
+            raise ValueError(f"{field_name} is outside its source act evidence")
+
+
 def _validate_spans(values: Any, source_text: str, *, minimum: int = 1) -> None:
     if not isinstance(values, list) or not minimum <= len(values) <= 4:
         raise ValueError("graph gold evidence spans must be a bounded array")
@@ -103,6 +129,19 @@ def _validate_graph(graph: Any, source_text: str) -> None:
         _validate_mention(act["addressee_mention"], nullable=True)
         _validate_spans(act["quote_spans"], source_text, minimum=0)
         _validate_spans(act["evidence_spans"], source_text)
+        _require_literal_in_spans(
+            None if act["speaker_mention"] is None else act["speaker_mention"]["text"],
+            act["evidence_spans"],
+            "speaker mention",
+        )
+        _require_literal_in_spans(
+            None if act["addressee_mention"] is None else act["addressee_mention"]["text"],
+            act["evidence_spans"],
+            "addressee mention",
+        )
+        _spans_within_parent(
+            act["quote_spans"], act["evidence_spans"], "quote span"
+        )
 
     for event in gold["events"]:
         event = _require_keys(
@@ -142,6 +181,27 @@ def _validate_graph(graph: Any, source_text: str) -> None:
                 raise ValueError("graph gold argument role must be non-empty")
             _validate_mention(argument["mention"])
         _validate_spans(event["evidence_spans"], source_text)
+        _require_literal_in_spans(
+            event["predicate_surface"], event["evidence_spans"], "event predicate"
+        )
+        _require_literal_in_spans(
+            event["temporal_expression"], event["evidence_spans"], "event temporal expression"
+        )
+        _require_literal_in_spans(
+            None if event["attributed_source"] is None else event["attributed_source"]["text"],
+            event["evidence_spans"],
+            "event attributed source",
+        )
+        for argument in event["arguments"]:
+            _require_literal_in_spans(
+                argument["mention"]["text"],
+                event["evidence_spans"],
+                "event argument mention",
+            )
+        source_evidence = gold["acts"][source_index]["evidence_spans"]
+        _spans_within_parent(
+            event["evidence_spans"], source_evidence, "event evidence"
+        )
 
     for link in gold["links"]:
         link = _require_keys(
@@ -161,6 +221,10 @@ def _validate_graph(graph: Any, source_text: str) -> None:
         elif link["target"] is None or link["anchor_candidate"] is not None:
             raise ValueError("non-callback gold requires a target and no anchor")
         _validate_spans(link["evidence_spans"], source_text)
+        if link["link_type"] == "callback":
+            _require_literal_in_spans(
+                link["anchor_candidate"], link["evidence_spans"], "callback anchor"
+            )
 
     for fact in gold["facts"]:
         fact = _require_keys(
@@ -196,6 +260,48 @@ def _validate_graph(graph: Any, source_text: str) -> None:
             ):
                 raise ValueError("graph gold fact optional labels must be text or null")
         _validate_spans(fact["evidence_spans"], source_text)
+        _require_literal_in_spans(
+            fact["subject"]["text"], fact["evidence_spans"], "fact subject"
+        )
+        _require_literal_in_spans(
+            fact["predicate_surface"], fact["evidence_spans"], "fact predicate"
+        )
+        _require_literal_in_spans(
+            None if fact["object"] is None else fact["object"]["text"],
+            fact["evidence_spans"],
+            "fact object",
+        )
+        _require_literal_in_spans(
+            fact["value_surface"], fact["evidence_spans"], "fact value"
+        )
+        _require_literal_in_spans(
+            None if fact["attributed_source"] is None else fact["attributed_source"]["text"],
+            fact["evidence_spans"],
+            "fact attributed source",
+        )
+        source_evidence = gold["acts"][source_index]["evidence_spans"]
+        _spans_within_parent(
+            fact["evidence_spans"], source_evidence, "fact evidence"
+        )
+        if fact["fact_kind"] == "relation":
+            if (
+                fact["object"] is None
+                or fact["relation_family"] is None
+                or fact["direction"] is None
+                or fact["value_surface"] is not None
+            ):
+                raise ValueError("relation gold has invalid relation fields")
+        elif fact["fact_kind"] == "entity_attribute":
+            if (
+                fact["object"] is not None
+                or fact["value_surface"] is None
+                or fact["relation_family"] is not None
+                or fact["direction"] is not None
+                or fact["normalized_relation_type"] is not None
+            ):
+                raise ValueError("entity-attribute gold has invalid attribute fields")
+        elif fact["object"] is None and fact["value_surface"] is None:
+            raise ValueError("other fact gold requires object or value")
 
     for clarification in gold["clarifications"]:
         clarification = _require_keys(
@@ -408,7 +514,6 @@ def _expected_clarification_node_signature(item: dict[str, Any]) -> tuple[Any, .
     return (
         item["ambiguity_kind"],
         item["missing_slot"],
-        item["question_intent"],
         _gold_span_signature(item["evidence_spans"]),
     )
 
@@ -417,7 +522,6 @@ def _actual_clarification_node_signature(item: Any) -> tuple[Any, ...]:
     return (
         item.ambiguity_kind.value,
         item.missing_slot,
-        item.question_intent,
         _span_signature(item.evidence_spans),
     )
 
