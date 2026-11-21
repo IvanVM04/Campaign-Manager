@@ -308,7 +308,7 @@ def test_graph_scorer_resolves_clarification_affected_discourse_link():
             "ambiguity_kind": "referent",
             "missing_slot": "callback_reference",
             "question_intent": "¿Qué referencia quieres retomar?",
-            "evidence_spans": [_span(source)],
+            "evidence_spans": [_span(source, "lo de la pared")],
         }],
     }
     interpretation = TurnInterpretationV3.from_payload(
