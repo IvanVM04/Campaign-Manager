@@ -154,8 +154,8 @@ No paralelizar agresivamente solicitudes al mismo Ollama sin experimento explíc
 ## 10. PR responsables
 
 - PR #293 incorpora run manifest, telemetry gap analysis y generation options reproducibles.
-- PR #295 optimiza prompt v3 y estrategia de evidence alignment.
-- PR #297 compara modelos/parámetros y aprueba gates de aceptación.
+- PR #294 optimiza prompt v3 y estrategia de evidence alignment.
+- PR #296 compara modelos/parámetros y aprueba gates de aceptación.
 - PRs posteriores mejoran ranking/retrieval si los informes demuestran que es necesario.
 
 La actualización del roadmap maestro y el estado de cada PR son parte obligatoria de su checklist de merge.
