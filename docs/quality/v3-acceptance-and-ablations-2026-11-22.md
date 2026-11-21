@@ -42,7 +42,7 @@ The runner creates a deterministic matrix:
 
 The model candidate is opt-in and must differ from the primary model. Each variant still runs paired v2 then v3 calls for every selected input, repetition and context. Runs against the same Ollama daemon are sequential to avoid uncontrolled contention.
 
-Reports contain the configured model, Ollama version, model digest where available, thinking mode, timeout, effective generation options, prompt/schema hashes, evidence-alignment version, commit SHA, per-scenario results and aggregate dimension metrics. The report does not contain player utterances, prompts, completions, campaign context, entity IDs or literal evidence spans.
+Reports contain the configured model, Ollama version, model digest where available, thinking mode, timeout, effective generation options, prompt/schema hashes, evidence-alignment version, commit SHA, a SHA-256 fingerprint of the complete frozen graph corpus, per-scenario results and aggregate dimension metrics. The report does not contain player utterances, prompts, completions, campaign context, entity IDs or literal evidence spans. The acceptance helper also verifies that the submitted scenario-ID set equals the frozen graph corpus before it reports full-holdout coverage.
 
 ## Run locally
 
