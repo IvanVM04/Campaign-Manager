@@ -272,7 +272,7 @@ def _safe_usage(value: Any) -> list[dict[str, Any]]:
 def _safe_report(path: Path) -> dict[str, Any]:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return {"file": path.name, "readable": False}
     if not isinstance(raw, dict):
         return {"file": path.name, "readable": False}
