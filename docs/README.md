@@ -31,7 +31,7 @@ Read these first. They describe the current product target, source-verified impl
 - [World-fact eligibility and persistence policy — 2026-11-20](architecture/player-world-fact-policy-2026-11-20.md) — PR #288: política backend de hechos persistentes, resolución canónica visible, escritura append-only de atributos, relaciones dirigidas/idempotentes y recibos ligados al checkpoint; todavía no conectada al runtime v2.
 - [Diseño de comprensión de lenguaje — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — snapshot histórico del pipeline v2 y del trabajo estructural #267–#272; no describe el diseño objetivo propuesto el 20 de noviembre.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
-- [Current NLU roadmap](architecture/player-understanding-roadmap-2026-11-21.md) — maximum-priority, merge-tracked implementation sequence #292–#306. The 18 November quality roadmap is now a historical snapshot for its original broader quality scope.
+- [Current NLU roadmap](architecture/player-understanding-roadmap-2026-11-21.md) — maximum-priority, merge-tracked implementation sequence #292–#305. The 18 November quality roadmap is now a historical snapshot for its original broader quality scope.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.
