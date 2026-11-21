@@ -230,7 +230,15 @@ def align_v3_evidence_span_offsets(
                 return
 
             for key, child in value.items():
-                visit(child, f"{path}/{key}")
+                safe_key = (
+                    key
+                    if isinstance(key, str)
+                    and len(key) <= 40
+                    and key.isascii()
+                    and key.replace("_", "").isalnum()
+                    else "field"
+                )
+                visit(child, f"{path}/{safe_key}")
         elif isinstance(value, list):
             for index, child in enumerate(value):
                 visit(child, f"{path}/{index}")
