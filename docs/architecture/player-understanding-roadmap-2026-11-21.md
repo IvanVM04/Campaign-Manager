@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PR #292 fusionada y reconciliada; actualización de ejecución por PR #293.  
-**Baseline inspeccionada:** main, commit 6754d41a53a766a1dbc928c2c9c31f16064e49a8 (PR #292 integrada).
+**Estado:** activo; PR #293 fusionada; PR #294 en implementación.  
+**Baseline inspeccionada:** main, commit c05550ea2ba16b8dca0de7d578d8c001202b6e32 (PR #293 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -127,7 +127,7 @@ Los parámetros efectivos de generación, la versión del prompt, el schema, el 
 | #290 | Reparaciones puntuales de regresiones v2 de semántica/discurso | No sustituye la representación v2 |
 | #291 | Procedencia SHA y gate de cobertura exacta del 85 % | No valida calidad semántica |
 
-La PR #292 quedó fusionada el 2026-11-21 en 6754d41a53a766a1dbc928c2c9c31f16064e49a8; esta reconciliación se incorpora en la PR #293. La primera entrega de la PR #294 se integra dentro de la misma PR #293 para mantener scorer y gold graph juntos. No se crea una PR #294 separada. La expansión posterior hacia 100–300 casos permanece abierta. La implementación y el estado real deben comprobarse en código al empezar cada PR.
+La PR #293 quedó fusionada el 2026-11-21 en c05550ea2ba16b8dca0de7d578d8c001202b6e32. La primera entrega del corpus adicional, originalmente planificada como PR #294, se integró dentro de #293 para mantener scorer y gold graph juntos; ese issue nunca se abrió como PR independiente. Por ello, el número real siguiente disponible es #294 y se utiliza para el rediseño del prompt v3. El objetivo de ampliar el corpus hasta 100–300 escenarios sigue abierto y se replanificará a partir de errores medidos. La implementación y el estado real deben comprobarse en código al empezar cada PR.
 
 ## 5. Roadmap de PRs: secuencia principal
 
@@ -146,30 +146,29 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
 | #292 | P0 | [x] MERGED + VERIFIED | Roadmaps, arquitectura objetivo, evaluación, proceso de entrega e instrucciones obligatorias. Merge: 2026-11-21, SHA 6754d41a53a766a1dbc928c2c9c31f16064e49a8 | #291 |
-| #293 | P0 | IMPLEMENTED — PR OPEN | Scorer semántico de grafo, alineación sin IDs locales, métricas por nodos/aristas, diagnósticos privados y evaluación live opt-in | #292 |
-| #294 | P0 | BUNDLED PARTIAL INTO #293 | Primer corpus adicional con 20 escenarios held-out y gold relacional/argumental completo. El objetivo mayor de 100–300 escenarios sigue pendiente y deberá crecer según los fallos observados | #293 (misma PR) |
-| #295 | P0 | [ ] PLANNED | Rediseño del prompt v3 y contrato de generación para aumentar recall sin relajar evidencia/seguridad; evaluación de alineación de spans desde backend | #293–#294 |
-| #296 | P0 | [ ] PLANNED | Validación de consistencia del grafo semántico: argumentos, atribuciones, dependencias, citas, extremos y hechos | #294–#295 |
-| #297 | P0 | [ ] PLANNED | Evaluación de aceptación v3, ablations controladas de modelo/prompt/parámetros y decisión objetiva de promoción | #293–#296 |
+| #293 | P0 | MERGED — verificación post-merge registrada al cerrar CI | Scorer semántico de grafo, alineación sin IDs locales, métricas por nodos/aristas, diagnósticos privados, 20 escenarios graph-gold y evaluación live opt-in | #292 |
+| #294 | P0 | [~] IN PROGRESS | Rediseño del prompt v3 para recuperar proposiciones y actos compuestos; alineación determinista y conservadora de spans exactos; métricas/manifiesto versionados. V2 sigue en producción | #293 |
+| #295 | P0 | [ ] PLANNED | Validación de consistencia del grafo semántico: argumentos, atribuciones, dependencias, citas, extremos y hechos | #293–#294 |
+| #296 | P0 | [ ] PLANNED | Evaluación de aceptación v3, ablations controladas de modelo/prompt/parámetros y decisión objetiva de promoción | #293–#295 |
 
 ### Track B — Integración durable del significado
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #298 | P0 | [ ] PLANNED | Integrar action selector y checkpoint v3 en ruta aislada/feature flag; adjudicación de una acción elegible cada vez | #287, #296–#297 |
-| #299 | P0 | [ ] PLANNED | Integrar world_fact_policy y recibos en el commit durable; hechos independientes de errores mecánicos; idempotencia y recuperación | #288, #298 |
-| #300 | P0 | [ ] PLANNED | Orquestación end-to-end de turnos compuestos, callbacks, dependencias, aclaraciones, fallos mecánicos/técnicos y compatibilidad histórica | #298–#299 |
-| #301 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #297–#300 |
+| #297 | P0 | [ ] PLANNED | Integrar action selector y checkpoint v3 en ruta aislada/feature flag; adjudicación de una acción elegible cada vez | #287, #295–#296 |
+| #298 | P0 | [ ] PLANNED | Integrar world_fact_policy y recibos en el commit durable; hechos independientes de errores mecánicos; idempotencia y recuperación | #288, #297 |
+| #299 | P0 | [ ] PLANNED | Orquestación end-to-end de turnos compuestos, callbacks, dependencias, aclaraciones, fallos mecánicos/técnicos y compatibilidad histórica | #297–#298 |
+| #300 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #296–#299 |
 
 ### Track C — Robustez y calidad después del cutover inicial
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #302 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #297–#301 |
-| #303 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#301 |
-| #304 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #303 |
-| #305 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #299–#301 |
-| #306 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#305 |
+| #301 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#300 |
+| #302 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#300 |
+| #303 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #302 |
+| #304 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#300 |
+| #305 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#304 |
 
 ## 6. Gates transversales no negociables
 
@@ -188,7 +187,7 @@ Estos gates aplican a toda PR del programa que toque la capa semántica o el run
 
 ## 7. Objetivos de aceptación propuestos
 
-Los umbrales numéricos finales se fijarán en PR #297, una vez auditados el gold, el scorer y la baseline de PR #293/#294. No se utilizará una media global para esconder un dominio débil.
+Los umbrales numéricos finales se fijarán en PR #296, una vez auditados el gold, el scorer y la baseline de PR #293–#295. No se utilizará una media global para esconder un dominio débil.
 
 Criterios obligatorios:
 - 100 % de validez estructural en escenarios críticos de aceptación.
@@ -200,7 +199,7 @@ Criterios obligatorios:
 - Una discrepancia crítica no puede compensarse con un F1 agregado elevado.
 - El test shadow inicial no sustituye a los gates nuevos.
 
-Los objetivos provisionales de precisión/recall y exactitud de escenario se documentarán en el contrato de aceptación de PR #297, con denominadores y justificación. No se deben modificar golds o umbrales para hacer pasar una salida existente.
+Los objetivos provisionales de precisión/recall y exactitud de escenario se documentarán en el contrato de aceptación de PR #296, con denominadores y justificación. No se deben modificar golds o umbrales para hacer pasar una salida existente.
 
 ## 8. Separación de evidencias
 
