@@ -431,6 +431,8 @@ def test_event_evidence_must_be_contained_in_its_declared_source_act():
 
     assert error.value.code == "event_evidence_outside_source_act"
     assert error.value.field_path == "events/0/evidence_spans/0"
+    assert source not in str(error.value)
+    assert "cruces el puente" not in str(error.value)
 
 
 def test_fact_evidence_must_be_contained_in_its_declared_source_act():
@@ -476,6 +478,17 @@ def test_quote_link_must_connect_an_act_to_an_event_from_that_same_act():
         TurnInterpretationV3.from_payload(payload, source_text=source)
 
     assert error.value.code == "quote_link_source_act_mismatch"
+
+
+def test_quote_link_requires_act_to_event_endpoint_kinds():
+    source = "Aldric me advierte: «No cruces el puente». Mara es hermana de Aldric."
+    payload = _payload(source)
+    payload["discourse_links"][0]["source_ref"] = "fact:fact_sibling"
+
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "quote_link_invalid_endpoints"
 
 
 def test_quote_link_evidence_must_be_inside_the_source_acts_quote_span():
@@ -533,6 +546,21 @@ def test_conditional_dependent_must_be_a_planned_event_and_edge_must_not_repeat(
     with pytest.raises(TurnInterpretationV3ValidationError) as duplicate_error:
         TurnInterpretationV3.from_payload(duplicate, source_text=source)
     assert duplicate_error.value.code == "duplicate_discourse_edge"
+
+
+def test_before_after_link_requires_forward_event_sequence():
+    source = "Abro la puerta y después entro en la sala."
+    payload = _conditional_payload(source)
+    payload["discourse_links"][0]["link_type"] = "before_after"
+    valid = TurnInterpretationV3.from_payload(payload, source_text=source)
+    assert valid.discourse_links[0].source_ref == "event:event_enter"
+
+    payload["discourse_links"][0]["source_ref"] = "event:event_open"
+    payload["discourse_links"][0]["target_ref"] = "event:event_enter"
+    with pytest.raises(TurnInterpretationV3ValidationError) as error:
+        TurnInterpretationV3.from_payload(payload, source_text=source)
+
+    assert error.value.code == "sequence_link_invalid_order"
 
 
 def test_clarification_evidence_must_be_grounded_in_an_affected_record():
