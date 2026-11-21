@@ -30,6 +30,31 @@ _NUMERIC_USAGE_FIELDS = (
     "eval_duration_ms",
 )
 
+_SAFE_GENERATION_OPTIONS = frozenset({
+    "temperature", "top_p", "top_k", "seed", "num_predict", "repeat_penalty",
+})
+_INTEGER_GENERATION_OPTIONS = frozenset({"top_k", "seed", "num_predict"})
+
+
+def _safe_generation_options(value: Any) -> dict[str, int | float]:
+    if not isinstance(value, dict):
+        return {}
+    safe: dict[str, int | float] = {}
+    for key, raw in value.items():
+        if key not in _SAFE_GENERATION_OPTIONS:
+            continue
+        number = _safe_number(raw)
+        if number is None:
+            continue
+        if key in _INTEGER_GENERATION_OPTIONS:
+            if isinstance(raw, bool) or not isinstance(raw, int):
+                continue
+            safe[key] = raw
+        else:
+            safe[key] = float(number)
+    return safe
+
+
 
 def _safe_token(value: Any, *, pattern: re.Pattern[str] = _SAFE_TOKEN) -> str | None:
     """Accept bounded identifiers only; reject arbitrary provider/user text."""
@@ -89,6 +114,9 @@ def _safe_usage_event(event: dict[str, Any]) -> dict[str, Any]:
         value = _safe_number(event.get(field))
         if value is not None:
             safe[field] = value
+    generation_options = _safe_generation_options(event.get("generation_options"))
+    if generation_options:
+        safe["generation_options"] = generation_options
     return safe
 
 
@@ -110,6 +138,9 @@ def build_live_evaluation_report(
     think = getattr(provider, "think", None)
     if not isinstance(think, bool):
         think = None
+    generation_options = _safe_generation_options(
+        getattr(provider, "generation_options", {})
+    )
 
     raw_commit = (
         os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
@@ -140,6 +171,7 @@ def build_live_evaluation_report(
             "ollama_version": _optional_provider_call(provider, "get_server_version"),
             "timeout_seconds": timeout,
             "think": think,
+            "generation_options": generation_options,
             "scenario_count": max(0, int(scenario_count)),
             "provider_calls": max(0, int(provider_calls)),
             "elapsed_seconds": round(max(0.0, float(elapsed_seconds)), 3),
