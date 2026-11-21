@@ -156,6 +156,10 @@ def test_build_report_writes_markdown_and_json_and_fails_if_any_stage_failed(tmp
     assert "Estado global: FAILED" in markdown
     assert "Python tests" in markdown
     assert "| Ruff | failed |" in markdown
+    chat_summary = (run_dir / "chat-summary.txt").read_text(encoding="utf-8")
+    assert "CAMPAIGN MANAGER" in chat_summary
+    assert "Commit: abc1234" in chat_summary
+    assert "Ruff" in chat_summary
 
 
 
@@ -195,3 +199,100 @@ def test_coverage_pytest_gate_uses_two_decimal_precision():
 
     assert report_config["fail_under"] == 85
     assert report_config["precision"] == 2
+
+
+def test_chat_summary_collects_key_metrics_without_including_prompt_content():
+    from scripts.quality_run_report import render_chat_summary
+
+    summary = render_chat_summary({
+        "status": "failed",
+        "commit": "a" * 40,
+        "duration_seconds": 42.5,
+        "stages": [
+            {"name": "Ollama real_llm tests", "status": "failed"},
+            {"name": "Stanza offline", "status": "skipped"},
+            {"name": "Ruff", "status": "success"},
+        ],
+        "ollama": {
+            "tests": {
+                "tests": 20,
+                "passed": 18,
+                "failures": 1,
+                "errors": 1,
+                "skipped": 0,
+                "duration_seconds": 38.2,
+            },
+            "existing_summary": {
+                "commit_validation": {
+                    "checked": True,
+                    "passed": True,
+                    "reports_checked": 3,
+                    "mismatched_reports": [],
+                },
+                "live_reports": [
+                    {
+                        "file": "compound-intent.json",
+                        "metadata": {
+                            "model": "gemma4:12b",
+                            "model_digest": "sha256:abc123",
+                            "ollama_version": "0.14.0",
+                        },
+                        "run": {
+                            "scenario_count": 30,
+                            "provider_calls": 60,
+                            "elapsed_seconds": 25.0,
+                            "critical_failure_count": 1,
+                            "observational_failure_count": 2,
+                        },
+                        "metrics": {
+                            "semantic_slot_precision": 0.9,
+                            "semantic_slot_recall": 0.8,
+                            "semantic_slot_f1": 0.8471,
+                            "families": {
+                                "dialogue": {
+                                    "cases": 4,
+                                    "passed_cases": 3,
+                                    "case_accuracy": 0.75,
+                                    "slot_recall": 0.8,
+                                }
+                            },
+                            "prompt": "PRIVATE_CAMPAIGN_CONVERSATION",
+                        },
+                    },
+                    {
+                        "file": "discourse-holdout.json",
+                        "metadata": {"model": "gemma4:12b"},
+                        "discourse_controls": {
+                            "callback": {"cases": 4, "exact_accuracy": 0.75}
+                        },
+                    },
+                ],
+            },
+        },
+        "nlp": {
+            "offline": {
+                "available": True,
+                "parse_coverage": 0.95,
+                "successful_parses": 19,
+                "scenario_count": 20,
+                "failed_parses": 1,
+                "wall_latency_p50_ms": 12,
+                "wall_latency_p95_ms": 40,
+                "cue_metrics": {
+                    "stanza": {
+                        "negation": {"precision": 0.9, "recall": 0.8, "f1": 0.8471}
+                    }
+                },
+            }
+        },
+    })
+
+    assert "Estado: FAILED" in summary
+    assert "Ollama tests: 18/20 OK" in summary
+    assert "critical_failures=1" in summary
+    assert "semantic_slot_f1=0.8471" in summary
+    assert "dialogue.case_accuracy=0.7500" in summary
+    assert "callback.exact_accuracy=0.7500" in summary
+    assert "parse_coverage=0.95" in summary
+    assert "sha256:abc123" in summary
+    assert "PRIVATE_CAMPAIGN_CONVERSATION" not in summary
