@@ -181,7 +181,7 @@ def test_acceptance_gate_blocks_recall_even_when_precision_is_high():
 
 
 def test_acceptance_gate_blocks_incomplete_and_under_repeated_runs():
-    scenario_ids = [f"case_{index:02d}" for index in range(20)]
+    scenario_ids = [item["id"] for item in load_v3_graph_corpus()]
     results = _perfect_results(scenario_ids)
     incomplete = evaluate_v3_acceptance_variant(
         variant_name="baseline",
@@ -207,6 +207,7 @@ def test_acceptance_gate_blocks_incomplete_and_under_repeated_runs():
 
     assert incomplete["gates"]["full_holdout_coverage"]["passed"] is False
     assert under_repeated["gates"]["critical_repetitions"]["passed"] is False
+    assert under_repeated["gates"]["full_holdout_coverage"]["passed"] is True
     assert filtered["gates"]["full_holdout_coverage"]["passed"] is False
     assert all(
         item["decision"] == "hold_v2"
