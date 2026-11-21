@@ -1,7 +1,7 @@
 # Roadmap de evaluación de comprensión semántica — 2026-11-21
 
 **Prioridad:** P0, bloquea la promoción de v3.  
-**Estado:** plan activo; los nuevos gates todavía no están implementados.  
+**Estado:** plan activo; scorer graph-aware (#293) y hardening del prompt (#294) integrados; decoder con invariantes de grafo (#295) en implementación. Los gates finales de aceptación siguen pendientes.  
 **Roadmap de ejecución:** [roadmap maestro](../architecture/player-understanding-roadmap-2026-11-21.md).
 
 ## 1. Objetivo
@@ -62,6 +62,22 @@ ejecución de la suite real.
 
 Detalles, esquema de anotación y comandos: [Scorer y corpus v3 graph-aware
 — 2026-11-21](v3-graph-evaluation-and-corpus-2026-11-21.md).
+
+## 2.2 Decoder graph-consistency (PR #295)
+
+PR #295 mueve invariantes de conectividad y procedencia al decoder v3, antes de que la interpretación llegue al selector o a la política de hechos:
+
+- Evidencias de eventos y hechos dentro de la evidencia del acto origen declarado.
+- `condition_on_success`: endpoints event→event, source=dependent, target=prerequisite, prerequisite anterior y dependiente en fase planned.
+- `before_after`: eventos con orden fuente→destino.
+- `quotes`: act→event, evento perteneciente al mismo acto y evidencia de enlace dentro de quote_spans.
+- Aristas tipadas duplicadas rechazadas.
+- Evidencia de aclaración contenida en registros afectados, incluidos enlaces discursivos.
+- Forma `other` de hecho sin metadata exclusiva de relaciones.
+
+La validación devuelve códigos y field paths seguros; no incluye contenido literal. No define reglas nuevas para `reports`, `response_to`, `correction_of`, `elaboration`, `contrast` o `continuation` hasta que exista una semántica de endpoints revisada. Los tests deterministas cubren tanto casos válidos como negativos. Esto mejora integridad del contrato, pero no demuestra aún exactitud del modelo ni autoriza el uso de v3 en producción.
+
+Detalles: [Consistencia del grafo semántico v3 — 2026-11-21](v3-semantic-graph-consistency-2026-11-21.md).
 
 ## 3. Fallos a conservar como escenarios de regresión
 
