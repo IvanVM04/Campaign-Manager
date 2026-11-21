@@ -165,7 +165,7 @@ class OllamaProvider(LLMProvider):
                 "prompt must not be empty"
             )
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
@@ -204,7 +204,7 @@ class OllamaProvider(LLMProvider):
         except (TypeError, ValueError) as exc:
             raise TypeError("schema must be JSON serializable") from exc
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "prompt": normalized_prompt,
             "stream": False,
