@@ -448,7 +448,26 @@ def _chat_metric_values(
     def visit(node: Any, path: str) -> None:
         if len(values) >= limit or not isinstance(node, dict):
             return
-        for raw_key, value in sorted(node.items(), key=lambda item: str(item[0])):
+        priority_keys = {
+            "semantic_slot_f1",
+            "semantic_slot_precision",
+            "semantic_slot_recall",
+            "critical_false_persistent_changes",
+            "critical_failure_count",
+            "entity_link_precision",
+            "entity_link_recall",
+            "operation_precision",
+            "operation_recall",
+            "case_accuracy",
+            "exact_accuracy",
+        }
+        for raw_key, value in sorted(
+            node.items(),
+            key=lambda item: (
+                0 if str(item[0]) in priority_keys else 1,
+                str(item[0]),
+            ),
+        ):
             key = str(raw_key)
             if (
                 not key
@@ -552,6 +571,8 @@ def render_chat_summary(report: dict[str, Any]) -> str:
                 model = metadata.get("model", "n/a")
                 model_digest = metadata.get("model_digest")
                 ollama_version = metadata.get("ollama_version")
+                think = metadata.get("think")
+                timeout = metadata.get("timeout_seconds")
                 scenario_count = run.get(
                     "scenario_count",
                     metadata.get("scenario_count", "n/a"),
@@ -575,6 +596,10 @@ def render_chat_summary(report: dict[str, Any]) -> str:
                     description += f"; digest={model_digest}"
                 if ollama_version:
                     description += f"; Ollama={ollama_version}"
+                if think is not None:
+                    description += f"; think={think}"
+                if timeout is not None:
+                    description += f"; timeout={timeout}s"
                 if critical is not None:
                     description += f"; critical_failures={critical}"
                 if observational is not None:
@@ -583,15 +608,22 @@ def render_chat_summary(report: dict[str, Any]) -> str:
                     description += "; v3=shadow-only (v2 sigue siendo producción)"
                 lines.append(description)
 
-                for section in (
-                    "metrics",
-                    "ledger_summary",
-                    "control_summary",
-                    "discourse_controls",
+                remaining_metrics = 12
+                for section, section_limit in (
+                    ("metrics", 8),
+                    ("ledger_summary", 8),
+                    ("control_summary", 4),
+                    ("discourse_controls", 4),
                 ):
-                    metrics = _chat_metric_values(item.get(section))
+                    if remaining_metrics <= 0:
+                        break
+                    metrics = _chat_metric_values(
+                        item.get(section),
+                        limit=min(section_limit, remaining_metrics),
+                    )
                     if metrics:
                         lines.append("      " + section + ": " + ", ".join(metrics))
+                        remaining_metrics -= len(metrics)
         else:
             lines.append("Evaluaciones live: no se generaron informes")
 
