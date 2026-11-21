@@ -233,7 +233,7 @@ def test_acceptance_gate_measures_repeat_stability_per_scenario():
 
 
 def test_acceptance_matrix_never_authorizes_automatic_cutover():
-    scenario_ids = ["case_01"]
+    scenario_ids = [item["id"] for item in load_v3_graph_corpus()]
     accepted = evaluate_v3_acceptance_variant(
         variant_name="baseline",
         scenario_ids=scenario_ids,
