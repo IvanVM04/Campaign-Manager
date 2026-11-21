@@ -112,8 +112,8 @@ def build_live_evaluation_report(
         think = None
 
     raw_commit = (
-        os.getenv("GITHUB_SHA")
-        or os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
+        os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
+        or os.getenv("GITHUB_SHA")
         or ""
     )
     safe_commit = raw_commit.strip() if _SAFE_COMMIT.fullmatch(raw_commit.strip()) else None
