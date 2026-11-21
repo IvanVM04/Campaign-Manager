@@ -51,7 +51,7 @@ def _open_door_payload(source: str, *, role: str = "theme") -> str:
             "action_phase": "attempted",
             "temporal_expression": None,
             "attributed_source": None,
-            "evidence_spans": [span],
+            "evidence_spans": [_span(source, "Abro la puerta")],
         }],
         "discourse_links": [],
         "world_facts": [],
