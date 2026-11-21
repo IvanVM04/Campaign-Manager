@@ -397,6 +397,241 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+
+_CHAT_METRIC_KEYS = frozenset({
+    "semantic_slot_precision",
+    "semantic_slot_recall",
+    "semantic_slot_f1",
+    "entity_link_precision",
+    "entity_link_recall",
+    "operation_precision",
+    "operation_recall",
+    "context_recall",
+    "correct_abstentions",
+    "incorrect_abstentions",
+    "critical_false_persistent_changes",
+    "secret_leaks",
+    "critical_failure_count",
+    "observational_failure_count",
+    "case_accuracy",
+    "passed_cases",
+    "failed_cases",
+    "cases",
+    "expected_slots",
+    "matched_slots",
+    "slot_recall",
+    "mean_latency_seconds",
+    "latency_p50_seconds",
+    "latency_p95_seconds",
+    "precision",
+    "recall",
+    "f1",
+    "exact_matches",
+    "exact_accuracy",
+    "true_positive",
+    "false_positive",
+    "false_negative",
+    "gold_slots",
+    "predicted_slots",
+})
+
+
+def _chat_metric_values(
+    payload: Any,
+    *,
+    prefix: str = "",
+    limit: int = 14,
+) -> list[str]:
+    """Flatten a small allowlist of numeric metrics; never render arbitrary text."""
+    values: list[str] = []
+
+    def visit(node: Any, path: str) -> None:
+        if len(values) >= limit or not isinstance(node, dict):
+            return
+        for raw_key, value in sorted(node.items(), key=lambda item: str(item[0])):
+            key = str(raw_key)
+            if (
+                not key
+                or len(key) > 64
+                or not key.isascii()
+                or any(not (char.isalnum() or char in "._-") for char in key)
+            ):
+                continue
+            metric_path = f"{path}.{key}" if path else key
+            if key in _CHAT_METRIC_KEYS:
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    continue
+                if not math.isfinite(float(value)):
+                    continue
+                rendered = f"{value:.4f}" if isinstance(value, float) else str(value)
+                values.append(f"{metric_path}={rendered}")
+                if len(values) >= limit:
+                    return
+            elif isinstance(value, dict):
+                visit(value, metric_path)
+                if len(values) >= limit:
+                    return
+
+    visit(payload, prefix)
+    return values
+
+
+def render_chat_summary(report: dict[str, Any]) -> str:
+    """Render a short, safe text block intended to be pasted into a support chat."""
+    stages = report.get("stages", [])
+    stage_counts = {
+        status: sum(1 for item in stages if item.get("status") == status)
+        for status in ("success", "failed", "skipped", "warning")
+    }
+    lines = [
+        "CAMPAIGN MANAGER — RESUMEN PARA CHATGPT",
+        f"Estado: {str(report.get('status', 'unknown')).upper()}",
+        f"Commit: {report.get('commit') or 'unknown'}",
+        f"Duración total: {_fmt(report.get('duration_seconds'), ' s')}",
+        (
+            "Fases: "
+            f"{stage_counts['success']} OK, "
+            f"{stage_counts['failed']} fallidas, "
+            f"{stage_counts['skipped']} omitidas, "
+            f"{stage_counts['warning']} avisos"
+        ),
+    ]
+
+    failed_stages = [
+        str(item.get("name", "unknown"))[:80]
+        for item in stages
+        if item.get("status") == "failed"
+    ]
+    if failed_stages:
+        lines.append("Fases fallidas: " + ", ".join(failed_stages[:8]))
+
+    ollama = report.get("ollama", {})
+    tests = ollama.get("tests")
+    if isinstance(tests, dict):
+        lines.append(
+            "Ollama tests: "
+            f"{tests.get('passed', 0)}/{tests.get('tests', 0)} OK; "
+            f"failures={tests.get('failures', 0)}; "
+            f"errors={tests.get('errors', 0)}; "
+            f"skipped={tests.get('skipped', 0)}; "
+            f"duration={_fmt(tests.get('duration_seconds'), ' s')}"
+        )
+    else:
+        lines.append("Ollama tests: no ejecutados / sin JUnit")
+
+    existing = ollama.get("existing_summary")
+    if isinstance(existing, dict):
+        validation = existing.get("commit_validation")
+        if isinstance(validation, dict) and validation.get("checked"):
+            lines.append(
+                "Procedencia SHA: "
+                f"{'PASS' if validation.get('passed') else 'FAIL'} "
+                f"({validation.get('reports_checked', 0)} informes comprobados)"
+            )
+            for mismatch in validation.get("mismatched_reports", [])[:5]:
+                lines.append(
+                    "  SHA mismatch: "
+                    f"{mismatch.get('file', 'unknown')}="
+                    f"{mismatch.get('reported_commit', 'unknown')}"
+                )
+
+        live_reports = existing.get("live_reports", [])
+        if live_reports:
+            lines.append("Evaluaciones live:")
+            for item in live_reports[:8]:
+                if not isinstance(item, dict):
+                    continue
+                filename = str(item.get("file", "informe"))[:80]
+                metadata = item.get("metadata", {})
+                run = item.get("run", {})
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                if not isinstance(run, dict):
+                    run = {}
+
+                model = metadata.get("model", "n/a")
+                model_digest = metadata.get("model_digest")
+                ollama_version = metadata.get("ollama_version")
+                scenario_count = run.get(
+                    "scenario_count",
+                    metadata.get("scenario_count", "n/a"),
+                )
+                provider_calls = run.get(
+                    "provider_calls",
+                    metadata.get("provider_calls", "n/a"),
+                )
+                elapsed = run.get(
+                    "elapsed_seconds",
+                    metadata.get("elapsed_seconds"),
+                )
+                critical = run.get("critical_failure_count")
+                observational = run.get("observational_failure_count")
+
+                description = (
+                    f"  - {filename}: model={model}; scenarios={scenario_count}; "
+                    f"calls={provider_calls}; elapsed={_fmt(elapsed, ' s')}"
+                )
+                if model_digest:
+                    description += f"; digest={model_digest}"
+                if ollama_version:
+                    description += f"; Ollama={ollama_version}"
+                if critical is not None:
+                    description += f"; critical_failures={critical}"
+                if observational is not None:
+                    description += f"; observational_mismatches={observational}"
+                if "v3-shadow" in filename:
+                    description += "; v3=shadow-only (v2 sigue siendo producción)"
+                lines.append(description)
+
+                for section in (
+                    "metrics",
+                    "ledger_summary",
+                    "control_summary",
+                    "discourse_controls",
+                ):
+                    metrics = _chat_metric_values(item.get(section))
+                    if metrics:
+                        lines.append("      " + section + ": " + ", ".join(metrics))
+        else:
+            lines.append("Evaluaciones live: no se generaron informes")
+
+    nlp = report.get("nlp", {})
+    offline = nlp.get("offline")
+    if isinstance(offline, dict) and offline.get("available"):
+        lines.append(
+            "Stanza offline: "
+            f"parse_coverage={_fmt(offline.get('parse_coverage'))}; "
+            f"parsed={offline.get('successful_parses', 'n/a')}/"
+            f"{offline.get('scenario_count', 'n/a')}; "
+            f"failed={offline.get('failed_parses', 'n/a')}; "
+            f"wall_p50/p95={_fmt(offline.get('wall_latency_p50_ms'), ' ms')}/"
+            f"{_fmt(offline.get('wall_latency_p95_ms'), ' ms')}"
+        )
+        cue_metrics = offline.get("cue_metrics", {})
+        for cue in ("negation", "conditional"):
+            values = cue_metrics.get("stanza", {}).get(cue, {})
+            if values:
+                lines.append(
+                    f"  Stanza {cue}: P={_fmt(values.get('precision'))}; "
+                    f"R={_fmt(values.get('recall'))}; F1={_fmt(values.get('f1'))}"
+                )
+
+    ab = nlp.get("ab")
+    if isinstance(ab, dict) and ab.get("available"):
+        model_only = ab.get("model_only", {})
+        with_hints = ab.get("model_plus_stanza_hints", {})
+        lines.append(
+            "A/B Intent vs Stanza: "
+            f"Intent={model_only.get('case_accuracy', 'n/a')} "
+            f"(slot F1={model_only.get('semantic_slot_f1', 'n/a')}); "
+            f"Intent+Stanza={with_hints.get('case_accuracy', 'n/a')} "
+            f"(slot F1={with_hints.get('semantic_slot_f1', 'n/a')})"
+        )
+
+    lines.append("Fin del resumen. No contiene prompts, conversaciones ni respuestas del modelo.")
+    return "\n".join(lines) + "\n"
+
+
 def build_report(
     *,
     run_dir: Path,
@@ -459,6 +694,10 @@ def build_report(
         encoding="utf-8",
     )
     (run_dir / "summary.md").write_text(render_markdown(report), encoding="utf-8")
+    (run_dir / "chat-summary.txt").write_text(
+        render_chat_summary(report),
+        encoding="utf-8",
+    )
     return report
 
 
