@@ -12,6 +12,7 @@ from statistics import mean
 from typing import Any
 
 from tests.player_turn_interpretation_v3_shadow import V3_SYSTEM_PROMPT
+from tests.player_turn_v3_graph_evaluation import load_v3_graph_corpus
 
 V3_ACCEPTANCE_CONTRACT_ID = "player-turn-v3-acceptance-2026-11-22-v1"
 V3_ACCEPTANCE_MIN_REPETITIONS = 3
@@ -160,6 +161,10 @@ def evaluate_v3_acceptance_variant(
         for scenario_id in scenario_ids
         for repeat in range(1, repetitions + 1)
     }
+    frozen_scenario_ids = {
+        item["id"] for item in load_v3_graph_corpus()
+    }
+    full_holdout = full_corpus and set(scenario_ids) == frozen_scenario_ids
     observed_keys: list[tuple[str, int]] = []
     critical_results: list[dict[str, Any]] = []
     component_counts = {
@@ -265,8 +270,8 @@ def evaluate_v3_acceptance_variant(
 
     gates = {
         "full_holdout_coverage": {
-            "passed": bool(full_corpus and complete),
-            "observed": complete and full_corpus,
+            "passed": bool(full_holdout and complete),
+            "observed": complete and full_holdout,
             "required": True,
         },
         "critical_repetitions": {
@@ -322,7 +327,7 @@ def evaluate_v3_acceptance_variant(
     macro_recall = round(mean(recall_values), 4) if recall_values else None
     return {
         "variant": variant_name,
-        "mode": "acceptance" if repetitions >= V3_ACCEPTANCE_MIN_REPETITIONS and full_corpus else "diagnostic",
+        "mode": "acceptance" if repetitions >= V3_ACCEPTANCE_MIN_REPETITIONS and full_holdout else "diagnostic",
         "decision": (
             "eligible_for_manual_review_only"
             if eligible
@@ -336,7 +341,7 @@ def evaluate_v3_acceptance_variant(
             "observed_runs": len(results),
             "missing_runs": len(missing_keys),
             "duplicate_run_keys": duplicate_keys,
-            "full_corpus": full_corpus,
+            "full_corpus": full_holdout,
         },
         "critical": {
             "run_count": critical_run_count,
