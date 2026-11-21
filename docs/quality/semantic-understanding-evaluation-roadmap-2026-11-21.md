@@ -201,7 +201,7 @@ El escenario también informa fallos parciales para diagnóstico. Las etiquetas 
 
 ## 8. Gates de aceptación
 
-Los umbrales finales serán aprobados en PR #297 después de validar scorer/gold y disponer de resultados de PR #293–#296. Los siguientes son mínimos de diseño, no valores ya aprobados:
+Los umbrales finales serán aprobados en PR #296 después de validar scorer/gold y disponer de resultados de PR #293–#295. Los siguientes son mínimos de diseño, no valores ya aprobados:
 
 | Gate | Criterio |
 |---|---|
@@ -239,10 +239,10 @@ No conservar en el aggregate texto íntegro del jugador, prompts/completions, co
 
 ## 11. PR responsables
 
-- PR #293: scorer graph-aware, diagnóstico por caso, métricas exact graph match y evaluación live opt-in. Incluye la primera entrega graph-gold de 20 escenarios de #294.
-- PR #294 no se abre como PR separada en esta iteración. El objetivo pendiente de llegar a 100–300 escenarios permanece en el backlog y se replanificará con evidencia del primer benchmark.
-- PR #295: prompt y alineación de evidencia.
-- PR #296: consistencia semántica de grafo.
-- PR #297: gate de aceptación y ablations.
+- PR #293: scorer graph-aware, diagnóstico por caso, métricas exact graph match y evaluación live opt-in. Incluye la primera tanda de 20 escenarios graph-gold que originalmente estaba planificada como una entrega separada de corpus.
+- La expansión restante del corpus hasta 100–300 escenarios sigue pendiente. Debe basarse en errores reales y revisión de gold; no se debe fabricar volumen con permutaciones triviales.
+- PR #294: rediseño del prompt v3 para aumentar la cobertura de cláusulas/proposiciones, más alineación conservadora de spans exactos y telemetría explícita del proceso.
+- PR #295: consistencia semántica de grafo.
+- PR #296: gate de aceptación y ablations controladas antes de cualquier promoción.
 
-Ver [roadmap maestro](../architecture/player-understanding-roadmap-2026-11-21.md) para estado por PR. Toda PR debe actualizar dicho ledger antes de merge.
+La numeración anterior era una secuencia propuesta. La primera entrega de corpus se integró en #293 y no consumió un número real de GitHub; por eso el hito de prompt se entrega como la PR real #294. Ver [roadmap maestro](../architecture/player-understanding-roadmap-2026-11-21.md) para estado por PR. Toda PR debe actualizar dicho ledger antes de merge.

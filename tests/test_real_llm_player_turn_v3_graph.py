@@ -11,6 +11,8 @@ from time import perf_counter
 import pytest
 
 from tests.player_turn_interpretation_v3_shadow import (
+    V3_EVIDENCE_ALIGNMENT_VERSION,
+    V3_PROMPT_VERSION,
     V3_RESPONSE_SCHEMA,
     V3_SYSTEM_PROMPT,
     PlayerTurnInterpretationV3ShadowRunner,
@@ -58,6 +60,7 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
     comparisons: list[dict] = []
     started = perf_counter()
     provider_calls = 0
+    evidence_spans_realigned: list[int] = []
 
     for scenario in scenarios:
         comparison = runner.run(
@@ -72,6 +75,9 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
                 ledger,
                 interpretation_status=comparison.v3_status,
             )
+        )
+        evidence_spans_realigned.append(
+            comparison.v3_evidence_spans_realigned
         )
         provider_calls += int(comparison.v2_prompt_bytes is not None)
         provider_calls += int(comparison.v3_prompt_bytes is not None)
@@ -96,6 +102,10 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
     record_property("player_turn_v3_graph_scenarios", len(scenarios))
     record_property("player_turn_v3_graph_provider_calls", provider_calls)
     record_property(
+        "player_turn_v3_graph_evidence_spans_realigned",
+        sum(evidence_spans_realigned),
+    )
+    record_property(
         "player_turn_v3_graph_critical_exact",
         f"{exact_critical}/{critical_count}",
     )
@@ -113,6 +123,14 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
         scenario_filter=scenario_filter,
     )
     report["graph_comparisons"] = comparisons
+    report["evidence_alignment"] = {
+        "algorithm": V3_EVIDENCE_ALIGNMENT_VERSION,
+        "realigned_span_count": sum(evidence_spans_realigned),
+        "scenarios_with_realignment": sum(
+            count > 0 for count in evidence_spans_realigned
+        ),
+        "scenario_count": len(evidence_spans_realigned),
+    }
     reported_commit = (
         os.getenv("CAMPAIGN_MANAGER_GIT_COMMIT")
         or os.getenv("GITHUB_SHA")
@@ -131,7 +149,8 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
         "ollama_version": provider.get_server_version() or "unavailable",
         "thinking": getattr(provider, "think", None),
         "timeout_seconds": getattr(provider, "timeout", None),
-        "prompt_version": "player-turn-v3-holistic-2026-11-20",
+        "prompt_version": V3_PROMPT_VERSION,
+        "evidence_alignment_version": V3_EVIDENCE_ALIGNMENT_VERSION,
         "prompt_sha256": hashlib.sha256(
             V3_SYSTEM_PROMPT.encode("utf-8")
         ).hexdigest(),

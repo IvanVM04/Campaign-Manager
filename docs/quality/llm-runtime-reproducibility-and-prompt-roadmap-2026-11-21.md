@@ -130,7 +130,7 @@ No registrar en logs generales prompts, completions, texto de campaña, secretos
 
 ## 8. Experimentos de modelo
 
-No cambiar de modelo por intuición. PR #297 debe ejecutar un experimento controlado:
+No cambiar de modelo por intuición. PR #296 debe ejecutar un experimento controlado:
 - Modelo actual Gemma 4 12B Q4_K_M como baseline.
 - Alternativas locales razonables seleccionadas según VRAM/latencia disponible.
 - Mismo corpus, split, contexto, prompt, schema y generation options siempre que el modelo lo soporte.
@@ -154,8 +154,8 @@ No paralelizar agresivamente solicitudes al mismo Ollama sin experimento explíc
 ## 10. PR responsables
 
 - PR #293 incorpora run manifest, telemetry gap analysis y generation options reproducibles.
-- PR #295 optimiza prompt v3 y estrategia de evidence alignment.
-- PR #297 compara modelos/parámetros y aprueba gates de aceptación.
+- PR #294 optimiza prompt v3 y estrategia de evidence alignment.
+- PR #296 compara modelos/parámetros y aprueba gates de aceptación.
 - PRs posteriores mejoran ranking/retrieval si los informes demuestran que es necesario.
 
 La actualización del roadmap maestro y el estado de cada PR son parte obligatoria de su checklist de merge.

@@ -4,11 +4,12 @@ This is the navigation entry point for maintainers, coding agents and product wo
 
 ## Current source of truth — 2026-11-21
 
-**Prioridad técnica máxima:** programa de comprensión semántica #292–#306.
+**Prioridad técnica máxima:** programa de comprensión semántica #292–#305.
 - [Roadmap maestro de comprensión semántica — 2026-11-21](architecture/player-understanding-roadmap-2026-11-21.md) — fuente de verdad para PRs, dependencias, gates y estado de implementación.
 - [Arquitectura objetivo de comprensión — 2026-11-21](architecture/player-understanding-target-architecture-2026-11-21.md) — modelo semántico v3, responsabilidades, autoridad, evidencia y migración v2→v3.
 - [Roadmap de evaluación semántica — 2026-11-21](quality/semantic-understanding-evaluation-roadmap-2026-11-21.md) — corpus, gold, graph scorer, métricas y gates propuestos.
 - [Scorer graph-aware y corpus v3 — 2026-11-21](quality/v3-graph-evaluation-and-corpus-2026-11-21.md) — evaluación por nodos y aristas, alineación sin IDs locales, diagnóstico por escenario y 20 nuevos casos held-out.
+- [Prompt v3 y alineación de evidencias — 2026-11-21](quality/v3-prompt-recall-and-evidence-alignment-2026-11-21.md) — cobertura de cláusulas compuestas, pasada independiente de hechos y reparación conservadora de offsets literales en shadow.
 - [Roadmap de prompts y runtime Ollama — 2026-11-21](quality/llm-runtime-reproducibility-and-prompt-roadmap-2026-11-21.md) — generation options, manifiesto reproducible, prompts, budgets y telemetría.
 - [Proceso de entrega del programa NLU — 2026-11-21](architecture/player-understanding-delivery-workflow-2026-11-21.md) — obligación de sincronizar roadmap en cada PR antes de merge.
 
@@ -30,7 +31,7 @@ Read these first. They describe the current product target, source-verified impl
 - [World-fact eligibility and persistence policy — 2026-11-20](architecture/player-world-fact-policy-2026-11-20.md) — PR #288: política backend de hechos persistentes, resolución canónica visible, escritura append-only de atributos, relaciones dirigidas/idempotentes y recibos ligados al checkpoint; todavía no conectada al runtime v2.
 - [Diseño de comprensión de lenguaje — 2026-11-19](architecture/player-language-understanding-architecture-2026-11-19.md) — snapshot histórico del pipeline v2 y del trabajo estructural #267–#272; no describe el diseño objetivo propuesto el 20 de noviembre.
 - [Documentation freshness audit](architecture/documentation-audit-2026-11-18.md) — file-by-file classification, stale statements found, documents updated, historical material retained and remaining documentation gaps.
-- [Current NLU roadmap](architecture/player-understanding-roadmap-2026-11-21.md) — maximum-priority, merge-tracked implementation sequence #292–#306. The 18 November quality roadmap is now a historical snapshot for its original broader quality scope.
+- [Current NLU roadmap](architecture/player-understanding-roadmap-2026-11-21.md) — maximum-priority, merge-tracked implementation sequence #292–#305. The 18 November quality roadmap is now a historical snapshot for its original broader quality scope.
 - [Quickstart for the current MVP](mvp-quickstart.md) — executable local setup through the current SillyTavern integration; explicitly lists what is not yet implemented.
 - [README](../README.md) — project overview, quick setup, route summary and top-level engineering navigation.
 - [AGENTS.md](../AGENTS.md) — mandatory contributor/coding-agent instructions.

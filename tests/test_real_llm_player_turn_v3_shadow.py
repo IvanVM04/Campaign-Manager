@@ -6,12 +6,18 @@ passed to mechanics, world extraction, persistence or narration.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from time import perf_counter
 
 import pytest
 
 from tests.player_turn_interpretation_v3_shadow import (
+    V3_EVIDENCE_ALIGNMENT_VERSION,
+    V3_PROMPT_VERSION,
+    V3_RESPONSE_SCHEMA,
+    V3_SYSTEM_PROMPT,
     PlayerTurnInterpretationV3ShadowRunner,
 )
 from tests.player_turn_v3_shadow_evaluation import (
@@ -54,6 +60,7 @@ def test_real_ollama_player_turn_v3_shadow_holdout(record_property):
     comparisons: list[dict] = []
     started = perf_counter()
     provider_calls = 0
+    evidence_spans_realigned: list[int] = []
 
     for scenario in scenarios:
         comparison = runner.run(
@@ -63,6 +70,9 @@ def test_real_ollama_player_turn_v3_shadow_holdout(record_property):
         )
         comparisons.append(
             score_shadow_comparison(scenario, comparison, ledger)
+        )
+        evidence_spans_realigned.append(
+            comparison.v3_evidence_spans_realigned
         )
         if comparison.v2_prompt_bytes is not None:
             provider_calls += 1
@@ -87,6 +97,10 @@ def test_real_ollama_player_turn_v3_shadow_holdout(record_property):
     record_property("player_turn_v3_shadow_scenarios", len(scenarios))
     record_property("player_turn_v3_shadow_provider_calls", provider_calls)
     record_property(
+        "player_turn_v3_shadow_evidence_spans_realigned",
+        sum(evidence_spans_realigned),
+    )
+    record_property(
         "player_turn_v3_shadow_critical_v3_valid",
         f"{critical_v3_valid}/{len(critical_cases)}",
     )
@@ -107,6 +121,32 @@ def test_real_ollama_player_turn_v3_shadow_holdout(record_property):
         scenario_filter=scenario_filter,
     )
     report["comparisons"] = comparisons
+    report["evidence_alignment"] = {
+        "algorithm": V3_EVIDENCE_ALIGNMENT_VERSION,
+        "realigned_span_count": sum(evidence_spans_realigned),
+        "scenarios_with_realignment": sum(
+            count > 0 for count in evidence_spans_realigned
+        ),
+        "scenario_count": len(evidence_spans_realigned),
+    }
+    report["run_manifest"] = {
+        "prompt_version": V3_PROMPT_VERSION,
+        "prompt_sha256": hashlib.sha256(
+            V3_SYSTEM_PROMPT.encode("utf-8")
+        ).hexdigest(),
+        "schema_version": 3,
+        "schema_sha256": hashlib.sha256(
+            json.dumps(
+                V3_RESPONSE_SCHEMA,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
+        "evidence_alignment_version": V3_EVIDENCE_ALIGNMENT_VERSION,
+        "production_route": "v2",
+        "v3_authority": "none",
+    }
     report["acceptance"] = {
         "mode": "diagnostic_baseline",
         "production_route": "v2",
