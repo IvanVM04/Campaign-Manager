@@ -359,6 +359,34 @@ def load_v3_graph_corpus() -> list[dict[str, Any]]:
             or not isinstance(scenario["visible_entities"], list)
         ):
             raise ValueError("v3 graph scenario metadata is invalid")
+        for turn in scenario["recent_turns"]:
+            turn = _require_keys(
+                turn, {"id", "player_input", "narrative"}, "recent turn"
+            )
+            if (
+                isinstance(turn["id"], bool)
+                or not isinstance(turn["id"], int)
+                or turn["id"] < 1
+                or not isinstance(turn["player_input"], str)
+                or not isinstance(turn["narrative"], str)
+            ):
+                raise ValueError("graph recent turn metadata is invalid")
+        for entity in scenario["visible_entities"]:
+            entity = _require_keys(
+                entity,
+                {"id", "name", "entity_type", "description"},
+                "visible entity",
+            )
+            if (
+                isinstance(entity["id"], bool)
+                or not isinstance(entity["id"], int)
+                or entity["id"] < 1
+                or any(
+                    not isinstance(entity[key], str) or not entity[key].strip()
+                    for key in ("name", "entity_type", "description")
+                )
+            ):
+                raise ValueError("graph visible entity metadata is invalid")
         identifiers.append(scenario["id"])
         _validate_graph(scenario["expected_graph"], scenario["input"])
     if len(identifiers) != len(set(identifiers)):
