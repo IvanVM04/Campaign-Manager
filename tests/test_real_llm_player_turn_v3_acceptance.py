@@ -79,6 +79,14 @@ def test_real_ollama_player_turn_v3_acceptance(record_property):
         )
 
     all_scenarios = load_v3_graph_corpus()
+    corpus_sha256 = hashlib.sha256(
+        json.dumps(
+            all_scenarios,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(',', ':'),
+        ).encode('utf-8')
+    ).hexdigest()
     scenario_filter = os.getenv(
         "CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_SCENARIO_ID"
     )
@@ -214,6 +222,7 @@ def test_real_ollama_player_turn_v3_acceptance(record_property):
             "contract_id": V3_ACCEPTANCE_CONTRACT_ID,
             "corpus_id": "player-turn-v3-graph-corpus-v1",
             "corpus_schema_version": 1,
+            "corpus_sha256": corpus_sha256,
             "scenario_count": len(scenarios),
             "repetitions": repetitions,
             "model": provider.model,
@@ -283,6 +292,7 @@ def test_real_ollama_player_turn_v3_acceptance(record_property):
             "contract_id": V3_ACCEPTANCE_CONTRACT_ID,
             "corpus_id": "player-turn-v3-graph-corpus-v1",
             "corpus_schema_version": 1,
+            "corpus_sha256": corpus_sha256,
             "scenario_count": len(scenarios),
             "full_corpus": full_corpus,
             "repetitions": repetitions,
