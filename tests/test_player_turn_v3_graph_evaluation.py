@@ -253,6 +253,7 @@ def test_graph_scorer_resolves_clarification_affected_discourse_link():
         "affected": [{"kind": "link", "index": 0}],
         "evidence_spans": [_span(source)],
     }]
+    _validate_graph(scenario["expected_graph"], source)
     payload = {
         "schema_version": 3,
         "utterance_acts": [{
