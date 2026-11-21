@@ -165,7 +165,6 @@ def test_real_ollama_player_turn_v3_acceptance(record_property):
                     ledger,
                     interpretation_status=comparison.v3_status,
                 )
-                elapsed_ms = comparison.v2_duration_ms + comparison.v3_duration_ms
                 case_results.append({
                     "scenario_id": scenario["id"],
                     "family": scenario["family"],
