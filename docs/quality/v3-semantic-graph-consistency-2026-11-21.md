@@ -100,3 +100,9 @@ ruff check models/player_turn_interpretation_v3.py tests/test_player_turn_interp
 - V2 remains production; v3 remains diagnostic/shadow until the separate acceptance milestone.
 
 A malformed or contradictory local graph now fails before it can be passed to the action selector or world-fact policy. A valid graph is still only an untrusted interpretation, not an authorization to act or persist.
+
+## Regression-test layering
+
+The cross-record invariants are enforced when a `TurnInterpretationV3` value is constructed. Tests for downstream consumers must therefore use a decoder-valid graph when they intend to exercise selector or graph-scoring behavior. In particular, a graph-scoring regression can retain both node matches while changing a valid edge's semantics; it must not rely on a malformed dependency direction that the decoder now rejects earlier.
+
+The world-fact policy retains its own evidence-origin rejection as defense in depth. Its regression deliberately forges an internal frozen interpretation value to exercise that downstream guard, while ordinary payload construction is expected to reject the same invalid provenance at the decoder boundary.
