@@ -95,7 +95,7 @@ def test_real_ollama_player_turn_v3_acceptance(record_property):
     repetitions = _positive_integer_env(
         "CAMPAIGN_MANAGER_REAL_LLM_V3_ACCEPTANCE_REPETITIONS", 3
     )
-    probe_interpreter, probe_provider, _context_builder, _probe_usage = (
+    _probe_interpreter, probe_provider, _context_builder, _probe_usage = (
         _live_intent_runtime()
     )
     primary_model = probe_provider.model
@@ -178,7 +178,8 @@ def test_real_ollama_player_turn_v3_acceptance(record_property):
                     "graph_exact_match": graph_result["graph_exact_match"],
                     "mismatch_components": graph_result["mismatch_components"],
                     "components": graph_result["components"],
-                    "elapsed_ms": round(elapsed_ms, 3),
+                    "elapsed_ms": round(comparison.v3_duration_ms, 3),
+                    "v2_elapsed_ms": round(comparison.v2_duration_ms, 3),
                 })
                 evidence_realigned += comparison.v3_evidence_spans_realigned
                 v2_valid_runs += int(comparison.v2_status == "valid")
