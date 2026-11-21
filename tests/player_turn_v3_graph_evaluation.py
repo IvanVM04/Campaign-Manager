@@ -23,6 +23,7 @@ _GRAPH_KEYS = {"acts", "events", "links", "facts", "clarifications"}
 _MENTION_KEYS = {"text", "kind_hint"}
 _SPAN_KEYS = {"start", "end", "text"}
 _REFERENCE_KINDS = {"act", "event", "fact"}
+_CLARIFICATION_REFERENCE_KINDS = {"act", "event", "fact", "link"}
 
 
 def _require_keys(value: Any, expected: set[str], name: str) -> dict[str, Any]:
@@ -94,13 +95,19 @@ def _validate_spans(values: Any, source_text: str, *, minimum: int = 1) -> None:
         previous_end = end
 
 
-def _validate_reference(value: Any, graph: dict[str, Any], *, nullable: bool) -> None:
+def _validate_reference(
+    value: Any,
+    graph: dict[str, Any],
+    *,
+    nullable: bool,
+    allowed_kinds: set[str] = _REFERENCE_KINDS,
+) -> None:
     if value is None and nullable:
         return
     reference = _require_keys(value, {"kind", "index"}, "graph gold reference")
     kind, index = reference["kind"], reference["index"]
     if (
-        kind not in _REFERENCE_KINDS
+        kind not in allowed_kinds
         or isinstance(index, bool)
         or not isinstance(index, int)
         or not 0 <= index < len(graph[f"{kind}s"])
@@ -318,7 +325,12 @@ def _validate_graph(graph: Any, source_text: str) -> None:
         if not isinstance(clarification["affected"], list) or not clarification["affected"]:
             raise ValueError("graph gold clarification requires affected references")
         for reference in clarification["affected"]:
-            _validate_reference(reference, gold, nullable=False)
+            _validate_reference(
+                reference,
+                gold,
+                nullable=False,
+                allowed_kinds=_CLARIFICATION_REFERENCE_KINDS,
+            )
         _validate_spans(clarification["evidence_spans"], source_text)
 
 
@@ -718,7 +730,7 @@ def score_v3_graph_scenario(
         observed_id=lambda item: item.local_id,
         ledger=ledger,
     )
-    links_exact, _link_map, components["links"] = _match_nodes(
+    links_exact, link_map, components["links"] = _match_nodes(
         metric_family=f"v3_graph_nodes.links:{family}",
         expected=gold["links"],
         observed=observed_links,
@@ -736,7 +748,12 @@ def score_v3_graph_scenario(
         observed_id=lambda item: item.local_id,
         ledger=ledger,
     )
-    mappings = {"act": act_map, "event": event_map, "fact": fact_map}
+    mappings = {
+        "act": act_map,
+        "event": event_map,
+        "fact": fact_map,
+        "link": link_map,
+    }
 
     expected_event_sources = [
         (index, item["source_act_index"])
@@ -819,6 +836,7 @@ def score_v3_graph_scenario(
                 "act" if local_id.startswith("act_")
                 else "event" if local_id.startswith("event_")
                 else "fact" if local_id.startswith("fact_")
+                else "link" if local_id.startswith("link_")
                 else "unmatched"
             )
             affected.append((kind, mappings.get(kind, {}).get(local_id, -1)))
