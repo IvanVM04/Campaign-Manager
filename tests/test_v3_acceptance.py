@@ -152,6 +152,33 @@ def test_acceptance_gate_blocks_fact_false_positives_and_weak_dimensions():
     assert report["critical"]["fact_false_positives"] == 6
 
 
+def test_acceptance_gate_blocks_recall_even_when_precision_is_high():
+    scenario_ids = ["case_01", "case_02"]
+    results = _perfect_results(scenario_ids)
+    for item in results:
+        item["components"]["events"] = {
+            "expected": 2,
+            "predicted": 1,
+            "matched": 1,
+            "false_positives": 0,
+            "false_negatives": 1,
+        }
+
+    report = evaluate_v3_acceptance_variant(
+        variant_name="baseline",
+        scenario_ids=scenario_ids,
+        repetitions=3,
+        results=results,
+        full_corpus=False,
+    )
+
+    assert report["dimensions"]["events"]["precision"] == 1.0
+    assert report["dimensions"]["events"]["recall"] == 0.5
+    assert report["gates"]["dimension_precision"]["passed"] is True
+    assert report["gates"]["dimension_recall"]["passed"] is False
+    assert report["decision"] == "hold_v2"
+
+
 def test_acceptance_gate_blocks_incomplete_and_under_repeated_runs():
     scenario_ids = [f"case_{index:02d}" for index in range(20)]
     results = _perfect_results(scenario_ids)
