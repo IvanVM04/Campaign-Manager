@@ -68,14 +68,17 @@ def test_real_ollama_player_turn_v3_graph_holdout(record_property):
             scenario["input"],
             recent_turns=_recent_turns(scenario),
         )
-        comparisons.append(
-            score_v3_graph_scenario(
-                scenario,
-                comparison.v3_interpretation,
-                ledger,
-                interpretation_status=comparison.v3_status,
-            )
+        graph_comparison = score_v3_graph_scenario(
+            scenario,
+            comparison.v3_interpretation,
+            ledger,
+            interpretation_status=comparison.v3_status,
         )
+        # Decoder diagnostics are stable codes/field paths only. Never retain
+        # the utterance, model completion or literal evidence in this report.
+        graph_comparison["validation_error_code"] = comparison.v3_error_code
+        graph_comparison["validation_error_field"] = comparison.v3_error_field
+        comparisons.append(graph_comparison)
         evidence_spans_realigned.append(
             comparison.v3_evidence_spans_realigned
         )
