@@ -291,7 +291,31 @@ def _safe_report(path: Path) -> dict[str, Any]:
             if (scalar := _safe_scalar(metadata.get(field))) is not None
         }
 
-    for field in ("metrics", "ledger_summary", "control_summary", "family_calls", "prompt_observations"):
+    run = raw.get("run")
+    if isinstance(run, dict):
+        safe_run = {
+            field: scalar
+            for field in (
+                "scenario_count",
+                "provider_calls",
+                "elapsed_seconds",
+                "critical_failure_count",
+                "observational_failure_count",
+            )
+            if (scalar := _safe_scalar(run.get(field))) is not None
+        }
+        if safe_run:
+            result["run"] = safe_run
+
+    for field in (
+        "metrics",
+        "ledger_summary",
+        "control_summary",
+        "discourse_controls",
+        "family_calls",
+        "prompt_observations",
+        "comparisons",
+    ):
         safe = _safe_numeric_tree(raw.get(field))
         if safe is not _UNSAFE and safe:
             result[field] = safe
