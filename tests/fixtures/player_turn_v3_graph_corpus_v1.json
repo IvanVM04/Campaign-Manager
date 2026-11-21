@@ -1417,9 +1417,9 @@
             "attributed_source": null,
             "evidence_spans": [
               {
-                "start": 30,
-                "end": 48,
-                "text": "es amiga de Aldric"
+                "start": 0,
+                "end": 49,
+                "text": "Mara trabaja para el gremio y es amiga de Aldric."
               }
             ]
           }
