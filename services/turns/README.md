@@ -29,6 +29,28 @@ not existing behavior of this package.
 - `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
+## Active NLU program — 2026-11-21
+
+The maximum-priority delivery sequence is now governed by the
+[master player-understanding roadmap](../../docs/architecture/player-understanding-roadmap-2026-11-21.md).
+That document reconciles the v3 building blocks from PRs #285–#288, runner
+work #289, v2 fixes #290 and reproducibility/coverage #291, and records the
+21 November Ollama baseline: 16/23 live tests passed, 7 failed; the v3 shadow
+holdout recorded precision 0.8684 and recall 0.1924.
+
+**Production remains v1/v2.** The v3 contract, prompt/shadow runner, action
+selector/checkpoint and world-fact policy remain isolated building blocks.
+No provider runtime, turn orchestration, bootstrap or composition root has
+been switched to v3, and no live SillyTavern acceptance is claimed.
+
+The new roadmap and linked documents define the required evaluation, graph
+scoring, larger held-out corpus, prompt/runtime reproducibility, integration
+and acceptance milestones. Every NLU PR must update the master roadmap row,
+acceptance evidence and deferred work before merge; after merge, the next
+program PR reconciles the row with the confirmed merge SHA/date. The mandatory
+workflow is documented in
+[player-understanding-delivery-workflow-2026-11-21.md](../../docs/architecture/player-understanding-delivery-workflow-2026-11-21.md).
+
 ## Active NLU design decision — 2026-11-20
 
 The production route described below remains the implemented v2 pipeline. The PR #281 live evaluation exposed a gap between field-level scores and complete semantic scenarios, particularly compound-step modality, callbacks, relation direction and the separation of NPC facts from action outcomes. The current architecture target and migration proposal are documented in [the player-intent semantic redesign audit](../../docs/architecture/player-intent-semantic-redesign-audit-2026-11-20.md).
