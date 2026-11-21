@@ -195,7 +195,7 @@ def test_graph_scorer_detects_argument_role_attached_to_wrong_event():
     assert "event_sources" in result["mismatch_components"]
 
 
-def test_graph_scorer_detects_wrong_edge_semantics_after_node_alignment():
+def test_graph_scorer_detects_edge_with_unmatched_endpoint_after_node_alignment():
     scenarios = load_v3_graph_corpus()
     scenario = next(
         item for item in scenarios if item["id"] == "conditional_open_then_enter"
@@ -219,8 +219,15 @@ def test_graph_scorer_detects_wrong_edge_semantics_after_node_alignment():
     assert result["components"]["acts"]["matched"] == 1
     assert result["components"]["events"]["matched"] == 2
     assert result["components"]["links"]["matched"] == 1
+    assert result["components"]["discourse_edges"]["matched"] == 0
+    assert result["components"]["discourse_edges"]["false_positives"] == 1
+    assert result["components"]["discourse_edges"]["false_negatives"] == 1
     assert result["graph_exact_match"] is False
-    assert result["mismatch_components"] == ["discourse_edges"]
+    assert result["mismatch_components"] == [
+        "events",
+        "event_sources",
+        "discourse_edges",
+    ]
 
 
 def test_graph_scorer_counts_extra_nodes_as_false_positives():
