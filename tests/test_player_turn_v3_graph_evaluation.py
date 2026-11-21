@@ -195,14 +195,20 @@ def test_graph_scorer_detects_argument_role_attached_to_wrong_event():
     assert "event_sources" in result["mismatch_components"]
 
 
-def test_graph_scorer_checks_conditional_edge_endpoints_after_node_alignment():
+def test_graph_scorer_detects_wrong_edge_semantics_after_node_alignment():
     scenarios = load_v3_graph_corpus()
     scenario = next(
         item for item in scenarios if item["id"] == "conditional_open_then_enter"
     )
-    interpretation = TurnInterpretationV3.from_json(
-        _conditional_payload(scenario["input"], reverse_link=True),
-        source_text=scenario["input"],
+    payload = json.loads(_conditional_payload(scenario["input"]))
+    # Keep a structurally valid event sequence while changing the predicted
+    # relation. The decoder rejects reversed conditional dependencies now;
+    # this test exercises the graph scorer's semantic comparison instead.
+    payload["discourse_links"][0]["link_type"] = "before_after"
+    payload["discourse_links"][0]["source_ref"] = "event:event_open"
+    payload["discourse_links"][0]["target_ref"] = "event:event_enter"
+    interpretation = TurnInterpretationV3.from_payload(
+        payload, source_text=scenario["input"]
     )
     result = score_v3_graph_scenario(
         scenario, interpretation, SemanticEvaluationLedger()
