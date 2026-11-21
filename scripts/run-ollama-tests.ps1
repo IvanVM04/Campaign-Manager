@@ -450,6 +450,18 @@ Write-Manifest $manifest $commit $startedAt $finished
 $null = & $python @reportArgs 2>&1 | Tee-Object -FilePath (Join-Path $script:LogDir "99-report-final.log") | Out-Host
 $reportExit = $LASTEXITCODE
 $failedCount = @($script:Stages | Where-Object { $_.status -eq "failed" }).Count
+$chatSummaryPath = Join-Path $script:RunDir "chat-summary.txt"
+
+Write-Host ""
+Write-Host "RESUMEN PARA COPIAR Y PEGAR" -ForegroundColor Cyan
+Write-Host ("-" * 76) -ForegroundColor DarkCyan
+if (Test-Path -LiteralPath $chatSummaryPath -PathType Leaf) {
+    Get-Content -LiteralPath $chatSummaryPath -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+}
+else {
+    Write-Host "No se pudo generar chat-summary.txt. Conserva el summary.md y los logs de esta ejecución." -ForegroundColor Yellow
+}
+Write-Host ("-" * 76) -ForegroundColor DarkCyan
 
 Write-Host ""
 Write-Host ("-" * 76) -ForegroundColor DarkCyan
