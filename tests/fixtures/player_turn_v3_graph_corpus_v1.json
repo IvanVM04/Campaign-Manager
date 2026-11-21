@@ -1,0 +1,1511 @@
+{
+  "schema_version": 1,
+  "split": "held_out",
+  "purpose": "PR293 bundled graph-aware v3 evaluation and initial PR294 corpus expansion. Spanish-first, graph-gold scenarios are not prompt examples.",
+  "scenarios": [
+    {
+      "id": "open_door_attempt",
+      "family": "simple_action",
+      "critical": true,
+      "input": "Abro la puerta.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 15,
+                "text": "Abro la puerta."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "Abro",
+            "family": "interaction",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "la puerta",
+                  "kind_hint": "world_entity"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 14,
+                "text": "Abro la puerta"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "inspect_tracks",
+      "family": "perception",
+      "critical": true,
+      "input": "Examino las huellas junto al río.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 33,
+                "text": "Examino las huellas junto al río."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "Examino",
+            "family": "perception",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "las huellas",
+                  "kind_hint": "world_entity"
+                }
+              },
+              {
+                "role": "location",
+                "mention": {
+                  "text": "junto al río",
+                  "kind_hint": "location"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 32,
+                "text": "Examino las huellas junto al río"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "move_to_tower",
+      "family": "movement",
+      "critical": true,
+      "input": "Camino hacia la torre.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 22,
+                "text": "Camino hacia la torre."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "Camino",
+            "family": "movement",
+            "arguments": [
+              {
+                "role": "destination",
+                "mention": {
+                  "text": "la torre",
+                  "kind_hint": "location"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 21,
+                "text": "Camino hacia la torre"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "refuse_enter_tower",
+      "family": "negation_refusal",
+      "critical": true,
+      "input": "No quiero entrar en la torre.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "refusal",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 29,
+                "text": "No quiero entrar en la torre."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "entrar",
+            "family": "movement",
+            "arguments": [
+              {
+                "role": "destination",
+                "mention": {
+                  "text": "la torre",
+                  "kind_hint": "location"
+                }
+              }
+            ],
+            "polarity": "negative",
+            "epistemic_status": "asserted",
+            "action_phase": "planned",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 28,
+                "text": "No quiero entrar en la torre"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "npc_warning_quote",
+      "family": "speech_quote",
+      "critical": true,
+      "input": "Aldric me advierte: «No cruces el puente de noche».",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 101,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Guardia del puente."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "warning",
+            "speaker_role": "npc",
+            "speaker_mention": {
+              "text": "Aldric",
+              "kind_hint": "character"
+            },
+            "addressee_mention": {
+              "text": "me",
+              "kind_hint": "character"
+            },
+            "quote_spans": [
+              {
+                "start": 21,
+                "end": 49,
+                "text": "No cruces el puente de noche"
+              }
+            ],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 51,
+                "text": "Aldric me advierte: «No cruces el puente de noche»."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "cruces",
+            "family": "movement",
+            "arguments": [
+              {
+                "role": "destination",
+                "mention": {
+                  "text": "el puente",
+                  "kind_hint": "location"
+                }
+              }
+            ],
+            "polarity": "negative",
+            "epistemic_status": "not_established",
+            "action_phase": "not_applicable",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 21,
+                "end": 49,
+                "text": "No cruces el puente de noche"
+              }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "link_type": "quotes",
+            "source": {
+              "kind": "act",
+              "index": 0
+            },
+            "target": {
+              "kind": "event",
+              "index": 0
+            },
+            "anchor_candidate": null,
+            "evidence_spans": [
+              {
+                "start": 21,
+                "end": 49,
+                "text": "No cruces el puente de noche"
+              }
+            ]
+          }
+        ],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "reported_quoted_order",
+      "family": "reported_quote",
+      "critical": true,
+      "input": "Un viajero repite: «Abre la puerta».",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "report",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [
+              {
+                "start": 20,
+                "end": 34,
+                "text": "Abre la puerta"
+              }
+            ],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 36,
+                "text": "Un viajero repite: «Abre la puerta»."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "repite",
+            "family": "communication",
+            "arguments": [
+              {
+                "role": "agent",
+                "mention": {
+                  "text": "Un viajero",
+                  "kind_hint": "character"
+                }
+              },
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "Abre la puerta",
+                  "kind_hint": "event"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "reported",
+            "action_phase": "not_applicable",
+            "temporal_expression": null,
+            "attributed_source": {
+              "text": "Un viajero",
+              "kind_hint": "character"
+            },
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 36,
+                "text": "Un viajero repite: «Abre la puerta»."
+              }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "link_type": "quotes",
+            "source": {
+              "kind": "act",
+              "index": 0
+            },
+            "target": {
+              "kind": "event",
+              "index": 0
+            },
+            "anchor_candidate": null,
+            "evidence_spans": [
+              {
+                "start": 20,
+                "end": 34,
+                "text": "Abre la puerta"
+              }
+            ]
+          }
+        ],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "conditional_open_then_enter",
+      "family": "conditional_dependency",
+      "critical": true,
+      "input": "Si abro la puerta, entro en la sala.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "hypothesis",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 36,
+                "text": "Si abro la puerta, entro en la sala."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "abro",
+            "family": "interaction",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "la puerta",
+                  "kind_hint": "world_entity"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "hypothetical",
+            "action_phase": "planned",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 3,
+                "end": 17,
+                "text": "abro la puerta"
+              }
+            ]
+          },
+          {
+            "source_act_index": 0,
+            "predicate_surface": "entro",
+            "family": "movement",
+            "arguments": [
+              {
+                "role": "destination",
+                "mention": {
+                  "text": "la sala",
+                  "kind_hint": "location"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "hypothetical",
+            "action_phase": "planned",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 19,
+                "end": 35,
+                "text": "entro en la sala"
+              }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "link_type": "condition_on_success",
+            "source": {
+              "kind": "event",
+              "index": 1
+            },
+            "target": {
+              "kind": "event",
+              "index": 0
+            },
+            "anchor_candidate": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 17,
+                "text": "Si abro la puerta"
+              }
+            ]
+          }
+        ],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "explicit_kinship_fact",
+      "family": "persistent_relation",
+      "critical": true,
+      "input": "Mara es hermana de Aldric.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 102,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Exploradora."
+        },
+        {
+          "id": 103,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Guardia."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 26,
+                "text": "Mara es hermana de Aldric."
+              }
+            ]
+          }
+        ],
+        "events": [],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "relation",
+            "subject": {
+              "text": "Mara",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "hermana",
+            "object": {
+              "text": "Aldric",
+              "kind_hint": "character"
+            },
+            "value_surface": null,
+            "relation_family": "kinship",
+            "normalized_relation_type": "kinship.sibling",
+            "direction": "symmetric",
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "temporal_scope": "permanent",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 26,
+                "text": "Mara es hermana de Aldric."
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "visible_npc_attribute",
+      "family": "persistent_attribute",
+      "critical": true,
+      "input": "Aldric lleva una cicatriz visible.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 101,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Guardia."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 34,
+                "text": "Aldric lleva una cicatriz visible."
+              }
+            ]
+          }
+        ],
+        "events": [],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "entity_attribute",
+            "subject": {
+              "text": "Aldric",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "lleva",
+            "object": null,
+            "value_surface": "una cicatriz visible",
+            "relation_family": null,
+            "normalized_relation_type": null,
+            "direction": null,
+            "polarity": "positive",
+            "epistemic_status": "observed",
+            "temporal_scope": "permanent",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 34,
+                "text": "Aldric lleva una cicatriz visible."
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "transfer_without_ownership",
+      "family": "transfer_roles",
+      "critical": true,
+      "input": "Entrego la llave a Mara.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 102,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Exploradora."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 24,
+                "text": "Entrego la llave a Mara."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "Entrego",
+            "family": "transfer",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "la llave",
+                  "kind_hint": "item_instance"
+                }
+              },
+              {
+                "role": "recipient",
+                "mention": {
+                  "text": "Mara",
+                  "kind_hint": "character"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 24,
+                "text": "Entrego la llave a Mara."
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "uncertain_world_state",
+      "family": "epistemic_uncertainty",
+      "critical": true,
+      "input": "No sé si la puerta está abierta.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "hypothesis",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 32,
+                "text": "No sé si la puerta está abierta."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "está abierta",
+            "family": "state_change",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "la puerta",
+                  "kind_hint": "world_entity"
+                }
+              }
+            ],
+            "polarity": "uncertain",
+            "epistemic_status": "uncertain",
+            "action_phase": "state",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 9,
+                "end": 31,
+                "text": "la puerta está abierta"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "reported_perception",
+      "family": "reported_attribution",
+      "critical": true,
+      "input": "El guardia dice que vio una sombra.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "report",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 35,
+                "text": "El guardia dice que vio una sombra."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "vio",
+            "family": "perception",
+            "arguments": [
+              {
+                "role": "agent",
+                "mention": {
+                  "text": "El guardia",
+                  "kind_hint": "character"
+                }
+              },
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "una sombra",
+                  "kind_hint": "world_entity"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "reported",
+            "action_phase": "completed",
+            "temporal_expression": null,
+            "attributed_source": {
+              "text": "El guardia",
+              "kind_hint": "character"
+            },
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 35,
+                "text": "El guardia dice que vio una sombra."
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "callback_then_attempt",
+      "family": "callback_reference",
+      "critical": true,
+      "input": "Retomando lo de la pared, intento escalarla.",
+      "recent_turns": [
+        {
+          "id": 41,
+          "player_input": "La pared lisa de piedra bloquea el acceso a la torre.",
+          "narrative": "La pared no tiene agarres visibles."
+        }
+      ],
+      "visible_entities": [
+        {
+          "id": 104,
+          "name": "Pared de piedra",
+          "entity_type": "object",
+          "description": "Pared junto a la torre."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 44,
+                "text": "Retomando lo de la pared, intento escalarla."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "escalar",
+            "family": "movement",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "la pared",
+                  "kind_hint": "location"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 44,
+                "text": "Retomando lo de la pared, intento escalarla."
+              }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "link_type": "callback",
+            "source": {
+              "kind": "event",
+              "index": 0
+            },
+            "target": null,
+            "anchor_candidate": "lo de la pared",
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 44,
+                "text": "Retomando lo de la pared, intento escalarla."
+              }
+            ]
+          }
+        ],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "explicit_hostility_relation",
+      "family": "persistent_relation",
+      "critical": true,
+      "input": "Mara odia al guardia.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 102,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Exploradora."
+        },
+        {
+          "id": 105,
+          "name": "Guardia",
+          "entity_type": "npc",
+          "description": "Guardia local."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 21,
+                "text": "Mara odia al guardia."
+              }
+            ]
+          }
+        ],
+        "events": [],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "relation",
+            "subject": {
+              "text": "Mara",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "odia",
+            "object": {
+              "text": "al guardia",
+              "kind_hint": "character"
+            },
+            "value_surface": null,
+            "relation_family": "hostility",
+            "normalized_relation_type": "social.hostility",
+            "direction": "subject_to_object",
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "temporal_scope": "permanent",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 21,
+                "text": "Mara odia al guardia."
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "ambiguous_transfer_recipient",
+      "family": "clarification_reference",
+      "critical": true,
+      "input": "Entrego el mapa a ella.",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 23,
+                "text": "Entrego el mapa a ella."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "Entrego",
+            "family": "transfer",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "el mapa",
+                  "kind_hint": "item_instance"
+                }
+              },
+              {
+                "role": "recipient",
+                "mention": {
+                  "text": "ella",
+                  "kind_hint": "unknown"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 23,
+                "text": "Entrego el mapa a ella."
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": [
+          {
+            "ambiguity_kind": "referent",
+            "missing_slot": "recipient_reference",
+            "question_intent": "¿A quién te refieres con «ella»?",
+            "affected": [
+              {
+                "kind": "event",
+                "index": 0
+              }
+            ],
+            "evidence_spans": [
+              {
+                "start": 16,
+                "end": 22,
+                "text": "a ella"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "independent_npc_fact_and_action",
+      "family": "fact_action_independence",
+      "critical": true,
+      "input": "Aldric lleva una cicatriz y luego abre el cofre.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 101,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Guardia."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 48,
+                "text": "Aldric lleva una cicatriz y luego abre el cofre."
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "abre",
+            "family": "interaction",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "el cofre",
+                  "kind_hint": "world_entity"
+                }
+              }
+            ],
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "action_phase": "attempted",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 34,
+                "end": 47,
+                "text": "abre el cofre"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "entity_attribute",
+            "subject": {
+              "text": "Aldric",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "lleva",
+            "object": null,
+            "value_surface": "una cicatriz",
+            "relation_family": null,
+            "normalized_relation_type": null,
+            "direction": null,
+            "polarity": "positive",
+            "epistemic_status": "observed",
+            "temporal_scope": "permanent",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 25,
+                "text": "Aldric lleva una cicatriz"
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "negative_kinship_claim",
+      "family": "negative_persistent_claim",
+      "critical": true,
+      "input": "Mara no es hermana de Aldric.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 102,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Exploradora."
+        },
+        {
+          "id": 103,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Guardia."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 29,
+                "text": "Mara no es hermana de Aldric."
+              }
+            ]
+          }
+        ],
+        "events": [],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "relation",
+            "subject": {
+              "text": "Mara",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "hermana",
+            "object": {
+              "text": "Aldric",
+              "kind_hint": "character"
+            },
+            "value_surface": null,
+            "relation_family": "kinship",
+            "normalized_relation_type": "kinship.sibling",
+            "direction": "symmetric",
+            "polarity": "negative",
+            "epistemic_status": "asserted",
+            "temporal_scope": "unknown",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 29,
+                "text": "Mara no es hermana de Aldric."
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "question_not_fact",
+      "family": "question_abstention",
+      "critical": true,
+      "input": "¿Está abierta la puerta?",
+      "recent_turns": [],
+      "visible_entities": [],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "question",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 24,
+                "text": "¿Está abierta la puerta?"
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "source_act_index": 0,
+            "predicate_surface": "Está abierta",
+            "family": "state_change",
+            "arguments": [
+              {
+                "role": "theme",
+                "mention": {
+                  "text": "la puerta",
+                  "kind_hint": "world_entity"
+                }
+              }
+            ],
+            "polarity": "uncertain",
+            "epistemic_status": "not_established",
+            "action_phase": "state",
+            "temporal_expression": null,
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 1,
+                "end": 23,
+                "text": "Está abierta la puerta"
+              }
+            ]
+          }
+        ],
+        "links": [],
+        "facts": [],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "multiple_independent_relations",
+      "family": "multiple_fact_candidates",
+      "critical": true,
+      "input": "Mara trabaja para el gremio y es amiga de Aldric.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 102,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Exploradora."
+        },
+        {
+          "id": 106,
+          "name": "El gremio",
+          "entity_type": "faction",
+          "description": "Gremio local."
+        },
+        {
+          "id": 103,
+          "name": "Aldric",
+          "entity_type": "npc",
+          "description": "Guardia."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "assertion",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 49,
+                "text": "Mara trabaja para el gremio y es amiga de Aldric."
+              }
+            ]
+          }
+        ],
+        "events": [],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "relation",
+            "subject": {
+              "text": "Mara",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "trabaja",
+            "object": {
+              "text": "el gremio",
+              "kind_hint": "faction"
+            },
+            "value_surface": null,
+            "relation_family": "employment",
+            "normalized_relation_type": "employment.works_for",
+            "direction": "subject_to_object",
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "temporal_scope": "permanent",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 27,
+                "text": "Mara trabaja para el gremio"
+              }
+            ]
+          },
+          {
+            "source_act_index": 0,
+            "fact_kind": "relation",
+            "subject": {
+              "text": "Mara",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "amiga",
+            "object": {
+              "text": "Aldric",
+              "kind_hint": "character"
+            },
+            "value_surface": null,
+            "relation_family": "friendship",
+            "normalized_relation_type": "social.friendship",
+            "direction": "symmetric",
+            "polarity": "positive",
+            "epistemic_status": "asserted",
+            "temporal_scope": "permanent",
+            "attributed_source": null,
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 4,
+                "text": "Mara"
+              },
+              {
+                "start": 30,
+                "end": 48,
+                "text": "es amiga de Aldric"
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    },
+    {
+      "id": "reported_ownership_not_asserted",
+      "family": "reported_fact_candidate",
+      "critical": true,
+      "input": "Según el mercader, Mara es dueña del barco.",
+      "recent_turns": [],
+      "visible_entities": [
+        {
+          "id": 102,
+          "name": "Mara",
+          "entity_type": "npc",
+          "description": "Exploradora."
+        },
+        {
+          "id": 107,
+          "name": "El barco",
+          "entity_type": "object",
+          "description": "Barco mercante."
+        }
+      ],
+      "expected_graph": {
+        "acts": [
+          {
+            "force": "report",
+            "speaker_role": "player",
+            "speaker_mention": null,
+            "addressee_mention": null,
+            "quote_spans": [],
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 43,
+                "text": "Según el mercader, Mara es dueña del barco."
+              }
+            ]
+          }
+        ],
+        "events": [],
+        "links": [],
+        "facts": [
+          {
+            "source_act_index": 0,
+            "fact_kind": "relation",
+            "subject": {
+              "text": "Mara",
+              "kind_hint": "character"
+            },
+            "predicate_surface": "dueña",
+            "object": {
+              "text": "el barco",
+              "kind_hint": "world_entity"
+            },
+            "value_surface": null,
+            "relation_family": "ownership",
+            "normalized_relation_type": "ownership.owner",
+            "direction": "subject_to_object",
+            "polarity": "positive",
+            "epistemic_status": "reported",
+            "temporal_scope": "unknown",
+            "attributed_source": {
+              "text": "el mercader",
+              "kind_hint": "character"
+            },
+            "evidence_spans": [
+              {
+                "start": 0,
+                "end": 43,
+                "text": "Según el mercader, Mara es dueña del barco."
+              }
+            ]
+          }
+        ],
+        "clarifications": []
+      }
+    }
+  ]
+}
