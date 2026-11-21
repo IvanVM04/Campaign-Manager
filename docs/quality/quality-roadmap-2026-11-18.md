@@ -7,6 +7,8 @@
 
 > **Aviso de vigencia — 2026-11-20:** esta hoja de ruta conserva el estado y la secuencia que tenía el 18–19 de noviembre. Su sección NLU y las referencias a PR #272/#273/#274 como trabajo activo quedaron desactualizadas después de que PRs #272–#281 se integraran. No reescribir sus métricas históricas: para el estado live más reciente consultar [la evaluación de PR #281](live-ollama-evaluation-2026-11-20.md), y para la dirección arquitectónica y la siguiente secuencia de trabajo consultar [la auditoría de rediseño semántico del 20-11-2026](../architecture/player-intent-semantic-redesign-audit-2026-11-20.md). La arquitectura v3 descrita allí es una propuesta, no código implementado.
 
+> **Supersesión de NLU — 2026-11-21:** esta hoja conserva el roadmap de calidad general y su baseline histórica del 18–19 de noviembre. Su secuencia NLU ha quedado supersedida por el [roadmap maestro de comprensión semántica del 21-11-2026](../architecture/player-understanding-roadmap-2026-11-21.md), que incorpora las PR #282 y #285–#291, la ejecución live del 21/11 y la secuencia activa #292–#306. Para la arquitectura objetivo, gates y mantenimiento obligatorio del estado por PR, consultar ese roadmap y sus documentos enlazados. No reescribir métricas ni hechos históricos de este snapshot.
+
 ## 1. Resumen ejecutivo
 
 La recomendación sigue siendo **no reescribir ni fragmentar el monolito modular**, pero se aprueba una fase acotada de refactorización interna en el pipeline de comprensión del lenguaje antes de abrir otra ronda de pruebas live. El objetivo es separar contratos y responsabilidades que hoy conviven en módulos grandes, sin cambiar el dominio durable ni multiplicar las llamadas al LLM.
