@@ -1,6 +1,7 @@
 """Tests for per-evaluation output paths in the live report writer."""
 
 import json
+from typing import ClassVar
 
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 from tests.semantic_evaluation_report import (
@@ -103,7 +104,7 @@ def test_live_report_keeps_only_valid_generation_option_metadata():
         model = "gemma4:12b"
         timeout = 120
         think = False
-        generation_options = {
+        generation_options: ClassVar[dict[str, object]] = {
             "temperature": 0.0,
             "seed": 1729,
             "private_option": "secret",
