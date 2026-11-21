@@ -469,6 +469,7 @@ if ($failedCount -eq 0 -and $reportExit -eq 0) { Write-Host "ALL REQUESTED CHECK
 else { Write-Host ("RUN FINISHED WITH {0} FAILED STAGE(S)" -f $failedCount) -ForegroundColor Red }
 Write-Host ("Markdown report: " + (Join-Path $script:RunDir "summary.md")) -ForegroundColor Cyan
 Write-Host ("JSON report:     " + (Join-Path $script:RunDir "summary.json")) -ForegroundColor Cyan
+Write-Host ("Copy/paste:      " + $chatSummaryPath) -ForegroundColor Cyan
 Write-Host ("Logs:            " + $script:LogDir) -ForegroundColor Cyan
 Write-Host ("-" * 76) -ForegroundColor DarkCyan
 if ($failedCount -gt 0 -or $reportExit -ne 0) { exit 1 }
