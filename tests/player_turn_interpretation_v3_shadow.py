@@ -245,6 +245,8 @@ def align_v3_evidence_span_offsets(
 
     visit(payload, "")
     return json.dumps(payload, ensure_ascii=False), realigned
+
+
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
     return {"anyOf": [schema, {"type": "null"}]}
 
