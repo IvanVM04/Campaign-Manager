@@ -142,3 +142,4 @@ def test_runner_prints_a_compact_copy_paste_summary_at_the_end():
     assert 'Join-Path $script:RunDir "chat-summary.txt"' in source
     assert 'Get-Content -LiteralPath $chatSummaryPath -Encoding UTF8' in source
     assert "RESUMEN PARA COPIAR Y PEGAR" in source
+    assert 'Write-Host ("Copy/paste:      " + $chatSummaryPath)' in source
