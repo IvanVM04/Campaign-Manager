@@ -130,7 +130,7 @@ No registrar en logs generales prompts, completions, texto de campaña, secretos
 
 ## 8. Experimentos de modelo
 
-No cambiar de modelo por intuición. PR #297 debe ejecutar un experimento controlado:
+No cambiar de modelo por intuición. PR #296 debe ejecutar un experimento controlado:
 - Modelo actual Gemma 4 12B Q4_K_M como baseline.
 - Alternativas locales razonables seleccionadas según VRAM/latencia disponible.
 - Mismo corpus, split, contexto, prompt, schema y generation options siempre que el modelo lo soporte.
