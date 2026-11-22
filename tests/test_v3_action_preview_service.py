@@ -63,7 +63,7 @@ def _v3_response(
             {
                 "local_id": "event_open",
                 "source_act_id": "act_player",
-                "predicate_surface": "abrir",
+                "predicate_surface": "abro" if "abro" in source else "abrir",
                 "family": "interaction",
                 "arguments": [
                     {"role": "agent", "mention": {"text": actor, "kind_hint": "character"}},
