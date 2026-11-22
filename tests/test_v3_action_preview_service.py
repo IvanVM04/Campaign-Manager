@@ -572,3 +572,218 @@ def test_v3_fact_operations_are_independent_of_a_failed_mechanics_result():
     assert updated.world_operations == (operation,)
     assert updated.ordered_operations == (operation,)
     assert updated.character_operations == ()
+
+
+
+def test_world_fact_feature_gate_requires_an_enabled_preview_service():
+    service = object.__new__(DurableTurnExecutionService)
+    service.v3_action_preview_service = None
+    assert service._world_facts_enabled() is False
+
+    service.v3_action_preview_service = SimpleNamespace()
+    assert service._world_facts_enabled() is False
+
+    service.v3_action_preview_service = SimpleNamespace(world_facts_enabled=True)
+    assert service._world_facts_enabled() is True
+
+
+def test_build_v3_action_preview_passes_durable_identity_and_returns_preview():
+    service = object.__new__(DurableTurnExecutionService)
+    context = object()
+    recent = [object()]
+    expected = object()
+    captured = {}
+
+    class Preview:
+        def preview(self, received_context, player_input, **kwargs):
+            captured.update(kwargs)
+            assert received_context is context
+            assert player_input == "Miro la sala."
+            return expected
+
+    service.v3_action_preview_service = Preview()
+    record = SimpleNamespace(id=71, action_checkpoint_json=None)
+
+    result = service._build_v3_action_preview(
+        record,
+        context,
+        "Miro la sala.",
+        recent,
+        revision=12,
+        lease_token="lease-71",
+    )
+
+    assert result is expected
+    assert captured == {
+        "resolution_id": 71,
+        "context_revision": 12,
+        "recent_turns": recent,
+    }
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_stage", "expected_code"),
+    [
+        (
+            V3ActionPreviewError("provider_error", "provider"),
+            "provider",
+            "provider_error",
+        ),
+        (ValueError("invalid checkpoint"), "checkpoint_encoding", "invalid_preview"),
+        (RuntimeError("unexpected provider failure"), "preview", "unexpected_failure"),
+    ],
+)
+def test_build_v3_action_preview_fails_open_with_safe_diagnostic(
+    failure,
+    expected_stage,
+    expected_code,
+    caplog,
+):
+    import logging
+
+    service = object.__new__(DurableTurnExecutionService)
+
+    class Preview:
+        def preview(self, *args, **kwargs):
+            raise failure
+
+    service.v3_action_preview_service = Preview()
+    record = SimpleNamespace(id=72, action_checkpoint_json=None)
+
+    with caplog.at_level(logging.WARNING):
+        result = service._build_v3_action_preview(
+            record,
+            object(),
+            "Miro la sala.",
+            [],
+            revision=13,
+            lease_token="lease-72",
+        )
+
+    assert result is None
+    assert "turn.v3_action_preview.skipped" in caplog.text
+    assert expected_stage in caplog.text
+    assert expected_code in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("preview_service", "checkpoint_json", "lease_token"),
+    [
+        (None, None, "lease-73"),
+        (SimpleNamespace(), '{"existing":true}', "lease-73"),
+        (SimpleNamespace(), None, None),
+        (SimpleNamespace(), None, ""),
+    ],
+)
+def test_build_v3_action_preview_skips_missing_service_checkpoint_or_lease(
+    preview_service,
+    checkpoint_json,
+    lease_token,
+):
+    service = object.__new__(DurableTurnExecutionService)
+    service.v3_action_preview_service = preview_service
+    record = SimpleNamespace(id=73, action_checkpoint_json=checkpoint_json)
+
+    result = service._build_v3_action_preview(
+        record,
+        object(),
+        "Miro la sala.",
+        [],
+        revision=14,
+        lease_token=lease_token,
+    )
+
+    assert result is None
+
+
+def test_append_world_fact_operations_preserves_plan_when_preview_has_no_facts():
+    plan = TurnResolutionPlan(
+        player_input="Miro la sala.",
+        narrative="",
+        world_operations=(),
+        character_operations=(),
+        ordered_operations=(),
+    )
+
+    assert DurableTurnExecutionService._append_world_fact_operations(
+        plan, None
+    ) is plan
+    assert DurableTurnExecutionService._append_world_fact_operations(
+        plan, SimpleNamespace()
+    ) is plan
+
+
+@pytest.mark.parametrize(
+    "operations",
+    [
+        [object()],
+        (object(),),
+    ],
+)
+def test_append_world_fact_operations_rejects_non_world_operation_payloads(
+    operations,
+):
+    plan = TurnResolutionPlan(
+        player_input="Miro la sala.",
+        narrative="",
+        world_operations=(),
+        character_operations=(),
+        ordered_operations=(),
+    )
+
+    with pytest.raises(TypeError, match="invalid operations"):
+        DurableTurnExecutionService._append_world_fact_operations(
+            plan,
+            SimpleNamespace(world_fact_operations=operations),
+        )
+
+
+def test_log_v3_action_preview_handles_missing_and_selected_action(caplog):
+    import logging
+
+    DurableTurnExecutionService._log_v3_action_preview(None)
+    preview = SimpleNamespace(
+        selection=SimpleNamespace(
+            candidate=SimpleNamespace(action_type="interaction"),
+            status=SimpleNamespace(value="selected"),
+        ),
+        event_count=2,
+        checkpoint=SimpleNamespace(nodes=(object(), object())),
+        excluded_event_count=1,
+        fact_candidate_count=3,
+        fact_accepted_count=1,
+        fact_already_present_count=0,
+        fact_pending_count=1,
+        fact_rejected_count=1,
+        world_fact_operations=(object(),),
+    )
+
+    with caplog.at_level(logging.INFO):
+        DurableTurnExecutionService._log_v3_action_preview(preview)
+
+    assert "turn.v3_action_preview.completed" in caplog.text
+    assert "selected" in caplog.text
+    assert "interaction" in caplog.text
+
+
+def test_log_v3_action_preview_records_unknown_status_without_candidate(caplog):
+    import logging
+
+    preview = SimpleNamespace(
+        selection=SimpleNamespace(candidate=None, status=object()),
+        event_count=0,
+        checkpoint=SimpleNamespace(nodes=()),
+        excluded_event_count=0,
+        fact_candidate_count=0,
+        fact_accepted_count=0,
+        fact_already_present_count=0,
+        fact_pending_count=0,
+        fact_rejected_count=0,
+        world_fact_operations=(),
+    )
+
+    with caplog.at_level(logging.INFO):
+        DurableTurnExecutionService._log_v3_action_preview(preview)
+
+    assert "turn.v3_action_preview.completed" in caplog.text
+    assert "unknown" in caplog.text
