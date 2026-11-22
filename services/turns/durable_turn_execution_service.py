@@ -572,20 +572,24 @@ class DurableTurnExecutionService:
                     )
                 plan = self._plan_from_record(record)
             else:
-                prepare_options = {
-                    "manual_mode": dice_mode == "manual",
-                    "recent_turns": recent,
-                }
-                if self._world_facts_enabled():
-                    prepare_options["mechanics_failure_is_non_fatal"] = True
                 with bind_resolution_context(
                     str(self._required_resolution_id(record))
                 ):
-                    plan = self.resolver.prepare_turn(
-                        context,
-                        normalized,
-                        **prepare_options,
-                    )
+                    if self._world_facts_enabled():
+                        plan = self.resolver.prepare_turn(
+                            context,
+                            normalized,
+                            manual_mode=(dice_mode == "manual"),
+                            recent_turns=recent,
+                            mechanics_failure_is_non_fatal=True,
+                        )
+                    else:
+                        plan = self.resolver.prepare_turn(
+                            context,
+                            normalized,
+                            manual_mode=(dice_mode == "manual"),
+                            recent_turns=recent,
+                        )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
                     with transaction("IMMEDIATE") as conn:
