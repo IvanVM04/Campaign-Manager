@@ -325,6 +325,52 @@ def test_v3_shadow_prompt_rejects_prompt_budget_overflow():
     assert error.value.code == "prompt_budget_exceeded"
 
 
+def test_v3_shadow_prompt_accepts_an_explicit_prompt_ablation():
+    prompt = build_v3_shadow_prompt(
+        _v2_prompt(),
+        expected_evidence=EVIDENCE,
+        system_prompt="PROMPT ABLATION CONTROLADA",
+    )
+
+    assert prompt.startswith("PROMPT ABLATION CONTROLADA")
+    assert V3_SYSTEM_PROMPT not in prompt
+    assert EVIDENCE in prompt
+
+
+def test_v3_shadow_prompt_rejects_an_empty_prompt_override():
+    with pytest.raises(ShadowPromptError) as error:
+        build_v3_shadow_prompt(
+            _v2_prompt(),
+            expected_evidence=EVIDENCE,
+            system_prompt="   ",
+        )
+
+    assert error.value.code == "missing_v3_system_prompt"
+
+
+def test_shadow_runner_uses_the_selected_prompt_variant_only_for_v3():
+    prompt_variant = "PROMPT CONTROLADO PARA ABLATION"
+    provider = FakeLLMProvider(responses={
+        "Devuelve exclusivamente el objeto JSON exigido por el esquema de interpretación v2.":
+            _v2_response(),
+        prompt_variant: _v3_response(),
+    })
+    interpreter = IntentInterpreter(
+        provider=provider,
+        context_builder=ContextBuilder(),
+    )
+
+    comparison = PlayerTurnInterpretationV3ShadowRunner(interpreter).run(
+        _context(),
+        EVIDENCE,
+        v3_system_prompt=prompt_variant,
+    )
+
+    assert comparison.v2_status == "valid"
+    assert comparison.v3_status == "valid"
+    assert provider.call_count == 2
+
+
 def test_shadow_runner_compares_both_versions_without_changing_v2_contract():
     provider = FakeLLMProvider(responses={
         "Devuelve exclusivamente el objeto JSON exigido por el esquema de interpretación v2.":

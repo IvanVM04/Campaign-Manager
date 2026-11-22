@@ -148,6 +148,93 @@ def test_ollama_provider_rejects_non_boolean_think_value():
         OllamaProvider(think="false")  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("options", "error"),
+    [
+        ({"temperature": 2.1}, "between 0 and 2"),
+        ({"top_p": -0.1}, "between 0 and 1"),
+        ({"seed": 1.5}, "must be an integer"),
+        ({"unknown_option": 1}, "unsupported Ollama generation option"),
+        ({"temperature": True}, "must be numeric"),
+    ],
+)
+def test_ollama_provider_rejects_invalid_generation_options(options, error):
+    with pytest.raises((TypeError, ValueError), match=error):
+        OllamaProvider(generation_options=options)
+
+
+def test_ollama_provider_copies_and_validates_generation_options():
+    options = {"temperature": 0, "top_p": 1, "seed": 42}
+    provider = OllamaProvider(generation_options=options)
+    options["temperature"] = 1.5
+
+    assert provider.generation_options == {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "seed": 42,
+    }
+
+
+def test_ollama_provider_sends_generation_options_and_reports_them(monkeypatch):
+    captured = {}
+    events = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return json.dumps({"response": "respuesta"}).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["request"] = request
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen", fake_urlopen
+    )
+    provider = OllamaProvider(
+        generation_options={"temperature": 0, "seed": 7},
+        metrics_callback=events.append,
+    )
+
+    assert provider.generate("Hola mundo") == "respuesta"
+    payload = json.loads(captured["request"].data.decode("utf-8"))
+    assert payload["options"] == {"temperature": 0.0, "seed": 7}
+    assert events[0]["generation_options"] == {"temperature": 0.0, "seed": 7}
+
+
+def test_ollama_structured_request_sends_generation_options(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return json.dumps({"response": "{}"}).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["request"] = request
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "services.providers.ollama_provider.urlopen", fake_urlopen
+    )
+    provider = OllamaProvider(generation_options={"temperature": 0, "seed": 11})
+
+    provider.generate_structured("prompt", schema={"type": "object"})
+
+    payload = json.loads(captured["request"].data.decode("utf-8"))
+    assert payload["options"] == {"temperature": 0.0, "seed": 11}
+
+
 # ============================================================
 # PROMPT VALIDATION
 # ============================================================

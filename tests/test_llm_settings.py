@@ -152,6 +152,16 @@ def test_llm_settings_accept_role_specific_think_override():
     assert settings.mechanics_think is True
 
 
+def test_llm_settings_pass_generation_options_to_provider():
+    settings = LLMSettings.from_env({})
+    provider = settings.create_provider(
+        "intent",
+        generation_options={"temperature": 0, "seed": 123},
+    )
+
+    assert provider.generation_options == {"temperature": 0.0, "seed": 123}
+
+
 @pytest.mark.parametrize("value", ["maybe", "2", "thinking"])
 def test_llm_settings_reject_invalid_think_environment_value(value):
     with pytest.raises(ValueError, match="must be a boolean"):

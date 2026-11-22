@@ -148,8 +148,8 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | #292 | P0 | [x] MERGED + VERIFIED | Roadmaps, arquitectura objetivo, evaluación, proceso de entrega e instrucciones obligatorias. Merge: 2026-11-21, SHA 6754d41a53a766a1dbc928c2c9c31f16064e49a8 | #291 |
 | #293 | P0 | [x] MERGED + CI VERIFIED | Scorer semántico de grafo, métricas por nodos/aristas, 20 escenarios graph-gold y evaluación live opt-in. Merge: 2026-11-21, SHA c05550ea2ba16b8dca0de7d578d8c001202b6e32; CI: 2.482 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #292 |
 | #294 | P0 | [x] MERGED + CI VERIFIED | Prompt v3 holístico orientado a cobertura completa, alineación exacta conservadora de spans y manifiestos/telemetría versionados; v2 sigue en producción. Merge: 2026-11-21, SHA a457799c357e73018fa943171a8c032708a199a5; CI: 2.489 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #293 |
-| #295 | P0 | [~] IN PROGRESS | Validación de consistencia del grafo semántico: evidencia dentro del acto origen, extremos tipados, dependencias/orden, citas, aclaraciones ligadas a registros afectados y forma de hechos | #293–#294 |
-| #296 | P0 | [ ] PLANNED | Evaluación de aceptación v3, ablations controladas de modelo/prompt/parámetros y decisión objetiva de promoción | #293–#295 |
+| #295 | P0 | [x] MERGED + CI VERIFIED | Validador de consistencia del grafo v3 y regresiones cross-record. Merge: 2026-11-21, SHA 445253e1efc1b6745bdda9b666ec884bf39f079c; CI: 2.499 passed, 25 deselected, coverage 85,07 %, Ruff/Pyright/CodeQL/JS/PowerShell success | #293–#294 |
+| #296 | P0 | [~] IN PROGRESS | Contrato de aceptación de 20 escenarios, ≥3 repeticiones, gates estructurales/grafo/precision-recall/estabilidad, ablations one-factor-at-a-time y runner/report opt-in; nunca autoriza cutover automático | #293–#295 |
 
 ### Track B — Integración durable del significado
 
@@ -187,7 +187,7 @@ Estos gates aplican a toda PR del programa que toque la capa semántica o el run
 
 ## 7. Objetivos de aceptación propuestos
 
-Los umbrales numéricos finales se fijarán en PR #296, una vez auditados el gold, el scorer y la baseline de PR #293–#295. No se utilizará una media global para esconder un dominio débil.
+PR #296 fija umbrales y denominadores en el contrato `player-turn-v3-acceptance-2026-11-22-v1`, tras auditar el gold y el scorer entregados por PR #293–#295. Los resultados se evalúan por dimensión; no se utiliza una media global para esconder un dominio débil.
 
 Criterios obligatorios:
 - 100 % de validez estructural en escenarios críticos de aceptación.
@@ -199,7 +199,7 @@ Criterios obligatorios:
 - Una discrepancia crítica no puede compensarse con un F1 agregado elevado.
 - El test shadow inicial no sustituye a los gates nuevos.
 
-Los objetivos provisionales de precisión/recall y exactitud de escenario se documentarán en el contrato de aceptación de PR #296, con denominadores y justificación. No se deben modificar golds o umbrales para hacer pasar una salida existente.
+El contrato de PR #296 documenta denominadores y justificación: validez estructural crítica 100 %, exactitud de grafo por mayoría ≥80 % (16/20), precision por dimensión ≥90 %, recall ≥80 %, cero falsos positivos críticos de hechos y estabilidad modal ≥95 % con al menos tres repeticiones. No se deben modificar golds o umbrales para hacer pasar una salida existente. Un pass solo permite revisión manual; no autoriza cutover.
 
 ## 8. Separación de evidencias
 

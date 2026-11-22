@@ -1,6 +1,7 @@
 """Tests for per-evaluation output paths in the live report writer."""
 
 import json
+from typing import ClassVar
 
 from tests.semantic_evaluation_metrics import SemanticEvaluationLedger
 from tests.semantic_evaluation_report import (
@@ -96,6 +97,55 @@ def test_live_report_drops_untrusted_provider_strings_and_invalid_metadata(tmp_p
     assert "private prompt" not in serialized
     assert report["metric_schema_version"] == 1
 
+
+
+def test_live_report_keeps_only_valid_generation_option_metadata():
+    class Provider:
+        model = "gemma4:12b"
+        timeout = 120
+        think = False
+        generation_options: ClassVar[dict[str, object]] = {
+            "temperature": 0.0,
+            "seed": 1729,
+            "private_option": "secret",
+        }
+
+        def get_model_digest(self):
+            return "sha256:deadbeef"
+
+        def get_server_version(self):
+            return "0.40.16"
+
+    report = build_live_evaluation_report(
+        evaluation_name="safe_eval",
+        corpus_name="holdout_v1",
+        provider=Provider(),
+        ledger=SemanticEvaluationLedger(),
+        scenario_count=1,
+        provider_calls=1,
+        elapsed_seconds=0.5,
+        usage_events=[{
+            "provider_model": "gemma4:12b",
+            "request_status": "completed",
+            "generation_options": {
+                "temperature": 0.0,
+                "seed": 1729,
+                "private_option": "secret",
+            },
+        }],
+    )
+
+    assert report["metadata"]["generation_options"] == {
+        "temperature": 0.0,
+        "seed": 1729,
+    }
+    assert report["provider_usage"][0]["generation_options"] == {
+        "temperature": 0.0,
+        "seed": 1729,
+    }
+    serialized = json.dumps(report)
+    assert '"private_option"' not in serialized
+    assert '"secret"' not in serialized
 
 
 def test_live_report_prefers_checked_out_runner_commit_over_inherited_github_sha(monkeypatch):

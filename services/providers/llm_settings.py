@@ -374,6 +374,7 @@ class LLMSettings:
         self,
         role: LLMRole,
         *,
+        generation_options: Mapping[str, object] | None = None,
         metrics_callback: Callable[[dict[str, Any]], None] | None = None,
     ) -> OllamaProvider:
         """Build an Ollama adapter configured for one model responsibility."""
@@ -401,5 +402,6 @@ class LLMSettings:
             timeout=timeout,
             role=role,
             think=think,
+            generation_options=generation_options,
             metrics_callback=metrics_callback,
         )

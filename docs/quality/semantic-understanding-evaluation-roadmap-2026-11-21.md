@@ -217,22 +217,22 @@ El escenario también informa fallos parciales para diagnóstico. Las etiquetas 
 
 ## 8. Gates de aceptación
 
-Los umbrales finales serán aprobados en PR #296 después de validar scorer/gold y disponer de resultados de PR #293–#295. Los siguientes son mínimos de diseño, no valores ya aprobados:
+PR #296 convierte los umbrales del scorer graph-aware en un contrato predeclarado para la evaluación del holdout de 20 escenarios. Los thresholds se fijan en el propio contrato `player-turn-v3-acceptance-2026-11-22-v1`; no se rebajan ni se cambian los golds después de observar un resultado.
 
-| Gate | Criterio |
-|---|---|
-| V3 schema validity | 100 % en escenarios críticos del set de aceptación |
-| Evidence grounding | Sin spans/campos críticos no respaldados |
-| Critical persistent false positives | 0 |
-| Quoted/untrusted instruction controls | 0 escrituras y 0 selección de acción no autorizada |
-| Graph exact match | Métrica publicada por familia; umbral explícito antes de promoción |
-| Precision y recall | Threshold independiente por dimensión; recall no puede quedar bajo por precision alta |
-| Action selection | Exactitud crítica y dependencias bloqueadas correctamente |
-| Fact policy | Hechos válidos no perdidos; hechos no elegibles no escritos |
-| Stability | Repeticiones de cada caso crítico y sin divergencia peligrosa |
-| SillyTavern | Checklist manual real, con artefacto de aceptación, no inferido desde CI |
+| Gate | Umbral PR #296 | Interpretación |
+|---|---:|---|
+| Cobertura del holdout | 20/20 × todas las repeticiones | Un run filtrado es diagnóstico, nunca acceptance |
+| Repeticiones críticas | ≥ 3 | Runs secuenciales contra el mismo daemon |
+| Validez estructural crítica | 100 % | Payloads válidos sobre todos los casos críticos/repeticiones |
+| Exactitud de grafo crítico | ≥ 80 % | Mayoría exacta por escenario; mínimo 16/20 |
+| Precisión por dimensión | ≥ 90 % | Por separado para nodos y aristas con predicciones |
+| Recall por dimensión | ≥ 80 % | Por separado; ninguna media compensa una dimensión débil |
+| Falsos positivos críticos de hechos | 0 | No se admiten nodos de hecho extra en casos críticos |
+| Estabilidad de repetición | ≥ 95 % | Acuerdo modal exacto/no exacto por escenario crítico |
 
-No promover un modelo con recall v3 cercano a 0,19. No reducir seguridad para conseguir más recall. Si el modelo no puede recuperar una estructura de forma fiable, mejorar prompt/representación, aclarar una ambigüedad o abstenerse sin ejecutar acciones peligrosas.
+El gate de hechos mide candidatos falsos positivos del grafo, no escrituras reales en base de datos. Los controles de escrituras persistentes críticas falsas, cita/instrucciones no confiables, adjudicación de acciones y política de hechos en el pipeline integrado se mantienen obligatorios para las PR #297–#300. Un resultado que supere #296 solo queda **elegible para revisión manual**, nunca activa v3.
+
+No promover un modelo con recall v3 cercano a 0,19. No reducir seguridad para conseguir más recall. Si el modelo no puede recuperar una estructura de forma fiable, mejorar prompt/representación, aclarar una ambigüedad o abstenerse sin ejecutar acciones peligrosas. El contrato, sus denominadores y la matriz de ablations están descritos en [v3 acceptance and controlled ablations](v3-acceptance-and-ablations-2026-11-22.md).
 
 ## 9. Perfiles de ejecución
 
@@ -259,6 +259,6 @@ No conservar en el aggregate texto íntegro del jugador, prompts/completions, co
 - La expansión restante del corpus hasta 100–300 escenarios sigue pendiente. Debe basarse en errores reales y revisión de gold; no se debe fabricar volumen con permutaciones triviales.
 - PR #294: rediseño del prompt v3 para aumentar la cobertura de cláusulas/proposiciones, más alineación conservadora de spans exactos y telemetría explícita del proceso.
 - PR #295: validación de consistencia semántica en el decoder v3: evidencia contenida en el acto origen, edges `quotes`/`condition_on_success`/`before_after`, duplicados, referencias y grounding de aclaraciones.
-- PR #296: gate de aceptación y ablations controladas antes de cualquier promoción.
+- PR #296: contrato de aceptación, repeticiones, métricas por dimensión y ablations controladas de prompt, opciones y modelo; solo puede producir recomendación de revisión manual.
 
 La numeración anterior era una secuencia propuesta. La primera entrega de corpus se integró en #293 y no consumió un número real de GitHub; por eso el hito de prompt se entrega como la PR real #294. Ver [roadmap maestro](../architecture/player-understanding-roadmap-2026-11-21.md) para estado por PR. Toda PR debe actualizar dicho ledger antes de merge.
