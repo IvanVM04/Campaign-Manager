@@ -441,7 +441,11 @@ class V3ActionPreviewService:
                     for operation in raw_fact_operations
                 ):
                     raise TypeError("world-fact policy returned a non-world operation")
-                fact_operations = raw_fact_operations
+                fact_operations = tuple(
+                    operation
+                    for operation in raw_fact_operations
+                    if isinstance(operation, WorldOperation)
+                )
             except Exception:  # noqa: BLE001 - optional fact preview fails closed
                 raise V3ActionPreviewError(
                     "fact_policy_failed",
