@@ -1,5 +1,6 @@
 import hashlib
 import json
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -31,11 +32,11 @@ from services.turns.v3_action_planning_adapter import (
     V3ActionPlanningAdapter,
     V3ActionPlanningError,
 )
-from services.turns.v3_action_progress_codec import V3ActionProgressSnapshot
 from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
     V3ActionPreviewService,
 )
+from services.turns.v3_action_progress_codec import V3ActionProgressSnapshot
 
 
 def _span(source: str) -> dict[str, object]:
