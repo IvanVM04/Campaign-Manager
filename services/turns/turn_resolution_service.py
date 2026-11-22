@@ -238,6 +238,8 @@ class TurnResolutionService:
         pending_intent_analysis: PlayerIntentAnalysis | None = None,
         pending_correction_evidence_text: str | None = None,
         mechanics_failure_is_non_fatal: bool = False,
+        context_projection_override: WorldContextProjection | None = None,
+        resolved_references_override: tuple[ResolvedConversationReference, ...] | None = None,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -278,6 +280,22 @@ class TurnResolutionService:
             raise TypeError("manual_mode must be a boolean")
         if not isinstance(mechanics_failure_is_non_fatal, bool):
             raise TypeError("mechanics_failure_is_non_fatal must be a boolean")
+        if context_projection_override is not None and not isinstance(
+            context_projection_override, WorldContextProjection
+        ):
+            raise TypeError(
+                "context_projection_override must be a WorldContextProjection or None"
+            )
+        if resolved_references_override is not None and (
+            not isinstance(resolved_references_override, tuple)
+            or any(
+                not isinstance(item, ResolvedConversationReference)
+                for item in resolved_references_override
+            )
+        ):
+            raise TypeError(
+                "resolved_references_override must contain trusted conversation references"
+            )
         if decision_override is not None and not isinstance(
             decision_override, MechanicsDecision
         ):
@@ -454,8 +472,10 @@ class TurnResolutionService:
                 intent_evidence_text=normalized_evidence_text,
                 intent_corrections=intent_corrections,
             )
-        context_projection = None
-        resolved_references: tuple[ResolvedConversationReferenceResult, ...] = ()
+        context_projection = context_projection_override
+        resolved_references: tuple[ResolvedConversationReferenceResult, ...] = (
+            resolved_references_override or ()
+        )
         resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
         needs_mechanics_context = (
             self.intent_interpreter is not None
@@ -475,7 +495,8 @@ class TurnResolutionService:
             for step in intent_analysis.steps
         )
         if (
-            self.context_builder is not None
+            context_projection is None
+            and self.context_builder is not None
             and (
                 intent_analysis.allows_world_proposal
                 or needs_mechanics_context
