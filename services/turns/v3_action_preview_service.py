@@ -30,8 +30,8 @@ from services.turns.player_action_selector import (
     select_next_action,
 )
 from services.turns.player_turn_v3_prompt import (
-    EvidenceSpanAlignmentError,
     V3_RESPONSE_SCHEMA,
+    EvidenceSpanAlignmentError,
     align_v3_evidence_span_offsets,
     build_v3_shadow_prompt,
 )
