@@ -326,6 +326,7 @@ def test_v3_semantic_contract_is_not_wired_into_production_services_or_bootstrap
     expected = {
         "services/turns/player_action_selector.py",
         "services/turns/v3_action_preview_service.py",
+        "services/turns/v3_compound_action_orchestrator.py",
         "services/turns/world_fact_policy.py",
     }
     assert set(violations) == expected, (
