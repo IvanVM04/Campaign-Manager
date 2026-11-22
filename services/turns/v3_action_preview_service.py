@@ -12,6 +12,15 @@ from models.player_action_checkpoint import (
     FactValidationReceipt,
     PlayerActionCheckpoint,
 )
+from models.player_intent_analysis import (
+    IntentActor,
+    IntentModality,
+    IntentPolarity,
+    IntentStep,
+    PlayerIntentAnalysis,
+    PlayerReportedOutcome,
+    UtteranceCategory,
+)
 from models.player_turn_interpretation_v3 import (
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
@@ -20,11 +29,13 @@ from models.player_turn_interpretation_v3 import (
     TurnInterpretationV3ValidationError,
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
-from models.semantic_frames import SemanticMention
+from models.semantic_frames import SemanticActionFrame, SemanticMention
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from operations.world_operations import WorldOperation
-from services.context import ContextBuilder
+from services.context import ContextBuilder, ConversationReferenceResolver
+from services.context.conversation_reference_resolver import ConversationReferenceResolution
+from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from services.context.entity_reference_resolver import EntityReferenceResolver
 from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.player_action_selector import (
@@ -70,6 +81,9 @@ class V3ActionPreviewResult:
     fact_pending_count: int = 0
     fact_rejected_count: int = 0
     world_fact_operations: tuple[WorldOperation, ...] = ()
+    interpretation: TurnInterpretationV3 | None = None
+    visible_projection: object | None = None
+    reference_resolutions: dict[str, ActionReferenceResolution] | None = None
 
 
 class V3ActionPreviewService:
@@ -92,6 +106,7 @@ class V3ActionPreviewService:
         *,
         max_context_bytes: int = 4096,
         reference_resolver: EntityReferenceResolver | None = None,
+        conversation_reference_resolver: ConversationReferenceResolver | None = None,
         world_facts_enabled: bool = False,
     ) -> None:
         if not isinstance(intent_interpreter, IntentInterpreter):
@@ -108,12 +123,21 @@ class V3ActionPreviewService:
             reference_resolver, EntityReferenceResolver
         ):
             raise TypeError("reference_resolver must be an EntityReferenceResolver")
+        if conversation_reference_resolver is not None and not isinstance(
+            conversation_reference_resolver, ConversationReferenceResolver
+        ):
+            raise TypeError(
+                "conversation_reference_resolver must be a ConversationReferenceResolver"
+            )
         self.intent_interpreter = intent_interpreter
         self.context_builder = context_builder
         self.max_context_bytes = max_context_bytes
         if not isinstance(world_facts_enabled, bool):
             raise TypeError("world_facts_enabled must be a boolean")
         self.reference_resolver = reference_resolver or EntityReferenceResolver()
+        self.conversation_reference_resolver = (
+            conversation_reference_resolver or ConversationReferenceResolver(self.reference_resolver)
+        )
         self.world_facts_enabled = world_facts_enabled
 
     def _interpret(
@@ -184,6 +208,9 @@ class V3ActionPreviewService:
             queries.append(fact.subject.text)
             if fact.object is not None:
                 queries.append(fact.object.text)
+        for link in interpretation.discourse_links:
+            if link.link_type.value == "callback" and link.anchor_candidate is not None:
+                queries.append(link.anchor_candidate)
         normalized_queries = tuple(dict.fromkeys(
             value.strip()[:120]
             for value in queries
@@ -313,13 +340,77 @@ class V3ActionPreviewService:
             )
         return resolutions
 
+    def _callback_mentions(
+        self,
+        interpretation: TurnInterpretationV3,
+    ) -> dict[str, tuple[SemanticMention, ...]]:
+        by_event: dict[str, list[SemanticMention]] = {}
+        for link in interpretation.discourse_links:
+            if link.link_type.value != "callback" or link.anchor_candidate is None:
+                continue
+            if not link.source_ref.startswith("event:"):
+                continue
+            event_id = link.source_ref.removeprefix("event:")
+            by_event.setdefault(event_id, []).append(SemanticMention(link.anchor_candidate))
+        return {
+            event_id: tuple(dict.fromkeys(mentions))
+            for event_id, mentions in by_event.items()
+        }
+
+    @staticmethod
+    def _callback_analysis(
+        event,
+        callback_mentions: tuple[SemanticMention, ...],
+    ) -> PlayerIntentAnalysis:
+        targets = tuple(
+            item.mention for item in event.arguments
+            if item.role.value in {
+                "patient", "theme", "recipient", "source", "destination",
+                "instrument", "location", "path", "beneficiary", "companion",
+                "experiencer", "owner", "holder", "container",
+            }
+        )
+        mentions = tuple(dict.fromkeys((*targets, *callback_mentions)))
+        evidence = " ".join(span.text for span in event.evidence_spans)
+        dialogue = event.family.value in {"communication", "social"}
+        step = IntentStep(
+            index=0,
+            source_excerpt=evidence,
+            actor=IntentActor.PLAYER,
+            action=event.predicate_surface,
+            modality=IntentModality.DIALOGUE if dialogue else IntentModality.ATTEMPTED,
+            polarity=(
+                IntentPolarity.POSITIVE
+                if event.polarity.value == "positive"
+                else IntentPolarity.NEGATIVE
+            ),
+            reported_outcome=PlayerReportedOutcome.NOT_CLAIMED,
+            target_mentions=tuple(item.text for item in mentions),
+            action_frame=SemanticActionFrame(
+                predicate=event.predicate_surface,
+                family=event.family,
+                arguments=event.arguments,
+            ),
+        )
+        category = UtteranceCategory.DIALOGUE if dialogue else UtteranceCategory.ACTION
+        return PlayerIntentAnalysis(
+            category=category,
+            steps=(step,),
+            active_step_index=None if dialogue else 0,
+            schema_version=2,
+        )
+
     def _reference_resolutions(
         self,
         interpretation: TurnInterpretationV3,
         world,
         active_character_id: int,
+        *,
+        recent_turns: list[TurnRecord] | None = None,
+        player_input: str = "",
     ) -> dict[str, ActionReferenceResolution]:
         acts = {item.local_id: item for item in interpretation.utterance_acts}
+        callback_mentions = self._callback_mentions(interpretation)
         resolutions: dict[str, ActionReferenceResolution] = {}
         for event in interpretation.events:
             act = acts.get(event.source_act_id)
@@ -342,6 +433,19 @@ class V3ActionPreviewService:
             resolved_targets: list[GameplayResolvedReference] = []
             unresolved_targets: list[SemanticMention] = []
             ambiguous_targets: list[SemanticMention] = []
+            extra_targets = callback_mentions.get(event.local_id, ())
+            callback_references = ()
+            if extra_targets:
+                try:
+                    callback_result = self.conversation_reference_resolver.resolve(
+                        world,
+                        self._callback_analysis(event, extra_targets),
+                        recent_turns=recent_turns or [],
+                        current_input=player_input,
+                    )
+                    callback_references = callback_result.references
+                except Exception:  # noqa: BLE001 - callbacks fail closed
+                    callback_references = ()
             for target in targets:
                 reference, ambiguous = self._resolved_reference(
                     world,
@@ -355,6 +459,29 @@ class V3ActionPreviewService:
                     ambiguous_targets.append(target)
                 else:
                     unresolved_targets.append(target)
+            for target in extra_targets:
+                matches = [
+                    item for item in callback_references
+                    if item.mention.strip().casefold() == target.text.strip().casefold()
+                ]
+                if len(matches) == 1 and isinstance(matches[0], ResolvedConversationReference):
+                    match = matches[0]
+                    entity = world.entities.get(match.entity_id)
+                    if entity is not None and entity.active and entity.id == match.entity_id:
+                        resolved_targets.append(
+                            GameplayResolvedReference(
+                                mention=target,
+                                category=GameplayResolvedReferenceKind.ENTITY,
+                                referent_id=match.entity_id,
+                                name=entity.name,
+                            )
+                        )
+                    else:
+                        unresolved_targets.append(target)
+                elif any(isinstance(item, ResolvedConversationGroupReference) for item in matches) or len(matches) > 1:
+                    ambiguous_targets.append(target)
+                else:
+                    unresolved_targets.append(target)
             resolutions[event.local_id] = ActionReferenceResolution(
                 actor_reference=actor_reference,
                 actor_ambiguous=actor_ambiguous,
@@ -362,6 +489,7 @@ class V3ActionPreviewService:
                 resolved_targets=tuple(resolved_targets),
                 unresolved_targets=tuple(unresolved_targets),
                 ambiguous_targets=tuple(ambiguous_targets),
+                extra_target_mentions=tuple(extra_targets),
             )
         return resolutions
 
@@ -406,6 +534,8 @@ class V3ActionPreviewService:
                 interpretation,
                 visible_world,
                 active_character_id,
+                recent_turns=recent_turns,
+                player_input=player_input,
             )
         except V3ActionPreviewError:
             raise
@@ -483,4 +613,18 @@ class V3ActionPreviewService:
             fact_pending_count=status_counts[FactDecisionStatus.NEEDS_CLARIFICATION],
             fact_rejected_count=status_counts[FactDecisionStatus.REJECTED],
             world_fact_operations=fact_operations,
+            interpretation=interpretation,
+            visible_projection=self.context_builder.build_proposal_context(
+                context.world,
+                player_input,
+                max_estimated_bytes=self.max_context_bytes,
+                mandatory_entity_ids=[active_character_id],
+                supplemental_queries=tuple(
+                    mention.text
+                    for resolution in resolutions.values()
+                    for mention in resolution.extra_target_mentions
+                ),
+                character_entity_id=active_character_id,
+            ),
+            reference_resolutions=resolutions,
         )
