@@ -753,7 +753,8 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
         source,
     )
 
-    updates = planned.progress_updates(execution_key="e" * 64)
+    execution_key = preview.checkpoint.nodes[0].execution_key
+    updates = planned.progress_updates(execution_key=execution_key)
     snapshot = V3ActionProgressSnapshot.from_json(updates["proposal_json"])
     assert snapshot.resolution_id == 54
     assert snapshot.context_revision == 18
@@ -763,7 +764,7 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
     assert staged.event_id == "event_open"
     assert staged.action_id == "action_open"
     assert staged.source_order == 0
-    assert staged.execution_key == "e" * 64
+    assert staged.execution_key == execution_key
     assert staged.evidence_excerpt == "Yo intento abrir la puerta"
     assert json.loads(staged.operations_json) == {"operations": []}
     assert json.loads(staged.intent_json)["source_text"] == source
@@ -781,7 +782,7 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
     assert restored_plan.ordered_operations == ()
 
     replayed = planned.progress_updates(
-        execution_key="e" * 64,
+        execution_key=execution_key,
         previous_progress_json=updates["proposal_json"],
     )
     assert replayed == updates
@@ -792,6 +793,27 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
             previous_progress_json=updates["proposal_json"],
         )
     assert rebound.value.code == "staged_progress_rejected"
+
+    from services.turns.player_action_selector import mark_action_started
+
+    in_progress, stable_key, resumed = mark_action_started(
+        preview.checkpoint,
+        "event_open",
+    )
+    assert stable_key == execution_key
+    assert resumed is False
+    recovered = V3ActionPlanningAdapter().restore_staged_action(
+        replace(preview, checkpoint=in_progress),
+        _context(world),
+        source,
+        progress_json=updates["proposal_json"],
+        event_id="event_open",
+        execution_key=stable_key,
+        operation_parser=SimpleNamespace(parse=lambda _payload: []),
+    )
+    assert recovered.plan == planned.plan
+    assert recovered.intent_analysis == planned.intent_analysis
+    assert recovered.evidence_excerpt == planned.evidence_excerpt
 
 
 def test_v3_action_planning_passes_resolved_callback_mentions_separately_from_current_evidence():
