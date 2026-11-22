@@ -387,6 +387,142 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
     } == {7, 8, 9}
 
 
+def _v3_restore_fixture():
+    source = "Yo intento abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+            9: Entity(id=9, name="Mara", entity_type="character"),
+        }
+    )
+    service, provider, _builder = _preview_service(world, _v3_response(source))
+    context = _context(world)
+    preview = service.preview(
+        context,
+        source,
+        resolution_id=47,
+        context_revision=14,
+    )
+    return source, world, service, provider, context, preview
+
+
+def test_v3_restore_rejects_legacy_checkpoint_and_source_rebinding():
+    from dataclasses import replace
+
+    source, _world, service, _provider, context, preview = _v3_restore_fixture()
+    legacy = replace(
+        preview.checkpoint,
+        schema_version=1,
+        interpretation_json=None,
+    )
+    with pytest.raises(V3ActionPreviewError) as legacy_error:
+        service.restore(legacy, context, source)
+    assert legacy_error.value.code == "legacy_checkpoint_not_resumable"
+
+    with pytest.raises(V3ActionPreviewError) as source_error:
+        service.restore(preview.checkpoint, context, source + " ahora")
+    assert source_error.value.code == "checkpoint_source_mismatch"
+
+
+def test_v3_restore_rejects_interpretation_with_invalid_v3_contract():
+    from dataclasses import replace
+
+    source, _world, service, _provider, context, preview = _v3_restore_fixture()
+    payload = '{"schema_version":99}'
+    corrupted = replace(
+        preview.checkpoint,
+        interpretation_json=payload,
+        interpretation_sha256=hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+    )
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service.restore(corrupted, context, source)
+
+    assert error.value.code == "stored_interpretation_invalid"
+
+
+def test_v3_restore_rejects_checkpoint_when_active_character_is_missing():
+    from dataclasses import replace
+
+    source, _world, service, _provider, context, preview = _v3_restore_fixture()
+    context_without_actor = replace(context, active_character=None)
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service.restore(preview.checkpoint, context_without_actor, source)
+
+    assert error.value.code == "active_character_unavailable"
+
+
+def test_v3_restore_rejects_visible_but_unbound_canonical_target_reference():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+    )
+    from models.semantic_frames import SemanticMention
+
+    source, _world, service, _provider, context, preview = _v3_restore_fixture()
+    node = preview.checkpoint.nodes[0]
+    unbound = GameplayResolvedReference(
+        mention=SemanticMention("Mara"),
+        category=GameplayResolvedReferenceKind.ENTITY,
+        referent_id=9,
+        name="Mara",
+    )
+    candidate = replace(
+        node.candidate,
+        resolved_references=(*node.candidate.resolved_references, unbound),
+    )
+    corrupted = replace(
+        preview.checkpoint,
+        nodes=(replace(node, candidate=candidate),),
+    )
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service.restore(corrupted, context, source)
+
+    assert error.value.code == "stored_references_invalid"
+
+
+def test_v3_restore_rejects_reference_rebound_to_another_visible_entity():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+    )
+    from models.semantic_frames import SemanticMention
+
+    source, _world, service, _provider, context, preview = _v3_restore_fixture()
+    node = preview.checkpoint.nodes[0]
+    rebound_actor = GameplayResolvedReference(
+        mention=SemanticMention("Yo"),
+        category=GameplayResolvedReferenceKind.ENTITY,
+        referent_id=9,
+        name="Mara",
+    )
+    candidate = replace(
+        node.candidate,
+        resolved_references=(*node.candidate.resolved_references, rebound_actor),
+    )
+    corrupted = replace(
+        preview.checkpoint,
+        nodes=(replace(node, candidate=candidate),),
+    )
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service.restore(corrupted, context, source)
+
+    assert error.value.code == "stored_references_invalid"
+
+
 def test_v3_action_preview_abstains_on_ambiguous_visible_target():
     source = "Yo intento abrir la puerta"
     world = WorldState(
