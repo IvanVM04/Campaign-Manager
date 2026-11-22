@@ -25,6 +25,7 @@ from services.turns.world_fact_policy import (
 )
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
+from operations.world_operations import WorldOperation
 from services.context import ContextBuilder
 from services.context.entity_reference_resolver import EntityReferenceResolver
 from services.turns.intent_interpreter import IntentInterpreter
@@ -64,7 +65,7 @@ class V3ActionPreviewResult:
     fact_already_present_count: int = 0
     fact_pending_count: int = 0
     fact_rejected_count: int = 0
-    world_fact_operations: tuple = ()
+    world_fact_operations: tuple[WorldOperation, ...] = ()
 
 
 class V3ActionPreviewService:
@@ -425,12 +426,18 @@ class V3ActionPreviewService:
                 fact_receipts = tuple(
                     decision.to_receipt() for decision in fact_decisions
                 )
-                fact_operations = tuple(
+                raw_fact_operations = tuple(
                     operation
                     for decision in fact_decisions
                     if decision.status is FactDecisionStatus.ACCEPTED
                     for operation in decision.operations
                 )
+                if any(
+                    not isinstance(operation, WorldOperation)
+                    for operation in raw_fact_operations
+                ):
+                    raise TypeError("world-fact policy returned a non-world operation")
+                fact_operations = raw_fact_operations
             except Exception:  # noqa: BLE001 - optional fact preview fails closed
                 raise V3ActionPreviewError(
                     "fact_policy_failed",
