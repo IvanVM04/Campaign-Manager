@@ -353,3 +353,34 @@ def test_v3_action_shadow_feature_flag_is_opt_in_and_strict():
         })
     with pytest.raises(TypeError, match="must be a boolean"):
         LLMSettings(player_turn_v3_action_shadow_enabled="true")
+
+
+
+def test_v3_world_fact_persistence_requires_two_explicit_opt_ins():
+    defaults = LLMSettings.from_env({})
+    assert defaults.player_turn_v3_action_shadow_enabled is False
+    assert defaults.player_turn_v3_world_facts_enabled is False
+
+    preview_only = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "true",
+    })
+    assert preview_only.player_turn_v3_action_shadow_enabled is True
+    assert preview_only.player_turn_v3_world_facts_enabled is False
+
+    enabled = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "true",
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED": "true",
+    })
+    assert enabled.player_turn_v3_world_facts_enabled is True
+
+    with pytest.raises(ValueError, match="requires player_turn_v3_action_shadow_enabled"):
+        LLMSettings.from_env({
+            "CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED": "true",
+        })
+    with pytest.raises(ValueError, match="must be a boolean"):
+        LLMSettings.from_env({
+            "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "true",
+            "CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED": "sometimes",
+        })
+    with pytest.raises(TypeError, match="must be a boolean"):
+        LLMSettings(player_turn_v3_world_facts_enabled="true")
