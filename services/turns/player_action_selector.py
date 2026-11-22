@@ -750,7 +750,6 @@ def build_action_checkpoint(
                             ("target", bool(
                                 resolutions.get(candidate.source_event_id, ActionReferenceResolution()).unresolved_targets
                                 or resolutions.get(candidate.source_event_id, ActionReferenceResolution()).ambiguous_targets
-                                or resolutions.get(candidate.source_event_id, ActionReferenceResolution()).extra_target_mentions
                             )),
                         )
                         if missing
