@@ -7,7 +7,7 @@ import pytest
 from models.player_intent_analysis import PlayerIntentAnalysis
 from operations.operation_reference import OperationReference
 from operations.referenced_operation import ReferencedOperation
-from operations.world_operations import CreateEntityOperation
+from operations.world_operations import CreateEntityOperation, CreateRelationOperation
 from services.llm_world.operation_parser import OperationParser
 from services.turns import TurnResolutionCodec
 from services.turns.turn_resolution_service import TurnResolutionPlan
@@ -224,3 +224,40 @@ def test_intent_codec_rejects_player_evidence_not_bound_to_original_input():
             payload,
             original_input="Abro la puerta.",
         )
+
+
+
+def test_prepared_operation_snapshot_rehydrates_v3_fact_operations_without_regeneration():
+    operation = CreateRelationOperation(
+        relation_id="fact_kinship_example",
+        subject_id=8,
+        relation_type="kinship.sibling",
+        target_id=9,
+        metadata={
+            "source": "player_world_fact_policy_v1",
+            "fact_local_id": "fact_sibling",
+            "candidate_sha256": "a" * 64,
+        },
+    )
+    plan = TurnResolutionPlan(
+        player_input="Mara es hermana de Aldric.",
+        narrative="",
+        world_operations=(operation,),
+        character_operations=(),
+        ordered_operations=(operation,),
+    )
+
+    proposal_json = TurnResolutionCodec.serialize_operations(plan)
+    record = SimpleNamespace(
+        player_input=plan.player_input,
+        proposal_json=proposal_json,
+        mechanics_json=None,
+        intent_json=None,
+    )
+
+    restored = TurnResolutionCodec.plan_from_record(record, OperationParser())
+
+    assert restored.ordered_operations == (operation,)
+    assert restored.world_operations == (operation,)
+    assert restored.character_operations == ()
+    assert restored.mechanics_result is None
