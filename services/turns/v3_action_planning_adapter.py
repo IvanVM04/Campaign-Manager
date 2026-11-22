@@ -65,7 +65,56 @@ class V3ActionPlanningResult:
     evidence_excerpt: str
     resolved_references: tuple[ResolvedConversationReference, ...]
     additional_reference_mentions: tuple[str, ...]
+    source_order: int
+    resolution_id: int
+    context_revision: int
+    source_sha256: str
     plan: TurnResolutionPlan
+
+    def progress_updates(
+        self,
+        *,
+        execution_key: str,
+        previous_progress_json: str | None = None,
+    ) -> dict[str, str]:
+        """Build the single-CAS repository payload for this staged action."""
+        from services.turns.v3_action_progress_codec import (
+            V3ActionProgressEntry,
+            V3ActionProgressSnapshot,
+        )
+
+        entry = V3ActionProgressEntry.from_plan(
+            event_id=self.candidate.source_event_id,
+            action_id=self.candidate.local_id,
+            source_order=self.source_order,
+            execution_key=execution_key,
+            evidence_excerpt=self.evidence_excerpt,
+            plan=self.plan,
+        )
+        if previous_progress_json is None:
+            snapshot = V3ActionProgressSnapshot.empty(
+                resolution_id=self.resolution_id,
+                context_revision=self.context_revision,
+                source_sha256=self.source_sha256,
+            )
+        else:
+            snapshot = V3ActionProgressSnapshot.from_json(previous_progress_json)
+            if (
+                snapshot.resolution_id != self.resolution_id
+                or snapshot.context_revision != self.context_revision
+                or snapshot.source_sha256 != self.source_sha256
+            ):
+                raise V3ActionPlanningError(
+                    "staged_progress_identity_mismatch",
+                    "progress_persistence",
+                )
+        try:
+            return snapshot.append(entry).to_repository_progress_updates()
+        except (TypeError, ValueError) as exc:
+            raise V3ActionPlanningError(
+                "staged_progress_rejected",
+                "progress_persistence",
+            ) from exc
 
 
 class V3ActionPlanningAdapter:
@@ -298,6 +347,15 @@ class V3ActionPlanningAdapter:
         candidate = selection.candidate
         if candidate.eligibility is not GameplayActionEligibility.ELIGIBLE:
             raise V3ActionPlanningError("selected_action_not_eligible", "selection")
+        checkpoint_node = next(
+            (
+                item for item in preview.checkpoint.nodes
+                if item.candidate.source_event_id == candidate.source_event_id
+            ),
+            None,
+        )
+        if checkpoint_node is None:
+            raise V3ActionPlanningError("selected_checkpoint_node_missing", "selection")
 
         interpretation = preview.interpretation
         projection = preview.visible_projection
@@ -409,5 +467,9 @@ class V3ActionPlanningAdapter:
             evidence_excerpt=evidence_excerpt,
             resolved_references=references,
             additional_reference_mentions=external_mentions,
+            source_order=checkpoint_node.source_order,
+            resolution_id=preview.checkpoint.resolution_id,
+            context_revision=preview.checkpoint.context_revision,
+            source_sha256=preview.checkpoint.source_sha256,
             plan=plan,
         )
