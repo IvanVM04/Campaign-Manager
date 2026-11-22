@@ -241,6 +241,7 @@ class TurnResolutionService:
         mechanics_failure_is_non_fatal: bool = False,
         context_projection_override: WorldContextProjection | None = None,
         resolved_references_override: tuple[ResolvedConversationReference, ...] | None = None,
+        additional_resolved_reference_mentions: tuple[str, ...] = (),
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -296,6 +297,23 @@ class TurnResolutionService:
         ):
             raise TypeError(
                 "resolved_references_override must contain trusted conversation references"
+            )
+        if (
+            not isinstance(additional_resolved_reference_mentions, tuple)
+            or len(additional_resolved_reference_mentions) > 16
+            or any(
+                not isinstance(item, str)
+                or not item.strip()
+                or len(item) > 120
+                for item in additional_resolved_reference_mentions
+            )
+            or len({
+                item.strip().casefold()
+                for item in additional_resolved_reference_mentions
+            }) != len(additional_resolved_reference_mentions)
+        ):
+            raise TypeError(
+                "additional_resolved_reference_mentions must be a bounded tuple of unique text mentions"
             )
         if decision_override is not None and not isinstance(
             decision_override, MechanicsDecision
@@ -682,6 +700,7 @@ class TurnResolutionService:
                         if isinstance(item, ResolvedConversationReference)
                     ),
                     resolved_world_references=resolved_world_references,
+                    additional_reference_mentions=additional_resolved_reference_mentions,
                 )
             except MechanicsAdjudicatorError as exc:
                 if not mechanics_failure_is_non_fatal:
