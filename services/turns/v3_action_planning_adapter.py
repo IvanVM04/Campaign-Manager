@@ -332,7 +332,7 @@ class V3ActionPlanningAdapter:
             raise TypeError("context must be a TurnContext")
         if not isinstance(player_input, str) or not player_input.strip():
             raise ValueError("player_input must not be empty")
-        if not isinstance(operation_parser, object) or not callable(
+        if operation_parser is None or not callable(
             getattr(operation_parser, "parse", None)
         ):
             raise TypeError("operation_parser must expose parse()")
