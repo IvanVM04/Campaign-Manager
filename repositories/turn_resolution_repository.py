@@ -215,6 +215,7 @@ class TurnResolutionRepository:
         expected_checkpoint_json: str | None,
         now: str,
         conn,
+        progress_updates: dict[str, str | None] | None = None,
     ) -> TurnResolutionRecord:
         """CAS-save a versioned action checkpoint while this worker owns the lease.
 
@@ -274,13 +275,46 @@ class TurnResolutionRepository:
             raise ValueError("checkpoint is not bound to the durable player input")
         if len(checkpoint_json.encode("utf-8")) > 131_072:
             raise ValueError("action checkpoint exceeds its byte budget")
-
+        if progress_updates is None:
+            progress_updates = {}
+        if not isinstance(progress_updates, dict):
+            raise TypeError("progress_updates must be a dictionary or None")
+        allowed_progress_fields = {
+            "proposal_json", "intent_json", "adjudication_json", "mechanics_json"
+        }
+        if set(progress_updates) - allowed_progress_fields:
+            raise ValueError("progress_updates contains a protected field")
+        assignments = [
+            "action_checkpoint_json=?",
+            "context_revision=?",
+        ]
+        params: list[object] = [
+            checkpoint_json,
+            checkpoint.context_revision,
+        ]
+        for field_name, value in progress_updates.items():
+            if value is not None:
+                if not isinstance(value, str):
+                    raise TypeError(f"{field_name} must be a JSON string or None")
+                try:
+                    json.loads(value)
+                except (TypeError, ValueError):
+                    raise ValueError(f"{field_name} must contain valid JSON") from None
+            assignments.append(f"{field_name}=?")
+            params.append(value)
+        assignments.append("updated_at=CURRENT_TIMESTAMP")
+        params.extend((
+            resolution_id,
+            scope.campaign_id,
+            expected_lease_token,
+            now,
+            expected_context_revision,
+            expected_checkpoint_json,
+        ))
         cursor = conn.execute(
-            """
-            UPDATE turn_resolutions
-            SET action_checkpoint_json=?,
-                context_revision=?,
-                updated_at=CURRENT_TIMESTAMP
+            "UPDATE turn_resolutions SET "
+            + ", ".join(assignments)
+            + """
             WHERE id=? AND campaign_id=?
               AND lifecycle_state='planning'
               AND lease_token=?
@@ -288,16 +322,7 @@ class TurnResolutionRepository:
               AND context_revision IS ?
               AND action_checkpoint_json IS ?
             """,
-            (
-                checkpoint_json,
-                checkpoint.context_revision,
-                resolution_id,
-                scope.campaign_id,
-                expected_lease_token,
-                now,
-                expected_context_revision,
-                expected_checkpoint_json,
-            ),
+            tuple(params),
         )
         if cursor.rowcount != 1:
             raise ValueError("action checkpoint changed during compare-and-swap")
