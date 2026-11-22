@@ -38,10 +38,29 @@ work #289, v2 fixes #290 and reproducibility/coverage #291, and records the
 21 November Ollama baseline: 16/23 live tests passed, 7 failed; the v3 shadow
 holdout recorded precision 0.8684 and recall 0.1924.
 
-**Production remains v1/v2.** The v3 contract, prompt/shadow runner, action
-selector/checkpoint and world-fact policy remain isolated building blocks.
-No provider runtime, turn orchestration, bootstrap or composition root has
-been switched to v3, and no live SillyTavern acceptance is claimed.
+**V2 remains the authoritative player-facing interpreter and mechanics path.**
+PR #297 added an opt-in v3 preview to durable planning:
+`CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED` is false by default.
+When enabled, v3 writes only its action-graph checkpoint; it does not execute
+actions or replace the v2 plan.
+
+PR #298 adds a second, independent opt-in:
+`CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED`. It is also false by
+default and configuration rejects enabling it without the action-shadow flag.
+When both are enabled, the same v3 interpretation is evaluated by the
+deterministic world-fact policy against the bounded visible-world projection.
+Only uniquely resolved active endpoints can yield typed world operations.
+Candidate receipts and accepted fact operations are persisted together with
+the prepared proposal inside one planning-lease/CAS transaction. If checkpoint
+persistence fails, the transaction is rolled back and the v2-only proposal is
+prepared instead. A prepared retry rehydrates its operations from the durable
+proposal and does not regenerate v3 facts.
+
+This does not switch player-facing interpretation, mechanics adjudication or
+action execution to v3. Manual-roll/clarification continuation for compound
+v3 facts/actions, full action execution and integrated acceptance remain
+separate work in PRs #299–#300. No live Ollama or SillyTavern acceptance is
+claimed.
 
 The new roadmap and linked documents define the required evaluation, graph
 scoring, larger held-out corpus, prompt/runtime reproducibility, integration
