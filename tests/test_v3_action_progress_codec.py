@@ -206,13 +206,13 @@ def test_v3_action_progress_decoder_rejects_unknown_and_malformed_payloads():
 
 
 def test_v3_action_progress_snapshot_enforces_byte_budget():
-    huge = _entry(
-        evidence_excerpt="x" * 300,
-        operations_json=json.dumps(
-            {"operations": [{"payload": "x" * 33_000}]},
-            separators=(",", ":"),
-        ),
-    )
-    # Entry budget is checked before the snapshot budget.
+    # Entry budget is checked at construction, before it can be appended
+    # to a snapshot or persisted in the repository.
     with pytest.raises(ValueError, match="entry exceeds"):
-        _snapshot(huge)
+        _entry(
+            evidence_excerpt="x" * 300,
+            operations_json=json.dumps(
+                {"operations": [{"payload": "x" * 33_000}]},
+                separators=(",", ":"),
+            ),
+        )
