@@ -300,14 +300,24 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
     from models.semantic_frames import SemanticMention
     from services.turns.player_action_selector import resume_after_clarification
 
-    source = "Yo intento abrir la cosa"
+    source = "Yo intento abrir la puerta y la cosa"
     payload = json.loads(_v3_response(source))
-    payload["events"][0]["arguments"][1]["mention"]["text"] = "la cosa"
+    payload["events"][0]["arguments"].append(
+        {
+            "role": "instrument",
+            "mention": {"text": "la cosa", "kind_hint": "location"},
+        }
+    )
     response = json.dumps(payload, ensure_ascii=False)
     world = WorldState(
         entities={
             7: Entity(id=7, name="Arin", entity_type="character"),
-            8: Entity(id=8, name="Puerta de hierro", entity_type="location"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
         }
     )
     service, provider, _builder = _preview_service(world, response)
