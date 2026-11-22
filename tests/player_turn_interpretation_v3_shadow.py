@@ -19,10 +19,11 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.providers import LLMProvider
 from services.turns.intent_interpreter import IntentInterpreter
-
 from services.turns.player_turn_v3_prompt import (
     EvidenceSpanAlignmentError,
     ShadowPromptError,
+    V3_EVIDENCE_ALIGNMENT_VERSION as V3_EVIDENCE_ALIGNMENT_VERSION,
+    V3_PROMPT_VERSION as V3_PROMPT_VERSION,
     V3_RESPONSE_SCHEMA,
     V3_SYSTEM_PROMPT,
     align_v3_evidence_span_offsets,
