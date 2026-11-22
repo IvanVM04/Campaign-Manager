@@ -201,7 +201,7 @@ def test_v3_action_progress_snapshot_enforces_byte_budget():
     huge = _entry(
         evidence_excerpt="x" * 300,
         operations_json=json.dumps(
-            {"operations": [{"payload": "x" * 30_000}]},
+            {"operations": [{"payload": "x" * 33_000}]},
             separators=(",", ":"),
         ),
     )
