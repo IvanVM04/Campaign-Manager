@@ -84,6 +84,52 @@ def _v3_response(
     return json.dumps(payload, ensure_ascii=False)
 
 
+def _v3_fact_response(
+    source: str,
+    *,
+    subject: str = "Mara",
+    object_: str = "Aldric",
+) -> str:
+    span = _span(source)
+    payload = {
+        "schema_version": 3,
+        "utterance_acts": [
+            {
+                "local_id": "act_player",
+                "force": "assertion",
+                "speaker_role": "player",
+                "speaker_mention": None,
+                "addressee_mention": None,
+                "quote_spans": [],
+                "evidence_spans": [span],
+            }
+        ],
+        "events": [],
+        "discourse_links": [],
+        "world_facts": [
+            {
+                "local_id": "fact_sibling",
+                "source_act_id": "act_player",
+                "fact_kind": "relation",
+                "subject": {"text": subject, "kind_hint": "character"},
+                "predicate_surface": "hermana",
+                "object": {"text": object_, "kind_hint": "character"},
+                "value_surface": None,
+                "relation_family": "kinship",
+                "normalized_relation_type": "kinship.sibling",
+                "direction": "symmetric",
+                "polarity": "positive",
+                "epistemic_status": "asserted",
+                "temporal_scope": "permanent",
+                "attributed_source": None,
+                "evidence_spans": [span],
+            }
+        ],
+        "clarification_candidates": [],
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 class _PreviewIntentInterpreter(IntentInterpreter):
     def __init__(self, response: str):
         self._static_prompt = (
@@ -410,3 +456,100 @@ def test_v3_action_preview_does_not_bind_npc_first_person_to_player_character():
     assert npc_action.candidate.resolved_references == ()
 
 
+
+
+
+def _world_with_fact_endpoints():
+    return WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(id=8, name="Mara", entity_type="npc"),
+            9: Entity(id=9, name="Aldric", entity_type="npc"),
+        }
+    )
+
+
+def test_v3_fact_preview_emits_validated_receipt_and_typed_operation_when_enabled():
+    from operations.world_operations import CreateRelationOperation
+
+    source = "Mara es hermana de Aldric."
+    world = _world_with_fact_endpoints()
+    interpreter = _PreviewIntentInterpreter(_v3_fact_response(source))
+    builder = _StaticProjectionBuilder(world)
+    service = V3ActionPreviewService(
+        interpreter,
+        builder,
+        world_facts_enabled=True,
+    )
+
+    result = service.preview(
+        _context(world),
+        source,
+        resolution_id=61,
+        context_revision=21,
+    )
+
+    assert result.fact_candidate_count == 1
+    assert result.fact_accepted_count == 1
+    assert result.fact_already_present_count == 0
+    assert result.fact_pending_count == 0
+    assert result.fact_rejected_count == 0
+    assert len(result.checkpoint.fact_validation_receipts) == 1
+    receipt = result.checkpoint.fact_validation_receipts[0]
+    assert receipt.fact_local_id == "fact_sibling"
+    assert receipt.source_act_id == "act_player"
+    assert receipt.state.value == "validated"
+    assert len(result.world_fact_operations) == 1
+    assert isinstance(result.world_fact_operations[0], CreateRelationOperation)
+    assert (
+        result.world_fact_operations[0].subject_id,
+        result.world_fact_operations[0].target_id,
+    ) == (8, 9)
+    assert builder.last_mandatory_ids == (7,)
+
+
+def test_v3_fact_preview_keeps_unresolved_endpoint_pending_without_operation():
+    source = "Mara es hermana de Neria."
+    world = _world_with_fact_endpoints()
+    service = V3ActionPreviewService(
+        _PreviewIntentInterpreter(
+            _v3_fact_response(source, object_="Neria")
+        ),
+        _StaticProjectionBuilder(world),
+        world_facts_enabled=True,
+    )
+
+    result = service.preview(
+        _context(world),
+        source,
+        resolution_id=62,
+        context_revision=22,
+    )
+
+    assert result.fact_candidate_count == 1
+    assert result.fact_accepted_count == 0
+    assert result.fact_pending_count == 1
+    assert result.fact_rejected_count == 0
+    assert result.world_fact_operations == ()
+    assert len(result.checkpoint.fact_validation_receipts) == 1
+    assert result.checkpoint.fact_validation_receipts[0].state.value == "pending"
+
+
+def test_v3_fact_preview_is_disabled_by_default_even_with_fact_candidates():
+    source = "Mara es hermana de Aldric."
+    world = _world_with_fact_endpoints()
+    service = V3ActionPreviewService(
+        _PreviewIntentInterpreter(_v3_fact_response(source)),
+        _StaticProjectionBuilder(world),
+    )
+
+    result = service.preview(
+        _context(world),
+        source,
+        resolution_id=63,
+        context_revision=23,
+    )
+
+    assert result.fact_candidate_count == 0
+    assert result.checkpoint.fact_validation_receipts == ()
+    assert result.world_fact_operations == ()
