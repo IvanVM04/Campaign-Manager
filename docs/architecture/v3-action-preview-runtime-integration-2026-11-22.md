@@ -70,3 +70,10 @@ to the new preview logs.
 PR #299 will own end-to-end execution, callbacks/dependencies, resumable
 clarifications and mechanics/technical outcomes. PR #300 owns the full
 acceptance run and decision to keep v2 or consider a controlled cutover.
+
+
+First-person actor resolution is scoped to `SpeakerRole.PLAYER` on the exact
+source utterance act. If the model attributes that act to an NPC, another
+speaker or an unknown speaker, first-person forms remain unresolved rather
+than being rebound to the active player character. This is covered by the
+NPC-attributed-first-person regression test.

@@ -39,7 +39,12 @@ def _span(source: str) -> dict[str, object]:
     }
 
 
-def _v3_response(source: str, *, actor: str = "Yo") -> str:
+def _v3_response(
+    source: str,
+    *,
+    actor: str = "Yo",
+    speaker_role: str = "player",
+) -> str:
     span = _span(source)
     payload = {
         "schema_version": 3,
@@ -47,7 +52,7 @@ def _v3_response(source: str, *, actor: str = "Yo") -> str:
             {
                 "local_id": "act_player",
                 "force": "assertion",
-                "speaker_role": "player",
+                "speaker_role": speaker_role,
                 "speaker_mention": None,
                 "addressee_mention": None,
                 "quote_spans": [],
@@ -396,3 +401,30 @@ def test_shadow_preview_unexpected_failure_does_not_poison_v2_plan():
     )
 
     assert result is record
+
+
+
+def test_v3_action_preview_does_not_bind_npc_first_person_to_player_character():
+    source = "Yo abro la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(id=8, name="Puerta", entity_type="location", aliases=["la puerta"]),
+        }
+    )
+    service, _provider, _builder = _preview_service(
+        world,
+        _v3_response(source, actor="Yo", speaker_role="npc"),
+    )
+
+    result = service.preview(
+        _context(world),
+        source,
+        resolution_id=45,
+        context_revision=13,
+    )
+
+    assert result.selection.status is ActionSelectionStatus.NEEDS_CLARIFICATION
+    assert result.selection.candidate is not None
+    assert result.selection.candidate.reason.value == "unresolved_reference"
+    assert result.selection.candidate.resolved_references == ()

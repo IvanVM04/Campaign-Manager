@@ -12,6 +12,7 @@ from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.player_turn_interpretation_v3 import (
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
+    SpeakerRole,
     TurnInterpretationV3,
     TurnInterpretationV3ValidationError,
 )
@@ -200,9 +201,12 @@ class V3ActionPreviewService:
         *,
         active_character_id: int,
         actor: bool,
+        player_is_speaker: bool = False,
     ) -> tuple[GameplayResolvedReference | None, bool]:
         normalized = self.reference_resolver.normalize(mention.text)
         if actor and normalized in self._FIRST_PERSON_ACTOR_FORMS:
+            if not player_is_speaker:
+                return None, False
             entity = world.entities.get(active_character_id)
             if entity is not None and entity.active and entity.id == active_character_id:
                 return (
@@ -262,6 +266,7 @@ class V3ActionPreviewService:
                 actor_mention,
                 active_character_id=active_character_id,
                 actor=True,
+                player_is_speaker=act.speaker_role is SpeakerRole.PLAYER,
             )
             resolved_targets: list[GameplayResolvedReference] = []
             unresolved_targets: list[SemanticMention] = []
