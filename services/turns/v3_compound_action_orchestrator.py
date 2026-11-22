@@ -206,6 +206,8 @@ class V3CompoundActionOrchestrator:
             try:
                 def persist_staged_progress(
                     progress_updates: Mapping[str, str | None],
+                    *,
+                    checkpoint: PlayerActionCheckpoint = current,
                 ) -> None:
                     # The checkpoint intentionally remains IN_PROGRESS. The
                     # caller saves the staged plan and this unchanged checkpoint
@@ -216,7 +218,7 @@ class V3CompoundActionOrchestrator:
                     )
                     self._persist(
                         persist_checkpoint,
-                        current,
+                        checkpoint,
                         validated.progress_updates,
                     )
 
