@@ -300,8 +300,10 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
     orchestrator = V3CompoundActionOrchestrator()
     durable = []
 
-    def persist_first_attempt(value):
-        durable.append(value)
+    staged = {"proposal_json": '{"operations":[{"type":"OpenDoor"}]}'}
+
+    def persist_first_attempt(value, progress_updates=None):
+        durable.append((value, progress_updates))
         node = _node(value, "event_open")
         if node.state is ActionExecutionState.RESOLVED:
             raise RuntimeError("database unavailable after mechanics")
@@ -310,7 +312,7 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
 
     def execute(candidate, key, resumed):
         seen.append((candidate.source_event_id, key, resumed))
-        return CompoundActionExecution(ActionOutcome.SUCCESS)
+        return CompoundActionExecution(ActionOutcome.SUCCESS, staged)
 
     with pytest.raises(RuntimeError, match="database unavailable"):
         orchestrator.run(
@@ -321,15 +323,16 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
 
     # The last durable checkpoint is IN_PROGRESS: execution may have happened,
     # but its result was not committed. Recovery must use that same key.
-    in_progress = durable[-2]
+    in_progress = durable[-2][0]
     assert _node(in_progress, "event_open").state is ActionExecutionState.IN_PROGRESS
+    assert durable[-1][1] == staged
     stable_key = _node(in_progress, "event_open").execution_key
 
     replayed = []
 
     def replay(candidate, key, resumed):
         replayed.append((candidate.source_event_id, key, resumed))
-        return CompoundActionExecution(ActionOutcome.SUCCESS)
+        return CompoundActionExecution(ActionOutcome.SUCCESS, staged)
 
     result = orchestrator.run(
         in_progress,
