@@ -22,6 +22,8 @@ from models.player_intent_analysis import (
     UtteranceCategory,
 )
 from models.player_turn_interpretation_v3 import (
+    GameplayActionCandidate,
+    GameplayActionEligibility,
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
     SpeakerRole,
@@ -505,6 +507,71 @@ class V3ActionPreviewService:
             )
         return resolutions
 
+    @staticmethod
+    def _validate_restored_candidate_references(
+        candidate: GameplayActionCandidate,
+        baseline: GameplayActionCandidate,
+        world,
+        active_character_id: int,
+    ) -> None:
+        """Validate stored backend references while allowing clarified targets.
+
+        Action identity is immutable across a clarification, but target
+        mentions and their canonical bindings may legitimately be enriched.
+        Checkpoint CAS enforces that this can happen only from AWAITING_INPUT;
+        recovery independently verifies every stored binding against the
+        current bounded visible-world projection.
+        """
+        if (
+            candidate.local_id != baseline.local_id
+            or candidate.actor != baseline.actor
+            or candidate.action_type != baseline.action_type
+            or candidate.dependency_event_ids != baseline.dependency_event_ids
+        ):
+            raise ValueError("stored action identity differs from its interpretation")
+
+        stored_references = set(candidate.resolved_references)
+        if not set(baseline.resolved_references).issubset(stored_references):
+            raise ValueError("stored action discarded an original canonical reference")
+
+        target_keys = {
+            item.text.strip().casefold()
+            for item in candidate.target_mentions
+        }
+        actor_key = candidate.actor.text.strip().casefold()
+        actor_references = []
+        for reference in candidate.resolved_references:
+            if reference.category is not GameplayResolvedReferenceKind.ENTITY:
+                raise ValueError("stored action reference has an unsupported category")
+            entity = world.entities.get(reference.referent_id)
+            if (
+                entity is None
+                or not entity.active
+                or entity.id != reference.referent_id
+                or entity.name != reference.name
+            ):
+                raise ValueError("stored action reference is no longer visible and active")
+
+            mention_key = reference.mention.text.strip().casefold()
+            if mention_key == actor_key:
+                if reference.referent_id != active_character_id:
+                    raise ValueError("stored player actor reference changed identity")
+                actor_references.append(reference)
+            elif mention_key not in target_keys:
+                raise ValueError("stored target reference is not bound to a target mention")
+
+        if len(actor_references) > 1:
+            raise ValueError("stored action has more than one canonical player actor")
+        if (
+            candidate.eligibility
+            in {
+                GameplayActionEligibility.ELIGIBLE,
+                GameplayActionEligibility.BLOCKED_BY_DEPENDENCY,
+            }
+            and len(actor_references) != 1
+        ):
+            raise ValueError("executable action is missing its canonical player actor")
+
     def restore(
         self,
         checkpoint: PlayerActionCheckpoint,
@@ -570,15 +637,12 @@ class V3ActionPreviewService:
                 raise ValueError("stored action graph differs from its interpretation")
             for event_id, candidate in expected.items():
                 previous = stored[event_id]
-                if (
-                    candidate.local_id != previous.local_id
-                    or candidate.actor != previous.actor
-                    or candidate.action_type != previous.action_type
-                    or candidate.dependency_event_ids != previous.dependency_event_ids
-                    or candidate.target_mentions != previous.target_mentions
-                    or candidate.resolved_references != previous.resolved_references
-                ):
-                    raise ValueError("stored action references no longer match the visible world")
+                self._validate_restored_candidate_references(
+                    previous,
+                    candidate,
+                    world,
+                    active_id,
+                )
         except Exception:  # noqa: BLE001 - recovery must fail closed
             raise V3ActionPreviewError("stored_references_invalid", "recovery") from None
         selection = select_next_action(checkpoint)
