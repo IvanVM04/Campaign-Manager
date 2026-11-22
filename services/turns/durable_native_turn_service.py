@@ -47,6 +47,7 @@ class DurableNativeTurnService:
         turn_repository: TurnRepository,
         resolution_repository: TurnResolutionRepository | None = None,
         turn_execution_lock=None,
+        v3_action_preview_service=None,
     ) -> None:
         self.scope = scope
         self.resolver = resolver
@@ -116,6 +117,7 @@ class DurableNativeTurnService:
             snapshot_loader=lambda conversation_id=None: self._capture_turn_snapshot(
                 conversation_id=conversation_id
             ),
+            v3_action_preview_service=v3_action_preview_service,
             error_type=DurableNativeTurnError,
         )
 

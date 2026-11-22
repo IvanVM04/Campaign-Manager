@@ -32,6 +32,7 @@ from services.turns.durable_turn_preparation_mapper import (
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
 from services.turns.turn_resolution_codec import TurnResolutionCodec
+from services.turns.v3_action_preview_service import V3ActionPreviewError, V3ActionPreviewService
 from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
@@ -62,6 +63,7 @@ class DurableTurnExecutionService:
         context_loader,
         turn_execution_lock=None,
         snapshot_loader=None,
+        v3_action_preview_service: V3ActionPreviewService | None = None,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -74,7 +76,106 @@ class DurableTurnExecutionService:
         self.context_loader = context_loader
         self.turn_execution_lock = turn_execution_lock
         self.snapshot_loader = snapshot_loader
+        self.v3_action_preview_service = v3_action_preview_service
         self.error_type = error_type
+
+
+    def _planning_lease_timeout_seconds(self) -> int:
+        """Give the opt-in second intent call enough time without changing defaults."""
+        if self.v3_action_preview_service is None:
+            return 180
+
+        def provider_timeout(collaborator_name: str) -> float:
+            collaborator = getattr(self.resolver, collaborator_name, None)
+            provider = getattr(collaborator, "provider", None)
+            timeout = getattr(provider, "timeout", 120.0)
+            if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+                return 120.0
+            return float(timeout)
+
+        configured_budget = (
+            2 * provider_timeout("intent_interpreter")
+            + provider_timeout("mechanics_adjudicator")
+            + provider_timeout("extractor")
+            + 120
+        )
+        return max(600, int(configured_budget))
+
+    def _persist_v3_action_checkpoint(
+        self,
+        record: TurnResolutionRecord,
+        context,
+        player_input: str,
+        recent,
+        revision: int,
+        lease_token: str | None,
+    ) -> TurnResolutionRecord:
+        """Persist a non-authoritative v3 graph under the current planning lease."""
+        preview_service = self.v3_action_preview_service
+        if (
+            preview_service is None
+            or record.action_checkpoint_json is not None
+            or not isinstance(lease_token, str)
+            or not lease_token
+        ):
+            return record
+
+        try:
+            preview = preview_service.preview(
+                context,
+                player_input,
+                resolution_id=self._required_resolution_id(record),
+                context_revision=revision,
+                recent_turns=recent,
+            )
+            checkpoint_json = preview.checkpoint.to_json()
+        except V3ActionPreviewError as exc:
+            logger.warning(
+                "turn.v3_action_preview.skipped",
+                extra={"preview_stage": exc.stage, "preview_code": exc.code},
+            )
+            return record
+        except (TypeError, ValueError):
+            logger.warning(
+                "turn.v3_action_preview.skipped",
+                extra={"preview_stage": "checkpoint_encoding", "preview_code": "invalid_checkpoint"},
+            )
+            return record
+
+        try:
+            with transaction("IMMEDIATE") as conn:
+                saved = self.resolution_repository.save_action_checkpoint(
+                    self._required_resolution_id(record),
+                    checkpoint_json,
+                    scope=self.scope,
+                    expected_state="planning",
+                    expected_lease_token=lease_token,
+                    expected_context_revision=record.context_revision,
+                    expected_checkpoint_json=record.action_checkpoint_json,
+                    now=datetime.now(UTC).isoformat(),
+                    conn=conn,
+                )
+        except Exception:
+            # A failed shadow CAS must not poison the authoritative v2 plan.
+            logger.warning(
+                "turn.v3_action_preview.checkpoint_persistence_skipped",
+                extra={"preview_stage": "checkpoint_persistence", "preview_code": "cas_or_storage_rejected"},
+            )
+            return record
+
+        candidate = getattr(preview.selection, "candidate", None)
+        status = getattr(getattr(preview.selection, "status", None), "value", "unknown")
+        logger.info(
+            "turn.v3_action_preview.completed",
+            extra={
+                "preview_status": status,
+                "preview_event_count": preview.event_count,
+                "preview_action_node_count": len(preview.checkpoint.nodes),
+                "preview_excluded_event_count": preview.excluded_event_count,
+                "preview_selected_action_type": candidate.action_type if candidate is not None else None,
+            },
+        )
+        return saved
 
     def _serialize_operations(self, plan: TurnResolutionPlan) -> str:
         try:
@@ -389,7 +490,7 @@ class DurableTurnExecutionService:
                         self._required_resolution_id(record),
                         scope=self.scope,
                         lease_token=lease_token,
-                        lease_expires_at=(now + timedelta(minutes=3)).isoformat(),
+                        lease_expires_at=(now + timedelta(seconds=self._planning_lease_timeout_seconds())).isoformat(),
                         now=now.isoformat(),
                         conn=conn,
                     )
@@ -477,6 +578,9 @@ class DurableTurnExecutionService:
                         )
                     )
                     return self._clarification_result(saved, pending)
+                record = self._persist_v3_action_checkpoint(
+                    record, context, normalized, recent, revision, lease_token
+                )
                 proposal_json = self._serialize_operations(plan)
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 

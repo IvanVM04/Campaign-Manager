@@ -43,6 +43,7 @@ from services.turns import (
     TurnExecutionLock,
 )
 from services.turns.durable_native_turn_service import DurableNativeTurnService
+from services.turns.v3_action_preview_service import V3ActionPreviewService
 from services.turns.turn_resolution_service import TurnResolutionService
 from services.world import WorldService
 
@@ -172,6 +173,15 @@ class CampaignRuntimeFactory:
             max_prompt_bytes=self._llm_settings.intent_prompt_max_bytes,
             max_context_bytes=self._llm_settings.intent_context_max_bytes,
         )
+        v3_action_preview_service = (
+            V3ActionPreviewService(
+                intent_interpreter,
+                context_builder,
+                max_context_bytes=self._llm_settings.intent_context_max_bytes,
+            )
+            if self._llm_settings.player_turn_v3_action_shadow_enabled
+            else None
+        )
         mechanics_adjudicator = MechanicsAdjudicator(
             mechanics_provider,
             context_builder,
@@ -196,6 +206,7 @@ class CampaignRuntimeFactory:
             context_service=campaign_state_service,
             turn_repository=turn_repository,
             turn_execution_lock=turn_execution_lock,
+            v3_action_preview_service=v3_action_preview_service,
         )
 
         context_adapter = SillyTavernContextAdapter(

@@ -21,6 +21,7 @@ def test_llm_settings_preserve_current_defaults():
     assert settings.extraction_think is None
     assert settings.mechanics_think is None
     assert settings.intent_think is None
+    assert settings.player_turn_v3_action_shadow_enabled is False
     assert settings.intent_prompt_max_bytes == 24000
     assert settings.intent_context_max_bytes == 4096
     assert settings.mechanics_prompt_max_bytes == 8192
@@ -335,3 +336,20 @@ def test_explicit_extraction_byte_settings_override_legacy_environment_aliases()
 
     assert settings.extraction_prompt_max_bytes == 12000
     assert settings.extraction_context_max_bytes == 6000
+
+
+
+def test_v3_action_shadow_feature_flag_is_opt_in_and_strict():
+    assert LLMSettings.from_env({}).player_turn_v3_action_shadow_enabled is False
+    assert LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "true",
+    }).player_turn_v3_action_shadow_enabled is True
+    assert LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "off",
+    }).player_turn_v3_action_shadow_enabled is False
+    with pytest.raises(ValueError, match="must be a boolean"):
+        LLMSettings.from_env({
+            "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "sometimes",
+        })
+    with pytest.raises(TypeError, match="must be a boolean"):
+        LLMSettings(player_turn_v3_action_shadow_enabled="true")
