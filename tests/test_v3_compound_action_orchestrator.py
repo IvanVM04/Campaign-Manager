@@ -21,6 +21,10 @@ from models.player_turn_interpretation_v3 import (
     GameplayWorkflow,
 )
 from models.semantic_frames import SemanticMention
+from services.turns.player_action_selector import (
+    ActionSelectorError,
+    resume_after_clarification,
+)
 from services.turns.v3_compound_action_orchestrator import (
     CompoundActionRunStatus,
     V3CompoundActionOrchestrator,
@@ -420,7 +424,7 @@ def test_clarification_resume_can_remain_paused_when_backend_still_cannot_resolv
 
 def test_clarification_resume_rejects_wrong_event_and_non_candidate():
     checkpoint = _checkpoint(awaiting_first=True)
-    with pytest.raises(Exception):
+    with pytest.raises(ActionSelectorError):
         V3CompoundActionOrchestrator().resume_after_clarification(
             checkpoint,
             "event_missing",
@@ -429,8 +433,6 @@ def test_clarification_resume_rejects_wrong_event_and_non_candidate():
             persist_checkpoint=lambda _value: None,
         )
     with pytest.raises(TypeError, match="updated_candidate"):
-        from services.turns.player_action_selector import resume_after_clarification
-
         resume_after_clarification(
             checkpoint,
             "event_open",
