@@ -523,6 +523,102 @@ def test_v3_restore_rejects_reference_rebound_to_another_visible_entity():
     assert error.value.code == "stored_references_invalid"
 
 
+def test_v3_restore_reference_validator_rejects_action_identity_changes():
+    from dataclasses import replace
+
+    source, world, service, _provider, _context_value, preview = _v3_restore_fixture()
+    baseline = preview.checkpoint.nodes[0].candidate
+    rebound = replace(baseline, action_type="movement")
+
+    with pytest.raises(ValueError, match="action identity"):
+        service._validate_restored_candidate_references(
+            rebound,
+            baseline,
+            world,
+            7,
+        )
+
+
+def test_v3_restore_reference_validator_rejects_dropped_original_references():
+    from dataclasses import replace
+
+    _source, world, service, _provider, _context_value, preview = _v3_restore_fixture()
+    baseline = preview.checkpoint.nodes[0].candidate
+    dropped = replace(
+        baseline,
+        resolved_references=tuple(
+            item for item in baseline.resolved_references
+            if item.mention.text != "Yo"
+        ),
+    )
+
+    with pytest.raises(ValueError, match="discarded"):
+        service._validate_restored_candidate_references(
+            dropped,
+            baseline,
+            world,
+            7,
+        )
+
+
+def test_v3_restore_reference_validator_rejects_non_entity_references():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+    )
+    from models.semantic_frames import SemanticMention
+
+    _source, world, service, _provider, _context_value, preview = _v3_restore_fixture()
+    baseline = preview.checkpoint.nodes[0].candidate
+    unsupported = GameplayResolvedReference(
+        mention=SemanticMention("Mara"),
+        category=GameplayResolvedReferenceKind.RESOURCE,
+        referent_id=9,
+        name="Mara",
+    )
+    candidate = replace(
+        baseline,
+        resolved_references=(*baseline.resolved_references, unsupported),
+    )
+
+    with pytest.raises(ValueError, match="unsupported category"):
+        service._validate_restored_candidate_references(
+            candidate,
+            baseline,
+            world,
+            7,
+        )
+
+
+def test_v3_restore_reference_validator_rejects_stale_entity_name():
+    from dataclasses import replace
+
+    _source, world, service, _provider, _context_value, preview = _v3_restore_fixture()
+    baseline = preview.checkpoint.nodes[0].candidate
+    door = next(
+        item for item in baseline.resolved_references
+        if item.referent_id == 8
+    )
+    stale = replace(door, name="Puerta destruida")
+    candidate = replace(
+        baseline,
+        resolved_references=tuple(
+            stale if item == door else item
+            for item in baseline.resolved_references
+        ),
+    )
+
+    with pytest.raises(ValueError, match="visible and active"):
+        service._validate_restored_candidate_references(
+            candidate,
+            baseline,
+            world,
+            7,
+        )
+
+
 def test_v3_action_preview_abstains_on_ambiguous_visible_target():
     source = "Yo intento abrir la puerta"
     world = WorldState(
