@@ -630,8 +630,6 @@ def test_v3_restore_reference_validator_rejects_stale_entity_name():
 
 def test_v3_action_planning_uses_only_selected_event_excerpt_without_reinterpreting():
     from models.player_intent_analysis import IntentModality
-    from models.player_turn_interpretation_v3 import GameplayActionCandidate
-
     class RecordingResolver(TurnResolutionService):
         def __init__(self):
             self.calls = []
