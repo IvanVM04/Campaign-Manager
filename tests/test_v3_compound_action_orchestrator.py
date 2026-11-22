@@ -26,6 +26,7 @@ from services.turns.player_action_selector import (
     resume_after_clarification,
 )
 from services.turns.v3_compound_action_orchestrator import (
+    CompoundActionExecution,
     CompoundActionRunStatus,
     V3CompoundActionOrchestrator,
 )
@@ -133,7 +134,7 @@ def test_orchestrator_runs_only_one_action_at_a_time_and_persists_each_transitio
         saved = _node(persisted[-1], candidate.source_event_id)
         assert saved.state is ActionExecutionState.IN_PROGRESS
         executed.append((candidate.source_event_id, execution_key, resumed))
-        return ActionOutcome.SUCCESS
+        return CompoundActionExecution(ActionOutcome.SUCCESS)
 
     result = V3CompoundActionOrchestrator().run(
         checkpoint,
@@ -199,7 +200,7 @@ def test_gameplay_failure_skips_only_conditional_branch_and_runs_independent_act
     def execute(candidate, _key, _resumed):
         executed.append(candidate.source_event_id)
         if candidate.source_event_id == "event_open":
-            return ActionOutcome.FAILURE
+            return CompoundActionExecution(ActionOutcome.FAILURE)
         return ActionOutcome.SUCCESS
 
     result = V3CompoundActionOrchestrator().run(
@@ -247,7 +248,7 @@ def test_orchestrator_pauses_for_clarification_then_resumes_same_graph():
         paused.checkpoint,
         "event_open",
         corrected,
-        execute=lambda *_args: ActionOutcome.SUCCESS,
+        execute=lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS),
         persist_checkpoint=persisted.append,
     )
 
@@ -269,7 +270,7 @@ def test_failed_start_checkpoint_persistence_prevents_action_execution():
     with pytest.raises(RuntimeError, match="CAS rejected"):
         V3CompoundActionOrchestrator().run(
             _checkpoint(),
-            execute=lambda *args: executed.append(args) or ActionOutcome.SUCCESS,
+            execute=lambda *args: executed.append(args) or CompoundActionExecution(ActionOutcome.SUCCESS),
             persist_checkpoint=persist,
         )
 
@@ -376,7 +377,7 @@ def test_orchestrator_does_not_execute_when_failure_checkpoint_cannot_be_saved()
 
 def test_orchestrator_persists_dependency_skip_transition_before_finishing():
     persisted = []
-    outcomes = iter((ActionOutcome.FAILURE, ActionOutcome.SUCCESS))
+    outcomes = iter((\n        CompoundActionExecution(ActionOutcome.FAILURE),\n        CompoundActionExecution(ActionOutcome.SUCCESS),\n    ))
 
     result = V3CompoundActionOrchestrator().run(
         _checkpoint(),
