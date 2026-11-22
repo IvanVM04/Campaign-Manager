@@ -175,6 +175,14 @@ def test_v3_action_progress_snapshot_rejects_bad_identity_order_and_schema():
             schema_version=2,
         )
 
+    with pytest.raises(ValueError, match="unsupported"):
+        V3ActionProgressSnapshot(
+            resolution_id=12,
+            context_revision=7,
+            source_sha256="c" * 64,
+            schema_version=True,
+        )
+
 
 def test_v3_action_progress_decoder_rejects_unknown_and_malformed_payloads():
     snapshot = _snapshot(_entry())
