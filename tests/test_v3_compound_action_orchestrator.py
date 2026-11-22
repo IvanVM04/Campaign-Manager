@@ -337,7 +337,7 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
     result = orchestrator.run(
         in_progress,
         execute=replay,
-        persist_checkpoint=lambda _value: None,
+        persist_checkpoint=lambda _value, _updates=None: None,
     )
 
     assert result.status is CompoundActionRunStatus.COMPLETED
