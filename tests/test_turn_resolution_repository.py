@@ -346,9 +346,19 @@ def test_action_checkpoint_is_saved_with_context_and_lease_cas(isolated_database
             expected_checkpoint_json=None,
             now="2026-11-20T10:00:00Z",
             conn=conn,
+            progress_updates={
+                "proposal_json": '{"operations":[]}',
+                "intent_json": '{"schema_version":1}',
+                "adjudication_json": '{"v3_action_progress":{"version":1}}',
+                "mechanics_json": None,
+            },
         )
 
     assert saved.action_checkpoint_json == checkpoint
+    assert saved.proposal_json == '{"operations":[]}'
+    assert saved.intent_json == '{"schema_version":1}'
+    assert saved.adjudication_json == '{"v3_action_progress":{"version":1}}'
+    assert saved.mechanics_json is None
     assert saved.context_revision == 3
     assert claimed.lease_token == "worker-a"
     assert repository.get(created.id, scope=CampaignScope(1)).action_checkpoint_json == checkpoint
