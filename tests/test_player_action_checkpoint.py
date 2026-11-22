@@ -424,3 +424,91 @@ def test_checkpoint_codec_rejects_malformed_nested_candidate_and_receipt():
 
     with pytest.raises(ActionCheckpointValidationError):
         PlayerActionCheckpoint.from_payload(payload)
+
+
+def _v2_checkpoint(base=None):
+    source = _checkpoint(_node()) if base is None else base
+    interpretation_json = json.dumps(
+        {"schema_version": 3, "events": []},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return replace(
+        source,
+        schema_version=2,
+        interpretation_json=interpretation_json,
+        interpretation_sha256=hashlib.sha256(
+            interpretation_json.encode("utf-8")
+        ).hexdigest(),
+    )
+
+
+def test_checkpoint_v2_round_trips_canonical_interpretation_without_changing_v1():
+    legacy = _checkpoint(_node())
+    legacy_payload = legacy.to_dict()
+
+    assert legacy.schema_version == 1
+    assert "interpretation_json" not in legacy_payload
+    assert PlayerActionCheckpoint.from_payload(legacy_payload) == legacy
+
+    current = _v2_checkpoint()
+    serialized = current.to_json()
+    restored = PlayerActionCheckpoint.from_json(serialized)
+
+    assert current.schema_version == 2
+    assert restored == current
+    assert restored.interpretation_json == current.interpretation_json
+    assert restored.to_json() == serialized
+
+
+def test_checkpoint_v2_rejects_missing_noncanonical_and_wrong_digest_interpretation():
+    current = _v2_checkpoint()
+    payload = current.to_dict()
+
+    missing = dict(payload)
+    missing.pop("interpretation_json")
+    with pytest.raises(ActionCheckpointValidationError):
+        PlayerActionCheckpoint.from_payload(missing)
+
+    malformed = dict(payload)
+    malformed["interpretation_json"] = "{"
+    with pytest.raises(ActionCheckpointValidationError):
+        PlayerActionCheckpoint.from_payload(malformed)
+
+    noncanonical = dict(payload)
+    noncanonical["interpretation_json"] = json.dumps(
+        json.loads(current.interpretation_json),
+        ensure_ascii=False,
+    )
+    with pytest.raises(ActionCheckpointValidationError):
+        PlayerActionCheckpoint.from_payload(noncanonical)
+
+    wrong_digest = dict(payload)
+    wrong_digest["interpretation_sha256"] = "d" * 64
+    with pytest.raises(ActionCheckpointValidationError):
+        PlayerActionCheckpoint.from_payload(wrong_digest)
+
+
+def test_checkpoint_progress_cannot_rebind_v2_interpretation_or_schema():
+    previous = _v2_checkpoint()
+
+    other_interpretation_json = json.dumps(
+        {"schema_version": 3, "events": [{"local_id": "event_other"}]},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    rebound = replace(
+        previous,
+        interpretation_json=other_interpretation_json,
+        interpretation_sha256=hashlib.sha256(
+            other_interpretation_json.encode("utf-8")
+        ).hexdigest(),
+    )
+    with pytest.raises(ValueError, match="identity cannot change"):
+        rebound.validate_progress_from(previous)
+
+    schema_changed = replace(previous, schema_version=1, interpretation_json=None)
+    with pytest.raises(ValueError, match="identity cannot change"):
+        schema_changed.validate_progress_from(previous)
