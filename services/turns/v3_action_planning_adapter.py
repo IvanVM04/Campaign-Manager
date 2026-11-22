@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.player_intent_analysis import (
     IntentActor,
     IntentModality,
@@ -21,14 +20,17 @@ from models.player_intent_analysis import (
     UtteranceCategory,
 )
 from models.player_turn_interpretation_v3 import (
+    EventFrame,
     GameplayActionCandidate,
     GameplayActionEligibility,
     GameplayResolvedReferenceKind,
     GameplayWorkflow,
     SpeakerRole,
+    TurnInterpretationV3,
+    UtteranceAct,
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
-from models.semantic_frames import SemanticActionFrame
+from models.semantic_frames import EvidenceSpan, SemanticActionFrame
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection
@@ -57,7 +59,7 @@ class V3ActionPlanningResult:
     """One selected action and its one-step legacy mechanics/proposal plan."""
 
     candidate: GameplayActionCandidate
-    event: object
+    event: EventFrame
     intent_analysis: PlayerIntentAnalysis
     evidence_excerpt: str
     resolved_references: tuple[ResolvedConversationReference, ...]
@@ -69,7 +71,11 @@ class V3ActionPlanningAdapter:
     """Lower one next-ready v3 graph node into a single legacy plan."""
 
     @staticmethod
-    def _occurrences(source: str, needle: str, spans) -> tuple[tuple[int, int], ...]:
+    def _occurrences(
+        source: str,
+        needle: str,
+        spans: tuple[EvidenceSpan, ...],
+    ) -> tuple[tuple[int, int], ...]:
         folded_needle = needle.casefold()
         if not folded_needle:
             return ()
@@ -89,7 +95,7 @@ class V3ActionPlanningAdapter:
         return tuple(values)
 
     @classmethod
-    def _event_excerpt(cls, event, source_text: str) -> str:
+    def _event_excerpt(cls, event: EventFrame, source_text: str) -> str:
         """Build the shortest excerpt containing the event predicate and roles."""
         for span in event.evidence_spans:
             span.validate_source(source_text)
@@ -166,8 +172,8 @@ class V3ActionPlanningAdapter:
     @staticmethod
     def _analysis(
         candidate: GameplayActionCandidate,
-        event,
-        act,
+        event: EventFrame,
+        act: UtteranceAct,
         evidence_excerpt: str,
     ) -> tuple[PlayerIntentAnalysis, tuple[str, ...]]:
         if act.speaker_role is not SpeakerRole.PLAYER:
