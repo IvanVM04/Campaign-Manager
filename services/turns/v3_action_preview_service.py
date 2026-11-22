@@ -28,13 +28,15 @@ from models.player_turn_interpretation_v3 import (
     TurnInterpretationV3,
     TurnInterpretationV3ValidationError,
 )
-from models.resolved_conversation_reference import ResolvedConversationReference
+from models.resolved_conversation_reference import (
+    ResolvedConversationGroupReference,
+    ResolvedConversationReference,
+)
 from models.semantic_frames import SemanticActionFrame, SemanticMention
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from operations.world_operations import WorldOperation
 from services.context import ContextBuilder, ConversationReferenceResolver
-from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from services.context.entity_reference_resolver import EntityReferenceResolver
 from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.player_action_selector import (
