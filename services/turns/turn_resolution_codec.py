@@ -218,7 +218,7 @@ class TurnResolutionCodec:
 
         parsed_operations = operation_parser.parse(entry.operations_json)
         if not isinstance(parsed_operations, (list, tuple)):
-            raise ValueError("staged operations must decode to an operation sequence")
+            raise TypeError("staged operations must decode to an operation sequence")
         ordered = tuple(parsed_operations)
 
         def unwrap(raw):
