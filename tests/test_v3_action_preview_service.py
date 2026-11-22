@@ -602,18 +602,20 @@ def test_v3_restore_reference_validator_rejects_stale_entity_name():
         if item.referent_id == 8
     )
     stale = replace(door, name="Puerta destruida")
-    candidate = replace(
+    stale_candidate = replace(
         baseline,
         resolved_references=tuple(
             stale if item == door else item
             for item in baseline.resolved_references
         ),
     )
+    # Use the candidate as the expected baseline here to isolate the final
+    # visibility/name check from the earlier immutable-reference subset gate.
 
     with pytest.raises(ValueError, match="visible and active"):
         service._validate_restored_candidate_references(
-            candidate,
-            baseline,
+            stale_candidate,
+            stale_candidate,
             world,
             7,
         )
