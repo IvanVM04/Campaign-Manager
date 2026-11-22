@@ -247,7 +247,7 @@ class V3ActionPreviewService:
                 "active_character_not_visible",
                 "reference_resolution",
             )
-        return projection.world
+        return projection
 
     def _resolved_reference(
         self,
@@ -493,6 +493,93 @@ class V3ActionPreviewService:
             )
         return resolutions
 
+    def restore(
+        self,
+        checkpoint: PlayerActionCheckpoint,
+        context: TurnContext,
+        player_input: str,
+        *,
+        recent_turns: list[TurnRecord] | None = None,
+    ) -> V3ActionPreviewResult:
+        """Rebuild trusted runtime references from a persisted interpretation.
+
+        No LLM call is made. Stored canonical references are checked against
+        the same visible snapshot before a checkpoint may resume.
+        """
+        if not isinstance(checkpoint, PlayerActionCheckpoint):
+            raise TypeError("checkpoint must be a PlayerActionCheckpoint")
+        if checkpoint.schema_version < 2 or checkpoint.interpretation_json is None:
+            raise V3ActionPreviewError("legacy_checkpoint_not_resumable", "recovery")
+        if checkpoint.source_sha256 != __import__("hashlib").sha256(
+            player_input.encode("utf-8")
+        ).hexdigest():
+            raise V3ActionPreviewError("checkpoint_source_mismatch", "recovery")
+        try:
+            interpretation = TurnInterpretationV3.from_json(
+                checkpoint.interpretation_json,
+                source_text=player_input,
+            )
+        except TurnInterpretationV3ValidationError:
+            raise V3ActionPreviewError("stored_interpretation_invalid", "recovery") from None
+        active = context.active_character
+        active_id = getattr(active, "entity_id", None) if active is not None else None
+        if isinstance(active_id, bool) or not isinstance(active_id, int) or active_id < 1:
+            raise V3ActionPreviewError("active_character_unavailable", "recovery")
+        projection = self._visible_world(
+            context, interpretation, player_input, active_id
+        )
+        world = projection.world
+        try:
+            resolutions = self._reference_resolutions(
+                interpretation,
+                world,
+                active_id,
+                recent_turns=recent_turns,
+                player_input=player_input,
+            )
+            baseline = build_action_checkpoint(
+                interpretation,
+                resolution_id=checkpoint.resolution_id,
+                context_revision=checkpoint.context_revision,
+                source_text=player_input,
+                active_character_id=active_id,
+                reference_resolutions=resolutions,
+                fact_validation_receipts=checkpoint.fact_validation_receipts,
+            ).checkpoint
+            expected = {
+                node.candidate.source_event_id: node.candidate
+                for node in baseline.nodes
+            }
+            stored = {
+                node.candidate.source_event_id: node.candidate
+                for node in checkpoint.nodes
+            }
+            if set(expected) != set(stored):
+                raise ValueError("stored action graph differs from its interpretation")
+            for event_id, candidate in expected.items():
+                previous = stored[event_id]
+                if (
+                    candidate.local_id != previous.local_id
+                    or candidate.actor != previous.actor
+                    or candidate.action_type != previous.action_type
+                    or candidate.dependency_event_ids != previous.dependency_event_ids
+                    or candidate.target_mentions != previous.target_mentions
+                    or candidate.resolved_references != previous.resolved_references
+                ):
+                    raise ValueError("stored action references no longer match the visible world")
+        except Exception as exc:  # noqa: BLE001 - recovery must fail closed
+            raise V3ActionPreviewError("stored_references_invalid", "recovery") from None
+        selection = select_next_action(checkpoint)
+        return V3ActionPreviewResult(
+            checkpoint=checkpoint,
+            selection=selection,
+            event_count=len(interpretation.events),
+            excluded_event_count=len(interpretation.events) - len(checkpoint.nodes),
+            interpretation=interpretation,
+            visible_projection=projection,
+            reference_resolutions=resolutions,
+        )
+
     def preview(
         self,
         context: TurnContext,
@@ -523,12 +610,13 @@ class V3ActionPreviewService:
             )
 
         interpretation = self._interpret(context, player_input, recent_turns)
-        visible_world = self._visible_world(
+        visible_projection = self._visible_world(
             context,
             interpretation,
             player_input,
             active_character_id,
         )
+        visible_world = visible_projection.world
         try:
             resolutions = self._reference_resolutions(
                 interpretation,
@@ -614,17 +702,6 @@ class V3ActionPreviewService:
             fact_rejected_count=status_counts[FactDecisionStatus.REJECTED],
             world_fact_operations=fact_operations,
             interpretation=interpretation,
-            visible_projection=self.context_builder.build_proposal_context(
-                context.world,
-                player_input,
-                max_estimated_bytes=self.max_context_bytes,
-                mandatory_entity_ids=[active_character_id],
-                supplemental_queries=tuple(
-                    mention.text
-                    for resolution in resolutions.values()
-                    for mention in resolution.extra_target_mentions
-                ),
-                character_entity_id=active_character_id,
-            ),
+            visible_projection=visible_projection,
             reference_resolutions=resolutions,
         )
