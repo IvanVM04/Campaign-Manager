@@ -43,6 +43,8 @@ class LLMSettings:
     extraction_think: bool | None = None
     mechanics_think: bool | None = None
     intent_think: bool | None = None
+    # Disabled by default: v3 action selection is a diagnostic shadow only.
+    player_turn_v3_action_shadow_enabled: bool = False
 
     def __post_init__(self) -> None:
         # The old *_max_tokens fields historically configured UTF-8 byte
@@ -106,6 +108,9 @@ class LLMSettings:
             if not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{field_name} must be a finite number greater than zero")
             object.__setattr__(self, field_name, float(value))
+
+        if not isinstance(self.player_turn_v3_action_shadow_enabled, bool):
+            raise TypeError("player_turn_v3_action_shadow_enabled must be a boolean")
 
         for field_name in (
             "narrative_think",
@@ -241,6 +246,10 @@ class LLMSettings:
             ),
             intent_think=optional_bool_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_THINK", common_think
+            ),
+            player_turn_v3_action_shadow_enabled=optional_bool_value(
+                "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED",
+                defaults.player_turn_v3_action_shadow_enabled,
             ),
             intent_prompt_max_bytes=integer_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES",
