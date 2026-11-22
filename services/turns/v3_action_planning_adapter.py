@@ -83,33 +83,35 @@ class V3ActionPlanningResult:
             V3ActionProgressSnapshot,
         )
 
-        entry = V3ActionProgressEntry.from_plan(
-            event_id=self.candidate.source_event_id,
-            action_id=self.candidate.local_id,
-            source_order=self.source_order,
-            execution_key=execution_key,
-            evidence_excerpt=self.evidence_excerpt,
-            plan=self.plan,
-        )
-        if previous_progress_json is None:
-            snapshot = V3ActionProgressSnapshot.empty(
-                resolution_id=self.resolution_id,
-                context_revision=self.context_revision,
-                source_sha256=self.source_sha256,
-            )
-        else:
-            snapshot = V3ActionProgressSnapshot.from_json(previous_progress_json)
-            if (
-                snapshot.resolution_id != self.resolution_id
-                or snapshot.context_revision != self.context_revision
-                or snapshot.source_sha256 != self.source_sha256
-            ):
-                raise V3ActionPlanningError(
-                    "staged_progress_identity_mismatch",
-                    "progress_persistence",
-                )
         try:
+            entry = V3ActionProgressEntry.from_plan(
+                event_id=self.candidate.source_event_id,
+                action_id=self.candidate.local_id,
+                source_order=self.source_order,
+                execution_key=execution_key,
+                evidence_excerpt=self.evidence_excerpt,
+                plan=self.plan,
+            )
+            if previous_progress_json is None:
+                snapshot = V3ActionProgressSnapshot.empty(
+                    resolution_id=self.resolution_id,
+                    context_revision=self.context_revision,
+                    source_sha256=self.source_sha256,
+                )
+            else:
+                snapshot = V3ActionProgressSnapshot.from_json(previous_progress_json)
+                if (
+                    snapshot.resolution_id != self.resolution_id
+                    or snapshot.context_revision != self.context_revision
+                    or snapshot.source_sha256 != self.source_sha256
+                ):
+                    raise V3ActionPlanningError(
+                        "staged_progress_identity_mismatch",
+                        "progress_persistence",
+                    )
             return snapshot.append(entry).to_repository_progress_updates()
+        except V3ActionPlanningError:
+            raise
         except (TypeError, ValueError) as exc:
             raise V3ActionPlanningError(
                 "staged_progress_rejected",
