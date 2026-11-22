@@ -273,13 +273,6 @@ class LLMSettings:
                 )
                 is True
             ),
-            player_turn_v3_action_execution_enabled=(
-                optional_bool_value(
-                    "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED",
-                    defaults.player_turn_v3_action_execution_enabled,
-                )
-                is True
-            ),
             intent_prompt_max_bytes=integer_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES",
                 defaults.intent_prompt_max_bytes,
