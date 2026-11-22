@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
-
 from services.turns.player_action_planning_adapter import (
     V3ActionPlanningAdapter,
     V3ActionPlanningError,
