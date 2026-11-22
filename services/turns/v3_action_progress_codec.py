@@ -14,7 +14,9 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from models.player_action_checkpoint import MAX_CHECKPOINT_NODES
-from services.turns.turn_resolution_service import TurnResolutionPlan
+
+if TYPE_CHECKING:
+    from services.turns.turn_resolution_service import TurnResolutionPlan
 
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -148,8 +150,6 @@ class V3ActionProgressEntry:
         plan: TurnResolutionPlan,
     ) -> V3ActionProgressEntry:
         """Serialize the exact one-action TurnResolutionPlan without re-running providers."""
-        if not isinstance(plan, TurnResolutionPlan):
-            raise TypeError("plan must be a TurnResolutionPlan")
         from services.turns.turn_resolution_codec import TurnResolutionCodec
         from services.turns.turn_resolution_service import TurnResolutionPlan
 
