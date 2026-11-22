@@ -23,6 +23,7 @@ from models.player_turn_interpretation_v3 import (
     EventFrame,
     GameplayActionCandidate,
     GameplayActionEligibility,
+    GameplayResolvedReference,
     GameplayResolvedReferenceKind,
     GameplayWorkflow,
     SpeakerRole,
@@ -141,6 +142,8 @@ class V3ActionPlanningAdapter:
     ) -> tuple[tuple[ResolvedConversationReference, ...], dict[str, str]]:
         resolved: list[ResolvedConversationReference] = []
         by_mention: dict[str, str] = {}
+        by_mention_identity: dict[str, tuple[int, str]] = {}
+        seen_references: set[tuple[str, int]] = set()
         all_references = (*candidate.resolved_references, *additional_references)
         for reference in all_references:
             if (
@@ -166,12 +169,20 @@ class V3ActionPlanningAdapter:
             mention = reference.mention.text.strip()
             key = mention.casefold()
             previous = by_mention.get(key)
-            if previous is not None and previous != reference.name:
+            identity = (key, reference.referent_id)
+            if previous is not None and (
+                previous != reference.name
+                or by_mention_identity[key][0] != reference.referent_id
+            ):
                 raise V3ActionPlanningError(
                     "conflicting_reference_mentions",
                     "reference_mapping",
                 )
+            if identity in seen_references:
+                continue
             by_mention[key] = reference.name
+            by_mention_identity[key] = (reference.referent_id, reference.name)
+            seen_references.add(identity)
             resolved.append(
                 ResolvedConversationReference(
                     mention=mention,
