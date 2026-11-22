@@ -661,9 +661,9 @@ def test_build_v3_action_preview_fails_open_with_safe_diagnostic(
         )
 
     assert result is None
-    assert "turn.v3_action_preview.skipped" in caplog.text
-    assert expected_stage in caplog.text
-    assert expected_code in caplog.text
+    assert caplog.records[-1].message == "turn.v3_action_preview.skipped"
+    assert caplog.records[-1].preview_stage == expected_stage
+    assert caplog.records[-1].preview_code == expected_code
 
 
 @pytest.mark.parametrize(
@@ -761,9 +761,11 @@ def test_log_v3_action_preview_handles_missing_and_selected_action(caplog):
     with caplog.at_level(logging.INFO):
         DurableTurnExecutionService._log_v3_action_preview(preview)
 
-    assert "turn.v3_action_preview.completed" in caplog.text
-    assert "selected" in caplog.text
-    assert "interaction" in caplog.text
+    assert caplog.records[-1].message == "turn.v3_action_preview.completed"
+    assert caplog.records[-1].preview_status == "selected"
+    assert caplog.records[-1].preview_selected_action_type == "interaction"
+    assert caplog.records[-1].preview_action_node_count == 2
+    assert caplog.records[-1].preview_fact_operation_count == 1
 
 
 def test_log_v3_action_preview_records_unknown_status_without_candidate(caplog):
@@ -785,5 +787,6 @@ def test_log_v3_action_preview_records_unknown_status_without_candidate(caplog):
     with caplog.at_level(logging.INFO):
         DurableTurnExecutionService._log_v3_action_preview(preview)
 
-    assert "turn.v3_action_preview.completed" in caplog.text
-    assert "unknown" in caplog.text
+    assert caplog.records[-1].message == "turn.v3_action_preview.completed"
+    assert caplog.records[-1].preview_status == "unknown"
+    assert caplog.records[-1].preview_selected_action_type is None
