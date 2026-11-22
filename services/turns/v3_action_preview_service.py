@@ -21,12 +21,6 @@ from models.player_turn_interpretation_v3 import (
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.semantic_frames import SemanticMention
-from services.turns.world_fact_policy import (
-    FactDecision,
-    FactDecisionStatus,
-    FactEndpointResolution,
-    evaluate_world_facts,
-)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from operations.world_operations import WorldOperation
@@ -46,6 +40,12 @@ from services.turns.player_turn_v3_prompt import (
     EvidenceSpanAlignmentError,
     align_v3_evidence_span_offsets,
     build_v3_shadow_prompt,
+)
+from services.turns.world_fact_policy import (
+    FactDecision,
+    FactDecisionStatus,
+    FactEndpointResolution,
+    evaluate_world_facts,
 )
 
 
