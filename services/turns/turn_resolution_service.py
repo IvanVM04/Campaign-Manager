@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 
 from models.campaign_state import CampaignState
@@ -47,6 +48,9 @@ from services.turns.mechanics_adjudicator import (
     MechanicsAdjudicatorError,
 )
 from services.world import WorldService
+
+logger = logging.getLogger(__name__)
+
 
 
 @dataclass(frozen=True)
@@ -233,6 +237,7 @@ class TurnResolutionService:
         intent_evidence_text: str | None = None,
         pending_intent_analysis: PlayerIntentAnalysis | None = None,
         pending_correction_evidence_text: str | None = None,
+        mechanics_failure_is_non_fatal: bool = False,
     ) -> TurnResolutionPlan:
         """
         Prepare a typed operation proposal from the player's intent.
@@ -271,6 +276,8 @@ class TurnResolutionService:
 
         if not isinstance(manual_mode, bool):
             raise TypeError("manual_mode must be a boolean")
+        if not isinstance(mechanics_failure_is_non_fatal, bool):
+            raise TypeError("mechanics_failure_is_non_fatal must be a boolean")
         if decision_override is not None and not isinstance(
             decision_override, MechanicsDecision
         ):
@@ -655,9 +662,20 @@ class TurnResolutionService:
                     resolved_world_references=resolved_world_references,
                 )
             except MechanicsAdjudicatorError as exc:
-                raise TurnResolutionServiceError(
-                    "mechanics adjudication after correction failed"
-                ) from exc
+                if not mechanics_failure_is_non_fatal:
+                    raise TurnResolutionServiceError(
+                        "mechanics adjudication after correction failed"
+                    ) from exc
+                logger.warning(
+                    "turn.mechanics.adjudication_skipped",
+                    extra={
+                        "mechanics_stage": "after_correction",
+                        "mechanics_code": "adjudication_failed",
+                    },
+                )
+                decision = MechanicsDecision(
+                    decision=MechanicsDecisionType.NONE
+                )
 
         if (
             self.intent_interpreter is not None
@@ -681,9 +699,20 @@ class TurnResolutionService:
                     resolved_world_references=resolved_world_references,
                 )
             except MechanicsAdjudicatorError as exc:
-                raise TurnResolutionServiceError(
-                    "mechanics adjudication failed"
-                ) from exc
+                if not mechanics_failure_is_non_fatal:
+                    raise TurnResolutionServiceError(
+                        "mechanics adjudication failed"
+                    ) from exc
+                logger.warning(
+                    "turn.mechanics.adjudication_skipped",
+                    extra={
+                        "mechanics_stage": "initial",
+                        "mechanics_code": "adjudication_failed",
+                    },
+                )
+                decision = MechanicsDecision(
+                    decision=MechanicsDecisionType.NONE
+                )
 
         if not intent_analysis.is_actionable and not (
             decision is not None
