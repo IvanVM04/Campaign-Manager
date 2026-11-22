@@ -201,7 +201,7 @@ def test_gameplay_failure_skips_only_conditional_branch_and_runs_independent_act
         executed.append(candidate.source_event_id)
         if candidate.source_event_id == "event_open":
             return CompoundActionExecution(ActionOutcome.FAILURE)
-        return ActionOutcome.SUCCESS
+        return CompoundActionExecution(ActionOutcome.SUCCESS)
 
     result = V3CompoundActionOrchestrator().run(
         _checkpoint(),
@@ -282,7 +282,7 @@ def test_failed_start_checkpoint_persistence_prevents_action_execution():
     [
         (None, lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS), lambda _value: None, TypeError, "checkpoint"),
         (_checkpoint(), None, lambda _value: None, TypeError, "execute"),
-        (_checkpoint(), lambda *_args: ActionOutcome.SUCCESS, None, TypeError, "persist_checkpoint"),
+        (_checkpoint(), lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS), None, TypeError, "persist_checkpoint"),
     ],
 )
 def test_orchestrator_rejects_invalid_public_arguments(
@@ -310,7 +310,7 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
 
     def execute(candidate, key, resumed):
         seen.append((candidate.source_event_id, key, resumed))
-        return ActionOutcome.SUCCESS
+        return CompoundActionExecution(ActionOutcome.SUCCESS)
 
     with pytest.raises(RuntimeError, match="database unavailable"):
         orchestrator.run(
@@ -329,7 +329,7 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
 
     def replay(candidate, key, resumed):
         replayed.append((candidate.source_event_id, key, resumed))
-        return ActionOutcome.SUCCESS
+        return CompoundActionExecution(ActionOutcome.SUCCESS)
 
     result = orchestrator.run(
         in_progress,
@@ -433,7 +433,7 @@ def test_clarification_resume_rejects_wrong_event_and_non_candidate():
             checkpoint,
             "event_missing",
             _node(checkpoint, "event_open").candidate,
-            execute=lambda *_args: ActionOutcome.SUCCESS,
+            execute=lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS),
             persist_checkpoint=lambda _value: None,
         )
     with pytest.raises(TypeError, match="updated_candidate"):
