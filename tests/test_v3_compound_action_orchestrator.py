@@ -458,20 +458,30 @@ def test_staged_action_json_is_forwarded_with_the_resolved_checkpoint_cas():
     def persist(value, progress_updates=None):
         persisted.append((value, progress_updates))
 
+    def execute(candidate, execution_key, resumed, persist_staged):
+        assert candidate.source_event_id == "event_open"
+        assert resumed is False
+        in_progress = persisted[-1][0]
+        assert _node(in_progress, "event_open").state is ActionExecutionState.IN_PROGRESS
+        persist_staged(updates)
+        staged = persisted[-1]
+        assert _node(staged[0], "event_open").state is ActionExecutionState.IN_PROGRESS
+        assert staged[1] == updates
+        return CompoundActionExecution(ActionOutcome.SUCCESS, updates)
+
     result = V3CompoundActionOrchestrator().run(
         checkpoint,
-        execute=lambda *_args: CompoundActionExecution(
-            ActionOutcome.SUCCESS,
-            updates,
-        ),
+        execute=execute,
         persist_checkpoint=persist,
     )
 
     assert result.status is CompoundActionRunStatus.COMPLETED
-    assert len(persisted) == 2
+    assert len(persisted) == 3
     assert persisted[0][1] is None
-    assert _node(persisted[1][0], "event_open").state is ActionExecutionState.RESOLVED
+    assert _node(persisted[1][0], "event_open").state is ActionExecutionState.IN_PROGRESS
     assert persisted[1][1] == updates
+    assert _node(persisted[2][0], "event_open").state is ActionExecutionState.RESOLVED
+    assert persisted[2][1] == updates
 
 
 def test_compound_action_execution_rejects_invalid_staged_json_contract():
