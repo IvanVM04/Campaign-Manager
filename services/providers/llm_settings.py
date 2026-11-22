@@ -47,8 +47,6 @@ class LLMSettings:
     player_turn_v3_action_shadow_enabled: bool = False
     # Persistent v3 fact operations require a second, independent opt-in.
     player_turn_v3_world_facts_enabled: bool = False
-    # Execution is a separate, explicit opt-in; shadow mode remains diagnostic.
-    player_turn_v3_action_execution_enabled: bool = False
 
     def __post_init__(self) -> None:
         # The old *_max_tokens fields historically configured UTF-8 byte
@@ -117,16 +115,6 @@ class LLMSettings:
             raise TypeError("player_turn_v3_action_shadow_enabled must be a boolean")
         if not isinstance(self.player_turn_v3_world_facts_enabled, bool):
             raise TypeError("player_turn_v3_world_facts_enabled must be a boolean")
-        if not isinstance(self.player_turn_v3_action_execution_enabled, bool):
-            raise TypeError("player_turn_v3_action_execution_enabled must be a boolean")
-        if (
-            self.player_turn_v3_action_execution_enabled
-            and not self.player_turn_v3_action_shadow_enabled
-        ):
-            raise ValueError(
-                "player_turn_v3_action_execution_enabled requires "
-                "player_turn_v3_action_shadow_enabled"
-            )
         if (
             self.player_turn_v3_world_facts_enabled
             and not self.player_turn_v3_action_shadow_enabled
