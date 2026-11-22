@@ -47,6 +47,10 @@ from services.turns.v3_action_preview_service import (
 logger = logging.getLogger(__name__)
 
 
+class _OptionalV3CheckpointSaveFailure(RuntimeError):
+    """Rollback an optional checkpoint write before falling back to v2-only."""
+
+
 class DurableTurnExecutionService:
     """Own durable request claims, planning, challenge creation and commit hand-off.
 
@@ -576,6 +580,7 @@ class DurableTurnExecutionService:
                         normalized,
                         manual_mode=(dice_mode == "manual"),
                         recent_turns=recent,
+                        mechanics_failure_is_non_fatal=self._world_facts_enabled(),
                     )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
@@ -630,14 +635,16 @@ class DurableTurnExecutionService:
                         )
                     )
                     return self._clarification_result(saved, pending)
-                record = self._persist_v3_action_checkpoint(
+                authoritative_plan = plan
+                preview = self._build_v3_action_preview(
                     record, context, normalized, recent, revision, lease_token
                 )
+                plan = self._append_world_fact_operations(plan, preview)
                 proposal_json = self._serialize_operations(plan)
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 
-                with transaction("IMMEDIATE") as conn:
-                    self.resolution_repository.transition(
+                def transition_to_prepared(conn):
+                    return self.resolution_repository.transition(
                         self._required_resolution_id(record),
                         "prepared",
                         scope=self.scope,
@@ -661,6 +668,40 @@ class DurableTurnExecutionService:
                         },
                         conn=conn,
                     )
+
+                try:
+                    with transaction("IMMEDIATE") as conn:
+                        if preview is not None:
+                            try:
+                                record = self._save_v3_action_checkpoint(
+                                    record,
+                                    preview,
+                                    revision,
+                                    lease_token,
+                                    conn,
+                                )
+                            except Exception:  # noqa: BLE001 - optional preview write
+                                raise _OptionalV3CheckpointSaveFailure from None
+                        record = transition_to_prepared(conn)
+                except _OptionalV3CheckpointSaveFailure:
+                    # The checkpoint/receipts and proposal are one transaction.
+                    # If the receipt cannot be fenced and saved, discard every
+                    # v3 fact operation and preserve the authoritative v2 plan.
+                    logger.warning(
+                        "turn.v3_action_preview.checkpoint_persistence_skipped",
+                        extra={
+                            "preview_stage": "checkpoint_persistence",
+                            "preview_code": "cas_or_storage_rejected",
+                        },
+                    )
+                    preview = None
+                    plan = authoritative_plan
+                    proposal_json = self._serialize_operations(plan)
+                    mechanics_json = self._mechanics_to_json(plan.mechanics_result)
+                    with transaction("IMMEDIATE") as conn:
+                        record = transition_to_prepared(conn)
+
+                self._log_v3_action_preview(preview)
 
             self.prepared_commit_service.commit_prepared_plan(
                 record,
