@@ -647,8 +647,31 @@ class DurableTurnExecutionService:
                 preview = self._build_v3_action_preview(
                     record, context, normalized, recent, revision, lease_token
                 )
-                plan = self._append_world_fact_operations(plan, preview)
-                proposal_json = self._serialize_operations(plan)
+                proposal_json = self._serialize_operations(authoritative_plan)
+                if preview is not None:
+                    try:
+                        enriched_plan = self._append_world_fact_operations(
+                            authoritative_plan,
+                            preview,
+                        )
+                        enriched_proposal_json = self._serialize_operations(
+                            enriched_plan
+                        )
+                    except Exception:  # noqa: BLE001 - optional fact plan must not poison v2
+                        logger.warning(
+                            "turn.v3_action_preview.fact_operations_skipped",
+                            extra={
+                                "preview_stage": "fact_operation_encoding",
+                                "preview_code": "invalid_optional_operations",
+                            },
+                        )
+                        preview = None
+                        plan = authoritative_plan
+                    else:
+                        plan = enriched_plan
+                        proposal_json = enriched_proposal_json
+                else:
+                    plan = authoritative_plan
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 
                 def transition_to_prepared(conn):
