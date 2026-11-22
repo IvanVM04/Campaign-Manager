@@ -7,11 +7,12 @@ building blocks from the [2026-11-20 semantic redesign audit](player-intent-sema
 It follows the additive v3 DTO/decoder in PR #285 and the isolated shadow prompt
 in PR #286.
 
-**This PR does not activate v3 interpretation in native or SillyTavern turns.**
-The existing v1/v2 interpreter, active-step mechanics adjudicator, proposal
-pipeline and commit path remain the only live turn route. The new selector is
-an isolated service with no caller in the current composition root. The
-checkpoint column is nullable for existing/historical resolutions.
+**PR #287 did not activate v3.** PR #297 adds an explicitly opt-in,
+non-authoritative preview caller in the durable planning route. With the flag
+disabled, the v1/v2 path is unchanged. With it enabled, v3 can build one action
+focus and persist the backend checkpoint under the existing lease/CAS boundary;
+the v2 plan still controls mechanics, proposals and commit. The checkpoint
+column remains nullable for existing/historical resolutions.
 
 ## Backend authority model
 
@@ -120,3 +121,35 @@ The next milestones remain separate: PR #288 owns world-fact policy and
 persistence; PR #289 owns end-to-end acceptance, live Ollama evaluation,
 SillyTavern exercise and any decision to move production prompting/runtime
 from v2 to v3. A green deterministic suite does not prove live model quality.
+
+
+## Runtime preview integration — PR #297
+
+The production-reusable prompt/schema/strict span aligner now live in
+`services/turns/player_turn_v3_prompt.py`; the test shadow runner imports the
+same definitions so the production prompt cannot silently drift from the
+acceptance harness.
+
+`V3ActionPreviewService` runs only when
+`CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED=true`. It reuses the
+v2 intent prompt's bounded context/history/evidence sections, makes one
+structured v3 call and validates the response against the strict v3 DTO.
+It then selects a bounded visible-world projection, resolves exact actor/target
+mentions with `EntityReferenceResolver`, and passes only those trusted
+reference results to `build_action_checkpoint` and `select_next_action`.
+
+The durable execution service saves the checkpoint only while the original
+planning lease is active and uses the repository's compare-and-swap conditions
+on resolution, lease, context revision and prior checkpoint. A checkpoint
+already present on retry is retained; v3 is not called again to regenerate its
+graph. The preview result does not enter the v2 `TurnResolutionPlan` and never
+reaches mechanics, dice, proposal generation, operation application or
+narration. It can identify a next candidate or a clarification inside the
+checkpoint without changing the result shown to the player.
+
+The flag defaults off. The extra model call receives a longer lease calculated
+from the two intent calls plus configured mechanics/extraction timeouts.
+Preview and optional checkpoint-storage failures are content-free and
+non-blocking for the v2 result. Typed item/resource/event resolution, world-fact
+persistence, action execution and live SillyTavern acceptance remain future
+work in PRs #298–#300.

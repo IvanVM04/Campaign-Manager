@@ -209,6 +209,17 @@ def _target_mentions(
     return tuple(result)
 
 
+def action_reference_mentions(
+    event: EventFrame,
+    act: UtteranceAct,
+) -> tuple[SemanticMention | None, tuple[SemanticMention, ...]]:
+    """Return the exact literal actor/target mentions consumed by the selector."""
+    actor = _agent(event)
+    if actor is None:
+        return None, ()
+    return actor, _target_mentions(event, act, actor)
+
+
 def _covered_by_quote(event: EventFrame, act: UtteranceAct) -> bool:
     # A broad sentence-level event span that intersects quoted content is
     # ambiguous; fail closed rather than promote a quoted instruction.

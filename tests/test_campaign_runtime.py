@@ -116,3 +116,22 @@ def test_runtime_shares_character_repository_with_world_service(
         runtime.world_service.character_applier.character_service.character_repository
         is runtime.character_repository
     )
+
+
+
+def test_runtime_installs_v3_action_preview_only_when_explicitly_enabled(
+    isolated_database,
+):
+    default_runtime = CampaignRuntimeFactory().get_runtime(1)
+    default_execution = default_runtime.durable_native_turn_service.execution_service
+    assert default_execution.v3_action_preview_service is None
+
+    enabled_runtime = CampaignRuntimeFactory(
+        llm_settings=LLMSettings(player_turn_v3_action_shadow_enabled=True)
+    ).get_runtime(1)
+    enabled_execution = enabled_runtime.durable_native_turn_service.execution_service
+    preview = enabled_execution.v3_action_preview_service
+
+    assert preview is not None
+    assert preview.intent_interpreter is enabled_execution.resolver.intent_interpreter
+    assert preview.context_builder is enabled_runtime.context_builder
