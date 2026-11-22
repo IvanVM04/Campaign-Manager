@@ -538,6 +538,12 @@ class V3ActionPreviewService:
             item.text.strip().casefold()
             for item in candidate.target_mentions
         }
+        original_target_reference_keys = {
+            item.mention.text.strip().casefold()
+            for item in baseline.resolved_references
+            if item.mention.text.strip().casefold()
+            != baseline.actor.text.strip().casefold()
+        }
         actor_key = candidate.actor.text.strip().casefold()
         actor_references = []
         for reference in candidate.resolved_references:
@@ -557,7 +563,10 @@ class V3ActionPreviewService:
                 if reference.referent_id != active_character_id:
                     raise ValueError("stored player actor reference changed identity")
                 actor_references.append(reference)
-            elif mention_key not in target_keys:
+            elif (
+                mention_key not in target_keys
+                and mention_key not in original_target_reference_keys
+            ):
                 raise ValueError("stored target reference is not bound to a target mention")
 
         if len(actor_references) > 1:
