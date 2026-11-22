@@ -104,7 +104,11 @@ class V3ActionProgressEntry:
         if set(operations) != {"operations"} or not isinstance(operations["operations"], list):
             raise ValueError("operations_json must be a typed operation envelope")
         intent = _json_object(self.intent_json, "intent_json", nullable=True)
-        if intent is not None and intent.get("schema_version") != 1:
+        if intent is not None and (
+            isinstance(intent.get("schema_version"), bool)
+            or not isinstance(intent.get("schema_version"), int)
+            or intent.get("schema_version") != 1
+        ):
             raise ValueError("intent_json must use TurnResolutionCodec envelope v1")
         mechanics = _json_object(self.mechanics_json, "mechanics_json", nullable=True)
         if mechanics is not None and set(mechanics) != {"decision", "check"}:
@@ -224,7 +228,11 @@ class V3ActionProgressSnapshot:
         _positive_int(self.context_revision, "context_revision")
         if not isinstance(self.source_sha256, str) or not _SHA256_RE.fullmatch(self.source_sha256):
             raise ValueError("source_sha256 must be a lowercase SHA-256 digest")
-        if self.schema_version != 1:
+        if (
+            isinstance(self.schema_version, bool)
+            or not isinstance(self.schema_version, int)
+            or self.schema_version != 1
+        ):
             raise ValueError("unsupported v3 action progress schema_version")
         if not isinstance(self.entries, tuple) or len(self.entries) > MAX_CHECKPOINT_NODES:
             raise ValueError("entries must be a bounded tuple")
