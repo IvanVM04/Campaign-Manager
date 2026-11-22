@@ -32,14 +32,14 @@ from services.turns.durable_turn_preparation_mapper import (
 )
 from services.turns.durable_turn_result_mapper import DurableTurnResultMapper
 from services.turns.turn_resolution_codec import TurnResolutionCodec
-from services.turns.v3_action_preview_service import (
-    V3ActionPreviewError,
-    V3ActionPreviewService,
-)
 from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
     TurnResolutionServiceError,
+)
+from services.turns.v3_action_preview_service import (
+    V3ActionPreviewError,
+    V3ActionPreviewService,
 )
 
 logger = logging.getLogger(__name__)
@@ -158,7 +158,7 @@ class DurableTurnExecutionService:
                     now=datetime.now(UTC).isoformat(),
                     conn=conn,
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001 - optional shadow persistence must not poison v2
             # A failed shadow CAS must not poison the authoritative v2 plan.
             logger.warning(
                 "turn.v3_action_preview.checkpoint_persistence_skipped",

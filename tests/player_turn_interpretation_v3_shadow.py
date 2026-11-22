@@ -6,7 +6,6 @@ a production route. The v2 interpreter remains authoritative for live turns.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -24,8 +23,6 @@ from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.player_turn_v3_prompt import (
     EvidenceSpanAlignmentError,
     ShadowPromptError,
-    V3_EVIDENCE_ALIGNMENT_VERSION,
-    V3_PROMPT_VERSION,
     V3_RESPONSE_SCHEMA,
     V3_SYSTEM_PROMPT,
     align_v3_evidence_span_offsets,

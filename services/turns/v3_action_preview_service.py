@@ -112,7 +112,7 @@ class V3ActionPreviewService:
                 expected_evidence=player_input,
                 max_prompt_bytes=self.intent_interpreter.max_prompt_bytes,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - expose only a safe preview-stage error
             raise V3ActionPreviewError("prompt_construction_failed", "prompt") from None
 
         try:
@@ -120,7 +120,7 @@ class V3ActionPreviewService:
                 prompt,
                 schema=V3_RESPONSE_SCHEMA,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - expose only a safe provider-stage error
             raise V3ActionPreviewError("provider_error", "provider") from None
         if not isinstance(raw, str):
             raise V3ActionPreviewError("provider_returned_non_text", "provider")
@@ -138,7 +138,7 @@ class V3ActionPreviewService:
             raise V3ActionPreviewError(exc.code, "evidence_alignment") from None
         except TurnInterpretationV3ValidationError as exc:
             raise V3ActionPreviewError(exc.code, "schema_validation") from None
-        except Exception:
+        except Exception:  # noqa: BLE001 - keep decoder errors content-free
             raise V3ActionPreviewError("decoder_error", "schema_validation") from None
 
     def _visible_world(
@@ -178,7 +178,7 @@ class V3ActionPreviewService:
                 supplemental_queries=normalized_queries,
                 character_entity_id=active_character_id,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - context errors must fail closed
             raise V3ActionPreviewError("visible_context_failed", "reference_resolution") from None
 
         active_entity = projection.world.entities.get(active_character_id)
@@ -333,7 +333,7 @@ class V3ActionPreviewService:
             )
         except V3ActionPreviewError:
             raise
-        except Exception:
+        except Exception:  # noqa: BLE001 - resolver errors must fail closed
             raise V3ActionPreviewError(
                 "reference_resolution_failed",
                 "reference_resolution",

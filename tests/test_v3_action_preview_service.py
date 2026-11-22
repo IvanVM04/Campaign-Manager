@@ -18,6 +18,10 @@ from models.world_context_projection import (
 from models.world_state import WorldState
 from services.context import ContextBuilder
 from services.providers import FakeLLMProvider
+from services.turns import durable_turn_execution_service as module
+from services.turns.durable_turn_execution_service import (
+    DurableTurnExecutionService,
+)
 from services.turns.intent_interpreter import IntentInterpreter
 from services.turns.player_action_selector import ActionSelectionStatus
 from services.turns.v3_action_preview_service import (
@@ -237,8 +241,6 @@ def test_v3_action_preview_rejects_missing_controlled_character():
 
 
 def test_v3_action_preview_lease_timeout_is_extended_only_when_enabled():
-    from services.turns.durable_turn_execution_service import DurableTurnExecutionService
-
     disabled = object.__new__(DurableTurnExecutionService)
     disabled.v3_action_preview_service = None
     assert disabled._planning_lease_timeout_seconds() == 180
@@ -254,8 +256,6 @@ def test_v3_action_preview_lease_timeout_is_extended_only_when_enabled():
 
 
 def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
-    from services.turns import durable_turn_execution_service as module
-    from services.turns.durable_turn_execution_service import DurableTurnExecutionService
 
     source = "Yo intento abrir la puerta"
     checkpoint = PlayerActionCheckpoint(
