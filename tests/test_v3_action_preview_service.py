@@ -709,6 +709,9 @@ def test_v3_action_planning_uses_only_selected_event_excerpt_without_reinterpret
 
 def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update():
     class RecordingResolver(TurnResolutionService):
+        def __init__(self) -> None:
+            self.calls = []
+
         def prepare_turn(
             self,
             turn_context: TurnContext,
@@ -922,6 +925,9 @@ def test_v3_action_planning_fails_closed_when_callback_reference_is_not_resolved
     from models.semantic_frames import SemanticMention
 
     class RecordingResolver(TurnResolutionService):
+        def __init__(self) -> None:
+            pass
+
         def prepare_turn(
             self,
             turn_context: TurnContext,
