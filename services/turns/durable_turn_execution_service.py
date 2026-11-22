@@ -144,6 +144,12 @@ class DurableTurnExecutionService:
                 extra={"preview_stage": "checkpoint_encoding", "preview_code": "invalid_checkpoint"},
             )
             return record
+        except Exception:  # noqa: BLE001 - an optional shadow preview must never fail v2
+            logger.warning(
+                "turn.v3_action_preview.skipped",
+                extra={"preview_stage": "preview", "preview_code": "unexpected_failure"},
+            )
+            return record
 
         try:
             with transaction("IMMEDIATE") as conn:

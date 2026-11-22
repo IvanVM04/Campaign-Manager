@@ -370,3 +370,31 @@ def test_v3_action_preview_does_not_map_plural_first_person_to_single_active_cha
     assert result.selection.candidate is not None
     assert result.selection.candidate.reason.value == "unresolved_reference"
     assert result.selection.candidate.resolved_references == ()
+
+
+
+def test_shadow_preview_unexpected_failure_does_not_poison_v2_plan():
+    from services.turns.durable_turn_execution_service import DurableTurnExecutionService
+
+    class Preview:
+        def preview(self, *args, **kwargs):
+            raise RuntimeError("private provider exception must not escape")
+
+    service = object.__new__(DurableTurnExecutionService)
+    service.v3_action_preview_service = Preview()
+    record = SimpleNamespace(
+        id=52,
+        action_checkpoint_json=None,
+        context_revision=None,
+    )
+
+    result = service._persist_v3_action_checkpoint(
+        record,
+        context=object(),
+        player_input="Yo intento abrir la puerta",
+        recent=[],
+        revision=12,
+        lease_token="lease-token",
+    )
+
+    assert result is record
