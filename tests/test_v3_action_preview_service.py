@@ -805,7 +805,7 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
     recovered = V3ActionPlanningAdapter().restore_staged_action(
         replace(preview, checkpoint=in_progress),
         _context(world),
-        source,
+        "  " + source + "  ",
         progress_json=updates["proposal_json"],
         event_id="event_open",
         execution_key=stable_key,
@@ -814,6 +814,18 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
     assert recovered.plan == planned.plan
     assert recovered.intent_analysis == planned.intent_analysis
     assert recovered.evidence_excerpt == planned.evidence_excerpt
+
+    with pytest.raises(V3ActionPlanningError) as wrong_source:
+        V3ActionPlanningAdapter().restore_staged_action(
+            replace(preview, checkpoint=in_progress),
+            _context(world),
+            source + " ahora",
+            progress_json=updates["proposal_json"],
+            event_id="event_open",
+            execution_key=stable_key,
+            operation_parser=SimpleNamespace(parse=lambda _payload: []),
+        )
+    assert wrong_source.value.code == "checkpoint_source_mismatch"
 
 
 def test_v3_action_planning_passes_resolved_callback_mentions_separately_from_current_evidence():
