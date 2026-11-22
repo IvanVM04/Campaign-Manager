@@ -9,7 +9,6 @@ aggregate proposal expected by TurnResolutionCodec.
 from __future__ import annotations
 
 import dataclasses
-import hashlib
 import json
 import re
 from typing import Any
