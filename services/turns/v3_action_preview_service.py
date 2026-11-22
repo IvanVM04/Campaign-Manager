@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from models.player_action_checkpoint import PlayerActionCheckpoint
+from models.player_action_checkpoint import (
+    FactValidationReceipt,
+    PlayerActionCheckpoint,
+)
 from models.player_turn_interpretation_v3 import (
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
@@ -19,6 +22,7 @@ from models.player_turn_interpretation_v3 import (
 from models.resolved_conversation_reference import ResolvedConversationReference
 from models.semantic_frames import SemanticMention
 from services.turns.world_fact_policy import (
+    FactDecision,
     FactDecisionStatus,
     FactEndpointResolution,
     evaluate_world_facts,
@@ -410,9 +414,9 @@ class V3ActionPreviewService:
                 "reference_resolution_failed",
                 "reference_resolution",
             ) from None
-        fact_decisions = ()
-        fact_receipts = ()
-        fact_operations = ()
+        fact_decisions: tuple[FactDecision, ...] = ()
+        fact_receipts: tuple[FactValidationReceipt, ...] = ()
+        fact_operations: tuple[WorldOperation, ...] = ()
         if self.world_facts_enabled and interpretation.world_facts:
             try:
                 fact_decisions = evaluate_world_facts(
