@@ -136,10 +136,13 @@ class V3ActionPlanningAdapter:
     @staticmethod
     def _references(
         candidate: GameplayActionCandidate,
+        additional_references: tuple[GameplayResolvedReference, ...],
+        visible_world,
     ) -> tuple[tuple[ResolvedConversationReference, ...], dict[str, str]]:
         resolved: list[ResolvedConversationReference] = []
         by_mention: dict[str, str] = {}
-        for reference in candidate.resolved_references:
+        all_references = (*candidate.resolved_references, *additional_references)
+        for reference in all_references:
             if (
                 reference.category is not GameplayResolvedReferenceKind.ENTITY
                 or isinstance(reference.referent_id, bool)
@@ -147,6 +150,17 @@ class V3ActionPlanningAdapter:
             ):
                 raise V3ActionPlanningError(
                     "unsupported_reference_category",
+                    "reference_mapping",
+                )
+            entity = visible_world.entities.get(reference.referent_id)
+            if (
+                entity is None
+                or not entity.active
+                or entity.id != reference.referent_id
+                or entity.name != reference.name
+            ):
+                raise V3ActionPlanningError(
+                    "canonical_reference_not_visible",
                     "reference_mapping",
                 )
             mention = reference.mention.text.strip()
@@ -332,7 +346,21 @@ class V3ActionPlanningAdapter:
             act,
             evidence_excerpt,
         )
-        references, references_by_mention = self._references(candidate)
+        event_reference_resolution = (
+            preview.reference_resolutions.get(candidate.source_event_id)
+            if preview.reference_resolutions is not None
+            else None
+        )
+        supplemental_references = (
+            event_reference_resolution.resolved_targets
+            if event_reference_resolution is not None
+            else ()
+        )
+        references, references_by_mention = self._references(
+            candidate,
+            supplemental_references,
+            projection.world,
+        )
         unresolved_external = tuple(
             mention
             for mention in external_mentions
