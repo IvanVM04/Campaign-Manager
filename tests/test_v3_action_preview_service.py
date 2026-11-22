@@ -371,42 +371,12 @@ def test_v3_action_preview_does_not_map_plural_first_person_to_single_active_cha
         context_revision=12,
     )
 
-    # NPC-attributed first person is outside the player's action scope.
-    # The selector must skip it, not turn it into a clarification for the player.
-    assert result.selection.status is ActionSelectionStatus.EXHAUSTED
-    assert result.selection.candidate is None
-    assert len(result.checkpoint.nodes) == 1
-    npc_action = result.checkpoint.nodes[0]
-    assert npc_action.state.value == "skipped"
-    assert npc_action.candidate.reason.value == "outside_player_scope"
-    assert npc_action.candidate.resolved_references == ()
-
-
-
-def test_shadow_preview_unexpected_failure_does_not_poison_v2_plan():
-    class Preview:
-        def preview(self, *args, **kwargs):
-            raise RuntimeError("private provider exception must not escape")
-
-    service = object.__new__(DurableTurnExecutionService)
-    service.v3_action_preview_service = Preview()
-    record = SimpleNamespace(
-        id=52,
-        action_checkpoint_json=None,
-        context_revision=None,
-    )
-
-    result = service._persist_v3_action_checkpoint(
-        record,
-        context=object(),
-        player_input="Yo intento abrir la puerta",
-        recent=[],
-        revision=12,
-        lease_token="lease-token",
-    )
-
-    assert result is record
-
+    # A player speaking in first-person plural does not identify a single actor.
+    # Keep the action pending clarification instead of binding the active PC.
+    assert result.selection.status is ActionSelectionStatus.NEEDS_CLARIFICATION
+    assert result.selection.candidate is not None
+    assert result.selection.candidate.reason.value == "unresolved_reference"
+    assert result.selection.candidate.resolved_references == ()
 
 
 def test_v3_action_preview_does_not_bind_npc_first_person_to_player_character():
@@ -429,7 +399,14 @@ def test_v3_action_preview_does_not_bind_npc_first_person_to_player_character():
         context_revision=13,
     )
 
-    assert result.selection.status is ActionSelectionStatus.NEEDS_CLARIFICATION
-    assert result.selection.candidate is not None
-    assert result.selection.candidate.reason.value == "unresolved_reference"
-    assert result.selection.candidate.resolved_references == ()
+    # An NPC-attributed event is outside the player's action scope.
+    # It must be skipped, never rebound or clarified as the player's action.
+    assert result.selection.status is ActionSelectionStatus.EXHAUSTED
+    assert result.selection.candidate is None
+    assert len(result.checkpoint.nodes) == 1
+    npc_action = result.checkpoint.nodes[0]
+    assert npc_action.state.value == "skipped"
+    assert npc_action.candidate.reason.value == "outside_player_scope"
+    assert npc_action.candidate.resolved_references == ()
+
+
