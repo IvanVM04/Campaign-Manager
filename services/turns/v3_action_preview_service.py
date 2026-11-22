@@ -345,16 +345,20 @@ class V3ActionPreviewService:
         self,
         interpretation: TurnInterpretationV3,
     ) -> dict[str, tuple[SemanticMention, ...]]:
-        by_event: dict[str, list[SemanticMention]] = {}
+        by_event: dict[str, dict[str, SemanticMention]] = {}
         for link in interpretation.discourse_links:
             if link.link_type.value != "callback" or link.anchor_candidate is None:
                 continue
             if not link.source_ref.startswith("event:"):
                 continue
+            mention = SemanticMention(link.anchor_candidate)
+            key = mention.text.strip().casefold()
+            if not key:
+                continue
             event_id = link.source_ref.removeprefix("event:")
-            by_event.setdefault(event_id, []).append(SemanticMention(link.anchor_candidate))
+            by_event.setdefault(event_id, {}).setdefault(key, mention)
         return {
-            event_id: tuple(dict.fromkeys(mentions))
+            event_id: tuple(mentions.values())
             for event_id, mentions in by_event.items()
         }
 
@@ -434,7 +438,14 @@ class V3ActionPreviewService:
             resolved_targets: list[GameplayResolvedReference] = []
             unresolved_targets: list[SemanticMention] = []
             ambiguous_targets: list[SemanticMention] = []
-            extra_targets = callback_mentions.get(event.local_id, ())
+            direct_target_keys = {
+                item.text.strip().casefold() for item in targets
+            }
+            extra_targets = tuple(
+                item
+                for item in callback_mentions.get(event.local_id, ())
+                if item.text.strip().casefold() not in direct_target_keys
+            ) if act.speaker_role is SpeakerRole.PLAYER else ()
             callback_references = ()
             if extra_targets:
                 try:
