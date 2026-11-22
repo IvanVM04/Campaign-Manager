@@ -21,6 +21,7 @@ from models.player_intent_analysis import (
 )
 from models.player_turn_interpretation_v3 import (
     EventFrame,
+    EvidenceSpan,
     GameplayActionCandidate,
     GameplayActionEligibility,
     GameplayResolvedReference,
@@ -30,7 +31,7 @@ from models.player_turn_interpretation_v3 import (
     UtteranceAct,
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
-from models.semantic_frames import EvidenceSpan, SemanticActionFrame
+from models.semantic_frames import SemanticActionFrame
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from models.world_context_projection import WorldContextProjection
