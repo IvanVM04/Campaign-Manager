@@ -572,15 +572,19 @@ class DurableTurnExecutionService:
                     )
                 plan = self._plan_from_record(record)
             else:
+                prepare_options = {
+                    "manual_mode": dice_mode == "manual",
+                    "recent_turns": recent,
+                }
+                if self._world_facts_enabled():
+                    prepare_options["mechanics_failure_is_non_fatal"] = True
                 with bind_resolution_context(
                     str(self._required_resolution_id(record))
                 ):
                     plan = self.resolver.prepare_turn(
                         context,
                         normalized,
-                        manual_mode=(dice_mode == "manual"),
-                        recent_turns=recent,
-                        mechanics_failure_is_non_fatal=self._world_facts_enabled(),
+                        **prepare_options,
                     )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
@@ -672,6 +676,8 @@ class DurableTurnExecutionService:
                 try:
                     with transaction("IMMEDIATE") as conn:
                         if preview is not None:
+                            if not isinstance(lease_token, str) or not lease_token:
+                                raise _OptionalV3CheckpointSaveFailure from None
                             try:
                                 record = self._save_v3_action_checkpoint(
                                     record,
