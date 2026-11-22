@@ -34,7 +34,6 @@ from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from operations.world_operations import WorldOperation
 from services.context import ContextBuilder, ConversationReferenceResolver
-from services.context.conversation_reference_resolver import ConversationReferenceResolution
 from models.resolved_conversation_reference import ResolvedConversationGroupReference
 from services.context.entity_reference_resolver import EntityReferenceResolver
 from services.turns.intent_interpreter import IntentInterpreter
@@ -567,7 +566,7 @@ class V3ActionPreviewService:
                     or candidate.resolved_references != previous.resolved_references
                 ):
                     raise ValueError("stored action references no longer match the visible world")
-        except Exception as exc:  # noqa: BLE001 - recovery must fail closed
+        except Exception:  # noqa: BLE001 - recovery must fail closed
             raise V3ActionPreviewError("stored_references_invalid", "recovery") from None
         selection = select_next_action(checkpoint)
         return V3ActionPreviewResult(
