@@ -30,7 +30,6 @@ from services.turns.player_turn_v3_prompt import (
     build_v3_shadow_prompt,
 )
 
-
 __all__ = [
     "V3_EVIDENCE_ALIGNMENT_VERSION",
     "V3_PROMPT_VERSION",

@@ -247,9 +247,12 @@ class LLMSettings:
             intent_think=optional_bool_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_THINK", common_think
             ),
-            player_turn_v3_action_shadow_enabled=optional_bool_value(
-                "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED",
-                defaults.player_turn_v3_action_shadow_enabled,
+            player_turn_v3_action_shadow_enabled=(
+                optional_bool_value(
+                    "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED",
+                    defaults.player_turn_v3_action_shadow_enabled,
+                )
+                is True
             ),
             intent_prompt_max_bytes=integer_value(
                 "CAMPAIGN_MANAGER_LLM_INTENT_PROMPT_MAX_BYTES",
