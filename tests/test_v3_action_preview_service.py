@@ -634,7 +634,12 @@ def test_v3_action_planning_uses_only_selected_event_excerpt_without_reinterpret
         def __init__(self):
             self.calls = []
 
-        def prepare_turn(self, turn_context, player_input, **kwargs):
+        def prepare_turn(
+            self,
+            turn_context: TurnContext,
+            player_input: str,
+            **kwargs: Any,
+        ) -> TurnResolutionPlan:
             self.calls.append(
                 {
                     "turn_context": turn_context,
@@ -713,7 +718,12 @@ def test_v3_action_planning_passes_resolved_callback_mentions_separately_from_cu
         def __init__(self):
             self.calls = []
 
-        def prepare_turn(self, turn_context, player_input, **kwargs):
+        def prepare_turn(
+            self,
+            turn_context: TurnContext,
+            player_input: str,
+            **kwargs: Any,
+        ) -> TurnResolutionPlan:
             self.calls.append({"player_input": player_input, **kwargs})
             return TurnResolutionPlan(
                 player_input=player_input,
@@ -788,7 +798,12 @@ def test_v3_action_planning_fails_closed_when_callback_reference_is_not_resolved
     from models.semantic_frames import SemanticMention
 
     class RecordingResolver(TurnResolutionService):
-        def prepare_turn(self, turn_context, player_input, **kwargs):
+        def prepare_turn(
+            self,
+            turn_context: TurnContext,
+            player_input: str,
+            **kwargs: Any,
+        ) -> TurnResolutionPlan:
             return TurnResolutionPlan(
                 player_input=player_input,
                 narrative="",
