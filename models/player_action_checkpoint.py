@@ -364,7 +364,7 @@ class PlayerActionCheckpoint:
     interpretation_sha256: str
     nodes: tuple[ActionCheckpointNode, ...]
     fact_validation_receipts: tuple[FactValidationReceipt, ...] = ()
-    schema_version: int = CHECKPOINT_SCHEMA_VERSION
+    schema_version: int = 1
     interpretation_json: str | None = None
 
     def __post_init__(self) -> None:
