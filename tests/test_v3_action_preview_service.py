@@ -31,6 +31,7 @@ from services.turns.v3_action_planning_adapter import (
     V3ActionPlanningAdapter,
     V3ActionPlanningError,
 )
+from services.turns.v3_action_progress_codec import V3ActionProgressSnapshot
 from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
     V3ActionPreviewService,
@@ -703,6 +704,82 @@ def test_v3_action_planning_uses_only_selected_event_excerpt_without_reinterpret
     assert provider.call_count == call_count
     assert result.plan.player_input == source
     assert result.plan.intent_evidence_text == source
+
+
+def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update():
+    class RecordingResolver(TurnResolutionService):
+        def prepare_turn(
+            self,
+            turn_context: TurnContext,
+            player_input: str,
+            **kwargs: Any,
+        ) -> TurnResolutionPlan:
+            return TurnResolutionPlan(
+                player_input=player_input,
+                narrative="",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                intent_analysis=kwargs["intent_analysis_override"],
+                intent_evidence_text=kwargs["intent_evidence_text"],
+            )
+
+    source = "Yo intento abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+        }
+    )
+    preview_service, _provider, _builder = _preview_service(
+        world,
+        _v3_response(source),
+    )
+    preview = preview_service.preview(
+        _context(world),
+        source,
+        resolution_id=54,
+        context_revision=18,
+    )
+    planned = V3ActionPlanningAdapter().prepare_next_action(
+        RecordingResolver(),
+        preview,
+        _context(world),
+        source,
+    )
+
+    updates = planned.progress_updates(execution_key="e" * 64)
+    snapshot = V3ActionProgressSnapshot.from_json(updates["proposal_json"])
+    assert snapshot.resolution_id == 54
+    assert snapshot.context_revision == 18
+    assert snapshot.source_sha256 == preview.checkpoint.source_sha256
+    assert len(snapshot.entries) == 1
+    staged = snapshot.entries[0]
+    assert staged.event_id == "event_open"
+    assert staged.action_id == "action_open"
+    assert staged.source_order == 0
+    assert staged.execution_key == "e" * 64
+    assert staged.evidence_excerpt == "Yo intento abrir la puerta"
+    assert json.loads(staged.operations_json) == {"operations": []}
+    assert json.loads(staged.intent_json)["source_text"] == source
+
+    replayed = planned.progress_updates(
+        execution_key="e" * 64,
+        previous_progress_json=updates["proposal_json"],
+    )
+    assert replayed == updates
+
+    with pytest.raises(V3ActionPlanningError) as rebound:
+        planned.progress_updates(
+            execution_key="f" * 64,
+            previous_progress_json=updates["proposal_json"],
+        )
+    assert rebound.value.code == "staged_progress_rejected"
 
 
 def test_v3_action_planning_passes_resolved_callback_mentions_separately_from_current_evidence():
