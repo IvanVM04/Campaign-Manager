@@ -3,6 +3,7 @@
 This is the navigation entry point for maintainers, coding agents and product work. The repository contains both current source-of-truth documents and dated implementation/audit snapshots. **A date-stamped PR record is not automatically current guidance.**
 
 - [V3 action-preview runtime integration — 2026-11-22](architecture/v3-action-preview-runtime-integration-2026-11-22.md)
+- [V3 world facts durable commit — 2026-11-22](architecture/v3-world-facts-durable-commit-2026-11-22.md)
 ## Current source of truth — 2026-11-21
 
 **Prioridad técnica máxima:** programa de comprensión semántica #292–#305.
