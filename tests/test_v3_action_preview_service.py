@@ -23,6 +23,7 @@ from services.turns.durable_turn_execution_service import (
     DurableTurnExecutionService,
 )
 from services.turns.intent_interpreter import IntentInterpreter
+from services.turns.turn_resolution_service import TurnResolutionPlan
 from services.turns.player_action_selector import ActionSelectionStatus
 from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
@@ -553,3 +554,38 @@ def test_v3_fact_preview_is_disabled_by_default_even_with_fact_candidates():
     assert result.fact_candidate_count == 0
     assert result.checkpoint.fact_validation_receipts == ()
     assert result.world_fact_operations == ()
+
+
+
+def test_v3_fact_operations_are_independent_of_a_failed_mechanics_result():
+    from operations.world_operations import CreateRelationOperation
+
+    operation = CreateRelationOperation(
+        relation_id="fact_kinship_failed_check",
+        subject_id=8,
+        relation_type="kinship.sibling",
+        target_id=9,
+    )
+    mechanics_result = SimpleNamespace(
+        check=SimpleNamespace(success=False),
+        decision=SimpleNamespace(decision=SimpleNamespace(value="skill_check")),
+    )
+    plan = TurnResolutionPlan(
+        player_input="Mara es hermana de Aldric, pero fallo la tirada.",
+        narrative="",
+        world_operations=(),
+        character_operations=(),
+        ordered_operations=(),
+        mechanics_result=mechanics_result,
+    )
+    preview = SimpleNamespace(world_fact_operations=(operation,))
+
+    updated = DurableTurnExecutionService._append_world_fact_operations(
+        plan,
+        preview,
+    )
+
+    assert updated.mechanics_result is mechanics_result
+    assert updated.world_operations == (operation,)
+    assert updated.ordered_operations == (operation,)
+    assert updated.character_operations == ()
