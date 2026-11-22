@@ -1,6 +1,7 @@
 import hashlib
 import json
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -797,17 +798,17 @@ def test_v3_preview_constructor_rejects_invalid_dependencies_and_options():
     builder = ContextBuilder()
 
     with pytest.raises(TypeError, match="intent_interpreter"):
-        V3ActionPreviewService(object(), builder)
+        V3ActionPreviewService(cast(IntentInterpreter, object()), builder)
     with pytest.raises(TypeError, match="context_builder"):
-        V3ActionPreviewService(interpreter, object())
+        V3ActionPreviewService(interpreter, cast(ContextBuilder, object()))
     with pytest.raises(ValueError, match="max_context_bytes"):
         V3ActionPreviewService(interpreter, builder, max_context_bytes=True)
     with pytest.raises(ValueError, match="max_context_bytes"):
         V3ActionPreviewService(interpreter, builder, max_context_bytes=0)
     with pytest.raises(TypeError, match="reference_resolver"):
-        V3ActionPreviewService(interpreter, builder, reference_resolver=object())
+        V3ActionPreviewService(interpreter, builder, reference_resolver=cast(Any, object()))
     with pytest.raises(TypeError, match="world_facts_enabled"):
-        V3ActionPreviewService(interpreter, builder, world_facts_enabled=1)
+        V3ActionPreviewService(interpreter, builder, world_facts_enabled=cast(bool, 1))
 
 
 def test_v3_preview_interpretation_fails_closed_when_prompt_construction_fails(
@@ -875,7 +876,7 @@ def test_v3_preview_rejects_invalid_context_and_empty_input():
 
     with pytest.raises(TypeError, match="context"):
         service.preview(
-            object(), source, resolution_id=81, context_revision=1
+            cast(TurnContext, object()), source, resolution_id=81, context_revision=1
         )
     with pytest.raises(ValueError, match="player_input"):
         service.preview(
