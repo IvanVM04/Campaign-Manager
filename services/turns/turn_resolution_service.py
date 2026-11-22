@@ -17,6 +17,7 @@ from models.resolved_conversation_reference import (
 )
 from models.resolved_world_reference import ResolvedWorldReference
 from models.turn_context import TurnContext
+from models.world_context_projection import WorldContextProjection
 from models.turn_record import TurnRecord
 from models.turn_resolution_result import TurnResolutionResult
 from models.world_state import WorldState
