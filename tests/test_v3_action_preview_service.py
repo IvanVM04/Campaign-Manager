@@ -256,7 +256,6 @@ def test_v3_action_preview_lease_timeout_is_extended_only_when_enabled():
 
 
 def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
-
     source = "Yo intento abrir la puerta"
     checkpoint = PlayerActionCheckpoint(
         resolution_id=51,
@@ -321,8 +320,6 @@ def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
 
 
 def test_shadow_checkpoint_persistence_never_regenerates_an_existing_checkpoint():
-    from services.turns.durable_turn_execution_service import DurableTurnExecutionService
-
     class Preview:
         calls = 0
 
