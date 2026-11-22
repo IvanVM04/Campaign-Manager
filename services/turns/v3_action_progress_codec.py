@@ -271,6 +271,15 @@ class V3ActionProgressSnapshot:
             raise ValueError("staged actions must be appended in source order")
         return dataclasses.replace(self, entries=(*self.entries, entry))
 
+    def entry_for_event(self, event_id: str) -> V3ActionProgressEntry | None:
+        """Return the immutable staged action snapshot for one event."""
+        if not isinstance(event_id, str) or not _EVENT_ID_RE.fullmatch(event_id):
+            raise ValueError("event_id must be a bounded event_ identifier")
+        return next(
+            (item for item in self.entries if item.event_id == event_id),
+            None,
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
