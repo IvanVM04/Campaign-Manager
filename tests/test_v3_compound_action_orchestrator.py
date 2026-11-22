@@ -162,7 +162,7 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
     failed = orchestrator.run(
         _checkpoint(),
         execute=fail,
-        persist_checkpoint=first_persisted.append,
+        persist_checkpoint=first_run_persisted.append,
     )
 
     node = _node(failed.checkpoint, "event_open")
