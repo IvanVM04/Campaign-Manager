@@ -26,7 +26,6 @@ from models.player_turn_interpretation_v3 import (
     GameplayResolvedReferenceKind,
     GameplayWorkflow,
     SpeakerRole,
-    TurnInterpretationV3,
     UtteranceAct,
 )
 from models.resolved_conversation_reference import ResolvedConversationReference
