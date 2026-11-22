@@ -371,10 +371,15 @@ def test_v3_action_preview_does_not_map_plural_first_person_to_single_active_cha
         context_revision=12,
     )
 
-    assert result.selection.status is ActionSelectionStatus.NEEDS_CLARIFICATION
-    assert result.selection.candidate is not None
-    assert result.selection.candidate.reason.value == "unresolved_reference"
-    assert result.selection.candidate.resolved_references == ()
+    # NPC-attributed first person is outside the player's action scope.
+    # The selector must skip it, not turn it into a clarification for the player.
+    assert result.selection.status is ActionSelectionStatus.EXHAUSTED
+    assert result.selection.candidate is None
+    assert len(result.checkpoint.nodes) == 1
+    npc_action = result.checkpoint.nodes[0]
+    assert npc_action.state.value == "skipped"
+    assert npc_action.candidate.reason.value == "outside_player_scope"
+    assert npc_action.candidate.resolved_references == ()
 
 
 
