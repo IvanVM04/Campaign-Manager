@@ -661,7 +661,7 @@ def test_build_v3_action_preview_fails_open_with_safe_diagnostic(
         )
 
     assert result is None
-    assert caplog.records[-1].message == "turn.v3_action_preview.skipped"
+    assert caplog.records[-1].getMessage() == "turn.v3_action_preview.skipped"
     assert caplog.records[-1].preview_stage == expected_stage
     assert caplog.records[-1].preview_code == expected_code
 
@@ -761,7 +761,7 @@ def test_log_v3_action_preview_handles_missing_and_selected_action(caplog):
     with caplog.at_level(logging.INFO):
         DurableTurnExecutionService._log_v3_action_preview(preview)
 
-    assert caplog.records[-1].message == "turn.v3_action_preview.completed"
+    assert caplog.records[-1].getMessage() == "turn.v3_action_preview.completed"
     assert caplog.records[-1].preview_status == "selected"
     assert caplog.records[-1].preview_selected_action_type == "interaction"
     assert caplog.records[-1].preview_action_node_count == 2
