@@ -2,7 +2,7 @@
 
 The orchestrator owns sequencing only. Action execution is delegated to a
 backend adapter that uses the rules engine and returns an authoritative
-ActionOutcome. Persistence is lease-fenced/CAS by the caller. Adapter errors
+CompoundActionExecution. Persistence is lease-fenced/CAS by the caller. Adapter errors
 are infrastructure failures, never gameplay failures, and retries keep the
 same execution key.
 """
@@ -212,7 +212,7 @@ class V3CompoundActionOrchestrator:
                     )
             except Exception as exc:  # noqa: BLE001 - adapter errors are technical
                 current = mark_action_execution_failed(current, event_id)
-                persist_checkpoint(current)
+                self._persist(persist_checkpoint, current)
                 attempts.append(
                     CompoundActionAttempt(
                         event_id=event_id,
@@ -230,16 +230,24 @@ class V3CompoundActionOrchestrator:
                     technical_error_type=type(exc).__name__,
                 )
 
-            current = mark_action_completed(current, event_id, outcome)
-            # If this write fails, leave the durable node IN_PROGRESS. On
-            # retry, the same key lets the adapter replay instead of reapply.
-            persist_checkpoint(current)
+            current = mark_action_completed(
+                current,
+                event_id,
+                execution.outcome,
+            )
+            # Checkpoint and staged JSON share one caller-controlled CAS.
+            # If the write fails, the durable node remains IN_PROGRESS.
+            self._persist(
+                persist_checkpoint,
+                current,
+                execution.progress_updates,
+            )
             attempts.append(
                 CompoundActionAttempt(
                     event_id=event_id,
                     execution_key=execution_key,
                     resumed=resumed,
-                    outcome=outcome,
+                    outcome=execution.outcome,
                 )
             )
 
