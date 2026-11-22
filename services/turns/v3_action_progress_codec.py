@@ -14,7 +14,6 @@ import re
 from typing import Any
 
 from models.player_action_checkpoint import MAX_CHECKPOINT_NODES
-
 from services.turns.turn_resolution_service import TurnResolutionPlan
 
 
@@ -102,6 +101,8 @@ class V3ActionProgressEntry:
         ):
             raise ValueError("evidence_excerpt must contain 1-300 characters")
         operations = _json_object(self.operations_json, "operations_json")
+        if operations is None:
+            raise TypeError("operations_json must contain an object")
         if set(operations) != {"operations"} or not isinstance(operations["operations"], list):
             raise ValueError("operations_json must be a typed operation envelope")
         intent = _json_object(self.intent_json, "intent_json", nullable=True)
