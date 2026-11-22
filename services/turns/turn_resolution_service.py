@@ -495,6 +495,19 @@ class TurnResolutionService:
         resolved_references: tuple[ResolvedConversationReferenceResult, ...] = (
             resolved_references_override or ()
         )
+        if additional_resolved_reference_mentions:
+            available_reference_mentions = {
+                item.mention.strip().casefold()
+                for item in resolved_references
+                if isinstance(item, ResolvedConversationReference)
+            }
+            if any(
+                mention.strip().casefold() not in available_reference_mentions
+                for mention in additional_resolved_reference_mentions
+            ):
+                raise ValueError(
+                    "additional resolved reference mentions must match trusted resolved entity references"
+                )
         resolved_world_references: tuple[ResolvedWorldReference, ...] = ()
         needs_mechanics_context = (
             self.intent_interpreter is not None
@@ -738,6 +751,7 @@ class TurnResolutionService:
                         if isinstance(item, ResolvedConversationReference)
                     ),
                     resolved_world_references=resolved_world_references,
+                    additional_reference_mentions=additional_resolved_reference_mentions,
                 )
             except MechanicsAdjudicatorError as exc:
                 if not mechanics_failure_is_non_fatal:
