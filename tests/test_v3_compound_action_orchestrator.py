@@ -181,7 +181,7 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
 
     def retry(candidate, key, resumed):
         seen.append((candidate.source_event_id, key, resumed))
-        return ActionOutcome.SUCCESS
+        return CompoundActionExecution(ActionOutcome.SUCCESS)
 
     completed = orchestrator.run(
         failed.checkpoint,
@@ -280,7 +280,7 @@ def test_failed_start_checkpoint_persistence_prevents_action_execution():
 @pytest.mark.parametrize(
     ("checkpoint", "execute", "persist", "error", "message"),
     [
-        (None, lambda *_args: ActionOutcome.SUCCESS, lambda _value: None, TypeError, "checkpoint"),
+        (None, lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS), lambda _value: None, TypeError, "checkpoint"),
         (_checkpoint(), None, lambda _value: None, TypeError, "execute"),
         (_checkpoint(), lambda *_args: ActionOutcome.SUCCESS, None, TypeError, "persist_checkpoint"),
     ],
@@ -377,7 +377,10 @@ def test_orchestrator_does_not_execute_when_failure_checkpoint_cannot_be_saved()
 
 def test_orchestrator_persists_dependency_skip_transition_before_finishing():
     persisted = []
-    outcomes = iter((\n        CompoundActionExecution(ActionOutcome.FAILURE),\n        CompoundActionExecution(ActionOutcome.SUCCESS),\n    ))
+    outcomes = iter((
+        CompoundActionExecution(ActionOutcome.FAILURE),
+        CompoundActionExecution(ActionOutcome.SUCCESS),
+    ))
 
     result = V3CompoundActionOrchestrator().run(
         _checkpoint(),
