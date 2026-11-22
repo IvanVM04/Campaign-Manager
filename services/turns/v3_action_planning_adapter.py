@@ -8,6 +8,7 @@ and transcript association after planning has completed.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, replace
 
 from models.player_intent_analysis import (
@@ -332,6 +333,9 @@ class V3ActionPlanningAdapter:
             raise TypeError("context must be a TurnContext")
         if not isinstance(player_input, str) or not player_input.strip():
             raise ValueError("player_input must not be empty")
+        normalized_input = player_input.strip()
+        if hashlib.sha256(normalized_input.encode("utf-8")).hexdigest() != preview.checkpoint.source_sha256:
+            raise V3ActionPlanningError("checkpoint_source_mismatch", "recovery")
         if operation_parser is None or not callable(
             getattr(operation_parser, "parse", None)
         ):
@@ -412,7 +416,7 @@ class V3ActionPlanningAdapter:
 
         plan = TurnResolutionCodec.plan_from_v3_action_progress_entry(
             entry,
-            original_input=player_input,
+            original_input=normalized_input,
             operation_parser=operation_parser,
         )
         analysis = plan.intent_analysis
