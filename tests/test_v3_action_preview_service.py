@@ -4,10 +4,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
-from services.turns.v3_action_planning_adapter import (
-    V3ActionPlanningAdapter,
-    V3ActionPlanningError,
-)
 
 from models.campaign_scope import CampaignScope
 from models.campaign_state import CampaignState
@@ -30,6 +26,10 @@ from services.turns.player_action_selector import ActionSelectionStatus
 from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
+)
+from services.turns.v3_action_planning_adapter import (
+    V3ActionPlanningAdapter,
+    V3ActionPlanningError,
 )
 from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
