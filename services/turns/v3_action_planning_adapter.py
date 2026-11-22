@@ -9,7 +9,6 @@ and transcript association after planning has completed.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from itertools import product
 
 from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.player_intent_analysis import (
