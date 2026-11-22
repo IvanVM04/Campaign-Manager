@@ -22,8 +22,15 @@ from services.turns.durable_turn_execution_service import (
     DurableTurnExecutionService,
 )
 from services.turns.intent_interpreter import IntentInterpreter
+from services.turns.player_action_planning_adapter import (
+    V3ActionPlanningAdapter,
+    V3ActionPlanningError,
+)
 from services.turns.player_action_selector import ActionSelectionStatus
-from services.turns.turn_resolution_service import TurnResolutionPlan
+from services.turns.turn_resolution_service import (
+    TurnResolutionPlan,
+    TurnResolutionService,
+)
 from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
     V3ActionPreviewService,
@@ -619,6 +626,220 @@ def test_v3_restore_reference_validator_rejects_stale_entity_name():
             world,
             7,
         )
+
+
+def test_v3_action_planning_uses_only_selected_event_excerpt_without_reinterpreting():
+    from models.player_intent_analysis import IntentModality
+    from models.player_turn_interpretation_v3 import GameplayActionCandidate
+
+    class RecordingResolver(TurnResolutionService):
+        def __init__(self):
+            self.calls = []
+
+        def prepare_turn(self, turn_context, player_input, **kwargs):
+            self.calls.append(
+                {
+                    "turn_context": turn_context,
+                    "player_input": player_input,
+                    **kwargs,
+                }
+            )
+            return TurnResolutionPlan(
+                player_input=player_input,
+                narrative="",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+            )
+
+    source = "Yo intento abrir la puerta y después examino la caja"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+            9: Entity(
+                id=9,
+                name="Caja antigua",
+                entity_type="object",
+                aliases=["la caja"],
+            ),
+        }
+    )
+    preview_service, provider, _builder = _preview_service(world, _v3_response(source))
+    preview = preview_service.preview(
+        _context(world),
+        source,
+        resolution_id=51,
+        context_revision=15,
+    )
+    call_count = provider.call_count
+    resolver = RecordingResolver()
+
+    result = V3ActionPlanningAdapter().prepare_next_action(
+        resolver,
+        preview,
+        _context(world),
+        source,
+    )
+
+    assert len(resolver.calls) == 1
+    call = resolver.calls[0]
+    assert call["player_input"] == "Yo intento abrir la puerta"
+    assert "examino la caja" not in call["player_input"]
+    assert call["intent_analysis_override"] == result.intent_analysis
+    assert result.intent_analysis.active_step is not None
+    assert result.intent_analysis.active_step.modality is IntentModality.ATTEMPTED
+    assert result.intent_analysis.active_step.action_frame is not None
+    assert result.intent_analysis.active_step.action_frame.predicate == "abrir"
+    assert {item.entity_id for item in call["resolved_references_override"]} == {7, 8}
+    assert provider.call_count == call_count
+    assert result.plan.player_input == source
+    assert result.plan.intent_evidence_text == source
+
+
+def test_v3_action_planning_passes_resolved_callback_mentions_separately_from_current_evidence():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+    )
+    from models.semantic_frames import SemanticMention
+
+    class RecordingResolver(TurnResolutionService):
+        def __init__(self):
+            self.calls = []
+
+        def prepare_turn(self, turn_context, player_input, **kwargs):
+            self.calls.append({"player_input": player_input, **kwargs})
+            return TurnResolutionPlan(
+                player_input=player_input,
+                narrative="",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+            )
+
+    source = "Yo intento abrir la puerta y luego me acerco a ella"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+            9: Entity(id=9, name="Caja antigua", entity_type="object"),
+        }
+    )
+    preview_service, _provider, _builder = _preview_service(world, _v3_response(source))
+    preview = preview_service.preview(
+        _context(world),
+        source,
+        resolution_id=52,
+        context_revision=16,
+    )
+    node = preview.checkpoint.nodes[0]
+    callback_mention = SemanticMention("la caja")
+    callback_reference = GameplayResolvedReference(
+        mention=callback_mention,
+        category=GameplayResolvedReferenceKind.ENTITY,
+        referent_id=9,
+        name="Caja antigua",
+    )
+    candidate = replace(
+        node.candidate,
+        target_mentions=(*node.candidate.target_mentions, callback_mention),
+        resolved_references=(
+            *node.candidate.resolved_references,
+            callback_reference,
+        ),
+    )
+    checkpoint = replace(
+        preview.checkpoint,
+        nodes=(replace(node, candidate=candidate),),
+    )
+    preview = replace(preview, checkpoint=checkpoint)
+    resolver = RecordingResolver()
+
+    result = V3ActionPlanningAdapter().prepare_next_action(
+        resolver,
+        preview,
+        _context(world),
+        source,
+    )
+
+    call = resolver.calls[0]
+    assert result.additional_reference_mentions == ("la caja",)
+    assert call["additional_resolved_reference_mentions"] == ("la caja",)
+    assert {
+        item.entity_id for item in call["resolved_references_override"]
+    } == {7, 8, 9}
+    assert "la caja" not in result.evidence_excerpt
+
+
+def test_v3_action_planning_fails_closed_when_callback_reference_is_not_resolved():
+    from dataclasses import replace
+
+    from models.semantic_frames import SemanticMention
+
+    class RecordingResolver(TurnResolutionService):
+        def prepare_turn(self, turn_context, player_input, **kwargs):
+            return TurnResolutionPlan(
+                player_input=player_input,
+                narrative="",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+            )
+
+    source = "Yo intento abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+        }
+    )
+    preview_service, _provider, _builder = _preview_service(world, _v3_response(source))
+    preview = preview_service.preview(
+        _context(world),
+        source,
+        resolution_id=53,
+        context_revision=17,
+    )
+    node = preview.checkpoint.nodes[0]
+    candidate = replace(
+        node.candidate,
+        target_mentions=(*node.candidate.target_mentions, SemanticMention("la ventana")),
+    )
+    preview = replace(
+        preview,
+        checkpoint=replace(
+            preview.checkpoint,
+            nodes=(replace(node, candidate=candidate),),
+        ),
+    )
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter().prepare_next_action(
+            RecordingResolver(),
+            preview,
+            _context(world),
+            source,
+        )
+
+    assert error.value.code == "callback_reference_not_resolved"
 
 
 def test_v3_action_preview_abstains_on_ambiguous_visible_target():
