@@ -156,9 +156,6 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
     orchestrator = V3CompoundActionOrchestrator()
     first_run_persisted = []
 
-    def first_persist(value):
-        first_run_persisted.append(value)
-
     def fail(_candidate, _key, _resumed):
         raise TimeoutError("provider timed out")
 
