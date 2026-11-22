@@ -270,3 +270,169 @@ def test_failed_start_checkpoint_persistence_prevents_action_execution():
         )
 
     assert executed == []
+
+
+@pytest.mark.parametrize(
+    ("checkpoint", "execute", "persist", "error", "message"),
+    [
+        (None, lambda *_args: ActionOutcome.SUCCESS, lambda _value: None, TypeError, "checkpoint"),
+        (_checkpoint(), None, lambda _value: None, TypeError, "execute"),
+        (_checkpoint(), lambda *_args: ActionOutcome.SUCCESS, None, TypeError, "persist_checkpoint"),
+    ],
+)
+def test_orchestrator_rejects_invalid_public_arguments(
+    checkpoint, execute, persist, error, message
+):
+    with pytest.raises(error, match=message):
+        V3CompoundActionOrchestrator().run(
+            checkpoint,
+            execute=execute,
+            persist_checkpoint=persist,
+        )
+
+
+def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_crash():
+    orchestrator = V3CompoundActionOrchestrator()
+    durable = []
+
+    def persist_first_attempt(value):
+        durable.append(value)
+        node = _node(value, "event_open")
+        if node.state is ActionExecutionState.RESOLVED:
+            raise RuntimeError("database unavailable after mechanics")
+
+    seen = []
+
+    def execute(candidate, key, resumed):
+        seen.append((candidate.source_event_id, key, resumed))
+        return ActionOutcome.SUCCESS
+
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        orchestrator.run(
+            _checkpoint(),
+            execute=execute,
+            persist_checkpoint=persist_first_attempt,
+        )
+
+    # The last durable checkpoint is IN_PROGRESS: execution may have happened,
+    # but its result was not committed. Recovery must use that same key.
+    in_progress = durable[-2]
+    assert _node(in_progress, "event_open").state is ActionExecutionState.IN_PROGRESS
+    stable_key = _node(in_progress, "event_open").execution_key
+
+    replayed = []
+
+    def replay(candidate, key, resumed):
+        replayed.append((candidate.source_event_id, key, resumed))
+        return ActionOutcome.SUCCESS
+
+    result = orchestrator.run(
+        in_progress,
+        execute=replay,
+        persist_checkpoint=lambda _value: None,
+    )
+
+    assert result.status is CompoundActionRunStatus.COMPLETED
+    assert replayed[0] == ("event_open", stable_key, True)
+    assert seen[0] == ("event_open", stable_key, False)
+
+
+def test_orchestrator_treats_invalid_executor_result_as_technical_failure():
+    result = V3CompoundActionOrchestrator().run(
+        _checkpoint(),
+        execute=lambda *_args: "success",
+        persist_checkpoint=lambda _value: None,
+    )
+
+    node = _node(result.checkpoint, "event_open")
+    assert result.status is CompoundActionRunStatus.EXECUTION_FAILED
+    assert result.technical_error_type == "TypeError"
+    assert node.state is ActionExecutionState.EXECUTION_FAILED
+    assert node.outcome is None
+
+
+def test_orchestrator_does_not_execute_when_failure_checkpoint_cannot_be_saved():
+    persisted = []
+
+    def persist(value):
+        persisted.append(value)
+        if _node(value, "event_open").state is ActionExecutionState.EXECUTION_FAILED:
+            raise RuntimeError("failure checkpoint CAS rejected")
+
+    with pytest.raises(RuntimeError, match="failure checkpoint CAS rejected"):
+        V3CompoundActionOrchestrator().run(
+            _checkpoint(),
+            execute=lambda *_args: (_ for _ in ()).throw(TimeoutError("provider")),
+            persist_checkpoint=persist,
+        )
+
+    assert _node(persisted[0], "event_open").state is ActionExecutionState.IN_PROGRESS
+    assert _node(persisted[-1], "event_open").state is ActionExecutionState.EXECUTION_FAILED
+
+
+def test_orchestrator_persists_dependency_skip_transition_before_finishing():
+    persisted = []
+    outcomes = iter((ActionOutcome.FAILURE, ActionOutcome.SUCCESS))
+
+    result = V3CompoundActionOrchestrator().run(
+        _checkpoint(),
+        execute=lambda *_args: next(outcomes),
+        persist_checkpoint=persisted.append,
+    )
+
+    skipped_snapshots = [
+        checkpoint
+        for checkpoint in persisted
+        if _node(checkpoint, "event_enter").state is ActionExecutionState.SKIPPED
+    ]
+    assert skipped_snapshots
+    assert result.status is CompoundActionRunStatus.COMPLETED
+    assert _node(result.checkpoint, "event_enter").state is ActionExecutionState.SKIPPED
+
+
+def test_clarification_resume_can_remain_paused_when_backend_still_cannot_resolve_slot():
+    orchestrator = V3CompoundActionOrchestrator()
+    paused = orchestrator.run(
+        _checkpoint(awaiting_first=True),
+        execute=lambda *_args: pytest.fail("must stay paused"),
+        persist_checkpoint=lambda _value: None,
+    )
+    candidate = _node(paused.checkpoint, "event_open").candidate
+    still_ambiguous = replace(
+        candidate,
+        reason=GameplayActionReason.AMBIGUOUS_REFERENCE,
+    )
+
+    clarification, resumed = orchestrator.resume_after_clarification(
+        paused.checkpoint,
+        "event_open",
+        still_ambiguous,
+        clarification_slots=("target",),
+        execute=lambda *_args: pytest.fail("must remain paused"),
+        persist_checkpoint=lambda _value: None,
+    )
+
+    assert clarification.checkpoint.nodes[0].state is ActionExecutionState.AWAITING_INPUT
+    assert resumed.status is CompoundActionRunStatus.NEEDS_CLARIFICATION
+    assert resumed.clarification_slots == ("target",)
+    assert resumed.attempts == ()
+
+
+def test_clarification_resume_rejects_wrong_event_and_non_candidate():
+    checkpoint = _checkpoint(awaiting_first=True)
+    with pytest.raises(Exception):
+        V3CompoundActionOrchestrator().resume_after_clarification(
+            checkpoint,
+            "event_missing",
+            _node(checkpoint, "event_open").candidate,
+            execute=lambda *_args: ActionOutcome.SUCCESS,
+            persist_checkpoint=lambda _value: None,
+        )
+    with pytest.raises(TypeError, match="updated_candidate"):
+        from services.turns.player_action_selector import resume_after_clarification
+
+        resume_after_clarification(
+            checkpoint,
+            "event_open",
+            "not a candidate",
+        )
