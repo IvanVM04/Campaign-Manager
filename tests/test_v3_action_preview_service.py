@@ -768,6 +768,18 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
     assert json.loads(staged.operations_json) == {"operations": []}
     assert json.loads(staged.intent_json)["source_text"] == source
 
+    from services.turns.turn_resolution_codec import TurnResolutionCodec
+
+    restored_plan = TurnResolutionCodec.plan_from_v3_action_progress_entry(
+        staged,
+        original_input=source,
+        operation_parser=SimpleNamespace(parse=lambda _payload: []),
+    )
+    assert restored_plan.player_input == source
+    assert restored_plan.intent_analysis == planned.intent_analysis
+    assert restored_plan.intent_evidence_text == source
+    assert restored_plan.ordered_operations == ()
+
     replayed = planned.progress_updates(
         execution_key="e" * 64,
         previous_progress_json=updates["proposal_json"],
