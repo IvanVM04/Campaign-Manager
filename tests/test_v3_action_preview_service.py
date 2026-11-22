@@ -790,3 +790,118 @@ def test_log_v3_action_preview_records_unknown_status_without_candidate(caplog):
     assert caplog.records[-1].message == "turn.v3_action_preview.completed"
     assert caplog.records[-1].preview_status == "unknown"
     assert caplog.records[-1].preview_selected_action_type is None
+
+
+def test_v3_preview_constructor_rejects_invalid_dependencies_and_options():
+    interpreter = _PreviewIntentInterpreter("{}")
+    builder = ContextBuilder()
+
+    with pytest.raises(TypeError, match="intent_interpreter"):
+        V3ActionPreviewService(object(), builder)
+    with pytest.raises(TypeError, match="context_builder"):
+        V3ActionPreviewService(interpreter, object())
+    with pytest.raises(ValueError, match="max_context_bytes"):
+        V3ActionPreviewService(interpreter, builder, max_context_bytes=True)
+    with pytest.raises(ValueError, match="max_context_bytes"):
+        V3ActionPreviewService(interpreter, builder, max_context_bytes=0)
+    with pytest.raises(TypeError, match="reference_resolver"):
+        V3ActionPreviewService(interpreter, builder, reference_resolver=object())
+    with pytest.raises(TypeError, match="world_facts_enabled"):
+        V3ActionPreviewService(interpreter, builder, world_facts_enabled=1)
+
+
+def test_v3_preview_interpretation_fails_closed_when_prompt_construction_fails(
+    monkeypatch,
+):
+    source = "Yo intento abrir la puerta"
+    world = WorldState(entities={7: Entity(id=7, name="Arin", entity_type="character")})
+    interpreter = _PreviewIntentInterpreter(_v3_response(source))
+
+    def fail_prompt(*args, **kwargs):
+        raise RuntimeError("private prompt details")
+
+    monkeypatch.setattr(interpreter, "_build_prompt", fail_prompt)
+    service = V3ActionPreviewService(interpreter, _StaticProjectionBuilder(world))
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service._interpret(_context(world), source, None)
+
+    assert error.value.code == "prompt_construction_failed"
+    assert error.value.stage == "prompt"
+    assert "private prompt details" not in str(error.value)
+
+
+def test_v3_preview_interpretation_fails_closed_on_provider_exception(monkeypatch):
+    source = "Yo intento abrir la puerta"
+    world = WorldState(entities={7: Entity(id=7, name="Arin", entity_type="character")})
+    interpreter = _PreviewIntentInterpreter(_v3_response(source))
+
+    def fail_provider(*args, **kwargs):
+        raise RuntimeError("private provider details")
+
+    monkeypatch.setattr(interpreter.fake_provider, "generate_structured", fail_provider)
+    service = V3ActionPreviewService(interpreter, _StaticProjectionBuilder(world))
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service._interpret(_context(world), source, None)
+
+    assert error.value.code == "provider_error"
+    assert error.value.stage == "provider"
+    assert "private provider details" not in str(error.value)
+
+
+def test_v3_preview_interpretation_rejects_non_text_provider_response(monkeypatch):
+    source = "Yo intento abrir la puerta"
+    world = WorldState(entities={7: Entity(id=7, name="Arin", entity_type="character")})
+    interpreter = _PreviewIntentInterpreter(_v3_response(source))
+    monkeypatch.setattr(
+        interpreter.fake_provider,
+        "generate_structured",
+        lambda *args, **kwargs: {"not": "text"},
+    )
+    service = V3ActionPreviewService(interpreter, _StaticProjectionBuilder(world))
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service._interpret(_context(world), source, None)
+
+    assert error.value.code == "provider_returned_non_text"
+    assert error.value.stage == "provider"
+
+
+def test_v3_preview_rejects_invalid_context_and_empty_input():
+    source = "Yo intento abrir la puerta"
+    world = WorldState(entities={7: Entity(id=7, name="Arin", entity_type="character")})
+    service, _provider, _builder = _preview_service(world, _v3_response(source))
+
+    with pytest.raises(TypeError, match="context"):
+        service.preview(
+            object(), source, resolution_id=81, context_revision=1
+        )
+    with pytest.raises(ValueError, match="player_input"):
+        service.preview(
+            _context(world), "   ", resolution_id=82, context_revision=1
+        )
+
+
+def test_v3_preview_fails_closed_when_visible_projection_cannot_be_built():
+    source = "Yo intento abrir la puerta"
+    world = WorldState(entities={7: Entity(id=7, name="Arin", entity_type="character")})
+
+    class FailingProjectionBuilder(_StaticProjectionBuilder):
+        def build_proposal_context(self, *args, **kwargs):
+            raise RuntimeError("private projection details")
+
+    interpreter = _PreviewIntentInterpreter(_v3_response(source))
+    service = V3ActionPreviewService(
+        interpreter,
+        FailingProjectionBuilder(world),
+    )
+
+    with pytest.raises(V3ActionPreviewError) as error:
+        service.preview(
+            _context(world), source, resolution_id=83, context_revision=1
+        )
+
+    assert error.value.code == "visible_context_failed"
+    assert error.value.stage == "reference_resolution"
+    assert "private projection details" not in str(error.value)
