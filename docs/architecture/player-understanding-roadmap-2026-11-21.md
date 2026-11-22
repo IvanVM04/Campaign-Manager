@@ -155,7 +155,7 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.536 passed, 26 deselected, coverage 85,05 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
+| #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.535 passed, 26 deselected, coverage 85,03 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
 | #298 | P0 | [~] IN PROGRESS | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes | #288, #297 |
 | #299 | P0 | [ ] PLANNED | Orquestación end-to-end de turnos compuestos, callbacks, dependencias, aclaraciones, fallos mecánicos/técnicos y compatibilidad histórica | #297–#298 |
 | #300 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #296–#299 |
@@ -261,7 +261,7 @@ normal de v2.
 La PR #297 se fusionó el 22/11/2026 en
 `5b2e890f607a64b9f4a572cf73175ef1f7f27f1a`; su head
 `03563cc5982c0aeb9e1c14abe5a4c6c1f06c7716` quedó con CI verde:
-2.536 tests passed, 26 deselected, cobertura combinada 85,05 % y checks
+2.535 tests passed, 26 deselected, cobertura combinada 85,03 % y checks
 Ruff/Pyright/CodeQL/JavaScript/PowerShell correctos.
 
 La PR #298 añade una segunda autorización explícita:
