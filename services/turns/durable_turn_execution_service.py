@@ -73,6 +73,7 @@ class DurableTurnExecutionService:
         turn_execution_lock=None,
         snapshot_loader=None,
         v3_action_preview_service: V3ActionPreviewService | None = None,
+        v3_action_execution_enabled: bool = False,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -86,6 +87,11 @@ class DurableTurnExecutionService:
         self.turn_execution_lock = turn_execution_lock
         self.snapshot_loader = snapshot_loader
         self.v3_action_preview_service = v3_action_preview_service
+        if not isinstance(v3_action_execution_enabled, bool):
+            raise TypeError("v3_action_execution_enabled must be a boolean")
+        if v3_action_execution_enabled and v3_action_preview_service is None:
+            raise ValueError("v3_action_execution_enabled requires a preview service")
+        self.v3_action_execution_enabled = v3_action_execution_enabled
         self.error_type = error_type
 
 
