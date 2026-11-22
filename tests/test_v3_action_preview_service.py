@@ -374,8 +374,6 @@ def test_v3_action_preview_does_not_map_plural_first_person_to_single_active_cha
 
 
 def test_shadow_preview_unexpected_failure_does_not_poison_v2_plan():
-    from services.turns.durable_turn_execution_service import DurableTurnExecutionService
-
     class Preview:
         def preview(self, *args, **kwargs):
             raise RuntimeError("private provider exception must not escape")
