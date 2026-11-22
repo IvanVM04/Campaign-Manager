@@ -1,8 +1,8 @@
-"""Opt-in v3 action-graph preview for durable turn planning.
+"""Opt-in v3 semantic preview for durable turn planning.
 
-The preview is deliberately non-authoritative: it builds and checkpoints the
-backend action graph but never adjudicates mechanics, executes an action,
-proposes world operations or writes campaign state.
+The service builds a backend action checkpoint and, when separately enabled,
+evaluates world-fact candidates into durable receipts and typed operations.
+It never commits state or adjudicates mechanics.
 """
 from __future__ import annotations
 
@@ -16,7 +16,13 @@ from models.player_turn_interpretation_v3 import (
     TurnInterpretationV3,
     TurnInterpretationV3ValidationError,
 )
+from models.resolved_conversation_reference import ResolvedConversationReference
 from models.semantic_frames import SemanticMention
+from services.turns.world_fact_policy import (
+    FactDecisionStatus,
+    FactEndpointResolution,
+    evaluate_world_facts,
+)
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
 from services.context import ContextBuilder
@@ -53,6 +59,12 @@ class V3ActionPreviewResult:
     selection: ActionSelection
     event_count: int
     excluded_event_count: int
+    fact_candidate_count: int = 0
+    fact_accepted_count: int = 0
+    fact_already_present_count: int = 0
+    fact_pending_count: int = 0
+    fact_rejected_count: int = 0
+    world_fact_operations: tuple = ()
 
 
 class V3ActionPreviewService:
@@ -75,6 +87,7 @@ class V3ActionPreviewService:
         *,
         max_context_bytes: int = 4096,
         reference_resolver: EntityReferenceResolver | None = None,
+        world_facts_enabled: bool = False,
     ) -> None:
         if not isinstance(intent_interpreter, IntentInterpreter):
             raise TypeError("intent_interpreter must be an IntentInterpreter")
@@ -93,7 +106,10 @@ class V3ActionPreviewService:
         self.intent_interpreter = intent_interpreter
         self.context_builder = context_builder
         self.max_context_bytes = max_context_bytes
+        if not isinstance(world_facts_enabled, bool):
+            raise TypeError("world_facts_enabled must be a boolean")
         self.reference_resolver = reference_resolver or EntityReferenceResolver()
+        self.world_facts_enabled = world_facts_enabled
 
     def _interpret(
         self,
