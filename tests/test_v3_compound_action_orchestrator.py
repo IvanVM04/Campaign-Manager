@@ -129,7 +129,7 @@ def test_orchestrator_runs_only_one_action_at_a_time_and_persists_each_transitio
     def persist(value):
         persisted.append(value)
 
-    def execute(candidate, execution_key, resumed):
+    def execute(candidate, execution_key, resumed, _persist_staged):
         # IN_PROGRESS must already be durable before mechanics is invoked.
         saved = _node(persisted[-1], candidate.source_event_id)
         assert saved.state is ActionExecutionState.IN_PROGRESS
@@ -161,7 +161,7 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
     orchestrator = V3CompoundActionOrchestrator()
     first_run_persisted = []
 
-    def fail(_candidate, _key, _resumed):
+    def fail(_candidate, _key, _resumed, _persist_staged):
         raise TimeoutError("provider timed out")
 
     failed = orchestrator.run(
@@ -179,7 +179,7 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
 
     seen = []
 
-    def retry(candidate, key, resumed):
+    def retry(candidate, key, resumed, _persist_staged):
         seen.append((candidate.source_event_id, key, resumed))
         return CompoundActionExecution(ActionOutcome.SUCCESS)
 
@@ -197,7 +197,7 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
 def test_gameplay_failure_skips_only_conditional_branch_and_runs_independent_action():
     executed = []
 
-    def execute(candidate, _key, _resumed):
+    def execute(candidate, _key, _resumed, _persist_staged):
         executed.append(candidate.source_event_id)
         if candidate.source_event_id == "event_open":
             return CompoundActionExecution(ActionOutcome.FAILURE)
@@ -310,7 +310,7 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
 
     seen = []
 
-    def execute(candidate, key, resumed):
+    def execute(candidate, key, resumed, _persist_staged):
         seen.append((candidate.source_event_id, key, resumed))
         return CompoundActionExecution(ActionOutcome.SUCCESS, staged)
 
@@ -330,7 +330,7 @@ def test_orchestrator_reuses_in_progress_execution_key_after_result_persistence_
 
     replayed = []
 
-    def replay(candidate, key, resumed):
+    def replay(candidate, key, resumed, _persist_staged):
         replayed.append((candidate.source_event_id, key, resumed))
         return CompoundActionExecution(ActionOutcome.SUCCESS, staged)
 
