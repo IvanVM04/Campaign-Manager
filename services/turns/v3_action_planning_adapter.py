@@ -310,6 +310,160 @@ class V3ActionPlanningAdapter:
             external_mentions,
         )
 
+    def restore_staged_action(
+        self,
+        preview: V3ActionPreviewResult,
+        context: TurnContext,
+        player_input: str,
+        *,
+        progress_json: str,
+        event_id: str,
+        execution_key: str,
+        operation_parser,
+    ) -> V3ActionPlanningResult:
+        """Restore an in-progress staged plan without re-running any provider."""
+        from models.player_action_checkpoint import ActionExecutionState
+        from services.turns.turn_resolution_codec import TurnResolutionCodec
+        from services.turns.v3_action_progress_codec import V3ActionProgressSnapshot
+
+        if not isinstance(preview, V3ActionPreviewResult):
+            raise TypeError("preview must be a V3ActionPreviewResult")
+        if not isinstance(context, TurnContext):
+            raise TypeError("context must be a TurnContext")
+        if not isinstance(player_input, str) or not player_input.strip():
+            raise ValueError("player_input must not be empty")
+        if not isinstance(operation_parser, object) or not callable(
+            getattr(operation_parser, "parse", None)
+        ):
+            raise TypeError("operation_parser must expose parse()")
+
+        checkpoint = preview.checkpoint
+        node = next(
+            (
+                item for item in checkpoint.nodes
+                if item.candidate.source_event_id == event_id
+            ),
+            None,
+        )
+        if node is None or node.state not in {
+            ActionExecutionState.IN_PROGRESS,
+            ActionExecutionState.EXECUTION_FAILED,
+        }:
+            raise V3ActionPlanningError(
+                "action_not_recoverable",
+                "recovery",
+            )
+        if node.execution_key != execution_key:
+            raise V3ActionPlanningError(
+                "execution_key_mismatch",
+                "recovery",
+            )
+        snapshot = V3ActionProgressSnapshot.from_json(progress_json)
+        if (
+            snapshot.resolution_id != checkpoint.resolution_id
+            or snapshot.context_revision != checkpoint.context_revision
+            or snapshot.source_sha256 != checkpoint.source_sha256
+        ):
+            raise V3ActionPlanningError(
+                "staged_progress_identity_mismatch",
+                "recovery",
+            )
+        entry = snapshot.entry_for_event(event_id)
+        if entry is None:
+            raise V3ActionPlanningError(
+                "staged_action_missing",
+                "recovery",
+            )
+        candidate = node.candidate
+        if (
+            entry.action_id != candidate.local_id
+            or entry.source_order != node.source_order
+            or entry.execution_key != node.execution_key
+        ):
+            raise V3ActionPlanningError(
+                "staged_action_identity_mismatch",
+                "recovery",
+            )
+        interpretation = preview.interpretation
+        projection = preview.visible_projection
+        if interpretation is None or not isinstance(projection, WorldContextProjection):
+            raise V3ActionPlanningError(
+                "interpretation_or_projection_unavailable",
+                "recovery",
+            )
+        event = next(
+            (
+                item for item in interpretation.events
+                if item.local_id == event_id
+            ),
+            None,
+        )
+        if event is None:
+            raise V3ActionPlanningError("selected_event_missing", "recovery")
+        act = next(
+            (
+                item for item in interpretation.utterance_acts
+                if item.local_id == event.source_act_id
+            ),
+            None,
+        )
+        if act is None:
+            raise V3ActionPlanningError("event_source_act_missing", "recovery")
+
+        plan = TurnResolutionCodec.plan_from_v3_action_progress_entry(
+            entry,
+            original_input=player_input,
+            operation_parser=operation_parser,
+        )
+        analysis = plan.intent_analysis
+        if analysis is None:
+            raise V3ActionPlanningError("staged_intent_missing", "recovery")
+        event_reference_resolution = (
+            preview.reference_resolutions.get(event_id)
+            if preview.reference_resolutions is not None
+            else None
+        )
+        supplemental_references = (
+            event_reference_resolution.resolved_targets
+            if event_reference_resolution is not None
+            else ()
+        )
+        references, references_by_mention = self._references(
+            candidate,
+            supplemental_references,
+            projection.world,
+        )
+        external_mentions = tuple(
+            dict.fromkeys(
+                mention.text
+                for mention in candidate.target_mentions
+                if mention.text.strip().casefold()
+                not in entry.evidence_excerpt.casefold()
+            )
+        )
+        if any(
+            mention.strip().casefold() not in references_by_mention
+            for mention in external_mentions
+        ):
+            raise V3ActionPlanningError(
+                "callback_reference_not_resolved",
+                "recovery",
+            )
+
+        return V3ActionPlanningResult(
+            candidate=candidate,
+            event=event,
+            intent_analysis=analysis,
+            evidence_excerpt=entry.evidence_excerpt,
+            resolved_references=references,
+            additional_reference_mentions=external_mentions,
+            source_order=node.source_order,
+            resolution_id=checkpoint.resolution_id,
+            context_revision=checkpoint.context_revision,
+            source_sha256=checkpoint.source_sha256,
+            plan=plan,
+        )
+
     def prepare_next_action(
         self,
         resolver: TurnResolutionService,
