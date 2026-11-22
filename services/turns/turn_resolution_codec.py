@@ -175,6 +175,120 @@ class TurnResolutionCodec:
         )
         return MechanicsResult(decision, check)
 
+    @classmethod
+    def plan_from_v3_action_progress_entry(
+        cls,
+        entry,
+        *,
+        original_input: str,
+        operation_parser,
+    ) -> TurnResolutionPlan:
+        """Rebuild one staged action plan without calling an LLM/provider."""
+        from models.mechanics import MechanicsDecision, MechanicsDecisionType
+        from rules_engine.dnd5e_2014.core.abilities import Ability
+        from rules_engine.dnd5e_2014.core.skills import Skill
+        from services.turns.v3_action_progress_codec import V3ActionProgressEntry
+
+        if not isinstance(entry, V3ActionProgressEntry):
+            raise TypeError("entry must be a V3ActionProgressEntry")
+        if not isinstance(original_input, str) or not original_input.strip():
+            raise ValueError("original_input must not be empty")
+        if operation_parser is None or not callable(
+            getattr(operation_parser, "parse", None)
+        ):
+            raise TypeError("operation_parser must expose parse()")
+
+        intent_analysis = cls.intent_from_json(
+            entry.intent_json,
+            original_input=original_input,
+        )
+        if intent_analysis is None:
+            raise ValueError("staged v3 action is missing its intent analysis")
+        evidence_text = cls.intent_evidence_text(
+            entry.intent_json,
+            original_input=original_input,
+        )
+        if not any(
+            step.source_excerpt == entry.evidence_excerpt
+            for step in intent_analysis.steps
+        ):
+            raise ValueError(
+                "staged action evidence excerpt does not match its one-step analysis"
+            )
+
+        parsed_operations = operation_parser.parse(entry.operations_json)
+        if not isinstance(parsed_operations, (list, tuple)):
+            raise ValueError("staged operations must decode to an operation sequence")
+        ordered = tuple(parsed_operations)
+
+        def unwrap(raw):
+            return raw.operation if isinstance(raw, ReferencedOperation) else raw
+
+        world_operations = tuple(
+            raw for raw in ordered if isinstance(unwrap(raw), WorldOperation)
+        )
+        character_operations = tuple(
+            raw for raw in ordered if isinstance(unwrap(raw), CharacterOperation)
+        )
+        mechanics_result = cls.mechanics_from_json(entry.mechanics_json)
+        mechanics_decision = (
+            mechanics_result.decision if mechanics_result is not None else None
+        )
+        if entry.mechanics_decision_json is not None:
+            try:
+                decision_payload = json.loads(entry.mechanics_decision_json)
+                if set(decision_payload) != {
+                    "decision", "skill", "ability", "dc", "advantage",
+                    "disadvantage", "situational_modifier", "reason", "question",
+                }:
+                    raise ValueError("mechanics decision fields are invalid")
+                restored_decision = MechanicsDecision(
+                    decision=MechanicsDecisionType(decision_payload["decision"]),
+                    skill=(
+                        Skill(decision_payload["skill"])
+                        if decision_payload["skill"] is not None
+                        else None
+                    ),
+                    ability=(
+                        Ability(decision_payload["ability"])
+                        if decision_payload["ability"] is not None
+                        else None
+                    ),
+                    dc=decision_payload["dc"],
+                    advantage=decision_payload["advantage"],
+                    disadvantage=decision_payload["disadvantage"],
+                    situational_modifier=decision_payload["situational_modifier"],
+                    reason=decision_payload["reason"],
+                    question=decision_payload["question"],
+                )
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("staged mechanics decision is invalid") from None
+            if (
+                mechanics_decision is not None
+                and mechanics_decision != restored_decision
+            ):
+                raise ValueError(
+                    "staged mechanics decision differs from its mechanics result"
+                )
+            mechanics_decision = restored_decision
+
+        if entry.awaiting_manual_roll and mechanics_decision is None:
+            raise ValueError("manual-roll action cannot be restored without its decision")
+
+        return TurnResolutionPlan(
+            player_input=original_input.strip(),
+            narrative="",
+            world_operations=world_operations,
+            character_operations=character_operations,
+            ordered_operations=ordered,
+            mechanics_result=mechanics_result,
+            clarification_question=entry.clarification_question,
+            mechanics_decision=mechanics_decision,
+            intent_analysis=intent_analysis,
+            intent_evidence_text=evidence_text,
+            awaiting_manual_roll=entry.awaiting_manual_roll,
+        )
+
     @staticmethod
     def operation_results_json(result: TurnResolutionResult) -> str:
         return json.dumps([
