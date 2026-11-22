@@ -104,6 +104,7 @@ class ActionReferenceResolution:
     resolved_targets: tuple[GameplayResolvedReference, ...] = ()
     unresolved_targets: tuple[SemanticMention, ...] = ()
     ambiguous_targets: tuple[SemanticMention, ...] = ()
+    extra_target_mentions: tuple[SemanticMention, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.actor_ambiguous, bool):
@@ -120,6 +121,7 @@ class ActionReferenceResolution:
             ("resolved_targets", self.resolved_targets),
             ("unresolved_targets", self.unresolved_targets),
             ("ambiguous_targets", self.ambiguous_targets),
+            ("extra_target_mentions", self.extra_target_mentions),
         ):
             if not isinstance(values, tuple):
                 raise TypeError(f"{name} must be a tuple")
@@ -130,7 +132,11 @@ class ActionReferenceResolution:
             raise TypeError("resolved_targets must contain resolved references")
         if any(
             not isinstance(item, SemanticMention)
-            for item in (*self.unresolved_targets, *self.ambiguous_targets)
+            for item in (
+                *self.unresolved_targets,
+                *self.ambiguous_targets,
+                *self.extra_target_mentions,
+            )
         ):
             raise TypeError("unresolved/ambiguous targets must be literal mentions")
 
@@ -363,6 +369,14 @@ def _candidate_for_event(
     if actor is None:
         raise ActionSelectorError("action event must have exactly one agent")
     targets = _target_mentions(event, act, actor)
+    target_keys = {_fold(item.text) for item in targets}
+    targets = (
+        *targets,
+        *(
+            item for item in resolution.extra_target_mentions
+            if _fold(item.text) not in target_keys
+        ),
+    )
     workflow = _workflow_for(event)
 
     if act.speaker_role is not SpeakerRole.PLAYER or _covered_by_quote(event, act):
@@ -727,7 +741,20 @@ def build_action_checkpoint(
                 state=state,
                 execution_key=execution_key,
                 clarification_slots=(
-                    ("actor", "target")
+                    tuple(
+                        slot for slot, missing in (
+                            ("actor", (
+                                resolutions.get(candidate.source_event_id, ActionReferenceResolution()).actor_reference is None
+                                or resolutions.get(candidate.source_event_id, ActionReferenceResolution()).actor_ambiguous
+                            )),
+                            ("target", bool(
+                                resolutions.get(candidate.source_event_id, ActionReferenceResolution()).unresolved_targets
+                                or resolutions.get(candidate.source_event_id, ActionReferenceResolution()).ambiguous_targets
+                                or resolutions.get(candidate.source_event_id, ActionReferenceResolution()).extra_target_mentions
+                            )),
+                        )
+                        if missing
+                    ) or ("reference",)
                     if state is ActionExecutionState.AWAITING_INPUT
                     else ()
                 ),
@@ -760,6 +787,8 @@ def build_action_checkpoint(
         ).hexdigest(),
         nodes=tuple(nodes),
         fact_validation_receipts=fact_validation_receipts,
+        schema_version=2,
+        interpretation_json=interpretation.to_json(),
     )
     return ActionGraphBuildResult(
         checkpoint=checkpoint,
