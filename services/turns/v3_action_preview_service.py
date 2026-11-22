@@ -1,14 +1,17 @@
-"""Opt-in v3 action-graph preview for durable turn planning.
+"""Opt-in v3 semantic preview for durable turn planning.
 
-The preview is deliberately non-authoritative: it builds and checkpoints the
-backend action graph but never adjudicates mechanics, executes an action,
-proposes world operations or writes campaign state.
+The service builds a backend action checkpoint and, when separately enabled,
+evaluates world-fact candidates into durable receipts and typed operations.
+It never commits state or adjudicates mechanics.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from models.player_action_checkpoint import PlayerActionCheckpoint
+from models.player_action_checkpoint import (
+    FactValidationReceipt,
+    PlayerActionCheckpoint,
+)
 from models.player_turn_interpretation_v3 import (
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
@@ -16,9 +19,11 @@ from models.player_turn_interpretation_v3 import (
     TurnInterpretationV3,
     TurnInterpretationV3ValidationError,
 )
+from models.resolved_conversation_reference import ResolvedConversationReference
 from models.semantic_frames import SemanticMention
 from models.turn_context import TurnContext
 from models.turn_record import TurnRecord
+from operations.world_operations import WorldOperation
 from services.context import ContextBuilder
 from services.context.entity_reference_resolver import EntityReferenceResolver
 from services.turns.intent_interpreter import IntentInterpreter
@@ -35,6 +40,12 @@ from services.turns.player_turn_v3_prompt import (
     EvidenceSpanAlignmentError,
     align_v3_evidence_span_offsets,
     build_v3_shadow_prompt,
+)
+from services.turns.world_fact_policy import (
+    FactDecision,
+    FactDecisionStatus,
+    FactEndpointResolution,
+    evaluate_world_facts,
 )
 
 
@@ -53,6 +64,12 @@ class V3ActionPreviewResult:
     selection: ActionSelection
     event_count: int
     excluded_event_count: int
+    fact_candidate_count: int = 0
+    fact_accepted_count: int = 0
+    fact_already_present_count: int = 0
+    fact_pending_count: int = 0
+    fact_rejected_count: int = 0
+    world_fact_operations: tuple[WorldOperation, ...] = ()
 
 
 class V3ActionPreviewService:
@@ -75,6 +92,7 @@ class V3ActionPreviewService:
         *,
         max_context_bytes: int = 4096,
         reference_resolver: EntityReferenceResolver | None = None,
+        world_facts_enabled: bool = False,
     ) -> None:
         if not isinstance(intent_interpreter, IntentInterpreter):
             raise TypeError("intent_interpreter must be an IntentInterpreter")
@@ -93,7 +111,10 @@ class V3ActionPreviewService:
         self.intent_interpreter = intent_interpreter
         self.context_builder = context_builder
         self.max_context_bytes = max_context_bytes
+        if not isinstance(world_facts_enabled, bool):
+            raise TypeError("world_facts_enabled must be a boolean")
         self.reference_resolver = reference_resolver or EntityReferenceResolver()
+        self.world_facts_enabled = world_facts_enabled
 
     def _interpret(
         self,
@@ -156,6 +177,13 @@ class V3ActionPreviewService:
         for act in interpretation.utterance_acts:
             if act.addressee_mention is not None:
                 queries.append(act.addressee_mention.text)
+        # Facts are independent of action frames. Their endpoints must be
+        # requested explicitly so the bounded visible projection can resolve
+        # them without broadening to the entire campaign world.
+        for fact in interpretation.world_facts:
+            queries.append(fact.subject.text)
+            if fact.object is not None:
+                queries.append(fact.object.text)
         normalized_queries = tuple(dict.fromkeys(
             value.strip()[:120]
             for value in queries
@@ -241,6 +269,49 @@ class V3ActionPreviewService:
             ),
             False,
         )
+
+    def _fact_endpoint_reference(
+        self,
+        world,
+        mention: SemanticMention,
+    ) -> ResolvedConversationReference | None:
+        """Resolve one fact endpoint only against the bounded visible world."""
+        resolution = self.reference_resolver.resolve(world, mention.text)
+        if resolution.status != "resolved" or len(resolution.candidates) != 1:
+            return None
+        candidate = resolution.candidates[0]
+        entity = world.entities.get(candidate.entity_id)
+        if (
+            entity is None
+            or not entity.active
+            or entity.id != candidate.entity_id
+        ):
+            return None
+        return ResolvedConversationReference(
+            mention=mention.text,
+            entity_id=candidate.entity_id,
+            entity_name=entity.name,
+            match_kind=candidate.match_kind,
+        )
+
+    def _fact_endpoint_resolutions(
+        self,
+        interpretation: TurnInterpretationV3,
+        world,
+    ) -> dict[str, FactEndpointResolution]:
+        resolutions: dict[str, FactEndpointResolution] = {}
+        for fact in interpretation.world_facts:
+            resolutions[fact.local_id] = FactEndpointResolution(
+                subject_reference=self._fact_endpoint_reference(
+                    world, fact.subject
+                ),
+                object_reference=(
+                    self._fact_endpoint_reference(world, fact.object)
+                    if fact.object is not None
+                    else None
+                ),
+            )
+        return resolutions
 
     def _reference_resolutions(
         self,
@@ -343,6 +414,44 @@ class V3ActionPreviewService:
                 "reference_resolution_failed",
                 "reference_resolution",
             ) from None
+        fact_decisions: tuple[FactDecision, ...] = ()
+        fact_receipts: tuple[FactValidationReceipt, ...] = ()
+        fact_operations: tuple[WorldOperation, ...] = ()
+        if self.world_facts_enabled and interpretation.world_facts:
+            try:
+                fact_decisions = evaluate_world_facts(
+                    interpretation,
+                    visible_world,
+                    self._fact_endpoint_resolutions(
+                        interpretation,
+                        visible_world,
+                    ),
+                )
+                fact_receipts = tuple(
+                    decision.to_receipt() for decision in fact_decisions
+                )
+                raw_fact_operations = tuple(
+                    operation
+                    for decision in fact_decisions
+                    if decision.status is FactDecisionStatus.ACCEPTED
+                    for operation in decision.operations
+                )
+                if any(
+                    not isinstance(operation, WorldOperation)
+                    for operation in raw_fact_operations
+                ):
+                    raise TypeError("world-fact policy returned a non-world operation")
+                fact_operations = tuple(
+                    operation
+                    for operation in raw_fact_operations
+                    if isinstance(operation, WorldOperation)
+                )
+            except Exception:  # noqa: BLE001 - optional fact preview fails closed
+                raise V3ActionPreviewError(
+                    "fact_policy_failed",
+                    "fact_policy",
+                ) from None
+
         try:
             built = build_action_checkpoint(
                 interpretation,
@@ -351,13 +460,27 @@ class V3ActionPreviewService:
                 source_text=player_input,
                 active_character_id=active_character_id,
                 reference_resolutions=resolutions,
+                fact_validation_receipts=fact_receipts,
             )
             selection = select_next_action(built.checkpoint)
         except (ActionSelectorError, TypeError, ValueError):
             raise V3ActionPreviewError("action_graph_rejected", "selection") from None
+
+        status_counts = {
+            status: sum(
+                decision.status is status for decision in fact_decisions
+            )
+            for status in FactDecisionStatus
+        }
         return V3ActionPreviewResult(
             checkpoint=built.checkpoint,
             selection=selection,
             event_count=len(interpretation.events),
             excluded_event_count=len(built.excluded_event_ids),
+            fact_candidate_count=len(fact_decisions),
+            fact_accepted_count=status_counts[FactDecisionStatus.ACCEPTED],
+            fact_already_present_count=status_counts[FactDecisionStatus.ALREADY_PRESENT],
+            fact_pending_count=status_counts[FactDecisionStatus.NEEDS_CLARIFICATION],
+            fact_rejected_count=status_counts[FactDecisionStatus.REJECTED],
+            world_fact_operations=fact_operations,
         )

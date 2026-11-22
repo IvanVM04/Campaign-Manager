@@ -155,8 +155,8 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #297 | P0 | [~] IN PROGRESS | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones | #287, #295–#296 |
-| #298 | P0 | [ ] PLANNED | Integrar world_fact_policy y recibos en el commit durable; hechos independientes de errores mecánicos; idempotencia y recuperación | #288, #297 |
+| #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.535 passed, 26 deselected, coverage 85,03 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
+| #298 | P0 | [~] IN PROGRESS | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes | #288, #297 |
 | #299 | P0 | [ ] PLANNED | Orquestación end-to-end de turnos compuestos, callbacks, dependencias, aclaraciones, fallos mecánicos/técnicos y compatibilidad histórica | #297–#298 |
 | #300 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #296–#299 |
 
@@ -253,3 +253,38 @@ producción y por los tests. Los hechos v3 siguen sin persistirse (PR #298);
 la ejecución real de acciones, la selección de sucesoras y el flujo compuesto
 siguen pendientes para #299. La flag desactivada conserva la ruta y el lease
 normal de v2.
+
+
+
+### PR #298 — integración durable de hechos v3 (2026-11-22)
+
+La PR #297 se fusionó el 22/11/2026 en
+`5b2e890f607a64b9f4a572cf73175ef1f7f27f1a`; su head
+`03563cc5982c0aeb9e1c14abe5a4c6c1f06c7716` quedó con CI verde:
+2.535 tests passed, 26 deselected, cobertura combinada 85,03 % y checks
+Ruff/Pyright/CodeQL/JavaScript/PowerShell correctos.
+
+La PR #298 añade una segunda autorización explícita:
+`CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED=true` solo es válida
+junto con `CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED=true`.
+Ambas permanecen desactivadas por defecto. La interpretación v3 incorpora
+las menciones de hechos a la proyección visible acotada; los endpoints se
+resuelven por código backend y solo una coincidencia única/activa puede
+autorizar la evaluación de la política. Cada candidato recibe un recibo
+PENDING/VALIDATED/REJECTED ligado al JSON canónico y digest exacto. Solo
+decisiones ACCEPTED aportan operaciones WorldOperation tipadas.
+
+El checkpoint con recibos y el proposal serializado con las operaciones se
+guardan dentro de la misma transacción de transición planning→prepared,
+manteniendo lease y CAS. Si no se puede guardar el checkpoint/recibo, la
+transacción se revierte y se prepara únicamente el plan v2; no se permite una
+operación v3 sin su recibo durable. Un prepared retry reconstruye las
+operaciones desde el proposal persistido y no vuelve a invocar el modelo.
+La adjudicación mecánica que falla puede abstenerse sin cancelar la evaluación
+de hechos, cuando el segundo opt-in está activo.
+
+El alcance sigue siendo deliberadamente parcial: no ejecuta acciones del
+grafo, no convierte aclaraciones en callbacks ni procesa hechos durante
+turnos suspendidos por tirada manual/aclaración. Tampoco afirma aceptación
+live con Ollama o SillyTavern; esas orquestaciones/gates corresponden a #299
+y #300.

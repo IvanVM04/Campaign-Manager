@@ -135,3 +135,17 @@ def test_runtime_installs_v3_action_preview_only_when_explicitly_enabled(
     assert preview is not None
     assert preview.intent_interpreter is enabled_execution.resolver.intent_interpreter
     assert preview.context_builder is enabled_runtime.context_builder
+    assert preview.world_facts_enabled is False
+
+    facts_runtime = CampaignRuntimeFactory(
+        llm_settings=LLMSettings(
+            player_turn_v3_action_shadow_enabled=True,
+            player_turn_v3_world_facts_enabled=True,
+        )
+    ).get_runtime(1)
+    facts_preview = (
+        facts_runtime.durable_native_turn_service.execution_service
+        .v3_action_preview_service
+    )
+    assert facts_preview is not None
+    assert facts_preview.world_facts_enabled is True

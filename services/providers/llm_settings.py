@@ -45,6 +45,8 @@ class LLMSettings:
     intent_think: bool | None = None
     # Disabled by default: v3 action selection is a diagnostic shadow only.
     player_turn_v3_action_shadow_enabled: bool = False
+    # Persistent v3 fact operations require a second, independent opt-in.
+    player_turn_v3_world_facts_enabled: bool = False
 
     def __post_init__(self) -> None:
         # The old *_max_tokens fields historically configured UTF-8 byte
@@ -111,6 +113,16 @@ class LLMSettings:
 
         if not isinstance(self.player_turn_v3_action_shadow_enabled, bool):
             raise TypeError("player_turn_v3_action_shadow_enabled must be a boolean")
+        if not isinstance(self.player_turn_v3_world_facts_enabled, bool):
+            raise TypeError("player_turn_v3_world_facts_enabled must be a boolean")
+        if (
+            self.player_turn_v3_world_facts_enabled
+            and not self.player_turn_v3_action_shadow_enabled
+        ):
+            raise ValueError(
+                "player_turn_v3_world_facts_enabled requires "
+                "player_turn_v3_action_shadow_enabled"
+            )
 
         for field_name in (
             "narrative_think",
@@ -251,6 +263,13 @@ class LLMSettings:
                 optional_bool_value(
                     "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED",
                     defaults.player_turn_v3_action_shadow_enabled,
+                )
+                is True
+            ),
+            player_turn_v3_world_facts_enabled=(
+                optional_bool_value(
+                    "CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED",
+                    defaults.player_turn_v3_world_facts_enabled,
                 )
                 is True
             ),

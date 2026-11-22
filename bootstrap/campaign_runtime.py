@@ -178,6 +178,9 @@ class CampaignRuntimeFactory:
                 intent_interpreter,
                 context_builder,
                 max_context_bytes=self._llm_settings.intent_context_max_bytes,
+                world_facts_enabled=(
+                    self._llm_settings.player_turn_v3_world_facts_enabled
+                ),
             )
             if self._llm_settings.player_turn_v3_action_shadow_enabled
             else None

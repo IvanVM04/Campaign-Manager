@@ -7,6 +7,7 @@ import json
 import logging
 import secrets
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from database import transaction
@@ -14,6 +15,7 @@ from models.campaign_scope import CampaignScope
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from observability.log_context import bind_resolution_context
+from operations.world_operations import WorldOperation
 from repositories.campaign_state_version_repository import (
     CampaignStateVersionRepository,
 )
@@ -43,6 +45,10 @@ from services.turns.v3_action_preview_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _OptionalV3CheckpointSaveFailure(RuntimeError):
+    """Rollback an optional checkpoint write before falling back to v2-only."""
 
 
 class DurableTurnExecutionService:
@@ -104,7 +110,14 @@ class DurableTurnExecutionService:
         )
         return max(600, int(configured_budget))
 
-    def _persist_v3_action_checkpoint(
+    def _world_facts_enabled(self) -> bool:
+        preview_service = self.v3_action_preview_service
+        return bool(
+            preview_service is not None
+            and getattr(preview_service, "world_facts_enabled", False)
+        )
+
+    def _build_v3_action_preview(
         self,
         record: TurnResolutionRecord,
         context,
@@ -112,8 +125,8 @@ class DurableTurnExecutionService:
         recent,
         revision: int,
         lease_token: str | None,
-    ) -> TurnResolutionRecord:
-        """Persist a non-authoritative v3 graph under the current planning lease."""
+    ):
+        """Build one optional v3 snapshot; never regenerate a durable checkpoint."""
         preview_service = self.v3_action_preview_service
         if (
             preview_service is None
@@ -121,57 +134,84 @@ class DurableTurnExecutionService:
             or not isinstance(lease_token, str)
             or not lease_token
         ):
-            return record
+            return None
 
         try:
-            preview = preview_service.preview(
+            return preview_service.preview(
                 context,
                 player_input,
                 resolution_id=self._required_resolution_id(record),
                 context_revision=revision,
                 recent_turns=recent,
             )
-            checkpoint_json = preview.checkpoint.to_json()
         except V3ActionPreviewError as exc:
             logger.warning(
                 "turn.v3_action_preview.skipped",
                 extra={"preview_stage": exc.stage, "preview_code": exc.code},
             )
-            return record
         except (TypeError, ValueError):
             logger.warning(
                 "turn.v3_action_preview.skipped",
-                extra={"preview_stage": "checkpoint_encoding", "preview_code": "invalid_checkpoint"},
+                extra={
+                    "preview_stage": "checkpoint_encoding",
+                    "preview_code": "invalid_preview",
+                },
             )
-            return record
-        except Exception:  # noqa: BLE001 - an optional shadow preview must never fail v2
+        except Exception:  # noqa: BLE001 - optional preview must never fail v2
             logger.warning(
                 "turn.v3_action_preview.skipped",
-                extra={"preview_stage": "preview", "preview_code": "unexpected_failure"},
+                extra={
+                    "preview_stage": "preview",
+                    "preview_code": "unexpected_failure",
+                },
             )
-            return record
+        return None
 
-        try:
-            with transaction("IMMEDIATE") as conn:
-                saved = self.resolution_repository.save_action_checkpoint(
-                    self._required_resolution_id(record),
-                    checkpoint_json,
-                    scope=self.scope,
-                    expected_state="planning",
-                    expected_lease_token=lease_token,
-                    expected_context_revision=record.context_revision,
-                    expected_checkpoint_json=record.action_checkpoint_json,
-                    now=datetime.now(UTC).isoformat(),
-                    conn=conn,
-                )
-        except Exception:  # noqa: BLE001 - optional shadow persistence must not poison v2
-            # A failed shadow CAS must not poison the authoritative v2 plan.
-            logger.warning(
-                "turn.v3_action_preview.checkpoint_persistence_skipped",
-                extra={"preview_stage": "checkpoint_persistence", "preview_code": "cas_or_storage_rejected"},
-            )
-            return record
+    def _save_v3_action_checkpoint(
+        self,
+        record: TurnResolutionRecord,
+        preview,
+        revision: int,
+        lease_token: str,
+        conn,
+    ) -> TurnResolutionRecord:
+        """Save the graph and fact receipts inside the prepared-transition transaction."""
+        checkpoint_json = preview.checkpoint.to_json()
+        return self.resolution_repository.save_action_checkpoint(
+            self._required_resolution_id(record),
+            checkpoint_json,
+            scope=self.scope,
+            expected_state="planning",
+            expected_lease_token=lease_token,
+            expected_context_revision=record.context_revision,
+            expected_checkpoint_json=record.action_checkpoint_json,
+            now=datetime.now(UTC).isoformat(),
+            conn=conn,
+        )
 
+    @staticmethod
+    def _append_world_fact_operations(plan: TurnResolutionPlan, preview):
+        """Append trusted policy operations without consulting mechanics outcomes."""
+        if preview is None:
+            return plan
+        operations = getattr(preview, "world_fact_operations", ())
+        if not isinstance(operations, tuple) or any(
+            not isinstance(operation, WorldOperation)
+            for operation in operations
+        ):
+            raise TypeError("v3 world-fact preview returned invalid operations")
+        if not operations:
+            return plan
+        return replace(
+            plan,
+            world_operations=(*plan.world_operations, *operations),
+            ordered_operations=(*plan.ordered_operations, *operations),
+        )
+
+    @staticmethod
+    def _log_v3_action_preview(preview) -> None:
+        if preview is None:
+            return
         candidate = getattr(preview.selection, "candidate", None)
         status = getattr(getattr(preview.selection, "status", None), "value", "unknown")
         logger.info(
@@ -181,10 +221,17 @@ class DurableTurnExecutionService:
                 "preview_event_count": preview.event_count,
                 "preview_action_node_count": len(preview.checkpoint.nodes),
                 "preview_excluded_event_count": preview.excluded_event_count,
-                "preview_selected_action_type": candidate.action_type if candidate is not None else None,
+                "preview_selected_action_type": (
+                    candidate.action_type if candidate is not None else None
+                ),
+                "preview_fact_candidate_count": preview.fact_candidate_count,
+                "preview_fact_accepted_count": preview.fact_accepted_count,
+                "preview_fact_already_present_count": preview.fact_already_present_count,
+                "preview_fact_pending_count": preview.fact_pending_count,
+                "preview_fact_rejected_count": preview.fact_rejected_count,
+                "preview_fact_operation_count": len(preview.world_fact_operations),
             },
         )
-        return saved
 
     def _serialize_operations(self, plan: TurnResolutionPlan) -> str:
         try:
@@ -528,12 +575,21 @@ class DurableTurnExecutionService:
                 with bind_resolution_context(
                     str(self._required_resolution_id(record))
                 ):
-                    plan = self.resolver.prepare_turn(
-                        context,
-                        normalized,
-                        manual_mode=(dice_mode == "manual"),
-                        recent_turns=recent,
-                    )
+                    if self._world_facts_enabled():
+                        plan = self.resolver.prepare_turn(
+                            context,
+                            normalized,
+                            manual_mode=(dice_mode == "manual"),
+                            recent_turns=recent,
+                            mechanics_failure_is_non_fatal=True,
+                        )
+                    else:
+                        plan = self.resolver.prepare_turn(
+                            context,
+                            normalized,
+                            manual_mode=(dice_mode == "manual"),
+                            recent_turns=recent,
+                        )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
                     with transaction("IMMEDIATE") as conn:
@@ -587,15 +643,42 @@ class DurableTurnExecutionService:
                         )
                     )
                     return self._clarification_result(saved, pending)
-                record = self._persist_v3_action_checkpoint(
+                authoritative_plan = plan
+                preview = self._build_v3_action_preview(
                     record, context, normalized, recent, revision, lease_token
                 )
-                proposal_json = self._serialize_operations(plan)
+                proposal_json = self._serialize_operations(authoritative_plan)
+                if preview is not None:
+                    try:
+                        enriched_plan = self._append_world_fact_operations(
+                            authoritative_plan,
+                            preview,
+                        )
+                        enriched_proposal_json = self._serialize_operations(
+                            enriched_plan
+                        )
+                    except Exception:  # noqa: BLE001 - optional fact plan must not poison v2
+                        logger.warning(
+                            "turn.v3_action_preview.fact_operations_skipped",
+                            extra={
+                                "preview_stage": "fact_operation_encoding",
+                                "preview_code": "invalid_optional_operations",
+                            },
+                        )
+                        preview = None
+                        plan = authoritative_plan
+                    else:
+                        plan = enriched_plan
+                        proposal_json = enriched_proposal_json
+                else:
+                    plan = authoritative_plan
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 
-                with transaction("IMMEDIATE") as conn:
-                    self.resolution_repository.transition(
-                        self._required_resolution_id(record),
+                prepared_record = self._require_resolution_record(record)
+
+                def transition_to_prepared(conn):
+                    return self.resolution_repository.transition(
+                        self._required_resolution_id(prepared_record),
                         "prepared",
                         scope=self.scope,
                         expected_state="planning",
@@ -618,6 +701,42 @@ class DurableTurnExecutionService:
                         },
                         conn=conn,
                     )
+
+                try:
+                    with transaction("IMMEDIATE") as conn:
+                        if preview is not None:
+                            if not isinstance(lease_token, str) or not lease_token:
+                                raise _OptionalV3CheckpointSaveFailure from None
+                            try:
+                                record = self._save_v3_action_checkpoint(
+                                    record,
+                                    preview,
+                                    revision,
+                                    lease_token,
+                                    conn,
+                                )
+                            except Exception:  # noqa: BLE001 - optional preview write
+                                raise _OptionalV3CheckpointSaveFailure from None
+                        record = transition_to_prepared(conn)
+                except _OptionalV3CheckpointSaveFailure:
+                    # The checkpoint/receipts and proposal are one transaction.
+                    # If the receipt cannot be fenced and saved, discard every
+                    # v3 fact operation and preserve the authoritative v2 plan.
+                    logger.warning(
+                        "turn.v3_action_preview.checkpoint_persistence_skipped",
+                        extra={
+                            "preview_stage": "checkpoint_persistence",
+                            "preview_code": "cas_or_storage_rejected",
+                        },
+                    )
+                    preview = None
+                    plan = authoritative_plan
+                    proposal_json = self._serialize_operations(plan)
+                    mechanics_json = self._mechanics_to_json(plan.mechanics_result)
+                    with transaction("IMMEDIATE") as conn:
+                        record = transition_to_prepared(conn)
+
+                self._log_v3_action_preview(preview)
 
             self.prepared_commit_service.commit_prepared_plan(
                 record,
