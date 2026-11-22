@@ -302,10 +302,11 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
 
     source = "Yo intento abrir la puerta y la cosa"
     payload = json.loads(_v3_response(source))
+    payload["events"][0]["arguments"][1]["mention"]["text"] = "la cosa"
     payload["events"][0]["arguments"].append(
         {
-            "role": "instrument",
-            "mention": {"text": "la cosa", "kind_hint": "location"},
+            "role": "theme",
+            "mention": {"text": "la puerta", "kind_hint": "location"},
         }
     )
     response = json.dumps(payload, ensure_ascii=False)
@@ -317,6 +318,12 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
                 name="Puerta de hierro",
                 entity_type="location",
                 aliases=["la puerta"],
+            ),
+            9: Entity(
+                id=9,
+                name="Caja antigua",
+                entity_type="object",
+                aliases=["la caja"],
             ),
         }
     )
@@ -331,17 +338,20 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
     node = original.checkpoint.nodes[0]
     assert node.state.value == "awaiting_input"
     candidate = node.candidate
-    clarified_mention = SemanticMention("Puerta de hierro")
+    clarified_mention = SemanticMention("la caja")
     updated_candidate = replace(
         candidate,
-        target_mentions=(clarified_mention,),
+        target_mentions=(
+            SemanticMention("la puerta"),
+            clarified_mention,
+        ),
         resolved_references=(
             *candidate.resolved_references,
             GameplayResolvedReference(
                 mention=clarified_mention,
                 category=GameplayResolvedReferenceKind.ENTITY,
-                referent_id=8,
-                name="Puerta de hierro",
+                referent_id=9,
+                name="Caja antigua",
             ),
         ),
         eligibility=GameplayActionEligibility.ELIGIBLE,
@@ -367,11 +377,14 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
     assert restored.checkpoint == clarified
     assert restored.selection.status is ActionSelectionStatus.READY
     assert restored.selection.candidate is not None
-    assert restored.selection.candidate.target_mentions == (clarified_mention,)
+    assert restored.selection.candidate.target_mentions == (
+        SemanticMention("la puerta"),
+        clarified_mention,
+    )
     assert {
         item.referent_id
         for item in restored.selection.candidate.resolved_references
-    } == {7, 8}
+    } == {7, 8, 9}
 
 
 def test_v3_action_preview_abstains_on_ambiguous_visible_target():
