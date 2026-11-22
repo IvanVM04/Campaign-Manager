@@ -285,6 +285,85 @@ def test_v3_action_preview_restores_persisted_interpretation_without_llm_call():
     assert restored.visible_projection.world is world
 
 
+def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayActionEligibility,
+        GameplayActionReason,
+        GameplayProcessingState,
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+        GameplayUnlockCondition,
+        GameplayWorkflow,
+    )
+    from models.semantic_frames import SemanticMention
+    from services.turns.player_action_selector import resume_after_clarification
+
+    source = "Yo intento abrir la cosa"
+    payload = json.loads(_v3_response(source))
+    payload["events"][0]["arguments"][1]["mention"]["text"] = "la cosa"
+    response = json.dumps(payload, ensure_ascii=False)
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(id=8, name="Puerta de hierro", entity_type="location"),
+        }
+    )
+    service, provider, _builder = _preview_service(world, response)
+    original = service.preview(
+        _context(world),
+        source,
+        resolution_id=46,
+        context_revision=13,
+    )
+
+    node = original.checkpoint.nodes[0]
+    assert node.state.value == "awaiting_input"
+    candidate = node.candidate
+    clarified_mention = SemanticMention("Puerta de hierro")
+    updated_candidate = replace(
+        candidate,
+        target_mentions=(clarified_mention,),
+        resolved_references=(
+            *candidate.resolved_references,
+            GameplayResolvedReference(
+                mention=clarified_mention,
+                category=GameplayResolvedReferenceKind.ENTITY,
+                referent_id=8,
+                name="Puerta de hierro",
+            ),
+        ),
+        eligibility=GameplayActionEligibility.ELIGIBLE,
+        reason=GameplayActionReason.ELIGIBLE,
+        workflow=GameplayWorkflow.MECHANICS,
+        unlock_condition=GameplayUnlockCondition.NONE,
+        processing_state=GameplayProcessingState.PENDING,
+    )
+    clarified = resume_after_clarification(
+        original.checkpoint,
+        "event_open",
+        updated_candidate,
+    ).checkpoint
+    call_count = provider.call_count
+
+    restored = service.restore(
+        clarified,
+        _context(world),
+        source,
+    )
+
+    assert provider.call_count == call_count
+    assert restored.checkpoint == clarified
+    assert restored.selection.status is ActionSelectionStatus.READY
+    assert restored.selection.candidate is not None
+    assert restored.selection.candidate.target_mentions == (clarified_mention,)
+    assert {
+        item.referent_id
+        for item in restored.selection.candidate.resolved_references
+    } == {7, 8}
+
+
 def test_v3_action_preview_abstains_on_ambiguous_visible_target():
     source = "Yo intento abrir la puerta"
     world = WorldState(
