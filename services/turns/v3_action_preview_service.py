@@ -172,6 +172,13 @@ class V3ActionPreviewService:
         for act in interpretation.utterance_acts:
             if act.addressee_mention is not None:
                 queries.append(act.addressee_mention.text)
+        # Facts are independent of action frames. Their endpoints must be
+        # requested explicitly so the bounded visible projection can resolve
+        # them without broadening to the entire campaign world.
+        for fact in interpretation.world_facts:
+            queries.append(fact.subject.text)
+            if fact.object is not None:
+                queries.append(fact.object.text)
         normalized_queries = tuple(dict.fromkeys(
             value.strip()[:120]
             for value in queries
@@ -257,6 +264,49 @@ class V3ActionPreviewService:
             ),
             False,
         )
+
+    def _fact_endpoint_reference(
+        self,
+        world,
+        mention: SemanticMention,
+    ) -> ResolvedConversationReference | None:
+        """Resolve one fact endpoint only against the bounded visible world."""
+        resolution = self.reference_resolver.resolve(world, mention.text)
+        if resolution.status != "resolved" or len(resolution.candidates) != 1:
+            return None
+        candidate = resolution.candidates[0]
+        entity = world.entities.get(candidate.entity_id)
+        if (
+            entity is None
+            or not entity.active
+            or entity.id != candidate.entity_id
+        ):
+            return None
+        return ResolvedConversationReference(
+            mention=mention.text,
+            entity_id=candidate.entity_id,
+            entity_name=entity.name,
+            match_kind=candidate.match_kind,
+        )
+
+    def _fact_endpoint_resolutions(
+        self,
+        interpretation: TurnInterpretationV3,
+        world,
+    ) -> dict[str, FactEndpointResolution]:
+        resolutions: dict[str, FactEndpointResolution] = {}
+        for fact in interpretation.world_facts:
+            resolutions[fact.local_id] = FactEndpointResolution(
+                subject_reference=self._fact_endpoint_reference(
+                    world, fact.subject
+                ),
+                object_reference=(
+                    self._fact_endpoint_reference(world, fact.object)
+                    if fact.object is not None
+                    else None
+                ),
+            )
+        return resolutions
 
     def _reference_resolutions(
         self,
@@ -359,6 +409,34 @@ class V3ActionPreviewService:
                 "reference_resolution_failed",
                 "reference_resolution",
             ) from None
+        fact_decisions = ()
+        fact_receipts = ()
+        fact_operations = ()
+        if self.world_facts_enabled and interpretation.world_facts:
+            try:
+                fact_decisions = evaluate_world_facts(
+                    interpretation,
+                    visible_world,
+                    self._fact_endpoint_resolutions(
+                        interpretation,
+                        visible_world,
+                    ),
+                )
+                fact_receipts = tuple(
+                    decision.to_receipt() for decision in fact_decisions
+                )
+                fact_operations = tuple(
+                    operation
+                    for decision in fact_decisions
+                    if decision.status is FactDecisionStatus.ACCEPTED
+                    for operation in decision.operations
+                )
+            except Exception:  # noqa: BLE001 - optional fact preview fails closed
+                raise V3ActionPreviewError(
+                    "fact_policy_failed",
+                    "fact_policy",
+                ) from None
+
         try:
             built = build_action_checkpoint(
                 interpretation,
@@ -367,13 +445,27 @@ class V3ActionPreviewService:
                 source_text=player_input,
                 active_character_id=active_character_id,
                 reference_resolutions=resolutions,
+                fact_validation_receipts=fact_receipts,
             )
             selection = select_next_action(built.checkpoint)
         except (ActionSelectorError, TypeError, ValueError):
             raise V3ActionPreviewError("action_graph_rejected", "selection") from None
+
+        status_counts = {
+            status: sum(
+                decision.status is status for decision in fact_decisions
+            )
+            for status in FactDecisionStatus
+        }
         return V3ActionPreviewResult(
             checkpoint=built.checkpoint,
             selection=selection,
             event_count=len(interpretation.events),
             excluded_event_count=len(built.excluded_event_ids),
+            fact_candidate_count=len(fact_decisions),
+            fact_accepted_count=status_counts[FactDecisionStatus.ACCEPTED],
+            fact_already_present_count=status_counts[FactDecisionStatus.ALREADY_PRESENT],
+            fact_pending_count=status_counts[FactDecisionStatus.NEEDS_CLARIFICATION],
+            fact_rejected_count=status_counts[FactDecisionStatus.REJECTED],
+            world_fact_operations=fact_operations,
         )
