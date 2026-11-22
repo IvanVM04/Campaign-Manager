@@ -1,6 +1,5 @@
 import hashlib
 import json
-from contextlib import nullcontext
 from types import SimpleNamespace
 
 import pytest
@@ -18,7 +17,6 @@ from models.world_context_projection import (
 from models.world_state import WorldState
 from services.context import ContextBuilder
 from services.providers import FakeLLMProvider
-from services.turns import durable_turn_execution_service as module
 from services.turns.durable_turn_execution_service import (
     DurableTurnExecutionService,
 )
@@ -307,7 +305,7 @@ def test_v3_action_preview_lease_timeout_is_extended_only_when_enabled():
     assert enabled._planning_lease_timeout_seconds() == 600
 
 
-def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
+def test_shadow_checkpoint_save_uses_current_lease_and_cas():
     source = "Yo intento abrir la puerta"
     checkpoint = PlayerActionCheckpoint(
         resolution_id=51,
@@ -316,20 +314,7 @@ def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
         interpretation_sha256=hashlib.sha256(b"{}").hexdigest(),
         nodes=(),
     )
-    selection = SimpleNamespace(status=SimpleNamespace(value="exhausted"), candidate=None)
-    preview = SimpleNamespace(
-        checkpoint=checkpoint,
-        selection=selection,
-        event_count=0,
-        excluded_event_count=0,
-    )
-
-    class Preview:
-        def preview(self, *args, **kwargs):
-            assert kwargs["resolution_id"] == 51
-            assert kwargs["context_revision"] == 12
-            return preview
-
+    preview = SimpleNamespace(checkpoint=checkpoint)
     saved = SimpleNamespace(action_checkpoint_json=checkpoint.to_json())
     captured = {}
 
@@ -343,26 +328,24 @@ def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
             return saved
 
     service = object.__new__(DurableTurnExecutionService)
-    service.v3_action_preview_service = Preview()
     service.resolution_repository = Repository()
     service.scope = CampaignScope(1)
-    monkeypatch.setattr(module, "transaction", lambda _mode: nullcontext("connection"))
     record = SimpleNamespace(
         id=51,
         context_revision=None,
         action_checkpoint_json=None,
     )
 
-    result = service._persist_v3_action_checkpoint(
+    result = service._save_v3_action_checkpoint(
         record,
-        context=object(),
-        player_input=source,
-        recent=[],
+        preview,
         revision=12,
         lease_token="lease-token",
+        conn="connection",
     )
 
     assert result is saved
+    assert captured["resolution_id"] == 51
     assert captured["expected_state"] == "planning"
     assert captured["expected_lease_token"] == "lease-token"
     assert captured["expected_context_revision"] is None
@@ -371,7 +354,7 @@ def test_shadow_checkpoint_persistence_uses_current_lease_and_cas(monkeypatch):
     assert captured["conn"] == "connection"
 
 
-def test_shadow_checkpoint_persistence_never_regenerates_an_existing_checkpoint():
+def test_v3_preview_never_regenerates_an_existing_checkpoint():
     class Preview:
         calls = 0
 
@@ -384,7 +367,7 @@ def test_shadow_checkpoint_persistence_never_regenerates_an_existing_checkpoint(
     service.v3_action_preview_service = preview
     record = SimpleNamespace(action_checkpoint_json='{"existing":true}')
 
-    result = service._persist_v3_action_checkpoint(
+    result = service._build_v3_action_preview(
         record,
         context=object(),
         player_input="texto",
@@ -393,7 +376,7 @@ def test_shadow_checkpoint_persistence_never_regenerates_an_existing_checkpoint(
         lease_token="lease-token",
     )
 
-    assert result is record
+    assert result is None
     assert preview.calls == 0
 
 
