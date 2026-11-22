@@ -9,8 +9,10 @@ same execution key.
 from __future__ import annotations
 
 import enum
-from collections.abc import Callable
-from dataclasses import dataclass
+import json
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
 from models.player_action_checkpoint import (
     ActionOutcome,
@@ -33,6 +35,52 @@ class CompoundActionRunStatus(str, enum.Enum):
     NEEDS_CLARIFICATION = "needs_clarification"
     BLOCKED_BY_DEPENDENCY = "blocked_by_dependency"
     EXECUTION_FAILED = "execution_failed"
+
+
+_ALLOWED_ACTION_PROGRESS_FIELDS = frozenset(
+    {"proposal_json", "intent_json", "adjudication_json", "mechanics_json"}
+)
+_MAX_ACTION_PROGRESS_BYTES = 131_072
+
+
+@dataclass(frozen=True, slots=True)
+class CompoundActionExecution:
+    """Authoritative result plus JSON progress to persist with its checkpoint.
+
+    Progress fields are intentionally limited to the same durable columns
+    accepted by TurnResolutionRepository.save_action_checkpoint. Values are
+    validated before the orchestrator lets the checkpoint persister commit
+    them in the same CAS update.
+    """
+
+    outcome: ActionOutcome
+    progress_updates: Mapping[str, str | None] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.outcome, ActionOutcome):
+            raise TypeError("outcome must be an authoritative ActionOutcome")
+        if not isinstance(self.progress_updates, Mapping):
+            raise TypeError("progress_updates must be a mapping")
+        updates = dict(self.progress_updates)
+        unknown = set(updates) - _ALLOWED_ACTION_PROGRESS_FIELDS
+        if unknown:
+            raise ValueError("progress_updates contains a protected field")
+        for name, value in updates.items():
+            if value is None:
+                continue
+            if not isinstance(value, str):
+                raise TypeError(f"{name} must be a JSON string or None")
+            if len(value.encode("utf-8")) > _MAX_ACTION_PROGRESS_BYTES:
+                raise ValueError(f"{name} exceeds its progress byte budget")
+            try:
+                json.loads(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"{name} must contain valid JSON") from None
+        object.__setattr__(
+            self,
+            "progress_updates",
+            MappingProxyType(updates),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,8 +107,13 @@ class CompoundActionRunResult:
     affected_descendant_event_ids: tuple[str, ...] = ()
 
 
-ActionExecutor = Callable[[GameplayActionCandidate, str, bool], ActionOutcome]
-CheckpointPersister = Callable[[PlayerActionCheckpoint], None]
+ActionExecutor = Callable[
+    [GameplayActionCandidate, str, bool],
+    CompoundActionExecution,
+]
+# One-argument callbacks remain valid when there are no staged progress
+# updates; callbacks that receive updates must save both values atomically.
+CheckpointPersister = Callable[..., None]
 
 
 class V3CompoundActionOrchestrator:
@@ -73,7 +126,22 @@ class V3CompoundActionOrchestrator:
 
     The executor must be idempotent for the supplied execution key. This makes
     a crash after execution but before recording the outcome recoverable.
+    Its CompoundActionExecution.progress_updates are passed to the persister
+    together with the RESOLVED checkpoint so proposal/mechanics state and the
+    authoritative outcome share one repository CAS transaction.
     """
+
+    @staticmethod
+    def _persist(
+        persist_checkpoint: CheckpointPersister,
+        checkpoint: PlayerActionCheckpoint,
+        progress_updates: Mapping[str, str | None] | None = None,
+    ) -> None:
+        updates = None if not progress_updates else dict(progress_updates)
+        if updates is None:
+            persist_checkpoint(checkpoint)
+        else:
+            persist_checkpoint(checkpoint, updates)
 
     def run(
         self,
@@ -97,7 +165,7 @@ class V3CompoundActionOrchestrator:
             if selection.checkpoint != current:
                 # Selection may mark a failed dependency branch SKIPPED.
                 # That state change is durable even without a new action.
-                persist_checkpoint(selection.checkpoint)
+                self._persist(persist_checkpoint, selection.checkpoint)
                 current = selection.checkpoint
 
             if selection.status is ActionSelectionStatus.EXHAUSTED:
@@ -134,12 +202,14 @@ class V3CompoundActionOrchestrator:
             current, execution_key, resumed = mark_action_started(current, event_id)
             # Persist IN_PROGRESS before invoking mechanics or any other
             # execution adapter. A failed save must prevent the action call.
-            persist_checkpoint(current)
+            self._persist(persist_checkpoint, current)
 
             try:
-                outcome = execute(candidate, execution_key, resumed)
-                if not isinstance(outcome, ActionOutcome):
-                    raise TypeError("action executor must return ActionOutcome")
+                execution = execute(candidate, execution_key, resumed)
+                if not isinstance(execution, CompoundActionExecution):
+                    raise TypeError(
+                        "action executor must return CompoundActionExecution"
+                    )
             except Exception as exc:  # noqa: BLE001 - adapter errors are technical
                 current = mark_action_execution_failed(current, event_id)
                 persist_checkpoint(current)
@@ -192,7 +262,7 @@ class V3CompoundActionOrchestrator:
             updated_candidate,
             clarification_slots=clarification_slots,
         )
-        persist_checkpoint(resumed.checkpoint)
+        self._persist(persist_checkpoint, resumed.checkpoint)
         result = self.run(
             resumed.checkpoint,
             execute=execute,
