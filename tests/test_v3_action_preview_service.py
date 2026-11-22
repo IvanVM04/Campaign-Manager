@@ -249,6 +249,42 @@ def test_v3_action_preview_builds_one_backend_resolved_candidate_without_executi
     assert "=== EVIDENCIA ESCRITA POR EL JUGADOR" in provider.last_prompt
 
 
+def test_v3_action_preview_restores_persisted_interpretation_without_llm_call():
+    source = "Yo intento abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+        }
+    )
+    service, provider, _builder = _preview_service(world, _v3_response(source))
+    original = service.preview(
+        _context(world),
+        source,
+        resolution_id=45,
+        context_revision=12,
+    )
+    call_count = provider.call_count
+
+    restored = service.restore(
+        original.checkpoint,
+        _context(world),
+        source,
+    )
+
+    assert provider.call_count == call_count
+    assert restored.checkpoint == original.checkpoint
+    assert restored.interpretation == original.interpretation
+    assert restored.selection.status is ActionSelectionStatus.READY
+    assert restored.selection.candidate == original.selection.candidate
+    assert restored.visible_projection.world is world
+
+
 def test_v3_action_preview_abstains_on_ambiguous_visible_target():
     source = "Yo intento abrir la puerta"
     world = WorldState(
