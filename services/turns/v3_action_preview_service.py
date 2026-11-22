@@ -63,9 +63,9 @@ class V3ActionPreviewService:
     selector. Its result is diagnostic and is not passed to mechanics or writes.
     """
 
-    _FIRST_PERSON_ACTOR_FORMS = frozenset(
-        {"yo", "me", "mi", "nosotros", "nosotras"}
-    )
+    # Only first-person singular is safely identical to the controlled actor.
+    # Plural agents and possessives must go through canonical resolution.
+    _FIRST_PERSON_ACTOR_FORMS = frozenset({"yo", "me"})
 
     def __init__(
         self,

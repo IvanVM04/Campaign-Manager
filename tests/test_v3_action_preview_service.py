@@ -35,7 +35,7 @@ def _span(source: str) -> dict[str, object]:
     }
 
 
-def _v3_response(source: str) -> str:
+def _v3_response(source: str, *, actor: str = "Yo") -> str:
     span = _span(source)
     payload = {
         "schema_version": 3,
@@ -57,7 +57,7 @@ def _v3_response(source: str) -> str:
                 "predicate_surface": "abrir",
                 "family": "interaction",
                 "arguments": [
-                    {"role": "agent", "mention": {"text": "Yo", "kind_hint": "character"}},
+                    {"role": "agent", "mention": {"text": actor, "kind_hint": "character"}},
                     {"role": "patient", "mention": {"text": "la puerta", "kind_hint": "location"}},
                 ],
                 "polarity": "positive",
@@ -346,3 +346,30 @@ def test_shadow_checkpoint_persistence_never_regenerates_an_existing_checkpoint(
 
     assert result is record
     assert preview.calls == 0
+
+
+
+def test_v3_action_preview_does_not_map_plural_first_person_to_single_active_character():
+    source = "Nosotros intentamos abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(id=8, name="Puerta", entity_type="location", aliases=["la puerta"]),
+        }
+    )
+    service, _provider, _builder = _preview_service(
+        world,
+        _v3_response(source, actor="Nosotros"),
+    )
+
+    result = service.preview(
+        _context(world),
+        source,
+        resolution_id=44,
+        context_revision=12,
+    )
+
+    assert result.selection.status is ActionSelectionStatus.NEEDS_CLARIFICATION
+    assert result.selection.candidate is not None
+    assert result.selection.candidate.reason.value == "unresolved_reference"
+    assert result.selection.candidate.resolved_references == ()
