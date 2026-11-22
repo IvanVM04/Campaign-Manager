@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from models.player_action_checkpoint import MAX_CHECKPOINT_NODES
 from services.turns.turn_resolution_service import TurnResolutionPlan
@@ -151,7 +151,10 @@ class V3ActionProgressEntry:
         if not isinstance(plan, TurnResolutionPlan):
             raise TypeError("plan must be a TurnResolutionPlan")
         from services.turns.turn_resolution_codec import TurnResolutionCodec
+        from services.turns.turn_resolution_service import TurnResolutionPlan
 
+        if not isinstance(plan, TurnResolutionPlan):
+            raise TypeError("plan must be a TurnResolutionPlan")
         operations_json = TurnResolutionCodec.serialize_operations(plan)
         intent_json = TurnResolutionCodec.intent_to_json(plan)
         mechanics_json = TurnResolutionCodec.mechanics_to_json(plan.mechanics_result)
