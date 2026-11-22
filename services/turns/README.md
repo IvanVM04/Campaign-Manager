@@ -25,7 +25,7 @@ not existing behavior of this package.
 - `intent_normalization_pipeline.py` — deterministic provider-payload normalization, strict versioned model decoding and content-free stage diagnostics. It does not call the provider, resolve canonical IDs or authorize writes.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
-- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; it is not called by the current production turn route.
+- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; the opt-in preview records its checkpoint but does not execute selected actions.
 - `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
@@ -306,3 +306,27 @@ the existing bounded twelve-turn selection, quote masking, literal source
 offsets, NPC visibility/alias checks, ambiguity abstention and byte-bounded
 rendered hints. These collaborators do not resolve canonical IDs or authorize
 world changes.
+
+
+## V3 action preview runtime boundary — PR #297
+
+The preview is enabled only with
+`CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED=true`. When disabled,
+the existing three-minute planning lease and v1/v2 route are unchanged. When
+enabled, the planning lease is extended to cover a second intent-provider call
+plus the configured mechanics/extraction timeouts.
+
+The preview calls the holistic v3 prompt once, validates current-utterance
+evidence, resolves actor/target mentions against a bounded visible-world
+projection and asks `select_next_action` for at most one candidate. It stores
+the graph checkpoint through `save_action_checkpoint` while the same planning
+lease is held. Existing checkpoints are never regenerated or overwritten on a
+retry. Preview, decoding, or optional checkpoint-storage failures are logged
+with safe stage/code metadata and do not replace the authoritative v2 plan.
+
+This stage does not call `MechanicsAdjudicator`, roll dice, generate operation
+proposals, invoke `world_fact_policy`, or mutate the campaign. Unresolved or
+ambiguous references remain clarification states inside the shadow checkpoint
+only. First-person actor forms are bound to the active character; other
+canonical references must come from the visible projection. Typed non-entity
+reference namespaces and real action execution remain later work.

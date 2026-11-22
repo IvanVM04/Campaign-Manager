@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PR #293 y #294 fusionadas; PR #295 en implementación.  
-**Baseline inspeccionada:** main, commit a457799c357e73018fa943171a8c032708a199a5 (PR #294 integrada).
+**Estado:** activo; PRs #293–#296 fusionadas; PR #297 en implementación.  
+**Baseline inspeccionada:** main, commit 6563fad5328d8465f3e32aaf225dcdef94954c95 (PR #296 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -121,7 +121,7 @@ Los parámetros efectivos de generación, la versión del prompt, el schema, el 
 | #284 | Hardening v2: tipo obligatorio de entidad, predicados de habla, callbacks y relaciones sombra | No elimina limitaciones de v2 |
 | #285 | DTOs v3, decoder estricto, evidence spans, IDs locales y separación de tipos | No activa runtime ni prompt v3 |
 | #286 | Prompt holístico y runner v2/v3 shadow con corpus inicial de 12 casos | No hay aceptación live ni autoridad v3 |
-| #287 | Selector backend, dependencias, checkpoint durable y recibos | El selector no está conectado a la ruta real |
+| #287 | Selector backend, dependencias, checkpoint durable y recibos | El selector no ejecuta acciones ni autoriza mutaciones |
 | #288 | Política backend de elegibilidad y operaciones de hechos | La política no está conectada al runtime |
 | #289 | Runner y agregación del informe shadow | No mejora la comprensión |
 | #290 | Reparaciones puntuales de regresiones v2 de semántica/discurso | No sustituye la representación v2 |
@@ -149,13 +149,13 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | #293 | P0 | [x] MERGED + CI VERIFIED | Scorer semántico de grafo, métricas por nodos/aristas, 20 escenarios graph-gold y evaluación live opt-in. Merge: 2026-11-21, SHA c05550ea2ba16b8dca0de7d578d8c001202b6e32; CI: 2.482 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #292 |
 | #294 | P0 | [x] MERGED + CI VERIFIED | Prompt v3 holístico orientado a cobertura completa, alineación exacta conservadora de spans y manifiestos/telemetría versionados; v2 sigue en producción. Merge: 2026-11-21, SHA a457799c357e73018fa943171a8c032708a199a5; CI: 2.489 passed, 25 deselected, coverage 85,04 %, lint/Pyright/CodeQL/test-js/PowerShell success | #293 |
 | #295 | P0 | [x] MERGED + CI VERIFIED | Validador de consistencia del grafo v3 y regresiones cross-record. Merge: 2026-11-21, SHA 445253e1efc1b6745bdda9b666ec884bf39f079c; CI: 2.499 passed, 25 deselected, coverage 85,07 %, Ruff/Pyright/CodeQL/JS/PowerShell success | #293–#294 |
-| #296 | P0 | [~] IN PROGRESS | Contrato de aceptación de 20 escenarios, ≥3 repeticiones, gates estructurales/grafo/precision-recall/estabilidad, ablations one-factor-at-a-time y runner/report opt-in; nunca autoriza cutover automático | #293–#295 |
+| #296 | P0 | [x] MERGED + CI VERIFIED | Contrato de aceptación de 20 escenarios, ≥3 repeticiones, gates estructurales/grafo/precision-recall/estabilidad, ablations one-factor-at-a-time y runner/report opt-in; nunca autoriza cutover automático. Merge: 2026-11-22, SHA 6563fad5328d8465f3e32aaf225dcdef94954c95 | #293–#295 |
 
 ### Track B — Integración durable del significado
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #297 | P0 | [ ] PLANNED | Integrar action selector y checkpoint v3 en ruta aislada/feature flag; adjudicación de una acción elegible cada vez | #287, #295–#296 |
+| #297 | P0 | [~] IN PROGRESS | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones | #287, #295–#296 |
 | #298 | P0 | [ ] PLANNED | Integrar world_fact_policy y recibos en el commit durable; hechos independientes de errores mecánicos; idempotencia y recuperación | #288, #297 |
 | #299 | P0 | [ ] PLANNED | Orquestación end-to-end de turnos compuestos, callbacks, dependencias, aclaraciones, fallos mecánicos/técnicos y compatibilidad histórica | #297–#298 |
 | #300 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #296–#299 |
@@ -235,3 +235,21 @@ La revisión del roadmap forma parte de la checklist de aceptación de PR. Una P
 - [Contrato v3](player-turn-interpretation-v3-contract-2026-11-20.md), [shadow v3](player-turn-interpretation-v3-shadow-2026-11-20.md), [selector/checkpoint](player-action-selection-checkpoint-2026-11-20.md) y [política de hechos](player-world-fact-policy-2026-11-20.md).
 
 **Decisión vigente:** mejorar primero la comprensión semántica real, no añadir nuevas funcionalidades de producto. No activar v3 hasta superar el gate completo de calidad, seguridad y aceptación integrada.
+
+
+### PR #297 — implementación en curso (2026-11-22)
+
+La integración inicial es un **preview shadow opt-in**, no un cutover: la
+feature flag `CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED` está
+desactivada por defecto. Cuando se activa, el runtime genera una segunda
+interpretación holística v3, resuelve menciones solo contra una proyección
+visible, deriva un único foco seleccionable y guarda el checkpoint en la fila
+durable bajo el lease/CAS existente. El resultado v3 no modifica el plan v2,
+las tiradas, las operaciones ni el mundo. Los checkpoints existentes no se
+regeneran en reintentos.
+
+La PR extrae prompt/schema/alineación de spans a un módulo reutilizable por
+producción y por los tests. Los hechos v3 siguen sin persistirse (PR #298);
+la ejecución real de acciones, la selección de sucesoras y el flujo compuesto
+siguen pendientes para #299. La flag desactivada conserva la ruta y el lease
+normal de v2.
