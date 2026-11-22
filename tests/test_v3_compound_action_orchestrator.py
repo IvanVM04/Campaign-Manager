@@ -439,3 +439,59 @@ def test_clarification_resume_rejects_wrong_event_and_non_candidate():
             "event_open",
             "not a candidate",
         )
+
+
+def test_staged_action_json_is_forwarded_with_the_resolved_checkpoint_cas():
+    checkpoint = replace(_checkpoint(), nodes=(_checkpoint().nodes[0],))
+    persisted = []
+    updates = {
+        "proposal_json": '{"operations":[]}',
+        "mechanics_json": '{"outcome":"success"}',
+    }
+
+    def persist(value, progress_updates=None):
+        persisted.append((value, progress_updates))
+
+    result = V3CompoundActionOrchestrator().run(
+        checkpoint,
+        execute=lambda *_args: CompoundActionExecution(
+            ActionOutcome.SUCCESS,
+            updates,
+        ),
+        persist_checkpoint=persist,
+    )
+
+    assert result.status is CompoundActionRunStatus.COMPLETED
+    assert len(persisted) == 2
+    assert persisted[0][1] is None
+    assert _node(persisted[1][0], "event_open").state is ActionExecutionState.RESOLVED
+    assert persisted[1][1] == updates
+
+
+def test_compound_action_execution_rejects_invalid_staged_json_contract():
+    with pytest.raises(TypeError, match="authoritative ActionOutcome"):
+        CompoundActionExecution("success")  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="progress_updates must be a mapping"):
+        CompoundActionExecution(
+            ActionOutcome.SUCCESS,
+            "not a mapping",  # type: ignore[arg-type]
+        )
+
+    with pytest.raises(ValueError, match="protected field"):
+        CompoundActionExecution(
+            ActionOutcome.SUCCESS,
+            {"last_error_code": '{"reason":"bad"}'},
+        )
+
+    with pytest.raises(ValueError, match="valid JSON"):
+        CompoundActionExecution(
+            ActionOutcome.SUCCESS,
+            {"proposal_json": "not json"},
+        )
+
+    with pytest.raises(ValueError, match="byte budget"):
+        CompoundActionExecution(
+            ActionOutcome.SUCCESS,
+            {"proposal_json": '"' + ("x" * 131_073) + '"'},
+        )
