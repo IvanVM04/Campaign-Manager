@@ -526,7 +526,7 @@ def test_v3_restore_rejects_reference_rebound_to_another_visible_entity():
 def test_v3_restore_reference_validator_rejects_action_identity_changes():
     from dataclasses import replace
 
-    source, world, service, _provider, _context_value, preview = _v3_restore_fixture()
+    _source, world, service, _provider, _context_value, preview = _v3_restore_fixture()
     baseline = preview.checkpoint.nodes[0].candidate
     rebound = replace(baseline, action_type="movement")
 
