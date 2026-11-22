@@ -107,12 +107,11 @@ class CompoundActionRunResult:
     affected_descendant_event_ids: tuple[str, ...] = ()
 
 
+StagedProgressPersister = Callable[[Mapping[str, str | None]], None]
 ActionExecutor = Callable[
-    [GameplayActionCandidate, str, bool],
+    [GameplayActionCandidate, str, bool, StagedProgressPersister],
     CompoundActionExecution,
 ]
-# One-argument callbacks remain valid when there are no staged progress
-# updates; callbacks that receive updates must save both values atomically.
 CheckpointPersister = Callable[..., None]
 
 
@@ -205,7 +204,28 @@ class V3CompoundActionOrchestrator:
             self._persist(persist_checkpoint, current)
 
             try:
-                execution = execute(candidate, execution_key, resumed)
+                def persist_staged_progress(
+                    progress_updates: Mapping[str, str | None],
+                ) -> None:
+                    # The checkpoint intentionally remains IN_PROGRESS. The
+                    # caller saves the staged plan and this unchanged checkpoint
+                    # in one lease-fenced CAS, before the executor continues.
+                    validated = CompoundActionExecution(
+                        ActionOutcome.SUCCESS,
+                        progress_updates,
+                    )
+                    self._persist(
+                        persist_checkpoint,
+                        current,
+                        validated.progress_updates,
+                    )
+
+                execution = execute(
+                    candidate,
+                    execution_key,
+                    resumed,
+                    persist_staged_progress,
+                )
                 if not isinstance(execution, CompoundActionExecution):
                     raise TypeError(
                         "action executor must return CompoundActionExecution"
