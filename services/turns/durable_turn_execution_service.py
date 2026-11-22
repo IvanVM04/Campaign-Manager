@@ -674,9 +674,11 @@ class DurableTurnExecutionService:
                     plan = authoritative_plan
                 mechanics_json = self._mechanics_to_json(plan.mechanics_result)
 
+                prepared_record = self._require_resolution_record(record)
+
                 def transition_to_prepared(conn):
                     return self.resolution_repository.transition(
-                        self._required_resolution_id(record),
+                        self._required_resolution_id(prepared_record),
                         "prepared",
                         scope=self.scope,
                         expected_state="planning",
