@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PRs #293–#298 fusionadas; PR #299 en implementación.  
-**Baseline inspeccionada:** main, commit 6563fad5328d8465f3e32aaf225dcdef94954c95 (PR #296 integrada).
+**Estado:** activo; PRs #293–#299 fusionadas; PR #300 en implementación con CI determinista verificado y gates live pendientes.  
+**Baseline inspeccionada:** main, commit 556feeb17ff227448bc159aa5c823f7441bb5c03 (PR #299 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -158,7 +158,7 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.535 passed, 26 deselected, coverage 85,03 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
 | #298 | P0 | [x] MERGED + CI VERIFIED | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes. Merge: 2026-11-22, SHA 657000b6cdfb27e19acfcd6339343c42d1ba0efb | #288, #297 |
 | #299 | P0 | [x] MERGED + CI VERIFIED (CORE ONLY) | Core de orquestación secuencial, adaptador de planificación por evento, codec/progreso staged, recuperación sin proveedor y persistencia checkpoint+progreso con CAS. Merge: 2026-11-23, SHA 556feeb17ff227448bc159aa5c823f7441bb5c03; CI run 2054: 2.635 passed, 26 deselected, coverage 85,01 %, Ruff/Pyright/JS/PowerShell/CodeQL success. No incluye cableado del executor en DurableTurnExecutionService, proyección virtual ni continuación real de tiradas/aclaraciones | #297–#298 |
-| #300 | P0 | [~] IN PROGRESS | Gate de release que exige aceptación semántica congelada, integración durable y evidencia manual SillyTavern; runner/plantillas/checklist y decisión conservadora HOLD V2. Ollama acceptance y SillyTavern NOT RUN; no hay nuevo flag de ejecución mientras falte la integración durable | #296–#299 |
+| #300 | P0 | [~] IN PROGRESS (CI VERIFIED; LIVE GATES PENDING) | Gate de release que exige aceptación semántica congelada, integración durable y evidencia manual SillyTavern; runner/plantillas/checklist y decisión conservadora HOLD V2. Head CI-verificado: `0257f515259cfb16d1e44a13c8095e75b3f1ae11`; run Tests 45204343191: 2.658 passed, 26 deselected, cobertura 85,01 %; Ruff/Pyright/JS/PowerShell/CI summary y ambos CodeQL verdes. Ollama acceptance y SillyTavern NOT RUN; no hay nuevo flag de ejecución mientras falte la integración durable | #296–#299 |
 
 ### Track C — Robustez y calidad después del cutover inicial
 
@@ -311,12 +311,16 @@ operaciones staged, la autoridad del resultado de cada acción, la continuación
 integrada de tiradas/aclaraciones y el commit agregado único. No existe un
 interruptor de ejecución compuesto activo. V2 permanece como autoridad.
 
-### PR #300 — gate de aceptación y decisión de rollout (en implementación: 2026-11-23)
+### PR #300 — gate de aceptación y decisión de rollout (CI determinista verificado; gates live pendientes: 2026-11-23)
 
 PR #300 introduce:
 - Un gate de release que combina tres evidencias independientes: acceptance
   semántica Ollama bajo el contrato #296, integración durable determinista y
   aceptación manual real con SillyTavern.
+- Las tres evidencias deben referirse al mismo SHA completo: el informe Ollama
+  compara `run_manifest.git_commit`, y los bundles runtime/SillyTavern usan
+  `run_manifest.campaign_manager_commit`. El CLI exige `--candidate-commit` y
+  rechaza evidencias manuales de otro commit.
 - Estados explícitos `pass`, `fail`, `blocked` y `not_run`; los IDs de
   check desconocidos o estados inventados se rechazan.
 - CLI `scripts/ci/v3_rollout_readiness.py` para emitir un dictamen
@@ -325,10 +329,18 @@ PR #300 introduce:
   [V3 acceptance and SillyTavern checklist](../quality/v3-sillytavern-acceptance-checklist-2026-11-23.md).
 - Plantillas iniciales para runtime y SillyTavern con el estado real pendiente.
 
+La CI determinista del head `0257f515259cfb16d1e44a13c8095e75b3f1ae11`
+terminó correctamente: run Tests 45204343191, 2.658 tests pasados, 26
+deselected y cobertura combinada 85,01 % (mínimo 85 %). Ruff, Pyright general
+y acotado, JavaScript, PowerShell, CI summary y CodeQL Python/JavaScript
+pasaron.
+
 La acceptance de Ollama y la prueba manual SillyTavern **no se han ejecutado
-por esta PR**. El gate devuelve HOLD V2 mientras falte cualquiera de las tres
-clases de evidencia. Incluso un gate completo solo permite revisión manual;
-nunca activa flags ni cambia autoridad automáticamente.
+por esta PR**. Los checks de integración durable compuesta siguen BLOCKED por
+el cableado pendiente en `DurableTurnExecutionService`. El gate devuelve HOLD
+V2 mientras falte cualquiera de las tres clases de evidencia. Incluso un gate
+completo solo permite revisión manual; nunca activa flags ni cambia autoridad
+automáticamente.
 
 Se reutilizan los flags existentes de #297/#298: action shadow genera un
 preview/checkpoint; world facts añade operaciones con recibos al prepared
