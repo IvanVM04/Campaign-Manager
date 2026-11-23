@@ -8,6 +8,7 @@ This index separates active technical contracts from dated architecture proposal
 - [Player understanding target architecture — 2026-11-21](player-understanding-target-architecture-2026-11-21.md): intended v3 semantic graph, trust boundaries, action/fact split and staged migration.
 - [Player understanding delivery workflow — 2026-11-21](player-understanding-delivery-workflow-2026-11-21.md): required per-PR checklist and roadmap state lifecycle.
 - [V3 world facts durable commit — 2026-11-22](v3-world-facts-durable-commit-2026-11-22.md): independently gated world-fact evaluation, receipts and atomic prepared-proposal persistence.
+- [V3 acceptance and rollout evidence — 2026-11-23](../quality/v3-sillytavern-acceptance-checklist-2026-11-23.md): frozen Ollama acceptance, missing durable runtime integration, SillyTavern manual checks and the no-cutover release gate.
 
 - [Current system state and architecture map — 2026-11-18](current-state-2026-11-18.md): current implementation shape, API/workflow, ownership, migration version, security, observed CI and unimplemented product requirements.
 - [Project-wide audit — 2026-11-19](project-audit-2026-11-19.md): latest reconciled main SHA, integrated PRs #267–#269, CI metrics, product requirements progress, risks and next steps.
