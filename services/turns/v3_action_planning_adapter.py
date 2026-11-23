@@ -433,14 +433,10 @@ class V3ActionPlanningAdapter:
                 "manual_roll_result_missing",
                 "manual_roll",
             )
-        return replace(
-            staged_action,
-            plan=replace(
-                plan,
-                player_input=player_input.strip(),
-                intent_evidence_text=player_input.strip(),
-            ),
-        )
+        # Keep the original staged player/evidence identity byte-for-byte.
+        # Only mechanics and the operations derived from the submitted roll may
+        # change when replacing the pending progress entry.
+        return replace(staged_action, plan=plan)
 
     def restore_staged_action(
         self,
