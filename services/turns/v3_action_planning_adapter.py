@@ -434,9 +434,16 @@ class V3ActionPlanningAdapter:
                 "manual_roll",
             )
         # Keep the original staged player/evidence identity byte-for-byte.
-        # Only mechanics and the operations derived from the submitted roll may
-        # change when replacing the pending progress entry.
-        return replace(staged_action, plan=plan)
+        # The restored plan carries the original full-turn source and evidence
+        # envelope; only mechanics and derived operations change after the roll.
+        return replace(
+            staged_action,
+            plan=replace(
+                plan,
+                player_input=staged_action.plan.player_input,
+                intent_evidence_text=staged_action.plan.intent_evidence_text,
+            ),
+        )
 
     def restore_staged_action(
         self,
