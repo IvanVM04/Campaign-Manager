@@ -118,12 +118,13 @@ The release gate consumes three independent sources:
 2. A runtime evidence JSON based on `tests/fixtures/v3_runtime_evidence_template_v1.json`.
 3. A SillyTavern evidence JSON based on `tests/fixtures/v3_sillytavern_evidence_template_v1.json`.
 
-Each evidence JSON uses `schema_version: 1` and a `checks` mapping. Check values must be one of `pass`, `fail`, `blocked`, or `not_run`. Unknown check IDs and statuses are rejected. Mark an item `pass` only when there is a test/report from the exact candidate commit; a planned test or a unit-only substitute does not qualify.
+Each evidence JSON uses `schema_version: 1`, a `run_manifest.campaign_manager_commit` field and a `checks` mapping. The full 40-character candidate SHA must match in the Ollama report's `run_manifest.git_commit` and in both runtime and SillyTavern evidence manifests. The CLI rejects manual evidence captured against a different commit. Check values must be one of `pass`, `fail`, `blocked`, or `not_run`; unknown check IDs and statuses are rejected. Mark an item `pass` only when there is a test/report from the exact candidate commit; a planned test or a unit-only substitute does not qualify.
 
 After copying the templates and adding actual evidence, evaluate the bundle:
 
 ```powershell
 python scripts/ci/v3_rollout_readiness.py `
+  --candidate-commit <full-40-character-candidate-sha> `
   --acceptance-report <path-to-player-turn-v3-acceptance.json> `
   --runtime-evidence <path-to-runtime-evidence.json> `
   --sillytavern-evidence <path-to-sillytavern-evidence.json> `
