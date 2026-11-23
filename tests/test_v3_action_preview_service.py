@@ -298,6 +298,7 @@ def test_v3_restore_accepts_backend_resolved_target_from_a_prior_clarification()
     from dataclasses import replace
 
     from models.player_turn_interpretation_v3 import (
+    EvidenceSpan,
         GameplayActionEligibility,
         GameplayActionReason,
         GameplayProcessingState,
@@ -712,7 +713,7 @@ def test_v3_action_planning_adapter_occurrences_handles_casefold_and_repeated_me
     occurrences = V3ActionPlanningAdapter._occurrences(
         "Abrir la puerta y ABRIR la puerta",
         "abrir",
-        (),
+        (EvidenceSpan(start=0, end=33, text="Abrir la puerta y ABRIR la puerta"),),
     )
     assert occurrences == ((0, 5), (18, 23))
 
@@ -751,10 +752,8 @@ def test_v3_action_planning_adapter_excerpt_uses_event_evidence_only():
 
     from dataclasses import replace
 
-    incomplete = replace(event, evidence_spans=())
-    with pytest.raises(V3ActionPlanningError) as rejected:
-        V3ActionPlanningAdapter._event_excerpt(incomplete, source)
-    assert rejected.value.code == "event_evidence_incomplete"
+    with pytest.raises(ValueError, match="evidence span offsets"):
+        V3ActionPlanningAdapter._event_excerpt(event, source + " con ruido")
 
 def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update():
     class RecordingResolver(TurnResolutionService):
