@@ -87,6 +87,29 @@ def _normalise_checks(
     return result
 
 
+def validate_candidate_evidence_commit(
+    run_manifest: Mapping[str, Any] | None,
+    *,
+    candidate_commit: str,
+    evidence_name: str,
+) -> None:
+    """Reject runtime/manual evidence that was not captured on the candidate SHA."""
+    if re.fullmatch(r"[0-9a-fA-F]{40}", candidate_commit) is None:
+        raise ValueError("candidate_commit must be a full 40-character commit SHA")
+    evidence_commit = (
+        run_manifest.get("campaign_manager_commit")
+        if isinstance(run_manifest, Mapping)
+        else None
+    )
+    if (
+        not isinstance(evidence_commit, str)
+        or evidence_commit.casefold() != candidate_commit.casefold()
+    ):
+        raise ValueError(
+            f"{evidence_name} campaign_manager_commit must match candidate_commit"
+        )
+
+
 def _semantic_acceptance_passed(
     report: Mapping[str, Any] | None,
     *,
