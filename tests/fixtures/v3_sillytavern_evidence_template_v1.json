@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "run_manifest": {
+    "campaign_manager_commit": "",
+    "sillytavern_version": "",
+    "sillytavern_extension_version": "",
+    "ollama_version": "",
+    "intent_model": "",
+    "intent_model_digest": "",
+    "run_started_at": "",
+    "run_finished_at": ""
+  },
+  "notes": "Use only pass/fail/blocked/not_run. Attach sanitized logs and reference the exact commit; never include prompts, completions or private campaign text.",
+  "checks": {
+    "v2_compatibility_when_flags_disabled": "not_run",
+    "action_shadow_does_not_change_player_facing_result": "not_run",
+    "independent_fact_survives_unrelated_mechanics_failure": "not_run",
+    "quoted_report_and_negative_controls_do_not_write": "not_run",
+    "ambiguous_callback_abstains_or_requests_clarification": "not_run",
+    "compound_dependency_success_and_failure": "not_run",
+    "manual_roll_resumes_same_action": "not_run",
+    "clarification_resumes_same_checkpoint": "not_run",
+    "duplicate_external_turn_delivery_is_idempotent": "not_run",
+    "crash_recovery_reuses_execution_key": "not_run",
+    "stale_revision_is_rejected_without_writes": "not_run",
+    "chat_isolation_is_preserved": "not_run"
+  }
+}
