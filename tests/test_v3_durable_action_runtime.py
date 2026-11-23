@@ -4,7 +4,11 @@ from types import SimpleNamespace
 import pytest
 
 from models.entity import Entity
-from models.mechanics import MechanicsDecision, MechanicsDecisionType
+from models.mechanics import (
+    MechanicsDecision,
+    MechanicsDecisionType,
+    MechanicsResult,
+)
 from models.player_action_checkpoint import (
     ActionExecutionState,
     ActionOutcome,
@@ -34,6 +38,9 @@ from services.turns.v3_compound_action_runtime import (
     V3CompoundRuntimeResult,
 )
 from services.world import WorldService
+from rules_engine.dnd5e_2014.character_checks import ability_check_for_character
+from rules_engine.dnd5e_2014.core.dice import DiceRoller
+from rules_engine.dnd5e_2014.core.skills import Skill
 from tests.test_v3_action_preview_service import (
     _context,
     _preview_service,
@@ -289,7 +296,7 @@ def test_supports_graph_only_accepts_safe_start_or_real_resumable_progress(monke
         preview,
         manual_mode=False,
     )
-    assert not V3CompoundActionRuntime.supports_graph(
+    assert V3CompoundActionRuntime.supports_graph(
         preview,
         manual_mode=True,
     )
@@ -594,14 +601,118 @@ def test_v3_runtime_fails_closed_before_persistence_for_invalid_inputs(monkeypat
             manual_mode=False,
             persist_checkpoint=None,
         )
-    with pytest.raises(V3CompoundRuntimeError) as manual:
-        runtime.run(
-            record,
-            preview,
-            context=context,
-            player_input="Intento abrirla",
-            recent_turns=[],
-            manual_mode=True,
-            persist_checkpoint=persist_checkpoint,
+    assert V3CompoundActionRuntime.supports_graph(
+        preview,
+        manual_mode=True,
+    )
+
+
+
+def test_v3_runtime_pauses_for_manual_roll_and_resumes_same_node_without_replanning(
+    monkeypatch,
+):
+    (
+        source,
+        _world,
+        context,
+        preview_service,
+        interpreter_provider,
+        preview,
+        resolver,
+        record,
+        planning_calls,
+        _persistence_calls,
+        _fail_final_once,
+        persist_checkpoint,
+    ) = _runtime_fixture(monkeypatch)
+    decision = MechanicsDecision(
+        decision=MechanicsDecisionType.SKILL_CHECK,
+        skill=Skill.STEALTH,
+        dc=11,
+        reason="Evitar al guardia",
+    )
+    roll_calls = []
+
+    def prepare_turn(turn_context, evidence, **kwargs):
+        roll_calls.append(kwargs.get("manual_rolls"))
+        analysis = kwargs.get("intent_analysis_override")
+        if kwargs.get("manual_rolls") is None:
+            return TurnResolutionPlan(
+                player_input=evidence,
+                narrative="",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                mechanics_decision=decision,
+                intent_analysis=analysis,
+                intent_evidence_text=kwargs.get("intent_evidence_text"),
+                awaiting_manual_roll=True,
+            )
+        result = ability_check_for_character(
+            character=turn_context.active_character,
+            roller=DiceRoller(),
+            skill=Skill.STEALTH,
+            dc=11,
+            manual_rolls=kwargs["manual_rolls"],
         )
-    assert manual.value.code == "manual_roll_continuation_not_enabled"
+        return TurnResolutionPlan(
+            player_input=evidence,
+            narrative="",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+            mechanics_decision=decision,
+            mechanics_result=MechanicsResult(decision, result),
+            intent_analysis=analysis,
+            intent_evidence_text=kwargs.get("intent_evidence_text"),
+        )
+
+    monkeypatch.setattr(resolver, "prepare_turn", prepare_turn)
+    runtime = V3CompoundActionRuntime(resolver, preview_service)
+
+    pending = runtime.run(
+        record,
+        preview,
+        context=context,
+        player_input=source,
+        recent_turns=[],
+        manual_mode=True,
+        persist_checkpoint=persist_checkpoint,
+    )
+    event_id = preview.checkpoint.nodes[0].candidate.source_event_id
+    execution_key = preview.checkpoint.nodes[0].execution_key
+    assert pending.status.value == "needs_manual_roll"
+    assert pending.event_id == event_id
+    assert pending.manual_roll_execution_key == execution_key
+    assert pending.checkpoint.nodes[0].state is ActionExecutionState.IN_PROGRESS
+    assert pending.progress.entries[0].awaiting_manual_roll is True
+    assert roll_calls == [None]
+    assert interpreter_provider.call_count == 1
+
+    restored = preview_service.restore(
+        pending.checkpoint,
+        context,
+        source,
+        recent_turns=[],
+    )
+    completed = runtime.run(
+        record,
+        restored,
+        context=context,
+        player_input=source,
+        recent_turns=[],
+        manual_mode=True,
+        manual_roll_event_id=event_id,
+        manual_rolls=(15,),
+        persist_checkpoint=persist_checkpoint,
+    )
+
+    assert completed.status.value == "completed"
+    assert completed.checkpoint.nodes[0].state is ActionExecutionState.RESOLVED
+    assert completed.checkpoint.nodes[0].execution_key == execution_key
+    assert completed.checkpoint.nodes[0].outcome is ActionOutcome.SUCCESS
+    assert completed.progress.entries[0].awaiting_manual_roll is False
+    assert completed.progress.entries[0].execution_key == execution_key
+    assert completed.progress.entries[0].mechanics_json is not None
+    assert roll_calls == [None, (15,)]
+    assert interpreter_provider.call_count == 1
