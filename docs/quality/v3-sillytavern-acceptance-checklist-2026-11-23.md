@@ -1,6 +1,6 @@
 # V3 acceptance, rollout readiness and SillyTavern checklist — 2026-11-23
 
-**Roadmap:** PR #300, track B, P0.  
+**Roadmap:** PR #300 release gate; PR #301 begins the P0 durable integration in draft.  
 **Current decision:** `HOLD V2`.  
 **Production authority:** v2.  
 **Ollama acceptance:** NOT RUN by this PR.  
@@ -14,25 +14,28 @@ PR #299 is merged in `main` at `556feeb17ff227448bc159aa5c823f7441bb5c03` (2026-
 
 PR #299 provides the compound-action state-machine core, one-node-at-a-time orchestration, the V3 planning adapter, staged progress serialization/recovery primitives and checkpoint/progress CAS persistence. Those components have deterministic unit and contract coverage.
 
-**The remaining integration boundary is still real:** `DurableTurnExecutionService` does not yet delegate action planning/execution to `V3ActionPlanningAdapter` and `V3CompoundActionOrchestrator`. The current durable service continues to prepare the player-facing plan through v2, handle manual rolls and clarifications through the existing v2 continuations, and use the existing atomic prepared-commit path. The V3 preview can save an action checkpoint; it does not make the compound executor authoritative.
+**PR #301 (open draft) now wires the first bounded V3 execution path into `DurableTurnExecutionService`:** with both shadow and action-execution flags explicitly enabled, automatic-dice graphs whose initial references are resolved are planned action-by-action through `V3ActionPlanningAdapter` and `V3CompoundActionOrchestrator`. A dependent action receives an isolated virtual projection with staged predecessor world operations applied. Checkpoint transitions and staged progress use the existing planning lease, campaign revision and checkpoint CAS; resolved action plans are aggregated for one prepared commit. Per-action mechanics outcomes are retained for narration rather than collapsing all actions to the final mechanics result. Staged progress can be restored after a crash without re-running the action proposal provider.
 
-The following are therefore not accepted as complete runtime capabilities yet:
+This is a partial integration, not a completed acceptance gate. Manual-dice turns and graphs that initially require clarification remain on V2. If a V3 action unexpectedly asks for clarification, execution fails closed and keeps its checkpoint/progress; it does not commit a partial plan. The current virtual projection does not support staged character operations and fails closed if one appears. Same-node manual-roll/clarification continuations are planned for PR #302. Full durable service/transaction, lease-expiry, stale-revision, negative-control and historical replay evidence remains for PR #303.
 
-- A virtual projection that applies previous staged operations in memory before planning a dependent action.
-- One authoritative backend outcome contract across dialogue, no-roll actions, rolled actions, failures and invalid proposed operations.
-- Durable continuation of V3 action clarification and manual rolls on the same checkpoint and node.
-- A single aggregate proposal containing action operations and independent fact operations, committed once through the existing transaction boundary.
-- Integration proof for lease expiry, crash points, stale revision and idempotent replay after mechanics have started.
-- A complete SillyTavern conversation using the integrated compound-action runtime.
+The following remain incomplete or unaccepted:
 
-Do not add or enable a compound-action execution flag until that route is implemented and integration-tested. The existing flags are narrower:
+- Same-node durable continuation for V3 manual rolls and clarification answers.
+- Virtual projection of staged character operations (currently rejected fail-closed).
+- Complete deterministic end-to-end proof for dialogue, no-roll actions, rolled actions, invalid proposals and failures through the actual durable service and repository.
+- Lease expiry/replacement, crash windows, stale revision, idempotent replay and rollback/zero-write negative controls.
+- Historical V1/V2 durable-record replay through the real service.
+- A complete manual SillyTavern conversation using the integrated compound-action runtime.
+
+The execution flag now exists but is default-off. It must not be enabled for live/production use until the remaining P0 continuations and integration evidence pass. The flags are:
 
 | Setting | Default | Actual authority |
 |---|---:|---|
 | `CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED` | `false` | Builds the V3 preview/checkpoint. It does not execute the action graph. |
 | `CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED` | `false` | Enables independently evaluated, receipt-bound fact operations through the existing prepared commit. Requires action-shadow to be enabled. |
+| `CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED` | `false` | Runs only the partial automatic/initially-resolved compound graph path implemented by PR #301. Requires action-shadow to be enabled. Keep disabled until PRs #301–#303 and the release gate are accepted. |
 
-Neither setting means that V3 compound actions have replaced the v2 player-facing route.
+Even when the new execution flag is enabled for controlled development, the implementation is partial; V2 remains the production authority and release decision.
 
 ## 2. Gate A — frozen V3 semantic acceptance with Ollama
 
@@ -79,8 +82,8 @@ Before attempting V3 compound execution in a real SillyTavern chat, every check 
 
 | Required check | Current status | Evidence required |
 |---|---|---|
-| Compound orchestrator wired to `DurableTurnExecutionService` | BLOCKED | End-to-end durable service test, not a direct orchestrator unit test |
-| Dependent action sees virtual projection of prior staged operations | BLOCKED | Test that applies staged predecessor operations in memory without writing campaign state |
+| Compound orchestrator wired to `DurableTurnExecutionService` | PARTIAL — PR #301 draft | Wiring exists; still needs end-to-end durable service/repository evidence on the candidate SHA |
+| Dependent action sees virtual projection of prior staged operations | PARTIAL — PR #301 draft | World-operation projection exists; needs dependency test through the durable service; character-operation projection fails closed |
 | Manual roll resumes the same action checkpoint | BLOCKED | Durable submission/recovery test with stable event and execution identity |
 | Clarification resumes the same action checkpoint | BLOCKED | Durable clarification flow that preserves the stored graph and unrelated nodes |
 | Action operations and independent fact operations share one aggregate proposal and one atomic commit | BLOCKED | Repository/commit integration test with rollback assertion |
@@ -90,7 +93,7 @@ Before attempting V3 compound execution in a real SillyTavern chat, every check 
 | Critical negative controls produce zero unauthorized writes | BLOCKED | Before/after state comparison for quote, report, rumor, hypothesis, negation, failed attempt and ambiguous target |
 | Historical V1/V2 durable records remain replayable | BLOCKED | Compatibility tests through the actual durable service and codecs |
 
-The list is intentionally marked BLOCKED. PR #300 adds the release gate and captures what must be proven; it does not pretend that the missing runtime wiring has been implemented.
+The list is an acceptance gate, not a progress claim. PR #300 defines the evidence required; PR #301 starts wiring the first bounded route, but no Gate B item is marked PASS until the tests exercise the actual durable service and commit boundary on the candidate SHA.
 
 ## 4. Gate C — manual SillyTavern acceptance
 
@@ -134,7 +137,7 @@ python scripts/ci/v3_rollout_readiness.py `
 
 Exit code 2 means one or more required gates is missing or non-passing. The command never changes configuration, feature flags, production routing or authority. Even when all gates pass, its strongest decision is `eligible_for_controlled_rollout_review`; a separate reviewed PR and explicit rollout decision are required before any change in authority.
 
-**PR #300 decision:** `HOLD V2`. Semantic Ollama acceptance and manual SillyTavern acceptance have not been run here, and the compound-action executor is not yet wired into the durable runtime. Both V3 runtime flags remain opt-in; no new compound-execution flag is introduced.
+**PR #300 / current PR #301 decision:** `HOLD V2`. Semantic Ollama acceptance and manual SillyTavern acceptance have not been run. PR #301 adds a separate execution flag, but it is false by default and requires action-shadow. Keep all V3 flags disabled for the production route until the same-node continuations, full deterministic durable integration and both live gates are accepted.
 
 ## 6. Privacy and evidence handling
 
