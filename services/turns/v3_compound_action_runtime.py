@@ -15,6 +15,7 @@ from models.player_action_checkpoint import (
     ActionOutcome,
     PlayerActionCheckpoint,
 )
+from models.player_turn_interpretation_v3 import GameplayActionCandidate
 from models.world_context_projection import WorldContextProjection
 from services.turns.player_action_selector import select_next_action
 from services.turns.turn_resolution_codec import TurnResolutionCodec
@@ -49,11 +50,15 @@ class V3CompoundRuntimeError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class V3CompoundRuntimeResult:
-    """Completed graph and the immutable plan ready for the existing commit."""
+    """A completed graph or a durable pause awaiting one action clarification."""
 
     checkpoint: PlayerActionCheckpoint
     progress: V3ActionProgressSnapshot
-    plan: TurnResolutionPlan
+    plan: TurnResolutionPlan | None
+    status: CompoundActionRunStatus = CompoundActionRunStatus.COMPLETED
+    candidate: GameplayActionCandidate | None = None
+    event_id: str | None = None
+    clarification_slots: tuple[str, ...] = ()
 
     @property
     def action_outcomes(self) -> tuple[dict[str, object], ...]:
@@ -282,23 +287,26 @@ class V3CompoundActionRuntime:
         *,
         manual_mode: bool,
     ) -> bool:
-        """Return whether this graph can start without an outstanding challenge."""
+        """Return whether this graph can start or pause on a safe target clarification."""
         if manual_mode or not isinstance(preview, V3ActionPreviewResult):
             return False
         status = preview.selection.status.value
-        if status not in {"ready", "exhausted"}:
+        if status not in {"ready", "exhausted", "needs_clarification"}:
             return False
         if not preview.checkpoint.nodes:
             return False
-        if any(
-            node.state is ActionExecutionState.AWAITING_INPUT
-            for node in preview.checkpoint.nodes
-        ):
+        awaiting_nodes = tuple(
+            node for node in preview.checkpoint.nodes
+            if node.state is ActionExecutionState.AWAITING_INPUT
+        )
+        if any(node.clarification_slots != ("target",) for node in awaiting_nodes):
             return False
+        if status == "needs_clarification":
+            return (
+                preview.selection.candidate is not None
+                and preview.selection.clarification_slots == ("target",)
+            )
         if status == "exhausted":
-            # Exhausted is resumable only after at least one action outcome
-            # has already been durably recorded. An initially empty/ineligible
-            # graph must not replace the ordinary dialogue/v2 path.
             return any(
                 node.state is ActionExecutionState.RESOLVED
                 for node in preview.checkpoint.nodes
@@ -315,13 +323,14 @@ class V3CompoundActionRuntime:
         recent_turns,
         manual_mode: bool,
         persist_checkpoint,
+        clarification_event_id: str | None = None,
+        clarification_answer: str | None = None,
     ) -> V3CompoundRuntimeResult:
-        """Execute a graph using only automatic dice and already-resolved nodes.
+        """Execute ready graph nodes, pausing durably for target clarifications.
 
-        Manual-roll/clarification continuations are intentionally rejected by
-        the caller's rollout guard until their same-node continuation adapters
-        are installed. They are never silently converted into a successful
-        action outcome.
+        Manual-roll continuation remains outside this runtime slice. A
+        clarification answer is resolved against the current visible projection
+        and only changes the targeted checkpoint node.
         """
         if not isinstance(preview, V3ActionPreviewResult):
             raise TypeError("preview must be a V3ActionPreviewResult")
@@ -329,13 +338,27 @@ class V3CompoundActionRuntime:
             raise TypeError("persist_checkpoint must be callable")
         if manual_mode:
             raise V3CompoundRuntimeError("manual_roll_continuation_not_enabled")
-        if preview.selection.status.value not in {"ready", "exhausted"}:
+        if preview.selection.status.value not in {
+            "ready", "exhausted", "needs_clarification"
+        }:
             raise V3CompoundRuntimeError("initial_graph_not_ready")
-        if any(
-            node.state is ActionExecutionState.AWAITING_INPUT
+        if (
+            (clarification_event_id is None) != (clarification_answer is None)
+        ):
+            raise V3CompoundRuntimeError("clarification_response_incomplete")
+        if clarification_event_id is not None and not any(
+            node.candidate.source_event_id == clarification_event_id
+            and node.state is ActionExecutionState.AWAITING_INPUT
+            and node.clarification_slots == ("target",)
             for node in preview.checkpoint.nodes
         ):
-            raise V3CompoundRuntimeError("clarification_continuation_not_enabled")
+            raise V3CompoundRuntimeError("clarification_action_not_pending")
+        if any(
+            node.state is ActionExecutionState.AWAITING_INPUT
+            and node.clarification_slots != ("target",)
+            for node in preview.checkpoint.nodes
+        ):
+            raise V3CompoundRuntimeError("unsupported_clarification_slots")
 
         current_preview = preview
         progress = self._progress_snapshot(record, preview.checkpoint)
@@ -420,11 +443,41 @@ class V3CompoundActionRuntime:
                 progress_updates=updates,
             )
 
-        run_result = self.orchestrator.run(
-            preview.checkpoint,
-            execute=execute,
-            persist_checkpoint=persist,
-        )
+        if clarification_event_id is not None and clarification_answer is not None:
+            current_preview, updated_candidate, clarification_slots = (
+                self.preview_service.resolve_target_clarification(
+                    current_preview,
+                    clarification_event_id,
+                    clarification_answer,
+                )
+            )
+            _clarification, run_result = self.orchestrator.resume_after_clarification(
+                current_preview.checkpoint,
+                clarification_event_id,
+                updated_candidate,
+                clarification_slots=clarification_slots,
+                execute=execute,
+                persist_checkpoint=persist,
+            )
+        else:
+            run_result = self.orchestrator.run(
+                current_preview.checkpoint,
+                execute=execute,
+                persist_checkpoint=persist,
+            )
+
+        final_checkpoint = run_result.checkpoint
+        final_progress = progress
+        if run_result.status is CompoundActionRunStatus.NEEDS_CLARIFICATION:
+            return V3CompoundRuntimeResult(
+                checkpoint=final_checkpoint,
+                progress=final_progress,
+                plan=None,
+                status=run_result.status,
+                candidate=run_result.candidate,
+                event_id=run_result.event_id,
+                clarification_slots=run_result.clarification_slots,
+            )
         if run_result.status is not CompoundActionRunStatus.COMPLETED:
             code = (
                 "action_execution_failed"
@@ -433,8 +486,6 @@ class V3CompoundActionRuntime:
             )
             raise V3CompoundRuntimeError(code)
 
-        final_checkpoint = run_result.checkpoint
-        final_progress = progress
         aggregate = self._aggregate_plan(
             final_checkpoint,
             final_progress,
@@ -444,4 +495,5 @@ class V3CompoundActionRuntime:
             checkpoint=final_checkpoint,
             progress=final_progress,
             plan=aggregate,
+            status=run_result.status,
         )
