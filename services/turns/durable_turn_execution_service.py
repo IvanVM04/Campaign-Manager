@@ -880,11 +880,12 @@ class DurableTurnExecutionService:
                                 )
                             )
                             return self._clarification_result(saved, next_pending)
-                        plan = compound.plan
-                        if plan is None:
+                        aggregate_plan = compound.plan
+                        if aggregate_plan is None:
                             raise DurableNativeTurnError(
                                 "v3 compound execution completed without an aggregate plan"
                             )
+                        plan: TurnResolutionPlan = aggregate_plan
                         v3_action_outcomes = compound.action_outcomes
                         v3_execution_used = True
 
