@@ -11,6 +11,10 @@ from models.campaign_state import CampaignState
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.player_action_checkpoint import PlayerActionCheckpoint
+from models.player_turn_interpretation_v3 import (
+    GameplayActionEligibility,
+    GameplayResolvedReferenceKind,
+)
 from models.turn_context import TurnContext
 from models.world_context_projection import (
     ContextProjectionDiagnostics,
@@ -2060,3 +2064,168 @@ def test_v3_action_planning_adapter_restore_rejects_snapshot_without_staged_entr
         )
 
     assert error.value.code == "staged_action_missing"
+
+
+
+def test_v3_target_clarification_resolves_answer_inside_rebuilt_bounded_projection():
+    source = "Yo intento abrir la llave"
+    payload = json.loads(_v3_response(source))
+    payload["events"][0]["arguments"][1]["mention"]["text"] = "la llave"
+    response = json.dumps(payload, ensure_ascii=False)
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de roble",
+                entity_type="location",
+                aliases=["puerta roble"],
+            ),
+        }
+    )
+
+    class AnswerProjectionBuilder(ContextBuilder):
+        def __init__(self):
+            super().__init__()
+            self.queries = ()
+
+        def build_proposal_context(
+            self,
+            source_world,
+            query,
+            *,
+            max_estimated_tokens=None,
+            mandatory_entity_ids=(),
+            supplemental_queries=(),
+            character_entity_id=None,
+            max_estimated_bytes=None,
+        ):
+            self.queries = tuple(supplemental_queries)
+            requested = {
+                item.strip().casefold()
+                for item in self.queries
+                if isinstance(item, str)
+            }
+            selected = {
+                entity_id: entity
+                for entity_id, entity in source_world.entities.items()
+                if entity_id in mandatory_entity_ids
+                or entity.name.strip().casefold() in requested
+                or any(
+                    alias.strip().casefold() in requested
+                    for alias in entity.aliases
+                )
+            }
+            return WorldContextProjection(
+                WorldState(entities=selected),
+                ContextProjectionDiagnostics(
+                    estimated_tokens=10,
+                    budget_tokens=4096,
+                    available_counts=(),
+                    candidate_counts=(),
+                    selected_counts=(),
+                ),
+            )
+
+    interpreter = _PreviewIntentInterpreter(response)
+    builder = AnswerProjectionBuilder()
+    service = V3ActionPreviewService(interpreter, builder)
+    context = _context(world)
+    preview = service.preview(
+        context,
+        source,
+        resolution_id=71,
+        context_revision=19,
+    )
+
+    assert preview.selection.status is ActionSelectionStatus.NEEDS_CLARIFICATION
+    assert preview.visible_projection.world.entities.keys() == {7}
+    node = preview.checkpoint.nodes[0]
+    assert node.clarification_slots == ("target",)
+
+    updated, candidate, remaining_slots = service.resolve_target_clarification(
+        preview,
+        "event_open",
+        "Puerta de roble",
+        context=context,
+        player_input=source,
+    )
+
+    assert remaining_slots == ()
+    assert candidate.eligibility is GameplayActionEligibility.ELIGIBLE
+    target = next(
+        item for item in candidate.resolved_references
+        if item.mention.text == "la llave"
+    )
+    assert target.category is GameplayResolvedReferenceKind.ENTITY
+    assert target.referent_id == 8
+    assert updated.visible_projection.world.entities.keys() == {7, 8}
+    assert "Puerta de roble" in builder.queries
+    assert interpreter.fake_provider.call_count == 1
+
+
+def test_v3_target_clarification_rejects_answers_without_one_visible_match():
+    source = "Yo intento abrir la llave"
+    payload = json.loads(_v3_response(source))
+    payload["events"][0]["arguments"][1]["mention"]["text"] = "la llave"
+    response = json.dumps(payload, ensure_ascii=False)
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de roble",
+                entity_type="location",
+            ),
+        }
+    )
+    service, provider, _builder = _preview_service(world, response)
+    context = _context(world)
+    preview = service.preview(
+        context,
+        source,
+        resolution_id=72,
+        context_revision=20,
+    )
+
+    with pytest.raises(
+        V3ActionPreviewError,
+        match="clarification_answer_not_unique",
+    ):
+        service.resolve_target_clarification(
+            preview,
+            "event_open",
+            "No existe ninguna puerta con ese nombre",
+            context=context,
+            player_input=source,
+        )
+    assert provider.call_count == 1
+
+
+def test_v3_target_clarification_question_is_neutral_and_evidence_specific():
+    source = "Yo intento abrir la llave"
+    payload = json.loads(_v3_response(source))
+    payload["events"][0]["arguments"][1]["mention"]["text"] = "la llave"
+    service, _provider, _builder = _preview_service(
+        WorldState(entities={
+            7: Entity(id=7, name="Arin", entity_type="character")
+        }),
+        json.dumps(payload, ensure_ascii=False),
+    )
+    context = _context(WorldState(entities={
+        7: Entity(id=7, name="Arin", entity_type="character")
+    }))
+    preview = service.preview(
+        context,
+        source,
+        resolution_id=73,
+        context_revision=21,
+    )
+
+    question = service.action_clarification_question(
+        preview,
+        "event_open",
+        ("target",),
+    )
+    assert "«la llave»" in question
+    assert "¿A qué persona u objeto te refieres?" in question
