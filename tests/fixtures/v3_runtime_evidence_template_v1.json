@@ -12,5 +12,8 @@
     "stale_revision_rejected_without_writes": "blocked",
     "negative_controls_produce_zero_unauthorized_writes": "blocked",
     "legacy_v1_v2_records_remain_replayable": "blocked"
+  },
+  "run_manifest": {
+    "campaign_manager_commit": ""
   }
 }
