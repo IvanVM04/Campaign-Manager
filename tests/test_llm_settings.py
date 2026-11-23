@@ -397,11 +397,13 @@ def test_v3_durable_action_execution_is_independent_and_requires_shadow_opt_in()
     assert enabled.player_turn_v3_action_shadow_enabled is True
     assert enabled.player_turn_v3_action_execution_enabled is True
 
-    disabled = LLMSettings.from_env({
-        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED": "true",
-    })
-    assert disabled.player_turn_v3_action_shadow_enabled is False
-    assert disabled.player_turn_v3_action_execution_enabled is False
+    with pytest.raises(
+        ValueError,
+        match="requires.*player_turn_v3_action_shadow_enabled",
+    ):
+        LLMSettings.from_env({
+            "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED": "true",
+        })
 
     with pytest.raises(ValueError, match="requires.*player_turn_v3_action_shadow_enabled"):
         LLMSettings(
