@@ -256,7 +256,7 @@ class DurableTurnNarrationService:
 
     @staticmethod
     def _resolved_player_input(record: TurnResolutionRecord) -> str:
-        adjudication = json.loads(record.adjudication_json or "{}")
+        adjudication = json.loads(getattr(record, "adjudication_json", None) or "{}")
         return adjudication.get("resolved_player_input", record.player_input)
 
     @staticmethod
@@ -270,10 +270,51 @@ class DurableTurnNarrationService:
         proposal = json.loads(record.proposal_json or '{"operations":[]}')
         proposed_operations = proposal.get("operations", [])
         operation_results = json.loads(record.operation_results_json or "[]")
+        adjudication = json.loads(getattr(record, "adjudication_json", None) or "{}")
         if not isinstance(proposed_operations, list):
             proposed_operations = []
         if not isinstance(operation_results, list):
             operation_results = []
+        raw_action_outcomes = (
+            adjudication.get("v3_action_outcomes", [])
+            if isinstance(adjudication, dict)
+            else []
+        )
+        action_outcomes: list[dict] = []
+        if isinstance(raw_action_outcomes, list):
+            for item in raw_action_outcomes:
+                if not isinstance(item, dict) or set(item) != {
+                    "event_id", "action_id", "source_order", "evidence_excerpt",
+                    "outcome", "mechanics_result", "mechanics_decision",
+                }:
+                    continue
+                if (
+                    not isinstance(item["event_id"], str)
+                    or not isinstance(item["action_id"], str)
+                    or isinstance(item["source_order"], bool)
+                    or not isinstance(item["source_order"], int)
+                    or not isinstance(item["evidence_excerpt"], str)
+                    or len(item["evidence_excerpt"]) > 300
+                    or item["outcome"] not in {"success", "failure"}
+                    or (
+                        item["mechanics_result"] is not None
+                        and not isinstance(item["mechanics_result"], dict)
+                    )
+                    or (
+                        item["mechanics_decision"] is not None
+                        and not isinstance(item["mechanics_decision"], dict)
+                    )
+                ):
+                    continue
+                action_outcomes.append({
+                    "event_id": item["event_id"],
+                    "action_id": item["action_id"],
+                    "source_order": item["source_order"],
+                    "evidence_excerpt": item["evidence_excerpt"],
+                    "outcome": item["outcome"],
+                    "mechanics_result": item["mechanics_result"],
+                    "mechanics_decision": item["mechanics_decision"],
+                })
 
         committed: list[dict] = []
         for index, result in enumerate(operation_results):
@@ -304,6 +345,7 @@ class DurableTurnNarrationService:
                 0,
                 len(proposed_operations) - len(committed),
             ),
+            "action_outcomes": action_outcomes,
         }
 
     def resume_narration(
