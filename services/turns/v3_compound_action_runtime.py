@@ -234,6 +234,24 @@ class V3CompoundActionRuntime:
             intent_evidence_text=player_input,
         )
 
+    @staticmethod
+    def supports_graph(
+        preview: V3ActionPreviewResult,
+        *,
+        manual_mode: bool,
+    ) -> bool:
+        """Return whether this graph can start without an outstanding challenge."""
+        if manual_mode or not isinstance(preview, V3ActionPreviewResult):
+            return False
+        if preview.selection.status.value not in {"ready", "exhausted"}:
+            return False
+        if not preview.checkpoint.nodes:
+            return False
+        return all(
+            node.state is not ActionExecutionState.AWAITING_INPUT
+            for node in preview.checkpoint.nodes
+        )
+
     def run(
         self,
         record,
@@ -258,8 +276,13 @@ class V3CompoundActionRuntime:
             raise TypeError("persist_checkpoint must be callable")
         if manual_mode:
             raise V3CompoundRuntimeError("manual_roll_continuation_not_enabled")
-        if preview.selection.status.value != "ready":
+        if preview.selection.status.value not in {"ready", "exhausted"}:
             raise V3CompoundRuntimeError("initial_graph_not_ready")
+        if any(
+            node.state is ActionExecutionState.AWAITING_INPUT
+            for node in preview.checkpoint.nodes
+        ):
+            raise V3CompoundRuntimeError("clarification_continuation_not_enabled")
 
         current_preview = preview
         progress = self._progress_snapshot(record, preview.checkpoint)
