@@ -25,7 +25,8 @@ not existing behavior of this package.
 - `intent_normalization_pipeline.py` — deterministic provider-payload normalization, strict versioned model decoding and content-free stage diagnostics. It does not call the provider, resolve canonical IDs or authorize writes.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
-- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; the opt-in preview records its checkpoint but does not execute selected actions.
+- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; the selector itself does not execute actions.
+- `v3_compound_action_runtime.py` — PR #302 runtime bridge (implementation originated in draft #301) that executes automatic, initially-resolved graphs through the V3 planning adapter and durable compound orchestrator, persists per-node staged progress under lease/CAS, builds detached virtual world projections for dependent actions, and returns one aggregate plan plus per-action outcome evidence. Character-operation virtual projection and same-node manual-roll/clarification continuations are not yet supported.
 - `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
@@ -56,11 +57,27 @@ persistence fails, the transaction is rolled back and the v2-only proposal is
 prepared instead. A prepared retry rehydrates its operations from the durable
 proposal and does not regenerate v3 facts.
 
-This does not switch player-facing interpretation, mechanics adjudication or
-action execution to v3. Manual-roll/clarification continuation for compound
-v3 facts/actions, full action execution and integrated acceptance remain
-separate work in PRs #299–#300. No live Ollama or SillyTavern acceptance is
-claimed.
+PR #302 adds a third, independent opt-in:
+CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED. It is false by
+default and configuration rejects enabling it without action-shadow. With
+both flags enabled, DurableTurnExecutionService can execute automatic-dice
+graphs whose initial references are ready. It stores the initial checkpoint,
+IN_PROGRESS transitions and staged per-action progress through the same
+planning lease, context revision and checkpoint CAS. Dependent actions receive
+a detached virtual world projection containing prior staged world operations;
+the live campaign cache is not mutated during planning. Resolved action plans
+are aggregated for the existing single prepared commit, and individual action
+outcomes are preserved in committed narration evidence.
+
+This is deliberately a partial integration. Manual-roll and initial
+clarification graphs remain on V2; an unexpected clarification during V3
+execution fails closed. Staged character operations are not projected and
+cause a fail-closed error. PR #302 adds the first service-level integration
+proof through the prepared commit and narration path. Same-node continuation
+is planned for PR #303, and the broad durable-service integration gate (lease
+expiry, crash/replay, stale revisions, negative controls and historical
+compatibility) is planned for PR #304. V2 remains the production authority;
+no live Ollama or SillyTavern acceptance is claimed.
 
 The new roadmap and linked documents define the required evaluation, graph
 scoring, larger held-out corpus, prompt/runtime reproducibility, integration

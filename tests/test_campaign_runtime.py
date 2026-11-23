@@ -149,3 +149,15 @@ def test_runtime_installs_v3_action_preview_only_when_explicitly_enabled(
     )
     assert facts_preview is not None
     assert facts_preview.world_facts_enabled is True
+
+    execution_runtime = CampaignRuntimeFactory(
+        llm_settings=LLMSettings(
+            player_turn_v3_action_shadow_enabled=True,
+            player_turn_v3_action_execution_enabled=True,
+        )
+    ).get_runtime(1)
+    execution_service = (
+        execution_runtime.durable_native_turn_service.execution_service
+    )
+    assert execution_service.v3_action_preview_service is not None
+    assert execution_service.v3_action_execution_enabled is True
