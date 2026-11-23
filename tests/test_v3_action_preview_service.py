@@ -1782,7 +1782,6 @@ def test_v3_action_planning_adapter_reference_mapping_fails_closed_for_bad_bindi
 
 
 def test_v3_action_planning_adapter_reference_mapping_rejects_conflicting_alias_identity():
-    from dataclasses import replace
 
     from models.player_turn_interpretation_v3 import (
         GameplayResolvedReference,
