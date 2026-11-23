@@ -270,7 +270,7 @@ class DurableTurnNarrationService:
         proposal = json.loads(record.proposal_json or '{"operations":[]}')
         proposed_operations = proposal.get("operations", [])
         operation_results = json.loads(record.operation_results_json or "[]")
-        adjudication = json.loads(record.adjudication_json or "{}")
+        adjudication = json.loads(getattr(record, "adjudication_json", None) or "{}")
         if not isinstance(proposed_operations, list):
             proposed_operations = []
         if not isinstance(operation_results, list):
