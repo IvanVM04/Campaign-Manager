@@ -657,35 +657,45 @@ class DurableTurnExecutionService:
                         raise DurableNativeTurnError(
                             "persisted v3 action graph requires an unsupported continuation"
                         )
-                    if can_start_v3:
+                    if can_start_v3 and preview is not None:
+                        planning_record = self._require_resolution_record(record)
+                        if not isinstance(lease_token, str) or not lease_token:
+                            raise DurableNativeTurnError(
+                                "v3 action execution requires an active planning lease"
+                            )
+                        preview_service = self.v3_action_preview_service
+                        if preview_service is None:
+                            raise DurableNativeTurnError(
+                                "v3 action execution requires its preview service"
+                            )
+
                         def persist_v3_checkpoint(checkpoint, progress_updates=None):
-                            nonlocal record
+                            nonlocal planning_record
                             with transaction("IMMEDIATE") as conn:
-                                record = self.resolution_repository.save_action_checkpoint(
-                                    self._required_resolution_id(record),
+                                planning_record = self.resolution_repository.save_action_checkpoint(
+                                    self._required_resolution_id(planning_record),
                                     checkpoint.to_json(),
                                     scope=self.scope,
                                     expected_state="planning",
                                     expected_lease_token=lease_token,
-                                    expected_context_revision=record.context_revision,
-                                    expected_checkpoint_json=record.action_checkpoint_json,
+                                    expected_context_revision=planning_record.context_revision,
+                                    expected_checkpoint_json=planning_record.action_checkpoint_json,
                                     now=datetime.now(UTC).isoformat(),
                                     conn=conn,
                                     progress_updates=progress_updates,
                                 )
-                            return record
 
                         # Store the full interpretation before the first action
                         # starts. Recovery restores it without another intent call.
-                        if record.action_checkpoint_json is None:
+                        if planning_record.action_checkpoint_json is None:
                             persist_v3_checkpoint(preview.checkpoint)
                         runtime = V3CompoundActionRuntime(
                             self.resolver,
-                            self.v3_action_preview_service,
+                            preview_service,
                         )
                         try:
                             compound = runtime.run(
-                                record,
+                                planning_record,
                                 preview,
                                 context=context,
                                 player_input=normalized,
@@ -701,6 +711,7 @@ class DurableTurnExecutionService:
                             raise DurableNativeTurnError(
                                 "v3 compound action execution failed"
                             ) from exc
+                        record = planning_record
                         plan = compound.plan
                         preview = replace(
                             preview,
