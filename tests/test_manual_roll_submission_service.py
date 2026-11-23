@@ -3,6 +3,7 @@ import json
 import pytest
 
 from models.character_state import CharacterState
+from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.entity import Entity
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
@@ -531,10 +532,7 @@ def test_native_v3_manual_roll_pauses_and_resumes_same_staged_action(
     )
     assert record is not None
     assert record.lifecycle_state == "awaiting_input"
-    checkpoint = __import__(
-        "models.player_action_checkpoint",
-        fromlist=["PlayerActionCheckpoint"],
-    ).PlayerActionCheckpoint.from_json(record.action_checkpoint_json)
+    checkpoint = PlayerActionCheckpoint.from_json(record.action_checkpoint_json)
     assert checkpoint.nodes[0].state.value == "in_progress"
     execution_key = checkpoint.nodes[0].execution_key
     staged = V3ActionProgressSnapshot.from_json(record.proposal_json)
@@ -563,10 +561,7 @@ def test_native_v3_manual_roll_pauses_and_resumes_same_staged_action(
 
     saved = service.resolution_repository.get(record.id, scope=service.scope)
     assert saved.lifecycle_state == "completed"
-    final_checkpoint = __import__(
-        "models.player_action_checkpoint",
-        fromlist=["PlayerActionCheckpoint"],
-    ).PlayerActionCheckpoint.from_json(saved.action_checkpoint_json)
+    final_checkpoint = PlayerActionCheckpoint.from_json(saved.action_checkpoint_json)
     assert final_checkpoint.nodes[0].state.value == "resolved"
     assert final_checkpoint.nodes[0].execution_key == execution_key
     assert final_checkpoint.nodes[0].outcome.value == "success"
