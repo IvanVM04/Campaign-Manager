@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PRs #293–#298 fusionadas; PR #299 en implementación.  
-**Baseline inspeccionada:** main, commit 6563fad5328d8465f3e32aaf225dcdef94954c95 (PR #296 integrada).
+**Estado:** activo; PRs #293–#299 fusionadas; PR #300 en implementación con CI determinista verificado y gates live pendientes.  
+**Baseline inspeccionada:** main, commit 556feeb17ff227448bc159aa5c823f7441bb5c03 (PR #299 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -157,8 +157,8 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 |---|---|---|---|---|
 | #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.535 passed, 26 deselected, coverage 85,03 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
 | #298 | P0 | [x] MERGED + CI VERIFIED | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes. Merge: 2026-11-22, SHA 657000b6cdfb27e19acfcd6339343c42d1ba0efb | #288, #297 |
-| #299 | P0 | [~] IN PROGRESS (CORE ONLY) | Añadir state machine de ejecución secuencial, persistencia de transiciones e idempotencia; falta integrar el adaptador de mecánicas/propuestas, recuperación staged, aclaración/tirada manual y commit durable | #297–#298 |
-| #300 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #296–#299 |
+| #299 | P0 | [x] MERGED + CI VERIFIED (CORE ONLY) | Core de orquestación secuencial, adaptador de planificación por evento, codec/progreso staged, recuperación sin proveedor y persistencia checkpoint+progreso con CAS. Merge: 2026-11-23, SHA 556feeb17ff227448bc159aa5c823f7441bb5c03; CI run 2054: 2.635 passed, 26 deselected, coverage 85,01 %, Ruff/Pyright/JS/PowerShell/CodeQL success. No incluye cableado del executor en DurableTurnExecutionService, proyección virtual ni continuación real de tiradas/aclaraciones | #297–#298 |
+| #300 | P0 | [~] IN PROGRESS (CI VERIFIED; LIVE GATES PENDING) | Gate de release que exige aceptación semántica congelada, integración durable y evidencia manual SillyTavern; runner/plantillas/checklist y decisión conservadora HOLD V2. Head CI-verificado: `0257f515259cfb16d1e44a13c8095e75b3f1ae11`; run Tests 45204343191: 2.658 passed, 26 deselected, cobertura 85,01 %; Ruff/Pyright/JS/PowerShell/CI summary y ambos CodeQL verdes. Ollama acceptance y SillyTavern NOT RUN; no hay nuevo flag de ejecución mientras falte la integración durable | #296–#299 |
 
 ### Track C — Robustez y calidad después del cutover inicial
 
@@ -290,25 +290,63 @@ live con Ollama o SillyTavern; esas orquestaciones/gates corresponden a #299
 y #300.
 
 
-### PR #299 — orquestación compuesta (2026-11-22, en implementación)
+### PR #299 — orquestación compuesta (fusionada y verificada: 2026-11-23)
 
-PR #298 se fusionó el 22/11/2026 en
-`657000b6cdfb27e19acfcd6339343c42d1ba0efb`; los workflows Tests y CodeQL
-asociados al head de PR #298 finalizaron correctamente.
+PR #299 se fusionó el 2026-11-23 en
+`556feeb17ff227448bc159aa5c823f7441bb5c03`. El workflow Tests run 2054
+finalizó con 2.635 tests pasados, 26 deselected y 85,01 % de cobertura; Ruff,
+Pyright general y acotado, JavaScript, PowerShell y CodeQL terminaron
+correctamente.
 
-La rama #299 añade `V3CompoundActionOrchestrator`: selecciona y procesa un
-nodo cada vez, persiste IN_PROGRESS antes de llamar al ejecutor, guarda
-resultados SUCCESS/FAILURE solo desde un `ActionOutcome` backend y conserva
-la clave idempotente ante fallos de infraestructura. También expone la
-continuación de aclaración y hace CAS de checkpoint + campos JSON de progreso
-en la misma operación de repositorio. Se añaden tests deterministas para
-secuenciación, dependencias, fallo mecánico, reintento técnico y aclaración.
+La entrega incluye `V3CompoundActionOrchestrator`, `V3ActionPlanningAdapter`,
+codec de progreso por acción, recuperación staged sin volver a invocar
+proveedores y persistencia checkpoint+progreso bajo CAS. Sus tests prueban
+secuenciación, dependencias, fallos técnicos frente a resultados de juego,
+aclaraciones, idempotencia y validación de referencias/evidencia.
 
-**Límite actual, importante:** el orquestador aún no está conectado a un
-adaptador real de gameplay ni a la ruta durable de preparación. No ejecuta
-mecánicas, no guarda operaciones por acción para recuperación, no integra
-tiradas manuales ni el servicio durable de aclaración y no debe activarse en
-runtime. Se ha retirado el interruptor de ejecución hasta que exista ese
-cableado; v2 permanece como autoridad. La especificación técnica y los gates
-pendientes están en
-[player-turn-v3-compound-action-orchestration-2026-11-22.md](player-turn-v3-compound-action-orchestration-2026-11-22.md).
+**Verificado no significa runtime compuesto completo.** El merge contiene el
+core, pero el adaptador/orquestador todavía no está conectado al ciclo
+`DurableTurnExecutionService`. Siguen pendientes la proyección virtual de
+operaciones staged, la autoridad del resultado de cada acción, la continuación
+integrada de tiradas/aclaraciones y el commit agregado único. No existe un
+interruptor de ejecución compuesto activo. V2 permanece como autoridad.
+
+### PR #300 — gate de aceptación y decisión de rollout (CI determinista verificado; gates live pendientes: 2026-11-23)
+
+PR #300 introduce:
+- Un gate de release que combina tres evidencias independientes: acceptance
+  semántica Ollama bajo el contrato #296, integración durable determinista y
+  aceptación manual real con SillyTavern.
+- Las tres evidencias deben referirse al mismo SHA completo: el informe Ollama
+  compara `run_manifest.git_commit`, y los bundles runtime/SillyTavern usan
+  `run_manifest.campaign_manager_commit`. El CLI exige `--candidate-commit` y
+  rechaza evidencias manuales de otro commit.
+- Estados explícitos `pass`, `fail`, `blocked` y `not_run`; los IDs de
+  check desconocidos o estados inventados se rechazan.
+- CLI `scripts/ci/v3_rollout_readiness.py` para emitir un dictamen
+  reproducible desde el reporte acceptance y las dos plantillas de evidencia.
+- Checklist operativo y privacidad en
+  [V3 acceptance and SillyTavern checklist](../quality/v3-sillytavern-acceptance-checklist-2026-11-23.md).
+- Plantillas iniciales para runtime y SillyTavern con el estado real pendiente.
+
+La CI determinista del head `0257f515259cfb16d1e44a13c8095e75b3f1ae11`
+terminó correctamente: run Tests 45204343191, 2.658 tests pasados, 26
+deselected y cobertura combinada 85,01 % (mínimo 85 %). Ruff, Pyright general
+y acotado, JavaScript, PowerShell, CI summary y CodeQL Python/JavaScript
+pasaron.
+
+La acceptance de Ollama y la prueba manual SillyTavern **no se han ejecutado
+por esta PR**. Los checks de integración durable compuesta siguen BLOCKED por
+el cableado pendiente en `DurableTurnExecutionService`. El gate devuelve HOLD
+V2 mientras falte cualquiera de las tres clases de evidencia. Incluso un gate
+completo solo permite revisión manual; nunca activa flags ni cambia autoridad
+automáticamente.
+
+Se reutilizan los flags existentes de #297/#298: action shadow genera un
+preview/checkpoint; world facts añade operaciones con recibos al prepared
+commit existente. Ninguno activa ejecución compuesta. No se incorpora un
+tercer flag de ejecución que todavía no tendría un runtime integrado detrás.
+
+La sincronización real de #299 y el alcance pendiente del executor se registran
+aquí con su SHA de merge y CI; no se reescribe el historial previo para hacer
+parecer que esta reconciliación ocurrió antes.

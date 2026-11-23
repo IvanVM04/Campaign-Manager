@@ -4,6 +4,7 @@ This is the navigation entry point for maintainers, coding agents and product wo
 
 - [V3 action-preview runtime integration — 2026-11-22](architecture/v3-action-preview-runtime-integration-2026-11-22.md)
 - [V3 world facts durable commit — 2026-11-22](architecture/v3-world-facts-durable-commit-2026-11-22.md)
+- [V3 acceptance and SillyTavern checklist — 2026-11-23](quality/v3-sillytavern-acceptance-checklist-2026-11-23.md) — frozen Ollama gate, separate durable-runtime/SillyTavern evidence, and conservative HOLD V2 rule.
 ## Current source of truth — 2026-11-21
 
 **Prioridad técnica máxima:** programa de comprensión semántica #292–#305.

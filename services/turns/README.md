@@ -349,3 +349,34 @@ ambiguous references remain clarification states inside the shadow checkpoint
 only. First-person actor forms are bound to the active character; other
 canonical references must come from the visible projection. Typed non-entity
 reference namespaces and real action execution remain later work.
+
+
+## V3 compound-action acceptance boundary — PR #300
+
+PR #299 is merged (2026-11-23, `556feeb17ff227448bc159aa5c823f7441bb5c03`)
+with its deterministic CI verified. The delivered orchestrator, planning
+adapter and staged-progress codec are reusable building blocks, but
+`DurableTurnExecutionService` still prepares/commits the authoritative v2
+plan. It does not yet run the compound action graph through the durable
+mechanics, proposal, challenge-resumption and commit lifecycle.
+
+Do not interpret either existing V3 flag as an action-execution switch:
+
+- `CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED` enables the
+  diagnostic preview/checkpoint only.
+- `CAMPAIGN_MANAGER_PLAYER_TURN_V3_WORLD_FACTS_ENABLED` is an independent
+  opt-in for receipt-bound fact operations in the existing prepared commit;
+  it requires action shadow.
+
+PR #300 adds `tests/v3_rollout_gate.py` and
+`scripts/ci/v3_rollout_readiness.py`. The gate requires the frozen Ollama
+semantic acceptance report, deterministic end-to-end durable-runtime evidence
+and a separate manual SillyTavern evidence bundle. A pass can only make a
+controlled rollout eligible for human review. It never changes runtime flags,
+authority or route.
+
+The current checklists/templates and the required commands are documented in
+[V3 acceptance and SillyTavern checklist](../../docs/quality/v3-sillytavern-acceptance-checklist-2026-11-23.md).
+For this PR, Ollama acceptance and SillyTavern manual evidence are NOT RUN;
+compound-executor integration checks remain BLOCKED. V2 therefore remains the
+production route and no third execution flag is introduced.
