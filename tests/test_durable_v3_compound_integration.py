@@ -1,7 +1,10 @@
 import json
 
+from models.character_state import CharacterState
 from models.entity import Entity
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
+from repositories.campaign_repository import CampaignRepository
+from repositories.character_repository import CharacterRepository
 from models.player_action_checkpoint import ActionExecutionState, PlayerActionCheckpoint
 from models.world_state import WorldState
 from repositories.turn_resolution_repository import TurnResolutionRepository
@@ -32,9 +35,17 @@ def test_v3_compound_graph_uses_native_durable_commit_boundary(
         campaign_id=service.scope.campaign_id,
     )
     service.world_service.world = world
+    CharacterRepository().save_character(
+        CharacterState(entity_id=7),
+        campaign_id=service.scope.campaign_id,
+    )
+    CampaignRepository().update_active_character(
+        service.scope.campaign_id,
+        7,
+    )
     preview_service, interpreter_provider, _builder = _preview_service(
         world,
-        _v3_response(source, actor="Arin"),
+        _v3_response(source),
     )
     service.execution_service.v3_action_preview_service = preview_service
     service.execution_service.v3_action_execution_enabled = True
