@@ -160,18 +160,19 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | #299 | P0 | [x] MERGED + CI VERIFIED (CORE ONLY) | Core de orquestación secuencial, adaptador de planificación por evento, codec/progreso staged, recuperación sin proveedor y persistencia checkpoint+progreso con CAS. Merge: 2026-11-23, SHA 556feeb17ff227448bc159aa5c823f7441bb5c03; CI run 2054: 2.635 passed, 26 deselected, coverage 85,01 %, Ruff/Pyright/JS/PowerShell/CodeQL success. No incluye cableado del executor en DurableTurnExecutionService, proyección virtual ni continuación real de tiradas/aclaraciones | #297–#298 |
 | #300 | P0 | [x] MERGED + CI VERIFIED (LIVE GATES PENDING) | Gate de release con evidencia semántica Ollama, integración durable y prueba manual SillyTavern; CLI/plantillas/checklist y decisión HOLD V2. Merge: 2026-11-23, SHA `9b62d8f2e3a991d06a29b31930357588a00a6571`; head `e686b7208751c83cb471675f7a2baade3b6f3710`; Tests run 45205908975: 2.658 passed, 26 deselected, cobertura 85,01 %; CodeQL run 45205909004 verde. Ollama y SillyTavern NOT RUN; la aceptación durable sigue bloqueada hasta completar la integración | #296–#299 |
 
-| #301 | P0 | [~] IN PROGRESS (DRAFT; CI VALIDATION PENDING) | Primera integración en DurableTurnExecutionService: ejecución automática de grafos con referencias listas, proyección virtual de operaciones staged, resultado por acción, recuperación y prepared commit agregado. Nueva flag default-off que requiere action-shadow. Tiradas manuales y aclaraciones del mismo nodo quedan para #302; no autoriza cutover | #299–#300 |
-| #302 | P0 | [ ] PLANNED | Continuaciones V3 en el mismo checkpoint/nodo: tiradas manuales, aclaraciones de referencias/roles, reanudación por respuesta y preservación de dependencias/progreso sin repetir acciones resueltas | #301 |
-| #303 | P0 | [ ] PLANNED | Integración durable end-to-end: commit agregado acción+hechos, lease/CAS/expiración, crash/replay/idempotencia, stale revision, controles negativos sin escrituras y replay histórico v1/v2; completar gate #300 | #301–#302 |
+| #301 | P0 | [~] IN PROGRESS (DRAFT; CI VALIDATION PENDING) | Primera integración en DurableTurnExecutionService: ejecución automática de grafos con referencias listas, proyección virtual de operaciones staged, resultado por acción, recuperación y prepared commit agregado. Nueva flag default-off que requiere action-shadow. Corrección Ruff y prueba service-level apiladas en #302; continuación manual/clarification #303; no autoriza cutover | #299–#300 |
+| #302 | P0 | [~] IN PROGRESS (DRAFT; STACKED ON #301) | Corregir Ruff y añadir prueba determinista que atraviesa DurableNativeTurnService, DurableTurnExecutionService, prepared commit, adjudicación por acción y narración; no cubre todavía la matriz completa de Gate B | #301 |
+| #303 | P0 | [ ] PLANNED | Continuaciones V3 en el mismo checkpoint/nodo: tiradas manuales, aclaraciones de referencias/roles, reanudación por respuesta y preservación de dependencias/progreso sin repetir acciones resueltas | #301–#302 |
+| #304 | P0 | [ ] PLANNED | Integración durable end-to-end: commit agregado acción+hechos, lease/CAS/expiración, crash/replay/idempotencia, stale revision, controles negativos sin escrituras y replay histórico v1/v2; completar gate #300 | #301–#303 |
 ### Track C — Robustez y calidad después del cutover inicial
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #304 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#303 |
-| #305 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#303 |
-| #306 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #305 |
-| #307 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#303 |
-| #308 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#307 |
+| #305 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#304 |
+| #306 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#304 |
+| #307 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #306 |
+| #308 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#304 |
+| #309 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#308 |
 
 ## 6. Gates transversales no negociables
 
@@ -363,3 +364,9 @@ El flujo conecta el preview, V3ActionPlanningAdapter, V3CompoundActionOrchestrat
 La recuperación restaura la propuesta staged del nodo en curso sin volver a invocar los proveedores de acción. Los grafos inicialmente en aclaración y los turnos en modo de tirada manual siguen la ruta v2. Una aclaración inesperada durante el procesamiento V3 falla de forma cerrada y conserva checkpoint/progreso; no se inventa un resultado ni se compromete un plan parcial. La continuación manual-roll/clarification en el mismo nodo se separa en #302, y la matriz completa de integración durable queda para #303.
 
 La PR permanece en borrador. El primer CI identificó errores de lint y estrechamiento de tipos; se corrigieron en commits posteriores, pero el head final aún debe validar lint, tipado y tests completos. Las pruebas live Ollama y SillyTavern siguen NOT RUN y el gate #300 continúa HOLD V2. El nuevo flag no altera la ruta por defecto.
+
+### PR #302 — prueba de integración apilada sobre #301 (abierta en borrador: 2026-11-23)
+
+Esta PR entra como cambio apilado porque las reglas de la rama #301 exigen que las modificaciones posteriores lleguen mediante PR. Corrige el orden de imports detectado por Ruff y añade una prueba determinista que atraviesa el servicio nativo durable, el executor durable, el prepared commit, la serialización del resultado por acción y la evidencia que recibe el narrador. La prueba usa un grafo de una acción automática sin tirada y mantiene fijos interpretación y resultado del plan.
+
+La cobertura de #302 es una primera prueba de integración del límite de servicio, no la matriz completa de Gate B. No demuestra todavía proyección de operaciones dependientes a través del servicio, rollback de acciones+hechos, lease expiry/replacement, crash después de mecánicas, stale revision, controles negativos sin escritura, continuaciones manuales/aclaraciones ni replay histórico v1/v2. Su merge debe actualizar la rama de #301; después, las continuaciones se desplazan a #303 y la matriz completa a #304.
