@@ -87,9 +87,17 @@ def _normalise_checks(
     return result
 
 
-def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
-    """Validate the full frozen holdout manifest and the selected variant's gates."""
-    if not isinstance(report, Mapping):
+def _semantic_acceptance_passed(
+    report: Mapping[str, Any] | None,
+    *,
+    candidate_commit: str,
+) -> bool:
+    """Validate acceptance evidence belongs to the exact proposed candidate."""
+    if (
+        not isinstance(candidate_commit, str)
+        or re.fullmatch(r"[0-9a-fA-F]{40}", candidate_commit) is None
+        or not isinstance(report, Mapping)
+    ):
         return False
     manifest = report.get("run_manifest")
     matrix = report.get("acceptance_matrix")
@@ -124,6 +132,7 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         or not isinstance(provider_calls, int)
         or not isinstance(commit, str)
         or re.fullmatch(r"[0-9a-fA-F]{40}", commit) is None
+        or commit.casefold() != candidate_commit.casefold()
         or not isinstance(variants, list)
         or len(variants) != variant_count
         or not isinstance(selected_name, str)
@@ -182,6 +191,7 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
 
 def build_v3_rollout_decision(
     *,
+    candidate_commit: str,
     acceptance_report: Mapping[str, Any] | None,
     runtime_checks: Mapping[str, Any] | None,
     sillytavern_checks: Mapping[str, Any] | None,
@@ -201,7 +211,10 @@ def build_v3_rollout_decision(
         required=V3_SILLYTAVERN_REQUIRED_CHECKS,
         evidence_name="sillytavern_checks",
     )
-    semantic_passed = _semantic_acceptance_passed(acceptance_report)
+    semantic_passed = _semantic_acceptance_passed(
+        acceptance_report,
+        candidate_commit=candidate_commit,
+    )
     runtime_failures = [
         check_id for check_id, state in runtime.items() if state != "pass"
     ]
@@ -228,6 +241,7 @@ def build_v3_rollout_decision(
         "decision": (
             "eligible_for_controlled_rollout_review" if eligible else "hold_v2"
         ),
+        "candidate_commit": candidate_commit,
         "production_route": "v2",
         "v3_authority": "none",
         "automatic_cutover": False,
