@@ -49,12 +49,11 @@ def main() -> int:
         args.acceptance_report,
         description="Ollama acceptance report",
     )
-    acceptance_matrix = acceptance_report.get("acceptance_matrix")
-    if not isinstance(acceptance_matrix, dict):
+    if not isinstance(acceptance_report.get("acceptance_matrix"), dict):
         raise ValueError("Ollama acceptance report has no acceptance_matrix object")
 
     decision = build_v3_rollout_decision(
-        acceptance_matrix=acceptance_matrix,
+        acceptance_report=acceptance_report,
         runtime_checks=_read_check_evidence(
             args.runtime_evidence,
             description="durable runtime evidence",
