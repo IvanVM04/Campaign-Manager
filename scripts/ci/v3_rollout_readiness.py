@@ -16,7 +16,7 @@ def _read_json_object(path: Path, *, description: str) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"could not read {description} as JSON") from exc
     if not isinstance(value, dict):
-        raise ValueError(f"{description} must contain a JSON object")
+        raise TypeError(f"{description} must contain a JSON object")
     return value
 
 
@@ -50,7 +50,7 @@ def main() -> int:
         description="Ollama acceptance report",
     )
     if not isinstance(acceptance_report.get("acceptance_matrix"), dict):
-        raise ValueError("Ollama acceptance report has no acceptance_matrix object")
+        raise TypeError("Ollama acceptance report must contain an acceptance_matrix object")
 
     decision = build_v3_rollout_decision(
         acceptance_report=acceptance_report,
