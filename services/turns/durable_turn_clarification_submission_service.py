@@ -69,6 +69,7 @@ class DurableTurnClarificationSubmissionService:
             if conversation_id is not None and record.conversation_id != conversation_id:
                 raise self.error_type("clarification challenge belongs to a different conversation")
             pending_state = json.loads(record.adjudication_json or "{}")
+            v3_pending = pending_state.get("v3_action_clarification")
             if (
                 secrets.compare_digest(
                     str(pending_state.get("last_challenge_id", "")),
@@ -83,6 +84,8 @@ class DurableTurnClarificationSubmissionService:
             ):
                 if record.lifecycle_state == "awaiting_input":
                     current_pending = pending_state.get("clarification")
+                    if not isinstance(current_pending, dict):
+                        current_pending = pending_state.get("v3_action_clarification")
                     if isinstance(current_pending, dict):
                         return (
                             service._preparation_from_record(record)
@@ -114,6 +117,35 @@ class DurableTurnClarificationSubmissionService:
                     )
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise self.error_type("clarification request is no longer pending")
+            if isinstance(v3_pending, dict):
+                if not secrets.compare_digest(
+                    str(v3_pending.get("challenge_id", "")),
+                    challenge_id,
+                ):
+                    raise self.error_type(
+                        "v3 action clarification challenge is invalid or expired"
+                    )
+                if (
+                    record.lifecycle_state != "awaiting_input"
+                    or not isinstance(v3_pending.get("event_id"), str)
+                    or not isinstance(v3_pending.get("question"), str)
+                    or not isinstance(v3_pending.get("context_revision"), int)
+                    or not isinstance(v3_pending.get("clarification_slots"), list)
+                ):
+                    raise self.error_type("v3 action clarification state is invalid")
+                if not isinstance(v3_pending.get("clarification_slots"), list) or (
+                    tuple(v3_pending["clarification_slots"]) != ("target",)
+                ):
+                    raise self.error_type(
+                        "v3 action clarification contains unsupported slots"
+                    )
+                return service.execution_service.resume_v3_action_clarification(
+                    record,
+                    pending_state,
+                    answer,
+                    defer_narration=defer_narration,
+                    answer_external_turn_id=answer_external_turn_id,
+                )
             pending = pending_state.get("clarification")
             if not isinstance(pending, dict) or not secrets.compare_digest(
                 str(pending.get("challenge_id", "")), challenge_id
