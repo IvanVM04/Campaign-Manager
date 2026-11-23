@@ -1,7 +1,7 @@
 import pytest
 
-import tests.v3_acceptance
-import tests.v3_rollout_gate
+from tests import v3_acceptance
+from tests import v3_rollout_gate
 
 
 _CANDIDATE_COMMIT = "a" * 40
