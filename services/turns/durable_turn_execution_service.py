@@ -428,6 +428,8 @@ class DurableTurnExecutionService:
                 "execution_key": pending.get("execution_key"),
                 "challenge_id": pending.get("challenge_id"),
                 "context_revision": pending.get("context_revision"),
+                "decision": pending.get("decision"),
+                "history": pending_state.get("manual_roll_history", []),
                 "rolls": list(rolls),
                 "answer_external_turn_id": answer_external_turn_id,
             },
@@ -1377,7 +1379,10 @@ class DurableTurnExecutionService:
                         self._required_resolution_id(record),
                         (
                             "awaiting_input"
-                            if v3_clarification_response is not None
+                            if (
+                                v3_clarification_response is not None
+                                or v3_manual_roll_response is not None
+                            )
                             else "accepted"
                         ),
                         scope=self.scope,
@@ -1417,7 +1422,10 @@ class DurableTurnExecutionService:
                     if current is not None and (
                         current.lifecycle_state == "prepared"
                         or (
-                            v3_clarification_response is not None
+                            (
+                                v3_clarification_response is not None
+                                or v3_manual_roll_response is not None
+                            )
                             and current.lifecycle_state == "awaiting_input"
                         )
                     ):
