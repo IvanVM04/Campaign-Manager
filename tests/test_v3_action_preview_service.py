@@ -1717,7 +1717,7 @@ def test_v3_action_planning_adapter_excerpt_rejects_missing_predicate_and_oversi
         )
     assert missing.value.code == "event_evidence_incomplete"
 
-    long_source = "Yo " + ("x" * 310) + "abrir" + ("y" * 310) + "la puerta"
+    long_source = "Yo " + ("x" * 310) + "abrir" + ("y" * 100) + "la puerta"
     long_event = replace(
         event,
         evidence_spans=(
