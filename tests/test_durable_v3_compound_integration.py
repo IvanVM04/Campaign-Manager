@@ -3,10 +3,10 @@ import json
 from models.character_state import CharacterState
 from models.entity import Entity
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
-from repositories.campaign_repository import CampaignRepository
-from repositories.character_repository import CharacterRepository
 from models.player_action_checkpoint import ActionExecutionState, PlayerActionCheckpoint
 from models.world_state import WorldState
+from repositories.campaign_repository import CampaignRepository
+from repositories.character_repository import CharacterRepository
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turns.turn_resolution_service import TurnResolutionPlan
 from tests.durable_turn_test_support import service_with_fake_models
@@ -91,4 +91,4 @@ def test_v3_compound_graph_uses_native_durable_commit_boundary(
     assert adjudication["v3_action_outcomes"][0]["outcome"] == "success"
     assert len(narrative_calls) == 1
     assert '"action_outcomes"' in narrative_calls[0]
-    assert '"outcome":"success"' in narrative_calls[0]
+    assert '"outcome": "success"' in narrative_calls[0]
