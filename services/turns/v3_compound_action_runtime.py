@@ -19,7 +19,6 @@ from services.turns.player_action_selector import select_next_action
 from services.turns.turn_resolution_codec import TurnResolutionCodec
 from services.turns.v3_action_planning_adapter import (
     V3ActionPlanningAdapter,
-    V3ActionPlanningError,
 )
 from services.turns.v3_action_preview_service import (
     V3ActionPreviewResult,
