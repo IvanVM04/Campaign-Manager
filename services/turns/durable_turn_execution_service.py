@@ -218,7 +218,7 @@ class DurableTurnExecutionService:
                 player_input,
                 recent_turns=recent,
             )
-        except Exception as exc:  # noqa: BLE001 - corrupted checkpoints fail closed
+        except Exception as exc:
             raise DurableNativeTurnError(
                 "persisted v3 action checkpoint could not be restored"
             ) from exc
