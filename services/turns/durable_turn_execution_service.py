@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.campaign_scope import CampaignScope
+from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from observability.log_context import bind_resolution_context
@@ -43,6 +44,10 @@ from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
     V3ActionPreviewService,
 )
+from services.turns.v3_compound_action_runtime import (
+    V3CompoundActionRuntime,
+    V3CompoundRuntimeError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +78,7 @@ class DurableTurnExecutionService:
         turn_execution_lock=None,
         snapshot_loader=None,
         v3_action_preview_service: V3ActionPreviewService | None = None,
+        v3_action_execution_enabled: bool = False,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -85,7 +91,14 @@ class DurableTurnExecutionService:
         self.context_loader = context_loader
         self.turn_execution_lock = turn_execution_lock
         self.snapshot_loader = snapshot_loader
+        if not isinstance(v3_action_execution_enabled, bool):
+            raise TypeError("v3_action_execution_enabled must be a boolean")
+        if v3_action_execution_enabled and v3_action_preview_service is None:
+            raise ValueError(
+                "v3 action execution requires the v3 action preview service"
+            )
         self.v3_action_preview_service = v3_action_preview_service
+        self.v3_action_execution_enabled = v3_action_execution_enabled
         self.error_type = error_type
 
 
@@ -102,6 +115,19 @@ class DurableTurnExecutionService:
                 return 120.0
             return float(timeout)
 
+        if self.v3_action_execution_enabled:
+            # One holistic graph call followed by up to twelve per-node
+            # mechanics/proposal pairs. Staged CAS updates renew no lease, so
+            # budget the full bounded graph rather than only its first action.
+            configured_budget = (
+                provider_timeout("intent_interpreter")
+                + 12 * (
+                    provider_timeout("mechanics_adjudicator")
+                    + provider_timeout("extractor")
+                )
+                + 300
+            )
+            return max(900, int(configured_budget))
         configured_budget = (
             2 * provider_timeout("intent_interpreter")
             + provider_timeout("mechanics_adjudicator")
@@ -166,6 +192,36 @@ class DurableTurnExecutionService:
                 },
             )
         return None
+
+    def _restore_v3_action_preview(
+        self,
+        record: TurnResolutionRecord,
+        context,
+        player_input: str,
+        recent,
+    ):
+        """Restore an existing execution checkpoint without another intent call."""
+        if record.action_checkpoint_json is None:
+            return None
+        preview_service = self.v3_action_preview_service
+        if preview_service is None:
+            raise DurableNativeTurnError(
+                "a persisted v3 action checkpoint cannot be resumed without its preview service"
+            )
+        try:
+            checkpoint = PlayerActionCheckpoint.from_json(
+                record.action_checkpoint_json
+            )
+            return preview_service.restore(
+                checkpoint,
+                context,
+                player_input,
+                recent_turns=recent,
+            )
+        except Exception as exc:  # noqa: BLE001 - corrupted checkpoints fail closed
+            raise DurableNativeTurnError(
+                "persisted v3 action checkpoint could not be restored"
+            ) from exc
 
     def _save_v3_action_checkpoint(
         self,
