@@ -1,3 +1,4 @@
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -6,6 +7,7 @@ from models.entity import Entity
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.player_action_checkpoint import (
     ActionExecutionState,
+    ActionOutcome,
     PlayerActionCheckpoint,
 )
 from models.world_state import WorldState
@@ -18,6 +20,14 @@ from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
 )
+from services.turns.player_action_selector import (
+    ActionSelectionStatus,
+    mark_action_awaiting_input,
+    mark_action_completed,
+    mark_action_started,
+    select_next_action,
+)
+from services.turns.v3_action_preview_service import V3ActionPreviewResult
 from services.turns.v3_compound_action_runtime import V3CompoundActionRuntime
 from services.world import WorldService
 from tests.test_v3_action_preview_service import (
@@ -252,3 +262,78 @@ def test_committed_narration_evidence_preserves_only_valid_per_action_outcomes()
         "mechanics_result": None,
         "mechanics_decision": {"decision": "none"},
     }]
+
+
+
+def test_supports_graph_only_accepts_safe_start_or_real_resumable_progress(monkeypatch):
+    (
+        _source,
+        _world,
+        _context_value,
+        _preview_service_value,
+        _interpreter_provider,
+        preview,
+        _resolver,
+        _record,
+        _planning_calls,
+        _persistence_calls,
+        _fail_final_once,
+        _persist_checkpoint,
+    ) = _runtime_fixture(monkeypatch)
+
+    assert V3CompoundActionRuntime.supports_graph(
+        preview,
+        manual_mode=False,
+    )
+    assert not V3CompoundActionRuntime.supports_graph(
+        preview,
+        manual_mode=True,
+    )
+
+    initially_exhausted = replace(
+        preview,
+        selection=replace(
+            preview.selection,
+            status=ActionSelectionStatus.EXHAUSTED,
+        ),
+    )
+    assert not V3CompoundActionRuntime.supports_graph(
+        initially_exhausted,
+        manual_mode=False,
+    )
+
+    event_id = preview.checkpoint.nodes[0].candidate.source_event_id
+    awaiting_checkpoint = mark_action_awaiting_input(
+        preview.checkpoint,
+        event_id,
+        ("target",),
+    )
+    awaiting = replace(
+        preview,
+        checkpoint=awaiting_checkpoint,
+        selection=select_next_action(awaiting_checkpoint),
+    )
+    assert not V3CompoundActionRuntime.supports_graph(
+        awaiting,
+        manual_mode=False,
+    )
+
+    started, _execution_key, _resumed = mark_action_started(
+        preview.checkpoint,
+        event_id,
+    )
+    completed = mark_action_completed(
+        started,
+        event_id,
+        ActionOutcome.SUCCESS,
+    )
+    exhausted = replace(
+        preview,
+        checkpoint=completed,
+        selection=select_next_action(completed),
+    )
+    assert exhausted.selection.status is ActionSelectionStatus.EXHAUSTED
+    assert V3CompoundActionRuntime.supports_graph(
+        exhausted,
+        manual_mode=False,
+    )
