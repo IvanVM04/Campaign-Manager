@@ -163,6 +163,10 @@ class V3CompoundActionRuntime:
                 original_input=player_input,
                 operation_parser=self.resolver.extractor.operation_parser,
             )
+            if plan.character_operations:
+                raise V3CompoundRuntimeError(
+                    "virtual_character_projection_not_supported"
+                )
             staged_operations.extend(plan.ordered_operations)
         if not staged_operations:
             return preview
@@ -281,14 +285,25 @@ class V3CompoundActionRuntime:
         """Return whether this graph can start without an outstanding challenge."""
         if manual_mode or not isinstance(preview, V3ActionPreviewResult):
             return False
-        if preview.selection.status.value not in {"ready", "exhausted"}:
+        status = preview.selection.status.value
+        if status not in {"ready", "exhausted"}:
             return False
         if not preview.checkpoint.nodes:
             return False
-        return all(
-            node.state is not ActionExecutionState.AWAITING_INPUT
+        if any(
+            node.state is ActionExecutionState.AWAITING_INPUT
             for node in preview.checkpoint.nodes
-        )
+        ):
+            return False
+        if status == "exhausted":
+            # Exhausted is resumable only after at least one action outcome
+            # has already been durably recorded. An initially empty/ineligible
+            # graph must not replace the ordinary dialogue/v2 path.
+            return any(
+                node.state is ActionExecutionState.RESOLVED
+                for node in preview.checkpoint.nodes
+            )
+        return True
 
     def run(
         self,
