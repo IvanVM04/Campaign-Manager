@@ -26,6 +26,7 @@ from models.player_turn_interpretation_v3 import (
     GameplayActionEligibility,
     GameplayActionReason,
     GameplayProcessingState,
+    GameplayUnlockCondition,
     GameplayWorkflow,
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
@@ -39,6 +40,7 @@ from models.resolved_conversation_reference import (
 )
 from models.semantic_frames import SemanticActionFrame, SemanticMention
 from models.turn_context import TurnContext
+from models.world_context_projection import WorldContextProjection
 from models.turn_record import TurnRecord
 from operations.world_operations import WorldOperation
 from services.context import ContextBuilder, ConversationReferenceResolver
@@ -690,7 +692,7 @@ class V3ActionPreviewService:
         if not isinstance(answer, str) or not answer.strip() or len(answer.strip()) > 500:
             raise ValueError("clarification answer must contain 1-500 characters")
         projection = preview.visible_projection
-        if projection is None or not hasattr(projection, "world"):
+        if not isinstance(projection, WorldContextProjection):
             raise V3ActionPreviewError(
                 "clarification_projection_unavailable",
                 "clarification",
@@ -804,7 +806,7 @@ class V3ActionPreviewService:
                 if candidate.action_type in {"communication", "social"}
                 else GameplayWorkflow.MECHANICS
             )
-            unlock_condition = candidate.unlock_condition
+            unlock_condition = GameplayUnlockCondition.DEPENDENCY_SUCCESS
             processing_state = GameplayProcessingState.PENDING
         else:
             eligibility = GameplayActionEligibility.ELIGIBLE
