@@ -614,6 +614,7 @@ class DurableTurnExecutionService:
                 ) from exc
 
         try:
+            v3_action_outcomes: tuple[dict[str, object], ...] = ()
             if resume_prepared:
                 if record.context_revision != revision:
                     with transaction("IMMEDIATE") as conn:
@@ -713,6 +714,7 @@ class DurableTurnExecutionService:
                             ) from exc
                         record = planning_record
                         plan = compound.plan
+                        v3_action_outcomes = compound.action_outcomes
                         preview = replace(
                             preview,
                             checkpoint=compound.checkpoint,
@@ -838,11 +840,25 @@ class DurableTurnExecutionService:
                             "intent_json": TurnResolutionCodec.intent_to_json(plan),
                             "adjudication_json": json.dumps(
                                 {
-                                    "decision": plan.mechanics_decision.decision.value,
+                                    **(
+                                        {
+                                            "decision": (
+                                                plan.mechanics_decision.decision.value
+                                            )
+                                        }
+                                        if plan.mechanics_decision
+                                        else {}
+                                    ),
                                     "dice_mode": dice_mode,
-                                }
-                                if plan.mechanics_decision else {"dice_mode": dice_mode},
+                                    **(
+                                        {"v3_action_outcomes": list(v3_action_outcomes)}
+                                        if v3_action_outcomes
+                                        else {}
+                                    ),
+                                },
+                                ensure_ascii=False,
                                 separators=(",", ":"),
+                                sort_keys=True,
                             ),
                             "mechanics_json": mechanics_json,
                             "lease_token": None,
