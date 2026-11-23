@@ -10,6 +10,7 @@ import copy
 import json
 from dataclasses import dataclass, replace
 
+from models.mechanics import MechanicsDecision
 from models.player_action_checkpoint import (
     ActionExecutionState,
     ActionOutcome,
@@ -59,7 +60,7 @@ class V3CompoundRuntimeResult:
     candidate: GameplayActionCandidate | None = None
     event_id: str | None = None
     clarification_slots: tuple[str, ...] = ()
-    manual_roll_decision: object | None = None
+    manual_roll_decision: MechanicsDecision | None = None
     manual_roll_execution_key: str | None = None
 
     @property
@@ -425,10 +426,17 @@ class V3CompoundActionRuntime:
                     and manual_roll_event_id == candidate.source_event_id
                     and manual_rolls is not None
                 ):
+                    manual_preview = self._virtual_preview(
+                        current_preview,
+                        progress,
+                        player_input,
+                        candidate.source_event_id,
+                    )
+                    current_preview = manual_preview
                     action = self.planning_adapter.resolve_manual_roll(
                         self.resolver,
                         action,
-                        current_preview,
+                        manual_preview,
                         context,
                         player_input,
                         manual_rolls,
