@@ -388,7 +388,6 @@ class DurableTurnExecutionService:
             },
         )
 
-    @staticmethod
     def resume_v3_action_manual_roll(
         self,
         record: TurnResolutionRecord,
@@ -1185,22 +1184,20 @@ class DurableTurnExecutionService:
                                     **(
                                         {
                                             "manual_roll": {
-                                                **{
-                                                    "event_id": v3_manual_roll_response["event_id"],
-                                                    "challenge_id": v3_manual_roll_response["challenge_id"],
-                                                    "execution_key": v3_manual_roll_response["execution_key"],
-                                                    "count": len(v3_manual_roll_response["rolls"]),
-                                                    "submitted_rolls": v3_manual_roll_response["rolls"],
-                                                    "submitted_external_turn_id": (
-                                                        v3_manual_roll_response.get(
-                                                            "answer_external_turn_id"
-                                                        )
-                                                    ),
-                                                    "context_revision": (
-                                                        v3_manual_roll_response["context_revision"]
-                                                    ),
-                                                    "decision": v3_manual_roll_response["decision"],
-                                                },
+                                                "event_id": v3_manual_roll_response["event_id"],
+                                                "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                "execution_key": v3_manual_roll_response["execution_key"],
+                                                "count": len(v3_manual_roll_response["rolls"]),
+                                                "submitted_rolls": v3_manual_roll_response["rolls"],
+                                                "submitted_external_turn_id": (
+                                                    v3_manual_roll_response.get(
+                                                        "answer_external_turn_id"
+                                                    )
+                                                ),
+                                                "context_revision": (
+                                                    v3_manual_roll_response["context_revision"]
+                                                ),
+                                                "decision": v3_manual_roll_response["decision"],
                                             },
                                             "v3_action_manual_roll": {
                                                 "event_id": v3_manual_roll_response["event_id"],
