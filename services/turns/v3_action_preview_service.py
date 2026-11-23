@@ -790,6 +790,9 @@ class V3ActionPreviewService:
             entity is None
             or not entity.active
             or entity.id != match.entity_id
+            or isinstance(entity.id, bool)
+            or not isinstance(entity.id, int)
+            or entity.id < 1
         ):
             raise V3ActionPreviewError(
                 "clarification_entity_not_visible",
