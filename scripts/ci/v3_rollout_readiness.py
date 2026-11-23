@@ -8,7 +8,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from tests.v3_rollout_gate import build_v3_rollout_decision
+from tests.v3_rollout_gate import (
+    build_v3_rollout_decision,
+    validate_candidate_evidence_commit,
+)
 
 
 def _read_json_object(path: Path, *, description: str) -> dict[str, Any]:
@@ -38,14 +41,11 @@ def _read_check_evidence(
             f"{description} must use schema_version 1 and contain "
             "run_manifest and checks objects"
         )
-    evidence_commit = manifest.get("campaign_manager_commit")
-    if (
-        not isinstance(evidence_commit, str)
-        or evidence_commit.casefold() != candidate_commit.casefold()
-    ):
-        raise ValueError(
-            f"{description} campaign_manager_commit must match --candidate-commit"
-        )
+    validate_candidate_evidence_commit(
+        manifest,
+        candidate_commit=candidate_commit,
+        evidence_name=description,
+    )
     return value["checks"]
 
 
