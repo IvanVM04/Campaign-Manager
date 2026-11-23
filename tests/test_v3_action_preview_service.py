@@ -707,6 +707,55 @@ def test_v3_action_planning_uses_only_selected_event_excerpt_without_reinterpret
     assert result.plan.intent_evidence_text == source
 
 
+
+def test_v3_action_planning_adapter_occurrences_handles_casefold_and_repeated_mentions():
+    occurrences = V3ActionPlanningAdapter._occurrences(
+        "Abrir la puerta y ABRIR la puerta",
+        "abrir",
+        (),
+    )
+    assert occurrences == ((0, 5), (19, 24))
+
+
+def test_v3_action_planning_adapter_occurrences_rejects_empty_or_missing_needle():
+    adapter = V3ActionPlanningAdapter()
+    assert adapter._occurrences("abrir", "", ()) == ()
+    assert adapter._occurrences("abrir", "cerrar", ()) == ()
+
+
+def test_v3_action_planning_adapter_excerpt_uses_event_evidence_only():
+    source = "Yo intento abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta de hierro",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+        }
+    )
+    preview_service, _provider, _builder = _preview_service(
+        world,
+        _v3_response(source),
+    )
+    preview = preview_service.preview(
+        _context(world),
+        source,
+        resolution_id=55,
+        context_revision=19,
+    )
+    event = preview.interpretation.events[0]
+    assert V3ActionPlanningAdapter._event_excerpt(event, source) == source
+
+    from dataclasses import replace
+
+    incomplete = replace(event, evidence_spans=())
+    with pytest.raises(V3ActionPlanningError) as rejected:
+        V3ActionPlanningAdapter._event_excerpt(incomplete, source)
+    assert rejected.value.code == "event_evidence_incomplete"
+
 def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update():
     class RecordingResolver(TurnResolutionService):
         def __init__(self) -> None:
