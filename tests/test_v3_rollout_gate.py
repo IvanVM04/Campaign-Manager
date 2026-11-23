@@ -1,7 +1,6 @@
 import pytest
 
-from tests import v3_acceptance
-from tests import v3_rollout_gate
+from tests import v3_acceptance, v3_rollout_gate
 
 
 _CANDIDATE_COMMIT = "a" * 40
@@ -39,7 +38,7 @@ def _accepted_report():
         "evaluation": "player-turn-v3-acceptance",
         "run_manifest": {
             "git_commit": "a" * 40,
-            "contract_id": tests.v3_acceptance.V3_ACCEPTANCE_CONTRACT_ID,
+            "contract_id": v3_acceptance.V3_ACCEPTANCE_CONTRACT_ID,
             "corpus_id": "player-turn-v3-graph-corpus-v1",
             "scenario_count": 20,
             "full_corpus": True,
@@ -48,7 +47,7 @@ def _accepted_report():
             "provider_calls": 120,
         },
         "acceptance_matrix": {
-            "contract_id": tests.v3_acceptance.V3_ACCEPTANCE_CONTRACT_ID,
+            "contract_id": v3_acceptance.V3_ACCEPTANCE_CONTRACT_ID,
             "promotion_decision": "eligible_for_manual_review_only",
             "selected_for_manual_review": "baseline",
             "automatic_cutover": False,
@@ -64,7 +63,7 @@ def _passing_evidence(required):
 
 
 def _build_decision(**kwargs):
-    return tests.v3_rollout_gate.build_v3_rollout_decision(
+    return v3_rollout_gate.build_v3_rollout_decision(
         candidate_commit=_CANDIDATE_COMMIT,
         **kwargs,
     )
@@ -108,9 +107,9 @@ def test_ollama_semantic_acceptance_alone_cannot_authorize_v3_rollout():
 def test_runtime_integration_and_manual_acceptance_are_independent_gates():
     decision = _build_decision(
         acceptance_report=_accepted_report(),
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks={
-            **_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+            **_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
             "crash_recovery_reuses_execution_key": "not_run",
         },
     )
@@ -127,8 +126,8 @@ def test_runtime_integration_and_manual_acceptance_are_independent_gates():
 def test_all_three_gates_only_allow_manual_review_not_automatic_cutover():
     decision = _build_decision(
         acceptance_report=_accepted_report(),
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["decision"] == "eligible_for_controlled_rollout_review"
@@ -152,8 +151,8 @@ def test_rollout_gate_rejects_non_qualifying_semantic_matrix(matrix_overrides):
     report["acceptance_matrix"].update(matrix_overrides)
     decision = _build_decision(
         acceptance_report=report,
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["decision"] == "hold_v2"
@@ -166,8 +165,8 @@ def test_semantic_gate_requires_complete_frozen_holdout_manifest():
 
     decision = _build_decision(
         acceptance_report=report,
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["decision"] == "hold_v2"
@@ -180,8 +179,8 @@ def test_semantic_gate_rejects_selected_variant_with_missing_failed_gate():
 
     decision = _build_decision(
         acceptance_report=report,
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["decision"] == "hold_v2"
@@ -195,8 +194,8 @@ def test_semantic_gate_rejects_acceptance_report_without_baseline_variant():
 
     decision = _build_decision(
         acceptance_report=report,
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["decision"] == "hold_v2"
@@ -209,8 +208,8 @@ def test_semantic_gate_rejects_duplicate_run_keys_from_real_acceptance_shape():
 
     decision = _build_decision(
         acceptance_report=report,
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["decision"] == "hold_v2"
@@ -224,8 +223,8 @@ def test_semantic_gate_rejects_acceptance_from_a_different_candidate_commit():
 
     decision = _build_decision(
         acceptance_report=report,
-        runtime_checks=_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-        sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+        runtime_checks=_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
 
     assert decision["candidate_commit"] == _CANDIDATE_COMMIT
@@ -235,7 +234,7 @@ def test_semantic_gate_rejects_acceptance_from_a_different_candidate_commit():
 
 
 def test_manual_evidence_commit_binding_accepts_exact_candidate():
-    tests.v3_rollout_gate.validate_candidate_evidence_commit(
+    v3_rollout_gate.validate_candidate_evidence_commit(
         {"campaign_manager_commit": _CANDIDATE_COMMIT},
         candidate_commit=_CANDIDATE_COMMIT,
         evidence_name="runtime evidence",
@@ -244,7 +243,7 @@ def test_manual_evidence_commit_binding_accepts_exact_candidate():
 
 def test_manual_evidence_commit_binding_rejects_a_different_commit():
     with pytest.raises(ValueError, match="must match candidate_commit"):
-        tests.v3_rollout_gate.validate_candidate_evidence_commit(
+        v3_rollout_gate.validate_candidate_evidence_commit(
             {"campaign_manager_commit": "b" * 40},
             candidate_commit=_CANDIDATE_COMMIT,
             evidence_name="SillyTavern evidence",
@@ -253,7 +252,7 @@ def test_manual_evidence_commit_binding_rejects_a_different_commit():
 
 def test_manual_evidence_commit_binding_rejects_missing_manifest():
     with pytest.raises(ValueError, match="must match candidate_commit"):
-        tests.v3_rollout_gate.validate_candidate_evidence_commit(
+        v3_rollout_gate.validate_candidate_evidence_commit(
             None,
             candidate_commit=_CANDIDATE_COMMIT,
             evidence_name="runtime evidence",
@@ -262,7 +261,7 @@ def test_manual_evidence_commit_binding_rejects_missing_manifest():
 
 def test_manual_evidence_commit_binding_rejects_invalid_candidate_sha():
     with pytest.raises(ValueError, match="full 40-character commit SHA"):
-        tests.v3_rollout_gate.validate_candidate_evidence_commit(
+        v3_rollout_gate.validate_candidate_evidence_commit(
             {"campaign_manager_commit": _CANDIDATE_COMMIT},
             candidate_commit="not-a-full-sha",
             evidence_name="runtime evidence",
@@ -274,7 +273,7 @@ def test_rollout_gate_rejects_unknown_evidence_check_ids():
         _build_decision(
             acceptance_report=_accepted_report(),
             runtime_checks={"pretend_everything_passed": "pass"},
-            sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+            sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
         )
 
 
@@ -284,10 +283,10 @@ def test_rollout_gate_rejects_unrecognised_evidence_states(state):
         _build_decision(
             acceptance_report=_accepted_report(),
             runtime_checks={
-                **_passing_evidence(tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
-                tests.v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS[0]: state,
+                **_passing_evidence(v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS),
+                v3_rollout_gate.V3_RUNTIME_REQUIRED_CHECKS[0]: state,
             },
-            sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+            sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
         )
 
 
@@ -296,5 +295,5 @@ def test_rollout_gate_requires_mapping_inputs():
         _build_decision(
             acceptance_report=_accepted_report(),
             runtime_checks=["pass"],
-            sillytavern_checks=_passing_evidence(tests.v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
+            sillytavern_checks=_passing_evidence(v3_rollout_gate.V3_SILLYTAVERN_REQUIRED_CHECKS),
         )
