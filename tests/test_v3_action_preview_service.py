@@ -1689,3 +1689,277 @@ def test_v3_preview_fails_closed_when_visible_projection_cannot_be_built():
     assert error.value.code == "visible_context_failed"
     assert error.value.stage == "reference_resolution"
     assert "private projection details" not in str(error.value)
+
+
+
+def test_v3_action_planning_adapter_occurrences_fail_closed_on_stale_span_text():
+    from models.player_turn_interpretation_v3 import EvidenceSpan
+
+    assert V3ActionPlanningAdapter._occurrences(
+        "Cerrar",
+        "Abrir",
+        (EvidenceSpan(start=0, end=5, text="Abrir"),),
+    ) == ()
+
+
+def test_v3_action_planning_adapter_excerpt_rejects_missing_predicate_and_oversized_excerpt():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import EvidenceSpan
+
+    source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
+    event = preview.interpretation.events[0]
+
+    with pytest.raises(V3ActionPlanningError) as missing:
+        V3ActionPlanningAdapter._event_excerpt(
+            replace(event, predicate_surface="cerrar"),
+            source,
+        )
+    assert missing.value.code == "event_evidence_incomplete"
+
+    long_source = "Yo " + ("x" * 310) + "abrir" + ("y" * 310) + "la puerta"
+    long_event = replace(
+        event,
+        evidence_spans=(
+            EvidenceSpan(
+                start=0,
+                end=len(long_source),
+                text=long_source,
+            ),
+        ),
+    )
+    with pytest.raises(V3ActionPlanningError) as oversized:
+        V3ActionPlanningAdapter._event_excerpt(long_event, long_source)
+    assert oversized.value.code == "event_evidence_out_of_bounds"
+
+
+def test_v3_action_planning_adapter_reference_mapping_fails_closed_for_bad_bindings():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+    )
+    from models.semantic_frames import SemanticMention
+
+    _source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
+    candidate = preview.checkpoint.nodes[0].candidate
+    visible_world = preview.visible_projection.world
+
+    unsupported = GameplayResolvedReference(
+        mention=SemanticMention("una gema"),
+        category=GameplayResolvedReferenceKind.RESOURCE,
+        referent_id=99,
+        name="Gema",
+    )
+    with pytest.raises(V3ActionPlanningError) as unsupported_error:
+        V3ActionPlanningAdapter._references(
+            replace(
+                candidate,
+                resolved_references=(*candidate.resolved_references, unsupported),
+            ),
+            (),
+            visible_world,
+        )
+    assert unsupported_error.value.code == "unsupported_reference_category"
+
+    invisible = GameplayResolvedReference(
+        mention=SemanticMention("la torre"),
+        category=GameplayResolvedReferenceKind.ENTITY,
+        referent_id=99,
+        name="Torre",
+    )
+    with pytest.raises(V3ActionPlanningError) as invisible_error:
+        V3ActionPlanningAdapter._references(
+            replace(
+                candidate,
+                resolved_references=(*candidate.resolved_references, invisible),
+            ),
+            (),
+            visible_world,
+        )
+    assert invisible_error.value.code == "canonical_reference_not_visible"
+
+
+def test_v3_action_planning_adapter_reference_mapping_rejects_conflicting_alias_identity():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import (
+        GameplayResolvedReference,
+        GameplayResolvedReferenceKind,
+    )
+    from models.semantic_frames import SemanticMention
+
+    _source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
+    candidate = preview.checkpoint.nodes[0].candidate
+    conflicting = GameplayResolvedReference(
+        mention=SemanticMention("YO"),
+        category=GameplayResolvedReferenceKind.ENTITY,
+        referent_id=9,
+        name="Mara",
+    )
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter._references(
+            candidate,
+            (conflicting,),
+            preview.visible_projection.world,
+        )
+    assert error.value.code == "conflicting_reference_mentions"
+
+
+def test_v3_action_planning_adapter_lowering_requires_player_scoped_matching_actor():
+    from dataclasses import replace
+
+    from models.player_turn_interpretation_v3 import SpeakerRole
+    from models.semantic_frames import SemanticMention
+
+    _source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
+    candidate = preview.checkpoint.nodes[0].candidate
+    event = preview.interpretation.events[0]
+    act = preview.interpretation.utterance_acts[0]
+    adapter = V3ActionPlanningAdapter()
+
+    with pytest.raises(V3ActionPlanningError) as wrong_speaker:
+        adapter._analysis(
+            candidate,
+            event,
+            replace(act, speaker_role=SpeakerRole.NPC),
+            "Yo intento abrir la puerta",
+        )
+    assert wrong_speaker.value.code == "event_not_player_scoped"
+
+    with pytest.raises(V3ActionPlanningError) as wrong_actor:
+        adapter._analysis(
+            replace(candidate, actor=SemanticMention("Mara")),
+            event,
+            act,
+            "Yo intento abrir la puerta",
+        )
+    assert wrong_actor.value.code == "candidate_actor_mismatch"
+
+
+def test_v3_action_planning_adapter_restore_staged_action_validates_public_arguments():
+    source, _world, _service, _provider, context, preview = _v3_restore_fixture()
+    adapter = V3ActionPlanningAdapter()
+    parser = SimpleNamespace(parse=lambda _payload: [])
+
+    with pytest.raises(TypeError, match="preview must be a V3ActionPreviewResult"):
+        adapter.restore_staged_action(
+            None,
+            context,
+            source,
+            progress_json="{}",
+            event_id="event_open",
+            execution_key="a" * 64,
+            operation_parser=parser,
+        )
+
+    with pytest.raises(TypeError, match="context must be a TurnContext"):
+        adapter.restore_staged_action(
+            preview,
+            object(),
+            source,
+            progress_json="{}",
+            event_id="event_open",
+            execution_key="a" * 64,
+            operation_parser=parser,
+        )
+
+    with pytest.raises(ValueError, match="player_input must not be empty"):
+        adapter.restore_staged_action(
+            preview,
+            context,
+            "  ",
+            progress_json="{}",
+            event_id="event_open",
+            execution_key="a" * 64,
+            operation_parser=parser,
+        )
+
+    with pytest.raises(TypeError, match="operation_parser must expose parse"):
+        adapter.restore_staged_action(
+            preview,
+            context,
+            source,
+            progress_json="{}",
+            event_id="event_open",
+            execution_key="a" * 64,
+            operation_parser=object(),
+        )
+
+
+def test_v3_action_planning_adapter_prepare_next_action_validates_public_arguments():
+    source, _world, _service, _provider, context, preview = _v3_restore_fixture()
+    resolver = object.__new__(TurnResolutionService)
+    adapter = V3ActionPlanningAdapter()
+
+    with pytest.raises(TypeError, match="resolver must be a TurnResolutionService"):
+        adapter.prepare_next_action(object(), preview, context, source)
+
+    with pytest.raises(TypeError, match="preview must be a V3ActionPreviewResult"):
+        adapter.prepare_next_action(resolver, None, context, source)
+
+    with pytest.raises(TypeError, match="context must be a TurnContext"):
+        adapter.prepare_next_action(resolver, preview, object(), source)
+
+    with pytest.raises(ValueError, match="player_input must not be empty"):
+        adapter.prepare_next_action(resolver, preview, context, "  ")
+
+    with pytest.raises(TypeError, match="recent_turns must contain TurnRecord values"):
+        adapter.prepare_next_action(
+            resolver,
+            preview,
+            context,
+            source,
+            recent_turns=[object()],
+        )
+
+    with pytest.raises(TypeError, match="manual_mode must be a boolean"):
+        adapter.prepare_next_action(
+            resolver,
+            preview,
+            context,
+            source,
+            manual_mode=1,
+        )
+
+
+def test_v3_action_planning_adapter_does_not_lower_a_candidate_waiting_for_clarification():
+    source = "Yo intento abrir la puerta"
+    world = WorldState(
+        entities={
+            7: Entity(id=7, name="Arin", entity_type="character"),
+            8: Entity(
+                id=8,
+                name="Puerta norte",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+            9: Entity(
+                id=9,
+                name="Puerta sur",
+                entity_type="location",
+                aliases=["la puerta"],
+            ),
+        }
+    )
+    preview_service, _provider, _builder = _preview_service(
+        world,
+        _v3_response(source),
+    )
+    preview = preview_service.preview(
+        _context(world),
+        source,
+        resolution_id=61,
+        context_revision=22,
+    )
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter().prepare_next_action(
+            object.__new__(TurnResolutionService),
+            preview,
+            _context(world),
+            source,
+        )
+    assert error.value.code == "selection_needs_clarification"
