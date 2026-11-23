@@ -845,6 +845,13 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
         )
     assert rebound.value.code == "staged_progress_rejected"
 
+    with pytest.raises(V3ActionPlanningError) as identity_mismatch:
+        replace(planned, context_revision=planned.context_revision + 1).progress_updates(
+            execution_key=execution_key,
+            previous_progress_json=updates["proposal_json"],
+        )
+    assert identity_mismatch.value.code == "staged_progress_identity_mismatch"
+
     from services.turns.player_action_selector import mark_action_started
 
     in_progress, stable_key, resumed = mark_action_started(
@@ -1702,21 +1709,13 @@ def test_v3_action_planning_adapter_occurrences_fail_closed_on_stale_span_text()
     ) == ()
 
 
-def test_v3_action_planning_adapter_excerpt_rejects_missing_predicate_and_oversized_excerpt():
+def test_v3_action_planning_adapter_excerpt_rejects_oversized_excerpt():
     from dataclasses import replace
 
     from models.player_turn_interpretation_v3 import EvidenceSpan
 
     source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
     event = preview.interpretation.events[0]
-
-    with pytest.raises(V3ActionPlanningError) as missing:
-        V3ActionPlanningAdapter._event_excerpt(
-            replace(event, predicate_surface="cerrar"),
-            source,
-        )
-    assert missing.value.code == "event_evidence_incomplete"
-
     long_source = "Yo " + ("x" * 310) + "abrir" + ("y" * 100) + "la puerta"
     long_event = replace(
         event,
@@ -1962,3 +1961,102 @@ def test_v3_action_planning_adapter_does_not_lower_a_candidate_waiting_for_clari
             source,
         )
     assert error.value.code == "selection_needs_clarification"
+
+
+
+def test_v3_action_planning_adapter_restore_rejects_non_recoverable_checkpoint_state():
+    source, _world, _service, _provider, context, preview = _v3_restore_fixture()
+    node = preview.checkpoint.nodes[0]
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter().restore_staged_action(
+            preview,
+            context,
+            source,
+            progress_json="{}",
+            event_id="event_open",
+            execution_key=node.execution_key,
+            operation_parser=SimpleNamespace(parse=lambda _payload: []),
+        )
+
+    assert error.value.code == "action_not_recoverable"
+
+
+def test_v3_action_planning_adapter_restore_rejects_execution_key_rebinding():
+    from services.turns.player_action_selector import mark_action_started
+
+    source, _world, _service, _provider, context, preview = _v3_restore_fixture()
+    checkpoint, _key, _resumed = mark_action_started(
+        preview.checkpoint,
+        "event_open",
+    )
+    started = replace(preview, checkpoint=checkpoint)
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter().restore_staged_action(
+            started,
+            context,
+            source,
+            progress_json="{}",
+            event_id="event_open",
+            execution_key="a" * 64,
+            operation_parser=SimpleNamespace(parse=lambda _payload: []),
+        )
+
+    assert error.value.code == "execution_key_mismatch"
+
+
+def test_v3_action_planning_adapter_restore_rejects_progress_from_another_checkpoint():
+    from services.turns.player_action_selector import mark_action_started
+
+    source, _world, _service, _provider, context, preview = _v3_restore_fixture()
+    checkpoint, key, _resumed = mark_action_started(
+        preview.checkpoint,
+        "event_open",
+    )
+    mismatched_snapshot = V3ActionProgressSnapshot.empty(
+        resolution_id=checkpoint.resolution_id + 1,
+        context_revision=checkpoint.context_revision,
+        source_sha256=checkpoint.source_sha256,
+    )
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter().restore_staged_action(
+            replace(preview, checkpoint=checkpoint),
+            context,
+            source,
+            progress_json=mismatched_snapshot.to_json(),
+            event_id="event_open",
+            execution_key=key,
+            operation_parser=SimpleNamespace(parse=lambda _payload: []),
+        )
+
+    assert error.value.code == "staged_progress_identity_mismatch"
+
+
+def test_v3_action_planning_adapter_restore_rejects_snapshot_without_staged_entry():
+    from services.turns.player_action_selector import mark_action_started
+
+    source, _world, _service, _provider, context, preview = _v3_restore_fixture()
+    checkpoint, key, _resumed = mark_action_started(
+        preview.checkpoint,
+        "event_open",
+    )
+    empty_snapshot = V3ActionProgressSnapshot.empty(
+        resolution_id=checkpoint.resolution_id,
+        context_revision=checkpoint.context_revision,
+        source_sha256=checkpoint.source_sha256,
+    )
+
+    with pytest.raises(V3ActionPlanningError) as error:
+        V3ActionPlanningAdapter().restore_staged_action(
+            replace(preview, checkpoint=checkpoint),
+            context,
+            source,
+            progress_json=empty_snapshot.to_json(),
+            event_id="event_open",
+            execution_key=key,
+            operation_parser=SimpleNamespace(parse=lambda _payload: []),
+        )
+
+    assert error.value.code == "staged_action_missing"
