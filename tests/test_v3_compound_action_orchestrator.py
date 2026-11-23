@@ -511,3 +511,90 @@ def test_compound_action_execution_rejects_invalid_staged_json_contract():
             ActionOutcome.SUCCESS,
             {"proposal_json": '"' + ("x" * 131_073) + '"'},
         )
+
+
+def test_compound_action_execution_accepts_null_progress_and_rejects_non_string_values():
+    execution = CompoundActionExecution(
+        ActionOutcome.SUCCESS,
+        {"proposal_json": None, "mechanics_json": '{"outcome":"success"}'},
+    )
+    assert execution.progress_updates["proposal_json"] is None
+
+    with pytest.raises(TypeError, match="proposal_json must be a JSON string or None"):
+        CompoundActionExecution(
+            ActionOutcome.SUCCESS,
+            {"proposal_json": 123},  # type: ignore[dict-item]
+        )
+
+
+def test_orchestrator_returns_blocked_dependency_without_executing(monkeypatch):
+    from services.turns.player_action_selector import ActionSelectionStatus
+
+    checkpoint = _checkpoint()
+    candidate = _candidate("event_enter", dependencies=("event_missing",), blocked=True)
+    selection = type(
+        "Selection",
+        (),
+        {
+            "checkpoint": checkpoint,
+            "status": ActionSelectionStatus.BLOCKED_BY_DEPENDENCY,
+            "candidate": candidate,
+            "clarification_slots": (),
+            "execution_key": None,
+        },
+    )()
+    monkeypatch.setattr(
+        "services.turns.v3_compound_action_orchestrator.select_next_action",
+        lambda _checkpoint: selection,
+    )
+
+    result = V3CompoundActionOrchestrator().run(
+        checkpoint,
+        execute=lambda *_args: pytest.fail("blocked actions must not execute"),
+        persist_checkpoint=lambda *_args: pytest.fail("unchanged checkpoint must not persist"),
+    )
+
+    assert result.status is CompoundActionRunStatus.BLOCKED_BY_DEPENDENCY
+    assert result.candidate is candidate
+    assert result.event_id == "event_enter"
+    assert result.attempts == ()
+
+
+def test_orchestrator_rejects_ready_selection_without_execution_identity(monkeypatch):
+    from services.turns.player_action_selector import ActionSelectionStatus
+
+    checkpoint = _checkpoint()
+    selection = type(
+        "Selection",
+        (),
+        {
+            "checkpoint": checkpoint,
+            "status": ActionSelectionStatus.READY,
+            "candidate": None,
+            "clarification_slots": (),
+            "execution_key": "stable-key",
+        },
+    )()
+    monkeypatch.setattr(
+        "services.turns.v3_compound_action_orchestrator.select_next_action",
+        lambda _checkpoint: selection,
+    )
+
+    with pytest.raises(RuntimeError, match="missing its identity"):
+        V3CompoundActionOrchestrator().run(
+            checkpoint,
+            execute=lambda *_args: pytest.fail("invalid selection must not execute"),
+            persist_checkpoint=lambda _value: None,
+        )
+
+
+def test_clarification_resume_requires_a_checkpoint_persister():
+    checkpoint = _checkpoint(awaiting_first=True)
+    with pytest.raises(TypeError, match="persist_checkpoint"):
+        V3CompoundActionOrchestrator().resume_after_clarification(
+            checkpoint,
+            "event_open",
+            _node(checkpoint, "event_open").candidate,
+            execute=lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS),
+            persist_checkpoint=None,  # type: ignore[arg-type]
+        )
