@@ -780,6 +780,11 @@ class V3ActionPreviewService:
                 "clarification",
             )
         match = lookup.candidates[0]
+        if match.entity_id is None:
+            raise V3ActionPreviewError(
+                "clarification_answer_not_unique",
+                "clarification",
+            )
         entity = projection.world.entities.get(match.entity_id)
         if (
             entity is None
