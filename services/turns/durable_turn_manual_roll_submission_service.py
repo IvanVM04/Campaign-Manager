@@ -92,6 +92,19 @@ class DurableTurnManualRollSubmissionService:
                     )
                     saved = service.resolution_repository.get(record.id, scope=service.scope)
                     return service._preparation_from_record(saved) if defer_narration else service._resume_narration(saved, already_processed=True)
+            v3_pending = state.get("v3_action_manual_roll")
+            if isinstance(v3_pending, dict):
+                if record.lifecycle_state != "awaiting_input":
+                    raise self.error_type("v3 manual roll challenge is no longer pending")
+                if len(rolls) != v3_pending.get("count"):
+                    raise self.error_type("manual roll has an invalid number of dice")
+                return service.execution_service.resume_v3_action_manual_roll(
+                    record,
+                    state,
+                    rolls,
+                    defer_narration=defer_narration,
+                    answer_external_turn_id=answer_external_turn_id,
+                )
             if record.lifecycle_state not in {"awaiting_input", "planning"}:
                 raise self.error_type("manual roll challenge is no longer pending")
             context, recent, revision = service._capture_turn_snapshot(
