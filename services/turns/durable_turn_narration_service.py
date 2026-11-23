@@ -256,7 +256,7 @@ class DurableTurnNarrationService:
 
     @staticmethod
     def _resolved_player_input(record: TurnResolutionRecord) -> str:
-        adjudication = json.loads(record.adjudication_json or "{}")
+        adjudication = json.loads(getattr(record, "adjudication_json", None) or "{}")
         return adjudication.get("resolved_player_input", record.player_input)
 
     @staticmethod
