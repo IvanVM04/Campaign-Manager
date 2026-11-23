@@ -22,6 +22,8 @@ def test_llm_settings_preserve_current_defaults():
     assert settings.mechanics_think is None
     assert settings.intent_think is None
     assert settings.player_turn_v3_action_shadow_enabled is False
+    assert settings.player_turn_v3_action_execution_enabled is False
+    assert settings.player_turn_v3_world_facts_enabled is False
     assert settings.intent_prompt_max_bytes == 24000
     assert settings.intent_context_max_bytes == 4096
     assert settings.mechanics_prompt_max_bytes == 8192
@@ -384,3 +386,36 @@ def test_v3_world_fact_persistence_requires_two_explicit_opt_ins():
         })
     with pytest.raises(TypeError, match="must be a boolean"):
         LLMSettings(player_turn_v3_world_facts_enabled="true")
+
+
+
+def test_v3_durable_action_execution_is_independent_and_requires_shadow_opt_in():
+    enabled = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED": "true",
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED": "true",
+    })
+    assert enabled.player_turn_v3_action_shadow_enabled is True
+    assert enabled.player_turn_v3_action_execution_enabled is True
+
+    disabled = LLMSettings.from_env({
+        "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED": "true",
+    })
+    assert disabled.player_turn_v3_action_shadow_enabled is False
+    assert disabled.player_turn_v3_action_execution_enabled is False
+
+    with pytest.raises(ValueError, match="requires.*player_turn_v3_action_shadow_enabled"):
+        LLMSettings(
+            player_turn_v3_action_execution_enabled=True,
+            player_turn_v3_action_shadow_enabled=False,
+        )
+
+
+@pytest.mark.parametrize("value", ["maybe", "2", "enabled"])
+def test_v3_durable_action_execution_rejects_invalid_environment_flag(value):
+    with pytest.raises(
+        ValueError,
+        match="CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED must be a boolean",
+    ):
+        LLMSettings.from_env({
+            "CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED": value,
+        })
