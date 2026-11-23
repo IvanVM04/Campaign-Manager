@@ -1,6 +1,5 @@
 import pytest
 
-
 _CANDIDATE_COMMIT = "a" * 40
 
 
