@@ -72,11 +72,12 @@ outcomes are preserved in committed narration evidence.
 This is deliberately a partial integration. Manual-roll and initial
 clarification graphs remain on V2; an unexpected clarification during V3
 execution fails closed. Staged character operations are not projected and
-cause a fail-closed error. Same-node continuation is planned for PR #302, and
-the broad durable-service integration gate (lease expiry, crash/replay,
-stale revisions, negative controls and historical compatibility) is planned
-for PR #303. V2 remains the production authority; no live Ollama or SillyTavern
-acceptance is claimed.
+cause a fail-closed error. PR #302 adds the first service-level integration
+proof through the prepared commit and narration path. Same-node continuation
+is planned for PR #303, and the broad durable-service integration gate (lease
+expiry, crash/replay, stale revisions, negative controls and historical
+compatibility) is planned for PR #304. V2 remains the production authority;
+no live Ollama or SillyTavern acceptance is claimed.
 
 The new roadmap and linked documents define the required evaluation, graph
 scoring, larger held-out corpus, prompt/runtime reproducibility, integration
