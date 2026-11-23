@@ -216,3 +216,48 @@ def test_v3_action_progress_snapshot_enforces_byte_budget():
                 separators=(",", ":"),
             ),
         )
+
+
+
+def test_v3_action_progress_replaces_only_a_pending_manual_roll_with_same_identity():
+    pending = _entry(
+        awaiting_manual_roll=True,
+        mechanics_decision_json=(
+            '{"decision":"skill_check","skill":"stealth","dc":15,'
+            '"ability":null,"advantage":false,"disadvantage":false,'
+            '"situational_modifier":0,"reason":"Evitar al guardia","question":null}'
+        ),
+    )
+    snapshot = _snapshot(pending)
+    resolved = replace(
+        pending,
+        operations_json='{"operations":[{"type":"UpdateEntity","entity_id":7}]}',
+        mechanics_json='{"decision":{},"check":{}}',
+        awaiting_manual_roll=False,
+    )
+
+    updated = snapshot.replace_manual_roll_entry(resolved)
+
+    assert updated.entry_for_event("event_open") == resolved
+    assert updated.entry_for_event("event_open").awaiting_manual_roll is False
+    assert updated.entry_for_event("event_open").execution_key == pending.execution_key
+    assert V3ActionProgressSnapshot.from_json(updated.to_json()) == updated
+
+
+def test_v3_action_progress_rejects_manual_roll_replacement_for_non_pending_or_rebound_entry():
+    resolved = _entry(mechanics_json='{"decision":{},"check":{}}')
+    with pytest.raises(ValueError, match="not awaiting a manual roll"):
+        _snapshot(resolved).replace_manual_roll_entry(resolved)
+
+    pending = _entry(
+        awaiting_manual_roll=True,
+        mechanics_decision_json='{"decision":"skill_check"}',
+    )
+    rebound = replace(
+        pending,
+        awaiting_manual_roll=False,
+        mechanics_json='{"decision":{},"check":{}}',
+        execution_key="b" * 64,
+    )
+    with pytest.raises(ValueError, match="cannot rebind"):
+        _snapshot(pending).replace_manual_roll_entry(rebound)
