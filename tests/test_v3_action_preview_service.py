@@ -1714,7 +1714,7 @@ def test_v3_action_planning_adapter_excerpt_rejects_oversized_excerpt():
 
     from models.player_turn_interpretation_v3 import EvidenceSpan
 
-    source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
+    _source, _world, _service, _provider, _context_value, preview = _v3_restore_fixture()
     event = preview.interpretation.events[0]
     long_source = "Yo " + ("x" * 310) + "abrir" + ("y" * 100) + "la puerta"
     long_event = replace(
