@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.player_action_checkpoint import (
     ActionCheckpointNode,
     ActionExecutionState,
@@ -598,3 +599,64 @@ def test_clarification_resume_requires_a_checkpoint_persister():
             execute=lambda *_args: CompoundActionExecution(ActionOutcome.SUCCESS),
             persist_checkpoint=None,  # type: ignore[arg-type]
         )
+
+
+
+def test_orchestrator_pauses_for_manual_roll_and_retries_same_execution_key():
+    checkpoint = _checkpoint()
+    persisted = []
+    staged = {"proposal_json": '{"operations":[]}'}
+    decision = MechanicsDecision(
+        decision=MechanicsDecisionType.ABILITY_CHECK,
+        dc=12,
+    )
+
+    def persist(value, updates=None):
+        persisted.append((value, updates))
+
+    def request_manual(candidate, execution_key, resumed, persist_staged):
+        assert candidate.source_event_id == "event_open"
+        assert resumed is False
+        assert _node(persisted[-1][0], "event_open").state is (
+            ActionExecutionState.IN_PROGRESS
+        )
+        persist_staged(staged)
+        return CompoundActionExecution(
+            manual_roll_decision=decision,
+        )
+
+    paused = V3CompoundActionOrchestrator().run(
+        checkpoint,
+        execute=request_manual,
+        persist_checkpoint=persist,
+    )
+
+    assert paused.status is CompoundActionRunStatus.NEEDS_MANUAL_ROLL
+    assert paused.event_id == "event_open"
+    assert paused.execution_key == _node(
+        paused.checkpoint,
+        "event_open",
+    ).execution_key
+    assert paused.manual_roll_decision == decision
+    assert _node(paused.checkpoint, "event_open").state is (
+        ActionExecutionState.IN_PROGRESS
+    )
+    assert _node(paused.checkpoint, "event_open").outcome is None
+    assert persisted[-1][1] == staged
+
+    resumed_calls = []
+
+    def resume(candidate, execution_key, resumed, _persist_staged):
+        resumed_calls.append((candidate.source_event_id, execution_key, resumed))
+        return CompoundActionExecution(ActionOutcome.FAILURE)
+
+    completed = V3CompoundActionOrchestrator().run(
+        paused.checkpoint,
+        execute=resume,
+        persist_checkpoint=lambda _value, _updates=None: None,
+    )
+
+    assert resumed_calls[0] == ("event_open", paused.execution_key, True)
+    assert _node(completed.checkpoint, "event_open").outcome is ActionOutcome.FAILURE
+    assert _node(completed.checkpoint, "event_open").attempt_count == 2
+    assert completed.status is CompoundActionRunStatus.COMPLETED
