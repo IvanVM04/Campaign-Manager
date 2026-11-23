@@ -254,4 +254,3 @@ def build_v3_rollout_decision(
         },
         "blockers": blockers,
     }
-}
