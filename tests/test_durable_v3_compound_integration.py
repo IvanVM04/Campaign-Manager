@@ -1,11 +1,8 @@
 import json
-from dataclasses import replace
 
-from models.character_state import CharacterState
 from models.entity import Entity
 from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.player_action_checkpoint import ActionExecutionState, PlayerActionCheckpoint
-from models.turn_context import TurnContext
 from models.world_state import WorldState
 from repositories.turn_resolution_repository import TurnResolutionRepository
 from services.turns.turn_resolution_service import TurnResolutionPlan
@@ -19,7 +16,6 @@ def test_v3_compound_graph_uses_native_durable_commit_boundary(
 ):
     source = "Yo intento abrir la puerta"
     service, _proposal_calls, narrative_calls = service_with_fake_models()
-    base_context, recent, revision = service._capture_turn_snapshot()
     world = WorldState(
         entities={
             7: Entity(id=7, name="Arin", entity_type="character"),
@@ -31,23 +27,19 @@ def test_v3_compound_graph_uses_native_durable_commit_boundary(
             ),
         }
     )
-    context = replace(
-        base_context,
-        active_character=CharacterState(entity_id=7),
-        world=world,
+    service.world_service.repository.save_world(
+        world,
+        campaign_id=service.scope.campaign_id,
     )
-    assert isinstance(context, TurnContext)
+    service.world_service.world = world
+    context, recent, revision = service._capture_turn_snapshot()
+
     preview_service, interpreter_provider, _builder = _preview_service(
         world,
-        _v3_response(source),
+        _v3_response(source, actor="Arin"),
     )
     service.execution_service.v3_action_preview_service = preview_service
     service.execution_service.v3_action_execution_enabled = True
-    monkeypatch.setattr(
-        service,
-        "_capture_turn_snapshot",
-        lambda *, conversation_id=None: (context, recent, revision),
-    )
 
     planning_evidence = []
 
