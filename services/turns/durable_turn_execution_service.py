@@ -893,6 +893,78 @@ class DurableTurnExecutionService:
                             preview,
                             checkpoint=compound.checkpoint,
                         )
+                        if compound.status is CompoundActionRunStatus.NEEDS_MANUAL_ROLL:
+                            if (
+                                compound.event_id is None
+                                or compound.manual_roll_execution_key is None
+                                or compound.manual_roll_decision is None
+                            ):
+                                raise DurableNativeTurnError(
+                                    "v3 manual-roll result is missing its action identity"
+                                )
+                            pending = self.build_manual_roll_request(
+                                record,
+                                compound.manual_roll_decision,
+                                context,
+                                revision,
+                            )
+                            pending.update({
+                                "event_id": compound.event_id,
+                                "execution_key": compound.manual_roll_execution_key,
+                                "context_revision": revision,
+                            })
+                            history = (
+                                list(v3_manual_roll_response.get("history", []))
+                                if v3_manual_roll_response is not None
+                                else []
+                            )
+                            adjudication = {
+                                "manual_roll": pending,
+                                "v3_action_manual_roll": pending,
+                                "dice_mode": "manual",
+                                "manual_roll_history": history,
+                            }
+                            if v3_manual_roll_response is not None:
+                                history.append({
+                                    "event_id": v3_manual_roll_response["event_id"],
+                                    "challenge_id": v3_manual_roll_response["challenge_id"],
+                                    "execution_key": v3_manual_roll_response["execution_key"],
+                                    "rolls": v3_manual_roll_response["rolls"],
+                                    "answer_external_turn_id": (
+                                        v3_manual_roll_response.get(
+                                            "answer_external_turn_id"
+                                        )
+                                    ),
+                                })
+                                adjudication["manual_roll_history"] = history
+                            with transaction("IMMEDIATE") as conn:
+                                self.resolution_repository.transition(
+                                    self._required_resolution_id(record),
+                                    "awaiting_input",
+                                    scope=self.scope,
+                                    expected_state="planning",
+                                    expected_lease_token=lease_token,
+                                    updates={
+                                        "context_revision": revision,
+                                        "adjudication_json": json.dumps(
+                                            adjudication,
+                                            ensure_ascii=False,
+                                            separators=(",", ":"),
+                                            sort_keys=True,
+                                        ),
+                                        "lease_token": None,
+                                        "lease_expires_at": None,
+                                    },
+                                    conn=conn,
+                                )
+                            saved = self._require_resolution_record(
+                                self.resolution_repository.get(
+                                    self._required_resolution_id(record),
+                                    scope=self.scope,
+                                )
+                            )
+                            return self._manual_roll_result(saved, pending)
+
                         if compound.status is CompoundActionRunStatus.NEEDS_CLARIFICATION:
                             if compound.event_id is None or not compound.clarification_slots:
                                 raise DurableNativeTurnError(
@@ -1106,6 +1178,60 @@ class DurableTurnExecutionService:
                                     **(
                                         {"v3_action_outcomes": list(v3_action_outcomes)}
                                         if v3_action_outcomes
+                                        else {}
+                                    ),
+                                    **(
+                                        {
+                                            "manual_roll": {
+                                                **{
+                                                    "event_id": v3_manual_roll_response["event_id"],
+                                                    "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                    "execution_key": v3_manual_roll_response["execution_key"],
+                                                    "count": len(v3_manual_roll_response["rolls"]),
+                                                    "submitted_rolls": v3_manual_roll_response["rolls"],
+                                                    "submitted_external_turn_id": (
+                                                        v3_manual_roll_response.get(
+                                                            "answer_external_turn_id"
+                                                        )
+                                                    ),
+                                                    "context_revision": (
+                                                        v3_manual_roll_response["context_revision"]
+                                                    ),
+                                                    "decision": v3_manual_roll_response["decision"],
+                                                },
+                                            },
+                                            "v3_action_manual_roll": {
+                                                "event_id": v3_manual_roll_response["event_id"],
+                                                "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                "execution_key": v3_manual_roll_response["execution_key"],
+                                                "count": len(v3_manual_roll_response["rolls"]),
+                                                "submitted_rolls": v3_manual_roll_response["rolls"],
+                                                "submitted_external_turn_id": (
+                                                    v3_manual_roll_response.get(
+                                                        "answer_external_turn_id"
+                                                    )
+                                                ),
+                                                "context_revision": (
+                                                    v3_manual_roll_response["context_revision"]
+                                                ),
+                                                "decision": v3_manual_roll_response["decision"],
+                                            },
+                                            "manual_roll_history": [
+                                                *v3_manual_roll_response.get("history", []),
+                                                {
+                                                    "event_id": v3_manual_roll_response["event_id"],
+                                                    "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                    "execution_key": v3_manual_roll_response["execution_key"],
+                                                    "rolls": v3_manual_roll_response["rolls"],
+                                                    "answer_external_turn_id": (
+                                                        v3_manual_roll_response.get(
+                                                            "answer_external_turn_id"
+                                                        )
+                                                    ),
+                                                },
+                                            ],
+                                        }
+                                        if v3_manual_roll_response is not None
                                         else {}
                                     ),
                                     **(
