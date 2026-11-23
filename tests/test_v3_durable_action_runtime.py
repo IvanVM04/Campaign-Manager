@@ -15,6 +15,9 @@ from models.player_action_checkpoint import (
     PlayerActionCheckpoint,
 )
 from models.world_state import WorldState
+from rules_engine.dnd5e_2014.character_checks import ability_check_for_character
+from rules_engine.dnd5e_2014.core.dice import DiceRoller
+from rules_engine.dnd5e_2014.core.skills import Skill
 from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor, OperationParser
 from services.providers import FakeLLMProvider
@@ -38,9 +41,6 @@ from services.turns.v3_compound_action_runtime import (
     V3CompoundRuntimeResult,
 )
 from services.world import WorldService
-from rules_engine.dnd5e_2014.character_checks import ability_check_for_character
-from rules_engine.dnd5e_2014.core.dice import DiceRoller
-from rules_engine.dnd5e_2014.core.skills import Skill
 from tests.test_v3_action_preview_service import (
     _context,
     _preview_service,
@@ -195,7 +195,7 @@ def test_durable_v3_runtime_recovers_staged_plan_without_replanning(monkeypatch)
         preview,
         resolver,
         record,
-        planning_calls,
+        _planning_calls,
         _persistence_calls,
         fail_final_once,
         persist_checkpoint,
