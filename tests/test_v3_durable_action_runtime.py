@@ -126,7 +126,7 @@ def _runtime_fixture(monkeypatch):
         resolver,
         record,
         planning_calls,
-        _persistence_calls,
+        persistence_calls,
         fail_final_once,
         persist_checkpoint,
     )
@@ -184,7 +184,7 @@ def test_durable_v3_runtime_recovers_staged_plan_without_replanning(monkeypatch)
         resolver,
         record,
         planning_calls,
-        persistence_calls,
+        _persistence_calls,
         fail_final_once,
         persist_checkpoint,
     ) = _runtime_fixture(monkeypatch)
