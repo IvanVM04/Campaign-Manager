@@ -59,6 +59,8 @@ class V3CompoundRuntimeResult:
     candidate: GameplayActionCandidate | None = None
     event_id: str | None = None
     clarification_slots: tuple[str, ...] = ()
+    manual_roll_decision: object | None = None
+    manual_roll_execution_key: str | None = None
 
     @property
     def action_outcomes(self) -> tuple[dict[str, object], ...]:
@@ -287,8 +289,10 @@ class V3CompoundActionRuntime:
         *,
         manual_mode: bool,
     ) -> bool:
-        """Return whether this graph can start or pause on a safe target clarification."""
-        if manual_mode or not isinstance(preview, V3ActionPreviewResult):
+        """Return whether this graph can start or pause for one supported input."""
+        if not isinstance(manual_mode, bool) or not isinstance(
+            preview, V3ActionPreviewResult
+        ):
             return False
         status = preview.selection.status.value
         if status not in {"ready", "exhausted", "needs_clarification"}:
@@ -325,19 +329,21 @@ class V3CompoundActionRuntime:
         persist_checkpoint,
         clarification_event_id: str | None = None,
         clarification_answer: str | None = None,
+        manual_roll_event_id: str | None = None,
+        manual_rolls: tuple[int, ...] | None = None,
     ) -> V3CompoundRuntimeResult:
         """Execute ready graph nodes, pausing durably for target clarifications.
 
-        Manual-roll continuation remains outside this runtime slice. A
-        clarification answer is resolved against the current visible projection
-        and only changes the targeted checkpoint node.
+        Manual rolls are validated against the staged decision and resolve the
+        same IN_PROGRESS node; the original interpretation and mechanics decision
+        are restored from progress rather than requested from a provider.
         """
         if not isinstance(preview, V3ActionPreviewResult):
             raise TypeError("preview must be a V3ActionPreviewResult")
         if not callable(persist_checkpoint):
             raise TypeError("persist_checkpoint must be callable")
-        if manual_mode:
-            raise V3CompoundRuntimeError("manual_roll_continuation_not_enabled")
+        if not isinstance(manual_mode, bool):
+            raise TypeError("manual_mode must be a boolean")
         if preview.selection.status.value not in {
             "ready", "exhausted", "needs_clarification"
         }:
@@ -346,6 +352,14 @@ class V3CompoundActionRuntime:
             (clarification_event_id is None) != (clarification_answer is None)
         ):
             raise V3CompoundRuntimeError("clarification_response_incomplete")
+        if (manual_roll_event_id is None) != (manual_rolls is None):
+            raise V3CompoundRuntimeError("manual_roll_response_incomplete")
+        if manual_roll_event_id is not None and not any(
+            node.candidate.source_event_id == manual_roll_event_id
+            and node.state is ActionExecutionState.IN_PROGRESS
+            for node in preview.checkpoint.nodes
+        ):
+            raise V3CompoundRuntimeError("manual_roll_action_not_pending")
         if clarification_event_id is not None and not any(
             node.candidate.source_event_id == clarification_event_id
             and node.state is ActionExecutionState.AWAITING_INPUT
@@ -402,11 +416,47 @@ class V3CompoundActionRuntime:
                     context,
                     player_input,
                     recent_turns=recent_turns,
-                    manual_mode=False,
+                    manual_mode=manual_mode,
                 )
             plan = action.plan
             if plan.awaiting_manual_roll:
-                raise V3CompoundRuntimeError("manual_roll_continuation_not_enabled")
+                if (
+                    manual_roll_event_id is not None
+                    and manual_roll_event_id == candidate.source_event_id
+                    and manual_rolls is not None
+                ):
+                    action = self.planning_adapter.resolve_manual_roll(
+                        self.resolver,
+                        action,
+                        current_preview,
+                        context,
+                        player_input,
+                        manual_rolls,
+                        recent_turns=recent_turns,
+                    )
+                    plan = action.plan
+                else:
+                    updates = (
+                        progress.to_repository_progress_updates()
+                        if resumed and existing is not None
+                        else action.progress_updates(
+                            execution_key=execution_key,
+                            previous_progress_json=progress.to_json(),
+                        )
+                    )
+                    if not (resumed and existing is not None):
+                        persist_staged_progress(updates)
+                        progress = V3ActionProgressSnapshot.from_json(
+                            updates["proposal_json"]
+                        )
+                    return CompoundActionExecution(
+                        manual_roll_decision=plan.mechanics_decision,
+                    )
+            elif (
+                manual_roll_event_id is not None
+                and manual_roll_event_id == candidate.source_event_id
+            ):
+                raise V3CompoundRuntimeError("action_no_longer_awaits_manual_roll")
             if plan.clarification_question is not None:
                 raise V3CompoundRuntimeError("clarification_continuation_not_enabled")
             if plan.mechanics_result is not None:
@@ -426,11 +476,18 @@ class V3CompoundActionRuntime:
                 raise V3CompoundRuntimeError("action_outcome_not_authoritative")
 
             updates = (
-                progress.to_repository_progress_updates()
-                if resumed and existing is not None
-                else action.progress_updates(
+                action.manual_roll_progress_updates(
                     execution_key=execution_key,
                     previous_progress_json=progress.to_json(),
+                )
+                if resumed and existing is not None and manual_rolls is not None
+                else (
+                    progress.to_repository_progress_updates()
+                    if resumed and existing is not None
+                    else action.progress_updates(
+                        execution_key=execution_key,
+                        previous_progress_json=progress.to_json(),
+                    )
                 )
             )
             # Persist the provider-produced plan before the orchestrator records
@@ -479,6 +536,17 @@ class V3CompoundActionRuntime:
                 candidate=run_result.candidate,
                 event_id=run_result.event_id,
                 clarification_slots=run_result.clarification_slots,
+            )
+        if run_result.status is CompoundActionRunStatus.NEEDS_MANUAL_ROLL:
+            return V3CompoundRuntimeResult(
+                checkpoint=final_checkpoint,
+                progress=final_progress,
+                plan=None,
+                status=run_result.status,
+                candidate=run_result.candidate,
+                event_id=run_result.event_id,
+                manual_roll_decision=run_result.manual_roll_decision,
+                manual_roll_execution_key=run_result.execution_key,
             )
         if run_result.status is not CompoundActionRunStatus.COMPLETED:
             code = (
