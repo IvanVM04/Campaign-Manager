@@ -766,7 +766,7 @@ def test_v3_action_planning_builds_an_idempotent_checkpoint_cas_progress_update(
     assert len(snapshot.entries) == 1
     staged = snapshot.entries[0]
     assert staged.event_id == "event_open"
-    assert staged.action_id == "action_open"
+    assert staged.action_id == planned.candidate.local_id
     assert staged.source_order == 0
     assert staged.execution_key == execution_key
     assert staged.evidence_excerpt == "Yo intento abrir la puerta"
