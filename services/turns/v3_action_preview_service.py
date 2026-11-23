@@ -201,6 +201,8 @@ class V3ActionPreviewService:
         interpretation: TurnInterpretationV3,
         player_input: str,
         active_character_id: int,
+        *,
+        additional_queries: tuple[str, ...] = (),
     ):
         queries: list[str] = []
         for event in interpretation.events:
@@ -219,6 +221,7 @@ class V3ActionPreviewService:
         for link in interpretation.discourse_links:
             if link.link_type.value == "callback" and link.anchor_candidate is not None:
                 queries.append(link.anchor_candidate)
+        queries.extend(additional_queries)
         normalized_queries = tuple(dict.fromkeys(
             value.strip()[:120]
             for value in queries
@@ -675,6 +678,9 @@ class V3ActionPreviewService:
         preview: V3ActionPreviewResult,
         event_id: str,
         answer: str,
+        *,
+        context: TurnContext,
+        player_input: str,
     ) -> tuple[V3ActionPreviewResult, GameplayActionCandidate, tuple[str, ...]]:
         """Resolve one pending target mention using only the current visible-world projection.
 
@@ -691,12 +697,38 @@ class V3ActionPreviewService:
             raise ValueError("event_id must not be empty")
         if not isinstance(answer, str) or not answer.strip() or len(answer.strip()) > 500:
             raise ValueError("clarification answer must contain 1-500 characters")
-        projection = preview.visible_projection
-        if not isinstance(projection, WorldContextProjection):
+        if not isinstance(context, TurnContext):
+            raise TypeError("context must be a TurnContext")
+        if not isinstance(player_input, str) or not player_input.strip():
+            raise ValueError("player_input must not be empty")
+        active_character = context.active_character
+        active_character_id = (
+            getattr(active_character, "entity_id", None)
+            if active_character is not None
+            else None
+        )
+        if (
+            isinstance(active_character_id, bool)
+            or not isinstance(active_character_id, int)
+            or active_character_id < 1
+        ):
             raise V3ActionPreviewError(
-                "clarification_projection_unavailable",
+                "active_character_unavailable",
                 "clarification",
             )
+        interpretation = preview.interpretation
+        if not isinstance(interpretation, TurnInterpretationV3):
+            raise V3ActionPreviewError(
+                "clarification_interpretation_unavailable",
+                "clarification",
+            )
+        projection = self._visible_world(
+            context,
+            interpretation,
+            player_input,
+            active_character_id,
+            additional_queries=(answer.strip(),),
+        )
         node = next(
             (
                 item for item in preview.checkpoint.nodes
@@ -839,6 +871,7 @@ class V3ActionPreviewService:
         updated_map[event_id] = updated_resolution
         updated_preview = replace(
             preview,
+            visible_projection=projection,
             reference_resolutions=updated_map,
         )
         return updated_preview, updated_candidate, remaining_slots
