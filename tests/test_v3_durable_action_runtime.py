@@ -195,7 +195,7 @@ def test_durable_v3_runtime_recovers_staged_plan_without_replanning(monkeypatch)
         preview,
         resolver,
         record,
-        _planning_calls,
+        planning_calls,
         _persistence_calls,
         fail_final_once,
         persist_checkpoint,
