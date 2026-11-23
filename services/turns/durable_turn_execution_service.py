@@ -45,6 +45,7 @@ from services.turns.v3_action_preview_service import (
     V3ActionPreviewService,
 )
 from services.turns.v3_compound_action_runtime import (
+    CompoundActionRunStatus,
     V3CompoundActionRuntime,
     V3CompoundRuntimeError,
 )
@@ -687,6 +688,14 @@ class DurableTurnExecutionService:
 
         try:
             v3_action_outcomes: tuple[dict[str, object], ...] = ()
+            if v3_clarification_response is not None and (
+                record.context_revision != revision
+                or v3_clarification_response.get("context_revision") != revision
+            ):
+                raise DurableNativeTurnError(
+                    "campaign state changed while waiting for v3 clarification",
+                    code=DurableTurnErrorCode.STALE_CONTEXT,
+                )
             if resume_prepared:
                 if record.context_revision != revision:
                     with transaction("IMMEDIATE") as conn:
