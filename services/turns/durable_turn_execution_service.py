@@ -642,10 +642,22 @@ class DurableTurnExecutionService:
                             record, context, normalized, recent, revision, lease_token
                         )
                     )
-                    if preview is not None and V3CompoundActionRuntime.supports_graph(
-                        preview,
-                        manual_mode=(dice_mode == "manual"),
+                    can_start_v3 = (
+                        preview is not None
+                        and V3CompoundActionRuntime.supports_graph(
+                            preview,
+                            manual_mode=(dice_mode == "manual"),
+                        )
+                    )
+                    if (
+                        record.action_checkpoint_json is not None
+                        and preview is not None
+                        and not can_start_v3
                     ):
+                        raise DurableNativeTurnError(
+                            "persisted v3 action graph requires an unsupported continuation"
+                        )
+                    if can_start_v3:
                         def persist_v3_checkpoint(checkpoint, progress_updates=None):
                             nonlocal record
                             with transaction("IMMEDIATE") as conn:
