@@ -32,8 +32,6 @@ def test_v3_compound_graph_uses_native_durable_commit_boundary(
         campaign_id=service.scope.campaign_id,
     )
     service.world_service.world = world
-    context, recent, revision = service._capture_turn_snapshot()
-
     preview_service, interpreter_provider, _builder = _preview_service(
         world,
         _v3_response(source, actor="Arin"),
