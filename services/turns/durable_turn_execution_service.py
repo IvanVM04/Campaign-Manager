@@ -676,6 +676,10 @@ class DurableTurnExecutionService:
                                 "v3 action manual-roll challenge is stale"
                             )
                     else:
+                        if v3_clarification_response is None:
+                            raise DurableNativeTurnError(
+                                "v3 action clarification response is missing"
+                            )
                         v3_pending = pending.get("v3_action_clarification")
                         if not isinstance(v3_pending, dict):
                             raise DurableNativeTurnError(
