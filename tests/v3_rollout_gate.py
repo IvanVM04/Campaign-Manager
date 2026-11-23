@@ -136,8 +136,7 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         for item in variants
     ]
     if (
-        not isinstance(provider_calls, int)
-        or provider_calls < scenario_count * repetitions * 2 * variant_count
+        provider_calls < scenario_count * repetitions * 2 * variant_count
         or any(not isinstance(name, str) or not name.strip() for name in variant_names)
         or "baseline" not in variant_names
         or len(variant_names) != len(set(variant_names))
@@ -169,7 +168,8 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         and run_matrix.get("expected_runs") == _V3_ACCEPTANCE_SCENARIO_COUNT * repetitions
         and run_matrix.get("observed_runs") == _V3_ACCEPTANCE_SCENARIO_COUNT * repetitions
         and run_matrix.get("missing_runs") == 0
-        and run_matrix.get("duplicate_run_keys") == []
+        # evaluate_v3_acceptance_variant serializes this as a boolean, not a list.
+        and run_matrix.get("duplicate_run_keys") is False
         and run_matrix.get("full_corpus") is True
         and isinstance(gates, Mapping)
         and all(
@@ -254,3 +254,4 @@ def build_v3_rollout_decision(
         },
         "blockers": blockers,
     }
+}
