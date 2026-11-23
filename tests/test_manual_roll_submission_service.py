@@ -6,6 +6,15 @@ from models.character_state import CharacterState
 from models.entity import Entity
 from repositories.character_repository import CharacterRepository
 from repositories.entity_repository import EntityRepository
+from models.mechanics import MechanicsDecision, MechanicsDecisionType, MechanicsResult
+from repositories.turn_resolution_repository import TurnResolutionRepository
+from rules_engine.dnd5e_2014.character_checks import ability_check_for_character
+from rules_engine.dnd5e_2014.core.dice import DiceRoller
+from rules_engine.dnd5e_2014.core.skills import Skill
+from services.turns.turn_resolution_service import TurnResolutionPlan
+from services.turns.v3_action_progress_codec import V3ActionProgressSnapshot
+from tests.test_v3_action_preview_service import _preview_service, _v3_response
+
 from services.turns import MechanicsAdjudicator
 from services.turns.durable_native_turn_service import DurableNativeTurnError
 from tests.durable_turn_test_support import (
@@ -431,3 +440,149 @@ def test_manual_roll_rejects_missing_pending_state(monkeypatch):
             (12,),
             adapter_namespace="sillytavern",
         )
+
+
+
+def test_native_v3_manual_roll_pauses_and_resumes_same_staged_action(
+    monkeypatch,
+):
+    service, proposal_calls, narrative_calls = service_with_fake_models()
+    _activate_character(service)
+    target = EntityRepository().save_entity(
+        Entity(
+            name="Puerta de roble",
+            entity_type="location",
+            aliases=["la puerta"],
+        ),
+        campaign_id=service.scope.campaign_id,
+    )
+    world = service.world_service.load()
+    assert target.id in world.entities
+
+    source = "Mira intenta abrir la puerta."
+    preview_service, interpreter_provider, _builder = _preview_service(
+        world,
+        _v3_response(source, actor="Mira"),
+    )
+    service.execution_service.v3_action_preview_service = preview_service
+    service.execution_service.v3_action_execution_enabled = True
+
+    decision = MechanicsDecision(
+        decision=MechanicsDecisionType.SKILL_CHECK,
+        skill=Skill.STEALTH,
+        dc=15,
+        reason="Resolver la acción con tirada manual",
+    )
+    planning_calls = []
+
+    def prepare_action(turn_context, evidence, **kwargs):
+        rolls = kwargs.get("manual_rolls")
+        planning_calls.append((evidence, rolls))
+        analysis = kwargs.get("intent_analysis_override")
+        if rolls is None:
+            return TurnResolutionPlan(
+                player_input=evidence,
+                narrative="",
+                world_operations=(),
+                character_operations=(),
+                ordered_operations=(),
+                mechanics_decision=decision,
+                intent_analysis=analysis,
+                intent_evidence_text=kwargs.get("intent_evidence_text"),
+                awaiting_manual_roll=True,
+            )
+        check = ability_check_for_character(
+            character=turn_context.active_character,
+            roller=DiceRoller(),
+            skill=Skill.STEALTH,
+            dc=15,
+            manual_rolls=rolls,
+        )
+        return TurnResolutionPlan(
+            player_input=evidence,
+            narrative="",
+            world_operations=(),
+            character_operations=(),
+            ordered_operations=(),
+            mechanics_decision=decision,
+            mechanics_result=MechanicsResult(decision, check),
+            intent_analysis=analysis,
+            intent_evidence_text=kwargs.get("intent_evidence_text"),
+        )
+
+    monkeypatch.setattr(service.resolver, "prepare_turn", prepare_action)
+
+    pending = service.play_turn(
+        source,
+        idempotency_key="native-v3-manual-roll-001",
+        dice_mode="manual",
+    )
+    assert pending.pending_roll_id is not None
+    assert pending.pending_roll["count"] == 1
+    assert interpreter_provider.call_count == 1
+    assert planning_calls == [(source, None)]
+    assert proposal_calls == []
+    assert narrative_calls == []
+
+    record = TurnResolutionRepository().get_by_idempotency_key(
+        "native",
+        "native-v3-manual-roll-001",
+        scope=service.scope,
+    )
+    assert record is not None
+    assert record.lifecycle_state == "awaiting_input"
+    checkpoint = __import__(
+        "models.player_action_checkpoint",
+        fromlist=["PlayerActionCheckpoint"],
+    ).PlayerActionCheckpoint.from_json(record.action_checkpoint_json)
+    assert checkpoint.nodes[0].state.value == "in_progress"
+    execution_key = checkpoint.nodes[0].execution_key
+    staged = V3ActionProgressSnapshot.from_json(record.proposal_json)
+    assert staged.entries[0].awaiting_manual_roll is True
+    assert staged.entries[0].execution_key == execution_key
+
+    with pytest.raises(DurableNativeTurnError, match="invalid number of dice"):
+        service.submit_manual_roll(
+            pending.pending_roll_id,
+            (15, 16),
+        )
+    still_pending = service.resolution_repository.get(record.id, scope=service.scope)
+    assert still_pending.lifecycle_state == "awaiting_input"
+    assert interpreter_provider.call_count == 1
+    assert planning_calls == [(source, None)]
+
+    completed = service.submit_manual_roll(
+        pending.pending_roll_id,
+        (15,),
+    )
+    assert completed.narrative == "El personaje observa su entorno."
+    assert interpreter_provider.call_count == 1
+    assert planning_calls == [(source, None), (source, (15,))]
+    assert proposal_calls == []
+    assert len(narrative_calls) == 1
+
+    saved = service.resolution_repository.get(record.id, scope=service.scope)
+    assert saved.lifecycle_state == "completed"
+    final_checkpoint = __import__(
+        "models.player_action_checkpoint",
+        fromlist=["PlayerActionCheckpoint"],
+    ).PlayerActionCheckpoint.from_json(saved.action_checkpoint_json)
+    assert final_checkpoint.nodes[0].state.value == "resolved"
+    assert final_checkpoint.nodes[0].execution_key == execution_key
+    assert final_checkpoint.nodes[0].outcome.value == "success"
+    adjudication = json.loads(saved.adjudication_json)
+    assert adjudication["v3_action_outcomes"][0]["outcome"] == "success"
+    assert adjudication["manual_roll"]["submitted_rolls"] == [15]
+    final_progress = V3ActionProgressSnapshot.from_json(saved.proposal_json)
+    assert final_progress.entries[0].awaiting_manual_roll is False
+    assert final_progress.entries[0].execution_key == execution_key
+
+    replay = service.submit_manual_roll(
+        pending.pending_roll_id,
+        (15,),
+    )
+    assert replay.narrative == completed.narrative
+    assert replay.already_processed is True
+    assert interpreter_provider.call_count == 1
+    assert planning_calls == [(source, None), (source, (15,))]
+    assert len(narrative_calls) == 1
