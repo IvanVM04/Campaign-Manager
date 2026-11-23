@@ -2,7 +2,7 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PRs #293–#296 fusionadas; PR #297 en implementación.  
+**Estado:** activo; PRs #293–#298 fusionadas; PR #299 en implementación.  
 **Baseline inspeccionada:** main, commit 6563fad5328d8465f3e32aaf225dcdef94954c95 (PR #296 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
@@ -156,8 +156,8 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
 | #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.535 passed, 26 deselected, coverage 85,03 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
-| #298 | P0 | [~] IN PROGRESS | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes | #288, #297 |
-| #299 | P0 | [ ] PLANNED | Orquestación end-to-end de turnos compuestos, callbacks, dependencias, aclaraciones, fallos mecánicos/técnicos y compatibilidad histórica | #297–#298 |
+| #298 | P0 | [x] MERGED + CI VERIFIED | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes. Merge: 2026-11-22, SHA 657000b6cdfb27e19acfcd6339343c42d1ba0efb | #288, #297 |
+| #299 | P0 | [~] IN PROGRESS (CORE ONLY) | Añadir state machine de ejecución secuencial, persistencia de transiciones e idempotencia; falta integrar el adaptador de mecánicas/propuestas, recuperación staged, aclaración/tirada manual y commit durable | #297–#298 |
 | #300 | P0 | [ ] PLANNED | Shadow de aceptación ampliado, feature flag de v3, prueba completa Ollama y checklist manual SillyTavern; decidir cutover o mantener v2 | #296–#299 |
 
 ### Track C — Robustez y calidad después del cutover inicial
@@ -288,3 +288,27 @@ grafo, no convierte aclaraciones en callbacks ni procesa hechos durante
 turnos suspendidos por tirada manual/aclaración. Tampoco afirma aceptación
 live con Ollama o SillyTavern; esas orquestaciones/gates corresponden a #299
 y #300.
+
+
+### PR #299 — orquestación compuesta (2026-11-22, en implementación)
+
+PR #298 se fusionó el 22/11/2026 en
+`657000b6cdfb27e19acfcd6339343c42d1ba0efb`; los workflows Tests y CodeQL
+asociados al head de PR #298 finalizaron correctamente.
+
+La rama #299 añade `V3CompoundActionOrchestrator`: selecciona y procesa un
+nodo cada vez, persiste IN_PROGRESS antes de llamar al ejecutor, guarda
+resultados SUCCESS/FAILURE solo desde un `ActionOutcome` backend y conserva
+la clave idempotente ante fallos de infraestructura. También expone la
+continuación de aclaración y hace CAS de checkpoint + campos JSON de progreso
+en la misma operación de repositorio. Se añaden tests deterministas para
+secuenciación, dependencias, fallo mecánico, reintento técnico y aclaración.
+
+**Límite actual, importante:** el orquestador aún no está conectado a un
+adaptador real de gameplay ni a la ruta durable de preparación. No ejecuta
+mecánicas, no guarda operaciones por acción para recuperación, no integra
+tiradas manuales ni el servicio durable de aclaración y no debe activarse en
+runtime. Se ha retirado el interruptor de ejecución hasta que exista ese
+cableado; v2 permanece como autoridad. La especificación técnica y los gates
+pendientes están en
+[player-turn-v3-compound-action-orchestration-2026-11-22.md](player-turn-v3-compound-action-orchestration-2026-11-22.md).

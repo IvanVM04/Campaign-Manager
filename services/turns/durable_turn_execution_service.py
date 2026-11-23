@@ -174,8 +174,9 @@ class DurableTurnExecutionService:
         revision: int,
         lease_token: str,
         conn,
+        progress_updates: dict[str, str | None] | None = None,
     ) -> TurnResolutionRecord:
-        """Save the graph and fact receipts inside the prepared-transition transaction."""
+        """Save graph and partial proposal state under one lease-fenced CAS."""
         checkpoint_json = preview.checkpoint.to_json()
         return self.resolution_repository.save_action_checkpoint(
             self._required_resolution_id(record),
@@ -187,6 +188,7 @@ class DurableTurnExecutionService:
             expected_checkpoint_json=record.action_checkpoint_json,
             now=datetime.now(UTC).isoformat(),
             conn=conn,
+            progress_updates=progress_updates,
         )
 
     @staticmethod

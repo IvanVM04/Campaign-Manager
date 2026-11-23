@@ -24,7 +24,8 @@ from models.player_turn_interpretation_v3 import (
 )
 from models.semantic_frames import SemanticMention, SemanticObjectKind
 
-CHECKPOINT_SCHEMA_VERSION = 1
+CHECKPOINT_SCHEMA_VERSION = 2
+SUPPORTED_CHECKPOINT_SCHEMA_VERSIONS = frozenset({1, 2})
 MAX_CHECKPOINT_NODES = 12
 MAX_CHECKPOINT_BYTES = 131_072
 MAX_FACT_VALIDATION_RECEIPTS = 12
@@ -363,7 +364,8 @@ class PlayerActionCheckpoint:
     interpretation_sha256: str
     nodes: tuple[ActionCheckpointNode, ...]
     fact_validation_receipts: tuple[FactValidationReceipt, ...] = ()
-    schema_version: int = CHECKPOINT_SCHEMA_VERSION
+    schema_version: int = 1
+    interpretation_json: str | None = None
 
     def __post_init__(self) -> None:
         _positive_int(self.resolution_id, "resolution_id")
@@ -373,9 +375,33 @@ class PlayerActionCheckpoint:
         if (
             isinstance(self.schema_version, bool)
             or not isinstance(self.schema_version, int)
-            or self.schema_version != CHECKPOINT_SCHEMA_VERSION
+            or self.schema_version not in SUPPORTED_CHECKPOINT_SCHEMA_VERSIONS
         ):
             raise ValueError("unsupported action checkpoint schema_version")
+        if self.schema_version == 1:
+            if self.interpretation_json is not None:
+                raise ValueError("schema v1 checkpoints cannot contain interpretation_json")
+        else:
+            if not isinstance(self.interpretation_json, str):
+                raise TypeError("schema v2 checkpoints require interpretation_json")
+            if len(self.interpretation_json.encode("utf-8")) > 65_536:
+                raise ValueError("interpretation_json exceeds its byte budget")
+            try:
+                interpretation_payload = json.loads(self.interpretation_json)
+            except (TypeError, ValueError):
+                raise ValueError("interpretation_json must contain valid JSON") from None
+            if not isinstance(interpretation_payload, dict):
+                raise TypeError("interpretation_json must contain an object")
+            canonical_interpretation = json.dumps(
+                interpretation_payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            if canonical_interpretation != self.interpretation_json:
+                raise ValueError("interpretation_json must use canonical JSON encoding")
+            if hashlib.sha256(canonical_interpretation.encode("utf-8")).hexdigest() != self.interpretation_sha256:
+                raise ValueError("interpretation_json does not match interpretation_sha256")
         if not isinstance(self.nodes, tuple) or len(self.nodes) > MAX_CHECKPOINT_NODES:
             raise ValueError("checkpoint nodes must be a bounded tuple")
         if any(not isinstance(item, ActionCheckpointNode) for item in self.nodes):
@@ -457,6 +483,8 @@ class PlayerActionCheckpoint:
             or self.context_revision != previous.context_revision
             or self.source_sha256 != previous.source_sha256
             or self.interpretation_sha256 != previous.interpretation_sha256
+            or self.schema_version != previous.schema_version
+            or self.interpretation_json != previous.interpretation_json
         ):
             raise ValueError("checkpoint identity cannot change during progress")
 
@@ -572,6 +600,11 @@ class PlayerActionCheckpoint:
             "fact_validation_receipts": [
                 item.to_dict() for item in self.fact_validation_receipts
             ],
+            **(
+                {"interpretation_json": self.interpretation_json}
+                if self.schema_version >= 2
+                else {}
+            ),
             "nodes": [
                 {
                     "candidate": _candidate_to_dict(item.candidate),
@@ -606,6 +639,9 @@ class PlayerActionCheckpoint:
                     "schema_version", "resolution_id", "context_revision",
                     "source_sha256", "interpretation_sha256", "nodes",
                     "fact_validation_receipts",
+                    *({"interpretation_json"} if (
+                        isinstance(payload, dict) and payload.get("schema_version") == 2
+                    ) else set()),
                 },
                 "action_checkpoint",
             )
@@ -672,6 +708,7 @@ class PlayerActionCheckpoint:
                 interpretation_sha256=raw["interpretation_sha256"],
                 nodes=tuple(nodes),
                 fact_validation_receipts=tuple(fact_receipts),
+                interpretation_json=raw.get("interpretation_json"),
             )
         except ActionCheckpointValidationError:
             raise

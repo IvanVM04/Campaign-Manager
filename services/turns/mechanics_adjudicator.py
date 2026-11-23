@@ -351,6 +351,7 @@ Devuelve solo JSON que cumpla exactamente el esquema mecánico."""
         context_projection: WorldContextProjection | None = None,
         resolved_references: tuple[ResolvedConversationReference, ...] = (),
         resolved_world_references: tuple[ResolvedWorldReference, ...] = (),
+        additional_reference_mentions: tuple[str, ...] = (),
     ) -> MechanicsDecision:
         """Adjudicate the validated active attempt using the selected world snapshot."""
         if not isinstance(context, TurnContext):
@@ -375,6 +376,21 @@ Devuelve solo JSON que cumpla exactamente el esquema mecánico."""
         ):
             raise TypeError(
                 "resolved_world_references must be a tuple of trusted resolved world references"
+            )
+        if (
+            not isinstance(additional_reference_mentions, tuple)
+            or len(additional_reference_mentions) > 16
+            or any(
+                not isinstance(item, str)
+                or not item.strip()
+                or len(item) > 120
+                for item in additional_reference_mentions
+            )
+            or len({item.strip().casefold() for item in additional_reference_mentions})
+            != len(additional_reference_mentions)
+        ):
+            raise TypeError(
+                "additional_reference_mentions must be a bounded tuple of unique text mentions"
             )
         if (
             analysis.requires_clarification
@@ -413,6 +429,10 @@ Devuelve solo JSON que cumpla exactamente el esquema mecánico."""
             for mention in step.target_mentions
             if mention.strip()
         }
+        active_mentions.update(
+            mention.strip().casefold()
+            for mention in additional_reference_mentions
+        )
         if step.action_frame is not None:
             active_mentions.update(
                 argument.mention.text.strip().casefold()
