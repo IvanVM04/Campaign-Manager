@@ -286,9 +286,9 @@ class V3CompoundActionRuntime:
         current_preview = preview
         progress = self._progress_snapshot(record, preview.checkpoint)
 
-        def persist(current_checkpoint, updates=None):
+        def persist(current_checkpoint, updates=None) -> None:
             nonlocal current_preview, progress
-            updated_record = persist_checkpoint(current_checkpoint, updates)
+            persist_checkpoint(current_checkpoint, updates)
             current_preview = replace(
                 current_preview,
                 checkpoint=current_checkpoint,
@@ -298,7 +298,6 @@ class V3CompoundActionRuntime:
                 progress = V3ActionProgressSnapshot.from_json(
                     updates["proposal_json"]
                 )
-            return updated_record
 
         def execute(candidate, execution_key, resumed, persist_staged_progress):
             nonlocal progress, current_preview
