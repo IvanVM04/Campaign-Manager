@@ -7,6 +7,7 @@ the existing atomic prepared-commit service.
 from __future__ import annotations
 
 import copy
+import json
 from dataclasses import dataclass, replace
 
 from models.player_action_checkpoint import (
@@ -53,6 +54,44 @@ class V3CompoundRuntimeResult:
     checkpoint: PlayerActionCheckpoint
     progress: V3ActionProgressSnapshot
     plan: TurnResolutionPlan
+
+    @property
+    def action_outcomes(self) -> tuple[dict[str, object], ...]:
+        """Return bounded backend outcomes for narration after the aggregate commit."""
+        nodes = {
+            node.candidate.source_event_id: node
+            for node in self.checkpoint.nodes
+        }
+        outcomes: list[dict[str, object]] = []
+        for entry in self.progress.entries:
+            node = nodes.get(entry.event_id)
+            if node is None or node.outcome is None:
+                raise V3CompoundRuntimeError("action_outcome_missing")
+            try:
+                mechanics_result = (
+                    json.loads(entry.mechanics_json)
+                    if entry.mechanics_json is not None
+                    else None
+                )
+                mechanics_decision = (
+                    json.loads(entry.mechanics_decision_json)
+                    if entry.mechanics_decision_json is not None
+                    else None
+                )
+            except (TypeError, ValueError):
+                raise V3CompoundRuntimeError(
+                    "action_mechanics_evidence_invalid"
+                ) from None
+            outcomes.append({
+                "event_id": entry.event_id,
+                "action_id": entry.action_id,
+                "source_order": entry.source_order,
+                "evidence_excerpt": entry.evidence_excerpt,
+                "outcome": node.outcome.value,
+                "mechanics_result": mechanics_result,
+                "mechanics_decision": mechanics_decision,
+            })
+        return tuple(outcomes)
 
 
 class V3CompoundActionRuntime:
