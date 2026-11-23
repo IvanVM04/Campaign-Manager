@@ -449,6 +449,8 @@ class V3CompoundActionRuntime:
                     current_preview,
                     clarification_event_id,
                     clarification_answer,
+                    context=context,
+                    player_input=player_input,
                 )
             )
             _clarification, run_result = self.orchestrator.resume_after_clarification(
