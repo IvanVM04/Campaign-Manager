@@ -1,11 +1,17 @@
+import json
+
 import pytest
 
+from scripts.ci.v3_rollout_readiness import _read_check_evidence
 from tests.v3_acceptance import V3_ACCEPTANCE_CONTRACT_ID
 from tests.v3_rollout_gate import (
     V3_RUNTIME_REQUIRED_CHECKS,
     V3_SILLYTAVERN_REQUIRED_CHECKS,
     build_v3_rollout_decision,
 )
+
+
+_CANDIDATE_COMMIT = "a" * 40
 
 
 def _accepted_report():
@@ -64,8 +70,15 @@ def _passing_evidence(required):
     return {check_id: "pass" for check_id in required}
 
 
+def _build_decision(**kwargs):
+    return build_v3_rollout_decision(
+        candidate_commit=_CANDIDATE_COMMIT,
+        **kwargs,
+    )
+
+
 def test_rollout_gate_holds_v2_when_acceptance_or_manual_evidence_is_missing():
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=None,
         runtime_checks=None,
         sillytavern_checks=None,
@@ -87,7 +100,7 @@ def test_rollout_gate_holds_v2_when_acceptance_or_manual_evidence_is_missing():
 
 
 def test_ollama_semantic_acceptance_alone_cannot_authorize_v3_rollout():
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=_accepted_report(),
         runtime_checks=None,
         sillytavern_checks=None,
@@ -100,7 +113,7 @@ def test_ollama_semantic_acceptance_alone_cannot_authorize_v3_rollout():
 
 
 def test_runtime_integration_and_manual_acceptance_are_independent_gates():
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=_accepted_report(),
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks={
@@ -119,7 +132,7 @@ def test_runtime_integration_and_manual_acceptance_are_independent_gates():
 
 
 def test_all_three_gates_only_allow_manual_review_not_automatic_cutover():
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=_accepted_report(),
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -144,7 +157,7 @@ def test_all_three_gates_only_allow_manual_review_not_automatic_cutover():
 def test_rollout_gate_rejects_non_qualifying_semantic_matrix(matrix_overrides):
     report = _accepted_report()
     report["acceptance_matrix"].update(matrix_overrides)
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=report,
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -158,7 +171,7 @@ def test_semantic_gate_requires_complete_frozen_holdout_manifest():
     report = _accepted_report()
     report["run_manifest"]["full_corpus"] = False
 
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=report,
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -172,7 +185,7 @@ def test_semantic_gate_rejects_selected_variant_with_missing_failed_gate():
     report = _accepted_report()
     report["acceptance_matrix"]["variants"][0]["gates"]["dimension_recall"]["passed"] = False
 
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=report,
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -187,7 +200,7 @@ def test_semantic_gate_rejects_acceptance_report_without_baseline_variant():
     report["acceptance_matrix"]["variants"][0]["variant"] = "fixed_sampling"
     report["acceptance_matrix"]["selected_for_manual_review"] = "fixed_sampling"
 
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=report,
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -201,7 +214,7 @@ def test_semantic_gate_rejects_duplicate_run_keys_from_real_acceptance_shape():
     report = _accepted_report()
     report["acceptance_matrix"]["variants"][0]["run_matrix"]["duplicate_run_keys"] = True
 
-    decision = build_v3_rollout_decision(
+    decision = _build_decision(
         acceptance_report=report,
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -211,9 +224,80 @@ def test_semantic_gate_rejects_duplicate_run_keys_from_real_acceptance_shape():
     assert decision["blockers"][0] == "semantic_acceptance"
 
 
+
+def test_semantic_gate_rejects_acceptance_from_a_different_candidate_commit():
+    report = _accepted_report()
+    report["run_manifest"]["git_commit"] = "b" * 40
+
+    decision = _build_decision(
+        acceptance_report=report,
+        runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
+    )
+
+    assert decision["candidate_commit"] == _CANDIDATE_COMMIT
+    assert decision["gates"]["semantic_acceptance"]["passed"] is False
+    assert decision["decision"] == "hold_v2"
+    assert decision["blockers"][0] == "semantic_acceptance"
+
+
+def test_cli_accepts_manual_evidence_only_for_exact_candidate_commit(tmp_path):
+    evidence_path = tmp_path / "runtime-evidence.json"
+    evidence_path.write_text(
+        json.dumps({
+            "schema_version": 1,
+            "run_manifest": {"campaign_manager_commit": _CANDIDATE_COMMIT},
+            "checks": {"a_check": "pass"},
+        }),
+        encoding="utf-8",
+    )
+
+    checks = _read_check_evidence(
+        evidence_path,
+        description="runtime evidence",
+        candidate_commit=_CANDIDATE_COMMIT,
+    )
+
+    assert checks == {"a_check": "pass"}
+
+
+def test_cli_rejects_manual_evidence_from_a_different_commit(tmp_path):
+    evidence_path = tmp_path / "sillytavern-evidence.json"
+    evidence_path.write_text(
+        json.dumps({
+            "schema_version": 1,
+            "run_manifest": {"campaign_manager_commit": "b" * 40},
+            "checks": {},
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must match --candidate-commit"):
+        _read_check_evidence(
+            evidence_path,
+            description="SillyTavern evidence",
+            candidate_commit=_CANDIDATE_COMMIT,
+        )
+
+
+def test_cli_rejects_manual_evidence_without_run_manifest(tmp_path):
+    evidence_path = tmp_path / "runtime-evidence.json"
+    evidence_path.write_text(
+        json.dumps({"schema_version": 1, "checks": {}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="run_manifest and checks"):
+        _read_check_evidence(
+            evidence_path,
+            description="runtime evidence",
+            candidate_commit=_CANDIDATE_COMMIT,
+        )
+
+
 def test_rollout_gate_rejects_unknown_evidence_check_ids():
     with pytest.raises(ValueError, match="unknown check IDs"):
-        build_v3_rollout_decision(
+        _build_decision(
             acceptance_report=_accepted_report(),
             runtime_checks={"pretend_everything_passed": "pass"},
             sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -223,7 +307,7 @@ def test_rollout_gate_rejects_unknown_evidence_check_ids():
 @pytest.mark.parametrize("state", ["pending", "success", True, None])
 def test_rollout_gate_rejects_unrecognised_evidence_states(state):
     with pytest.raises(ValueError, match="must be one of"):
-        build_v3_rollout_decision(
+        _build_decision(
             acceptance_report=_accepted_report(),
             runtime_checks={
                 **_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
@@ -235,7 +319,7 @@ def test_rollout_gate_rejects_unrecognised_evidence_states(state):
 
 def test_rollout_gate_requires_mapping_inputs():
     with pytest.raises(TypeError, match="runtime_checks must be a mapping"):
-        build_v3_rollout_decision(
+        _build_decision(
             acceptance_report=_accepted_report(),
             runtime_checks=["pass"],
             sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
