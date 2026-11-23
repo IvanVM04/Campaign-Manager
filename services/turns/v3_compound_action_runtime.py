@@ -17,6 +17,10 @@ from models.player_action_checkpoint import (
 from models.world_context_projection import WorldContextProjection
 from services.turns.player_action_selector import select_next_action
 from services.turns.turn_resolution_codec import TurnResolutionCodec
+from services.turns.turn_resolution_service import (
+    TurnResolutionPlan,
+    TurnResolutionService,
+)
 from services.turns.v3_action_planning_adapter import (
     V3ActionPlanningAdapter,
 )
@@ -31,10 +35,6 @@ from services.turns.v3_compound_action_orchestrator import (
     CompoundActionExecution,
     CompoundActionRunStatus,
     V3CompoundActionOrchestrator,
-)
-from services.turns.turn_resolution_service import (
-    TurnResolutionPlan,
-    TurnResolutionService,
 )
 
 
