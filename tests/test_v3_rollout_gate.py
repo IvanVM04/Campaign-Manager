@@ -1,13 +1,11 @@
-import json
-
 import pytest
 
-from scripts.ci.v3_rollout_readiness import _read_check_evidence
 from tests.v3_acceptance import V3_ACCEPTANCE_CONTRACT_ID
 from tests.v3_rollout_gate import (
     V3_RUNTIME_REQUIRED_CHECKS,
     V3_SILLYTAVERN_REQUIRED_CHECKS,
     build_v3_rollout_decision,
+    validate_candidate_evidence_commit,
 )
 
 
@@ -241,57 +239,38 @@ def test_semantic_gate_rejects_acceptance_from_a_different_candidate_commit():
     assert decision["blockers"][0] == "semantic_acceptance"
 
 
-def test_cli_accepts_manual_evidence_only_for_exact_candidate_commit(tmp_path):
-    evidence_path = tmp_path / "runtime-evidence.json"
-    evidence_path.write_text(
-        json.dumps({
-            "schema_version": 1,
-            "run_manifest": {"campaign_manager_commit": _CANDIDATE_COMMIT},
-            "checks": {"a_check": "pass"},
-        }),
-        encoding="utf-8",
-    )
-
-    checks = _read_check_evidence(
-        evidence_path,
-        description="runtime evidence",
+def test_manual_evidence_commit_binding_accepts_exact_candidate():
+    validate_candidate_evidence_commit(
+        {"campaign_manager_commit": _CANDIDATE_COMMIT},
         candidate_commit=_CANDIDATE_COMMIT,
+        evidence_name="runtime evidence",
     )
 
-    assert checks == {"a_check": "pass"}
 
-
-def test_cli_rejects_manual_evidence_from_a_different_commit(tmp_path):
-    evidence_path = tmp_path / "sillytavern-evidence.json"
-    evidence_path.write_text(
-        json.dumps({
-            "schema_version": 1,
-            "run_manifest": {"campaign_manager_commit": "b" * 40},
-            "checks": {},
-        }),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="must match --candidate-commit"):
-        _read_check_evidence(
-            evidence_path,
-            description="SillyTavern evidence",
+def test_manual_evidence_commit_binding_rejects_a_different_commit():
+    with pytest.raises(ValueError, match="must match candidate_commit"):
+        validate_candidate_evidence_commit(
+            {"campaign_manager_commit": "b" * 40},
             candidate_commit=_CANDIDATE_COMMIT,
+            evidence_name="SillyTavern evidence",
         )
 
 
-def test_cli_rejects_manual_evidence_without_run_manifest(tmp_path):
-    evidence_path = tmp_path / "runtime-evidence.json"
-    evidence_path.write_text(
-        json.dumps({"schema_version": 1, "checks": {}}),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="run_manifest and checks"):
-        _read_check_evidence(
-            evidence_path,
-            description="runtime evidence",
+def test_manual_evidence_commit_binding_rejects_missing_manifest():
+    with pytest.raises(ValueError, match="must match candidate_commit"):
+        validate_candidate_evidence_commit(
+            None,
             candidate_commit=_CANDIDATE_COMMIT,
+            evidence_name="runtime evidence",
+        )
+
+
+def test_manual_evidence_commit_binding_rejects_invalid_candidate_sha():
+    with pytest.raises(ValueError, match="full 40-character commit SHA"):
+        validate_candidate_evidence_commit(
+            {"campaign_manager_commit": _CANDIDATE_COMMIT},
+            candidate_commit="not-a-full-sha",
+            evidence_name="runtime evidence",
         )
 
 
