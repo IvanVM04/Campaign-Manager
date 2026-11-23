@@ -116,7 +116,7 @@ def _runtime_fixture(monkeypatch):
         resolver,
         record,
         planning_calls,
-        persistence_calls,
+        _persistence_calls,
         fail_final_once,
         persist_checkpoint,
     )
