@@ -26,10 +26,10 @@ from models.player_turn_interpretation_v3 import (
     GameplayActionEligibility,
     GameplayActionReason,
     GameplayProcessingState,
-    GameplayUnlockCondition,
-    GameplayWorkflow,
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
+    GameplayUnlockCondition,
+    GameplayWorkflow,
     SpeakerRole,
     TurnInterpretationV3,
     TurnInterpretationV3ValidationError,
@@ -40,7 +40,6 @@ from models.resolved_conversation_reference import (
 )
 from models.semantic_frames import SemanticActionFrame, SemanticMention
 from models.turn_context import TurnContext
-from models.world_context_projection import WorldContextProjection
 from models.turn_record import TurnRecord
 from operations.world_operations import WorldOperation
 from services.context import ContextBuilder, ConversationReferenceResolver
