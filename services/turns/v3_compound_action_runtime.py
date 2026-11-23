@@ -350,9 +350,13 @@ class V3CompoundActionRuntime:
             else:
                 raise V3CompoundRuntimeError("action_outcome_not_authoritative")
 
-            updates = action.progress_updates(
-                execution_key=execution_key,
-                previous_progress_json=progress.to_json(),
+            updates = (
+                progress.to_repository_progress_updates()
+                if resumed and existing is not None
+                else action.progress_updates(
+                    execution_key=execution_key,
+                    previous_progress_json=progress.to_json(),
+                )
             )
             # Persist the provider-produced plan before the orchestrator records
             # RESOLVED. A crash after this point restores it without another
