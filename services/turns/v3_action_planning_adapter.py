@@ -311,6 +311,43 @@ class V3ActionPlanningAdapter:
             external_mentions,
         )
 
+    def manual_roll_progress_updates(
+        self,
+        *,
+        execution_key: str,
+        previous_progress_json: str,
+    ) -> dict[str, str]:
+        """Replace only this action's pending-roll stage after a validated roll."""
+        from services.turns.v3_action_progress_codec import (
+            V3ActionProgressEntry,
+            V3ActionProgressSnapshot,
+        )
+
+        if not isinstance(previous_progress_json, str):
+            raise TypeError("previous_progress_json must be text")
+        try:
+            snapshot = V3ActionProgressSnapshot.from_json(previous_progress_json)
+            if (
+                snapshot.resolution_id != self.resolution_id
+                or snapshot.context_revision != self.context_revision
+                or snapshot.source_sha256 != self.source_sha256
+            ):
+                raise ValueError("staged progress identity mismatch")
+            entry = V3ActionProgressEntry.from_plan(
+                event_id=self.candidate.source_event_id,
+                action_id=self.candidate.local_id,
+                source_order=self.source_order,
+                execution_key=execution_key,
+                evidence_excerpt=self.evidence_excerpt,
+                plan=self.plan,
+            )
+            return snapshot.replace_manual_roll_entry(entry).to_repository_progress_updates()
+        except (TypeError, ValueError) as exc:
+            raise V3ActionPlanningError(
+                "manual_roll_progress_rejected",
+                "progress_persistence",
+            ) from exc
+
     def resolve_manual_roll(
         self,
         resolver: TurnResolutionService,
