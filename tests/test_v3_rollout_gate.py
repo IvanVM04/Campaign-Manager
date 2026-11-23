@@ -78,7 +78,7 @@ def test_rollout_gate_holds_v2_when_acceptance_or_manual_evidence_is_missing():
 
 def test_ollama_semantic_acceptance_alone_cannot_authorize_v3_rollout():
     decision = build_v3_rollout_decision(
-        acceptance_matrix=_accepted_report(),
+        acceptance_report=_accepted_report(),
         runtime_checks=None,
         sillytavern_checks=None,
     )
@@ -91,7 +91,7 @@ def test_ollama_semantic_acceptance_alone_cannot_authorize_v3_rollout():
 
 def test_runtime_integration_and_manual_acceptance_are_independent_gates():
     decision = build_v3_rollout_decision(
-        acceptance_matrix=_accepted_report(),
+        acceptance_report=_accepted_report(),
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks={
             **_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
@@ -109,7 +109,7 @@ def test_runtime_integration_and_manual_acceptance_are_independent_gates():
 
 def test_all_three_gates_only_allow_manual_review_not_automatic_cutover():
     decision = build_v3_rollout_decision(
-        acceptance_matrix=_accepted_report(),
+        acceptance_report=_accepted_report(),
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
@@ -122,26 +122,19 @@ def test_all_three_gates_only_allow_manual_review_not_automatic_cutover():
 
 
 @pytest.mark.parametrize(
-    "matrix",
+    "matrix_overrides",
     [
         {},
-        {
-            **_accepted_report(),
-            "promotion_decision": "hold_v2",
-        },
-        {
-            **_accepted_report(),
-            "production_route": "v3",
-        },
-        {
-            **_accepted_report(),
-            "automatic_cutover": True,
-        },
+        {"promotion_decision": "hold_v2"},
+        {"production_route": "v3"},
+        {"automatic_cutover": True},
     ],
 )
-def test_rollout_gate_rejects_non_qualifying_semantic_matrix(matrix):
+def test_rollout_gate_rejects_non_qualifying_semantic_matrix(matrix_overrides):
+    report = _accepted_report()
+    report["acceptance_matrix"].update(matrix_overrides)
     decision = build_v3_rollout_decision(
-        acceptance_matrix=matrix,
+        acceptance_report=report,
         runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
         sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
     )
@@ -196,7 +189,7 @@ def test_semantic_gate_rejects_acceptance_report_without_baseline_variant():
 def test_rollout_gate_rejects_unknown_evidence_check_ids():
     with pytest.raises(ValueError, match="unknown check IDs"):
         build_v3_rollout_decision(
-            acceptance_matrix=_accepted_report(),
+            acceptance_report=_accepted_report(),
             runtime_checks={"pretend_everything_passed": "pass"},
             sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
         )
@@ -206,7 +199,7 @@ def test_rollout_gate_rejects_unknown_evidence_check_ids():
 def test_rollout_gate_rejects_unrecognised_evidence_states(state):
     with pytest.raises(ValueError, match="must be one of"):
         build_v3_rollout_decision(
-            acceptance_matrix=_accepted_report(),
+            acceptance_report=_accepted_report(),
             runtime_checks={
                 **_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
                 V3_RUNTIME_REQUIRED_CHECKS[0]: state,
@@ -218,7 +211,7 @@ def test_rollout_gate_rejects_unrecognised_evidence_states(state):
 def test_rollout_gate_requires_mapping_inputs():
     with pytest.raises(TypeError, match="runtime_checks must be a mapping"):
         build_v3_rollout_decision(
-            acceptance_matrix=_accepted_report(),
+            acceptance_report=_accepted_report(),
             runtime_checks=["pass"],
             sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
         )
