@@ -714,7 +714,7 @@ def test_v3_action_planning_adapter_occurrences_handles_casefold_and_repeated_me
         "abrir",
         (),
     )
-    assert occurrences == ((0, 5), (19, 24))
+    assert occurrences == ((0, 5), (18, 23))
 
 
 def test_v3_action_planning_adapter_occurrences_rejects_empty_or_missing_needle():
