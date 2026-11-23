@@ -6,7 +6,7 @@ It never commits state or adjudicates mechanics.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from models.player_action_checkpoint import (
     FactValidationReceipt,
@@ -24,6 +24,9 @@ from models.player_intent_analysis import (
 from models.player_turn_interpretation_v3 import (
     GameplayActionCandidate,
     GameplayActionEligibility,
+    GameplayActionReason,
+    GameplayProcessingState,
+    GameplayWorkflow,
     GameplayResolvedReference,
     GameplayResolvedReferenceKind,
     SpeakerRole,
@@ -663,6 +666,222 @@ class V3ActionPreviewService:
             interpretation=interpretation,
             visible_projection=projection,
             reference_resolutions=resolutions,
+        )
+
+    def resolve_target_clarification(
+        self,
+        preview: V3ActionPreviewResult,
+        event_id: str,
+        answer: str,
+    ) -> tuple[V3ActionPreviewResult, GameplayActionCandidate, tuple[str, ...]]:
+        """Resolve one pending target mention using only the current visible-world projection.
+
+        The player's answer supplies a lookup query, never a canonical identifier.
+        A unique active entity must be found by the visibility-aware resolver.
+        The persisted candidate continues to bind the original event mention to
+        that canonical entity, so the action text and evidence remain unchanged.
+        """
+        from models.player_action_checkpoint import ActionExecutionState
+
+        if not isinstance(preview, V3ActionPreviewResult):
+            raise TypeError("preview must be a V3ActionPreviewResult")
+        if not isinstance(event_id, str) or not event_id:
+            raise ValueError("event_id must not be empty")
+        if not isinstance(answer, str) or not answer.strip() or len(answer.strip()) > 500:
+            raise ValueError("clarification answer must contain 1-500 characters")
+        projection = preview.visible_projection
+        if projection is None or not hasattr(projection, "world"):
+            raise V3ActionPreviewError(
+                "clarification_projection_unavailable",
+                "clarification",
+            )
+        node = next(
+            (
+                item for item in preview.checkpoint.nodes
+                if item.candidate.source_event_id == event_id
+            ),
+            None,
+        )
+        if node is None or node.state is not ActionExecutionState.AWAITING_INPUT:
+            raise V3ActionPreviewError(
+                "clarification_action_not_pending",
+                "clarification",
+            )
+        if set(node.clarification_slots) != {"target"}:
+            raise V3ActionPreviewError(
+                "unsupported_clarification_slots",
+                "clarification",
+            )
+        resolution = (
+            preview.reference_resolutions.get(event_id)
+            if preview.reference_resolutions is not None
+            else None
+        )
+        if not isinstance(resolution, ActionReferenceResolution):
+            raise V3ActionPreviewError(
+                "clarification_reference_state_unavailable",
+                "clarification",
+            )
+        candidate = node.candidate
+        unresolved = {
+            item.text.strip().casefold()
+            for item in (*resolution.unresolved_targets, *resolution.ambiguous_targets)
+        }
+        missing_mentions = tuple(
+            item for item in candidate.target_mentions
+            if item.text.strip().casefold() in unresolved
+        )
+        if not missing_mentions:
+            raise V3ActionPreviewError(
+                "clarification_target_not_missing",
+                "clarification",
+            )
+        original_mention = missing_mentions[0]
+        lookup = self.reference_resolver.resolve(
+            projection.world,
+            answer.strip(),
+        )
+        if lookup.status != "resolved" or len(lookup.candidates) != 1:
+            raise V3ActionPreviewError(
+                "clarification_answer_not_unique",
+                "clarification",
+            )
+        match = lookup.candidates[0]
+        entity = projection.world.entities.get(match.entity_id)
+        if (
+            entity is None
+            or not entity.active
+            or entity.id != match.entity_id
+        ):
+            raise V3ActionPreviewError(
+                "clarification_entity_not_visible",
+                "clarification",
+            )
+        if any(
+            item.category is GameplayResolvedReferenceKind.ENTITY
+            and item.referent_id == entity.id
+            for item in candidate.resolved_references
+        ):
+            raise V3ActionPreviewError(
+                "clarification_entity_already_bound",
+                "clarification",
+            )
+        bound_reference = GameplayResolvedReference(
+            mention=original_mention,
+            category=GameplayResolvedReferenceKind.ENTITY,
+            referent_id=entity.id,
+            name=entity.name,
+        )
+        updated_references = (*candidate.resolved_references, bound_reference)
+        remaining_unresolved = tuple(
+            item for item in resolution.unresolved_targets
+            if item.text.strip().casefold() != original_mention.text.strip().casefold()
+        )
+        remaining_ambiguous = tuple(
+            item for item in resolution.ambiguous_targets
+            if item.text.strip().casefold() != original_mention.text.strip().casefold()
+        )
+        remaining_slots = (
+            ("target",)
+            if remaining_unresolved or remaining_ambiguous
+            else ()
+        )
+        if remaining_slots:
+            eligibility = GameplayActionEligibility.REQUIRES_CLARIFICATION
+            reason = (
+                GameplayActionReason.AMBIGUOUS_REFERENCE
+                if remaining_ambiguous
+                else GameplayActionReason.UNRESOLVED_REFERENCE
+            )
+            workflow = GameplayWorkflow.CLARIFICATION
+            unlock_condition = candidate.unlock_condition
+            processing_state = GameplayProcessingState.AWAITING_INPUT
+        elif candidate.dependency_event_ids:
+            eligibility = GameplayActionEligibility.BLOCKED_BY_DEPENDENCY
+            reason = GameplayActionReason.DEPENDENCY_PENDING
+            workflow = (
+                GameplayWorkflow.DIALOGUE
+                if candidate.action_type in {"communication", "social"}
+                else GameplayWorkflow.MECHANICS
+            )
+            unlock_condition = candidate.unlock_condition
+            processing_state = GameplayProcessingState.PENDING
+        else:
+            eligibility = GameplayActionEligibility.ELIGIBLE
+            reason = GameplayActionReason.ELIGIBLE
+            workflow = (
+                GameplayWorkflow.DIALOGUE
+                if candidate.action_type in {"communication", "social"}
+                else GameplayWorkflow.MECHANICS
+            )
+            unlock_condition = candidate.unlock_condition
+            processing_state = GameplayProcessingState.PENDING
+
+        updated_candidate = replace(
+            candidate,
+            eligibility=eligibility,
+            reason=reason,
+            workflow=workflow,
+            unlock_condition=unlock_condition,
+            processing_state=processing_state,
+            resolved_references=updated_references,
+        )
+        updated_resolution = replace(
+            resolution,
+            resolved_targets=(*resolution.resolved_targets, bound_reference),
+            unresolved_targets=remaining_unresolved,
+            ambiguous_targets=remaining_ambiguous,
+            visibility_verified=True,
+        )
+        updated_map = dict(preview.reference_resolutions or {})
+        updated_map[event_id] = updated_resolution
+        updated_preview = replace(
+            preview,
+            reference_resolutions=updated_map,
+        )
+        return updated_preview, updated_candidate, remaining_slots
+
+    def action_clarification_question(
+        self,
+        preview: V3ActionPreviewResult,
+        event_id: str,
+        clarification_slots: tuple[str, ...],
+    ) -> str:
+        """Produce a bounded, neutral question from one unresolved backend mention."""
+        if not isinstance(preview, V3ActionPreviewResult):
+            raise TypeError("preview must be a V3ActionPreviewResult")
+        node = next(
+            (
+                item for item in preview.checkpoint.nodes
+                if item.candidate.source_event_id == event_id
+            ),
+            None,
+        )
+        if node is None or set(clarification_slots) != {"target"}:
+            raise V3ActionPreviewError(
+                "unsupported_clarification_slots",
+                "clarification",
+            )
+        resolution = (
+            preview.reference_resolutions.get(event_id)
+            if preview.reference_resolutions is not None
+            else None
+        )
+        if not isinstance(resolution, ActionReferenceResolution):
+            raise V3ActionPreviewError(
+                "clarification_reference_state_unavailable",
+                "clarification",
+            )
+        missing = (*resolution.unresolved_targets, *resolution.ambiguous_targets)
+        if not missing:
+            raise V3ActionPreviewError(
+                "clarification_target_not_missing",
+                "clarification",
+            )
+        mention = missing[0].text.strip()
+        return (
+            f"No he podido identificar con seguridad «{mention}». "
+            "¿A qué persona u objeto te refieres?"
         )
 
     def preview(
