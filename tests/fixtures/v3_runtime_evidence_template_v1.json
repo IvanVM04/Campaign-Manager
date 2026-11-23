@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "notes": "Template for evidence captured from integrated deterministic runtime tests. Do not mark a check pass until its test/report exists on the candidate commit.",
+  "checks": {
+    "compound_orchestrator_wired_to_durable_service": "blocked",
+    "virtual_projection_applies_staged_prior_operations": "blocked",
+    "manual_roll_resumes_same_action_checkpoint": "blocked",
+    "clarification_resumes_same_action_checkpoint": "blocked",
+    "single_atomic_commit_for_action_and_fact_operations": "blocked",
+    "lease_fenced_cas_on_every_transition": "blocked",
+    "crash_recovery_and_idempotent_mechanics_replay": "blocked",
+    "stale_revision_rejected_without_writes": "blocked",
+    "negative_controls_produce_zero_unauthorized_writes": "blocked",
+    "legacy_v1_v2_records_remain_replayable": "blocked"
+  }
+}
