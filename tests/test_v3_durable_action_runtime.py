@@ -13,6 +13,7 @@ from services.context import ContextBuilder
 from services.llm_world import LLMWorldExtractor, OperationParser
 from services.providers import FakeLLMProvider
 from services.turns.dm_service import DMService
+from services.turns.durable_turn_narration_service import DurableTurnNarrationService
 from services.turns.turn_resolution_service import (
     TurnResolutionPlan,
     TurnResolutionService,
@@ -153,6 +154,9 @@ def test_durable_v3_runtime_resolves_graph_and_persists_one_staged_plan(monkeypa
     assert result.checkpoint.nodes[0].outcome.value == "success"
     assert result.plan.ordered_operations == ()
     assert len(result.progress.entries) == 1
+    assert result.action_outcomes[0]["outcome"] == "success"
+    assert result.action_outcomes[0]["mechanics_decision"]["decision"] == "none"
+    assert result.action_outcomes[0]["mechanics_result"] is None
     assert record.proposal_json is not None
     assert planning_calls == ["Yo intento abrir la puerta"]
     assert interpreter_provider.call_count == 1
@@ -215,3 +219,36 @@ def test_durable_v3_runtime_recovers_staged_plan_without_replanning(monkeypatch)
     assert len(resumed.progress.entries) == 1
     assert len(planning_calls) == 1
     assert interpreter_provider.call_count == 1
+
+
+
+def test_committed_narration_evidence_preserves_only_valid_per_action_outcomes():
+    record = SimpleNamespace(
+        proposal_json='{"operations":[]}',
+        operation_results_json="[]",
+        adjudication_json=(
+            '{"v3_action_outcomes":['
+            '{"event_id":"event_open","action_id":"action_open",'
+            '"source_order":0,"evidence_excerpt":"Abro la puerta",'
+            '"outcome":"success","mechanics_result":null,'
+            '"mechanics_decision":{"decision":"none"}},'
+            '{"event_id":"bad","action_id":"bad","source_order":true,'
+            '"evidence_excerpt":"invalid","outcome":"success",'
+            '"mechanics_result":null,"mechanics_decision":null}'
+            ']}'
+        ),
+        context_revision=4,
+        resulting_revision=5,
+    )
+
+    evidence = DurableTurnNarrationService._committed_narration_evidence(record)
+
+    assert evidence["action_outcomes"] == [{
+        "event_id": "event_open",
+        "action_id": "action_open",
+        "source_order": 0,
+        "evidence_excerpt": "Abro la puerta",
+        "outcome": "success",
+        "mechanics_result": None,
+        "mechanics_decision": {"decision": "none"},
+    }]
