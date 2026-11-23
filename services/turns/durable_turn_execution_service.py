@@ -115,7 +115,7 @@ class DurableTurnExecutionService:
                 return 120.0
             return float(timeout)
 
-        if self.v3_action_execution_enabled:
+        if getattr(self, "v3_action_execution_enabled", False):
             # One holistic graph call followed by up to twelve per-node
             # mechanics/proposal pairs. Staged CAS updates renew no lease, so
             # budget the full bounded graph rather than only its first action.
