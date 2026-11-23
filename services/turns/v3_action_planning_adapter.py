@@ -417,7 +417,7 @@ class V3ActionPlanningAdapter:
                     staged_action.additional_reference_mentions
                 ),
             )
-        except Exception as exc:  # noqa: BLE001 - mechanics failure is not success
+        except Exception as exc:
             raise V3ActionPlanningError(
                 "manual_roll_resolution_failed",
                 "manual_roll",
