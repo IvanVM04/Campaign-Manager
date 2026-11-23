@@ -389,6 +389,51 @@ class DurableTurnExecutionService:
         )
 
     @staticmethod
+    def resume_v3_action_manual_roll(
+        self,
+        record: TurnResolutionRecord,
+        pending_state: dict,
+        rolls: tuple[int, ...],
+        *,
+        defer_narration: bool,
+        answer_external_turn_id: str | None = None,
+    ):
+        """Resume one V3 manual roll on the same staged action and execution key."""
+        pending = (
+            pending_state.get("v3_action_manual_roll")
+            if isinstance(pending_state, dict)
+            else None
+        )
+        if (
+            not isinstance(record, TurnResolutionRecord)
+            or not isinstance(pending, dict)
+            or not isinstance(record.idempotency_key, str)
+            or not record.idempotency_key
+            or record.lifecycle_state != "awaiting_input"
+            or not isinstance(rolls, tuple)
+            or not rolls
+            or len(rolls) != pending.get("count")
+            or pending.get("context_revision") != record.context_revision
+        ):
+            raise DurableNativeTurnError("v3 manual roll state is invalid")
+        return self._play_turn_locked(
+            record.player_input,
+            idempotency_key=record.idempotency_key,
+            adapter_namespace=record.adapter_namespace,
+            defer_narration=defer_narration,
+            dice_mode="manual",
+            conversation_id=record.conversation_id,
+            v3_manual_roll_response={
+                "event_id": pending.get("event_id"),
+                "execution_key": pending.get("execution_key"),
+                "challenge_id": pending.get("challenge_id"),
+                "context_revision": pending.get("context_revision"),
+                "rolls": list(rolls),
+                "answer_external_turn_id": answer_external_turn_id,
+            },
+        )
+
+    @staticmethod
     def _fingerprint(
         player_input: str,
         session_id,
@@ -525,6 +570,7 @@ class DurableTurnExecutionService:
         dice_mode: str = "automatic",
         conversation_id: str | None = None,
         v3_clarification_response: dict | None = None,
+        v3_manual_roll_response: dict | None = None,
     ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
@@ -594,7 +640,10 @@ class DurableTurnExecutionService:
                     return DurableTurnPreparationMapper.from_record(record) if defer_narration else self.narration_service.result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "awaiting_input":
                     pending = json.loads(record.adjudication_json or "{}")
-                    if v3_clarification_response is None:
+                    if (
+                        v3_clarification_response is None
+                        and v3_manual_roll_response is None
+                    ):
                         if pending.get("manual_roll"):
                             return self._manual_roll_result(record, pending["manual_roll"])
                         clarification = pending.get("clarification")
@@ -611,20 +660,35 @@ class DurableTurnExecutionService:
                             player_input=record.player_input,
                             narrative=question,
                         )
-                    v3_pending = pending.get("v3_action_clarification")
-                    if not isinstance(v3_pending, dict):
-                        raise DurableNativeTurnError(
-                            "resolution is not awaiting a v3 action clarification"
-                        )
-                    if (
-                        v3_pending.get("challenge_id")
-                        != v3_clarification_response.get("challenge_id")
-                        or v3_pending.get("event_id")
-                        != v3_clarification_response.get("event_id")
-                    ):
-                        raise DurableNativeTurnError(
-                            "v3 action clarification challenge is stale"
-                        )
+                    if v3_manual_roll_response is not None:
+                        v3_pending = pending.get("v3_action_manual_roll")
+                        if (
+                            not isinstance(v3_pending, dict)
+                            or v3_pending.get("challenge_id")
+                            != v3_manual_roll_response.get("challenge_id")
+                            or v3_pending.get("event_id")
+                            != v3_manual_roll_response.get("event_id")
+                            or v3_pending.get("execution_key")
+                            != v3_manual_roll_response.get("execution_key")
+                        ):
+                            raise DurableNativeTurnError(
+                                "v3 action manual-roll challenge is stale"
+                            )
+                    else:
+                        v3_pending = pending.get("v3_action_clarification")
+                        if not isinstance(v3_pending, dict):
+                            raise DurableNativeTurnError(
+                                "resolution is not awaiting a v3 action clarification"
+                            )
+                        if (
+                            v3_pending.get("challenge_id")
+                            != v3_clarification_response.get("challenge_id")
+                            or v3_pending.get("event_id")
+                            != v3_clarification_response.get("event_id")
+                        ):
+                            raise DurableNativeTurnError(
+                                "v3 action clarification challenge is stale"
+                            )
                 if record.lifecycle_state in {
                     "committed",
                     "narration_pending",
@@ -633,7 +697,10 @@ class DurableTurnExecutionService:
                     "prepared",
                 } or (
                     record.lifecycle_state == "awaiting_input"
-                    and v3_clarification_response is not None
+                    and (
+                        v3_clarification_response is not None
+                        or v3_manual_roll_response is not None
+                    )
                 ):
                     pass
                 else:
@@ -694,6 +761,14 @@ class DurableTurnExecutionService:
             ):
                 raise DurableNativeTurnError(
                     "campaign state changed while waiting for v3 clarification",
+                    code=DurableTurnErrorCode.STALE_CONTEXT,
+                )
+            if v3_manual_roll_response is not None and (
+                record.context_revision != revision
+                or v3_manual_roll_response.get("context_revision") != revision
+            ):
+                raise DurableNativeTurnError(
+                    "campaign state changed while waiting for v3 manual roll",
                     code=DurableTurnErrorCode.STALE_CONTEXT,
                 )
             if resume_prepared:
@@ -784,6 +859,16 @@ class DurableTurnExecutionService:
                                 recent_turns=recent,
                                 manual_mode=(dice_mode == "manual"),
                                 persist_checkpoint=persist_v3_checkpoint,
+                                manual_roll_event_id=(
+                                    v3_manual_roll_response.get("event_id")
+                                    if v3_manual_roll_response is not None
+                                    else None
+                                ),
+                                manual_rolls=(
+                                    tuple(v3_manual_roll_response["rolls"])
+                                    if v3_manual_roll_response is not None
+                                    else None
+                                ),
                                 clarification_event_id=(
                                     v3_clarification_response.get("event_id")
                                     if v3_clarification_response is not None
