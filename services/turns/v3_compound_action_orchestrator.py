@@ -14,6 +14,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
+from models.mechanics import MechanicsDecision, MechanicsDecisionType
 from models.player_action_checkpoint import (
     ActionOutcome,
     PlayerActionCheckpoint,
@@ -34,6 +35,7 @@ class CompoundActionRunStatus(str, enum.Enum):
     COMPLETED = "completed"
     NEEDS_CLARIFICATION = "needs_clarification"
     BLOCKED_BY_DEPENDENCY = "blocked_by_dependency"
+    NEEDS_MANUAL_ROLL = "needs_manual_roll"
     EXECUTION_FAILED = "execution_failed"
 
 
@@ -53,11 +55,25 @@ class CompoundActionExecution:
     them in the same CAS update.
     """
 
-    outcome: ActionOutcome
+    outcome: ActionOutcome | None = None
     progress_updates: Mapping[str, str | None] = field(default_factory=dict)
+    manual_roll_decision: MechanicsDecision | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.outcome, ActionOutcome):
+        awaiting_manual = self.manual_roll_decision is not None
+        if awaiting_manual:
+            if self.outcome is not None:
+                raise ValueError("a pending manual roll cannot have an outcome")
+            if (
+                not isinstance(self.manual_roll_decision, MechanicsDecision)
+                or self.manual_roll_decision.decision not in {
+                    MechanicsDecisionType.ABILITY_CHECK,
+                    MechanicsDecisionType.SKILL_CHECK,
+                    MechanicsDecisionType.SAVING_THROW,
+                }
+            ):
+                raise TypeError("manual_roll_decision must be a supported mechanics check")
+        elif not isinstance(self.outcome, ActionOutcome):
             raise TypeError("outcome must be an authoritative ActionOutcome")
         if not isinstance(self.progress_updates, Mapping):
             raise TypeError("progress_updates must be a mapping")
@@ -105,6 +121,8 @@ class CompoundActionRunResult:
     clarification_slots: tuple[str, ...] = ()
     technical_error_type: str | None = None
     affected_descendant_event_ids: tuple[str, ...] = ()
+    execution_key: str | None = None
+    manual_roll_decision: MechanicsDecision | None = None
 
 
 StagedProgressPersister = Callable[[Mapping[str, str | None]], None]
@@ -232,6 +250,26 @@ class V3CompoundActionOrchestrator:
                     raise TypeError(
                         "action executor must return CompoundActionExecution"
                     )
+                if execution.manual_roll_decision is not None:
+                    attempts.append(
+                        CompoundActionAttempt(
+                            event_id=event_id,
+                            execution_key=execution_key,
+                            resumed=resumed,
+                            outcome=None,
+                        )
+                    )
+                    return CompoundActionRunResult(
+                        checkpoint=current,
+                        status=CompoundActionRunStatus.NEEDS_MANUAL_ROLL,
+                        attempts=tuple(attempts),
+                        candidate=candidate,
+                        event_id=event_id,
+                        execution_key=execution_key,
+                        manual_roll_decision=execution.manual_roll_decision,
+                    )
+                if execution.outcome is None:
+                    raise TypeError("completed action execution is missing its outcome")
             except Exception as exc:  # noqa: BLE001 - adapter errors are technical
                 current = mark_action_execution_failed(current, event_id)
                 self._persist(persist_checkpoint, current)
@@ -309,5 +347,7 @@ class V3CompoundActionOrchestrator:
                 clarification_slots=result.clarification_slots,
                 technical_error_type=result.technical_error_type,
                 affected_descendant_event_ids=resumed.affected_descendant_event_ids,
+                execution_key=result.execution_key,
+                manual_roll_decision=result.manual_roll_decision,
             ),
         )
