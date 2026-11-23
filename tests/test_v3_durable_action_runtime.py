@@ -620,7 +620,7 @@ def test_v3_runtime_pauses_for_manual_roll_and_resumes_same_node_without_replann
         preview,
         resolver,
         record,
-        planning_calls,
+        _planning_calls,
         _persistence_calls,
         _fail_final_once,
         persist_checkpoint,
