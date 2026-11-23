@@ -112,6 +112,7 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         manifest.get("contract_id") != V3_ACCEPTANCE_CONTRACT_ID
         or manifest.get("corpus_id") != "player-turn-v3-graph-corpus-v1"
         or manifest.get("full_corpus") is not True
+        or isinstance(scenario_count, bool)
         or scenario_count != _V3_ACCEPTANCE_SCENARIO_COUNT
         or isinstance(repetitions, bool)
         or not isinstance(repetitions, int)
@@ -121,7 +122,6 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         or variant_count < 1
         or isinstance(provider_calls, bool)
         or not isinstance(provider_calls, int)
-        or provider_calls < scenario_count * repetitions * 2 * variant_count
         or not isinstance(commit, str)
         or re.fullmatch(r"[0-9a-fA-F]{40}", commit) is None
         or not isinstance(variants, list)
@@ -136,7 +136,10 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         for item in variants
     ]
     if (
-        "baseline" not in variant_names
+        not isinstance(provider_calls, int)
+        or provider_calls < scenario_count * repetitions * 2 * variant_count
+        or any(not isinstance(name, str) or not name.strip() for name in variant_names)
+        or "baseline" not in variant_names
         or len(variant_names) != len(set(variant_names))
         or matrix.get("contract_id") != V3_ACCEPTANCE_CONTRACT_ID
         or matrix.get("promotion_decision") != "eligible_for_manual_review_only"
@@ -154,10 +157,20 @@ def _semantic_acceptance_passed(report: Mapping[str, Any] | None) -> bool:
         None,
     )
     gates = selected.get("gates") if isinstance(selected, Mapping) else None
+    run_matrix = selected.get("run_matrix") if isinstance(selected, Mapping) else None
     return (
         isinstance(selected, Mapping)
+        and selected.get("mode") == "acceptance"
         and selected.get("decision") == "eligible_for_manual_review_only"
         and selected.get("eligible_for_manual_review") is True
+        and isinstance(run_matrix, Mapping)
+        and run_matrix.get("scenario_count") == _V3_ACCEPTANCE_SCENARIO_COUNT
+        and run_matrix.get("repetitions") == repetitions
+        and run_matrix.get("expected_runs") == _V3_ACCEPTANCE_SCENARIO_COUNT * repetitions
+        and run_matrix.get("observed_runs") == _V3_ACCEPTANCE_SCENARIO_COUNT * repetitions
+        and run_matrix.get("missing_runs") == 0
+        and run_matrix.get("duplicate_run_keys") == []
+        and run_matrix.get("full_corpus") is True
         and isinstance(gates, Mapping)
         and all(
             isinstance(gates.get(gate_id), Mapping)
@@ -198,6 +211,11 @@ def build_v3_rollout_decision(
     runtime_passed = not runtime_failures
     sillytavern_passed = not sillytavern_failures
     eligible = semantic_passed and runtime_passed and sillytavern_passed
+    acceptance_matrix = (
+        acceptance_report.get("acceptance_matrix")
+        if isinstance(acceptance_report, Mapping)
+        else None
+    )
 
     blockers: list[str] = []
     if not semantic_passed:
@@ -218,13 +236,8 @@ def build_v3_rollout_decision(
                 "passed": semantic_passed,
                 "required_contract": V3_ACCEPTANCE_CONTRACT_ID,
                 "observed_decision": (
-                    (
-                        acceptance_report.get("acceptance_matrix", {}).get("promotion_decision")
-                        if isinstance(acceptance_report, Mapping)
-                        and isinstance(acceptance_report.get("acceptance_matrix"), Mapping)
-                        else None
-                    )
-                    if isinstance(acceptance_report, Mapping)
+                    acceptance_matrix.get("promotion_decision")
+                    if isinstance(acceptance_matrix, Mapping)
                     else None
                 ),
             },
