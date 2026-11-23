@@ -476,6 +476,7 @@ class DurableTurnExecutionService:
         defer_narration: bool = False,
         dice_mode: str = "automatic",
         conversation_id: str | None = None,
+        v3_clarification_response: dict | None = None,
     ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
@@ -545,23 +546,47 @@ class DurableTurnExecutionService:
                     return DurableTurnPreparationMapper.from_record(record) if defer_narration else self.narration_service.result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "awaiting_input":
                     pending = json.loads(record.adjudication_json or "{}")
-                    if pending.get("manual_roll"):
-                        return self._manual_roll_result(record, pending["manual_roll"])
-                    clarification = pending.get("clarification")
-                    if isinstance(clarification, dict):
-                        return self._clarification_result(record, clarification)
-                    question = pending.get(
-                        "clarification_question",
-                        "Necesito una aclaración antes de resolver esa acción.",
-                    )
-                    return TurnResolutionResult(player_input=record.player_input, narrative=question)
+                    if v3_clarification_response is None:
+                        if pending.get("manual_roll"):
+                            return self._manual_roll_result(record, pending["manual_roll"])
+                        clarification = pending.get("clarification")
+                        if isinstance(clarification, dict):
+                            return self._clarification_result(record, clarification)
+                        v3_pending = pending.get("v3_action_clarification")
+                        if isinstance(v3_pending, dict):
+                            return self._clarification_result(record, v3_pending)
+                        question = pending.get(
+                            "clarification_question",
+                            "Necesito una aclaración antes de resolver esa acción.",
+                        )
+                        return TurnResolutionResult(
+                            player_input=record.player_input,
+                            narrative=question,
+                        )
+                    v3_pending = pending.get("v3_action_clarification")
+                    if not isinstance(v3_pending, dict):
+                        raise DurableNativeTurnError(
+                            "resolution is not awaiting a v3 action clarification"
+                        )
+                    if (
+                        v3_pending.get("challenge_id")
+                        != v3_clarification_response.get("challenge_id")
+                        or v3_pending.get("event_id")
+                        != v3_clarification_response.get("event_id")
+                    ):
+                        raise DurableNativeTurnError(
+                            "v3 action clarification challenge is stale"
+                        )
                 if record.lifecycle_state in {
                     "committed",
                     "narration_pending",
                     "accepted",
                     "planning",
                     "prepared",
-                }:
+                } or (
+                    record.lifecycle_state == "awaiting_input"
+                    and v3_clarification_response is not None
+                ):
                     pass
                 else:
                     raise DurableNativeTurnError(
@@ -703,6 +728,16 @@ class DurableTurnExecutionService:
                                 recent_turns=recent,
                                 manual_mode=(dice_mode == "manual"),
                                 persist_checkpoint=persist_v3_checkpoint,
+                                clarification_event_id=(
+                                    v3_clarification_response.get("event_id")
+                                    if v3_clarification_response is not None
+                                    else None
+                                ),
+                                clarification_answer=(
+                                    v3_clarification_response.get("answer")
+                                    if v3_clarification_response is not None
+                                    else None
+                                ),
                             )
                         except V3CompoundRuntimeError as exc:
                             logger.error(
@@ -713,12 +748,88 @@ class DurableTurnExecutionService:
                                 "v3 compound action execution failed"
                             ) from exc
                         record = planning_record
-                        plan = compound.plan
-                        v3_action_outcomes = compound.action_outcomes
                         preview = replace(
                             preview,
                             checkpoint=compound.checkpoint,
                         )
+                        if compound.status is CompoundActionRunStatus.NEEDS_CLARIFICATION:
+                            if compound.event_id is None or not compound.clarification_slots:
+                                raise DurableNativeTurnError(
+                                    "v3 clarification result is missing its event identity"
+                                )
+                            question = preview_service.action_clarification_question(
+                                preview,
+                                compound.event_id,
+                                compound.clarification_slots,
+                            )
+                            next_pending = {
+                                "challenge_id": secrets.token_urlsafe(24),
+                                "context_revision": revision,
+                                "event_id": compound.event_id,
+                                "clarification_slots": list(
+                                    compound.clarification_slots
+                                ),
+                                "question": question,
+                            }
+                            history = (
+                                list(v3_clarification_response.get("history", []))
+                                if v3_clarification_response is not None
+                                else []
+                            )
+                            adjudication = {
+                                "v3_action_clarification": next_pending,
+                                "dice_mode": dice_mode,
+                            }
+                            if v3_clarification_response is not None:
+                                history.append({
+                                    "question": v3_clarification_response["question"],
+                                    "answer": v3_clarification_response["answer"],
+                                })
+                                adjudication.update({
+                                    "clarification_history": history,
+                                    "last_challenge_id": (
+                                        v3_clarification_response["challenge_id"]
+                                    ),
+                                    "last_answer": v3_clarification_response["answer"],
+                                    "last_answer_external_turn_id": (
+                                        v3_clarification_response.get(
+                                            "answer_external_turn_id"
+                                        )
+                                    ),
+                                })
+                            with transaction("IMMEDIATE") as conn:
+                                self.resolution_repository.transition(
+                                    self._required_resolution_id(record),
+                                    "awaiting_input",
+                                    scope=self.scope,
+                                    expected_state="planning",
+                                    expected_lease_token=lease_token,
+                                    updates={
+                                        "context_revision": revision,
+                                        "adjudication_json": json.dumps(
+                                            adjudication,
+                                            ensure_ascii=False,
+                                            separators=(",", ":"),
+                                            sort_keys=True,
+                                        ),
+                                        "lease_token": None,
+                                        "lease_expires_at": None,
+                                    },
+                                    conn=conn,
+                                )
+                            saved = self._require_resolution_record(
+                                self.resolution_repository.get(
+                                    self._required_resolution_id(record),
+                                    scope=self.scope,
+                                )
+                            )
+                            return self._clarification_result(saved, next_pending)
+                        plan = compound.plan
+                        if plan is None:
+                            raise DurableNativeTurnError(
+                                "v3 compound execution completed without an aggregate plan"
+                            )
+                        v3_action_outcomes = compound.action_outcomes
                         v3_execution_used = True
 
                 if not v3_execution_used:
@@ -853,6 +964,28 @@ class DurableTurnExecutionService:
                                     **(
                                         {"v3_action_outcomes": list(v3_action_outcomes)}
                                         if v3_action_outcomes
+                                        else {}
+                                    ),
+                                    **(
+                                        {
+                                            "clarification_history": [
+                                                *v3_clarification_response.get(
+                                                    "history", []
+                                                ),
+                                                {
+                                                    "question": v3_clarification_response["question"],
+                                                    "answer": v3_clarification_response["answer"],
+                                                },
+                                            ],
+                                            "last_challenge_id": v3_clarification_response["challenge_id"],
+                                            "last_answer": v3_clarification_response["answer"],
+                                            "last_answer_external_turn_id": (
+                                                v3_clarification_response.get(
+                                                    "answer_external_turn_id"
+                                                )
+                                            ),
+                                        }
+                                        if v3_clarification_response is not None
                                         else {}
                                     ),
                                 },
