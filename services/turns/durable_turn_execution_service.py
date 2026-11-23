@@ -689,10 +689,7 @@ class DurableTurnExecutionService:
                             raise DurableNativeTurnError(
                                 "v3 compound action execution failed"
                             ) from exc
-                        plan = self._append_world_fact_operations(
-                            compound.plan,
-                            preview,
-                        )
+                        plan = compound.plan
                         preview = replace(
                             preview,
                             checkpoint=compound.checkpoint,
@@ -704,13 +701,13 @@ class DurableTurnExecutionService:
                         str(self._required_resolution_id(record))
                     ):
                         if self._world_facts_enabled():
-                        plan = self.resolver.prepare_turn(
-                            context,
-                            normalized,
-                            manual_mode=(dice_mode == "manual"),
-                            recent_turns=recent,
-                            mechanics_failure_is_non_fatal=True,
-                        )
+                            plan = self.resolver.prepare_turn(
+                                context,
+                                normalized,
+                                manual_mode=(dice_mode == "manual"),
+                                recent_turns=recent,
+                                mechanics_failure_is_non_fatal=True,
+                            )
                         else:
                             plan = self.resolver.prepare_turn(
                                 context,
