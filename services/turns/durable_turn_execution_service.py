@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.campaign_scope import CampaignScope
+from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from observability.log_context import bind_resolution_context
@@ -43,6 +44,10 @@ from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
     V3ActionPreviewService,
 )
+from services.turns.v3_compound_action_runtime import (
+    V3CompoundActionRuntime,
+    V3CompoundRuntimeError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +78,7 @@ class DurableTurnExecutionService:
         turn_execution_lock=None,
         snapshot_loader=None,
         v3_action_preview_service: V3ActionPreviewService | None = None,
+        v3_action_execution_enabled: bool = False,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -85,7 +91,14 @@ class DurableTurnExecutionService:
         self.context_loader = context_loader
         self.turn_execution_lock = turn_execution_lock
         self.snapshot_loader = snapshot_loader
+        if not isinstance(v3_action_execution_enabled, bool):
+            raise TypeError("v3_action_execution_enabled must be a boolean")
+        if v3_action_execution_enabled and v3_action_preview_service is None:
+            raise ValueError(
+                "v3 action execution requires the v3 action preview service"
+            )
         self.v3_action_preview_service = v3_action_preview_service
+        self.v3_action_execution_enabled = v3_action_execution_enabled
         self.error_type = error_type
 
 
@@ -102,6 +115,19 @@ class DurableTurnExecutionService:
                 return 120.0
             return float(timeout)
 
+        if getattr(self, "v3_action_execution_enabled", False):
+            # One holistic graph call followed by up to twelve per-node
+            # mechanics/proposal pairs. Staged CAS updates renew no lease, so
+            # budget the full bounded graph rather than only its first action.
+            configured_budget = (
+                provider_timeout("intent_interpreter")
+                + 12 * (
+                    provider_timeout("mechanics_adjudicator")
+                    + provider_timeout("extractor")
+                )
+                + 300
+            )
+            return max(900, int(configured_budget))
         configured_budget = (
             2 * provider_timeout("intent_interpreter")
             + provider_timeout("mechanics_adjudicator")
@@ -166,6 +192,36 @@ class DurableTurnExecutionService:
                 },
             )
         return None
+
+    def _restore_v3_action_preview(
+        self,
+        record: TurnResolutionRecord,
+        context,
+        player_input: str,
+        recent,
+    ):
+        """Restore an existing execution checkpoint without another intent call."""
+        if record.action_checkpoint_json is None:
+            return None
+        preview_service = self.v3_action_preview_service
+        if preview_service is None:
+            raise DurableNativeTurnError(
+                "a persisted v3 action checkpoint cannot be resumed without its preview service"
+            )
+        try:
+            checkpoint = PlayerActionCheckpoint.from_json(
+                record.action_checkpoint_json
+            )
+            return preview_service.restore(
+                checkpoint,
+                context,
+                player_input,
+                recent_turns=recent,
+            )
+        except Exception as exc:
+            raise DurableNativeTurnError(
+                "persisted v3 action checkpoint could not be restored"
+            ) from exc
 
     def _save_v3_action_checkpoint(
         self,
@@ -558,6 +614,7 @@ class DurableTurnExecutionService:
                 ) from exc
 
         try:
+            v3_action_outcomes: tuple[dict[str, object], ...] = ()
             if resume_prepared:
                 if record.context_revision != revision:
                     with transaction("IMMEDIATE") as conn:
@@ -574,24 +631,115 @@ class DurableTurnExecutionService:
                     )
                 plan = self._plan_from_record(record)
             else:
-                with bind_resolution_context(
-                    str(self._required_resolution_id(record))
-                ):
-                    if self._world_facts_enabled():
-                        plan = self.resolver.prepare_turn(
-                            context,
-                            normalized,
-                            manual_mode=(dice_mode == "manual"),
-                            recent_turns=recent,
-                            mechanics_failure_is_non_fatal=True,
+                v3_execution_used = False
+                preview = None
+                if self.v3_action_execution_enabled:
+                    preview = (
+                        self._restore_v3_action_preview(
+                            record, context, normalized, recent
                         )
-                    else:
-                        plan = self.resolver.prepare_turn(
-                            context,
-                            normalized,
-                            manual_mode=(dice_mode == "manual"),
-                            recent_turns=recent,
+                        if record.action_checkpoint_json is not None
+                        else self._build_v3_action_preview(
+                            record, context, normalized, recent, revision, lease_token
                         )
+                    )
+                    can_start_v3 = (
+                        preview is not None
+                        and V3CompoundActionRuntime.supports_graph(
+                            preview,
+                            manual_mode=(dice_mode == "manual"),
+                        )
+                    )
+                    if (
+                        record.action_checkpoint_json is not None
+                        and preview is not None
+                        and not can_start_v3
+                    ):
+                        raise DurableNativeTurnError(
+                            "persisted v3 action graph requires an unsupported continuation"
+                        )
+                    if can_start_v3 and preview is not None:
+                        planning_record = self._require_resolution_record(record)
+                        if not isinstance(lease_token, str) or not lease_token:
+                            raise DurableNativeTurnError(
+                                "v3 action execution requires an active planning lease"
+                            )
+                        preview_service = self.v3_action_preview_service
+                        if preview_service is None:
+                            raise DurableNativeTurnError(
+                                "v3 action execution requires its preview service"
+                            )
+
+                        def persist_v3_checkpoint(checkpoint, progress_updates=None):
+                            nonlocal planning_record
+                            with transaction("IMMEDIATE") as conn:
+                                planning_record = self.resolution_repository.save_action_checkpoint(
+                                    self._required_resolution_id(planning_record),
+                                    checkpoint.to_json(),
+                                    scope=self.scope,
+                                    expected_state="planning",
+                                    expected_lease_token=lease_token,
+                                    expected_context_revision=planning_record.context_revision,
+                                    expected_checkpoint_json=planning_record.action_checkpoint_json,
+                                    now=datetime.now(UTC).isoformat(),
+                                    conn=conn,
+                                    progress_updates=progress_updates,
+                                )
+
+                        # Store the full interpretation before the first action
+                        # starts. Recovery restores it without another intent call.
+                        if planning_record.action_checkpoint_json is None:
+                            persist_v3_checkpoint(preview.checkpoint)
+                        runtime = V3CompoundActionRuntime(
+                            self.resolver,
+                            preview_service,
+                        )
+                        try:
+                            compound = runtime.run(
+                                planning_record,
+                                preview,
+                                context=context,
+                                player_input=normalized,
+                                recent_turns=recent,
+                                manual_mode=(dice_mode == "manual"),
+                                persist_checkpoint=persist_v3_checkpoint,
+                            )
+                        except V3CompoundRuntimeError as exc:
+                            logger.error(
+                                "turn.v3_compound_execution.failed",
+                                extra={"execution_code": exc.code},
+                            )
+                            raise DurableNativeTurnError(
+                                "v3 compound action execution failed"
+                            ) from exc
+                        record = planning_record
+                        plan = compound.plan
+                        v3_action_outcomes = compound.action_outcomes
+                        preview = replace(
+                            preview,
+                            checkpoint=compound.checkpoint,
+                        )
+                        v3_execution_used = True
+
+                if not v3_execution_used:
+                    with bind_resolution_context(
+                        str(self._required_resolution_id(record))
+                    ):
+                        if self._world_facts_enabled():
+                            plan = self.resolver.prepare_turn(
+                                context,
+                                normalized,
+                                manual_mode=(dice_mode == "manual"),
+                                recent_turns=recent,
+                                mechanics_failure_is_non_fatal=True,
+                            )
+                        else:
+                            plan = self.resolver.prepare_turn(
+                                context,
+                                normalized,
+                                manual_mode=(dice_mode == "manual"),
+                                recent_turns=recent,
+                            )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
                     with transaction("IMMEDIATE") as conn:
@@ -646,9 +794,10 @@ class DurableTurnExecutionService:
                     )
                     return self._clarification_result(saved, pending)
                 authoritative_plan = plan
-                preview = self._build_v3_action_preview(
-                    record, context, normalized, recent, revision, lease_token
-                )
+                if preview is None:
+                    preview = self._build_v3_action_preview(
+                        record, context, normalized, recent, revision, lease_token
+                    )
                 proposal_json = self._serialize_operations(authoritative_plan)
                 if preview is not None:
                     try:
@@ -691,11 +840,25 @@ class DurableTurnExecutionService:
                             "intent_json": TurnResolutionCodec.intent_to_json(plan),
                             "adjudication_json": json.dumps(
                                 {
-                                    "decision": plan.mechanics_decision.decision.value,
+                                    **(
+                                        {
+                                            "decision": (
+                                                plan.mechanics_decision.decision.value
+                                            )
+                                        }
+                                        if plan.mechanics_decision
+                                        else {}
+                                    ),
                                     "dice_mode": dice_mode,
-                                }
-                                if plan.mechanics_decision else {"dice_mode": dice_mode},
+                                    **(
+                                        {"v3_action_outcomes": list(v3_action_outcomes)}
+                                        if v3_action_outcomes
+                                        else {}
+                                    ),
+                                },
+                                ensure_ascii=False,
                                 separators=(",", ":"),
+                                sort_keys=True,
                             ),
                             "mechanics_json": mechanics_json,
                             "lease_token": None,
@@ -706,7 +869,7 @@ class DurableTurnExecutionService:
 
                 try:
                     with transaction("IMMEDIATE") as conn:
-                        if preview is not None:
+                        if preview is not None and not v3_execution_used:
                             if not isinstance(lease_token, str) or not lease_token:
                                 raise _OptionalV3CheckpointSaveFailure from None
                             try:
