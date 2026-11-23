@@ -21,8 +21,18 @@ def _accepted_report():
     )
     baseline = {
         "variant": "baseline",
+        "mode": "acceptance",
         "decision": "eligible_for_manual_review_only",
         "eligible_for_manual_review": True,
+        "run_matrix": {
+            "scenario_count": 20,
+            "repetitions": 3,
+            "expected_runs": 60,
+            "observed_runs": 60,
+            "missing_runs": 0,
+            "duplicate_run_keys": False,
+            "full_corpus": True,
+        },
         "gates": {gate_id: {"passed": True} for gate_id in gate_ids},
     }
     return {
@@ -99,6 +109,7 @@ def test_runtime_integration_and_manual_acceptance_are_independent_gates():
         },
     )
 
+    assert decision["gates"]["semantic_acceptance"]["passed"] is True
     assert decision["gates"]["durable_runtime_integration"]["passed"] is True
     assert decision["gates"]["sillytavern_manual_acceptance"]["passed"] is False
     assert decision["decision"] == "hold_v2"
@@ -175,6 +186,20 @@ def test_semantic_gate_rejects_acceptance_report_without_baseline_variant():
     report = _accepted_report()
     report["acceptance_matrix"]["variants"][0]["variant"] = "fixed_sampling"
     report["acceptance_matrix"]["selected_for_manual_review"] = "fixed_sampling"
+
+    decision = build_v3_rollout_decision(
+        acceptance_report=report,
+        runtime_checks=_passing_evidence(V3_RUNTIME_REQUIRED_CHECKS),
+        sillytavern_checks=_passing_evidence(V3_SILLYTAVERN_REQUIRED_CHECKS),
+    )
+
+    assert decision["decision"] == "hold_v2"
+    assert decision["blockers"][0] == "semantic_acceptance"
+
+
+def test_semantic_gate_rejects_duplicate_run_keys_from_real_acceptance_shape():
+    report = _accepted_report()
+    report["acceptance_matrix"]["variants"][0]["run_matrix"]["duplicate_run_keys"] = True
 
     decision = build_v3_rollout_decision(
         acceptance_report=report,
