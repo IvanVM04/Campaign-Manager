@@ -340,6 +340,53 @@ class DurableTurnExecutionService:
         return DurableTurnResultMapper.clarification_result(record, pending)
 
 
+    def resume_v3_action_clarification(
+        self,
+        record: TurnResolutionRecord,
+        pending_state: dict,
+        answer: str,
+        *,
+        defer_narration: bool,
+        answer_external_turn_id: str | None = None,
+    ):
+        """Resume one persisted V3 target clarification on its original action node."""
+        pending = (
+            pending_state.get("v3_action_clarification")
+            if isinstance(pending_state, dict)
+            else None
+        )
+        if (
+            not isinstance(record, TurnResolutionRecord)
+            or not isinstance(pending, dict)
+            or not isinstance(record.idempotency_key, str)
+            or not record.idempotency_key
+            or not isinstance(answer, str)
+            or not answer.strip()
+        ):
+            raise DurableNativeTurnError("v3 clarification state is invalid")
+        if record.lifecycle_state != "awaiting_input":
+            raise DurableNativeTurnError("v3 clarification is no longer pending")
+        if pending.get("context_revision") != record.context_revision:
+            raise DurableNativeTurnError("v3 clarification context identity is invalid")
+        return self._play_turn_locked(
+            record.player_input,
+            idempotency_key=record.idempotency_key,
+            adapter_namespace=record.adapter_namespace,
+            defer_narration=defer_narration,
+            dice_mode=pending_state.get("dice_mode", "automatic"),
+            conversation_id=record.conversation_id,
+            v3_clarification_response={
+                "event_id": pending.get("event_id"),
+                "challenge_id": pending.get("challenge_id"),
+                "question": pending.get("question"),
+                "context_revision": pending.get("context_revision"),
+                "clarification_slots": pending.get("clarification_slots"),
+                "answer": answer.strip(),
+                "history": pending_state.get("clarification_history", []),
+                "answer_external_turn_id": answer_external_turn_id,
+            },
+        )
+
     @staticmethod
     def _fingerprint(
         player_input: str,
@@ -1107,7 +1154,11 @@ class DurableTurnExecutionService:
                 ):
                     self.resolution_repository.transition(
                         self._required_resolution_id(record),
-                        "accepted",
+                        (
+                            "awaiting_input"
+                            if v3_clarification_response is not None
+                            else "accepted"
+                        ),
                         scope=self.scope,
                         expected_state="planning",
                         expected_lease_token=lease_token,
@@ -1115,9 +1166,13 @@ class DurableTurnExecutionService:
                             "lease_token": None,
                             "lease_expires_at": None,
                             "last_error_code": (
-                                "invalid_llm_proposal"
-                                if invalid_llm_proposal
-                                else "planning_failed"
+                                "v3_clarification_retryable"
+                                if v3_clarification_response is not None
+                                else (
+                                    "invalid_llm_proposal"
+                                    if invalid_llm_proposal
+                                    else "planning_failed"
+                                )
                             ),
                         },
                         conn=conn,
@@ -1138,12 +1193,18 @@ class DurableTurnExecutionService:
                     current = self.resolution_repository.get(
                         self._required_resolution_id(record), scope=self.scope, conn=conn
                     )
-                    if current is not None and current.lifecycle_state == "prepared":
+                    if current is not None and (
+                        current.lifecycle_state == "prepared"
+                        or (
+                            v3_clarification_response is not None
+                            and current.lifecycle_state == "awaiting_input"
+                        )
+                    ):
                         self.resolution_repository.transition(
                             self._required_resolution_id(record),
                             "rejected",
                             scope=self.scope,
-                            expected_state="prepared",
+                            expected_state=current.lifecycle_state,
                             updates={"last_error_code": rejection_code},
                             conn=conn,
                         )
