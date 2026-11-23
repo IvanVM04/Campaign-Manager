@@ -135,7 +135,7 @@ def test_all_three_gates_only_allow_manual_review_not_automatic_cutover():
 @pytest.mark.parametrize(
     "matrix_overrides",
     [
-        {},
+        {"contract_id": "unknown-contract"},
         {"promotion_decision": "hold_v2"},
         {"production_route": "v3"},
         {"automatic_cutover": True},
