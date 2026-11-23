@@ -26,7 +26,7 @@ not existing behavior of this package.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
 - `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; the selector itself does not execute actions.
-- `v3_compound_action_runtime.py` — PR #301 runtime bridge that executes automatic, initially-resolved graphs through the V3 planning adapter and durable compound orchestrator, persists per-node staged progress under lease/CAS, builds detached virtual world projections for dependent actions, and returns one aggregate plan plus per-action outcome evidence. Character-operation virtual projection and same-node manual-roll/clarification continuations are not yet supported.
+- `v3_compound_action_runtime.py` — PR #302 runtime bridge (implementation originated in draft #301) that executes automatic, initially-resolved graphs through the V3 planning adapter and durable compound orchestrator, persists per-node staged progress under lease/CAS, builds detached virtual world projections for dependent actions, and returns one aggregate plan plus per-action outcome evidence. Character-operation virtual projection and same-node manual-roll/clarification continuations are not yet supported.
 - `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
@@ -57,7 +57,7 @@ persistence fails, the transaction is rolled back and the v2-only proposal is
 prepared instead. A prepared retry rehydrates its operations from the durable
 proposal and does not regenerate v3 facts.
 
-PR #301 adds a third, independent opt-in:
+PR #302 adds a third, independent opt-in:
 CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED. It is false by
 default and configuration rejects enabling it without action-shadow. With
 both flags enabled, DurableTurnExecutionService can execute automatic-dice
