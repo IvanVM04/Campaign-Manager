@@ -311,6 +311,99 @@ class V3ActionPlanningAdapter:
             external_mentions,
         )
 
+    def resolve_manual_roll(
+        self,
+        resolver: TurnResolutionService,
+        staged_action: V3ActionPlanningResult,
+        preview: V3ActionPreviewResult,
+        context: TurnContext,
+        player_input: str,
+        rolls: tuple[int, ...],
+        *,
+        recent_turns: list[TurnRecord] | None = None,
+    ) -> V3ActionPlanningResult:
+        """Resolve a staged V3 manual roll without reinterpreting or replanning intent."""
+        from models.mechanics import MechanicsDecision
+        from models.world_context_projection import WorldContextProjection
+
+        if not isinstance(resolver, TurnResolutionService):
+            raise TypeError("resolver must be a TurnResolutionService")
+        if not isinstance(staged_action, V3ActionPlanningResult):
+            raise TypeError("staged_action must be a V3ActionPlanningResult")
+        if not isinstance(preview, V3ActionPreviewResult):
+            raise TypeError("preview must be a V3ActionPreviewResult")
+        if not isinstance(context, TurnContext):
+            raise TypeError("context must be a TurnContext")
+        if not isinstance(player_input, str) or not player_input.strip():
+            raise ValueError("player_input must not be empty")
+        if (
+            not isinstance(rolls, tuple)
+            or not rolls
+            or len(rolls) > 2
+            or any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 1
+                or value > 20
+                for value in rolls
+            )
+        ):
+            raise ValueError("manual rolls must contain one or two d20 results")
+        decision = staged_action.plan.mechanics_decision
+        if (
+            not staged_action.plan.awaiting_manual_roll
+            or not isinstance(decision, MechanicsDecision)
+        ):
+            raise V3ActionPlanningError(
+                "staged_action_does_not_await_manual_roll",
+                "manual_roll",
+            )
+        projection = preview.visible_projection
+        if not isinstance(projection, WorldContextProjection):
+            raise V3ActionPlanningError(
+                "visible_projection_unavailable",
+                "manual_roll",
+            )
+        try:
+            plan = resolver.prepare_turn(
+                context,
+                staged_action.evidence_excerpt,
+                manual_mode=True,
+                manual_rolls=rolls,
+                decision_override=decision,
+                intent_analysis_override=staged_action.intent_analysis,
+                recent_turns=recent_turns,
+                intent_evidence_text=staged_action.evidence_excerpt,
+                context_projection_override=projection,
+                resolved_references_override=staged_action.resolved_references,
+                additional_resolved_reference_mentions=(
+                    staged_action.additional_reference_mentions
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001 - mechanics failure is not success
+            raise V3ActionPlanningError(
+                "manual_roll_resolution_failed",
+                "manual_roll",
+            ) from exc
+        if plan.awaiting_manual_roll or plan.clarification_question is not None:
+            raise V3ActionPlanningError(
+                "manual_roll_did_not_resolve",
+                "manual_roll",
+            )
+        if plan.mechanics_result is None:
+            raise V3ActionPlanningError(
+                "manual_roll_result_missing",
+                "manual_roll",
+            )
+        return replace(
+            staged_action,
+            plan=replace(
+                plan,
+                player_input=player_input.strip(),
+                intent_evidence_text=player_input.strip(),
+            ),
+        )
+
     def restore_staged_action(
         self,
         preview: V3ActionPreviewResult,
