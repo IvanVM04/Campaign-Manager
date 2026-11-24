@@ -2,7 +2,7 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PRs #293–#300 fusionadas; PR #301 abierta en borrador para integración durable inicial; gates live y continuaciones P0 pendientes.  
+**Estado:** activo; PRs #293–#300 fusionadas; PRs #301–#304 son drafts supersedidos y #305 es la candidata consolidada para runtime durable + continuaciones; gates live y parte de Gate B siguen pendientes.  
 **Baseline inspeccionada:** main, commit 9b62d8f2e3a991d06a29b31930357588a00a6571 (PR #300 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
@@ -160,19 +160,20 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | #299 | P0 | [x] MERGED + CI VERIFIED (CORE ONLY) | Core de orquestación secuencial, adaptador de planificación por evento, codec/progreso staged, recuperación sin proveedor y persistencia checkpoint+progreso con CAS. Merge: 2026-11-23, SHA 556feeb17ff227448bc159aa5c823f7441bb5c03; CI run 2054: 2.635 passed, 26 deselected, coverage 85,01 %, Ruff/Pyright/JS/PowerShell/CodeQL success. No incluye cableado del executor en DurableTurnExecutionService, proyección virtual ni continuación real de tiradas/aclaraciones | #297–#298 |
 | #300 | P0 | [x] MERGED + CI VERIFIED (LIVE GATES PENDING) | Gate de release con evidencia semántica Ollama, integración durable y prueba manual SillyTavern; CLI/plantillas/checklist y decisión HOLD V2. Merge: 2026-11-23, SHA `9b62d8f2e3a991d06a29b31930357588a00a6571`; head `e686b7208751c83cb471675f7a2baade3b6f3710`; Tests run 45205908975: 2.658 passed, 26 deselected, cobertura 85,01 %; CodeQL run 45205909004 verde. Ollama y SillyTavern NOT RUN; la aceptación durable sigue bloqueada hasta completar la integración | #296–#299 |
 
-| #301 | P0 | [!] SUPERSEDED BY #302 | Primera rama draft para la integración durable V3. Su implementación y pruebas se llevan a la PR #302, retargeteada a main para respetar la protección de ramas y ejecutar los checks requeridos. No se considera mergeada ni aceptada por separado | #299–#300 |
-| #302 | P0 | [~] IN PROGRESS (DRAFT; BASE MAIN) | PR principal que incorpora la integración automática V3 en DurableTurnExecutionService, lease/CAS, proyección virtual staged de operaciones de mundo, recuperación sin replanning, plan agregado, evidencia de resultados por acción y prueba service-level hasta commit/narración. Manual-roll/clarification quedan para #303; no autoriza cutover | #299–#301 |
-| #303 | P0 | [ ] PLANNED | Continuaciones V3 en el mismo checkpoint/nodo: tiradas manuales, aclaraciones de referencias/roles, reanudación por respuesta y preservación de dependencias/progreso sin repetir acciones resueltas | #302 |
-| #304 | P0 | [ ] PLANNED | Integración durable end-to-end: commit agregado acción+hechos, lease/CAS/expiración, crash/replay/idempotencia, stale revision, controles negativos sin escrituras y replay histórico v1/v2; completar gate #300 | #302–#303 |
+| #301 | P0 | [!] SUPERSEDED BY #302 (DRAFT STILL OPEN) | Primera rama de cableado durable V3; sus cambios fueron incorporados a la siguiente candidata. No integrar por separado | #299–#300 |
+| #302 | P0 | [!] SUPERSEDED BY #303 (DRAFT STILL OPEN) | Consolida la integración automática: DurableTurnExecutionService, lease/CAS, proyección virtual de operaciones de mundo, recuperación staged, plan agregado y prueba service-level. No integra las continuaciones siguientes ni completa Gate B | #299–#301 |
+| #303 | P0 | [!] SUPERSEDED BY #304 (DRAFT STILL OPEN) | Consolida el runtime durable y añade cobertura de sus invariantes; quedó sustituida por la siguiente candidata de aclaración | #302 |
+| #304 | P0 | [!] SUPERSEDED BY #305 (DRAFT STILL OPEN) | Añade continuación durable de aclaración de objetivo en el mismo nodo/checkpoint. Su trabajo está incluido en la candidata posterior | #302–#303 |
+| #305 | P0 | [~] CURRENT DRAFT CANDIDATE; CI REVALIDATION PENDING | Consolida #301–#304 e incorpora continuación de tirada manual en el mismo nodo, identidad de evento/ejecución y replay idempotente. V3 sigue default-off. No completa Gate B ni autoriza cutover: proyección de operaciones de personaje, lease expiry/replacement, crash/rollback/negativos, replay histórico y gates live siguen pendientes | #299–#304 |
 ### Track C — Robustez y calidad después del cutover inicial
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #305 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#304 |
-| #306 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#304 |
-| #307 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #306 |
-| #308 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#304 |
-| #309 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#308 |
+| #306 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#305 |
+| #307 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#306 |
+| #308 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #307 |
+| #309 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#308 |
+| #310 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#309 |
 
 ## 6. Gates transversales no negociables
 
@@ -373,3 +374,12 @@ La cobertura de #302 es una primera prueba de integración del límite de servic
 
 
 Nota de estado: la PR #302 se retargeteó a main el 2026-11-23 y ahora contiene el diff completo de implementación, junto con el test de integración de servicio. Hasta que CI valide el head de #302, ambas PRs permanecen drafts y la autoridad de producción sigue siendo V2.
+
+
+### Reconciliación de PRs #301–#305 — 2026-11-24
+
+Las PRs #301–#305 son borradores sucesivos del mismo hito P0, no cinco entregas independientes: #301 inicia el cableado durable; #302 lo consolida y añade una primera prueba de servicio; #303 consolida cobertura del runtime; #304 añade aclaración de objetivo en el mismo nodo; #305 consolida el trabajo y añade continuación de tiradas manuales en el mismo nodo. Las PRs #301, #302 y #304 son ancestros directos de #305; #303 diverge por un commit, pero los cambios funcionales de runtime y tests están incorporados en la candidata. No se deben fusionar las drafts anteriores por separado.
+
+El head inicial de #305 falló tres tests y obtuvo 84,69 % de cobertura. Se corrigieron: la prueba de servicio manual utiliza la referencia explícita del jugador; reanudar un nodo ya `IN_PROGRESS` conserva el contador del mismo intento y su clave de ejecución; y la admisión de una aclaración exige evidencia real de objetivo sin resolver/ambiguo, no solo un checkpoint `AWAITING_INPUT`. El CI debe validar el head final; el umbral de cobertura no se ha reducido.
+
+La decisión de rollout continúa siendo `HOLD V2`. La candidata sigue default-off y no completa Gate B: proyección de operaciones de personaje, lease expiry/replacement, crash/rollback, controles negativos, replay histórico V1/V2 y las aceptaciones Ollama/SillyTavern siguen pendientes.
