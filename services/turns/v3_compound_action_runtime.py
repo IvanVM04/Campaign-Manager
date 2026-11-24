@@ -307,9 +307,31 @@ class V3CompoundActionRuntime:
         if any(node.clarification_slots != ("target",) for node in awaiting_nodes):
             return False
         if status == "needs_clarification":
-            return (
-                preview.selection.candidate is not None
-                and preview.selection.clarification_slots == ("target",)
+            candidate = preview.selection.candidate
+            if (
+                candidate is None
+                or preview.selection.clarification_slots != ("target",)
+                or candidate.eligibility.value != "requires_clarification"
+                or candidate.reason.value not in {
+                    "unresolved_reference",
+                    "ambiguous_reference",
+                }
+            ):
+                return False
+            # A persisted/fabricated AWAITING_INPUT node is not enough to
+            # authorize a continuation. The current interpretation must still
+            # contain the exact unresolved or ambiguous target that caused the
+            # backend to request clarification.
+            resolutions = preview.reference_resolutions
+            if not isinstance(resolutions, dict):
+                return False
+            resolution = resolutions.get(candidate.source_event_id)
+            return bool(
+                resolution is not None
+                and (
+                    resolution.unresolved_targets
+                    or resolution.ambiguous_targets
+                )
             )
         if status == "exhausted":
             return any(
