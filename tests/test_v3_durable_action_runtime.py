@@ -329,6 +329,25 @@ def test_supports_graph_only_accepts_safe_start_or_real_resumable_progress(monke
         manual_mode=False,
     )
 
+    # The same checkpoint state is supported only when the original preview
+    # still proves that its target mention was unresolved.
+    resolutions = dict(preview.reference_resolutions or {})
+    original_resolution = resolutions[event_id]
+    unresolved_target = preview.checkpoint.nodes[0].candidate.target_mentions[0]
+    resolutions[event_id] = replace(
+        original_resolution,
+        resolved_targets=(),
+        unresolved_targets=(unresolved_target,),
+    )
+    genuinely_unresolved = replace(
+        awaiting,
+        reference_resolutions=resolutions,
+    )
+    assert V3CompoundActionRuntime.supports_graph(
+        genuinely_unresolved,
+        manual_mode=False,
+    )
+
     started, _execution_key, _resumed = mark_action_started(
         preview.checkpoint,
         event_id,
