@@ -1,10 +1,11 @@
 # V3 acceptance, rollout readiness and SillyTavern checklist — 2026-11-23
 
-**Roadmap:** PR #300 release gate; PR #301 begins the P0 durable integration in draft.  
+**Status reconciled:** 2026-11-24. PRs #301–#304 are superseded drafts; #305 is the current consolidated draft candidate.  
 **Current decision:** `HOLD V2`.  
 **Production authority:** v2.  
-**Ollama acceptance:** NOT RUN by this PR.  
-**Manual SillyTavern acceptance:** NOT RUN by this PR.
+**Latest candidate:** #305; full CI revalidation of its corrected head is pending.  
+**Ollama acceptance:** NOT RUN.  
+**Manual SillyTavern acceptance:** NOT RUN.
 
 This document is the operational acceptance plan for the V3 migration. It deliberately separates semantic model quality, durable runtime integration and real client behavior. Passing one gate never substitutes for another.
 
@@ -82,13 +83,13 @@ Before attempting V3 compound execution in a real SillyTavern chat, every check 
 
 | Required check | Current status | Evidence required |
 |---|---|---|
-| Compound orchestrator wired to `DurableTurnExecutionService` | PARTIAL — PR #301 draft | Wiring exists; still needs end-to-end durable service/repository evidence on the candidate SHA |
-| Dependent action sees virtual projection of prior staged operations | PARTIAL — PR #301 draft | World-operation projection exists; needs dependency test through the durable service; character-operation projection fails closed |
-| Manual roll resumes the same action checkpoint | BLOCKED | Durable submission/recovery test with stable event and execution identity |
-| Clarification resumes the same action checkpoint | BLOCKED | Durable clarification flow that preserves the stored graph and unrelated nodes |
-| Action operations and independent fact operations share one aggregate proposal and one atomic commit | BLOCKED | Repository/commit integration test with rollback assertion |
-| Every transition remains lease-fenced and CAS-protected | BLOCKED | Expired lease, lease replacement and stale checkpoint tests |
-| Crash recovery is idempotent after mechanics execution | BLOCKED | Crash injection between execution, staging and outcome persistence; same execution key on replay |
+| Compound orchestrator wired to `DurableTurnExecutionService` | PARTIAL — #305 draft | Runtime bridge and durable-service path exist; full Gate B matrix still needs service/repository evidence on the candidate SHA |
+| Dependent action sees virtual projection of prior staged operations | PARTIAL — #305 draft | Detached world-operation projection exists; dependent-operation proof through the service remains incomplete; character-operation projection fails closed |
+| Manual roll resumes the same action checkpoint | PARTIAL — #305 draft | Same-node continuation, stable event/execution key, durable submission and idempotent replay have deterministic tests; broader crash/recovery and SillyTavern evidence remain |
+| Target clarification resumes the same action checkpoint | PARTIAL — #305 draft | Same-node target clarification and visible unique binding have deterministic durable tests; actor/role clarification remains unsupported |
+| Action operations and independent fact operations share one aggregate proposal and one atomic commit | BLOCKED | Repository/commit integration test with rollback assertion across action+fact writes |
+| Every transition remains lease-fenced and CAS-protected | PARTIAL | Checkpoint/progress mutations use lease+CAS; lease expiry/replacement and stale-checkpoint integration tests remain |
+| Crash recovery is idempotent after mechanics execution | PARTIAL | Staged recovery and same-key continuation have deterministic coverage; crash injection across durable mechanics/staging/outcome windows remains |
 | Stale campaign revision rejects without writes | BLOCKED | Revision conflict integration test asserting no partial operations |
 | Critical negative controls produce zero unauthorized writes | BLOCKED | Before/after state comparison for quote, report, rumor, hypothesis, negation, failed attempt and ambiguous target |
 | Historical V1/V2 durable records remain replayable | BLOCKED | Compatibility tests through the actual durable service and codecs |
@@ -111,7 +112,7 @@ Manual acceptance must be performed against the exact candidate commit with the 
 
 ### Manual result status for this PR
 
-NOT RUN. The compound-execution items are BLOCKED by the runtime integration gaps in section 1. Do not mark them PASS by testing only the preview shadow or the isolated orchestrator tests.
+NOT RUN. The deterministic native-service tests are not manual SillyTavern acceptance. Do not mark this gate PASS from preview, unit, orchestrator or native-service tests alone.
 
 ## 5. Release decision and evidence bundle
 
@@ -137,7 +138,7 @@ python scripts/ci/v3_rollout_readiness.py `
 
 Exit code 2 means one or more required gates is missing or non-passing. The command never changes configuration, feature flags, production routing or authority. Even when all gates pass, its strongest decision is `eligible_for_controlled_rollout_review`; a separate reviewed PR and explicit rollout decision are required before any change in authority.
 
-**PR #300 / current PR #301 decision:** `HOLD V2`. Semantic Ollama acceptance and manual SillyTavern acceptance have not been run. PR #301 adds a separate execution flag, but it is false by default and requires action-shadow. Keep all V3 flags disabled for the production route until the same-node continuations, full deterministic durable integration and both live gates are accepted.
+**PR #300 / current PR #305 decision:** `HOLD V2`. Semantic Ollama acceptance and manual SillyTavern acceptance have not been run. PR #305 adds same-node target clarification and manual-roll continuations behind the separate execution flag, but it remains false by default and requires action-shadow. Keep all V3 flags disabled for production until the remaining deterministic Gate B evidence and both live gates are accepted.
 
 ## 6. Privacy and evidence handling
 
