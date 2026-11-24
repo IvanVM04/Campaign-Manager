@@ -463,10 +463,10 @@ def test_native_v3_manual_roll_pauses_and_resumes_same_staged_action(
     world = service.world_service.load()
     assert target.id in world.entities
 
-    source = "Mira intenta abrir la puerta."
+    source = "Yo intento abrir la puerta."
     preview_service, interpreter_provider, _builder = _preview_service(
         world,
-        _v3_response(source, actor="Mira"),
+        _v3_response(source),
     )
     service.execution_service.v3_action_preview_service = preview_service
     service.execution_service.v3_action_execution_enabled = True
