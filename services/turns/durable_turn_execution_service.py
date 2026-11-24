@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from database import transaction
 from models.campaign_scope import CampaignScope
+from models.player_action_checkpoint import PlayerActionCheckpoint
 from models.turn_resolution_record import TurnResolutionRecord
 from models.turn_resolution_result import TurnResolutionResult
 from observability.log_context import bind_resolution_context
@@ -43,6 +44,11 @@ from services.turns.v3_action_preview_service import (
     V3ActionPreviewError,
     V3ActionPreviewService,
 )
+from services.turns.v3_compound_action_runtime import (
+    CompoundActionRunStatus,
+    V3CompoundActionRuntime,
+    V3CompoundRuntimeError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +79,7 @@ class DurableTurnExecutionService:
         turn_execution_lock=None,
         snapshot_loader=None,
         v3_action_preview_service: V3ActionPreviewService | None = None,
+        v3_action_execution_enabled: bool = False,
         error_type=DurableNativeTurnError,
     ) -> None:
         self.scope = scope
@@ -85,7 +92,14 @@ class DurableTurnExecutionService:
         self.context_loader = context_loader
         self.turn_execution_lock = turn_execution_lock
         self.snapshot_loader = snapshot_loader
+        if not isinstance(v3_action_execution_enabled, bool):
+            raise TypeError("v3_action_execution_enabled must be a boolean")
+        if v3_action_execution_enabled and v3_action_preview_service is None:
+            raise ValueError(
+                "v3 action execution requires the v3 action preview service"
+            )
         self.v3_action_preview_service = v3_action_preview_service
+        self.v3_action_execution_enabled = v3_action_execution_enabled
         self.error_type = error_type
 
 
@@ -102,6 +116,19 @@ class DurableTurnExecutionService:
                 return 120.0
             return float(timeout)
 
+        if getattr(self, "v3_action_execution_enabled", False):
+            # One holistic graph call followed by up to twelve per-node
+            # mechanics/proposal pairs. Staged CAS updates renew no lease, so
+            # budget the full bounded graph rather than only its first action.
+            configured_budget = (
+                provider_timeout("intent_interpreter")
+                + 12 * (
+                    provider_timeout("mechanics_adjudicator")
+                    + provider_timeout("extractor")
+                )
+                + 300
+            )
+            return max(900, int(configured_budget))
         configured_budget = (
             2 * provider_timeout("intent_interpreter")
             + provider_timeout("mechanics_adjudicator")
@@ -166,6 +193,36 @@ class DurableTurnExecutionService:
                 },
             )
         return None
+
+    def _restore_v3_action_preview(
+        self,
+        record: TurnResolutionRecord,
+        context,
+        player_input: str,
+        recent,
+    ):
+        """Restore an existing execution checkpoint without another intent call."""
+        if record.action_checkpoint_json is None:
+            return None
+        preview_service = self.v3_action_preview_service
+        if preview_service is None:
+            raise DurableNativeTurnError(
+                "a persisted v3 action checkpoint cannot be resumed without its preview service"
+            )
+        try:
+            checkpoint = PlayerActionCheckpoint.from_json(
+                record.action_checkpoint_json
+            )
+            return preview_service.restore(
+                checkpoint,
+                context,
+                player_input,
+                recent_turns=recent,
+            )
+        except Exception as exc:
+            raise DurableNativeTurnError(
+                "persisted v3 action checkpoint could not be restored"
+            ) from exc
 
     def _save_v3_action_checkpoint(
         self,
@@ -283,6 +340,99 @@ class DurableTurnExecutionService:
     def _clarification_result(record, pending):
         return DurableTurnResultMapper.clarification_result(record, pending)
 
+
+    def resume_v3_action_clarification(
+        self,
+        record: TurnResolutionRecord,
+        pending_state: dict,
+        answer: str,
+        *,
+        defer_narration: bool,
+        answer_external_turn_id: str | None = None,
+    ):
+        """Resume one persisted V3 target clarification on its original action node."""
+        pending = (
+            pending_state.get("v3_action_clarification")
+            if isinstance(pending_state, dict)
+            else None
+        )
+        if (
+            not isinstance(record, TurnResolutionRecord)
+            or not isinstance(pending, dict)
+            or not isinstance(record.idempotency_key, str)
+            or not record.idempotency_key
+            or not isinstance(answer, str)
+            or not answer.strip()
+        ):
+            raise DurableNativeTurnError("v3 clarification state is invalid")
+        if record.lifecycle_state != "awaiting_input":
+            raise DurableNativeTurnError("v3 clarification is no longer pending")
+        if pending.get("context_revision") != record.context_revision:
+            raise DurableNativeTurnError("v3 clarification context identity is invalid")
+        return self._play_turn_locked(
+            record.player_input,
+            idempotency_key=record.idempotency_key,
+            adapter_namespace=record.adapter_namespace,
+            defer_narration=defer_narration,
+            dice_mode=pending_state.get("dice_mode", "automatic"),
+            conversation_id=record.conversation_id,
+            v3_clarification_response={
+                "event_id": pending.get("event_id"),
+                "challenge_id": pending.get("challenge_id"),
+                "question": pending.get("question"),
+                "context_revision": pending.get("context_revision"),
+                "clarification_slots": pending.get("clarification_slots"),
+                "answer": answer.strip(),
+                "history": pending_state.get("clarification_history", []),
+                "answer_external_turn_id": answer_external_turn_id,
+            },
+        )
+
+    def resume_v3_action_manual_roll(
+        self,
+        record: TurnResolutionRecord,
+        pending_state: dict,
+        rolls: tuple[int, ...],
+        *,
+        defer_narration: bool,
+        answer_external_turn_id: str | None = None,
+    ):
+        """Resume one V3 manual roll on the same staged action and execution key."""
+        pending = (
+            pending_state.get("v3_action_manual_roll")
+            if isinstance(pending_state, dict)
+            else None
+        )
+        if (
+            not isinstance(record, TurnResolutionRecord)
+            or not isinstance(pending, dict)
+            or not isinstance(record.idempotency_key, str)
+            or not record.idempotency_key
+            or record.lifecycle_state != "awaiting_input"
+            or not isinstance(rolls, tuple)
+            or not rolls
+            or len(rolls) != pending.get("count")
+            or pending.get("context_revision") != record.context_revision
+        ):
+            raise DurableNativeTurnError("v3 manual roll state is invalid")
+        return self._play_turn_locked(
+            record.player_input,
+            idempotency_key=record.idempotency_key,
+            adapter_namespace=record.adapter_namespace,
+            defer_narration=defer_narration,
+            dice_mode="manual",
+            conversation_id=record.conversation_id,
+            v3_manual_roll_response={
+                "event_id": pending.get("event_id"),
+                "execution_key": pending.get("execution_key"),
+                "challenge_id": pending.get("challenge_id"),
+                "context_revision": pending.get("context_revision"),
+                "decision": pending.get("decision"),
+                "history": pending_state.get("manual_roll_history", []),
+                "rolls": list(rolls),
+                "answer_external_turn_id": answer_external_turn_id,
+            },
+        )
 
     @staticmethod
     def _fingerprint(
@@ -420,6 +570,8 @@ class DurableTurnExecutionService:
         defer_narration: bool = False,
         dice_mode: str = "automatic",
         conversation_id: str | None = None,
+        v3_clarification_response: dict | None = None,
+        v3_manual_roll_response: dict | None = None,
     ):
         normalized = player_input.strip() if isinstance(player_input, str) else ""
         if not normalized:
@@ -489,23 +641,72 @@ class DurableTurnExecutionService:
                     return DurableTurnPreparationMapper.from_record(record) if defer_narration else self.narration_service.result_from_completed_record(record, turn, already_processed=True)
                 if record.lifecycle_state == "awaiting_input":
                     pending = json.loads(record.adjudication_json or "{}")
-                    if pending.get("manual_roll"):
-                        return self._manual_roll_result(record, pending["manual_roll"])
-                    clarification = pending.get("clarification")
-                    if isinstance(clarification, dict):
-                        return self._clarification_result(record, clarification)
-                    question = pending.get(
-                        "clarification_question",
-                        "Necesito una aclaración antes de resolver esa acción.",
-                    )
-                    return TurnResolutionResult(player_input=record.player_input, narrative=question)
+                    if (
+                        v3_clarification_response is None
+                        and v3_manual_roll_response is None
+                    ):
+                        if pending.get("manual_roll"):
+                            return self._manual_roll_result(record, pending["manual_roll"])
+                        clarification = pending.get("clarification")
+                        if isinstance(clarification, dict):
+                            return self._clarification_result(record, clarification)
+                        v3_pending = pending.get("v3_action_clarification")
+                        if isinstance(v3_pending, dict):
+                            return self._clarification_result(record, v3_pending)
+                        question = pending.get(
+                            "clarification_question",
+                            "Necesito una aclaración antes de resolver esa acción.",
+                        )
+                        return TurnResolutionResult(
+                            player_input=record.player_input,
+                            narrative=question,
+                        )
+                    if v3_manual_roll_response is not None:
+                        v3_pending = pending.get("v3_action_manual_roll")
+                        if (
+                            not isinstance(v3_pending, dict)
+                            or v3_pending.get("challenge_id")
+                            != v3_manual_roll_response.get("challenge_id")
+                            or v3_pending.get("event_id")
+                            != v3_manual_roll_response.get("event_id")
+                            or v3_pending.get("execution_key")
+                            != v3_manual_roll_response.get("execution_key")
+                        ):
+                            raise DurableNativeTurnError(
+                                "v3 action manual-roll challenge is stale"
+                            )
+                    else:
+                        if v3_clarification_response is None:
+                            raise DurableNativeTurnError(
+                                "v3 action clarification response is missing"
+                            )
+                        v3_pending = pending.get("v3_action_clarification")
+                        if not isinstance(v3_pending, dict):
+                            raise DurableNativeTurnError(
+                                "resolution is not awaiting a v3 action clarification"
+                            )
+                        if (
+                            v3_pending.get("challenge_id")
+                            != v3_clarification_response.get("challenge_id")
+                            or v3_pending.get("event_id")
+                            != v3_clarification_response.get("event_id")
+                        ):
+                            raise DurableNativeTurnError(
+                                "v3 action clarification challenge is stale"
+                            )
                 if record.lifecycle_state in {
                     "committed",
                     "narration_pending",
                     "accepted",
                     "planning",
                     "prepared",
-                }:
+                } or (
+                    record.lifecycle_state == "awaiting_input"
+                    and (
+                        v3_clarification_response is not None
+                        or v3_manual_roll_response is not None
+                    )
+                ):
                     pass
                 else:
                     raise DurableNativeTurnError(
@@ -558,6 +759,23 @@ class DurableTurnExecutionService:
                 ) from exc
 
         try:
+            v3_action_outcomes: tuple[dict[str, object], ...] = ()
+            if v3_clarification_response is not None and (
+                record.context_revision != revision
+                or v3_clarification_response.get("context_revision") != revision
+            ):
+                raise DurableNativeTurnError(
+                    "campaign state changed while waiting for v3 clarification",
+                    code=DurableTurnErrorCode.STALE_CONTEXT,
+                )
+            if v3_manual_roll_response is not None and (
+                record.context_revision != revision
+                or v3_manual_roll_response.get("context_revision") != revision
+            ):
+                raise DurableNativeTurnError(
+                    "campaign state changed while waiting for v3 manual roll",
+                    code=DurableTurnErrorCode.STALE_CONTEXT,
+                )
             if resume_prepared:
                 if record.context_revision != revision:
                     with transaction("IMMEDIATE") as conn:
@@ -574,24 +792,284 @@ class DurableTurnExecutionService:
                     )
                 plan = self._plan_from_record(record)
             else:
-                with bind_resolution_context(
-                    str(self._required_resolution_id(record))
-                ):
-                    if self._world_facts_enabled():
-                        plan = self.resolver.prepare_turn(
-                            context,
-                            normalized,
-                            manual_mode=(dice_mode == "manual"),
-                            recent_turns=recent,
-                            mechanics_failure_is_non_fatal=True,
+                v3_execution_used = False
+                preview = None
+                if self.v3_action_execution_enabled:
+                    preview = (
+                        self._restore_v3_action_preview(
+                            record, context, normalized, recent
                         )
-                    else:
-                        plan = self.resolver.prepare_turn(
-                            context,
-                            normalized,
-                            manual_mode=(dice_mode == "manual"),
-                            recent_turns=recent,
+                        if record.action_checkpoint_json is not None
+                        else self._build_v3_action_preview(
+                            record, context, normalized, recent, revision, lease_token
                         )
+                    )
+                    can_start_v3 = (
+                        preview is not None
+                        and V3CompoundActionRuntime.supports_graph(
+                            preview,
+                            manual_mode=(dice_mode == "manual"),
+                        )
+                    )
+                    if (
+                        record.action_checkpoint_json is not None
+                        and preview is not None
+                        and not can_start_v3
+                    ):
+                        raise DurableNativeTurnError(
+                            "persisted v3 action graph requires an unsupported continuation"
+                        )
+                    if can_start_v3 and preview is not None:
+                        planning_record = self._require_resolution_record(record)
+                        if not isinstance(lease_token, str) or not lease_token:
+                            raise DurableNativeTurnError(
+                                "v3 action execution requires an active planning lease"
+                            )
+                        preview_service = self.v3_action_preview_service
+                        if preview_service is None:
+                            raise DurableNativeTurnError(
+                                "v3 action execution requires its preview service"
+                            )
+
+                        def persist_v3_checkpoint(checkpoint, progress_updates=None):
+                            nonlocal planning_record
+                            with transaction("IMMEDIATE") as conn:
+                                planning_record = self.resolution_repository.save_action_checkpoint(
+                                    self._required_resolution_id(planning_record),
+                                    checkpoint.to_json(),
+                                    scope=self.scope,
+                                    expected_state="planning",
+                                    expected_lease_token=lease_token,
+                                    expected_context_revision=planning_record.context_revision,
+                                    expected_checkpoint_json=planning_record.action_checkpoint_json,
+                                    now=datetime.now(UTC).isoformat(),
+                                    conn=conn,
+                                    progress_updates=progress_updates,
+                                )
+
+                        # Store the full interpretation before the first action
+                        # starts. Recovery restores it without another intent call.
+                        if planning_record.action_checkpoint_json is None:
+                            persist_v3_checkpoint(preview.checkpoint)
+                        runtime = V3CompoundActionRuntime(
+                            self.resolver,
+                            preview_service,
+                        )
+                        try:
+                            compound = runtime.run(
+                                planning_record,
+                                preview,
+                                context=context,
+                                player_input=normalized,
+                                recent_turns=recent,
+                                manual_mode=(dice_mode == "manual"),
+                                persist_checkpoint=persist_v3_checkpoint,
+                                manual_roll_event_id=(
+                                    v3_manual_roll_response.get("event_id")
+                                    if v3_manual_roll_response is not None
+                                    else None
+                                ),
+                                manual_rolls=(
+                                    tuple(v3_manual_roll_response["rolls"])
+                                    if v3_manual_roll_response is not None
+                                    else None
+                                ),
+                                clarification_event_id=(
+                                    v3_clarification_response.get("event_id")
+                                    if v3_clarification_response is not None
+                                    else None
+                                ),
+                                clarification_answer=(
+                                    v3_clarification_response.get("answer")
+                                    if v3_clarification_response is not None
+                                    else None
+                                ),
+                            )
+                        except V3CompoundRuntimeError as exc:
+                            logger.error(
+                                "turn.v3_compound_execution.failed",
+                                extra={"execution_code": exc.code},
+                            )
+                            raise DurableNativeTurnError(
+                                "v3 compound action execution failed"
+                            ) from exc
+                        record = planning_record
+                        preview = replace(
+                            preview,
+                            checkpoint=compound.checkpoint,
+                        )
+                        if compound.status is CompoundActionRunStatus.NEEDS_MANUAL_ROLL:
+                            if (
+                                compound.event_id is None
+                                or compound.manual_roll_execution_key is None
+                                or compound.manual_roll_decision is None
+                            ):
+                                raise DurableNativeTurnError(
+                                    "v3 manual-roll result is missing its action identity"
+                                )
+                            pending = self.build_manual_roll_request(
+                                record,
+                                compound.manual_roll_decision,
+                                context,
+                                revision,
+                            )
+                            pending.update({
+                                "event_id": compound.event_id,
+                                "execution_key": compound.manual_roll_execution_key,
+                                "context_revision": revision,
+                            })
+                            history = (
+                                list(v3_manual_roll_response.get("history", []))
+                                if v3_manual_roll_response is not None
+                                else []
+                            )
+                            adjudication = {
+                                "manual_roll": pending,
+                                "v3_action_manual_roll": pending,
+                                "dice_mode": "manual",
+                                "manual_roll_history": history,
+                            }
+                            if v3_manual_roll_response is not None:
+                                history.append({
+                                    "event_id": v3_manual_roll_response["event_id"],
+                                    "challenge_id": v3_manual_roll_response["challenge_id"],
+                                    "execution_key": v3_manual_roll_response["execution_key"],
+                                    "rolls": v3_manual_roll_response["rolls"],
+                                    "answer_external_turn_id": (
+                                        v3_manual_roll_response.get(
+                                            "answer_external_turn_id"
+                                        )
+                                    ),
+                                })
+                                adjudication["manual_roll_history"] = history
+                            with transaction("IMMEDIATE") as conn:
+                                self.resolution_repository.transition(
+                                    self._required_resolution_id(record),
+                                    "awaiting_input",
+                                    scope=self.scope,
+                                    expected_state="planning",
+                                    expected_lease_token=lease_token,
+                                    updates={
+                                        "context_revision": revision,
+                                        "adjudication_json": json.dumps(
+                                            adjudication,
+                                            ensure_ascii=False,
+                                            separators=(",", ":"),
+                                            sort_keys=True,
+                                        ),
+                                        "lease_token": None,
+                                        "lease_expires_at": None,
+                                    },
+                                    conn=conn,
+                                )
+                            saved = self._require_resolution_record(
+                                self.resolution_repository.get(
+                                    self._required_resolution_id(record),
+                                    scope=self.scope,
+                                )
+                            )
+                            return self._manual_roll_result(saved, pending)
+
+                        if compound.status is CompoundActionRunStatus.NEEDS_CLARIFICATION:
+                            if compound.event_id is None or not compound.clarification_slots:
+                                raise DurableNativeTurnError(
+                                    "v3 clarification result is missing its event identity"
+                                )
+                            question = preview_service.action_clarification_question(
+                                preview,
+                                compound.event_id,
+                                compound.clarification_slots,
+                            )
+                            next_pending = {
+                                "challenge_id": secrets.token_urlsafe(24),
+                                "context_revision": revision,
+                                "event_id": compound.event_id,
+                                "clarification_slots": list(
+                                    compound.clarification_slots
+                                ),
+                                "question": question,
+                            }
+                            history = (
+                                list(v3_clarification_response.get("history", []))
+                                if v3_clarification_response is not None
+                                else []
+                            )
+                            adjudication = {
+                                "v3_action_clarification": next_pending,
+                                "dice_mode": dice_mode,
+                            }
+                            if v3_clarification_response is not None:
+                                history.append({
+                                    "question": v3_clarification_response["question"],
+                                    "answer": v3_clarification_response["answer"],
+                                })
+                                adjudication.update({
+                                    "clarification_history": history,
+                                    "last_challenge_id": (
+                                        v3_clarification_response["challenge_id"]
+                                    ),
+                                    "last_answer": v3_clarification_response["answer"],
+                                    "last_answer_external_turn_id": (
+                                        v3_clarification_response.get(
+                                            "answer_external_turn_id"
+                                        )
+                                    ),
+                                })
+                            with transaction("IMMEDIATE") as conn:
+                                self.resolution_repository.transition(
+                                    self._required_resolution_id(record),
+                                    "awaiting_input",
+                                    scope=self.scope,
+                                    expected_state="planning",
+                                    expected_lease_token=lease_token,
+                                    updates={
+                                        "context_revision": revision,
+                                        "adjudication_json": json.dumps(
+                                            adjudication,
+                                            ensure_ascii=False,
+                                            separators=(",", ":"),
+                                            sort_keys=True,
+                                        ),
+                                        "lease_token": None,
+                                        "lease_expires_at": None,
+                                    },
+                                    conn=conn,
+                                )
+                            saved = self._require_resolution_record(
+                                self.resolution_repository.get(
+                                    self._required_resolution_id(record),
+                                    scope=self.scope,
+                                )
+                            )
+                            return self._clarification_result(saved, next_pending)
+                        aggregate_plan = compound.plan
+                        if aggregate_plan is None:
+                            raise DurableNativeTurnError(
+                                "v3 compound execution completed without an aggregate plan"
+                            )
+                        plan: TurnResolutionPlan = aggregate_plan
+                        v3_action_outcomes = compound.action_outcomes
+                        v3_execution_used = True
+
+                if not v3_execution_used:
+                    with bind_resolution_context(
+                        str(self._required_resolution_id(record))
+                    ):
+                        if self._world_facts_enabled():
+                            plan = self.resolver.prepare_turn(
+                                context,
+                                normalized,
+                                manual_mode=(dice_mode == "manual"),
+                                recent_turns=recent,
+                                mechanics_failure_is_non_fatal=True,
+                            )
+                        else:
+                            plan = self.resolver.prepare_turn(
+                                context,
+                                normalized,
+                                manual_mode=(dice_mode == "manual"),
+                                recent_turns=recent,
+                            )
                 if plan.awaiting_manual_roll:
                     pending = self.build_manual_roll_request(record, plan.mechanics_decision, context, revision)
                     with transaction("IMMEDIATE") as conn:
@@ -646,9 +1124,10 @@ class DurableTurnExecutionService:
                     )
                     return self._clarification_result(saved, pending)
                 authoritative_plan = plan
-                preview = self._build_v3_action_preview(
-                    record, context, normalized, recent, revision, lease_token
-                )
+                if preview is None:
+                    preview = self._build_v3_action_preview(
+                        record, context, normalized, recent, revision, lease_token
+                    )
                 proposal_json = self._serialize_operations(authoritative_plan)
                 if preview is not None:
                     try:
@@ -691,11 +1170,99 @@ class DurableTurnExecutionService:
                             "intent_json": TurnResolutionCodec.intent_to_json(plan),
                             "adjudication_json": json.dumps(
                                 {
-                                    "decision": plan.mechanics_decision.decision.value,
+                                    **(
+                                        {
+                                            "decision": (
+                                                plan.mechanics_decision.decision.value
+                                            )
+                                        }
+                                        if plan.mechanics_decision
+                                        else {}
+                                    ),
                                     "dice_mode": dice_mode,
-                                }
-                                if plan.mechanics_decision else {"dice_mode": dice_mode},
+                                    **(
+                                        {"v3_action_outcomes": list(v3_action_outcomes)}
+                                        if v3_action_outcomes
+                                        else {}
+                                    ),
+                                    **(
+                                        {
+                                            "manual_roll": {
+                                                "event_id": v3_manual_roll_response["event_id"],
+                                                "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                "execution_key": v3_manual_roll_response["execution_key"],
+                                                "count": len(v3_manual_roll_response["rolls"]),
+                                                "submitted_rolls": v3_manual_roll_response["rolls"],
+                                                "submitted_external_turn_id": (
+                                                    v3_manual_roll_response.get(
+                                                        "answer_external_turn_id"
+                                                    )
+                                                ),
+                                                "context_revision": (
+                                                    v3_manual_roll_response["context_revision"]
+                                                ),
+                                                "decision": v3_manual_roll_response["decision"],
+                                            },
+                                            "v3_action_manual_roll": {
+                                                "event_id": v3_manual_roll_response["event_id"],
+                                                "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                "execution_key": v3_manual_roll_response["execution_key"],
+                                                "count": len(v3_manual_roll_response["rolls"]),
+                                                "submitted_rolls": v3_manual_roll_response["rolls"],
+                                                "submitted_external_turn_id": (
+                                                    v3_manual_roll_response.get(
+                                                        "answer_external_turn_id"
+                                                    )
+                                                ),
+                                                "context_revision": (
+                                                    v3_manual_roll_response["context_revision"]
+                                                ),
+                                                "decision": v3_manual_roll_response["decision"],
+                                            },
+                                            "manual_roll_history": [
+                                                *v3_manual_roll_response.get("history", []),
+                                                {
+                                                    "event_id": v3_manual_roll_response["event_id"],
+                                                    "challenge_id": v3_manual_roll_response["challenge_id"],
+                                                    "execution_key": v3_manual_roll_response["execution_key"],
+                                                    "rolls": v3_manual_roll_response["rolls"],
+                                                    "answer_external_turn_id": (
+                                                        v3_manual_roll_response.get(
+                                                            "answer_external_turn_id"
+                                                        )
+                                                    ),
+                                                },
+                                            ],
+                                        }
+                                        if v3_manual_roll_response is not None
+                                        else {}
+                                    ),
+                                    **(
+                                        {
+                                            "clarification_history": [
+                                                *v3_clarification_response.get(
+                                                    "history", []
+                                                ),
+                                                {
+                                                    "question": v3_clarification_response["question"],
+                                                    "answer": v3_clarification_response["answer"],
+                                                },
+                                            ],
+                                            "last_challenge_id": v3_clarification_response["challenge_id"],
+                                            "last_answer": v3_clarification_response["answer"],
+                                            "last_answer_external_turn_id": (
+                                                v3_clarification_response.get(
+                                                    "answer_external_turn_id"
+                                                )
+                                            ),
+                                        }
+                                        if v3_clarification_response is not None
+                                        else {}
+                                    ),
+                                },
+                                ensure_ascii=False,
                                 separators=(",", ":"),
+                                sort_keys=True,
                             ),
                             "mechanics_json": mechanics_json,
                             "lease_token": None,
@@ -706,7 +1273,7 @@ class DurableTurnExecutionService:
 
                 try:
                     with transaction("IMMEDIATE") as conn:
-                        if preview is not None:
+                        if preview is not None and not v3_execution_used:
                             if not isinstance(lease_token, str) or not lease_token:
                                 raise _OptionalV3CheckpointSaveFailure from None
                             try:
@@ -811,7 +1378,14 @@ class DurableTurnExecutionService:
                 ):
                     self.resolution_repository.transition(
                         self._required_resolution_id(record),
-                        "accepted",
+                        (
+                            "awaiting_input"
+                            if (
+                                v3_clarification_response is not None
+                                or v3_manual_roll_response is not None
+                            )
+                            else "accepted"
+                        ),
                         scope=self.scope,
                         expected_state="planning",
                         expected_lease_token=lease_token,
@@ -819,9 +1393,13 @@ class DurableTurnExecutionService:
                             "lease_token": None,
                             "lease_expires_at": None,
                             "last_error_code": (
-                                "invalid_llm_proposal"
-                                if invalid_llm_proposal
-                                else "planning_failed"
+                                "v3_clarification_retryable"
+                                if v3_clarification_response is not None
+                                else (
+                                    "invalid_llm_proposal"
+                                    if invalid_llm_proposal
+                                    else "planning_failed"
+                                )
                             ),
                         },
                         conn=conn,
@@ -842,12 +1420,21 @@ class DurableTurnExecutionService:
                     current = self.resolution_repository.get(
                         self._required_resolution_id(record), scope=self.scope, conn=conn
                     )
-                    if current is not None and current.lifecycle_state == "prepared":
+                    if current is not None and (
+                        current.lifecycle_state == "prepared"
+                        or (
+                            (
+                                v3_clarification_response is not None
+                                or v3_manual_roll_response is not None
+                            )
+                            and current.lifecycle_state == "awaiting_input"
+                        )
+                    ):
                         self.resolution_repository.transition(
                             self._required_resolution_id(record),
                             "rejected",
                             scope=self.scope,
-                            expected_state="prepared",
+                            expected_state=current.lifecycle_state,
                             updates={"last_error_code": rejection_code},
                             conn=conn,
                         )

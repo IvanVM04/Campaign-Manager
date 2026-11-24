@@ -2,8 +2,8 @@
 
 **Prioridad:** máxima prioridad técnica del proyecto hasta completar la aceptación v3 y la primera integración real con SillyTavern.  
 **Fuente de verdad:** este documento.  
-**Estado:** activo; PRs #293–#299 fusionadas; PR #300 en implementación con CI determinista verificado y gates live pendientes.  
-**Baseline inspeccionada:** main, commit 556feeb17ff227448bc159aa5c823f7441bb5c03 (PR #299 integrada).
+**Estado:** activo; PRs #293–#300 fusionadas; PRs #301–#304 son drafts supersedidos y #305 es la candidata consolidada para runtime durable + continuaciones; gates live y parte de Gate B siguen pendientes.  
+**Baseline inspeccionada:** main, commit 9b62d8f2e3a991d06a29b31930357588a00a6571 (PR #300 integrada).
 
 > Este roadmap reemplaza como prioridad activa de NLU cualquier secuencia anterior que terminase en PR #288/#289. Las PR #285–#288 entregaron building blocks importantes; no activaron v3 en producción. Las auditorías y reportes fechados conservan su valor histórico y no deben reescribirse para aparentar que el trabajo futuro ya estaba implementado.
 
@@ -158,17 +158,22 @@ Una PR no se considera completada porque su código esté escrito, porque CI pas
 | #297 | P0 | [x] MERGED + CI VERIFIED | Conectar interpretación v3, resolución visible de referencias, selección de una acción y checkpoint CAS bajo feature flag opt-in; v2 sigue siendo autoridad y no hay ejecución de acciones. Merge: 2026-11-22, SHA 5b2e890f607a64b9f4a572cf73175ef1f7f27f1a; CI sobre head 03563cc: 2.535 passed, 26 deselected, coverage 85,03 %, lint/Pyright/CodeQL/JS/PowerShell success | #287, #295–#296 |
 | #298 | P0 | [x] MERGED + CI VERIFIED | Evaluar hechos v3 solo contra entidades visibles, adjuntar recibos exactos al checkpoint y persistir operaciones tipadas junto al prepared proposal en una transacción CAS; segundo opt-in separado; tolerar fallo de adjudicación mecánica sin perder hechos independientes. Merge: 2026-11-22, SHA 657000b6cdfb27e19acfcd6339343c42d1ba0efb | #288, #297 |
 | #299 | P0 | [x] MERGED + CI VERIFIED (CORE ONLY) | Core de orquestación secuencial, adaptador de planificación por evento, codec/progreso staged, recuperación sin proveedor y persistencia checkpoint+progreso con CAS. Merge: 2026-11-23, SHA 556feeb17ff227448bc159aa5c823f7441bb5c03; CI run 2054: 2.635 passed, 26 deselected, coverage 85,01 %, Ruff/Pyright/JS/PowerShell/CodeQL success. No incluye cableado del executor en DurableTurnExecutionService, proyección virtual ni continuación real de tiradas/aclaraciones | #297–#298 |
-| #300 | P0 | [~] IN PROGRESS (CI VERIFIED; LIVE GATES PENDING) | Gate de release que exige aceptación semántica congelada, integración durable y evidencia manual SillyTavern; runner/plantillas/checklist y decisión conservadora HOLD V2. Head CI-verificado: `0257f515259cfb16d1e44a13c8095e75b3f1ae11`; run Tests 45204343191: 2.658 passed, 26 deselected, cobertura 85,01 %; Ruff/Pyright/JS/PowerShell/CI summary y ambos CodeQL verdes. Ollama acceptance y SillyTavern NOT RUN; no hay nuevo flag de ejecución mientras falte la integración durable | #296–#299 |
+| #300 | P0 | [x] MERGED + CI VERIFIED (LIVE GATES PENDING) | Gate de release con evidencia semántica Ollama, integración durable y prueba manual SillyTavern; CLI/plantillas/checklist y decisión HOLD V2. Merge: 2026-11-23, SHA `9b62d8f2e3a991d06a29b31930357588a00a6571`; head `e686b7208751c83cb471675f7a2baade3b6f3710`; Tests run 45205908975: 2.658 passed, 26 deselected, cobertura 85,01 %; CodeQL run 45205909004 verde. Ollama y SillyTavern NOT RUN; la aceptación durable sigue bloqueada hasta completar la integración | #296–#299 |
 
+| #301 | P0 | [!] SUPERSEDED BY #302 (DRAFT STILL OPEN) | Primera rama de cableado durable V3; sus cambios fueron incorporados a la siguiente candidata. No integrar por separado | #299–#300 |
+| #302 | P0 | [!] SUPERSEDED BY #303 (DRAFT STILL OPEN) | Consolida la integración automática: DurableTurnExecutionService, lease/CAS, proyección virtual de operaciones de mundo, recuperación staged, plan agregado y prueba service-level. No integra las continuaciones siguientes ni completa Gate B | #299–#301 |
+| #303 | P0 | [!] SUPERSEDED BY #304 (DRAFT STILL OPEN) | Consolida el runtime durable y añade cobertura de sus invariantes; quedó sustituida por la siguiente candidata de aclaración | #302 |
+| #304 | P0 | [!] SUPERSEDED BY #305 (DRAFT STILL OPEN) | Añade continuación durable de aclaración de objetivo en el mismo nodo/checkpoint. Su trabajo está incluido en la candidata posterior | #302–#303 |
+| #305 | P0 | [~] CURRENT DRAFT CANDIDATE; CI REVALIDATION PENDING | Consolida #301–#304 e incorpora continuación de tirada manual en el mismo nodo, identidad de evento/ejecución y replay idempotente. V3 sigue default-off. No completa Gate B ni autoriza cutover: proyección de operaciones de personaje, lease expiry/replacement, crash/rollback/negativos, replay histórico y gates live siguen pendientes | #299–#304 |
 ### Track C — Robustez y calidad después del cutover inicial
 
 | PR | Prioridad | Estado | Objetivo y entregables | Dependencias |
 |---|---|---|---|---|
-| #301 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#300 |
-| #302 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#300 |
-| #303 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #302 |
-| #304 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#300 |
-| #305 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#304 |
+| #306 | P1 | [ ] PLANNED | Consolidar reglas de normalización: catálogo, precedencia, conflictos, diagnósticos, límites y corpus positivo/negativo | #296–#305 |
+| #307 | P1 | [ ] PLANNED | Mejorar callback/antecedent retrieval, resolución de elipsis y continuidad multi-turn con medición Recall@k/MRR | #293–#306 |
+| #308 | P1 | [ ] PLANNED | Mejorar recuperación de contexto y ranking híbrido solo a partir de fallos medidos de recall/precision | #293, #307 |
+| #309 | P1 | [ ] PLANNED | Evaluar hechos estructurados de NPC con identidad, procedencia, temporalidad, contradicciones y ciclo de vida | #298–#308 |
+| #310 | P2 | [ ] PLANNED | Evaluación multilingüe y robustez de paráfrasis; separar idioma de interfaz, campaña y mensajes de jugador | #294–#309 |
 
 ## 6. Gates transversales no negociables
 
@@ -350,3 +355,31 @@ tercer flag de ejecución que todavía no tendría un runtime integrado detrás.
 La sincronización real de #299 y el alcance pendiente del executor se registran
 aquí con su SHA de merge y CI; no se reescribe el historial previo para hacer
 parecer que esta reconciliación ocurrió antes.
+
+### PR #301 — primera integración durable del executor compuesto (abierta en borrador: 2026-11-23)
+
+La PR #301 abre el primer tramo P0 del runtime. Añade la autorización separada CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED, desactivada por defecto y válida solo junto con CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_SHADOW_ENABLED. Con ambas activas, el servicio durable puede ejecutar grafos automáticos cuyas referencias iniciales estén resueltas.
+
+El flujo conecta el preview, V3ActionPlanningAdapter, V3CompoundActionOrchestrator y DurableTurnExecutionService. El checkpoint inicial, el estado IN_PROGRESS y cada propuesta staged se guardan bajo el lease de planning, la revisión de campaña y el CAS del checkpoint. Cada acción sucesora recibe una proyección aislada que incorpora las operaciones de mundo staged de sus predecesoras; el mundo live no se modifica durante la planificación. Los planes resueltos se agregan en un único TurnResolutionPlan para el prepared commit atómico existente. La narración recibe evidencia backend separada del resultado de cada acción, no solo la última tirada.
+
+La recuperación restaura la propuesta staged del nodo en curso sin volver a invocar los proveedores de acción. Los grafos inicialmente en aclaración y los turnos en modo de tirada manual siguen la ruta v2. Una aclaración inesperada durante el procesamiento V3 falla de forma cerrada y conserva checkpoint/progreso; no se inventa un resultado ni se compromete un plan parcial. La continuación manual-roll/clarification en el mismo nodo se separa en #302, y la matriz completa de integración durable queda para #303.
+
+La PR permanece en borrador. El primer CI identificó errores de lint y estrechamiento de tipos; se corrigieron en commits posteriores, pero el head final aún debe validar lint, tipado y tests completos. Las pruebas live Ollama y SillyTavern siguen NOT RUN y el gate #300 continúa HOLD V2. El nuevo flag no altera la ruta por defecto.
+
+### PR #302 — prueba de integración apilada sobre #301 (abierta en borrador: 2026-11-23)
+
+La PR #302 reemplaza la rama draft #301 como PR principal hacia main, porque las reglas de protección de la rama #301 requieren que todas las modificaciones posteriores lleguen mediante PR. La rama #302 incorpora la implementación de #301, corrige el orden de imports detectado por Ruff y añade una prueba determinista que atraviesa el servicio nativo durable, el executor durable, el prepared commit, la serialización del resultado por acción y la evidencia que recibe el narrador. La prueba usa un grafo de una acción automática sin tirada y mantiene fijos interpretación y resultado del plan.
+
+La cobertura de #302 es una primera prueba de integración del límite de servicio, no la matriz completa de Gate B. No demuestra todavía proyección de operaciones dependientes a través del servicio, rollback de acciones+hechos, lease expiry/replacement, crash después de mecánicas, stale revision, controles negativos sin escritura, continuaciones manuales/aclaraciones ni replay histórico v1/v2. La PR #302 es la candidata real a integrar este primer tramo en main; #301 debe cerrarse como supersedida si #302 pasa validación. Después, las continuaciones quedan en #303 y la matriz completa en #304.
+
+
+Nota de estado: la PR #302 se retargeteó a main el 2026-11-23 y ahora contiene el diff completo de implementación, junto con el test de integración de servicio. Hasta que CI valide el head de #302, ambas PRs permanecen drafts y la autoridad de producción sigue siendo V2.
+
+
+### Reconciliación de PRs #301–#305 — 2026-11-24
+
+Las PRs #301–#305 son borradores sucesivos del mismo hito P0, no cinco entregas independientes: #301 inicia el cableado durable; #302 lo consolida y añade una primera prueba de servicio; #303 consolida cobertura del runtime; #304 añade aclaración de objetivo en el mismo nodo; #305 consolida el trabajo y añade continuación de tiradas manuales en el mismo nodo. Las PRs #301, #302 y #304 son ancestros directos de #305; #303 diverge por un commit, pero los cambios funcionales de runtime y tests están incorporados en la candidata. No se deben fusionar las drafts anteriores por separado.
+
+El head inicial de #305 falló tres tests y obtuvo 84,69 % de cobertura. Se corrigieron: la prueba de servicio manual utiliza la referencia explícita del jugador; reanudar un nodo ya `IN_PROGRESS` conserva el contador del mismo intento y su clave de ejecución; y la admisión de una aclaración exige evidencia real de objetivo sin resolver/ambiguo, no solo un checkpoint `AWAITING_INPUT`. El CI debe validar el head final; el umbral de cobertura no se ha reducido.
+
+La decisión de rollout continúa siendo `HOLD V2`. La candidata sigue default-off y no completa Gate B: proyección de operaciones de personaje, lease expiry/replacement, crash/rollback, controles negativos, replay histórico V1/V2 y las aceptaciones Ollama/SillyTavern siguen pendientes.

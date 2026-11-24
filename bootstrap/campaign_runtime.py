@@ -210,6 +210,9 @@ class CampaignRuntimeFactory:
             turn_repository=turn_repository,
             turn_execution_lock=turn_execution_lock,
             v3_action_preview_service=v3_action_preview_service,
+            v3_action_execution_enabled=(
+                self._llm_settings.player_turn_v3_action_execution_enabled
+            ),
         )
 
         context_adapter = SillyTavernContextAdapter(

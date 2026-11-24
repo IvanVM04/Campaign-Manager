@@ -120,6 +120,44 @@ class V3ActionPlanningResult:
             ) from exc
 
 
+    def manual_roll_progress_updates(
+        self,
+        *,
+        execution_key: str,
+        previous_progress_json: str,
+    ) -> dict[str, str]:
+        """Replace only this action's pending-roll stage after a validated roll."""
+        from services.turns.v3_action_progress_codec import (
+            V3ActionProgressEntry,
+            V3ActionProgressSnapshot,
+        )
+
+        if not isinstance(previous_progress_json, str):
+            raise TypeError("previous_progress_json must be text")
+        try:
+            snapshot = V3ActionProgressSnapshot.from_json(previous_progress_json)
+            if (
+                snapshot.resolution_id != self.resolution_id
+                or snapshot.context_revision != self.context_revision
+                or snapshot.source_sha256 != self.source_sha256
+            ):
+                raise ValueError("staged progress identity mismatch")
+            entry = V3ActionProgressEntry.from_plan(
+                event_id=self.candidate.source_event_id,
+                action_id=self.candidate.local_id,
+                source_order=self.source_order,
+                execution_key=execution_key,
+                evidence_excerpt=self.evidence_excerpt,
+                plan=self.plan,
+            )
+            return snapshot.replace_manual_roll_entry(entry).to_repository_progress_updates()
+        except (TypeError, ValueError) as exc:
+            raise V3ActionPlanningError(
+                "manual_roll_progress_rejected",
+                "progress_persistence",
+            ) from exc
+
+
 class V3ActionPlanningAdapter:
     """Lower one next-ready v3 graph node into a single legacy plan."""
 
@@ -309,6 +347,102 @@ class V3ActionPlanningAdapter:
                 schema_version=2,
             ),
             external_mentions,
+        )
+
+    def resolve_manual_roll(
+        self,
+        resolver: TurnResolutionService,
+        staged_action: V3ActionPlanningResult,
+        preview: V3ActionPreviewResult,
+        context: TurnContext,
+        player_input: str,
+        rolls: tuple[int, ...],
+        *,
+        recent_turns: list[TurnRecord] | None = None,
+    ) -> V3ActionPlanningResult:
+        """Resolve a staged V3 manual roll without reinterpreting or replanning intent."""
+        from models.mechanics import MechanicsDecision
+        from models.world_context_projection import WorldContextProjection
+
+        if not isinstance(resolver, TurnResolutionService):
+            raise TypeError("resolver must be a TurnResolutionService")
+        if not isinstance(staged_action, V3ActionPlanningResult):
+            raise TypeError("staged_action must be a V3ActionPlanningResult")
+        if not isinstance(preview, V3ActionPreviewResult):
+            raise TypeError("preview must be a V3ActionPreviewResult")
+        if not isinstance(context, TurnContext):
+            raise TypeError("context must be a TurnContext")
+        if not isinstance(player_input, str) or not player_input.strip():
+            raise ValueError("player_input must not be empty")
+        if (
+            not isinstance(rolls, tuple)
+            or not rolls
+            or len(rolls) > 2
+            or any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 1
+                or value > 20
+                for value in rolls
+            )
+        ):
+            raise ValueError("manual rolls must contain one or two d20 results")
+        decision = staged_action.plan.mechanics_decision
+        if (
+            not staged_action.plan.awaiting_manual_roll
+            or not isinstance(decision, MechanicsDecision)
+        ):
+            raise V3ActionPlanningError(
+                "staged_action_does_not_await_manual_roll",
+                "manual_roll",
+            )
+        projection = preview.visible_projection
+        if not isinstance(projection, WorldContextProjection):
+            raise V3ActionPlanningError(
+                "visible_projection_unavailable",
+                "manual_roll",
+            )
+        try:
+            plan = resolver.prepare_turn(
+                context,
+                staged_action.evidence_excerpt,
+                manual_mode=True,
+                manual_rolls=rolls,
+                decision_override=decision,
+                intent_analysis_override=staged_action.intent_analysis,
+                recent_turns=recent_turns,
+                intent_evidence_text=staged_action.evidence_excerpt,
+                context_projection_override=projection,
+                resolved_references_override=staged_action.resolved_references,
+                additional_resolved_reference_mentions=(
+                    staged_action.additional_reference_mentions
+                ),
+            )
+        except Exception as exc:
+            raise V3ActionPlanningError(
+                "manual_roll_resolution_failed",
+                "manual_roll",
+            ) from exc
+        if plan.awaiting_manual_roll or plan.clarification_question is not None:
+            raise V3ActionPlanningError(
+                "manual_roll_did_not_resolve",
+                "manual_roll",
+            )
+        if plan.mechanics_result is None:
+            raise V3ActionPlanningError(
+                "manual_roll_result_missing",
+                "manual_roll",
+            )
+        # Keep the original staged player/evidence identity byte-for-byte.
+        # The restored plan carries the original full-turn source and evidence
+        # envelope; only mechanics and derived operations change after the roll.
+        return replace(
+            staged_action,
+            plan=replace(
+                plan,
+                player_input=staged_action.plan.player_input,
+                intent_evidence_text=staged_action.plan.intent_evidence_text,
+            ),
         )
 
     def restore_staged_action(

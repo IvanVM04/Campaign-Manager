@@ -25,7 +25,8 @@ not existing behavior of this package.
 - `intent_normalization_pipeline.py` — deterministic provider-payload normalization, strict versioned model decoding and content-free stage diagnostics. It does not call the provider, resolve canonical IDs or authorize writes.
 - `mechanics_adjudicator.py` — consumes only the validated active step and compact mechanical context; returns a `MechanicsDecision` without re-interpreting the utterance. Deterministic rules code rolls dice and applies results.
 - `turn_resolution_service.py` — prepares structured proposals from player intent and coordinates retrieval/reference resolution.
-- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; the opt-in preview records its checkpoint but does not execute selected actions.
+- `player_action_selector.py` — deterministic, backend-only v3 action graph selector. It accepts a validated interpretation and canonical references resolved by trusted application code; the selector itself does not execute actions.
+- `v3_compound_action_runtime.py` — consolidated PR #305 runtime bridge (successive drafts #301–#304 are superseded) that executes bounded V3 action graphs through the planning adapter and durable orchestrator, persists per-node staged progress under lease/CAS, builds detached virtual world projections for dependent actions, supports same-node target clarification and manual-roll continuation, and returns one aggregate plan plus per-action outcome evidence. Character-operation virtual projection remains unsupported and fails closed.
 - `world_fact_policy.py` — deterministic, backend-only v3 fact eligibility and operation builder. It requires player assertion evidence, permanent positive status, visible canonical endpoint bindings and exact candidate membership; it emits typed operations/receipts but does not commit world state or run in the current production route.
 - Durable turn collaborators own challenge, clarification, manual-roll, execution, commit, recovery and narration phases.
 
@@ -56,11 +57,35 @@ persistence fails, the transaction is rolled back and the v2-only proposal is
 prepared instead. A prepared retry rehydrates its operations from the durable
 proposal and does not regenerate v3 facts.
 
-This does not switch player-facing interpretation, mechanics adjudication or
-action execution to v3. Manual-roll/clarification continuation for compound
-v3 facts/actions, full action execution and integrated acceptance remain
-separate work in PRs #299–#300. No live Ollama or SillyTavern acceptance is
-claimed.
+PR #305 is the current consolidated draft candidate; #301–#304 are successive
+superseded drafts and should not be merged separately. It adds a third,
+independent opt-in:
+CAMPAIGN_MANAGER_PLAYER_TURN_V3_ACTION_EXECUTION_ENABLED. It is false by
+default and configuration rejects enabling it without action-shadow. With
+both flags enabled, DurableTurnExecutionService executes bounded action graphs
+through the V3 planning adapter and durable compound orchestrator. It stores
+the initial checkpoint, IN_PROGRESS transitions and staged per-action progress
+through the planning lease, context revision and checkpoint CAS. Dependent
+actions receive a detached virtual world projection containing prior staged
+world operations; the live campaign cache is not mutated during planning.
+Resolved action plans are aggregated for the existing single prepared commit,
+and individual action outcomes are preserved in committed narration evidence.
+
+The #305 candidate also supports same-node target-reference clarification and
+manual-roll continuation. A clarification answer is resolved against a fresh,
+bounded visible-world projection and must bind to one unique active entity.
+A manual roll resumes the same staged action with its persisted event identity
+and execution key; the durable native submission path validates challenge,
+dice count and context revision and supports idempotent replay. Actor/role
+clarification and staged character-operation projection remain unsupported
+and fail closed.
+
+This is still a partial integration, not rollout acceptance. Lease expiry and
+replacement, full crash-window/rollback and negative-control coverage, stale
+revision zero-write proof, action+fact atomicity and historical V1/V2 replay
+remain outstanding. Ollama semantic acceptance and manual SillyTavern
+acceptance are NOT RUN. V2 remains the production authority and all V3 flags
+must stay disabled for production.
 
 The new roadmap and linked documents define the required evaluation, graph
 scoring, larger held-out corpus, prompt/runtime reproducibility, integration
@@ -377,6 +402,7 @@ authority or route.
 
 The current checklists/templates and the required commands are documented in
 [V3 acceptance and SillyTavern checklist](../../docs/quality/v3-sillytavern-acceptance-checklist-2026-11-23.md).
-For this PR, Ollama acceptance and SillyTavern manual evidence are NOT RUN;
-compound-executor integration checks remain BLOCKED. V2 therefore remains the
-production route and no third execution flag is introduced.
+For current draft PR #305, Ollama acceptance and manual SillyTavern evidence
+are NOT RUN. Same-node continuation tests now exist, but the remaining Gate B
+matrix is incomplete. V2 therefore remains the production route; the third
+execution flag exists but stays false by default.

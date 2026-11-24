@@ -276,6 +276,34 @@ class V3ActionProgressSnapshot:
             raise ValueError("staged actions must be appended in source order")
         return dataclasses.replace(self, entries=(*self.entries, entry))
 
+    def replace_manual_roll_entry(
+        self,
+        entry: V3ActionProgressEntry,
+    ) -> V3ActionProgressSnapshot:
+        """Resolve only an existing staged manual-roll entry without rebinding its identity."""
+        if not isinstance(entry, V3ActionProgressEntry):
+            raise TypeError("entry must be a V3ActionProgressEntry")
+        existing = self.entry_for_event(entry.event_id)
+        if existing is None or not existing.awaiting_manual_roll:
+            raise ValueError("staged action is not awaiting a manual roll")
+        if entry.awaiting_manual_roll or entry.mechanics_json is None:
+            raise ValueError("manual-roll replacement must contain a resolved mechanics result")
+        if (
+            existing.action_id != entry.action_id
+            or existing.source_order != entry.source_order
+            or existing.execution_key != entry.execution_key
+            or existing.evidence_excerpt != entry.evidence_excerpt
+            or existing.intent_json != entry.intent_json
+            or existing.mechanics_decision_json != entry.mechanics_decision_json
+            or entry.clarification_question is not None
+        ):
+            raise ValueError("manual-roll replacement cannot rebind staged action identity")
+        updated = tuple(
+            entry if item.event_id == entry.event_id else item
+            for item in self.entries
+        )
+        return dataclasses.replace(self, entries=updated)
+
     def entry_for_event(self, event_id: str) -> V3ActionProgressEntry | None:
         """Return the immutable staged action snapshot for one event."""
         if not isinstance(event_id, str) or not _EVENT_ID_RE.fullmatch(event_id):
