@@ -191,7 +191,9 @@ def test_infrastructure_failure_is_not_a_gameplay_outcome_and_retry_reuses_key()
     )
 
     assert seen[0] == ("event_open", first_key, True)
-    assert _node(completed.checkpoint, "event_open").attempt_count == 2
+    # A manual-roll continuation resumes the same in-progress attempt and
+    # reuses its execution key; it does not count as a new retry.
+    assert _node(completed.checkpoint, "event_open").attempt_count == 1
     assert completed.status is CompoundActionRunStatus.COMPLETED
 
 
